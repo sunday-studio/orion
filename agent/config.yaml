@@ -1,10 +1,9 @@
-agent_id: "1234567890"
-core_url: "https://orion-core.example.com"
-token: "abcd1234"
-interval: "60s"
-
+agent_id: "1"
+core_url: http://localhost:8999
+token: 7f4f558533438d9b9c64ce831a972a5bd4000c309d1f9d5b8a9588955562ef6e
+interval: 60s
 subprocesses:
-  - name: "aether"
-    cmd: "/usr/bin/nginx -t"
-  - name: "custom_healthcheck"
-    cmd: "/opt/scripts/check_health.sh"
+    - name: aether
+      cmd: /usr/bin/nginx -t
+    - name: custom_healthcheck
+      cmd: /opt/scripts/check_health.sh

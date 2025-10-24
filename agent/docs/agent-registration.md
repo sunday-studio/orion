@@ -20,7 +20,6 @@ This ensures zero manual setup — simply install and start the agent binary, an
    - UUID generation combines system info such as:
      - Hostname
      - MAC address
-     - Current timestamp
    - The resulting UUID is stored in the config file so it remains consistent across restarts.
 
 3. **Registration Request**
@@ -33,6 +32,18 @@ This ensures zero manual setup — simply install and start the agent binary, an
        "arch": "<amd64|arm64>"
      }
      ```
+    after the registration is complete; the server will return 
+    ```json
+        {
+      "success": true,
+      "message": "Agent registered successfully",
+      "data": {
+        "agent_id": 1,
+        "token": "permanent-authentication-token"
+      }
+    }
+    ```
+    save the token in the config and attach it as a header when making report calls
 
 4. **Core Server Handling**
    - Orion Core checks if an agent with the same UUID already exists:

@@ -58,3 +58,46 @@ func (c *Client) SendReport(report SystemReport) error {
     logging.Infof("report successfully sent to core")
     return nil
 }
+
+// RegisterAgent sends a registration request to the core server
+func (c *Client) RegisterAgent(req RegistrationRequest) (*RegistrationResponse, error) {
+    payload, err := json.Marshal(req)
+    if err != nil {
+        return nil, fmt.Errorf("failed to marshal registration request: %w", err)
+    }
+
+    httpReq, err := http.NewRequest("POST", fmt.Sprintf("%s/register", c.coreURL), bytes.NewBuffer(payload))
+    if err != nil {
+        return nil, fmt.Errorf("failed to create registration request: %w", err)
+    }
+
+    httpReq.Header.Set("Content-Type", "application/json")
+
+    resp, err := c.httpClient.Do(httpReq)
+    if err != nil {
+        return nil, fmt.Errorf("failed to send registration request: %w", err)
+    }
+    defer resp.Body.Close()
+
+    body, err := io.ReadAll(resp.Body)
+    if err != nil {
+        return nil, fmt.Errorf("failed to read registration response: %w", err)
+    }
+
+    if resp.StatusCode != http.StatusOK {
+        logging.Warnf("unexpected status from core during registration: %d — %s", resp.StatusCode, string(body))
+        return nil, fmt.Errorf("core server returned status %d during registration", resp.StatusCode)
+    }
+
+    var regResp RegistrationResponse
+    if err := json.Unmarshal(body, &regResp); err != nil {
+        return nil, fmt.Errorf("failed to unmarshal registration response: %w", err)
+    }
+
+    if !regResp.Success {
+        return nil, fmt.Errorf("registration failed: %s", regResp.Message)
+    }
+
+    logging.Infof("agent registered successfully with ID: %d", regResp.Data.AgentID)
+    return &regResp, nil
+}

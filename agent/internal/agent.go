@@ -47,19 +47,18 @@ func (a *Agent) Run(ctx context.Context) error {
 		default:
 			log.Println("Collecting system metrics...")
 			data, err := collector.Collect()
-			log.Printf("Data collected: %+v", data)
 			if err != nil {
 				log.Printf("Error collecting data: %v", err)
 			} else {
-				// report := &transport.SystemReport{
-				// 	Hostname:  data.Hostname,
-				// 	OS:        data.OS,
-				// 	CPUUsage:  data.CPUUsage,
-				// 	MemoryUsed: uint64(data.MemUsage * 100), 
-				// 	Timestamp: time.Now(),
-				// }
+				report := &transport.SystemReport{
+					Hostname:  data.Hostname,
+					OS:        data.OS,
+					CPUUsage:  data.CPUUsage,
+					MemoryUsed: uint64(data.MemUsage * 100), // Convert percentage to bytes (simplified)
+					Timestamp: time.Now(),
+				}
 
-				if err := a.transport.SendReport(data); err != nil {
+				if err := a.transport.SendReport(*report); err != nil {
 					log.Printf("Error sending data: %v", err)
 				}
 			}

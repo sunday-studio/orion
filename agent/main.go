@@ -11,6 +11,7 @@ import (
     agent "orion/agent/internal"
     "orion/agent/internal/config"
     "orion/agent/internal/logging"
+    "orion/agent/internal/registration"
 )
 
 var (
@@ -26,6 +27,18 @@ func main() {
     cfg, err := config.Load(*configPath)
     if err != nil {
         logging.Fatalf("Failed to load config: %v", err)
+    }
+
+    // Handle agent registration if needed
+    regService := registration.New(cfg, *configPath)
+    if err := regService.RegisterIfNeeded(); err != nil {
+        logging.Fatalf("Failed to register agent: %v", err)
+    }
+
+    // Reload config to get updated agent_id and token
+    cfg, err = config.Load(*configPath)
+    if err != nil {
+        logging.Fatalf("Failed to reload config after registration: %v", err)
     }
 
     // Create agent instance

@@ -42,12 +42,10 @@ func Load(path string) (*Config, error) {
 }
 
 // Validate checks that required fields are set and the interval is valid.
+// For initial registration, agent_id and token are optional.
 func (c *Config) Validate() error {
 	if c.CoreURL == "" {
 		return errors.New("core_url is required")
-	}
-	if c.Token == "" {
-		return errors.New("token is required")
 	}
 	if c.Interval == "" {
 		return errors.New("interval is required")
@@ -56,6 +54,31 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("invalid interval format: %w", err)
 	}
 	return nil
+}
+
+// IsRegistered checks if the agent has been registered (has agent_id and token)
+func (c *Config) IsRegistered() bool {
+	return c.AgentID != "" && c.Token != ""
+}
+
+// Save writes the config to the specified path
+func (c *Config) Save(path string) error {
+	data, err := yaml.Marshal(c)
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+
+	return nil
+}
+
+// UpdateRegistration updates the config with registration data
+func (c *Config) UpdateRegistration(agentID string, token string) {
+	c.AgentID = agentID
+	c.Token = token
 }
 
 // DefaultPath returns the default path for the agent config.

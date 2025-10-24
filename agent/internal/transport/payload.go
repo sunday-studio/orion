@@ -16,3 +16,21 @@ type SystemReport struct {
     Timestamp  time.Time         `json:"timestamp"`
     Tags       map[string]string `json:"tags,omitempty"`
 }
+
+// RegistrationRequest represents the agent registration request
+type RegistrationRequest struct {
+    UUID string `json:"uuid"`
+    Name string `json:"name"`
+    OS   string `json:"os"`
+    Arch string `json:"arch"`
+}
+
+// RegistrationResponse represents the response from the registration endpoint
+type RegistrationResponse struct {
+    Success bool   `json:"success"`
+    Message string `json:"message"`
+    Data    struct {
+        AgentID int    `json:"agent_id"`
+        Token   string `json:"token"`
+    } `json:"data"`
+}

@@ -159,7 +159,6 @@ Stores all reports sent by agents.
 ## Folder Structure Plan
 
 orion-core/
-├── cmd/orion-core/
 │ └── main.go # Server entrypoint
 ├── internal/
 │ ├── api/ # HTTP route handlers
