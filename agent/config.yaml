@@ -1,0 +1,9 @@
+core_url: "https://orion-core.example.com"
+token: "abcd1234"
+interval: "60s"
+
+subprocesses:
+  - name: "aether"
+    cmd: "/usr/bin/nginx -t"
+  - name: "custom_healthcheck"
+    cmd: "/opt/scripts/check_health.sh"
