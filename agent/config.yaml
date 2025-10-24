@@ -1,3 +1,4 @@
+agent_id: "1234567890"
 core_url: "https://orion-core.example.com"
 token: "abcd1234"
 interval: "60s"
