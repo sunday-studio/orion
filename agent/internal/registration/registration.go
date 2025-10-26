@@ -8,23 +8,21 @@ import (
 	"orion/agent/internal/utils"
 )
 
-type Service struct {
+type RegistrationService struct {
 	config     *config.Config
 	client     *transport.Client
 	configPath string
 }
 
-func New(cfg *config.Config, configPath string) *Service {
-	return &Service{
+func New(cfg *config.Config, configPath string) *RegistrationService {
+	return &RegistrationService{
 		config:     cfg,
 		client:     transport.NewClient(cfg.CoreURL, ""),
 		configPath: configPath,
 	}
 }
 
-// RegisterIfNeeded checks if the agent is registered and registers if necessary
-func (s *Service) RegisterIfNeeded() error {
-	// If already registered, no need to register again
+func (s *RegistrationService) RegisterAgentIfNeeded() error {
 	if s.config.IsRegistered() {
 		return nil
 	}
@@ -34,14 +32,12 @@ func (s *Service) RegisterIfNeeded() error {
 		return fmt.Errorf("failed to generate agent UUID: %w", err)
 	}
 
-	// Get system information
 	name, os, arch, err := utils.GetSystemInfo()
 	if err != nil {
 		return fmt.Errorf("failed to get system info: %w", err)
 	}
 
-	// Create registration request
-	req := transport.RegistrationRequest{
+	req := transport.AgentRegistrationRequest{
 		MachineId: uuid,
 		Name:      name,
 		OS:        os,

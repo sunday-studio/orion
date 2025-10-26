@@ -16,6 +16,7 @@ type ReportResponse struct {
 	Message   string    `json:"message"`
 	Timestamp time.Time `json:"timestamp"`
 	ReportID  string    `json:"report_id"`
+	Type      string    `json:"type"`
 }
 
 func (s *Server) receiveReport(c *gin.Context) {
@@ -48,10 +49,10 @@ func (s *Server) receiveReport(c *gin.Context) {
 
 	s.logger.Info("Received report", "agent_id", agentID, "agent_name", agent.(*db.Agent).Name, "payload_size", len(payload))
 
-	reportID, err := s.reportService.StoreReport(agentID.(string), payload)
+	agentReportID, err := s.reportService.StoreAgentReport(agentID.(string), payload)
 	if err != nil {
-		// s.logger.Error("Failed to store report -> storeReport", "error", err)
-		utils.InternalError(c, "Failed to store report", err)
+		s.logger.Error("Failed to store agent report", "error", err)
+		utils.InternalError(c, "Failed to store agent report", err)
 		return
 	}
 
@@ -63,7 +64,8 @@ func (s *Server) receiveReport(c *gin.Context) {
 	response := ReportResponse{
 		Message:   "Report received successfully",
 		Timestamp: time.Now(),
-		ReportID:  *reportID,
+		ReportID:  *agentReportID,
+		Type:      "agent",
 	}
 
 	s.logger.Info("Report processed successfully", "agent_id", agentID)

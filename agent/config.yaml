@@ -1,9 +1,14 @@
-agent_id: agent_6acf559b-8152-4bb0-841a-9a388f54bddf
 core_url: http://localhost:8999
-token: 63c910e60dc09737ead9f4b604d4e72be3290453f73fcda923e1db80a2d8a1a6
 interval: 5s
-subprocesses:
+applications:
     - name: aether
+      description: Aether is a web application that allows users to manage their accounts and subscriptions.
       cmd: /usr/bin/nginx -t
-    - name: custom_healthcheck
-      cmd: /opt/scripts/check_health.sh
+      type: "nginx"
+      interval: 60m
+    - name: ibis-server
+      description: backend server for ibis
+      type: "server-healthcheck"
+      interval: 10m
+      url: "https://ibis.thesunday.studio/api/health"
+

@@ -29,9 +29,8 @@ func main() {
 		logging.Fatalf("Failed to load config: %v", err)
 	}
 
-	// Handle agent registration if needed
 	regService := registration.New(cfg, *configPath)
-	if err := regService.RegisterIfNeeded(); err != nil {
+	if err := regService.RegisterAgentIfNeeded(); err != nil {
 		logging.Fatalf("Failed to register agent: %v", err)
 	}
 

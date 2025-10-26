@@ -17,14 +17,14 @@ type SystemReport struct {
 	Tags       map[string]string `json:"tags,omitempty"`
 }
 
-type RegistrationRequest struct {
-	MachineId string `json:"machine_id"`
-	Name      string `json:"name"`
-	OS        string `json:"os"`
-	Arch      string `json:"arch"`
+type AgentRegistrationRequest struct {
+	MachineId string `json:"machine_id" binding:"required"`
+	Name      string `json:"name" binding:"required"`
+	OS        string `json:"os" binding:"required"`
+	Arch      string `json:"arch" binding:"required"`
 }
 
-type RegistrationResponse struct {
+type AgentRegistrationResponse struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
 	Data    struct {

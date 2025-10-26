@@ -20,25 +20,25 @@ func NewReportService(database *gorm.DB, logger *logging.Logger) *ReportService 
 	}
 }
 
-func (s *ReportService) StoreReport(agentID string, payload string) (*string, error) {
-	reportID := utils.GenerateID("report")
-	report := db.Report{
-		ID:      reportID,
+func (s *ReportService) StoreAgentReport(agentID string, payload string) (*string, error) {
+	agentReportID := utils.GenerateID("agent_report")
+	agentReport := db.AgentReport{
+		ID:      agentReportID,
 		AgentID: agentID,
 		Payload: payload,
 	}
 
-	if err := s.db.Create(&report).Omit("Agent").Error; err != nil {
-		s.logger.Error("Failed to store report", err)
+	if err := s.db.Create(&agentReport).Omit("Agent").Error; err != nil {
+		s.logger.Error("Failed to store agent report", err)
 		return nil, err
 	}
 
-	s.logger.Info("Report stored successfully", "report_id ->", report.ID)
-	return &reportID, nil
+	s.logger.Info("Agent report stored successfully", "agent_report_id ->", agentReport.ID)
+	return &agentReportID, nil
 }
 
-func (s *ReportService) GetReportsByAgent(agentID string, limit int, offset int) ([]db.Report, error) {
-	var reports []db.Report
+func (s *ReportService) GetAgentReportsById(agentID string, limit int, offset int) ([]db.AgentReport, error) {
+	var reports []db.AgentReport
 
 	query := s.db.Where("agent_id = ?", agentID).Order("created_at DESC")
 
@@ -59,10 +59,10 @@ func (s *ReportService) GetReportsByAgent(agentID string, limit int, offset int)
 	return reports, nil
 }
 
-func (s *ReportService) GetReportCount(agentID string) (int64, error) {
+func (s *ReportService) GetAgentReportCountById(agentID string) (int64, error) {
 	var count int64
 
-	if err := s.db.Model(&db.Report{}).Where("agent_id = ?", agentID).Count(&count).Error; err != nil {
+	if err := s.db.Model(&db.AgentReport{}).Where("agent_id = ?", agentID).Count(&count).Error; err != nil {
 		s.logger.Error("Failed to count reports", "agent_id", agentID, "error", err)
 		return 0, err
 	}
