@@ -49,7 +49,6 @@ func ValidateAgentToken(agentService *service.AgentService, authService *service
 			return
 		}
 
-		// Get token from context
 		token, exists := c.Get("token")
 		if !exists {
 			utils.Unauthorized(c, "Token not found in context")
@@ -57,7 +56,6 @@ func ValidateAgentToken(agentService *service.AgentService, authService *service
 			return
 		}
 
-		// Validate token
 		agent, err := authService.ValidateToken(agentIDStr, token.(string))
 		if err != nil {
 			utils.Unauthorized(c, "Invalid token for this agent")
@@ -65,7 +63,6 @@ func ValidateAgentToken(agentService *service.AgentService, authService *service
 			return
 		}
 
-		// Store agent info in context
 		c.Set("agent", agent)
 		c.Set("agent_id", agentIDStr)
 		c.Next()

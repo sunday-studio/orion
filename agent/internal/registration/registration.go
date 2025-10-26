@@ -2,6 +2,7 @@ package registration
 
 import (
 	"fmt"
+	"time"
 
 	"orion/agent/internal/config"
 	"orion/agent/internal/transport"
@@ -53,11 +54,16 @@ func (s *RegistrationService) RegisterAgentIfNeeded() error {
 		return fmt.Errorf("failed to register agent: %w", err)
 	}
 
-	s.internalState.UpdateRegistration(resp.Data.AgentID, resp.Data.Token)
+	s.internalState.UpdateRegistration(resp.Data.AgentID, resp.Data.Token, s.userConfig.CoreURL)
+	s.client.SetAuthToken(resp.Data.Token)
 
-	// if err := s.userConfig.Save(s.userConfigPath); err != nil {
-	// 	return fmt.Errorf("failed to save updated config: %w", err)
-	// }
+	if err := s.internalState.Save(s.internalStatePath); err != nil {
+		return fmt.Errorf("failed to save updated config: %w", err)
+	}
+
+	if err := s.RegisterAgentApplicationsIfNeeded(); err != nil {
+		return fmt.Errorf("failed to register agent applications: %w", err)
+	}
 
 	return nil
 }
@@ -67,13 +73,36 @@ func (s *RegistrationService) RegisterAgentApplicationsIfNeeded() error {
 		return nil
 	}
 
-	for _, app := range s.userConfig.Applications {
+	var applications []config.InternalStateApplication
 
-		fmt.Println("app name ->", app.Name)
-		// req := transport.ApplicationRegistrationRequest{
-		// 	AgentID: s.config.AgentID,
-		// 	AppID:   app.ID,
-		// }
+	for _, app := range s.userConfig.Applications {
+		req := transport.ApplicationRegistrationRequest{
+			AgentID:     s.internalState.AgentID,
+			Name:        app.Name,
+			Description: app.Description,
+			Type:        string(app.Type),
+			LastChecked: time.Now(),
+		}
+
+		resp, err := s.client.RegisterApplication(req)
+		if err != nil {
+			return fmt.Errorf("failed to register application: %w", err)
+		}
+
+		fmt.Println("resp ->", resp)
+
+		applications = append(applications, config.InternalStateApplication{
+			ID:          resp.Data.ApplicationID,
+			Name:        app.Name,
+			Status:      "running",
+			LastChecked: time.Now(),
+		})
+	}
+
+	s.internalState.UpdateApplications(applications)
+
+	if err := s.internalState.Save(s.internalStatePath); err != nil {
+		return fmt.Errorf("failed to save updated config: %w", err)
 	}
 
 	return nil

@@ -32,3 +32,19 @@ type AgentRegistrationResponse struct {
 		Token   string `json:"token"`
 	} `json:"data"`
 }
+
+type ApplicationRegistrationRequest struct {
+	AgentID     string    `json:"agent_id" binding:"required"`
+	Name        string    `json:"name" binding:"required"`
+	Description string    `json:"description" binding:"required"`
+	Type        string    `json:"type" binding:"required"`
+	LastChecked time.Time `json:"last_checked" binding:"required"`
+}
+
+type ApplicationRegistrationResponse struct {
+	Success bool `json:"success"`
+	Data    struct {
+		ApplicationID string `json:"application_id"`
+	} `json:"data"`
+	Message string `json:"message"`
+}

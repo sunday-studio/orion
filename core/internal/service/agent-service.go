@@ -1,13 +1,11 @@
 package service
 
 import (
-	"fmt"
 	"orion/core/internal/db"
 	"orion/core/internal/logging"
 	"orion/core/internal/utils"
 	"time"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -55,8 +53,7 @@ func (s *AgentService) RegisterAgent(req *RegisterRequest) (*RegisterResponse, e
 }
 
 func (s *AgentService) createNewAgent(req *RegisterRequest) (*RegisterResponse, error) {
-
-	agentID := fmt.Sprintf("%s_%s", "agent", uuid.New().String())
+	agentID := utils.GenerateID("agent")
 
 	token, err := utils.GenerateToken()
 	if err != nil {

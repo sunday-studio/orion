@@ -23,9 +23,7 @@ type InternalStateApplication struct {
 	Name        string    `yaml:"name"`
 	ID          string    `yaml:"id"`
 	Status      string    `yaml:"status"`
-	LastError   string    `yaml:"last_error"`
 	LastChecked time.Time `yaml:"last_checked"`
-	NextCheck   time.Time `yaml:"next_check"`
 }
 
 type UserApplicationType string
@@ -87,8 +85,6 @@ func LoadUserConfig(path string) (*UserConfig, error) {
 	return &cfg, nil
 }
 
-// Validate checks that required fields are set and the interval is valid.
-// For initial registration, agent_id and token are optional.
 func (c *UserConfig) Validate() error {
 	if c.CoreURL == "" {
 		return errors.New("core_url is required")
@@ -102,7 +98,6 @@ func (c *UserConfig) Validate() error {
 	return nil
 }
 
-// IsRegistered checks if the agent has been registered (has agent_id and token)
 func (c *InternalState) IsRegistered() bool {
 	return c.AgentID != "" && c.Token != ""
 }
@@ -120,9 +115,16 @@ func (c *InternalState) Save(path string) error {
 	return nil
 }
 
-func (c *InternalState) UpdateRegistration(agentID string, token string) {
+func (c *InternalState) UpdateRegistration(agentID string, token string, coreURL string) {
 	c.AgentID = agentID
 	c.Token = token
+	c.Registered = true
+	c.LastSync = time.Now()
+	c.CoreURL = coreURL
+}
+
+func (c *InternalState) UpdateApplications(applications []InternalStateApplication) {
+	c.Applications = applications
 }
 
 // DefaultPath returns the default path for the agent config.

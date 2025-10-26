@@ -20,7 +20,7 @@ func Initialize() (*gorm.DB, error) {
 
 	gormLogger := logger.Default.LogMode(logger.Info)
 
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.UserConfig{
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{
 		Logger: gormLogger,
 	})
 	if err != nil {
@@ -43,7 +43,7 @@ func Migrate(db *gorm.DB) error {
 
 	log.Info("Running database migrations")
 
-	if err := db.AutoMigrate(&Agent{}, &Report{}); err != nil {
+	if err := db.AutoMigrate(&Agent{}, &AgentReport{}, &Application{}, &ApplicationReport{}); err != nil {
 		log.Error("Migration failed", "error", err)
 		return err
 	}

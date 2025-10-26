@@ -27,25 +27,81 @@ func NewClient(coreURL, authToken string) *Client {
 	}
 }
 
-func (c *Client) SendReport(report SystemReport, agentID string) error {
-	payload, err := json.Marshal(report)
-	if err != nil {
-		return fmt.Errorf("failed to marshal report: %w", err)
+func (c *Client) SetAuthToken(authToken string) {
+	c.authToken = authToken
+}
+
+func (c *Client) makeRequest(method, endpoint string, body interface{}, headers map[string]string) (*http.Response, error) {
+	var bodyReader io.Reader
+	if body != nil {
+		payload, err := json.Marshal(body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal request body: %w", err)
+		}
+		bodyReader = bytes.NewReader(payload)
 	}
 
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/report/%s", c.coreURL, agentID), bytes.NewBuffer(payload))
+	req, err := http.NewRequest(method, fmt.Sprintf("%s%s", c.coreURL, endpoint), bodyReader)
 	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	if c.authToken != "" {
-		req.Header.Set("Authorization", "Bearer "+c.authToken)
+	for key, value := range headers {
+		req.Header.Set(key, value)
 	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to send request: %w", err)
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+
+	return resp, nil
+}
+
+func (c *Client) makeProtectedRequest(method, endpoint string, body interface{}) (*http.Response, error) {
+	headers := map[string]string{
+		"Authorization": "Bearer " + c.authToken,
+	}
+	return c.makeRequest(method, endpoint, body, headers)
+}
+
+func (c *Client) RegisterApplication(req ApplicationRegistrationRequest) (*ApplicationRegistrationResponse, error) {
+	endpoint := fmt.Sprintf("/agents/%s/register-application", req.AgentID)
+
+	resp, err := c.makeProtectedRequest("POST", endpoint, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to register application: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("core responded with %d: %s", resp.StatusCode, string(body))
+	}
+
+	var appResp ApplicationRegistrationResponse
+	if err := json.Unmarshal(body, &appResp); err != nil {
+		return nil, fmt.Errorf("failed to parse application registration response: %w", err)
+	}
+
+	if !appResp.Success {
+		return nil, fmt.Errorf("application registration failed: %s", appResp.Message)
+	}
+
+	logging.Infof("Application registered successfully with ID: %s", appResp.Data.ApplicationID)
+	return &appResp, nil
+}
+
+func (c *Client) SendReport(report SystemReport, agentID string) error {
+	endpoint := fmt.Sprintf("/agents/%s/report", agentID)
+	resp, err := c.makeProtectedRequest("POST", endpoint, report)
+	if err != nil {
+		return fmt.Errorf("failed to send report: %w", err)
 	}
 	defer resp.Body.Close()
 

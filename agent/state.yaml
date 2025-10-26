@@ -1,0 +1,14 @@
+agent_id: agent_6acf559b-8152-4bb0-841a-9a388f54bddf
+token: 63c910e60dc09737ead9f4b604d4e72be3290453f73fcda923e1db80a2d8a1a6
+registered: true
+core_url: http://localhost:8999
+last_sync: 2025-10-27T01:40:29.305354+08:00
+applications:
+    - name: aether
+      id: app-ccc70fec-0d40-4e18-9406-5f39dae16ac4
+      status: running
+      last_checked: 2025-10-27T01:40:29.307112+08:00
+    - name: ibis-server
+      id: app-a7b320a6-3ddb-46b1-8152-bd4af29fd3d8
+      status: running
+      last_checked: 2025-10-27T01:40:29.308272+08:00

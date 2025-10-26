@@ -25,11 +25,14 @@ type AgentReport struct {
 
 // subprocess are apps that are running on the machine
 type Application struct {
-	Name      string    `json:"name" gorm:"not null"`
-	AgentID   string    `json:"agent_id" gorm:"not null"`
-	Status    string    `json:"status" gorm:"not null"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID          string    `json:"id" gorm:"primaryKey"`
+	Description *string   `json:"description" gorm:"not null"`
+	Type        string    `json:"type" gorm:"not null"`
+	Name        string    `json:"name" gorm:"not null"`
+	AgentID     string    `json:"agent_id" gorm:"not null"`
+	Status      string    `json:"status" gorm:"not null"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type ApplicationReport struct {

@@ -39,6 +39,9 @@ func (a *Agent) Run(ctx context.Context) error {
 	log.Printf("Agent started with interval: %s", a.userConfig.Interval)
 
 	done := ctx.Done()
+
+	return nil
+
 	for {
 		select {
 		case <-done:
