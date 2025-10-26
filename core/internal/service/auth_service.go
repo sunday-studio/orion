@@ -22,9 +22,9 @@ func NewAuthService(database *gorm.DB, logger *logging.Logger) *AuthService {
 }
 
 // ValidateToken checks if a token is valid and belongs to the specified agent
-func (s *AuthService) ValidateToken(agentID uint, token string) (*db.Agent, error) {
+func (s *AuthService) ValidateToken(agentID string, token string) (*db.Agent, error) {
 	var agent db.Agent
-	
+
 	// Find agent by ID and token
 	if err := s.db.Where("id = ? AND token = ?", agentID, token).First(&agent).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {

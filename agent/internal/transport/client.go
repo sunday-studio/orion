@@ -27,13 +27,13 @@ func NewClient(coreURL, authToken string) *Client {
 	}
 }
 
-func (c *Client) SendReport(report SystemReport) error {
+func (c *Client) SendReport(report SystemReport, agentID string) error {
 	payload, err := json.Marshal(report)
 	if err != nil {
 		return fmt.Errorf("failed to marshal report: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/api/agent/report", c.coreURL), bytes.NewBuffer(payload))
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/report/%s", c.coreURL, agentID), bytes.NewBuffer(payload))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}

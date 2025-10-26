@@ -1,7 +1,7 @@
-agent_id: agent_5c59345a-643a-4cf4-8768-aa023063c795
+agent_id: agent_6acf559b-8152-4bb0-841a-9a388f54bddf
 core_url: http://localhost:8999
-token: 444580fff0180990e7458d4732852fb5a543b34994ee656dc3fb3416fc331069
-interval: 60s
+token: 63c910e60dc09737ead9f4b604d4e72be3290453f73fcda923e1db80a2d8a1a6
+interval: 5s
 subprocesses:
     - name: aether
       cmd: /usr/bin/nginx -t

@@ -12,7 +12,6 @@ import (
 	"orion/agent/internal/transport"
 )
 
-// Agent is the core orchestrator that ties together config, collector, and transport.
 type Agent struct {
 	cfg       *config.Config
 	transport *transport.Client
@@ -32,7 +31,7 @@ func (a *Agent) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	
+
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -51,14 +50,14 @@ func (a *Agent) Run(ctx context.Context) error {
 				log.Printf("Error collecting data: %v", err)
 			} else {
 				report := &transport.SystemReport{
-					Hostname:  data.Hostname,
-					OS:        data.OS,
-					CPUUsage:  data.CPUUsage,
+					Hostname:   data.Hostname,
+					OS:         data.OS,
+					CPUUsage:   data.CPUUsage,
 					MemoryUsed: uint64(data.MemUsage * 100), // Convert percentage to bytes (simplified)
-					Timestamp: time.Now(),
+					Timestamp:  time.Now(),
 				}
 
-				if err := a.transport.SendReport(*report); err != nil {
+				if err := a.transport.SendReport(*report, a.cfg.AgentID); err != nil {
 					log.Printf("Error sending data: %v", err)
 				}
 			}
@@ -82,14 +81,14 @@ func (a *Agent) RunOnce(ctx context.Context) error {
 
 	// Convert SystemMetrics to SystemReport
 	report := &transport.SystemReport{
-		Hostname:  data.Hostname,
-		OS:        data.OS,
-		CPUUsage:  data.CPUUsage,
+		Hostname:   data.Hostname,
+		OS:         data.OS,
+		CPUUsage:   data.CPUUsage,
 		MemoryUsed: uint64(data.MemUsage * 100), // Convert percentage to bytes (simplified)
-		Timestamp: time.Now(),
+		Timestamp:  time.Now(),
 	}
 
-	return a.transport.SendReport(*report)
+	return a.transport.SendReport(*report, a.cfg.AgentID)
 }
 
 // RunDefault sets up signal handling and runs the agent with a default config.

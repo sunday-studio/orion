@@ -50,7 +50,6 @@ func (s *Server) setupRoutes() {
 		public.POST("/register", s.registerAgent)
 	}
 
-	// Protected routes (require authentication)
 	protected := s.router.Group("/")
 	protected.Use(AuthMiddleware())
 	{

@@ -88,8 +88,7 @@ func (s *AgentService) createNewAgent(req *RegisterRequest) (*RegisterResponse, 
 	}, nil
 }
 
-// UpdateLastSeen updates the last_seen timestamp for an agent
-func (s *AgentService) UpdateLastSeen(agentID uint) error {
+func (s *AgentService) UpdateLastSeen(agentID string) error {
 	if err := s.db.Model(&db.Agent{}).Where("id = ?", agentID).Update("last_seen", time.Now()).Error; err != nil {
 		s.logger.Error("Failed to update last_seen", "agent_id", agentID, "error", err)
 		return err

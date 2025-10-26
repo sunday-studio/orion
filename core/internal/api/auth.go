@@ -1,7 +1,6 @@
 package api
 
 import (
-	"fmt"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
 	"strings"
@@ -41,21 +40,11 @@ func AuthMiddleware() gin.HandlerFunc {
 	}
 }
 
-// ValidateAgentToken validates that the token belongs to the agent specified in the URL
 func ValidateAgentToken(agentService *service.AgentService, authService *service.AuthService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Get agent ID from URL parameter
 		agentIDStr := c.Param("agent_id")
 		if agentIDStr == "" {
 			utils.BadRequest(c, "Agent ID is required")
-			c.Abort()
-			return
-		}
-
-		// Convert agent ID to uint
-		var agentID uint
-		if _, err := fmt.Sscanf(agentIDStr, "%d", &agentID); err != nil {
-			utils.BadRequest(c, "Invalid agent ID format")
 			c.Abort()
 			return
 		}
@@ -69,7 +58,7 @@ func ValidateAgentToken(agentService *service.AgentService, authService *service
 		}
 
 		// Validate token
-		agent, err := authService.ValidateToken(agentID, token.(string))
+		agent, err := authService.ValidateToken(agentIDStr, token.(string))
 		if err != nil {
 			utils.Unauthorized(c, "Invalid token for this agent")
 			c.Abort()
@@ -78,7 +67,7 @@ func ValidateAgentToken(agentService *service.AgentService, authService *service
 
 		// Store agent info in context
 		c.Set("agent", agent)
-		c.Set("agent_id", agentID)
+		c.Set("agent_id", agentIDStr)
 		c.Next()
 	}
 }

@@ -15,11 +15,9 @@ type Agent struct {
 	LastSeen  time.Time `json:"last_seen"`
 }
 
-// Report represents a telemetry report from an agent
 type Report struct {
-	ID        uint      `json:"id" gorm:"primaryKey"`
-	AgentID   uint      `json:"agent_id" gorm:"not null"`
-	Agent     Agent     `json:"agent" gorm:"foreignKey:AgentID"`
+	ID        string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	AgentID   string    `json:"agent_id" gorm:"not null"`
 	Payload   string    `json:"payload" gorm:"type:text;not null"`
 	CreatedAt time.Time `json:"created_at"`
 }

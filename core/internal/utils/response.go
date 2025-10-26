@@ -29,7 +29,7 @@ func ErrorResponse(c *gin.Context, statusCode int, message string, err error) {
 	if err != nil {
 		errorMsg = err.Error()
 	}
-	
+
 	c.JSON(statusCode, APIResponse{
 		Success: false,
 		Message: message,
