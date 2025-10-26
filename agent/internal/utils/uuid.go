@@ -25,7 +25,7 @@ func GenerateAgentUUID() (string, error) {
 	}
 
 	for _, iface := range interfaces {
-		if iface.HardwareAddr != nil && len(iface.HardwareAddr) > 0 {
+		if len(iface.HardwareAddr) > 0 && iface.HardwareAddr != nil {
 			macAddr = iface.HardwareAddr.String()
 			break
 		}
@@ -35,18 +35,15 @@ func GenerateAgentUUID() (string, error) {
 		return "", fmt.Errorf("no MAC address found")
 	}
 
-	// Combine hostname and MAC address to create a unique identifier
 	combined := fmt.Sprintf("%s-%s", hostname, macAddr)
-	
-	// Generate MD5 hash and format as UUID-like string
+
 	hash := md5.Sum([]byte(combined))
-	uuid := fmt.Sprintf("%x-%x-%x-%x-%x", 
+	uuid := fmt.Sprintf("%x-%x-%x-%x-%x",
 		hash[0:4], hash[4:6], hash[6:8], hash[8:10], hash[10:16])
-	
+
 	return uuid, nil
 }
 
-// GetSystemInfo returns basic system information for registration
 func GetSystemInfo() (name, osName, arch string, err error) {
 	hostname, err := os.Hostname()
 	if err != nil {

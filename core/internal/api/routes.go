@@ -8,7 +8,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// Server represents the HTTP server
 type Server struct {
 	db            *gorm.DB
 	logger        *logging.Logger
@@ -18,17 +17,13 @@ type Server struct {
 	router        *gin.Engine
 }
 
-// NewServer creates a new HTTP server instance
 func NewServer(database *gorm.DB, logger *logging.Logger) *Server {
-	// Initialize services
 	agentService := service.NewAgentService(database, logger)
 	authService := service.NewAuthService(database, logger)
 	reportService := service.NewReportService(database, logger)
 
-	// Create Gin router
 	router := gin.Default()
 
-	// Add middleware
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 
@@ -41,7 +36,6 @@ func NewServer(database *gorm.DB, logger *logging.Logger) *Server {
 		router:        router,
 	}
 
-	// Setup routes
 	server.setupRoutes()
 
 	return server
@@ -49,10 +43,8 @@ func NewServer(database *gorm.DB, logger *logging.Logger) *Server {
 
 // setupRoutes configures all API routes
 func (s *Server) setupRoutes() {
-	// Health check endpoint
 	s.router.GET("/health", s.healthCheck)
 
-	// Public routes
 	public := s.router.Group("/")
 	{
 		public.POST("/register", s.registerAgent)
@@ -66,7 +58,6 @@ func (s *Server) setupRoutes() {
 	}
 }
 
-// Start starts the HTTP server
 func (s *Server) Start(addr string) error {
 	s.logger.Info("Starting HTTP server", "address", addr)
 	return s.router.Run(addr)
@@ -76,7 +67,7 @@ func (s *Server) Start(addr string) error {
 func (s *Server) healthCheck(c *gin.Context) {
 	s.logger.Debug("Health check requested")
 	c.JSON(200, gin.H{
-		"status": "healthy",
+		"status":  "healthy",
 		"service": "orion-core",
 	})
 }

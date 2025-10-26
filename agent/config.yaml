@@ -1,6 +1,6 @@
-agent_id: "1"
+agent_id: agent_5c59345a-643a-4cf4-8768-aa023063c795
 core_url: http://localhost:8999
-token: 7f4f558533438d9b9c64ce831a972a5bd4000c309d1f9d5b8a9588955562ef6e
+token: 444580fff0180990e7458d4732852fb5a543b34994ee656dc3fb3416fc331069
 interval: 60s
 subprocesses:
     - name: aether

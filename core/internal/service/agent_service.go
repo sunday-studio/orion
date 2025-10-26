@@ -1,21 +1,21 @@
 package service
 
 import (
+	"fmt"
 	"orion/core/internal/db"
 	"orion/core/internal/logging"
 	"orion/core/internal/utils"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
-// AgentService handles agent-related operations
 type AgentService struct {
 	db     *gorm.DB
 	logger *logging.Logger
 }
 
-// NewAgentService creates a new agent service
 func NewAgentService(database *gorm.DB, logger *logging.Logger) *AgentService {
 	return &AgentService{
 		db:     database,
@@ -23,55 +23,50 @@ func NewAgentService(database *gorm.DB, logger *logging.Logger) *AgentService {
 	}
 }
 
-// RegisterRequest represents the registration request payload
 type RegisterRequest struct {
-	UUID string `json:"uuid" binding:"required"`
-	Name string `json:"name" binding:"required"`
-	OS   string `json:"os" binding:"required"`
-	Arch string `json:"arch" binding:"required"`
+	MachineId string `json:"machine_id" binding:"required"`
+	Name      string `json:"name" binding:"required"`
+	OS        string `json:"os" binding:"required"`
+	Arch      string `json:"arch" binding:"required"`
 }
 
-// RegisterResponse represents the registration response
 type RegisterResponse struct {
-	AgentID uint   `json:"agent_id"`
+	AgentID string `json:"agent_id"`
 	Token   string `json:"token"`
 }
 
-// RegisterAgent registers a new agent or returns existing agent info
 func (s *AgentService) RegisterAgent(req *RegisterRequest) (*RegisterResponse, error) {
 	var agent db.Agent
-	
-	// Check if agent with this UUID already exists
-	if err := s.db.Where("uuid = ?", req.UUID).First(&agent).Error; err != nil {
+
+	if err := s.db.Where("machine_id = ?", req.MachineId).First(&agent).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			// Create new agent
 			return s.createNewAgent(req)
 		}
 		s.logger.Error("Database error during agent lookup", "error", err)
 		return nil, err
 	}
 
-	// Agent exists, return existing info
-	s.logger.Info("Agent already registered", "uuid", req.UUID, "agent_id", agent.ID, "name", agent.Name)
-	
+	s.logger.Info("Agent already registered", "machine_id", req.MachineId, "agent_id", agent.ID, "name", agent.Name)
+
 	return &RegisterResponse{
 		AgentID: agent.ID,
 		Token:   agent.Token,
 	}, nil
 }
 
-// createNewAgent creates a new agent record
 func (s *AgentService) createNewAgent(req *RegisterRequest) (*RegisterResponse, error) {
-	// Generate new token
+
+	agentID := fmt.Sprintf("%s_%s", "agent", uuid.New().String())
+
 	token, err := utils.GenerateToken()
 	if err != nil {
 		s.logger.Error("Failed to generate token", "error", err)
 		return nil, err
 	}
 
-	// Create agent record
 	agent := db.Agent{
-		UUID:      req.UUID,
+		ID:        agentID,
+		MachineId: req.MachineId,
 		Name:      req.Name,
 		OS:        req.OS,
 		Arch:      req.Arch,
@@ -85,10 +80,10 @@ func (s *AgentService) createNewAgent(req *RegisterRequest) (*RegisterResponse, 
 		return nil, err
 	}
 
-	s.logger.Info("New agent registered", "uuid", req.UUID, "agent_id", agent.ID, "name", agent.Name)
+	s.logger.Info("New agent registered", "machine_id", req.MachineId, "agent_id", agent.ID, "name", agent.Name)
 
 	return &RegisterResponse{
-		AgentID: agent.ID,
+		AgentID: agentID,
 		Token:   agent.Token,
 	}, nil
 }
@@ -99,7 +94,7 @@ func (s *AgentService) UpdateLastSeen(agentID uint) error {
 		s.logger.Error("Failed to update last_seen", "agent_id", agentID, "error", err)
 		return err
 	}
-	
+
 	s.logger.Debug("Updated last_seen timestamp", "agent_id", agentID)
 	return nil
 }
