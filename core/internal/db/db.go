@@ -20,7 +20,7 @@ func Initialize() (*gorm.DB, error) {
 
 	gormLogger := logger.Default.LogMode(logger.Info)
 
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.UserConfig{
 		Logger: gormLogger,
 	})
 	if err != nil {

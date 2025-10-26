@@ -59,7 +59,7 @@ func (c *Client) SendReport(report SystemReport, agentID string) error {
 	return nil
 }
 
-func (c *Client) RegisterAgent(req RegistrationRequest) (*RegistrationResponse, error) {
+func (c *Client) RegisterAgent(req AgentRegistrationRequest) (*AgentRegistrationResponse, error) {
 	payload, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal registration request: %w", err)
@@ -88,7 +88,7 @@ func (c *Client) RegisterAgent(req RegistrationRequest) (*RegistrationResponse, 
 		return nil, fmt.Errorf("core server returned status %d during registration", resp.StatusCode)
 	}
 
-	var regResp RegistrationResponse
+	var regResp AgentRegistrationResponse
 	if err := json.Unmarshal(body, &regResp); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal registration response: %w", err)
 	}

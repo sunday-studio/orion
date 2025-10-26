@@ -9,21 +9,25 @@ import (
 )
 
 type RegistrationService struct {
-	config     *config.Config
-	client     *transport.Client
-	configPath string
+	userConfig        *config.UserConfig
+	internalState     *config.InternalState
+	client            *transport.Client
+	userConfigPath    string
+	internalStatePath string
 }
 
-func New(cfg *config.Config, configPath string) *RegistrationService {
+func New(userConfig *config.UserConfig, userConfigPath string, internalState *config.InternalState, internalStatePath string) *RegistrationService {
 	return &RegistrationService{
-		config:     cfg,
-		client:     transport.NewClient(cfg.CoreURL, ""),
-		configPath: configPath,
+		userConfig:        userConfig,
+		client:            transport.NewClient(userConfig.CoreURL, ""),
+		userConfigPath:    userConfigPath,
+		internalState:     internalState,
+		internalStatePath: internalStatePath,
 	}
 }
 
 func (s *RegistrationService) RegisterAgentIfNeeded() error {
-	if s.config.IsRegistered() {
+	if s.internalState.IsRegistered() {
 		return nil
 	}
 
@@ -49,10 +53,27 @@ func (s *RegistrationService) RegisterAgentIfNeeded() error {
 		return fmt.Errorf("failed to register agent: %w", err)
 	}
 
-	s.config.UpdateRegistration(resp.Data.AgentID, resp.Data.Token)
+	s.internalState.UpdateRegistration(resp.Data.AgentID, resp.Data.Token)
 
-	if err := s.config.Save(s.configPath); err != nil {
-		return fmt.Errorf("failed to save updated config: %w", err)
+	// if err := s.userConfig.Save(s.userConfigPath); err != nil {
+	// 	return fmt.Errorf("failed to save updated config: %w", err)
+	// }
+
+	return nil
+}
+
+func (s *RegistrationService) RegisterAgentApplicationsIfNeeded() error {
+	if len(s.userConfig.Applications) == 0 {
+		return nil
+	}
+
+	for _, app := range s.userConfig.Applications {
+
+		fmt.Println("app name ->", app.Name)
+		// req := transport.ApplicationRegistrationRequest{
+		// 	AgentID: s.config.AgentID,
+		// 	AppID:   app.ID,
+		// }
 	}
 
 	return nil

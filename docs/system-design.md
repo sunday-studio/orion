@@ -66,7 +66,7 @@ A lightweight daemon written in Go.
 - `orion status` — check if agent is running.
 - `orion send` — manually trigger sync.
 
-**Config Example**
+**UserConfig Example**
 ```yaml
 core_url: "https://orion-core.example.com"
 interval: 60s

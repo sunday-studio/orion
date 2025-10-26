@@ -11,4 +11,3 @@ applications:
       type: "server-healthcheck"
       interval: 10m
       url: "https://ibis.thesunday.studio/api/health"
-

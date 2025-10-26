@@ -13,21 +13,22 @@ import (
 )
 
 type Agent struct {
-	cfg       *config.Config
-	transport *transport.Client
+	userConfig    *config.UserConfig
+	internalState *config.InternalState
+	transport     *transport.Client
 }
 
-// New initializes a new Agent with all dependencies wired.
-func New(cfg *config.Config) *Agent {
+func New(userConfig *config.UserConfig, internalState *config.InternalState) *Agent {
 	return &Agent{
-		cfg:       cfg,
-		transport: transport.NewClient(cfg.CoreURL, cfg.Token),
+		userConfig:    userConfig,
+		transport:     transport.NewClient(userConfig.CoreURL, internalState.Token),
+		internalState: internalState,
 	}
 }
 
 // Run starts the agent event loop. It periodically collects metrics and sends them.
 func (a *Agent) Run(ctx context.Context) error {
-	interval, err := time.ParseDuration(a.cfg.Interval)
+	interval, err := time.ParseDuration(a.userConfig.Interval)
 	if err != nil {
 		return err
 	}
@@ -35,7 +36,7 @@ func (a *Agent) Run(ctx context.Context) error {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
-	log.Printf("Agent started with interval: %s", a.cfg.Interval)
+	log.Printf("Agent started with interval: %s", a.userConfig.Interval)
 
 	done := ctx.Done()
 	for {
@@ -53,11 +54,11 @@ func (a *Agent) Run(ctx context.Context) error {
 					Hostname:   data.Hostname,
 					OS:         data.OS,
 					CPUUsage:   data.CPUUsage,
-					MemoryUsed: uint64(data.MemUsage * 100), // Convert percentage to bytes (simplified)
+					MemoryUsed: uint64(data.MemUsage * 100),
 					Timestamp:  time.Now(),
 				}
 
-				if err := a.transport.SendReport(*report, a.cfg.AgentID); err != nil {
+				if err := a.transport.SendReport(*report, a.internalState.AgentID); err != nil {
 					log.Printf("Error sending data: %v", err)
 				}
 			}
@@ -84,21 +85,22 @@ func (a *Agent) RunOnce(ctx context.Context) error {
 		Hostname:   data.Hostname,
 		OS:         data.OS,
 		CPUUsage:   data.CPUUsage,
-		MemoryUsed: uint64(data.MemUsage * 100), // Convert percentage to bytes (simplified)
+		MemoryUsed: uint64(data.MemUsage * 100),
 		Timestamp:  time.Now(),
 	}
 
-	return a.transport.SendReport(*report, a.cfg.AgentID)
+	return a.transport.SendReport(*report, a.internalState.AgentID)
 }
 
 // RunDefault sets up signal handling and runs the agent with a default config.
 func RunDefault() error {
-	cfg, err := config.Load(config.DefaultPath())
+	userConfig, err := config.LoadUserConfig(config.DefaultPath())
+	internalState, err := config.LoadInternalState(config.DefaultPath())
 	if err != nil {
 		return err
 	}
 
-	agent := New(cfg)
+	agent := New(userConfig, internalState)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
