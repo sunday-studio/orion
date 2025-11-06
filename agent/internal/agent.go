@@ -40,8 +40,6 @@ func (a *Agent) Run(ctx context.Context) error {
 
 	done := ctx.Done()
 
-	return nil
-
 	for {
 		select {
 		case <-done:

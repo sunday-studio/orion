@@ -11,7 +11,6 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 )
 
-// SystemMetrics represents a snapshot of the system's current state.
 type SystemMetrics struct {
 	Hostname  string  `json:"hostname"`
 	OS        string  `json:"os"`
@@ -51,6 +50,7 @@ func Collect() (*SystemMetrics, error) {
 		Platform:  hostInfo.Platform,
 		CPUUsage:  round(cpuPercent[0], 2),
 		MemUsage:  round(memStats.UsedPercent, 2),
+		MemFree:   round(memStats.Free), 2),
 		DiskUsage: round(diskStats.UsedPercent, 2),
 		Uptime:    hostInfo.Uptime,
 		Timestamp: time.Now().Format(time.RFC3339),
