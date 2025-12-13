@@ -9,33 +9,33 @@ import (
 )
 
 type Server struct {
-	db            *gorm.DB
-	logger        *logging.Logger
-	agentService  *service.AgentService
-	authService   *service.AuthService
-	reportService *service.ReportService
-	appsService   *service.AppsService
-	router        *gin.Engine
+	db             *gorm.DB
+	logger         *logging.Logger
+	agentService   *service.AgentService
+	authService    *service.AuthService
+	reportService  *service.ReportService
+	monitorService *service.MonitorService
+	router         *gin.Engine
 }
 
 func NewServer(database *gorm.DB, logger *logging.Logger) *Server {
 	agentService := service.NewAgentService(database, logger)
 	authService := service.NewAuthService(database, logger)
 	reportService := service.NewReportService(database, logger)
-	appsService := service.NewAppsService(database, logger)
+	monitorService := service.NewMonitorService(database, logger)
 	router := gin.Default()
 
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 
 	server := &Server{
-		db:            database,
-		logger:        logger,
-		agentService:  agentService,
-		authService:   authService,
-		reportService: reportService,
-		appsService:   appsService,
-		router:        router,
+		db:             database,
+		logger:         logger,
+		agentService:   agentService,
+		authService:    authService,
+		reportService:  reportService,
+		monitorService: monitorService,
+		router:         router,
 	}
 
 	server.setupRoutes()
@@ -56,7 +56,7 @@ func (s *Server) setupRoutes() {
 	protected := s.router.Group("/agents")
 	protected.Use(AuthMiddleware())
 	{
-		protected.POST("/:agent_id/register-application", ValidateAgentToken(s.agentService, s.authService), s.registerApplication)
+		protected.POST("/:agent_id/register-monitor", ValidateAgentToken(s.agentService, s.authService), s.registerMonitor)
 		protected.POST("/:agent_id/report", ValidateAgentToken(s.agentService, s.authService), s.receiveReport)
 	}
 }

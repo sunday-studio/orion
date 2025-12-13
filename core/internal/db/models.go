@@ -23,8 +23,8 @@ type AgentReport struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// subprocess are apps that are running on the machine
-type Application struct {
+// subprocess are apps & services that are running on the agent's machine
+type Monitor struct {
 	ID          string    `json:"id" gorm:"primaryKey"`
 	Description *string   `json:"description" gorm:"not null"`
 	Type        string    `json:"type" gorm:"not null"`
@@ -35,9 +35,9 @@ type Application struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-type ApplicationReport struct {
+type MonitorReport struct {
 	ID        string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
-	AppID     string    `json:"app_id" gorm:"not null"`
+	MonitorID string    `json:"monitor_id" gorm:"not null"`
 	Payload   string    `json:"payload" gorm:"type:text;not null"`
 	CreatedAt time.Time `json:"created_at"`
 }

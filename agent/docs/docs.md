@@ -4,6 +4,7 @@
 
 The **Orion Agent** is a lightweight Go daemon installed on servers (Linux/macOS).  
 Its job is to:
+
 - Collect system information (CPU, memory, disk, uptime, etc.)
 - Manage sub-processes defined in its config
 - Periodically send system data to **Orion Core**
@@ -15,6 +16,7 @@ Its job is to:
 ## Responsibilities
 
 1. **Configuration**
+
    - Read `/etc/orion/config.yaml` (or local `config.yaml` if running manually)
    - Contain fields for:
      ```yaml
@@ -27,6 +29,7 @@ Its job is to:
      ```
 
 2. **Collection**
+
    - Gather:
      - Hostname
      - OS
@@ -37,6 +40,7 @@ Its job is to:
    - Wrap all in a JSON payload
 
 3. **Broadcast**
+
    - Every `interval`, POST data to Core endpoint:
      ```
      POST /api/agents/{id}/metrics
@@ -54,4 +58,3 @@ Its job is to:
 ---
 
 ## Folder Structure
-

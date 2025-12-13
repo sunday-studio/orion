@@ -12,7 +12,7 @@ func GenerateToken() (string, error) {
 	if _, err := rand.Read(bytes); err != nil {
 		return "", err
 	}
-	
+
 	// Convert to hex string
 	return hex.EncodeToString(bytes), nil
 }

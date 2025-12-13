@@ -1,13 +1,13 @@
 core_url: http://localhost:8999
 interval: 5s
-applications:
-    - name: aether
-      description: Aether is a web application that allows users to manage their accounts and subscriptions.
-      cmd: /usr/bin/nginx -t
-      type: "nginx"
-      interval: 60m
-    - name: ibis-server
-      description: backend server for ibis
-      type: "server-healthcheck"
-      interval: 10m
-      url: "https://ibis.thesunday.studio/api/health"
+monitors:
+  - name: aether
+    description: Aether is a web application that allows users to manage their accounts and subscriptions.
+    cmd: /usr/bin/nginx -t
+    type: "nginx"
+    interval: 60m
+  - name: ibis-server
+    description: backend server for ibis
+    type: "server-healthcheck"
+    interval: 10m
+    url: "https://ibis.thesunday.studio/api/health"

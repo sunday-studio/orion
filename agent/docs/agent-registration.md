@@ -12,10 +12,12 @@ This ensures zero manual setup — simply install and start the agent binary, an
 ### Step-by-Step Flow
 
 1. **Startup Check**
+
    - On startup, the agent checks its local config file (e.g., `/etc/orion/config.yaml` or `~/.orion/config.json`).
    - If it finds `agent_id` and `token`, registration is skipped — it proceeds to normal operation.
 
 2. **UUID Generation**
+
    - If no config exists, the agent generates a **unique UUID** to identify itself.
    - UUID generation combines system info such as:
      - Hostname
@@ -23,6 +25,7 @@ This ensures zero manual setup — simply install and start the agent binary, an
    - The resulting UUID is stored in the config file so it remains consistent across restarts.
 
 3. **Registration Request**
+
    - The agent sends a `POST /register` request to the Orion Core with its details:
      ```json
      {
@@ -32,25 +35,29 @@ This ensures zero manual setup — simply install and start the agent binary, an
        "arch": "<amd64|arm64>"
      }
      ```
-    after the registration is complete; the server will return 
-    ```json
-        {
-      "success": true,
-      "message": "Agent registered successfully",
-      "data": {
-        "agent_id": 1,
-        "token": "permanent-authentication-token"
-      }
-    }
-    ```
-    save the token in the config and attach it as a header when making report calls
+     after the registration is complete; the server will return
+
+   ```json
+   {
+     "success": true,
+     "message": "Agent registered successfully",
+     "data": {
+       "agent_id": 1,
+       "token": "permanent-authentication-token"
+     }
+   }
+   ```
+
+   save the token in the config and attach it as a header when making report calls
 
 4. **Core Server Handling**
+
    - Orion Core checks if an agent with the same UUID already exists:
      - ✅ **Exists:** returns the existing agent ID and token.
      - ❌ **Doesn’t exist:** creates a new record and issues a new permanent token.
 
 5. **Response**
+
    - Core responds with:
      ```json
      {
