@@ -5,9 +5,18 @@ monitors:
     description: Aether is a web application that allows users to manage their accounts and subscriptions.
     cmd: /usr/bin/nginx -t
     type: "nginx"
-    interval: 60m
+    interval: 10s
   - name: ibis-server
     description: backend server for ibis
     type: "server-healthcheck"
-    interval: 10m
+    interval: 2s
     url: "https://ibis.thesunday.studio/api/health"
+  - name: orion-server
+    description: orion core service
+    type: "internal-service"
+    interval: 5s
+    ping:
+      url: "http://localhost:8999/health"
+      timeout: 3s
+    process:
+      port: 8999

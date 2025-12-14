@@ -61,45 +61,43 @@ func (s *RegistrationService) RegisterAgentIfNeeded() error {
 		return fmt.Errorf("failed to save updated config: %w", err)
 	}
 
-	if err := s.RegisterAgentApplicationsIfNeeded(); err != nil {
+	if err := s.RegisterAgentMonitorsIfNeeded(); err != nil {
 		return fmt.Errorf("failed to register agent applications: %w", err)
 	}
 
 	return nil
 }
 
-func (s *RegistrationService) RegisterAgentApplicationsIfNeeded() error {
-	if len(s.userConfig.Applications) == 0 {
+func (s *RegistrationService) RegisterAgentMonitorsIfNeeded() error {
+	if len(s.userConfig.Monitors) == 0 {
 		return nil
 	}
 
-	var applications []config.InternalStateApplication
+	var monitors []config.InternalStateMonitor
 
-	for _, app := range s.userConfig.Applications {
-		req := transport.ApplicationRegistrationRequest{
+	for _, monitor := range s.userConfig.Monitors {
+		req := transport.MonitorRegistrationRequest{
 			AgentID:     s.internalState.AgentID,
-			Name:        app.Name,
-			Description: app.Description,
-			Type:        string(app.Type),
+			Name:        monitor.Name,
+			Description: monitor.Description,
+			Type:        string(monitor.Type),
 			LastChecked: time.Now(),
 		}
 
-		resp, err := s.client.RegisterApplication(req)
+		resp, err := s.client.RegisterMonitor(req)
 		if err != nil {
-			return fmt.Errorf("failed to register application: %w", err)
+			return fmt.Errorf("failed to register monitor: %w", err)
 		}
 
-		fmt.Println("resp ->", resp)
-
-		applications = append(applications, config.InternalStateApplication{
-			ID:          resp.Data.ApplicationID,
-			Name:        app.Name,
+		monitors = append(monitors, config.InternalStateMonitor{
+			ID:          resp.Data.MonitorID,
+			Name:        monitor.Name,
 			Status:      "running",
 			LastChecked: time.Now(),
 		})
 	}
 
-	s.internalState.UpdateApplications(applications)
+	s.internalState.UpdateMonitors(monitors)
 
 	if err := s.internalState.Save(s.internalStatePath); err != nil {
 		return fmt.Errorf("failed to save updated config: %w", err)

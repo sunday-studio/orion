@@ -5,8 +5,18 @@ import (
 	"orion/core/internal/logging"
 	"orion/core/internal/utils"
 
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
+
+type AgentReportPayload struct {
+	UptimeSeconds uint64         `json:"uptime_seconds"`
+	Timestamp     string         `json:"timestamp"`
+	CPU           db.CPUStats    `json:"cpu"`
+	Memory        db.MemoryStats `json:"memory"`
+	Disk          db.DiskStats   `json:"disk"`
+	Location      db.GeoLocation `json:"location,omitempty"`
+}
 
 type ReportService struct {
 	db     *gorm.DB
@@ -20,12 +30,19 @@ func NewReportService(database *gorm.DB, logger *logging.Logger) *ReportService 
 	}
 }
 
-func (s *ReportService) StoreAgentReport(agentID string, payload string) (*string, error) {
+func (s *ReportService) StoreAgentReport(agentID string, payload AgentReportPayload) (*string, error) {
 	agentReportID := utils.GenerateID("agent_report")
+
 	agentReport := db.AgentReport{
-		ID:      agentReportID,
-		AgentID: agentID,
-		Payload: payload,
+		ID:            agentReportID,
+		AgentID:       agentID,
+		UptimeSeconds: payload.UptimeSeconds,
+		Timestamp:     payload.Timestamp,
+
+		CPU:      datatypes.NewJSONType(payload.CPU),
+		Memory:   datatypes.NewJSONType(payload.Memory),
+		Disk:     datatypes.NewJSONType(payload.Disk),
+		Location: datatypes.NewJSONType(payload.Location),
 	}
 
 	if err := s.db.Create(&agentReport).Omit("Agent").Error; err != nil {

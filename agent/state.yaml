@@ -1,14 +1,14 @@
-agent_id: agent-dcbb43f4-b139-465d-b098-3fb6c38e7e30
-token: 291054596240bfe52e58ef8f30c0cf7b0c861c60283578c9a402c1d41973ba18
+agent_id: agent-e4e2a766-1e03-46c1-9094-4fa69678591d
+token: cb6734b234cf40d5cb96e6514c86f51c5d6c7efe60877a357d1d405d854a527b
 registered: true
 core_url: http://localhost:8999
-last_sync: 2025-10-29T12:42:24.869635+08:00
-applications:
-    - name: aether
-      id: app-91edaab0-7c40-4c15-80a4-1568ba1b7677
-      status: running
-      last_checked: 2025-10-29T12:42:24.870723+08:00
-    - name: ibis-server
-      id: app-adbb990e-afda-4fbe-b5e3-6e7534d9929b
-      status: running
-      last_checked: 2025-10-29T12:42:24.871451+08:00
+last_sync: 2025-12-13T22:44:24.536472+01:00
+monitors:
+  - name: aether
+    id: monitor-2e053856-2197-46fb-8037-3506c1e86171
+    status: running
+    last_checked: 2025-12-13T22:44:24.537681+01:00
+  - name: ibis-server
+    id: monitor-72a162d4-7f4c-408f-b7cd-1cac20cf193a
+    status: running
+    last_checked: 2025-12-13T22:44:24.538475+01:00

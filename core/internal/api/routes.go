@@ -57,7 +57,7 @@ func (s *Server) setupRoutes() {
 	protected.Use(AuthMiddleware())
 	{
 		protected.POST("/:agent_id/register-monitor", ValidateAgentToken(s.agentService, s.authService), s.registerMonitor)
-		protected.POST("/:agent_id/report", ValidateAgentToken(s.agentService, s.authService), s.receiveReport)
+		protected.POST("/:agent_id/report", ValidateAgentToken(s.agentService, s.authService), s.receiveAgentReport)
 	}
 }
 

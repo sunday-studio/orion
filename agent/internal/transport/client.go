@@ -66,12 +66,12 @@ func (c *Client) makeProtectedRequest(method, endpoint string, body interface{})
 	return c.makeRequest(method, endpoint, body, headers)
 }
 
-func (c *Client) RegisterApplication(req ApplicationRegistrationRequest) (*ApplicationRegistrationResponse, error) {
-	endpoint := fmt.Sprintf("/agents/%s/register-application", req.AgentID)
+func (c *Client) RegisterMonitor(req MonitorRegistrationRequest) (*MonitorRegistrationResponse, error) {
+	endpoint := fmt.Sprintf("/agents/%s/register-monitor", req.AgentID)
 
 	resp, err := c.makeProtectedRequest("POST", endpoint, req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to register application: %w", err)
+		return nil, fmt.Errorf("failed to register monitor: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -84,17 +84,17 @@ func (c *Client) RegisterApplication(req ApplicationRegistrationRequest) (*Appli
 		return nil, fmt.Errorf("core responded with %d: %s", resp.StatusCode, string(body))
 	}
 
-	var appResp ApplicationRegistrationResponse
-	if err := json.Unmarshal(body, &appResp); err != nil {
+	var monResp MonitorRegistrationResponse
+	if err := json.Unmarshal(body, &monResp); err != nil {
 		return nil, fmt.Errorf("failed to parse application registration response: %w", err)
 	}
 
-	if !appResp.Success {
-		return nil, fmt.Errorf("application registration failed: %s", appResp.Message)
+	if !monResp.Success {
+		return nil, fmt.Errorf("monitor registration failed: %s", monResp.Message)
 	}
 
-	logging.Infof("Application registered successfully with ID: %s", appResp.Data.ApplicationID)
-	return &appResp, nil
+	logging.Infof("Monitor registered successfully with ID: %s", monResp.Data.MonitorID)
+	return &monResp, nil
 }
 
 func (c *Client) SendReport(report SystemReport, agentID string) error {

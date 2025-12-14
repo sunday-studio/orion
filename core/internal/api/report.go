@@ -1,7 +1,9 @@
 package api
 
 import (
+	"encoding/json"
 	"orion/core/internal/db"
+	"orion/core/internal/service"
 	"orion/core/internal/utils"
 	"time"
 
@@ -19,7 +21,7 @@ type ReportResponse struct {
 	Type      string    `json:"type"`
 }
 
-func (s *Server) receiveReport(c *gin.Context) {
+func (s *Server) receiveAgentReport(c *gin.Context) {
 	agent, exists := c.Get("agent")
 	if !exists {
 		s.logger.Error("Agent not found in context")
@@ -49,15 +51,18 @@ func (s *Server) receiveReport(c *gin.Context) {
 
 	s.logger.Info("Received report", "agent_id", agentID, "agent_name", agent.(*db.Agent).Name, "payload_size", len(payload))
 
-	agentReportID, err := s.reportService.StoreAgentReport(agentID.(string), payload)
+	var payloadData service.AgentReportPayload
+	if err := json.Unmarshal(rawData, &payloadData); err != nil {
+		s.logger.Error("Failed to unmarshal report", "error", err)
+		utils.BadRequest(c, "Failed to unmarshal report")
+		return
+	}
+
+	agentReportID, err := s.reportService.StoreAgentReport(agentID.(string), payloadData)
 	if err != nil {
 		s.logger.Error("Failed to store agent report", "error", err)
 		utils.InternalError(c, "Failed to store agent report", err)
 		return
-	}
-
-	if err := s.agentService.UpdateLastSeen(agentID.(string)); err != nil {
-		s.logger.Warn("Failed to update last_seen timestamp", "error", err)
 	}
 
 	// Prepare response

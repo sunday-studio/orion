@@ -1,7 +1,6 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,51 +10,92 @@ import (
 )
 
 type InternalState struct {
-	AgentID      string                     `yaml:"agent_id"`
-	Token        string                     `yaml:"token"`
-	Registered   bool                       `yaml:"registered"`
-	CoreURL      string                     `yaml:"core_url"`
-	LastSync     time.Time                  `yaml:"last_sync"`
-	Applications []InternalStateApplication `yaml:"applications"`
+	AgentID    string                 `yaml:"agent_id"`
+	Token      string                 `yaml:"token"`
+	Registered bool                   `yaml:"registered"`
+	CoreURL    string                 `yaml:"core_url"`
+	LastSync   time.Time              `yaml:"last_sync"`
+	Monitors   []InternalStateMonitor `yaml:"monitors"`
 }
 
-type InternalStateApplication struct {
+type InternalStateMonitor struct {
 	Name        string    `yaml:"name"`
 	ID          string    `yaml:"id"`
 	Status      string    `yaml:"status"`
 	LastChecked time.Time `yaml:"last_checked"`
 }
 
-type UserApplicationType string
+type UserMonitorType string
 
 const (
-	UserApplicationTypeNginx             UserApplicationType = "nginx"
-	UserApplicationTypeServerHealthcheck UserApplicationType = "server-healthcheck"
+	UserMonitorTypeHTTPHealthcheck UserMonitorType = "http-healthcheck"
+	UserMonitorInternalService     UserMonitorType = "internal-service"
+	UserMonitorTypeCommand         UserMonitorType = "command"
 )
 
-var UserApplicationTypes = []UserApplicationType{
-	UserApplicationTypeNginx,
-	UserApplicationTypeServerHealthcheck,
+var UserMonitorTypes = []UserMonitorType{
+	UserMonitorTypeHTTPHealthcheck,
+	UserMonitorInternalService,
+	UserMonitorTypeCommand,
 }
 
-type UserApplication struct {
-	Name        string              `yaml:"name"`
-	Description string              `yaml:"description"`
-	Type        UserApplicationType `yaml:"type"`
-	Interval    string              `yaml:"interval"`
-	Cmd         *string             `yaml:"cmd"`
-	Url         *string             `yaml:"url"`
+type HTTPHealthcheckConfig struct {
+	URL            string `yaml:"url"`
+	Timeout        string `yaml:"timeout"`
+	ExpectedStatus int    `yaml:"expected_status"`
+}
+
+type InternalServiceConfig struct {
+	Ping    PingConfig    `yaml:"ping"`
+	Process ProcessConfig `yaml:"process"`
+}
+
+type PingConfig struct {
+	URL     string `yaml:"url"`
+	Timeout string `yaml:"timeout"`
+}
+
+type ProcessConfig struct {
+	Port int `yaml:"port"`
+}
+
+type CommandMonitorConfig struct {
+	Command string `yaml:"command"`
+}
+
+type UserMonitor struct {
+	Name        string          `yaml:"name"`
+	Description string          `yaml:"description"`
+	Type        UserMonitorType `yaml:"type"`
+	Interval    string          `yaml:"interval"`
+
+	HTTP            *HTTPHealthcheckConfig `yaml:"http,omitempty"`
+	InternalService *InternalServiceConfig `yaml:"internal_service,omitempty"`
+	Command         *CommandMonitorConfig  `yaml:"command,omitempty"`
 }
 
 type UserConfig struct {
-	CoreURL      string            `yaml:"core_url"`
-	Interval     string            `yaml:"interval"`
-	Applications []UserApplication `yaml:"applications"`
+	CoreURL  string        `yaml:"core_url"`
+	Interval string        `yaml:"interval"`
+	Monitors []UserMonitor `yaml:"monitors"`
 }
 
 func LoadInternalState(path string) (*InternalState, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
+		// First run: state file does not exist
+		if os.IsNotExist(err) {
+			state := &InternalState{
+				Monitors: []InternalStateMonitor{},
+			}
+
+			if err := state.Save(path); err != nil {
+				return nil, fmt.Errorf("failed to create internal state file: %w", err)
+			}
+
+			return state, nil
+		}
+
 		return nil, fmt.Errorf("failed to read internal state file: %w", err)
 	}
 
@@ -85,19 +125,6 @@ func LoadUserConfig(path string) (*UserConfig, error) {
 	return &cfg, nil
 }
 
-func (c *UserConfig) Validate() error {
-	if c.CoreURL == "" {
-		return errors.New("core_url is required")
-	}
-	if c.Interval == "" {
-		return errors.New("interval is required")
-	}
-	if _, err := time.ParseDuration(c.Interval); err != nil {
-		return fmt.Errorf("invalid interval format: %w", err)
-	}
-	return nil
-}
-
 func (c *InternalState) IsRegistered() bool {
 	return c.AgentID != "" && c.Token != ""
 }
@@ -123,8 +150,17 @@ func (c *InternalState) UpdateRegistration(agentID string, token string, coreURL
 	c.CoreURL = coreURL
 }
 
-func (c *InternalState) UpdateApplications(applications []InternalStateApplication) {
-	c.Applications = applications
+func (c *InternalState) UpdateMonitors(monitors []InternalStateMonitor) {
+	c.Monitors = monitors
+}
+
+func (c *InternalState) GetMonitorByName(name string) *InternalStateMonitor {
+	for _, monitor := range c.Monitors {
+		if monitor.Name == name {
+			return &monitor
+		}
+	}
+	return nil
 }
 
 // DefaultPath returns the default path for the agent config.
