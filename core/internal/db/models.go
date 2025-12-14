@@ -85,8 +85,10 @@ type Monitor struct {
 }
 
 type MonitorReport struct {
-	ID        string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
-	MonitorID string    `json:"monitor_id" gorm:"index;not null"`
-	Payload   string    `json:"payload" gorm:"type:text;not null"`
-	CreatedAt time.Time `json:"created_at"`
+	ID          string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	MonitorID   string    `json:"monitor_id" gorm:"index;not null"`
+	Payload     string    `json:"payload" gorm:"type:text;not null"`
+	CollectedAt string    `json:"collected_at" gorm:"not null"`
+	Health      string    `json:"health" gorm:"not null"` // up | down
+	CreatedAt   time.Time `json:"created_at"`
 }

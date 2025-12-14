@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"orion/core/internal/db"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
@@ -75,4 +76,53 @@ func (s *Server) receiveAgentReport(c *gin.Context) {
 
 	s.logger.Info("Report processed successfully", "agent_id", agentID)
 	utils.SuccessResponse(c, 200, "Report received successfully", response)
+}
+
+func (s *Server) receiveMonitorReport(c *gin.Context) {
+	agentID, agentIDExists := c.Get("agent_id")
+	monitorID := c.Param("monitor_id")
+
+	fmt.Println("agentID", agentID)
+
+	if monitorID == "" {
+		utils.BadRequest(c, "Monitor ID is required")
+		return
+	}
+
+	if !agentIDExists {
+		s.logger.Error("Agent ID not found in context")
+		utils.InternalError(c, "Internal server error", nil)
+		return
+	}
+
+	rawData, err := c.GetRawData()
+	if err != nil {
+		s.logger.Error("Failed to read request body", "error", err)
+		utils.BadRequest(c, "Failed to read request body")
+		return
+	}
+
+	payload := string(rawData)
+	if payload == "" {
+		utils.BadRequest(c, "Empty payload not allowed")
+		return
+	}
+
+	var payloadData service.MonitorReportPayload
+	if err := json.Unmarshal(rawData, &payloadData); err != nil {
+		s.logger.Error("Failed to unmarshal report", "error", err, "rawData", string(rawData))
+		utils.BadRequest(c, "Failed to unmarshal report")
+		return
+	}
+
+	if _, err = s.reportService.StoreMonitorReport(monitorID, payloadData); err != nil {
+		s.logger.Error("Failed to store monitor report", "error", err)
+		utils.InternalError(c, "Failed to store monitor report", nil)
+		return
+	}
+}
+
+func PrettyPrint(v interface{}) {
+	b, _ := json.MarshalIndent(v, "", "  ")
+	fmt.Println(string(b))
 }

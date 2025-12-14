@@ -1,5 +1,5 @@
 core_url: http://localhost:8999
-interval: 5s
+interval: 60m
 monitors:
   - name: ibis-server
     description: backend server for ibis

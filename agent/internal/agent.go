@@ -8,7 +8,6 @@ import (
 	"orion/agent/internal/config"
 	"orion/agent/internal/logging"
 	"orion/agent/internal/transport"
-	"orion/agent/internal/utils"
 )
 
 type Agent struct {
@@ -132,8 +131,16 @@ func (a *Agent) runMonitorMetrics(monitor config.InternalStateMonitor, userMonit
 	}
 
 	logging.Infof("Monitor result -> %v", monitor.Name)
-	utils.PrettyPrint(result)
+	report := &transport.MonitorReport{
+		Timestamp: result.Timestamp.Format(time.RFC3339),
+		Health:    result.Status,
+		Metrics:   result.Metrics,
+		Error:     result.Error,
+	}
 
-	// No result to prettyPrint, since CollectMonitorReport only returns an error
+	if err := a.transport.SendMonitorReport(*report, a.internalState.AgentID, monitor.ID); err != nil {
+		return err
+	}
+
 	return nil
 }

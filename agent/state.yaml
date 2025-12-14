@@ -4,6 +4,10 @@ registered: true
 core_url: http://localhost:8999
 last_sync: 2025-12-14T17:34:02.899899+01:00
 monitors:
+    - name: ibis-server
+      id: monitor-750d3a85-dc40-4c6a-9fc6-b8710817a3c8
+      status: running
+      last_checked: 2025-12-14T17:34:02.905248+01:00
     - name: aether-server
       id: monitor-5e0ba628-3a7d-40d5-b83d-68991895194f
       status: running
@@ -24,7 +28,3 @@ monitors:
       id: monitor-f8cfbe01-4eed-460e-b7bd-b1dc5a67afd6
       status: running
       last_checked: 2025-12-14T18:03:36.98296+01:00
-    - name: ibis-server
-      id: monitor-750d3a85-dc40-4c6a-9fc6-b8710817a3c8
-      status: running
-      last_checked: 2025-12-14T17:34:02.905248+01:00

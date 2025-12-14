@@ -142,6 +142,24 @@ func (c *Client) SendReport(report SystemReport, agentID string) error {
 	return nil
 }
 
+func (c *Client) SendMonitorReport(report MonitorReport, agentID string, monitorID string) error {
+	endpoint := fmt.Sprintf("/agents/%s/%s/report", agentID, monitorID)
+	resp, err := c.makeProtectedRequest("POST", endpoint, report)
+	if err != nil {
+		return fmt.Errorf("failed to send monitor report: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		logging.Warnf("unexpected status from core: %d — %s", resp.StatusCode, string(body))
+		return fmt.Errorf("core server returned status %d", resp.StatusCode)
+	}
+
+	logging.Infof("monitor report successfully sent to core")
+	return nil
+}
+
 func (c *Client) RegisterAgent(req AgentRegistrationRequest) (*AgentRegistrationResponse, error) {
 	payload, err := json.Marshal(req)
 	if err != nil {

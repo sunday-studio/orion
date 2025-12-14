@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"orion/core/internal/db"
 	"orion/core/internal/logging"
 	"orion/core/internal/utils"
@@ -18,6 +19,13 @@ type AgentReportPayload struct {
 	Location      db.GeoLocation `json:"location,omitempty"`
 }
 
+type MonitorReportPayload struct {
+	Timestamp string      `json:"timestamp" binding:"required"`
+	Health    string      `json:"health" binding:"required"` // up | down
+	Metrics   interface{} `json:"metrics" binding:"required"`
+	Error     interface{} `json:"error,omitempty"`
+}
+
 type ReportService struct {
 	db     *gorm.DB
 	logger *logging.Logger
@@ -28,6 +36,51 @@ func NewReportService(database *gorm.DB, logger *logging.Logger) *ReportService 
 		db:     database,
 		logger: logger,
 	}
+}
+
+func (s *ReportService) StoreMonitorReport(monitorID string, payload MonitorReportPayload) (*string, error) {
+	monitorReportID := utils.GenerateID("monitor_report")
+
+	// if health is down, store the error as payload
+	var payloadData string
+
+	// if payload.Health == "down" {
+	// 	payloadJSON, err := json.Marshal(payload)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	payloadData = string(payloadJSON)
+	// }
+
+	if payload.Error != nil {
+		payloadJSON, err := json.Marshal(payload.Error)
+		if err != nil {
+			return nil, err
+		}
+		payloadData = string(payloadJSON)
+	}
+
+	payloadJSON, err := json.Marshal(payload.Metrics)
+	if err != nil {
+		return nil, err
+	}
+	payloadData = string(payloadJSON)
+
+	monitorReport := db.MonitorReport{
+		ID:          monitorReportID,
+		MonitorID:   monitorID,
+		Health:      payload.Health,
+		CollectedAt: payload.Timestamp,
+		Payload:     payloadData,
+	}
+
+	if err := s.db.Create(&monitorReport).Error; err != nil {
+		s.logger.Error("Failed to store monitor report", err)
+		return nil, err
+	}
+
+	s.logger.Info("Monitor report stored successfully", "monitor_report_id ->", monitorReport.ID)
+	return &monitorReportID, nil
 }
 
 func (s *ReportService) StoreAgentReport(agentID string, payload AgentReportPayload) (*string, error) {
