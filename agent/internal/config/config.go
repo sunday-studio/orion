@@ -31,12 +31,14 @@ const (
 	UserMonitorTypeHTTPHealthcheck UserMonitorType = "http-healthcheck"
 	UserMonitorInternalService     UserMonitorType = "internal-service"
 	UserMonitorTypeCommand         UserMonitorType = "command"
+	UserMonitorTypeWebsite         UserMonitorType = "website"
 )
 
 var UserMonitorTypes = []UserMonitorType{
 	UserMonitorTypeHTTPHealthcheck,
 	UserMonitorInternalService,
 	UserMonitorTypeCommand,
+	UserMonitorTypeWebsite,
 }
 
 type HTTPHealthcheckConfig struct {
@@ -63,6 +65,12 @@ type CommandMonitorConfig struct {
 	Command string `yaml:"command"`
 }
 
+type WebsiteMonitorConfig struct {
+	URL            string `yaml:"url"`
+	Timeout        string `yaml:"timeout,omitempty"`
+	ExpectedStatus int    `yaml:"expected_status,omitempty"`
+}
+
 type UserMonitor struct {
 	Name        string          `yaml:"name"`
 	Description string          `yaml:"description"`
@@ -72,6 +80,7 @@ type UserMonitor struct {
 	HTTP            *HTTPHealthcheckConfig `yaml:"http,omitempty"`
 	InternalService *InternalServiceConfig `yaml:"internal_service,omitempty"`
 	Command         *CommandMonitorConfig  `yaml:"command,omitempty"`
+	Website         *WebsiteMonitorConfig  `yaml:"website,omitempty"`
 }
 
 type UserConfig struct {

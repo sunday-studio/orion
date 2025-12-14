@@ -47,6 +47,24 @@ func (c CommandMonitorConfig) Validate() error {
 	return nil
 }
 
+func (w WebsiteMonitorConfig) Validate() error {
+	if w.URL == "" {
+		return errors.New("url is required")
+	}
+
+	if w.Timeout != "" {
+		if _, err := time.ParseDuration(w.Timeout); err != nil {
+			return fmt.Errorf("invalid timeout: %w", err)
+		}
+	}
+
+	if w.ExpectedStatus < 0 {
+		return errors.New("expected_status must be >= 0")
+	}
+
+	return nil
+}
+
 func (m UserMonitor) Validate() error {
 	if m.Name == "" {
 		return errors.New("name is required")
@@ -82,6 +100,12 @@ func (m UserMonitor) Validate() error {
 			return errors.New("command config is required")
 		}
 		return m.Command.Validate()
+
+	case UserMonitorTypeWebsite:
+		if m.Website == nil {
+			return errors.New("website config is required")
+		}
+		return m.Website.Validate()
 
 	default:
 		return fmt.Errorf("unsupported monitor type: %s", m.Type)

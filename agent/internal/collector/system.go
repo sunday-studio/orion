@@ -1,4 +1,3 @@
-// internal/collector/system.go
 package collector
 
 import (

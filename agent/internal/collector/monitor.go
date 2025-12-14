@@ -1,14 +1,10 @@
 package collector
 
 import (
-	"fmt"
-
+	"errors"
 	"orion/agent/internal/config"
 	"orion/agent/internal/utils"
 	"time"
-
-	httpMonitor "orion/agent/internal/collector/http_monitor"
-	internalServiceMonitor "orion/agent/internal/collector/internal_service_monitor"
 )
 
 func CollectMonitorReport(internalMonitor config.InternalStateMonitor, userMonitorConfig config.UserMonitor) error {
@@ -19,23 +15,38 @@ func CollectMonitorReport(internalMonitor config.InternalStateMonitor, userMonit
 
 	switch userMonitorConfig.Type {
 	case config.UserMonitorTypeHTTPHealthcheck:
-		return httpMonitor.RunHTTPMonitor(httpMonitor.HTTPMonitorConfig{
+		timeout := defaultTimeout
+		if userMonitorConfig.HTTP.Timeout != "" {
+			if d, err := time.ParseDuration(userMonitorConfig.HTTP.Timeout); err == nil {
+				timeout = d
+			}
+		}
+		_, err := RunHTTPMonitor(HTTPMonitorConfig{
 			URL:            userMonitorConfig.HTTP.URL,
-			Timeout:        userMonitorConfig.HTTP.Timeout,
+			Timeout:        timeout,
 			ExpectedStatus: 200,
 		})
+		return err
 	case config.UserMonitorInternalService:
-		return internalServiceMonitor.RunInternalServiceMonitor(internalServiceMonitor.InternalServiceMonitorConfig{
-			Ping: internalServiceMonitor.PingConfig{
+		result := RunInternalServiceMonitor(InternalServiceMonitorConfig{
+			Ping: PingConfig{
 				URL:     userMonitorConfig.InternalService.Ping.URL,
 				Timeout: defaultTimeout,
 			},
+			Process: PortProcessConfig{
+				Port: userMonitorConfig.InternalService.Process.Port,
+			},
 		})
+		if result.Error != nil {
+			return errors.New(result.Error.Message)
+		}
+		return nil
+	case config.UserMonitorTypeWebsite:
+		result := RunWebsiteMonitor(*userMonitorConfig.Website)
+		if result.Error != nil {
+			return errors.New(result.Error.Message)
+		}
+		return nil
 	}
-	return nil
-}
-
-func CollectNginxMonitorReport(internalMonitor config.InternalStateMonitor, userMonitorConfig config.UserMonitor) error {
-	fmt.Println("collecting nginx monitor report")
 	return nil
 }
