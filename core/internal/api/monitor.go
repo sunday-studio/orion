@@ -34,4 +34,13 @@ func (s *Server) unregisterMonitor(c *gin.Context) {
 		utils.BadRequest(c, "Invalid request payload")
 		return
 	}
+
+	response, err := s.monitorService.UnregisterMonitor(&req)
+	if err != nil {
+		s.logger.Error("Failed to unregister monitor", "error", err)
+		utils.InternalError(c, "Failed to unregister monitor", err)
+		return
+	}
+
+	utils.SuccessResponse(c, 200, "Monitor unregistered successfully", response)
 }

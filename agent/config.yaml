@@ -1,14 +1,14 @@
 core_url: http://localhost:8999
 interval: 5s
 monitors:
-  - name: ibis-server
-    description: backend server for ibis
-    type: "http-healthcheck"
-    interval: 2s
-    http:
-      url: "https://ibis.thesunday.studio/api/health"
-      timeout: 3s
-      expected_status: 200
+  # - name: ibis-server
+  #   description: backend server for ibis
+  #   type: "http-healthcheck"
+  #   interval: 2s
+  #   http:
+  #     url: "https://ibis.thesunday.studio/api/health"
+  #     timeout: 3s
+  #     expected_status: 200
   - name: orion-server
     description: orion core service
     type: "internal-service"
@@ -25,5 +25,13 @@ monitors:
     interval: 5s
     website:
       url: "https://thesunday.studio"
+      timeout: 3s
+      expected_status: 200
+  - name: library-website
+    description: library website
+    type: "website"
+    interval: 5s
+    website:
+      url: "https://library.guide"
       timeout: 3s
       expected_status: 200

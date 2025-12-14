@@ -32,7 +32,7 @@ func (s *RegistrationService) RegisterAgentIfNeeded() error {
 	if s.internalState.IsRegistered() {
 
 		if err := s.RegisterAgentMonitorsIfNeeded(); err != nil {
-			return fmt.Errorf("failed to register agent applications: %w", err)
+			return fmt.Errorf("failed to register monitors: %w", err)
 		}
 
 		return nil
@@ -65,10 +65,6 @@ func (s *RegistrationService) RegisterAgentIfNeeded() error {
 
 	if err := s.internalState.Save(s.internalStatePath); err != nil {
 		return fmt.Errorf("failed to save updated config: %w", err)
-	}
-
-	if err := s.RegisterAgentMonitorsIfNeeded(); err != nil {
-		return fmt.Errorf("failed to register agent applications: %w", err)
 	}
 
 	return nil

@@ -62,8 +62,15 @@ func (s *MonitorService) RegisterMonitor(req *RegisterMonitorRequest) (*Register
 }
 
 func (s *MonitorService) UnregisterMonitor(req *UnregisterMonitorRequest) (*UnregisterMonitorResponse, error) {
-	if err := s.db.Where("agent_id = ? AND id = ?", req.AgentID, req.MonitorID).Delete(&db.Monitor{}).Error; err != nil {
-		s.logger.Error("Failed to unregister monitor", "error", err)
+	// Update the monitor to set status as "unregistered" and set DeletedAt to current timestamp
+	update := map[string]interface{}{
+		"status":     "unregistered",
+		"deleted_at": time.Now(),
+	}
+	if err := s.db.Model(&db.Monitor{}).
+		Where("agent_id = ? AND id = ?", req.AgentID, req.MonitorID).
+		Updates(update).Error; err != nil {
+		s.logger.Error("Failed to mark monitor as unregistered", "error", err)
 		return nil, err
 	}
 	return &UnregisterMonitorResponse{Success: true}, nil

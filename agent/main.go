@@ -37,7 +37,7 @@ func main() {
 
 	registrationService := registration.New(userConfig, *userConfigPath, internalState, *internalStatePath)
 	if err := registrationService.RegisterAgentIfNeeded(); err != nil {
-		logging.Fatalf("Failed to register agent: %v", err)
+		logging.Fatalf("Failed to register agent & monitors: %v", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
