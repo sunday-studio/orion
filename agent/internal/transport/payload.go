@@ -17,6 +17,13 @@ type SystemReport struct {
 	Location      *services.GeoLocation  `json:"location,omitempty"`
 }
 
+type MonitorReport struct {
+	AgentID   string                  `json:"agent_id" binding:"required"`
+	MonitorID string                  `json:"monitor_id" binding:"required"`
+	Payload   collector.MonitorResult `json:"payload" binding:"required"`
+	CreatedAt time.Time               `json:"created_at" binding:"required"`
+}
+
 type AgentRegistrationRequest struct {
 	MachineId string `json:"machine_id" binding:"required"`
 	Name      string `json:"name" binding:"required"`

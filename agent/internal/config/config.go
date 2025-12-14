@@ -32,6 +32,7 @@ const (
 	UserMonitorInternalService     UserMonitorType = "internal-service"
 	UserMonitorTypeCommand         UserMonitorType = "command"
 	UserMonitorTypeWebsite         UserMonitorType = "website"
+	UserMonitorTypePM2             UserMonitorType = "pm2"
 )
 
 var UserMonitorTypes = []UserMonitorType{
@@ -39,6 +40,7 @@ var UserMonitorTypes = []UserMonitorType{
 	UserMonitorInternalService,
 	UserMonitorTypeCommand,
 	UserMonitorTypeWebsite,
+	UserMonitorTypePM2,
 }
 
 type HTTPHealthcheckConfig struct {
@@ -71,6 +73,10 @@ type WebsiteMonitorConfig struct {
 	ExpectedStatus int    `yaml:"expected_status,omitempty"`
 }
 
+type PM2MonitorConfig struct {
+	AppName string `yaml:"app_name"`
+}
+
 type UserMonitor struct {
 	Name        string          `yaml:"name"`
 	Description string          `yaml:"description"`
@@ -81,6 +87,7 @@ type UserMonitor struct {
 	InternalService *InternalServiceConfig `yaml:"internal_service,omitempty"`
 	Command         *CommandMonitorConfig  `yaml:"command,omitempty"`
 	Website         *WebsiteMonitorConfig  `yaml:"website,omitempty"`
+	PM2             *PM2MonitorConfig      `yaml:"pm2,omitempty"`
 }
 
 type UserConfig struct {

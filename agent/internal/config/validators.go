@@ -65,6 +65,13 @@ func (w WebsiteMonitorConfig) Validate() error {
 	return nil
 }
 
+func (p PM2MonitorConfig) Validate() error {
+	if p.AppName == "" {
+		return errors.New("app_name is required")
+	}
+	return nil
+}
+
 func (m UserMonitor) Validate() error {
 	if m.Name == "" {
 		return errors.New("name is required")
@@ -106,6 +113,12 @@ func (m UserMonitor) Validate() error {
 			return errors.New("website config is required")
 		}
 		return m.Website.Validate()
+
+	case UserMonitorTypePM2:
+		if m.PM2 == nil {
+			return errors.New("pm2 config is required")
+		}
+		return m.PM2.Validate()
 
 	default:
 		return fmt.Errorf("unsupported monitor type: %s", m.Type)

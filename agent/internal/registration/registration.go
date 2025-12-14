@@ -30,11 +30,9 @@ func New(userConfig *config.UserConfig, userConfigPath string, internalState *co
 
 func (s *RegistrationService) RegisterAgentIfNeeded() error {
 	if s.internalState.IsRegistered() {
-
 		if err := s.RegisterAgentMonitorsIfNeeded(); err != nil {
 			return fmt.Errorf("failed to register monitors: %w", err)
 		}
-
 		return nil
 	}
 
@@ -67,11 +65,14 @@ func (s *RegistrationService) RegisterAgentIfNeeded() error {
 		return fmt.Errorf("failed to save updated config: %w", err)
 	}
 
+	if err := s.RegisterAgentMonitorsIfNeeded(); err != nil {
+		return fmt.Errorf("failed to register monitors: %w", err)
+	}
+
 	return nil
 }
 
 func (s *RegistrationService) RegisterAgentMonitorsIfNeeded() error {
-
 	s.client.SetAuthToken(s.internalState.Token)
 
 	configMonitors := make(map[string]config.UserMonitor)
@@ -80,6 +81,8 @@ func (s *RegistrationService) RegisterAgentMonitorsIfNeeded() error {
 	}
 
 	stateMonitors := buildStateMonitorMap(s.internalState.Monitors)
+
+	logging.Infof("stateMonitors: %v", stateMonitors)
 
 	var updatedState []config.InternalStateMonitor
 
@@ -143,6 +146,9 @@ func (s *RegistrationService) RegisterAgentMonitorsIfNeeded() error {
 }
 
 func buildStateMonitorMap(monitors []config.InternalStateMonitor) map[string]config.InternalStateMonitor {
+	if monitors == nil {
+		return map[string]config.InternalStateMonitor{}
+	}
 	m := make(map[string]config.InternalStateMonitor)
 	for _, monitor := range monitors {
 		m[monitor.Name] = monitor

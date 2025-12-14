@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"orion/core/internal/db"
 	"orion/core/internal/logging"
 	"orion/core/internal/utils"
@@ -45,34 +46,65 @@ func NewMonitorService(database *gorm.DB, logger *logging.Logger) *MonitorServic
 func (s *MonitorService) RegisterMonitor(req *RegisterMonitorRequest) (*RegisterMonitorResponse, error) {
 	var monitor db.Monitor
 
-	if err := s.db.Where("agent_id = ? AND name = ?", req.AgentID, req.Name).First(&monitor).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			monitorID, err := s.createNewMonitor(req)
-			if err != nil {
+	err := s.db.
+		Where("agent_id = ? AND name = ?", req.AgentID, req.Name).
+		First(&monitor).Error
+
+	switch {
+	case err == nil:
+		if monitor.Lifecycle == "deleted" {
+			if err := s.db.Model(&monitor).Updates(map[string]interface{}{
+				"lifecycle":  "active",
+				"health":     "up",
+				"updated_at": time.Now(),
+			}).Error; err != nil {
 				return nil, err
 			}
-			return monitorID, nil
+
+			// exist but deleted → revive
+			return &RegisterMonitorResponse{
+				MonitorID: monitor.ID,
+			}, nil
 		}
+
+		// already exist
+		s.logger.Error("Monitor with this name already exists for agent", "agent_id", req.AgentID, "name", req.Name)
+		return nil, gorm.ErrRegistered
+
+	case errors.Is(err, gorm.ErrRecordNotFound):
+		resp, err := s.createNewMonitor(req)
+		if err != nil {
+			return nil, err
+		}
+		return resp, nil
+
+	default:
 		s.logger.Error("Database error during monitor lookup", "error", err)
 		return nil, err
 	}
-
-	s.logger.Error("Monitor with this name already exists for agent", "agent_id", req.AgentID, "name", req.Name)
-	return nil, gorm.ErrRegistered
 }
 
 func (s *MonitorService) UnregisterMonitor(req *UnregisterMonitorRequest) (*UnregisterMonitorResponse, error) {
-	// Update the monitor to set status as "unregistered" and set DeletedAt to current timestamp
-	update := map[string]interface{}{
-		"status":     "unregistered",
-		"deleted_at": time.Now(),
-	}
+	now := time.Now()
+
 	if err := s.db.Model(&db.Monitor{}).
-		Where("agent_id = ? AND id = ?", req.AgentID, req.MonitorID).
-		Updates(update).Error; err != nil {
-		s.logger.Error("Failed to mark monitor as unregistered", "error", err)
+		Where("agent_id = ? AND id = ? AND deleted_at IS NULL", req.AgentID, req.MonitorID).
+		Updates(map[string]interface{}{
+			"lifecycle":  "deleted",
+			"health":     "unknown",
+			"updated_at": now,
+			"deleted_at": &now,
+		}).Error; err != nil {
+
+		s.logger.Error(
+			"Failed to unregister monitor",
+			"agent_id", req.AgentID,
+			"monitor_id", req.MonitorID,
+			"error", err,
+		)
 		return nil, err
 	}
+
 	return &UnregisterMonitorResponse{Success: true}, nil
 }
 
@@ -85,7 +117,8 @@ func (s *MonitorService) createNewMonitor(req *RegisterMonitorRequest) (*Registe
 		Description: req.Description,
 		Type:        req.Type,
 		Name:        req.Name,
-		Status:      "running",
+		Lifecycle:   "active",
+		Health:      "unknown",
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}

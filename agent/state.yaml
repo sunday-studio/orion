@@ -1,18 +1,30 @@
-agent_id: agent-e4e2a766-1e03-46c1-9094-4fa69678591d
-token: cb6734b234cf40d5cb96e6514c86f51c5d6c7efe60877a357d1d405d854a527b
+agent_id: agent-607e56c4-397b-4c0a-841e-b500f628d535
+token: 0a02049c7c2c55697da7caeced74e5d688c5a6e693d8332180869729ff6878a2
 registered: true
 core_url: http://localhost:8999
-last_sync: 2025-12-13T22:44:24.536472+01:00
+last_sync: 2025-12-14T17:34:02.899899+01:00
 monitors:
+    - name: aether-server
+      id: monitor-5e0ba628-3a7d-40d5-b83d-68991895194f
+      status: running
+      last_checked: 2025-12-14T17:34:02.906418+01:00
     - name: orion-server
-      id: monitor-bca098e6-e219-4a7f-96f7-7ec13d57c8f7
+      id: monitor-2e01d2b9-285f-44a1-bdbb-ebb56442467f
       status: running
-      last_checked: 2025-12-14T15:19:26.48896+01:00
+      last_checked: 2025-12-14T17:34:02.907535+01:00
     - name: orion-website
-      id: monitor-f6f1b152-0450-4395-9a41-a4cf358e31ad
+      id: monitor-e398cf17-ad32-416b-b19b-136492b86eb3
       status: running
-      last_checked: 2025-12-14T15:19:26.489753+01:00
+      last_checked: 2025-12-14T17:34:02.902221+01:00
     - name: library-website
-      id: monitor-abfba10f-162a-4432-be99-30cd4ede9faf
+      id: monitor-d6b6cb88-e31f-4177-b7de-37bdfb56ee62
       status: running
-      last_checked: 2025-12-14T15:20:03.50599+01:00
+      last_checked: 2025-12-14T17:34:02.903833+01:00
+    - name: pm2-aether-backend
+      id: monitor-f8cfbe01-4eed-460e-b7bd-b1dc5a67afd6
+      status: running
+      last_checked: 2025-12-14T18:03:36.98296+01:00
+    - name: ibis-server
+      id: monitor-750d3a85-dc40-4c6a-9fc6-b8710817a3c8
+      status: running
+      last_checked: 2025-12-14T17:34:02.905248+01:00

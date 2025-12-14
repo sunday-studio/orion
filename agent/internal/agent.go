@@ -32,7 +32,6 @@ func (a *Agent) Run(ctx context.Context) error {
 
 	// start one worker per monitor
 	for _, monitor := range a.userConfig.Monitors {
-		utils.PrettyPrint(monitor)
 		go a.startMonitorWorker(ctx, monitor)
 	}
 	<-ctx.Done()
@@ -92,9 +91,10 @@ func (a *Agent) startMonitorWorker(ctx context.Context, monitor config.UserMonit
 			logging.Infof("Monitor worker stopped")
 			return
 		case <-ticker.C:
-			if err := collector.CollectMonitorReport(*internalMonitor, monitor); err != nil {
-				logging.Errorf("Monitor check error: %v", err)
+			if err := a.runMonitorMetrics(*internalMonitor, monitor); err != nil {
+				logging.Errorf("Monitor metrics error: %v", err)
 			}
+
 		}
 	}
 }
@@ -124,4 +124,16 @@ func (a *Agent) runSystemMetrics() error {
 	return nil
 }
 
-// func (a *Agent) runMonitorWork
+func (a *Agent) runMonitorMetrics(monitor config.InternalStateMonitor, userMonitor config.UserMonitor) error {
+	result, err := collector.CollectMonitorReport(monitor, userMonitor)
+	if err != nil {
+		logging.Errorf("Monitor check error: %v", err)
+		return err
+	}
+
+	logging.Infof("Monitor result -> %v", monitor.Name)
+	utils.PrettyPrint(result)
+
+	// No result to prettyPrint, since CollectMonitorReport only returns an error
+	return nil
+}

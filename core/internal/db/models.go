@@ -69,17 +69,19 @@ type AgentReport struct {
 	Location      datatypes.JSONType[GeoLocation] `json:"location" gorm:"type:json"`
 }
 
-// subprocesses are apps & services running on the agent's machine
 type Monitor struct {
-	ID          string    `json:"id" gorm:"primaryKey"`
-	Description *string   `json:"description"`
-	Type        string    `json:"type" gorm:"not null"`
-	Name        string    `json:"name" gorm:"not null"`
-	AgentID     string    `json:"agent_id" gorm:"index;not null"`
-	Status      string    `json:"status" gorm:"not null"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-	DeletedAt   time.Time `json:"deleted_at"`
+	ID          string  `json:"id" gorm:"primaryKey"`
+	Description *string `json:"description"`
+	Type        string  `json:"type" gorm:"not null"`
+	Name        string  `json:"name" gorm:"not null"`
+	AgentID     string  `json:"agent_id" gorm:"index;not null"`
+
+	Lifecycle string `json:"lifecycle" gorm:"not null"` // active | disabled | deleted
+	Health    string `json:"health" gorm:"not null"`    // up | down | degraded | unknown
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	DeletedAt time.Time `json:"deleted_at"`
 }
 
 type MonitorReport struct {

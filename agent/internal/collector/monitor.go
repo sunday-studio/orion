@@ -3,14 +3,17 @@ package collector
 import (
 	"errors"
 	"orion/agent/internal/config"
-	"orion/agent/internal/utils"
 	"time"
 )
 
-func CollectMonitorReport(internalMonitor config.InternalStateMonitor, userMonitorConfig config.UserMonitor) error {
-	utils.PrettyPrint(internalMonitor)
-	utils.PrettyPrint(userMonitorConfig)
+type MonitorResult struct {
+	Status    string        `json:"status"`
+	Timestamp time.Time     `json:"timestamp"`
+	Metrics   interface{}   `json:"metrics,omitempty"`
+	Error     *MonitorError `json:"error,omitempty"`
+}
 
+func CollectMonitorReport(internalMonitor config.InternalStateMonitor, userMonitorConfig config.UserMonitor) (*MonitorResult, error) {
 	defaultTimeout := 10 * time.Second
 
 	switch userMonitorConfig.Type {
@@ -21,12 +24,26 @@ func CollectMonitorReport(internalMonitor config.InternalStateMonitor, userMonit
 				timeout = d
 			}
 		}
-		_, err := RunHTTPMonitor(HTTPMonitorConfig{
+		httpResult, err := RunHTTPMonitor(HTTPMonitorConfig{
 			URL:            userMonitorConfig.HTTP.URL,
 			Timeout:        timeout,
 			ExpectedStatus: 200,
 		})
-		return err
+		if err != nil {
+			return &MonitorResult{
+				Status:    "down",
+				Timestamp: time.Now().UTC(),
+				Metrics:   &map[string]interface{}{},
+				Error:     &MonitorError{Message: err.Error()},
+			}, err
+		} else {
+			return &MonitorResult{
+				Status:    httpResult.Status,
+				Timestamp: httpResult.Timestamp,
+				Metrics:   &httpResult.Metrics,
+			}, nil
+		}
+
 	case config.UserMonitorInternalService:
 		result := RunInternalServiceMonitor(InternalServiceMonitorConfig{
 			Ping: PingConfig{
@@ -38,15 +55,58 @@ func CollectMonitorReport(internalMonitor config.InternalStateMonitor, userMonit
 			},
 		})
 		if result.Error != nil {
-			return errors.New(result.Error.Message)
+			return &MonitorResult{
+				Status:    result.Status,
+				Timestamp: result.Timestamp,
+				Metrics:   &result.Metrics,
+				Error:     result.Error,
+			}, errors.New(result.Error.Message)
 		}
-		return nil
+		return &MonitorResult{
+			Status:    result.Status,
+			Timestamp: result.Timestamp,
+			Metrics:   &result.Metrics,
+			Error:     result.Error,
+		}, nil
 	case config.UserMonitorTypeWebsite:
 		result := RunWebsiteMonitor(*userMonitorConfig.Website)
 		if result.Error != nil {
-			return errors.New(result.Error.Message)
+			return &MonitorResult{
+				Status:    result.Status,
+				Timestamp: result.Timestamp,
+				Metrics:   &result.Metrics,
+				Error:     result.Error,
+			}, errors.New(result.Error.Message)
 		}
-		return nil
+		return &MonitorResult{
+			Status:    result.Status,
+			Timestamp: result.Timestamp,
+			Metrics:   &result.Metrics,
+			Error:     result.Error,
+		}, nil
+	case config.UserMonitorTypePM2:
+		result := RunPM2Monitor(PM2MonitorConfig{
+			AppName: userMonitorConfig.PM2.AppName,
+		})
+		if result.Error != nil {
+			return &MonitorResult{
+				Status:    result.Status,
+				Timestamp: result.Timestamp,
+				Metrics:   &result.Metrics,
+				Error:     result.Error,
+			}, errors.New(result.Error.Message)
+		}
+		return &MonitorResult{
+			Status:    result.Status,
+			Timestamp: result.Timestamp,
+			Metrics:   &result.Metrics,
+			Error:     result.Error,
+		}, nil
 	}
-	return nil
+	return &MonitorResult{
+		Status:    "down",
+		Timestamp: time.Now().UTC(),
+		Metrics:   &map[string]interface{}{},
+		Error:     &MonitorError{Message: "unsupported monitor type"},
+	}, errors.New("unsupported monitor type")
 }
