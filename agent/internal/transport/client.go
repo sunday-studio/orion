@@ -97,6 +97,33 @@ func (c *Client) RegisterMonitor(req MonitorRegistrationRequest) (*MonitorRegist
 	return &monResp, nil
 }
 
+func (c *Client) UnregisterMonitor(req UnRegisterMonitorRequest) (*UnRegisterMonitorResponse, error) {
+	endpoint := fmt.Sprintf("/agents/%s/unregister-monitor", req.AgentID)
+
+	resp, err := c.makeProtectedRequest("POST", endpoint, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unregister monitor: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	var monResp UnRegisterMonitorResponse
+	if err := json.Unmarshal(body, &monResp); err != nil {
+		return nil, fmt.Errorf("failed to parse application registration response: %w", err)
+	}
+
+	if !monResp.Success {
+		return nil, fmt.Errorf("monitor registration failed: %s", monResp.Message)
+	}
+
+	logging.Infof("Monitor unregistered successfully with ID: %s", req.MonitorID)
+	return &monResp, nil
+}
+
 func (c *Client) SendReport(report SystemReport, agentID string) error {
 	endpoint := fmt.Sprintf("/agents/%s/report", agentID)
 	resp, err := c.makeProtectedRequest("POST", endpoint, report)

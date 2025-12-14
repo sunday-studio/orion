@@ -52,6 +52,7 @@ type Agent struct {
 	Arch          string                          `json:"arch" gorm:"not null"`
 	Token         string                          `json:"token" gorm:"uniqueIndex;not null"`
 	CreatedAt     time.Time                       `json:"created_at"`
+	DeletedAt     time.Time                       `json:"deleted_at"`
 	LastSeen      time.Time                       `json:"last_seen"`
 	Location      datatypes.JSONType[GeoLocation] `json:"location" gorm:"type:json"`
 }
@@ -78,6 +79,7 @@ type Monitor struct {
 	Status      string    `json:"status" gorm:"not null"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
+	DeletedAt   time.Time `json:"deleted_at"`
 }
 
 type MonitorReport struct {

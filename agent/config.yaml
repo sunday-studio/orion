@@ -5,20 +5,25 @@ monitors:
     description: backend server for ibis
     type: "http-healthcheck"
     interval: 2s
-    url: "https://ibis.thesunday.studio/api/health"
+    http:
+      url: "https://ibis.thesunday.studio/api/health"
+      timeout: 3s
+      expected_status: 200
   - name: orion-server
     description: orion core service
     type: "internal-service"
     interval: 5s
-    ping:
-      url: "http://localhost:8999/health"
-      timeout: 3s
-    process:
-      port: 8999
+    internal_service:
+      ping:
+        url: "http://localhost:8999/health"
+        timeout: 3s
+      process:
+        port: 8999
   - name: orion-website
     description: orion website
     type: "website"
     interval: 5s
-    url: "https://thesunday.studio"
-    timeout: 3s
-    expected_status: 200
+    website:
+      url: "https://thesunday.studio"
+      timeout: 3s
+      expected_status: 200

@@ -17,6 +17,15 @@ type RegisterMonitorRequest struct {
 	LastChecked time.Time `json:"last_checked" binding:"required"`
 }
 
+type UnregisterMonitorRequest struct {
+	AgentID   string `json:"agent_id" binding:"required"`
+	MonitorID string `json:"monitor_id" binding:"required"`
+}
+
+type UnregisterMonitorResponse struct {
+	Success bool `json:"success"`
+}
+
 type RegisterMonitorResponse struct {
 	MonitorID string `json:"monitor_id"`
 }
@@ -50,6 +59,14 @@ func (s *MonitorService) RegisterMonitor(req *RegisterMonitorRequest) (*Register
 
 	s.logger.Error("Monitor with this name already exists for agent", "agent_id", req.AgentID, "name", req.Name)
 	return nil, gorm.ErrRegistered
+}
+
+func (s *MonitorService) UnregisterMonitor(req *UnregisterMonitorRequest) (*UnregisterMonitorResponse, error) {
+	if err := s.db.Where("agent_id = ? AND id = ?", req.AgentID, req.MonitorID).Delete(&db.Monitor{}).Error; err != nil {
+		s.logger.Error("Failed to unregister monitor", "error", err)
+		return nil, err
+	}
+	return &UnregisterMonitorResponse{Success: true}, nil
 }
 
 func (s *MonitorService) createNewMonitor(req *RegisterMonitorRequest) (*RegisterMonitorResponse, error) {

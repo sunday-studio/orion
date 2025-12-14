@@ -41,10 +41,20 @@ type MonitorRegistrationRequest struct {
 	LastChecked time.Time `json:"last_checked" binding:"required"`
 }
 
+type UnRegisterMonitorRequest struct {
+	AgentID   string `json:"agent_id" binding:"required"`
+	MonitorID string `json:"monitor_id" binding:"required"`
+}
+
 type MonitorRegistrationResponse struct {
 	Success bool `json:"success"`
 	Data    struct {
 		MonitorID string `json:"monitor_id"`
 	} `json:"data"`
+	Message string `json:"message"`
+}
+
+type UnRegisterMonitorResponse struct {
+	Success bool   `json:"success"`
 	Message string `json:"message"`
 }
