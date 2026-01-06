@@ -1,13 +1,51 @@
 core_url: http://localhost:8999
-interval: 5s
-applications:
-    - name: aether
-      description: Aether is a web application that allows users to manage their accounts and subscriptions.
-      cmd: /usr/bin/nginx -t
-      type: "nginx"
-      interval: 60m
-    - name: ibis-server
-      description: backend server for ibis
-      type: "server-healthcheck"
-      interval: 10m
+interval: 60m
+monitors:
+  - name: ibis-server
+    description: backend server for ibis
+    type: http-healthcheck
+    interval: 10s
+    http:
       url: "https://ibis.thesunday.studio/api/health"
+      timeout: 3s
+      expected_status: 200
+  - name: aether-server
+    description: backend server for aether
+    type: http-healthcheck
+    interval: 5s
+    http:
+      url: "http://nowhere.local:9119/v1/ping"
+      timeout: 3s
+      expected_status: 200
+  - name: orion-server
+    description: orion core service
+    type: internal-service
+    interval: 10s
+    internal_service:
+      ping:
+        url: "http://localhost:8999/health"
+        timeout: 3s
+      process:
+        port: 8999
+  - name: orion-website
+    description: orion website
+    type: website
+    interval: 15s
+    website:
+      url: "https://thesunday.studio"
+      timeout: 3s
+      expected_status: 200
+  - name: library-website
+    description: library website
+    type: website
+    interval: 20s
+    website:
+      url: "https://library.guide"
+      timeout: 3s
+      expected_status: 200
+  - name: pm2-aether-backend
+    description: pm2 aether backend
+    type: pm2
+    interval: 10s
+    pm2:
+      app_name: server

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"orion/agent/internal/config"
+	"orion/agent/internal/logging"
 	"orion/agent/internal/transport"
 	"orion/agent/internal/utils"
 )
@@ -29,6 +30,9 @@ func New(userConfig *config.UserConfig, userConfigPath string, internalState *co
 
 func (s *RegistrationService) RegisterAgentIfNeeded() error {
 	if s.internalState.IsRegistered() {
+		if err := s.RegisterAgentMonitorsIfNeeded(); err != nil {
+			return fmt.Errorf("failed to register monitors: %w", err)
+		}
 		return nil
 	}
 
@@ -61,49 +65,93 @@ func (s *RegistrationService) RegisterAgentIfNeeded() error {
 		return fmt.Errorf("failed to save updated config: %w", err)
 	}
 
-	if err := s.RegisterAgentApplicationsIfNeeded(); err != nil {
-		return fmt.Errorf("failed to register agent applications: %w", err)
+	if err := s.RegisterAgentMonitorsIfNeeded(); err != nil {
+		return fmt.Errorf("failed to register monitors: %w", err)
 	}
 
 	return nil
 }
 
-func (s *RegistrationService) RegisterAgentApplicationsIfNeeded() error {
-	if len(s.userConfig.Applications) == 0 {
-		return nil
+func (s *RegistrationService) RegisterAgentMonitorsIfNeeded() error {
+	s.client.SetAuthToken(s.internalState.Token)
+
+	configMonitors := make(map[string]config.UserMonitor)
+	for _, m := range s.userConfig.Monitors {
+		configMonitors[m.Name] = m
 	}
 
-	var applications []config.InternalStateApplication
+	stateMonitors := buildStateMonitorMap(s.internalState.Monitors)
 
-	for _, app := range s.userConfig.Applications {
-		req := transport.ApplicationRegistrationRequest{
+	logging.Infof("stateMonitors: %v", stateMonitors)
+
+	var updatedState []config.InternalStateMonitor
+
+	// register new monitors
+	for name, monitor := range configMonitors {
+		if _, exists := stateMonitors[name]; exists {
+			// already registered — keep it
+			updatedState = append(updatedState, stateMonitors[name])
+			continue
+		}
+
+		logging.Infof("Registering monitor %q", name)
+
+		req := transport.MonitorRegistrationRequest{
 			AgentID:     s.internalState.AgentID,
-			Name:        app.Name,
-			Description: app.Description,
-			Type:        string(app.Type),
+			Name:        monitor.Name,
+			Description: monitor.Description,
+			Type:        string(monitor.Type),
 			LastChecked: time.Now(),
 		}
 
-		resp, err := s.client.RegisterApplication(req)
+		resp, err := s.client.RegisterMonitor(req)
 		if err != nil {
-			return fmt.Errorf("failed to register application: %w", err)
+			return fmt.Errorf("failed to register monitor %q: %w", name, err)
 		}
 
-		fmt.Println("resp ->", resp)
-
-		applications = append(applications, config.InternalStateApplication{
-			ID:          resp.Data.ApplicationID,
-			Name:        app.Name,
+		updatedState = append(updatedState, config.InternalStateMonitor{
+			ID:          resp.Data.MonitorID,
+			Name:        name,
 			Status:      "running",
 			LastChecked: time.Now(),
 		})
 	}
 
-	s.internalState.UpdateApplications(applications)
+	// unregister removed monitors
+	for name, stateMonitor := range stateMonitors {
+		if _, exists := configMonitors[name]; exists {
+			continue
+		}
+
+		logging.Infof("Unregistering monitor %q", name)
+
+		req := transport.UnRegisterMonitorRequest{
+			AgentID:   s.internalState.AgentID,
+			MonitorID: stateMonitor.ID,
+		}
+
+		_, err := s.client.UnregisterMonitor(req)
+		if err != nil {
+			return fmt.Errorf("failed to unregister monitor %q: %w", name, err)
+		}
+	}
+
+	s.internalState.UpdateMonitors(updatedState)
 
 	if err := s.internalState.Save(s.internalStatePath); err != nil {
 		return fmt.Errorf("failed to save updated config: %w", err)
 	}
 
 	return nil
+}
+
+func buildStateMonitorMap(monitors []config.InternalStateMonitor) map[string]config.InternalStateMonitor {
+	if monitors == nil {
+		return map[string]config.InternalStateMonitor{}
+	}
+	m := make(map[string]config.InternalStateMonitor)
+	for _, monitor := range monitors {
+		m[monitor.Name] = monitor
+	}
+	return m
 }

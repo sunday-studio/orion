@@ -1,84 +1,61 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"flag"
-	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 
-	"orion/agent/internal/collector"
+	agent "orion/agent/internal"
+	"orion/agent/internal/config"
 	"orion/agent/internal/logging"
+	"orion/agent/internal/registration"
 )
 
-// var (
-// 	userConfigPath    = flag.String("config", "/etc/orion/config.yaml", "config.yaml")
-// 	internalStatePath = flag.String("state", "/etc/orion/state.yaml", "state.yaml")
-// 	once              = flag.Bool("once", false, "Run once and exit (for debugging)")
-// )
+var (
+	// userConfigPath    = flag.String("config", "/etc/orion/config.yaml", "config.yaml")
+	// internalStatePath = flag.String("state", "/etc/orion/state.yaml", "state.yaml")
+	userConfigPath    = flag.String("config", "config.yaml", config.DefaultPath())
+	internalStatePath = flag.String("state", "state.yaml", config.DefaultPath())
+	once              = flag.Bool("once", false, "Run once and exit (for debugging)")
+)
 
 func main() {
 	flag.Parse()
 	logging.Infof("Starting Orion Agent...")
 
-	// userConfig, err := config.LoadUserConfig(*userConfigPath)
-	// internalState, err := config.LoadInternalState(*internalStatePath)
-
-	// if err != nil {
-	// 	logging.Fatalf("Failed to load config: %v", err)
-	// }
-
-	systemMetrics, err := collector.Collect()
+	userConfig, err := config.LoadUserConfig(*userConfigPath)
 	if err != nil {
-		logging.Fatalf("Failed to collect system metrics: %v", err)
+		logging.Fatalf("Failed to load user config: %v", err)
 	}
 
-	prettyPrint(systemMetrics)
+	internalState, err := config.LoadInternalState(*internalStatePath)
+	if err != nil {
+		logging.Fatalf("Failed to load internal state: %v", err)
+	}
 
-	// return
+	registrationService := registration.New(userConfig, *userConfigPath, internalState, *internalStatePath)
+	if err := registrationService.RegisterAgentIfNeeded(); err != nil {
+		logging.Fatalf("Failed to register agent & monitors: %v", err)
+	}
 
-	// returnedName := systemMetrics.Hostname
+	ctx, cancel := context.WithCancel(context.Background())
 
-	// regService := registration.New(userConfig, *userConfigPath, internalState, *internalStatePath)
-	// if err := regService.RegisterAgentIfNeeded(); err != nil {
-	// 	logging.Fatalf("Failed to register agent: %v", err)
-	// }
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
-	// userConfig, err = config.LoadUserConfig(*userConfigPath)
-	// if err != nil {
-	// 	logging.Fatalf("Failed to reload config after registration: %v", err)
-	// }
+	agent := agent.New(userConfig, internalState)
 
-	// a := agent.New(userConfig, internalState)
+	go func() {
+		<-sigs
+		logging.Infof("Received shutdown signal, stopping agent...")
+		cancel()
+	}()
 
-	// ctx, cancel := context.WithCancel(context.Background())
-	// defer cancel()
+	if err := agent.Run(ctx); err != nil {
+		logging.Errorf("Agent stopped with error: %v", err)
+	}
 
-	// sigs := make(chan os.Signal, 1)
-	// signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
-	// // Run in a goroutine so we can catch signals
-	// go func() {
-	// 	if *once {
-	// 		if err := a.RunOnce(ctx); err != nil {
-	// 			logging.Errorf("Agent run failed: %v", err)
-	// 		}
-	// 		cancel()
-	// 		return
-	// 	}
-
-	// 	if err := a.Run(ctx); err != nil {
-	// 		logging.Errorf("Agent stopped with error: %v", err)
-	// 	}
-	// 	cancel()
-	// }()
-
-	// <-sigs
-	// logging.Infof("Received shutdown signal, stopping agent...")
-	// cancel()
-	// time.Sleep(1 * time.Second)
-	// logging.Infof("Orion Agent exited cleanly")
-}
-
-func prettyPrint(v interface{}) {
-	b, _ := json.MarshalIndent(v, "", "  ")
-	fmt.Println(string(b))
+	logging.Infof("Orion Agent exited cleanly")
 }

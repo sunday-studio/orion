@@ -1,20 +1,27 @@
 package transport
 
-import "time"
+import (
+	"time"
+
+	"orion/agent/internal/collector"
+	"orion/agent/internal/services"
+)
 
 type SystemReport struct {
-	Hostname   string            `json:"hostname"`
-	IPAddress  string            `json:"ip_address"`
-	OS         string            `json:"os"`
-	Uptime     string            `json:"uptime"`
-	Load       string            `json:"load"`
-	CPUUsage   float64           `json:"cpu_usage"`
-	MemoryUsed uint64            `json:"memory_used"`
-	MemoryFree uint64            `json:"memory_free"`
-	DiskUsed   uint64            `json:"disk_used"`
-	DiskFree   uint64            `json:"disk_free"`
-	Timestamp  time.Time         `json:"timestamp"`
-	Tags       map[string]string `json:"tags,omitempty"`
+	KernelVersion string                 `json:"kernel_version"`
+	UptimeSeconds uint64                 `json:"uptime_seconds"`
+	Timestamp     string                 `json:"timestamp"`
+	CPU           *collector.CPUStats    `json:"cpu"`
+	Memory        *collector.MemoryStats `json:"memory"`
+	Disk          *collector.DiskStats   `json:"disk"`
+	Location      *services.GeoLocation  `json:"location,omitempty"`
+}
+
+type MonitorReport struct {
+	Timestamp string                  `json:"timestamp" binding:"required"`
+	Health    string                  `json:"health" binding:"required"` // up | down
+	Metrics   interface{}             `json:"metrics,omitempty"`
+	Error     *collector.MonitorError `json:"error,omitempty"`
 }
 
 type AgentRegistrationRequest struct {
@@ -33,7 +40,7 @@ type AgentRegistrationResponse struct {
 	} `json:"data"`
 }
 
-type ApplicationRegistrationRequest struct {
+type MonitorRegistrationRequest struct {
 	AgentID     string    `json:"agent_id" binding:"required"`
 	Name        string    `json:"name" binding:"required"`
 	Description string    `json:"description" binding:"required"`
@@ -41,10 +48,20 @@ type ApplicationRegistrationRequest struct {
 	LastChecked time.Time `json:"last_checked" binding:"required"`
 }
 
-type ApplicationRegistrationResponse struct {
+type UnRegisterMonitorRequest struct {
+	AgentID   string `json:"agent_id" binding:"required"`
+	MonitorID string `json:"monitor_id" binding:"required"`
+}
+
+type MonitorRegistrationResponse struct {
 	Success bool `json:"success"`
 	Data    struct {
-		ApplicationID string `json:"application_id"`
+		MonitorID string `json:"monitor_id"`
 	} `json:"data"`
+	Message string `json:"message"`
+}
+
+type UnRegisterMonitorResponse struct {
+	Success bool   `json:"success"`
 	Message string `json:"message"`
 }

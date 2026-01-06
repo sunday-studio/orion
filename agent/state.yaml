@@ -1,14 +1,30 @@
-agent_id: agent-dcbb43f4-b139-465d-b098-3fb6c38e7e30
-token: 291054596240bfe52e58ef8f30c0cf7b0c861c60283578c9a402c1d41973ba18
+agent_id: agent-607e56c4-397b-4c0a-841e-b500f628d535
+token: 0a02049c7c2c55697da7caeced74e5d688c5a6e693d8332180869729ff6878a2
 registered: true
 core_url: http://localhost:8999
-last_sync: 2025-10-29T12:42:24.869635+08:00
-applications:
-    - name: aether
-      id: app-91edaab0-7c40-4c15-80a4-1568ba1b7677
-      status: running
-      last_checked: 2025-10-29T12:42:24.870723+08:00
+last_sync: 2025-12-14T17:34:02.899899+01:00
+monitors:
     - name: ibis-server
-      id: app-adbb990e-afda-4fbe-b5e3-6e7534d9929b
+      id: monitor-750d3a85-dc40-4c6a-9fc6-b8710817a3c8
       status: running
-      last_checked: 2025-10-29T12:42:24.871451+08:00
+      last_checked: 2025-12-14T17:34:02.905248+01:00
+    - name: aether-server
+      id: monitor-5e0ba628-3a7d-40d5-b83d-68991895194f
+      status: running
+      last_checked: 2025-12-14T17:34:02.906418+01:00
+    - name: orion-server
+      id: monitor-2e01d2b9-285f-44a1-bdbb-ebb56442467f
+      status: running
+      last_checked: 2025-12-14T17:34:02.907535+01:00
+    - name: orion-website
+      id: monitor-e398cf17-ad32-416b-b19b-136492b86eb3
+      status: running
+      last_checked: 2025-12-14T17:34:02.902221+01:00
+    - name: library-website
+      id: monitor-d6b6cb88-e31f-4177-b7de-37bdfb56ee62
+      status: running
+      last_checked: 2025-12-14T17:34:02.903833+01:00
+    - name: pm2-aether-backend
+      id: monitor-f8cfbe01-4eed-460e-b7bd-b1dc5a67afd6
+      status: running
+      last_checked: 2025-12-14T18:03:36.98296+01:00

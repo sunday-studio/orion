@@ -1,4 +1,3 @@
-
 # Orion System Design
 
 ## Overview
@@ -26,17 +25,15 @@ Each agent periodically collects system information (config, CPU/memory/disk usa
       │  Go + SQLite DB    │
       └────────┬───────────┘
                ▲
-   Periodic    │
-   JSON POSTs  │
-               ▼
-      ┌────────────────────┐
-      │   Orion Agent      │
-      │  Go binary daemon  │
-      │  Runs on servers   │
-      └────────────────────┘
 
-
-
+Periodic │
+JSON POSTs │
+▼
+┌────────────────────┐
+│ Orion Agent │
+│ Go binary daemon │
+│ Runs on servers │
+└────────────────────┘
 
 ---
 
@@ -47,6 +44,7 @@ Each agent periodically collects system information (config, CPU/memory/disk usa
 A lightweight daemon written in Go.
 
 **Responsibilities**
+
 - Install and configure via a single binary (`orion-agent`).
 - Load configuration file (`/etc/orion/config.yaml`).
 - Collect:
@@ -60,6 +58,7 @@ A lightweight daemon written in Go.
 - Use HTTPS and token-based auth for communication.
 
 **Key Commands**
+
 - `orion install` — setup systemd service or macOS launch daemon.
 - `orion start` — start the agent.
 - `orion stop` — stop the agent.
@@ -67,6 +66,7 @@ A lightweight daemon written in Go.
 - `orion send` — manually trigger sync.
 
 **UserConfig Example**
+
 ```yaml
 core_url: "https://orion-core.example.com"
 interval: 60s
@@ -76,3 +76,4 @@ subprocesses:
     cmd: "/usr/bin/nginx -t"
   - name: "backup_check"
     cmd: "/usr/local/bin/backup-status"
+```
