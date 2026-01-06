@@ -8,9 +8,11 @@
 - [] support for `name` in config; defualt name to hostname; 
  
 
-## core 
+## core
+- [] update agent table to support `name` & `hostname`
 - [] endpoints for maintenance mode 
 - [] endpoint for ui
+
 
 
 ## web 
