@@ -25,6 +25,18 @@ func New(userConfig *config.UserConfig, internalState *config.InternalState) *Ag
 }
 
 func (a *Agent) Run(ctx context.Context) error {
+	// Check if agent is in maintenance mode
+	if a.internalState.MaintenanceMode {
+		reason := "No reason provided"
+		if a.internalState.MaintenanceReason != nil {
+			reason = *a.internalState.MaintenanceReason
+		}
+		logging.Infof("Agent is in maintenance mode. Pausing reporting. Reason: %s", reason)
+		// Just wait for context cancellation
+		<-ctx.Done()
+		logging.Infof("Agent runtime stopped (maintenance mode)")
+		return nil
+	}
 
 	// Start system metrics worker
 	go a.startSystemMetricsWorker(ctx)
@@ -36,6 +48,32 @@ func (a *Agent) Run(ctx context.Context) error {
 	<-ctx.Done()
 
 	logging.Infof("Agent runtime stopped")
+	return nil
+}
+
+// RunOnce runs the agent once (collects and sends all metrics, then exits)
+func (a *Agent) RunOnce(ctx context.Context) error {
+	logging.Infof("Running agent once (single collection cycle)")
+
+	// Run system metrics once
+	if err := a.runSystemMetrics(); err != nil {
+		logging.Errorf("System metrics error: %v", err)
+	}
+
+	// Run all monitors once
+	for _, monitor := range a.userConfig.Monitors {
+		internalMonitor := a.internalState.GetMonitorByName(monitor.Name)
+		if internalMonitor == nil {
+			logging.Warnf("Monitor not found in internal state: %s", monitor.Name)
+			continue
+		}
+
+		if err := a.runMonitorMetrics(*internalMonitor, monitor); err != nil {
+			logging.Errorf("Monitor metrics error for %s: %v", monitor.Name, err)
+		}
+	}
+
+	logging.Infof("Single run completed")
 	return nil
 }
 

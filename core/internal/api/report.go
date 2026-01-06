@@ -66,6 +66,12 @@ func (s *Server) receiveAgentReport(c *gin.Context) {
 		return
 	}
 
+	// Update agent last-seen timestamp
+	if err := s.agentService.UpdateLastSeen(agentID.(string)); err != nil {
+		s.logger.Error("Failed to update agent last-seen", "error", err, "agent_id", agentID)
+		// Don't fail the request if last-seen update fails
+	}
+
 	// Prepare response
 	response := ReportResponse{
 		Message:   "Report received successfully",
@@ -120,6 +126,16 @@ func (s *Server) receiveMonitorReport(c *gin.Context) {
 		utils.InternalError(c, "Failed to store monitor report", nil)
 		return
 	}
+
+	// Update agent last-seen timestamp
+	if err := s.agentService.UpdateLastSeen(agentID.(string)); err != nil {
+		s.logger.Error("Failed to update agent last-seen", "error", err, "agent_id", agentID)
+		// Don't fail the request if last-seen update fails
+	}
+
+	utils.SuccessResponse(c, 200, "Monitor report received successfully", gin.H{
+		"message": "Monitor report received successfully",
+	})
 }
 
 func PrettyPrint(v interface{}) {

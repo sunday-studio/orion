@@ -38,10 +38,12 @@ func Initialize() (*gorm.DB, error) {
 	return db, nil
 }
 
+// Migrate runs database migrations using GORM AutoMigrate
+// For production, consider using golang-migrate via RunMigrations()
 func Migrate(db *gorm.DB) error {
 	log := logging.NewLogger()
 
-	log.Info("Running database migrations")
+	log.Info("Running database migrations (AutoMigrate)")
 
 	if err := db.AutoMigrate(&Agent{}, &AgentReport{}, &Monitor{}, &MonitorReport{}); err != nil {
 		log.Error("Migration failed", "error", err)
@@ -49,5 +51,17 @@ func Migrate(db *gorm.DB) error {
 	}
 
 	log.Info("Database migrations completed successfully")
+	return nil
+}
+
+// MigrateWithFiles runs migrations from SQL files using golang-migrate
+// This is the preferred method for production deployments
+func MigrateWithFiles(db *gorm.DB, migrationsPath string, logger *logging.Logger) error {
+	// Try to run file-based migrations first
+	if err := RunMigrations(db, migrationsPath, logger); err != nil {
+		logger.Warn("File-based migrations failed, falling back to AutoMigrate", "error", err)
+		// Fall back to AutoMigrate if file migrations fail (e.g., migrations directory doesn't exist)
+		return Migrate(db)
+	}
 	return nil
 }

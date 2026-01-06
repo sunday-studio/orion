@@ -20,7 +20,7 @@ It is intended as a living roadmap that can be used directly in Cursor / GitHub.
 
 ---
 
-## 1. Core (Backend)
+## 1. Core (Backend)x
 
 ### 1.1 Domain & APIs
 

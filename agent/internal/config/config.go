@@ -10,12 +10,14 @@ import (
 )
 
 type InternalState struct {
-	AgentID    string                 `yaml:"agent_id"`
-	Token      string                 `yaml:"token"`
-	Registered bool                   `yaml:"registered"`
-	CoreURL    string                 `yaml:"core_url"`
-	LastSync   time.Time              `yaml:"last_sync"`
-	Monitors   []InternalStateMonitor `yaml:"monitors"`
+	AgentID           string                 `yaml:"agent_id"`
+	Token             string                 `yaml:"token"`
+	Registered        bool                   `yaml:"registered"`
+	CoreURL           string                 `yaml:"core_url"`
+	LastSync          time.Time              `yaml:"last_sync"`
+	MaintenanceMode   bool                   `yaml:"maintenance_mode"`
+	MaintenanceReason *string                `yaml:"maintenance_reason,omitempty"`
+	Monitors          []InternalStateMonitor `yaml:"monitors"`
 }
 
 type InternalStateMonitor struct {

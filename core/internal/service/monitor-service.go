@@ -11,11 +11,12 @@ import (
 )
 
 type RegisterMonitorRequest struct {
-	AgentID     string    `json:"agent_id" binding:"required"`
-	Name        string    `json:"name" binding:"required"`
-	Description *string   `json:"description" binding:"required"`
-	Type        string    `json:"type" binding:"required"`
-	LastChecked time.Time `json:"last_checked" binding:"required"`
+	AgentID                  string    `json:"agent_id" binding:"required"`
+	Name                     string    `json:"name" binding:"required"`
+	Description              *string   `json:"description" binding:"required"`
+	Type                     string    `json:"type" binding:"required"`
+	LastChecked              time.Time `json:"last_checked" binding:"required"`
+	ReportingIntervalSeconds int       `json:"reporting_interval_seconds"` // Monitor check interval in seconds
 }
 
 type UnregisterMonitorRequest struct {
@@ -53,11 +54,20 @@ func (s *MonitorService) RegisterMonitor(req *RegisterMonitorRequest) (*Register
 	switch {
 	case err == nil:
 		if monitor.Lifecycle == "deleted" {
-			if err := s.db.Model(&monitor).Updates(map[string]interface{}{
-				"lifecycle":  "active",
-				"health":     "up",
-				"updated_at": time.Now(),
-			}).Error; err != nil {
+			// Default interval to 60 seconds if not provided
+			interval := req.ReportingIntervalSeconds
+			if interval == 0 {
+				interval = 60
+			}
+
+			updates := map[string]interface{}{
+				"lifecycle":                  "active",
+				"health":                     "up",
+				"updated_at":                 time.Now(),
+				"reporting_interval_seconds": interval,
+			}
+
+			if err := s.db.Model(&monitor).Updates(updates).Error; err != nil {
 				return nil, err
 			}
 
@@ -111,16 +121,24 @@ func (s *MonitorService) UnregisterMonitor(req *UnregisterMonitorRequest) (*Unre
 func (s *MonitorService) createNewMonitor(req *RegisterMonitorRequest) (*RegisterMonitorResponse, error) {
 	monitorID := utils.GenerateID("monitor")
 
+	// Default interval to 60 seconds if not provided
+	interval := req.ReportingIntervalSeconds
+	if interval == 0 {
+		interval = 60
+	}
+
 	monitor := db.Monitor{
-		ID:          monitorID,
-		AgentID:     req.AgentID,
-		Description: req.Description,
-		Type:        req.Type,
-		Name:        req.Name,
-		Lifecycle:   "active",
-		Health:      "unknown",
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		ID:                       monitorID,
+		AgentID:                  req.AgentID,
+		Description:              req.Description,
+		Type:                     req.Type,
+		Name:                     req.Name,
+		Lifecycle:                "active",
+		Health:                   "unknown",
+		ComputedHealth:           "unknown",
+		ReportingIntervalSeconds: interval,
+		CreatedAt:                time.Now(),
+		UpdatedAt:                time.Now(),
 	}
 
 	if err := s.db.Create(&monitor).Error; err != nil {
@@ -131,4 +149,57 @@ func (s *MonitorService) createNewMonitor(req *RegisterMonitorRequest) (*Registe
 	return &RegisterMonitorResponse{
 		MonitorID: monitorID,
 	}, nil
+}
+
+func (s *MonitorService) ListMonitors(agentID string, healthFilter string, lifecycleFilter string, limit int, offset int) ([]db.Monitor, error) {
+	var monitors []db.Monitor
+
+	query := s.db.Where("agent_id = ?", agentID)
+
+	if healthFilter != "" {
+		query = query.Where("health = ?", healthFilter)
+	}
+
+	if lifecycleFilter != "" {
+		query = query.Where("lifecycle = ?", lifecycleFilter)
+	} else {
+		// Default to active monitors only
+		query = query.Where("lifecycle = ?", "active")
+	}
+
+	query = query.Order("created_at DESC")
+
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+
+	if offset > 0 {
+		query = query.Offset(offset)
+	}
+
+	if err := query.Find(&monitors).Error; err != nil {
+		s.logger.Error("Failed to list monitors", "agent_id", agentID, "error", err)
+		return nil, err
+	}
+
+	s.logger.Debug("Retrieved monitors", "agent_id", agentID, "count", len(monitors))
+	return monitors, nil
+}
+
+func (s *MonitorService) GetMonitor(monitorID string) (*db.Monitor, error) {
+	var monitor db.Monitor
+	if err := s.db.Where("id = ?", monitorID).First(&monitor).Error; err != nil {
+		s.logger.Error("Failed to get monitor", "monitor_id", monitorID, "error", err)
+		return nil, err
+	}
+	return &monitor, nil
+}
+
+func (s *MonitorService) GetMonitorCount(agentID string) (int64, error) {
+	var count int64
+	if err := s.db.Model(&db.Monitor{}).Where("agent_id = ? AND lifecycle = ?", agentID, "active").Count(&count).Error; err != nil {
+		s.logger.Error("Failed to count monitors", "agent_id", agentID, "error", err)
+		return 0, err
+	}
+	return count, nil
 }

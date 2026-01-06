@@ -67,7 +67,7 @@ func (c *Client) makeProtectedRequest(method, endpoint string, body interface{})
 }
 
 func (c *Client) RegisterMonitor(req MonitorRegistrationRequest) (*MonitorRegistrationResponse, error) {
-	endpoint := fmt.Sprintf("/agents/%s/register-monitor", req.AgentID)
+	endpoint := fmt.Sprintf("/v1/agents/%s/register-monitor", req.AgentID)
 
 	resp, err := c.makeProtectedRequest("POST", endpoint, req)
 	if err != nil {
@@ -98,7 +98,7 @@ func (c *Client) RegisterMonitor(req MonitorRegistrationRequest) (*MonitorRegist
 }
 
 func (c *Client) UnregisterMonitor(req UnRegisterMonitorRequest) (*UnRegisterMonitorResponse, error) {
-	endpoint := fmt.Sprintf("/agents/%s/unregister-monitor", req.AgentID)
+	endpoint := fmt.Sprintf("/v1/agents/%s/unregister-monitor", req.AgentID)
 
 	resp, err := c.makeProtectedRequest("POST", endpoint, req)
 	if err != nil {
@@ -143,7 +143,7 @@ func (c *Client) SendReport(report SystemReport, agentID string) error {
 }
 
 func (c *Client) SendMonitorReport(report MonitorReport, agentID string, monitorID string) error {
-	endpoint := fmt.Sprintf("/agents/%s/%s/report", agentID, monitorID)
+	endpoint := fmt.Sprintf("/v1/agents/%s/%s/report", agentID, monitorID)
 	resp, err := c.makeProtectedRequest("POST", endpoint, report)
 	if err != nil {
 		return fmt.Errorf("failed to send monitor report: %w", err)
@@ -166,7 +166,7 @@ func (c *Client) RegisterAgent(req AgentRegistrationRequest) (*AgentRegistration
 		return nil, fmt.Errorf("failed to marshal registration request: %w", err)
 	}
 
-	httpReq, err := http.NewRequest("POST", fmt.Sprintf("%s/register", c.coreURL), bytes.NewBuffer(payload))
+	httpReq, err := http.NewRequest("POST", fmt.Sprintf("%s/v1/register", c.coreURL), bytes.NewBuffer(payload))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create registration request: %w", err)
 	}
@@ -198,6 +198,29 @@ func (c *Client) RegisterAgent(req AgentRegistrationRequest) (*AgentRegistration
 		return nil, fmt.Errorf("registration failed: %s", regResp.Message)
 	}
 
-	logging.Infof("agent registered successfully with ID: %d", regResp.Data.AgentID)
+	logging.Infof("agent registered successfully with ID: %s", regResp.Data.AgentID)
 	return &regResp, nil
+}
+
+func (c *Client) SetMaintenanceMode(agentID string, maintenanceMode bool) error {
+	endpoint := fmt.Sprintf("/v1/agents/%s/maintenance", agentID)
+
+	payload := map[string]bool{
+		"maintenance_mode": maintenanceMode,
+	}
+
+	resp, err := c.makeProtectedRequest("PUT", endpoint, payload)
+	if err != nil {
+		return fmt.Errorf("failed to set maintenance mode: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		logging.Warnf("unexpected status from core: %d — %s", resp.StatusCode, string(body))
+		return fmt.Errorf("core server returned status %d", resp.StatusCode)
+	}
+
+	logging.Infof("Maintenance mode updated successfully")
+	return nil
 }

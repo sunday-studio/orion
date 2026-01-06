@@ -5,6 +5,7 @@ import (
 	"orion/core/internal/db"
 	"orion/core/internal/logging"
 	"orion/core/internal/utils"
+	"time"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -79,6 +80,35 @@ func (s *ReportService) StoreMonitorReport(monitorID string, payload MonitorRepo
 		return nil, err
 	}
 
+	// Update monitor health and last successful report timestamp
+	now := time.Now()
+	updates := map[string]interface{}{
+		"health": payload.Health,
+	}
+
+	// Only update last successful report if health is "up"
+	if payload.Health == "up" {
+		updates["last_successful_report_at"] = &now
+	}
+
+	if err := s.db.Model(&db.Monitor{}).Where("id = ?", monitorID).Updates(updates).Error; err != nil {
+		s.logger.Error("Failed to update monitor health", "monitor_id", monitorID, "error", err)
+		// Don't fail the request if monitor update fails
+	}
+
+	// Trigger health computation to update cache (async, don't block report storage)
+	// This ensures cache is refreshed when new reports arrive
+	go func() {
+		healthService := NewHealthService(s.db, s.logger)
+		config := DefaultHealthConfig()
+		_, err := healthService.ComputeMonitorHealth(monitorID, config)
+		if err != nil {
+			s.logger.Error("Failed to compute health after report", "monitor_id", monitorID, "error", err)
+		} else {
+			s.logger.Debug("Health cache updated after report", "monitor_id", monitorID)
+		}
+	}()
+
 	s.logger.Info("Monitor report stored successfully", "monitor_report_id ->", monitorReport.ID)
 	return &monitorReportID, nil
 }
@@ -137,5 +167,36 @@ func (s *ReportService) GetAgentReportCountById(agentID string) (int64, error) {
 		return 0, err
 	}
 
+	return count, nil
+}
+
+func (s *ReportService) GetMonitorReports(monitorID string, limit int, offset int) ([]db.MonitorReport, error) {
+	var reports []db.MonitorReport
+
+	query := s.db.Where("monitor_id = ?", monitorID).Order("created_at DESC")
+
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+
+	if offset > 0 {
+		query = query.Offset(offset)
+	}
+
+	if err := query.Find(&reports).Error; err != nil {
+		s.logger.Error("Failed to retrieve monitor reports", "monitor_id", monitorID, "error", err)
+		return nil, err
+	}
+
+	s.logger.Debug("Retrieved monitor reports", "monitor_id", monitorID, "count", len(reports))
+	return reports, nil
+}
+
+func (s *ReportService) GetMonitorReportCount(monitorID string) (int64, error) {
+	var count int64
+	if err := s.db.Model(&db.MonitorReport{}).Where("monitor_id = ?", monitorID).Count(&count).Error; err != nil {
+		s.logger.Error("Failed to count monitor reports", "monitor_id", monitorID, "error", err)
+		return 0, err
+	}
 	return count, nil
 }

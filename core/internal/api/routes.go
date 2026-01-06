@@ -5,6 +5,7 @@ import (
 	"orion/core/internal/service"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -27,6 +28,7 @@ func NewServer(database *gorm.DB, logger *logging.Logger) *Server {
 
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
+	router.Use(RequestIDMiddleware(logger))
 
 	server := &Server{
 		db:             database,
@@ -45,21 +47,42 @@ func NewServer(database *gorm.DB, logger *logging.Logger) *Server {
 
 // setupRoutes configures all API routes
 func (s *Server) setupRoutes() {
+	// Health check endpoint (no versioning)
 	s.router.GET("/health", s.healthCheck)
 
-	public := s.router.Group("/")
+	// Version 1 API routes
+	v1 := s.router.Group("/v1")
 	{
-		public.POST("/register", s.registerAgent)
+		// Public routes
+		public := v1.Group("/")
+		{
+			public.POST("/register", s.registerAgent)
+		}
 
-	}
+		// Frontend routes (no auth for now, can add later)
+		frontend := v1.Group("/")
+		{
+			frontend.GET("/agents", s.listAgents)
+			frontend.GET("/agents/:id", s.getAgentDetail)
+			frontend.GET("/agents/:id/health", s.getAgentHealth)
+			frontend.GET("/agents/:id/monitors", s.listMonitors)
+			frontend.GET("/monitors/:id", s.getMonitorDetail)
+			frontend.GET("/monitors/:id/history", s.getMonitorHistory)
+			frontend.GET("/health/summary", s.getSystemHealth)
+			frontend.GET("/health/issues", s.getHealthIssues)
+			frontend.GET("/incidents/candidates", s.getIncidentCandidates)
+		}
 
-	protected := s.router.Group("/agents")
-	protected.Use(AuthMiddleware())
-	{
-		protected.POST("/:agent_id/register-monitor", ValidateAgentToken(s.agentService, s.authService), s.registerMonitor)
-		protected.POST("/:agent_id/unregister-monitor", ValidateAgentToken(s.agentService, s.authService), s.unregisterMonitor)
-		protected.POST("/:agent_id/report", ValidateAgentToken(s.agentService, s.authService), s.receiveAgentReport)
-		protected.POST("/:agent_id/:monitor_id/report", ValidateAgentToken(s.agentService, s.authService), s.receiveMonitorReport)
+		// Protected routes (agent-to-core)
+		protected := v1.Group("/agents")
+		protected.Use(AuthMiddleware())
+		{
+			protected.POST("/:agent_id/register-monitor", ValidateAgentToken(s.agentService, s.authService), s.registerMonitor)
+			protected.POST("/:agent_id/unregister-monitor", ValidateAgentToken(s.agentService, s.authService), s.unregisterMonitor)
+			protected.POST("/:agent_id/report", ValidateAgentToken(s.agentService, s.authService), s.receiveAgentReport)
+			protected.POST("/:agent_id/:monitor_id/report", ValidateAgentToken(s.agentService, s.authService), s.receiveMonitorReport)
+			protected.PUT("/:agent_id/maintenance", ValidateAgentToken(s.agentService, s.authService), s.setMaintenanceMode)
+		}
 	}
 }
 
@@ -68,9 +91,33 @@ func (s *Server) Start(addr string) error {
 	return s.router.Run(addr)
 }
 
+// RequestIDMiddleware generates a unique request ID for each request
+func RequestIDMiddleware(logger *logging.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Check if request ID is already in header (for tracing across services)
+		requestID := c.GetHeader("X-Request-ID")
+		if requestID == "" {
+			// Generate new UUID if not present
+			requestID = uuid.New().String()
+		}
+
+		// Set request ID in context
+		c.Set("request_id", requestID)
+
+		// Add request ID to response header
+		c.Header("X-Request-ID", requestID)
+
+		// Log request with request ID
+		logger.Debug("Request received", "request_id", requestID, "method", c.Request.Method, "path", c.Request.URL.Path)
+
+		c.Next()
+	}
+}
+
 // healthCheck returns server health status
 func (s *Server) healthCheck(c *gin.Context) {
-	s.logger.Debug("Health check requested")
+	requestID, _ := c.Get("request_id")
+	s.logger.Debug("Health check requested", "request_id", requestID)
 	c.JSON(200, gin.H{
 		"status":  "healthy",
 		"service": "orion-core",

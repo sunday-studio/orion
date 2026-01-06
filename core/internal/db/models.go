@@ -43,24 +43,26 @@ type DiskStats struct {
 
 // one agent to one machine/server
 type Agent struct {
-	ID            string                          `json:"id" gorm:"primaryKey"`
-	MachineId     string                          `json:"machine_id" gorm:"uniqueIndex;not null"`
-	Name          string                          `json:"name" gorm:"not null"`
-	OS            string                          `json:"os" gorm:"not null"`
-	Platform      string                          `json:"platform"`
-	KernelVersion string                          `json:"kernel_version"`
-	Arch          string                          `json:"arch" gorm:"not null"`
-	Token         string                          `json:"token" gorm:"uniqueIndex;not null"`
-	CreatedAt     time.Time                       `json:"created_at"`
-	DeletedAt     time.Time                       `json:"deleted_at"`
-	LastSeen      time.Time                       `json:"last_seen"`
-	Location      datatypes.JSONType[GeoLocation] `json:"location" gorm:"type:json"`
+	ID                       string                          `json:"id" gorm:"primaryKey"`
+	MachineId                string                          `json:"machine_id" gorm:"uniqueIndex;not null"`
+	Name                     string                          `json:"name" gorm:"not null"`
+	OS                       string                          `json:"os" gorm:"not null"`
+	Platform                 string                          `json:"platform"`
+	KernelVersion            string                          `json:"kernel_version"`
+	Arch                     string                          `json:"arch" gorm:"not null"`
+	Token                    string                          `json:"token" gorm:"uniqueIndex;not null"`
+	MaintenanceMode          bool                            `json:"maintenance_mode" gorm:"default:false"`
+	ReportingIntervalSeconds int                             `json:"reporting_interval_seconds" gorm:"default:60"` // System metrics reporting interval
+	CreatedAt                time.Time                       `json:"created_at"`
+	DeletedAt                time.Time                       `json:"deleted_at"`
+	LastSeen                 time.Time                       `json:"last_seen"`
+	Location                 datatypes.JSONType[GeoLocation] `json:"location" gorm:"type:json"`
 }
 
 type AgentReport struct {
 	ID            string                          `json:"id" gorm:"primaryKey;type:varchar(255)"`
-	AgentID       string                          `json:"agent_id" gorm:"index;not null"`
-	CreatedAt     time.Time                       `json:"created_at"`
+	AgentID       string                          `json:"agent_id" gorm:"index:idx_agent_reports_agent_id;not null"`
+	CreatedAt     time.Time                       `json:"created_at" gorm:"index:idx_agent_reports_created_at"`
 	UptimeSeconds uint64                          `json:"uptime_seconds"`
 	Timestamp     string                          `json:"timestamp"`
 	CPU           datatypes.JSONType[CPUStats]    `json:"cpu" gorm:"type:json"`
@@ -70,25 +72,29 @@ type AgentReport struct {
 }
 
 type Monitor struct {
-	ID          string  `json:"id" gorm:"primaryKey"`
-	Description *string `json:"description"`
-	Type        string  `json:"type" gorm:"not null"`
-	Name        string  `json:"name" gorm:"not null"`
-	AgentID     string  `json:"agent_id" gorm:"index;not null"`
+	ID                       string     `json:"id" gorm:"primaryKey"`
+	Description              *string    `json:"description"`
+	Type                     string     `json:"type" gorm:"not null"`
+	Name                     string     `json:"name" gorm:"not null"`
+	AgentID                  string     `json:"agent_id" gorm:"index:idx_monitors_agent_id;not null"`
+	LastSuccessfulReportAt   *time.Time `json:"last_successful_report_at"`
+	ReportingIntervalSeconds int        `json:"reporting_interval_seconds" gorm:"default:60"` // Monitor check interval
+	ComputedHealth           string     `json:"computed_health" gorm:"default:unknown"`       // Cached computed health (up | down | degraded | unknown)
+	LastHealthComputation    *time.Time `json:"last_health_computation"`                      // When health was last computed
 
-	Lifecycle string `json:"lifecycle" gorm:"not null"` // active | disabled | deleted
-	Health    string `json:"health" gorm:"not null"`    // up | down | degraded | unknown
+	Lifecycle string `json:"lifecycle" gorm:"not null;index:idx_monitors_lifecycle"` // active | disabled | deleted
+	Health    string `json:"health" gorm:"not null;index:idx_monitors_health"`       // up | down | degraded | unknown
 
-	CreatedAt time.Time `json:"created_at"`
+	CreatedAt time.Time `json:"created_at" gorm:"index:idx_monitors_created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	DeletedAt time.Time `json:"deleted_at"`
 }
 
 type MonitorReport struct {
 	ID          string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
-	MonitorID   string    `json:"monitor_id" gorm:"index;not null"`
+	MonitorID   string    `json:"monitor_id" gorm:"index:idx_monitor_reports_monitor_id;not null"`
 	Payload     string    `json:"payload" gorm:"type:text;not null"`
 	CollectedAt string    `json:"collected_at" gorm:"not null"`
 	Health      string    `json:"health" gorm:"not null"` // up | down
-	CreatedAt   time.Time `json:"created_at"`
+	CreatedAt   time.Time `json:"created_at" gorm:"index:idx_monitor_reports_created_at"`
 }
