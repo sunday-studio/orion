@@ -11,7 +11,8 @@
     "test:unit": "vitest --dir ./src/tests/unit/",
     "test:unit:watch": "vitest --dir ./src/tests/unit/ --ui --watch",
     "e2e": "playwright test",
-    "e2e:ui": "playwright test --ui"
+    "e2e:ui": "playwright test --ui",
+    "generate:api": "orval"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.17",
@@ -41,11 +42,13 @@
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/browser-playwright": "^4.0.15",
     "@vitest/ui": "^4.0.15",
+    "ajv": "^8.17.1",
     "eslint": "^9.17.0",
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.16",
     "globals": "^15.14.0",
     "jsdom": "^27.3.0",
+    "orval": "^8.0.1",
     "typescript": "~5.6.2",
     "typescript-eslint": "^8.18.2",
     "vite": "^6.0.5",

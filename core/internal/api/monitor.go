@@ -8,6 +8,20 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// registerMonitor registers a new monitor for an agent
+// @Summary      Register a monitor
+// @Description  Register a new monitor for a specific agent
+// @Tags         monitors
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        agent_id  path      string                      true  "Agent ID"
+// @Param        request   body      service.RegisterMonitorRequest  true  "Monitor registration request"
+// @Success      200       {object}  utils.APIResponse{data=service.RegisterMonitorResponse}
+// @Failure      400       {object}  utils.APIResponse
+// @Failure      401       {object}  utils.APIResponse
+// @Failure      500       {object}  utils.APIResponse
+// @Router       /v1/agents/{agent_id}/register-monitor [post]
 func (s *Server) registerMonitor(c *gin.Context) {
 	var req service.RegisterMonitorRequest
 
@@ -27,6 +41,20 @@ func (s *Server) registerMonitor(c *gin.Context) {
 	utils.SuccessResponse(c, 200, "Monitor registered successfully", response)
 }
 
+// unregisterMonitor unregisters a monitor for an agent
+// @Summary      Unregister a monitor
+// @Description  Unregister a monitor for a specific agent
+// @Tags         monitors
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        agent_id   path      string                        true  "Agent ID"
+// @Param        request    body      service.UnregisterMonitorRequest true  "Monitor unregistration request"
+// @Success      200        {object}  utils.APIResponse{data=service.UnregisterMonitorResponse}
+// @Failure      400        {object}  utils.APIResponse
+// @Failure      401        {object}  utils.APIResponse
+// @Failure      500        {object}  utils.APIResponse
+// @Router       /v1/agents/{agent_id}/unregister-monitor [post]
 func (s *Server) unregisterMonitor(c *gin.Context) {
 	var req service.UnregisterMonitorRequest
 
@@ -46,6 +74,21 @@ func (s *Server) unregisterMonitor(c *gin.Context) {
 	utils.SuccessResponse(c, 200, "Monitor unregistered successfully", response)
 }
 
+// listMonitors retrieves a paginated list of monitors for an agent
+// @Summary      List monitors for an agent
+// @Description  Get a paginated list of monitors for a specific agent with optional filters
+// @Tags         monitors
+// @Accept       json
+// @Produce      json
+// @Param        id         path      string  true   "Agent ID"
+// @Param        health     query     string  false  "Filter by health status (up|down|degraded|unknown)"
+// @Param        lifecycle  query     string  false  "Filter by lifecycle status (active|disabled|deleted)"
+// @Param        limit      query     int     false  "Maximum number of monitors to return" default(50)
+// @Param        offset     query     int     false  "Number of monitors to skip" default(0)
+// @Success      200        {object}  utils.APIResponse{data=object{monitors=[]db.Monitor,count=int64,limit=int,offset=int}}
+// @Failure      400        {object}  utils.APIResponse
+// @Failure      500        {object}  utils.APIResponse
+// @Router       /v1/agents/{id}/monitors [get]
 func (s *Server) listMonitors(c *gin.Context) {
 	agentID := c.Param("id")
 	if agentID == "" {
@@ -90,6 +133,17 @@ func (s *Server) listMonitors(c *gin.Context) {
 	})
 }
 
+// getMonitorDetail retrieves detailed information about a specific monitor
+// @Summary      Get monitor details
+// @Description  Get detailed information about a specific monitor including recent reports and computed health
+// @Tags         monitors
+// @Accept       json
+// @Produce      json
+// @Param        id   path      string  true  "Monitor ID"
+// @Success      200  {object}  utils.APIResponse{data=object{monitor=db.Monitor,recent_reports=[]db.MonitorReport,computed_health=string}}
+// @Failure      400  {object}  utils.APIResponse
+// @Failure      404  {object}  utils.APIResponse
+// @Router       /v1/monitors/{id} [get]
 func (s *Server) getMonitorDetail(c *gin.Context) {
 	monitorID := c.Param("id")
 	if monitorID == "" {
@@ -128,6 +182,19 @@ func (s *Server) getMonitorDetail(c *gin.Context) {
 	})
 }
 
+// getMonitorHistory retrieves the report history for a specific monitor
+// @Summary      Get monitor history
+// @Description  Get a paginated list of reports for a specific monitor
+// @Tags         monitors
+// @Accept       json
+// @Produce      json
+// @Param        id      path      string  true   "Monitor ID"
+// @Param        limit   query     int     false  "Maximum number of reports to return" default(50)
+// @Param        offset  query     int     false  "Number of reports to skip" default(0)
+// @Success      200     {object}  utils.APIResponse{data=object{reports=[]db.MonitorReport,count=int64,limit=int,offset=int}}
+// @Failure      400     {object}  utils.APIResponse
+// @Failure      500     {object}  utils.APIResponse
+// @Router       /v1/monitors/{id}/history [get]
 func (s *Server) getMonitorHistory(c *gin.Context) {
 	monitorID := c.Param("id")
 	if monitorID == "" {

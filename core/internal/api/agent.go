@@ -8,6 +8,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// registerAgent registers a new agent or reconnects an existing one
+// @Summary      Register an agent
+// @Description  Register a new agent or reconnect an existing agent by machine ID
+// @Tags         agents
+// @Accept       json
+// @Produce      json
+// @Param        request  body      service.RegisterRequest  true  "Agent registration request"
+// @Success      200      {object}  utils.APIResponse{data=service.RegisterResponse}
+// @Failure      400      {object}  utils.APIResponse
+// @Failure      500      {object}  utils.APIResponse
+// @Router       /v1/register [post]
 func (s *Server) registerAgent(c *gin.Context) {
 	var req service.RegisterRequest
 
@@ -30,6 +41,20 @@ func (s *Server) registerAgent(c *gin.Context) {
 	utils.SuccessResponse(c, 200, "Agent registered successfully", response)
 }
 
+// setMaintenanceMode sets the maintenance mode for an agent
+// @Summary      Set agent maintenance mode
+// @Description  Enable or disable maintenance mode for a specific agent
+// @Tags         agents
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        agent_id  path      string                           true  "Agent ID"
+// @Param        request   body      service.SetMaintenanceModeRequest true  "Maintenance mode request"
+// @Success      200       {object}  utils.APIResponse
+// @Failure      400       {object}  utils.APIResponse
+// @Failure      401       {object}  utils.APIResponse
+// @Failure      500       {object}  utils.APIResponse
+// @Router       /v1/agents/{agent_id}/maintenance [put]
 func (s *Server) setMaintenanceMode(c *gin.Context) {
 	agentID := c.Param("agent_id")
 	if agentID == "" {
@@ -57,6 +82,17 @@ func (s *Server) setMaintenanceMode(c *gin.Context) {
 	})
 }
 
+// listAgents retrieves a paginated list of agents
+// @Summary      List agents
+// @Description  Get a paginated list of all registered agents
+// @Tags         agents
+// @Accept       json
+// @Produce      json
+// @Param        limit   query     int     false  "Maximum number of agents to return" default(50)
+// @Param        offset  query     int     false  "Number of agents to skip" default(0)
+// @Success      200     {object}  utils.APIResponse{data=object{agents=[]db.Agent,count=int64,limit=int,offset=int}}
+// @Failure      500     {object}  utils.APIResponse
+// @Router       /v1/agents [get]
 func (s *Server) listAgents(c *gin.Context) {
 	limitStr := c.DefaultQuery("limit", "50")
 	offsetStr := c.DefaultQuery("offset", "0")
@@ -92,6 +128,17 @@ func (s *Server) listAgents(c *gin.Context) {
 	})
 }
 
+// getAgentDetail retrieves detailed information about a specific agent
+// @Summary      Get agent details
+// @Description  Get detailed information about a specific agent including latest report
+// @Tags         agents
+// @Accept       json
+// @Produce      json
+// @Param        id   path      string  true  "Agent ID"
+// @Success      200  {object}  utils.APIResponse{data=object{agent=db.Agent,latest_report=object}}
+// @Failure      400  {object}  utils.APIResponse
+// @Failure      404  {object}  utils.APIResponse
+// @Router       /v1/agents/{id} [get]
 func (s *Server) getAgentDetail(c *gin.Context) {
 	agentID := c.Param("id")
 	if agentID == "" {
@@ -124,6 +171,17 @@ func (s *Server) getAgentDetail(c *gin.Context) {
 	})
 }
 
+// getAgentHealth retrieves health status for a specific agent
+// @Summary      Get agent health
+// @Description  Get computed health status for a specific agent and its monitors
+// @Tags         agents
+// @Accept       json
+// @Produce      json
+// @Param        id   path      string  true  "Agent ID"
+// @Success      200  {object}  utils.APIResponse{data=object{agent_id=string,overall_health=string,up_count=int,down_count=int,degraded_count=int}}
+// @Failure      400  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/agents/{id}/health [get]
 func (s *Server) getAgentHealth(c *gin.Context) {
 	agentID := c.Param("id")
 	if agentID == "" {

@@ -7,6 +7,26 @@ import (
 	"orion/core/internal/logging"
 )
 
+// @title           Orion Core API
+// @version         1.0
+// @description     Orion Core API for agent management and monitoring
+// @termsOfService  http://swagger.io/terms/
+
+// @contact.name   API Support
+// @contact.url    http://www.swagger.io/support
+// @contact.email  support@swagger.io
+
+// @license.name  Apache 2.0
+// @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host      localhost:8999
+// @BasePath  /
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and JWT token.
+
 func main() {
 	logger := logging.NewLogger()
 	logger.Info("Starting Orion Core Server")
