@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "bun run generate:api",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",

@@ -41,7 +41,8 @@ bun dev
 - `bun run preview` — preview the production build
 - `bun run lint` — run ESLint
 - `bun run test:unit` — run unit and integration tests (Vitest)
-- `npm run e2e` — run end-to-end tests (Playwright)
+- `bun run e2e` — run end-to-end tests (Playwright)
+- `bun run generate:api` — generate TypeScript API SDK from OpenAPI spec
 
 ## Architecture
 

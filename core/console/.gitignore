@@ -6,6 +6,12 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+bun-debug.log*
+
+# Package manager lock files (keep bun.lockb, ignore others)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
 
 node_modules
 dist
@@ -31,5 +37,7 @@ dist-ssr
 /playwright/.cache/
 /playwright/.auth/
 
+# Generated API SDK
+/src/api/generated/
 
 todo.md
