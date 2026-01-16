@@ -125,6 +125,7 @@ func RequestIDMiddleware(logger *logging.Logger) gin.HandlerFunc {
 // @Tags         health
 // @Accept       json
 // @Produce      json
+// @ID           getHealth
 // @Success      200  {object}  object{status=string,service=string}
 // @Router       /health [get]
 func (s *Server) healthCheck(c *gin.Context) {

@@ -37,6 +37,7 @@ const docTemplate = `{
                     "health"
                 ],
                 "summary": "Health check",
+                "operationId": "getHealth",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -68,6 +69,7 @@ const docTemplate = `{
                     "agents"
                 ],
                 "summary": "List agents",
+                "operationId": "getAgents",
                 "parameters": [
                     {
                         "type": "integer",
@@ -148,6 +150,7 @@ const docTemplate = `{
                     "agents"
                 ],
                 "summary": "Set agent maintenance mode",
+                "operationId": "putAgentsAgentIdMaintenance",
                 "parameters": [
                     {
                         "type": "string",
@@ -212,6 +215,7 @@ const docTemplate = `{
                     "monitors"
                 ],
                 "summary": "Register a monitor",
+                "operationId": "postAgentsAgentIdRegisterMonitor",
                 "parameters": [
                     {
                         "type": "string",
@@ -288,6 +292,7 @@ const docTemplate = `{
                     "reports"
                 ],
                 "summary": "Receive agent report",
+                "operationId": "postAgentsAgentIdReport",
                 "parameters": [
                     {
                         "type": "string",
@@ -364,6 +369,7 @@ const docTemplate = `{
                     "monitors"
                 ],
                 "summary": "Unregister a monitor",
+                "operationId": "postAgentsAgentIdUnregisterMonitor",
                 "parameters": [
                     {
                         "type": "string",
@@ -440,6 +446,7 @@ const docTemplate = `{
                     "reports"
                 ],
                 "summary": "Receive monitor report",
+                "operationId": "postAgentsAgentIdMonitorIdReport",
                 "parameters": [
                     {
                         "type": "string",
@@ -506,6 +513,7 @@ const docTemplate = `{
                     "agents"
                 ],
                 "summary": "Get agent details",
+                "operationId": "getAgentsId",
                 "parameters": [
                     {
                         "type": "string",
@@ -570,6 +578,7 @@ const docTemplate = `{
                     "agents"
                 ],
                 "summary": "Get agent health",
+                "operationId": "getAgentsIdHealth",
                 "parameters": [
                     {
                         "type": "string",
@@ -643,6 +652,7 @@ const docTemplate = `{
                     "monitors"
                 ],
                 "summary": "List monitors for an agent",
+                "operationId": "getAgentsIdMonitors",
                 "parameters": [
                     {
                         "type": "string",
@@ -743,6 +753,7 @@ const docTemplate = `{
                     "health"
                 ],
                 "summary": "Get health issues",
+                "operationId": "getHealthIssues",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -795,6 +806,7 @@ const docTemplate = `{
                     "health"
                 ],
                 "summary": "Get system health summary",
+                "operationId": "getHealthSummary",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -869,6 +881,7 @@ const docTemplate = `{
                     "health"
                 ],
                 "summary": "Get incident candidates",
+                "operationId": "getIncidentsCandidates",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -921,6 +934,7 @@ const docTemplate = `{
                     "monitors"
                 ],
                 "summary": "Get monitor details",
+                "operationId": "getMonitorsId",
                 "parameters": [
                     {
                         "type": "string",
@@ -991,6 +1005,7 @@ const docTemplate = `{
                     "monitors"
                 ],
                 "summary": "Get monitor history",
+                "operationId": "getMonitorsIdHistory",
                 "parameters": [
                     {
                         "type": "string",
@@ -1079,6 +1094,7 @@ const docTemplate = `{
                     "agents"
                 ],
                 "summary": "Register an agent",
+                "operationId": "postRegister",
                 "parameters": [
                     {
                         "description": "Agent registration request",

@@ -14,6 +14,7 @@ import (
 // @Tags         health
 // @Accept       json
 // @Produce      json
+// @ID           getHealthSummary
 // @Success      200  {object}  utils.APIResponse{data=object{overall_health=string,agents=object{total=int},monitors=object{total=int,up=int,down=int,degraded=int,unknown=int}}}
 // @Failure      500  {object}  utils.APIResponse
 // @Router       /v1/health/summary [get]
@@ -99,6 +100,7 @@ func (s *Server) getSystemHealth(c *gin.Context) {
 // @Tags         health
 // @Accept       json
 // @Produce      json
+// @ID           getHealthIssues
 // @Success      200  {object}  utils.APIResponse{data=object{issues=[]object,count=int}}
 // @Failure      500  {object}  utils.APIResponse
 // @Router       /v1/health/issues [get]
@@ -176,6 +178,7 @@ func (s *Server) getHealthIssues(c *gin.Context) {
 // @Tags         health
 // @Accept       json
 // @Produce      json
+// @ID           getIncidentsCandidates
 // @Success      200  {object}  utils.APIResponse{data=object{candidates=[]object,count=int}}
 // @Failure      500  {object}  utils.APIResponse
 // @Router       /v1/incidents/candidates [get]

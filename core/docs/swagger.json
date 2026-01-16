@@ -31,6 +31,7 @@
                     "health"
                 ],
                 "summary": "Health check",
+                "operationId": "getHealth",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -62,6 +63,7 @@
                     "agents"
                 ],
                 "summary": "List agents",
+                "operationId": "getAgents",
                 "parameters": [
                     {
                         "type": "integer",
@@ -142,6 +144,7 @@
                     "agents"
                 ],
                 "summary": "Set agent maintenance mode",
+                "operationId": "putAgentsAgentIdMaintenance",
                 "parameters": [
                     {
                         "type": "string",
@@ -206,6 +209,7 @@
                     "monitors"
                 ],
                 "summary": "Register a monitor",
+                "operationId": "postAgentsAgentIdRegisterMonitor",
                 "parameters": [
                     {
                         "type": "string",
@@ -282,6 +286,7 @@
                     "reports"
                 ],
                 "summary": "Receive agent report",
+                "operationId": "postAgentsAgentIdReport",
                 "parameters": [
                     {
                         "type": "string",
@@ -358,6 +363,7 @@
                     "monitors"
                 ],
                 "summary": "Unregister a monitor",
+                "operationId": "postAgentsAgentIdUnregisterMonitor",
                 "parameters": [
                     {
                         "type": "string",
@@ -434,6 +440,7 @@
                     "reports"
                 ],
                 "summary": "Receive monitor report",
+                "operationId": "postAgentsAgentIdMonitorIdReport",
                 "parameters": [
                     {
                         "type": "string",
@@ -500,6 +507,7 @@
                     "agents"
                 ],
                 "summary": "Get agent details",
+                "operationId": "getAgentsId",
                 "parameters": [
                     {
                         "type": "string",
@@ -564,6 +572,7 @@
                     "agents"
                 ],
                 "summary": "Get agent health",
+                "operationId": "getAgentsIdHealth",
                 "parameters": [
                     {
                         "type": "string",
@@ -637,6 +646,7 @@
                     "monitors"
                 ],
                 "summary": "List monitors for an agent",
+                "operationId": "getAgentsIdMonitors",
                 "parameters": [
                     {
                         "type": "string",
@@ -737,6 +747,7 @@
                     "health"
                 ],
                 "summary": "Get health issues",
+                "operationId": "getHealthIssues",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -789,6 +800,7 @@
                     "health"
                 ],
                 "summary": "Get system health summary",
+                "operationId": "getHealthSummary",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -863,6 +875,7 @@
                     "health"
                 ],
                 "summary": "Get incident candidates",
+                "operationId": "getIncidentsCandidates",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -915,6 +928,7 @@
                     "monitors"
                 ],
                 "summary": "Get monitor details",
+                "operationId": "getMonitorsId",
                 "parameters": [
                     {
                         "type": "string",
@@ -985,6 +999,7 @@
                     "monitors"
                 ],
                 "summary": "Get monitor history",
+                "operationId": "getMonitorsIdHistory",
                 "parameters": [
                     {
                         "type": "string",
@@ -1073,6 +1088,7 @@
                     "agents"
                 ],
                 "summary": "Register an agent",
+                "operationId": "postRegister",
                 "parameters": [
                     {
                         "description": "Agent registration request",

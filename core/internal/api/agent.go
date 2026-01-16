@@ -14,6 +14,7 @@ import (
 // @Tags         agents
 // @Accept       json
 // @Produce      json
+// @ID           postRegister
 // @Param        request  body      service.RegisterRequest  true  "Agent registration request"
 // @Success      200      {object}  utils.APIResponse{data=service.RegisterResponse}
 // @Failure      400      {object}  utils.APIResponse
@@ -48,6 +49,7 @@ func (s *Server) registerAgent(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
+// @ID           putAgentsAgentIdMaintenance
 // @Param        agent_id  path      string                           true  "Agent ID"
 // @Param        request   body      service.SetMaintenanceModeRequest true  "Maintenance mode request"
 // @Success      200       {object}  utils.APIResponse
@@ -88,6 +90,7 @@ func (s *Server) setMaintenanceMode(c *gin.Context) {
 // @Tags         agents
 // @Accept       json
 // @Produce      json
+// @ID           getAgents
 // @Param        limit   query     int     false  "Maximum number of agents to return" default(50)
 // @Param        offset  query     int     false  "Number of agents to skip" default(0)
 // @Success      200     {object}  utils.APIResponse{data=object{agents=[]db.Agent,count=int64,limit=int,offset=int}}
@@ -134,6 +137,7 @@ func (s *Server) listAgents(c *gin.Context) {
 // @Tags         agents
 // @Accept       json
 // @Produce      json
+// @ID           getAgentsId
 // @Param        id   path      string  true  "Agent ID"
 // @Success      200  {object}  utils.APIResponse{data=object{agent=db.Agent,latest_report=object}}
 // @Failure      400  {object}  utils.APIResponse
@@ -177,6 +181,7 @@ func (s *Server) getAgentDetail(c *gin.Context) {
 // @Tags         agents
 // @Accept       json
 // @Produce      json
+// @ID           getAgentsIdHealth
 // @Param        id   path      string  true  "Agent ID"
 // @Success      200  {object}  utils.APIResponse{data=object{agent_id=string,overall_health=string,up_count=int,down_count=int,degraded_count=int}}
 // @Failure      400  {object}  utils.APIResponse

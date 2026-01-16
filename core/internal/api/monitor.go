@@ -15,6 +15,7 @@ import (
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
+// @ID           postAgentsAgentIdRegisterMonitor
 // @Param        agent_id  path      string                      true  "Agent ID"
 // @Param        request   body      service.RegisterMonitorRequest  true  "Monitor registration request"
 // @Success      200       {object}  utils.APIResponse{data=service.RegisterMonitorResponse}
@@ -48,6 +49,7 @@ func (s *Server) registerMonitor(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
+// @ID           postAgentsAgentIdUnregisterMonitor
 // @Param        agent_id   path      string                        true  "Agent ID"
 // @Param        request    body      service.UnregisterMonitorRequest true  "Monitor unregistration request"
 // @Success      200        {object}  utils.APIResponse{data=service.UnregisterMonitorResponse}
@@ -80,6 +82,7 @@ func (s *Server) unregisterMonitor(c *gin.Context) {
 // @Tags         monitors
 // @Accept       json
 // @Produce      json
+// @ID           getAgentsIdMonitors
 // @Param        id         path      string  true   "Agent ID"
 // @Param        health     query     string  false  "Filter by health status (up|down|degraded|unknown)"
 // @Param        lifecycle  query     string  false  "Filter by lifecycle status (active|disabled|deleted)"
@@ -139,6 +142,7 @@ func (s *Server) listMonitors(c *gin.Context) {
 // @Tags         monitors
 // @Accept       json
 // @Produce      json
+// @ID           getMonitorsId
 // @Param        id   path      string  true  "Monitor ID"
 // @Success      200  {object}  utils.APIResponse{data=object{monitor=db.Monitor,recent_reports=[]db.MonitorReport,computed_health=string}}
 // @Failure      400  {object}  utils.APIResponse
@@ -188,6 +192,7 @@ func (s *Server) getMonitorDetail(c *gin.Context) {
 // @Tags         monitors
 // @Accept       json
 // @Produce      json
+// @ID           getMonitorsIdHistory
 // @Param        id      path      string  true   "Monitor ID"
 // @Param        limit   query     int     false  "Maximum number of reports to return" default(50)
 // @Param        offset  query     int     false  "Number of reports to skip" default(0)

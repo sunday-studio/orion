@@ -285,6 +285,7 @@ paths:
       consumes:
       - application/json
       description: Returns the health status of the API server
+      operationId: getHealth
       produces:
       - application/json
       responses:
@@ -305,6 +306,7 @@ paths:
       consumes:
       - application/json
       description: Get a paginated list of all registered agents
+      operationId: getAgents
       parameters:
       - default: 50
         description: Maximum number of agents to return
@@ -352,6 +354,7 @@ paths:
       consumes:
       - application/json
       description: Receive and store a monitor report for a specific monitor
+      operationId: postAgentsAgentIdMonitorIdReport
       parameters:
       - description: Agent ID
         in: path
@@ -398,6 +401,7 @@ paths:
       consumes:
       - application/json
       description: Enable or disable maintenance mode for a specific agent
+      operationId: putAgentsAgentIdMaintenance
       parameters:
       - description: Agent ID
         in: path
@@ -439,6 +443,7 @@ paths:
       consumes:
       - application/json
       description: Register a new monitor for a specific agent
+      operationId: postAgentsAgentIdRegisterMonitor
       parameters:
       - description: Agent ID
         in: path
@@ -485,6 +490,7 @@ paths:
       consumes:
       - application/json
       description: Receive and store a system metrics report from an agent
+      operationId: postAgentsAgentIdReport
       parameters:
       - description: Agent ID
         in: path
@@ -531,6 +537,7 @@ paths:
       consumes:
       - application/json
       description: Unregister a monitor for a specific agent
+      operationId: postAgentsAgentIdUnregisterMonitor
       parameters:
       - description: Agent ID
         in: path
@@ -578,6 +585,7 @@ paths:
       - application/json
       description: Get detailed information about a specific agent including latest
         report
+      operationId: getAgentsId
       parameters:
       - description: Agent ID
         in: path
@@ -617,6 +625,7 @@ paths:
       consumes:
       - application/json
       description: Get computed health status for a specific agent and its monitors
+      operationId: getAgentsIdHealth
       parameters:
       - description: Agent ID
         in: path
@@ -663,6 +672,7 @@ paths:
       - application/json
       description: Get a paginated list of monitors for a specific agent with optional
         filters
+      operationId: getAgentsIdMonitors
       parameters:
       - description: Agent ID
         in: path
@@ -728,6 +738,7 @@ paths:
       - application/json
       description: Get a list of all monitors with health issues (down, degraded,
         or stale)
+      operationId: getHealthIssues
       produces:
       - application/json
       responses:
@@ -759,6 +770,7 @@ paths:
       consumes:
       - application/json
       description: Get overall system health summary including agent and monitor counts
+      operationId: getHealthSummary
       produces:
       - application/json
       responses:
@@ -805,6 +817,7 @@ paths:
       - application/json
       description: Get a list of monitors that are candidates for incidents based
         on health status and recent reports
+      operationId: getIncidentsCandidates
       produces:
       - application/json
       responses:
@@ -837,6 +850,7 @@ paths:
       - application/json
       description: Get detailed information about a specific monitor including recent
         reports and computed health
+      operationId: getMonitorsId
       parameters:
       - description: Monitor ID
         in: path
@@ -880,6 +894,7 @@ paths:
       consumes:
       - application/json
       description: Get a paginated list of reports for a specific monitor
+      operationId: getMonitorsIdHistory
       parameters:
       - description: Monitor ID
         in: path
@@ -937,6 +952,7 @@ paths:
       - application/json
       description: Register a new agent or reconnect an existing agent by machine
         ID
+      operationId: postRegister
       parameters:
       - description: Agent registration request
         in: body
