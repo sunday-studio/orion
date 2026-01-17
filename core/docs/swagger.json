@@ -144,7 +144,7 @@
                     "agents"
                 ],
                 "summary": "Set agent maintenance mode",
-                "operationId": "putAgentsAgentIdMaintenance",
+                "operationId": "setMaintenanceMode",
                 "parameters": [
                     {
                         "type": "string",
@@ -209,7 +209,7 @@
                     "monitors"
                 ],
                 "summary": "Register a monitor",
-                "operationId": "postAgentsAgentIdRegisterMonitor",
+                "operationId": "registerMonitor",
                 "parameters": [
                     {
                         "type": "string",
@@ -286,7 +286,7 @@
                     "reports"
                 ],
                 "summary": "Receive agent report",
-                "operationId": "postAgentsAgentIdReport",
+                "operationId": "receiveAgentReport",
                 "parameters": [
                     {
                         "type": "string",
@@ -363,7 +363,7 @@
                     "monitors"
                 ],
                 "summary": "Unregister a monitor",
-                "operationId": "postAgentsAgentIdUnregisterMonitor",
+                "operationId": "unregisterMonitor",
                 "parameters": [
                     {
                         "type": "string",
@@ -440,7 +440,7 @@
                     "reports"
                 ],
                 "summary": "Receive monitor report",
-                "operationId": "postAgentsAgentIdMonitorIdReport",
+                "operationId": "receiveMonitorReport",
                 "parameters": [
                     {
                         "type": "string",
@@ -507,7 +507,7 @@
                     "agents"
                 ],
                 "summary": "Get agent details",
-                "operationId": "getAgentsId",
+                "operationId": "getAgent",
                 "parameters": [
                     {
                         "type": "string",
@@ -572,7 +572,7 @@
                     "agents"
                 ],
                 "summary": "Get agent health",
-                "operationId": "getAgentsIdHealth",
+                "operationId": "getAgentHealth",
                 "parameters": [
                     {
                         "type": "string",
@@ -646,7 +646,7 @@
                     "monitors"
                 ],
                 "summary": "List monitors for an agent",
-                "operationId": "getAgentsIdMonitors",
+                "operationId": "getAgentMonitors",
                 "parameters": [
                     {
                         "type": "string",
@@ -928,7 +928,7 @@
                     "monitors"
                 ],
                 "summary": "Get monitor details",
-                "operationId": "getMonitorsId",
+                "operationId": "getMonitor",
                 "parameters": [
                     {
                         "type": "string",
@@ -999,7 +999,7 @@
                     "monitors"
                 ],
                 "summary": "Get monitor history",
-                "operationId": "getMonitorsIdHistory",
+                "operationId": "getMonitorHistory",
                 "parameters": [
                     {
                         "type": "string",
@@ -1088,7 +1088,7 @@
                     "agents"
                 ],
                 "summary": "Register an agent",
-                "operationId": "postRegister",
+                "operationId": "registerAgent",
                 "parameters": [
                     {
                         "description": "Agent registration request",

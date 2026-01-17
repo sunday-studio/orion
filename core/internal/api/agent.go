@@ -14,7 +14,7 @@ import (
 // @Tags         agents
 // @Accept       json
 // @Produce      json
-// @ID           postRegister
+// @ID           registerAgent
 // @Param        request  body      service.RegisterRequest  true  "Agent registration request"
 // @Success      200      {object}  utils.APIResponse{data=service.RegisterResponse}
 // @Failure      400      {object}  utils.APIResponse
@@ -49,7 +49,7 @@ func (s *Server) registerAgent(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @ID           putAgentsAgentIdMaintenance
+// @ID           setMaintenanceMode
 // @Param        agent_id  path      string                           true  "Agent ID"
 // @Param        request   body      service.SetMaintenanceModeRequest true  "Maintenance mode request"
 // @Success      200       {object}  utils.APIResponse
@@ -137,7 +137,7 @@ func (s *Server) listAgents(c *gin.Context) {
 // @Tags         agents
 // @Accept       json
 // @Produce      json
-// @ID           getAgentsId
+// @ID           getAgent
 // @Param        id   path      string  true  "Agent ID"
 // @Success      200  {object}  utils.APIResponse{data=object{agent=db.Agent,latest_report=object}}
 // @Failure      400  {object}  utils.APIResponse
@@ -181,7 +181,7 @@ func (s *Server) getAgentDetail(c *gin.Context) {
 // @Tags         agents
 // @Accept       json
 // @Produce      json
-// @ID           getAgentsIdHealth
+// @ID           getAgentHealth
 // @Param        id   path      string  true  "Agent ID"
 // @Success      200  {object}  utils.APIResponse{data=object{agent_id=string,overall_health=string,up_count=int,down_count=int,degraded_count=int}}
 // @Failure      400  {object}  utils.APIResponse

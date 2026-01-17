@@ -150,7 +150,7 @@ const docTemplate = `{
                     "agents"
                 ],
                 "summary": "Set agent maintenance mode",
-                "operationId": "putAgentsAgentIdMaintenance",
+                "operationId": "setMaintenanceMode",
                 "parameters": [
                     {
                         "type": "string",
@@ -215,7 +215,7 @@ const docTemplate = `{
                     "monitors"
                 ],
                 "summary": "Register a monitor",
-                "operationId": "postAgentsAgentIdRegisterMonitor",
+                "operationId": "registerMonitor",
                 "parameters": [
                     {
                         "type": "string",
@@ -292,7 +292,7 @@ const docTemplate = `{
                     "reports"
                 ],
                 "summary": "Receive agent report",
-                "operationId": "postAgentsAgentIdReport",
+                "operationId": "receiveAgentReport",
                 "parameters": [
                     {
                         "type": "string",
@@ -369,7 +369,7 @@ const docTemplate = `{
                     "monitors"
                 ],
                 "summary": "Unregister a monitor",
-                "operationId": "postAgentsAgentIdUnregisterMonitor",
+                "operationId": "unregisterMonitor",
                 "parameters": [
                     {
                         "type": "string",
@@ -446,7 +446,7 @@ const docTemplate = `{
                     "reports"
                 ],
                 "summary": "Receive monitor report",
-                "operationId": "postAgentsAgentIdMonitorIdReport",
+                "operationId": "receiveMonitorReport",
                 "parameters": [
                     {
                         "type": "string",
@@ -513,7 +513,7 @@ const docTemplate = `{
                     "agents"
                 ],
                 "summary": "Get agent details",
-                "operationId": "getAgentsId",
+                "operationId": "getAgent",
                 "parameters": [
                     {
                         "type": "string",
@@ -578,7 +578,7 @@ const docTemplate = `{
                     "agents"
                 ],
                 "summary": "Get agent health",
-                "operationId": "getAgentsIdHealth",
+                "operationId": "getAgentHealth",
                 "parameters": [
                     {
                         "type": "string",
@@ -652,7 +652,7 @@ const docTemplate = `{
                     "monitors"
                 ],
                 "summary": "List monitors for an agent",
-                "operationId": "getAgentsIdMonitors",
+                "operationId": "getAgentMonitors",
                 "parameters": [
                     {
                         "type": "string",
@@ -934,7 +934,7 @@ const docTemplate = `{
                     "monitors"
                 ],
                 "summary": "Get monitor details",
-                "operationId": "getMonitorsId",
+                "operationId": "getMonitor",
                 "parameters": [
                     {
                         "type": "string",
@@ -1005,7 +1005,7 @@ const docTemplate = `{
                     "monitors"
                 ],
                 "summary": "Get monitor history",
-                "operationId": "getMonitorsIdHistory",
+                "operationId": "getMonitorHistory",
                 "parameters": [
                     {
                         "type": "string",
@@ -1094,7 +1094,7 @@ const docTemplate = `{
                     "agents"
                 ],
                 "summary": "Register an agent",
-                "operationId": "postRegister",
+                "operationId": "registerAgent",
                 "parameters": [
                     {
                         "description": "Agent registration request",

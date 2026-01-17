@@ -354,7 +354,7 @@ paths:
       consumes:
       - application/json
       description: Receive and store a monitor report for a specific monitor
-      operationId: postAgentsAgentIdMonitorIdReport
+      operationId: receiveMonitorReport
       parameters:
       - description: Agent ID
         in: path
@@ -401,7 +401,7 @@ paths:
       consumes:
       - application/json
       description: Enable or disable maintenance mode for a specific agent
-      operationId: putAgentsAgentIdMaintenance
+      operationId: setMaintenanceMode
       parameters:
       - description: Agent ID
         in: path
@@ -443,7 +443,7 @@ paths:
       consumes:
       - application/json
       description: Register a new monitor for a specific agent
-      operationId: postAgentsAgentIdRegisterMonitor
+      operationId: registerMonitor
       parameters:
       - description: Agent ID
         in: path
@@ -490,7 +490,7 @@ paths:
       consumes:
       - application/json
       description: Receive and store a system metrics report from an agent
-      operationId: postAgentsAgentIdReport
+      operationId: receiveAgentReport
       parameters:
       - description: Agent ID
         in: path
@@ -537,7 +537,7 @@ paths:
       consumes:
       - application/json
       description: Unregister a monitor for a specific agent
-      operationId: postAgentsAgentIdUnregisterMonitor
+      operationId: unregisterMonitor
       parameters:
       - description: Agent ID
         in: path
@@ -585,7 +585,7 @@ paths:
       - application/json
       description: Get detailed information about a specific agent including latest
         report
-      operationId: getAgentsId
+      operationId: getAgent
       parameters:
       - description: Agent ID
         in: path
@@ -625,7 +625,7 @@ paths:
       consumes:
       - application/json
       description: Get computed health status for a specific agent and its monitors
-      operationId: getAgentsIdHealth
+      operationId: getAgentHealth
       parameters:
       - description: Agent ID
         in: path
@@ -672,7 +672,7 @@ paths:
       - application/json
       description: Get a paginated list of monitors for a specific agent with optional
         filters
-      operationId: getAgentsIdMonitors
+      operationId: getAgentMonitors
       parameters:
       - description: Agent ID
         in: path
@@ -850,7 +850,7 @@ paths:
       - application/json
       description: Get detailed information about a specific monitor including recent
         reports and computed health
-      operationId: getMonitorsId
+      operationId: getMonitor
       parameters:
       - description: Monitor ID
         in: path
@@ -894,7 +894,7 @@ paths:
       consumes:
       - application/json
       description: Get a paginated list of reports for a specific monitor
-      operationId: getMonitorsIdHistory
+      operationId: getMonitorHistory
       parameters:
       - description: Monitor ID
         in: path
@@ -952,7 +952,7 @@ paths:
       - application/json
       description: Register a new agent or reconnect an existing agent by machine
         ID
-      operationId: postRegister
+      operationId: registerAgent
       parameters:
       - description: Agent registration request
         in: body

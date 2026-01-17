@@ -25,7 +25,7 @@ type ReportResponse struct {
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @ID           postAgentsAgentIdReport
+// @ID           receiveAgentReport
 // @Param        agent_id  path      string  true  "Agent ID"
 // @Param        data      body      service.AgentReportPayload  true  "Agent report data"
 // @Success      200       {object}  utils.APIResponse{data=ReportResponse}
@@ -102,7 +102,7 @@ func (s *Server) receiveAgentReport(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @ID           postAgentsAgentIdMonitorIdReport
+// @ID           receiveMonitorReport
 // @Param        agent_id   path      string  true  "Agent ID"
 // @Param        monitor_id path      string  true  "Monitor ID"
 // @Param        data       body      service.MonitorReportPayload  true  "Monitor report data"
