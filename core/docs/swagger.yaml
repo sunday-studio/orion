@@ -1,19 +1,6 @@
 basePath: /
 definitions:
-  api.ReportResponse:
-    properties:
-      message:
-        type: string
-      report_id:
-        type: string
-      timestamp:
-        type: string
-      type:
-        type: string
-    type: object
-  datatypes.JSONType-db_GeoLocation:
-    type: object
-  db.Agent:
+  api.AgentResponse:
     properties:
       arch:
         type: string
@@ -28,7 +15,7 @@ definitions:
       last_seen:
         type: string
       location:
-        $ref: '#/definitions/datatypes.JSONType-db_GeoLocation'
+        $ref: '#/definitions/db.GeoLocation'
       machine_id:
         type: string
       maintenance_mode:
@@ -40,9 +27,65 @@ definitions:
       platform:
         type: string
       reporting_interval_seconds:
-        description: System metrics reporting interval
         type: integer
       token:
+        type: string
+    type: object
+  api.MonitorReportResponse:
+    properties:
+      collected_at:
+        type: string
+      created_at:
+        type: string
+      health:
+        type: string
+      id:
+        type: string
+      monitor_id:
+        type: string
+      payload:
+        type: string
+    type: object
+  api.MonitorResponse:
+    properties:
+      agent_id:
+        type: string
+      computed_health:
+        type: string
+      created_at:
+        type: string
+      deleted_at:
+        type: string
+      description:
+        type: string
+      health:
+        type: string
+      id:
+        type: string
+      last_health_computation:
+        type: string
+      last_successful_report_at:
+        type: string
+      lifecycle:
+        type: string
+      name:
+        type: string
+      reporting_interval_seconds:
+        type: integer
+      type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  api.ReportResponse:
+    properties:
+      message:
+        type: string
+      report_id:
+        type: string
+      timestamp:
+        type: string
+      type:
         type: string
     type: object
   db.CPUStats:
@@ -102,58 +145,6 @@ definitions:
         type: integer
       used_percent:
         type: number
-    type: object
-  db.Monitor:
-    properties:
-      agent_id:
-        type: string
-      computed_health:
-        description: Cached computed health (up | down | degraded | unknown)
-        type: string
-      created_at:
-        type: string
-      deleted_at:
-        type: string
-      description:
-        type: string
-      health:
-        description: up | down | degraded | unknown
-        type: string
-      id:
-        type: string
-      last_health_computation:
-        description: When health was last computed
-        type: string
-      last_successful_report_at:
-        type: string
-      lifecycle:
-        description: active | disabled | deleted
-        type: string
-      name:
-        type: string
-      reporting_interval_seconds:
-        description: Monitor check interval
-        type: integer
-      type:
-        type: string
-      updated_at:
-        type: string
-    type: object
-  db.MonitorReport:
-    properties:
-      collected_at:
-        type: string
-      created_at:
-        type: string
-      health:
-        description: up | down
-        type: string
-      id:
-        type: string
-      monitor_id:
-        type: string
-      payload:
-        type: string
     type: object
   service.AgentReportPayload:
     properties:
@@ -331,7 +322,7 @@ paths:
                   properties:
                     agents:
                       items:
-                        $ref: '#/definitions/db.Agent'
+                        $ref: '#/definitions/api.AgentResponse'
                       type: array
                     count:
                       format: int64
@@ -604,7 +595,7 @@ paths:
                 data:
                   properties:
                     agent:
-                      $ref: '#/definitions/db.Agent'
+                      $ref: '#/definitions/api.AgentResponse'
                     latest_report:
                       type: object
                   type: object
@@ -715,7 +706,7 @@ paths:
                       type: integer
                     monitors:
                       items:
-                        $ref: '#/definitions/db.Monitor'
+                        $ref: '#/definitions/api.MonitorResponse'
                       type: array
                     offset:
                       type: integer
@@ -871,10 +862,10 @@ paths:
                     computed_health:
                       type: string
                     monitor:
-                      $ref: '#/definitions/db.Monitor'
+                      $ref: '#/definitions/api.MonitorResponse'
                     recent_reports:
                       items:
-                        $ref: '#/definitions/db.MonitorReport'
+                        $ref: '#/definitions/api.MonitorReportResponse'
                       type: array
                   type: object
               type: object
@@ -931,7 +922,7 @@ paths:
                       type: integer
                     reports:
                       items:
-                        $ref: '#/definitions/db.MonitorReport'
+                        $ref: '#/definitions/api.MonitorReportResponse'
                       type: array
                   type: object
               type: object

@@ -103,7 +103,7 @@ const docTemplate = `{
                                                 "agents": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/db.Agent"
+                                                        "$ref": "#/definitions/api.AgentResponse"
                                                     }
                                                 },
                                                 "count": {
@@ -538,7 +538,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "agent": {
-                                                    "$ref": "#/definitions/db.Agent"
+                                                    "$ref": "#/definitions/api.AgentResponse"
                                                 },
                                                 "latest_report": {
                                                     "type": "object"
@@ -712,7 +712,7 @@ const docTemplate = `{
                                                 "monitors": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/db.Monitor"
+                                                        "$ref": "#/definitions/api.MonitorResponse"
                                                     }
                                                 },
                                                 "offset": {
@@ -962,12 +962,12 @@ const docTemplate = `{
                                                     "type": "string"
                                                 },
                                                 "monitor": {
-                                                    "$ref": "#/definitions/db.Monitor"
+                                                    "$ref": "#/definitions/api.MonitorResponse"
                                                 },
                                                 "recent_reports": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/db.MonitorReport"
+                                                        "$ref": "#/definitions/api.MonitorReportResponse"
                                                     }
                                                 }
                                             }
@@ -1056,7 +1056,7 @@ const docTemplate = `{
                                                 "reports": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/db.MonitorReport"
+                                                        "$ref": "#/definitions/api.MonitorReportResponse"
                                                     }
                                                 }
                                             }
@@ -1142,27 +1142,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "api.ReportResponse": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string"
-                },
-                "report_id": {
-                    "type": "string"
-                },
-                "timestamp": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "datatypes.JSONType-db_GeoLocation": {
-            "type": "object"
-        },
-        "db.Agent": {
+        "api.AgentResponse": {
             "type": "object",
             "properties": {
                 "arch": {
@@ -1184,7 +1164,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "location": {
-                    "$ref": "#/definitions/datatypes.JSONType-db_GeoLocation"
+                    "$ref": "#/definitions/db.GeoLocation"
                 },
                 "machine_id": {
                     "type": "string"
@@ -1202,10 +1182,96 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "reporting_interval_seconds": {
-                    "description": "System metrics reporting interval",
                     "type": "integer"
                 },
                 "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.MonitorReportResponse": {
+            "type": "object",
+            "properties": {
+                "collected_at": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "health": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "monitor_id": {
+                    "type": "string"
+                },
+                "payload": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.MonitorResponse": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "computed_health": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "health": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_health_computation": {
+                    "type": "string"
+                },
+                "last_successful_report_at": {
+                    "type": "string"
+                },
+                "lifecycle": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "reporting_interval_seconds": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.ReportResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "report_id": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "type": {
                     "type": "string"
                 }
             }
@@ -1296,82 +1362,6 @@ const docTemplate = `{
                 },
                 "used_percent": {
                     "type": "number"
-                }
-            }
-        },
-        "db.Monitor": {
-            "type": "object",
-            "properties": {
-                "agent_id": {
-                    "type": "string"
-                },
-                "computed_health": {
-                    "description": "Cached computed health (up | down | degraded | unknown)",
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "deleted_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "health": {
-                    "description": "up | down | degraded | unknown",
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "last_health_computation": {
-                    "description": "When health was last computed",
-                    "type": "string"
-                },
-                "last_successful_report_at": {
-                    "type": "string"
-                },
-                "lifecycle": {
-                    "description": "active | disabled | deleted",
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "reporting_interval_seconds": {
-                    "description": "Monitor check interval",
-                    "type": "integer"
-                },
-                "type": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "db.MonitorReport": {
-            "type": "object",
-            "properties": {
-                "collected_at": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "health": {
-                    "description": "up | down",
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "monitor_id": {
-                    "type": "string"
-                },
-                "payload": {
-                    "type": "string"
                 }
             }
         },

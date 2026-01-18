@@ -93,7 +93,7 @@ func (s *Server) setMaintenanceMode(c *gin.Context) {
 // @ID           getAgents
 // @Param        limit   query     int     false  "Maximum number of agents to return" default(50)
 // @Param        offset  query     int     false  "Number of agents to skip" default(0)
-// @Success      200     {object}  utils.APIResponse{data=object{agents=[]db.Agent,count=int64,limit=int,offset=int}}
+// @Success      200     {object}  utils.APIResponse{data=object{agents=[]AgentResponse,count=int64,limit=int,offset=int}}
 // @Failure      500     {object}  utils.APIResponse
 // @Router       /v1/agents [get]
 func (s *Server) listAgents(c *gin.Context) {
@@ -139,7 +139,7 @@ func (s *Server) listAgents(c *gin.Context) {
 // @Produce      json
 // @ID           getAgent
 // @Param        id   path      string  true  "Agent ID"
-// @Success      200  {object}  utils.APIResponse{data=object{agent=db.Agent,latest_report=object}}
+// @Success      200  {object}  utils.APIResponse{data=object{agent=AgentResponse,latest_report=object}}
 // @Failure      400  {object}  utils.APIResponse
 // @Failure      404  {object}  utils.APIResponse
 // @Router       /v1/agents/{id} [get]

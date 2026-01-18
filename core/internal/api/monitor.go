@@ -88,7 +88,7 @@ func (s *Server) unregisterMonitor(c *gin.Context) {
 // @Param        lifecycle  query     string  false  "Filter by lifecycle status (active|disabled|deleted)"
 // @Param        limit      query     int     false  "Maximum number of monitors to return" default(50)
 // @Param        offset     query     int     false  "Number of monitors to skip" default(0)
-// @Success      200        {object}  utils.APIResponse{data=object{monitors=[]db.Monitor,count=int64,limit=int,offset=int}}
+// @Success      200        {object}  utils.APIResponse{data=object{monitors=[]MonitorResponse,count=int64,limit=int,offset=int}}
 // @Failure      400        {object}  utils.APIResponse
 // @Failure      500        {object}  utils.APIResponse
 // @Router       /v1/agents/{id}/monitors [get]
@@ -144,7 +144,7 @@ func (s *Server) listMonitors(c *gin.Context) {
 // @Produce      json
 // @ID           getMonitor
 // @Param        id   path      string  true  "Monitor ID"
-// @Success      200  {object}  utils.APIResponse{data=object{monitor=db.Monitor,recent_reports=[]db.MonitorReport,computed_health=string}}
+// @Success      200  {object}  utils.APIResponse{data=object{monitor=MonitorResponse,recent_reports=[]MonitorReportResponse,computed_health=string}}
 // @Failure      400  {object}  utils.APIResponse
 // @Failure      404  {object}  utils.APIResponse
 // @Router       /v1/monitors/{id} [get]
@@ -196,7 +196,7 @@ func (s *Server) getMonitorDetail(c *gin.Context) {
 // @Param        id      path      string  true   "Monitor ID"
 // @Param        limit   query     int     false  "Maximum number of reports to return" default(50)
 // @Param        offset  query     int     false  "Number of reports to skip" default(0)
-// @Success      200     {object}  utils.APIResponse{data=object{reports=[]db.MonitorReport,count=int64,limit=int,offset=int}}
+// @Success      200     {object}  utils.APIResponse{data=object{reports=[]MonitorReportResponse,count=int64,limit=int,offset=int}}
 // @Failure      400     {object}  utils.APIResponse
 // @Failure      500     {object}  utils.APIResponse
 // @Router       /v1/monitors/{id}/history [get]
