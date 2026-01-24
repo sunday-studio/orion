@@ -1,6 +1,7 @@
 package registration
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -52,6 +53,11 @@ func (s *RegistrationService) RegisterAgentIfNeeded() error {
 		OS:        os,
 		Arch:      arch,
 	}
+	if s.userConfig.Meta != nil && len(s.userConfig.Meta) > 0 {
+		if b, err := json.Marshal(s.userConfig.Meta); err == nil {
+			req.Meta = string(b)
+		}
+	}
 
 	resp, err := s.client.RegisterAgent(req)
 	if err != nil {
@@ -102,6 +108,11 @@ func (s *RegistrationService) RegisterAgentMonitorsIfNeeded() error {
 			Description: monitor.Description,
 			Type:        string(monitor.Type),
 			LastChecked: time.Now(),
+		}
+		if monitor.Meta != nil && len(monitor.Meta) > 0 {
+			if b, err := json.Marshal(monitor.Meta); err == nil {
+				req.Meta = string(b)
+			}
 		}
 
 		resp, err := s.client.RegisterMonitor(req)
