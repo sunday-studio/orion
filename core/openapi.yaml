@@ -62,6 +62,39 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
 
+  /agents/{id}/uptime:
+    get:
+      summary: Get agent uptime SLA (aggregated from monitors)
+      operationId: getAgentUptime
+      tags: [agents]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: period
+          in: query
+          description: e.g. 90d, 30d
+          schema: { type: string, default: '90d' }
+      responses:
+        '200':
+          description: Daily buckets and uptime_percent
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GetUptimeResponse' }
+        '400':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '404':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '500':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
   /agents/{id}/health:
     get:
       summary: Get agent health
@@ -184,6 +217,39 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
         '404':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /monitors/{id}/uptime:
+    get:
+      summary: Get monitor uptime SLA (daily buckets and percent)
+      operationId: getMonitorUptime
+      tags: [monitors]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: period
+          in: query
+          description: e.g. 90d, 30d
+          schema: { type: string, default: '90d' }
+      responses:
+        '200':
+          description: Daily buckets and uptime_percent
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GetUptimeResponse' }
+        '400':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '404':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '500':
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
@@ -422,6 +488,26 @@ components:
                 up_count: { type: integer }
                 down_count: { type: integer }
                 degraded_count: { type: integer }
+
+    UptimeDayBucket:
+      type: object
+      description: One day in the SLA heatmap
+      properties:
+        date: { type: string, format: date }
+        up: { type: integer }
+        total: { type: integer }
+        uptime_percent: { type: number }
+
+    GetUptimeResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                daily_buckets: { type: array, items: { $ref: '#/components/schemas/UptimeDayBucket' } }
+                uptime_percent: { type: number }
 
     GetAgentReportsResponse:
       allOf:
