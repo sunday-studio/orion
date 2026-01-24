@@ -54,6 +54,11 @@ export const customInstance = async <T>(url: string, options?: RequestInit): Pro
 
 export type ErrorType<Err> = Error & { info?: Err };
 
+/** Unwrap envelope: r?.data?.data ?? null. Use for Orval hook responses. Pass type arg, e.g. dataOf<GetAgentDetailResponseData>(res). Param is `any` to accept Orval union (4xx/error) types. */
+export function dataOf<T>(r: any): T | null {
+  return r?.data?.data ?? null;
+}
+
 /** POST /v1/auth/login. On success sets orion_token and returns { token }. On failure throws. */
 export async function authLogin(username: string, password: string): Promise<{ token: string }> {
   const url = `${getApiBase()}/auth/login`;

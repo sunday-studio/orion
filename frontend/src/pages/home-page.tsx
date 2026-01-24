@@ -6,7 +6,10 @@ import {
   type Agent,
   type ListAgentsStatus,
   type Monitor,
+  type ListAgentsResponseData,
+  type ListMonitorsResponseData,
 } from "../lib/api";
+import { dataOf } from "../lib/custom-instance";
 import { useDebounce } from "../hooks/use-debounce";
 import { formatLastSeen, formatUptime, descriptionFromMeta } from "../utils/format";
 import { CanvasView } from "../components/canvas-view";
@@ -37,8 +40,8 @@ export function HomePage() {
     { query: { enabled: view === "list" } }
   );
 
-  const agents = agentsRes?.data?.data?.agents ?? [];
-  const count = agentsRes?.data?.data?.count ?? 0;
+  const agents = dataOf<ListAgentsResponseData>(agentsRes)?.agents ?? [];
+  const count = dataOf<ListAgentsResponseData>(agentsRes)?.count ?? 0;
   const error = agentsError instanceof Error ? agentsError.message : agentsError ? "Failed to load agents" : null;
 
   const { data: monitorsRes, isFetching: monitorsLoading } = useListMonitors(
@@ -46,7 +49,7 @@ export function HomePage() {
     { limit: 50 },
     { query: { enabled: !!expanded } }
   );
-  const expandedMonitors = monitorsRes?.data?.data?.monitors ?? [];
+  const expandedMonitors = dataOf<ListMonitorsResponseData>(monitorsRes)?.monitors ?? [];
 
   const toggleExpand = (agentId: string) => {
     setExpanded((e) => (e === agentId ? null : agentId));

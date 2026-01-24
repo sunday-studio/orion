@@ -7,7 +7,12 @@ import {
   useGetAgentUptime,
   getAgentReports,
   type AgentReport,
+  type GetAgentDetailResponseData,
+  type ListMonitorsResponseData,
+  type GetAgentReportsResponseData,
+  type GetUptimeResponseData,
 } from "../lib/api";
+import { dataOf } from "../lib/custom-instance";
 import { formatLastSeen, formatUptime } from "../utils/format";
 import { UptimeSLA } from "../components/uptime-sla";
 
@@ -23,14 +28,14 @@ export function AgentDetailPage() {
   const { data: reportsRes } = useGetAgentReports(id ?? "", { limit: reportPage, offset: 0 }, { query: { enabled: !!id } });
   const { data: uptimeRes } = useGetAgentUptime(id ?? "", { period: "90d" }, { query: { enabled: !!id } });
 
-  const agent = detailRes?.data?.data?.agent ?? null;
-  const latestReport = detailRes?.data?.data?.latest_report;
-  const monitors = monitorsRes?.data?.data?.monitors ?? [];
-  const firstPageReports = reportsRes?.data?.data?.reports ?? [];
-  const reportsCount = reportsRes?.data?.data?.count ?? 0;
-  const uptime = uptimeRes?.data?.data
-    ? { daily_buckets: uptimeRes.data.data.daily_buckets, uptime_percent: uptimeRes.data.data.uptime_percent }
-    : null;
+  const detail = dataOf<GetAgentDetailResponseData>(detailRes);
+  const agent = detail?.agent ?? null;
+  const latestReport = detail?.latest_report;
+  const monitors = dataOf<ListMonitorsResponseData>(monitorsRes)?.monitors ?? [];
+  const firstPageReports = dataOf<GetAgentReportsResponseData>(reportsRes)?.reports ?? [];
+  const reportsCount = dataOf<GetAgentReportsResponseData>(reportsRes)?.count ?? 0;
+  const uptimeData = dataOf<GetUptimeResponseData>(uptimeRes);
+  const uptime = uptimeData ? { daily_buckets: uptimeData.daily_buckets ?? [], uptime_percent: uptimeData.uptime_percent } : null;
 
   const reports = [...firstPageReports, ...extraReports];
   const error = detailError instanceof Error ? detailError.message : detailError ? "Failed to load agent" : null;
@@ -43,7 +48,7 @@ export function AgentDetailPage() {
   const loadMoreReports = async () => {
     if (!id) return;
     const d = await getAgentReports(id, { limit: reportPage, offset: reportOffset });
-    const payload = d?.data?.data?.reports ?? [];
+    const payload = dataOf<GetAgentReportsResponseData>(d)?.reports ?? [];
     setExtraReports((r) => [...r, ...payload]);
     setReportOffset((o) => o + reportPage);
   };

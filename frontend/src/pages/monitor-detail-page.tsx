@@ -6,7 +6,11 @@ import {
   useGetMonitorUptime,
   getMonitorHistory,
   type MonitorReport,
+  type GetMonitorDetailResponseData,
+  type GetMonitorHistoryResponseData,
+  type GetUptimeResponseData,
 } from "../lib/api";
+import { dataOf } from "../lib/custom-instance";
 import { formatLastSeen } from "../utils/format";
 import { UptimeSLA } from "../components/uptime-sla";
 
@@ -21,13 +25,13 @@ export function MonitorDetailPage() {
   const { data: historyRes } = useGetMonitorHistory(id ?? "", { limit: historyPage, offset: 0 }, { query: { enabled: !!id } });
   const { data: uptimeRes } = useGetMonitorUptime(id ?? "", { period: "90d" }, { query: { enabled: !!id } });
 
-  const monitor = detailRes?.data?.data?.monitor ?? null;
-  const recentReports = detailRes?.data?.data?.recent_reports ?? [];
-  const firstPageHistory = historyRes?.data?.data?.reports ?? [];
-  const historyCount = historyRes?.data?.data?.count ?? 0;
-  const uptime = uptimeRes?.data?.data
-    ? { daily_buckets: uptimeRes.data.data.daily_buckets, uptime_percent: uptimeRes.data.data.uptime_percent }
-    : null;
+  const detail = dataOf<GetMonitorDetailResponseData>(detailRes);
+  const monitor = detail?.monitor ?? null;
+  const recentReports = detail?.recent_reports ?? [];
+  const firstPageHistory = dataOf<GetMonitorHistoryResponseData>(historyRes)?.reports ?? [];
+  const historyCount = dataOf<GetMonitorHistoryResponseData>(historyRes)?.count ?? 0;
+  const uptimeData = dataOf<GetUptimeResponseData>(uptimeRes);
+  const uptime = uptimeData ? { daily_buckets: uptimeData.daily_buckets ?? [], uptime_percent: uptimeData.uptime_percent } : null;
 
   const history = [...firstPageHistory, ...extraHistory];
   const error = detailError instanceof Error ? detailError.message : detailError ? "Failed to load monitor" : null;
@@ -40,7 +44,7 @@ export function MonitorDetailPage() {
   const loadMoreHistory = async () => {
     if (!id) return;
     const d = await getMonitorHistory(id, { limit: historyPage, offset: historyOffset });
-    const payload = d?.data?.data?.reports ?? [];
+    const payload = dataOf<GetMonitorHistoryResponseData>(d)?.reports ?? [];
     setExtraHistory((h) => [...h, ...payload]);
     setHistoryOffset((o) => o + historyPage);
   };
