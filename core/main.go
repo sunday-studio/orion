@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"orion/core/internal/api"
+	"orion/core/internal/config"
 	"orion/core/internal/db"
 	"orion/core/internal/logging"
 )
@@ -11,7 +12,12 @@ func main() {
 	logger := logging.NewLogger()
 	logger.Info("Starting Orion Core Server")
 
-	database, err := db.Initialize()
+	cfg := config.Load()
+	if err := cfg.Validate(); err != nil {
+		logger.Fatal("Invalid config", "error", err)
+	}
+
+	database, err := db.Initialize(cfg.DataDir)
 	if err != nil {
 		logger.Fatal("Failed to initialize database", "error", err)
 	}
@@ -21,10 +27,10 @@ func main() {
 	}
 
 	// Initialize and start HTTP server
-	server := api.NewServer(database, logger)
+	server := api.NewServer(database, logger, cfg)
 
 	logger.Info("Orion Core Server started successfully")
-	if err := server.Start(":8999"); err != nil {
+	if err := server.Start(":" + cfg.Port); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
 }

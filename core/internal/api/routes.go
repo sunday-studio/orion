@@ -1,6 +1,7 @@
 package api
 
 import (
+	"orion/core/internal/config"
 	"orion/core/internal/logging"
 	"orion/core/internal/service"
 
@@ -12,6 +13,7 @@ import (
 type Server struct {
 	db             *gorm.DB
 	logger         *logging.Logger
+	cfg            *config.Config
 	agentService   *service.AgentService
 	authService    *service.AuthService
 	reportService  *service.ReportService
@@ -19,7 +21,7 @@ type Server struct {
 	router         *gin.Engine
 }
 
-func NewServer(database *gorm.DB, logger *logging.Logger) *Server {
+func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *Server {
 	agentService := service.NewAgentService(database, logger)
 	authService := service.NewAuthService(database, logger)
 	reportService := service.NewReportService(database, logger)
@@ -33,6 +35,7 @@ func NewServer(database *gorm.DB, logger *logging.Logger) *Server {
 	server := &Server{
 		db:             database,
 		logger:         logger,
+		cfg:            cfg,
 		agentService:   agentService,
 		authService:    authService,
 		reportService:  reportService,
@@ -65,8 +68,11 @@ func (s *Server) setupRoutes() {
 			frontend.GET("/agents", s.listAgents)
 			frontend.GET("/agents/:id", s.getAgentDetail)
 			frontend.GET("/agents/:id/health", s.getAgentHealth)
+			frontend.GET("/agents/:id/reports", s.getAgentReports)
+			frontend.GET("/agents/:id/uptime", s.getAgentUptime)
 			frontend.GET("/agents/:id/monitors", s.listMonitors)
 			frontend.GET("/monitors/:id", s.getMonitorDetail)
+			frontend.GET("/monitors/:id/uptime", s.getMonitorUptime)
 			frontend.GET("/monitors/:id/history", s.getMonitorHistory)
 			frontend.GET("/health/summary", s.getSystemHealth)
 			frontend.GET("/health/issues", s.getHealthIssues)
@@ -84,6 +90,10 @@ func (s *Server) setupRoutes() {
 			protected.PUT("/:agent_id/maintenance", ValidateAgentToken(s.agentService, s.authService), s.setMaintenanceMode)
 		}
 	}
+
+	// SPA: serve built frontend from web/ (run `make build-static` to copy frontend/dist to core/web)
+	s.router.Static("/assets", "web/assets")
+	s.router.NoRoute(func(c *gin.Context) { c.File("web/index.html") })
 }
 
 func (s *Server) Start(addr string) error {
