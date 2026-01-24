@@ -7,7 +7,7 @@ import {
   type ListAgentsStatus,
   type Monitor,
 } from "../lib/api";
-import { useDebounce } from "../hooks/useDebounce";
+import { useDebounce } from "../hooks/use-debounce";
 import { formatLastSeen, formatUptime, descriptionFromMeta } from "../utils/format";
 import { CanvasView } from "../components/canvas-view";
 
