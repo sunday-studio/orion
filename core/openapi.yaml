@@ -17,6 +17,29 @@ paths:
       operationId: listAgents
       tags: [agents]
       parameters:
+        - name: search
+          in: query
+          description: Search by name, machine_id, or meta
+          schema: { type: string }
+        - name: status
+          in: query
+          description: Filter by health (up, down, degraded, unknown)
+          schema: { type: string, enum: [up, down, degraded, unknown] }
+        - name: last_seen
+          in: query
+          description: Filter by last seen (e.g. 24h, 7d)
+          schema: { type: string }
+        - name: uptime
+          in: query
+          description: Filter by uptime threshold
+          schema: { type: string }
+        - name: sort
+          in: query
+          description: Sort field (name, last_seen, uptime_seconds, monitor_count, etc.)
+          schema: { type: string }
+        - name: order
+          in: query
+          schema: { type: string, enum: [asc, desc], default: desc }
         - name: limit
           in: query
           schema: { type: integer, default: 50 }
@@ -408,6 +431,10 @@ components:
         last_seen: { type: string, format: date-time }
         location: { $ref: '#/components/schemas/GeoLocation' }
         meta: { type: string }
+        # List response extras (from joins/subqueries)
+        monitor_count: { type: integer, description: Present in list response }
+        ip: { type: string, nullable: true, description: From latest AgentReport.Location.IP }
+        uptime_seconds: { type: integer, nullable: true, description: From latest AgentReport }
 
     AgentReport:
       type: object
