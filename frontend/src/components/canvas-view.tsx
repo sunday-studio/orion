@@ -1,42 +1,39 @@
-import { useCallback, useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { listAgents, listMonitors, type Agent, type Monitor } from "../lib/api";
+import {
+  listAgents,
+  listMonitors,
+  type Agent,
+  type Monitor,
+  type ListAgentsResponseData,
+  type ListMonitorsResponseData,
+} from "../lib/api";
 import { dataOf } from "../lib/custom-instance";
 import { formatLastSeen } from "../utils/format";
 
 type TreeAgent = { agent: Agent; monitors: Monitor[] };
 
 export function CanvasView() {
-  const [nodes, setNodes] = useState<TreeAgent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchTree = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
+  const { data: nodes = [], isLoading: loading, error: queryError } = useQuery({
+    queryKey: ["canvas-tree"],
+    queryFn: async (): Promise<TreeAgent[]> => {
       const d = await listAgents({ limit: 100 });
-      const agents = dataOf(d)?.agents ?? [];
-      const withMonitors: TreeAgent[] = await Promise.all(
-        agents.map(async (a) => {
+      const agents = dataOf<ListAgentsResponseData>(d)?.agents ?? [];
+      return Promise.all(
+        agents.map(async (a: Agent) => {
           if (!a.id) return { agent: a, monitors: [] };
           try {
             const m = await listMonitors(a.id, { limit: 50 });
-            return { agent: a, monitors: dataOf(m)?.monitors ?? [] };
+            return { agent: a, monitors: dataOf<ListMonitorsResponseData>(m)?.monitors ?? [] };
           } catch {
             return { agent: a, monitors: [] };
           }
         })
       );
-      setNodes(withMonitors);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load tree");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+  });
 
-  useEffect(() => { void fetchTree(); }, [fetchTree]);
+  const error = queryError instanceof Error ? queryError.message : queryError ? "Failed to load tree" : null;
 
   if (loading) return <p className="muted">Loading…</p>;
   if (error) return <p className="error">{error}</p>;

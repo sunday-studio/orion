@@ -1,12 +1,10 @@
-import { useEffect, useState } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import {
   useGetAgentDetail,
   useListMonitors,
-  useGetAgentReports,
   useGetAgentUptime,
   getAgentReports,
-  type AgentReport,
   type GetAgentDetailResponseData,
   type ListMonitorsResponseData,
   type GetAgentReportsResponseData,
@@ -20,38 +18,37 @@ const reportPage = 10;
 
 export function AgentDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const [extraReports, setExtraReports] = useState<AgentReport[]>([]);
-  const [reportOffset, setReportOffset] = useState(10);
 
   const { data: detailRes, isLoading: loading, error: detailError } = useGetAgentDetail(id ?? "", { query: { enabled: !!id } });
   const { data: monitorsRes } = useListMonitors(id ?? "", { limit: 100 }, { query: { enabled: !!id } });
-  const { data: reportsRes } = useGetAgentReports(id ?? "", { limit: reportPage, offset: 0 }, { query: { enabled: !!id } });
+  const {
+    data: reportsData,
+    fetchNextPage: fetchMoreReports,
+    hasNextPage: hasMoreReports,
+    isFetchingNextPage: loadingMoreReports,
+  } = useInfiniteQuery({
+    queryKey: ["/agents", id, "reports", { limit: reportPage }],
+    queryFn: ({ pageParam }) => getAgentReports(id!, { limit: reportPage, offset: pageParam }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      const d = dataOf<GetAgentReportsResponseData>(lastPage);
+      const count = d?.count ?? 0;
+      const loaded = allPages.reduce((s, p) => s + (dataOf<GetAgentReportsResponseData>(p)?.reports?.length ?? 0), 0);
+      return loaded < count ? loaded : undefined;
+    },
+    enabled: !!id,
+  });
   const { data: uptimeRes } = useGetAgentUptime(id ?? "", { period: "90d" }, { query: { enabled: !!id } });
 
   const detail = dataOf<GetAgentDetailResponseData>(detailRes);
   const agent = detail?.agent ?? null;
   const latestReport = detail?.latest_report;
   const monitors = dataOf<ListMonitorsResponseData>(monitorsRes)?.monitors ?? [];
-  const firstPageReports = dataOf<GetAgentReportsResponseData>(reportsRes)?.reports ?? [];
-  const reportsCount = dataOf<GetAgentReportsResponseData>(reportsRes)?.count ?? 0;
+  const reports = reportsData?.pages?.flatMap((p) => dataOf<GetAgentReportsResponseData>(p)?.reports ?? []) ?? [];
   const uptimeData = dataOf<GetUptimeResponseData>(uptimeRes);
   const uptime = uptimeData ? { daily_buckets: uptimeData.daily_buckets ?? [], uptime_percent: uptimeData.uptime_percent } : null;
 
-  const reports = [...firstPageReports, ...extraReports];
   const error = detailError instanceof Error ? detailError.message : detailError ? "Failed to load agent" : null;
-
-  useEffect(() => {
-    setExtraReports([]);
-    setReportOffset(10);
-  }, [id]);
-
-  const loadMoreReports = async () => {
-    if (!id) return;
-    const d = await getAgentReports(id, { limit: reportPage, offset: reportOffset });
-    const payload = dataOf<GetAgentReportsResponseData>(d)?.reports ?? [];
-    setExtraReports((r) => [...r, ...payload]);
-    setReportOffset((o) => o + reportPage);
-  };
 
   if (loading) return <main><p className="muted">Loading…</p></main>;
   if (error) return <main><p className="error">{error}</p></main>;
@@ -120,8 +117,10 @@ export function AgentDetailPage() {
                 ))}
               </tbody>
             </table>
-            {reports.length < reportsCount && (
-              <button type="button" onClick={loadMoreReports}>Load more</button>
+            {hasMoreReports && (
+              <button type="button" onClick={() => fetchMoreReports()} disabled={loadingMoreReports}>
+                {loadingMoreReports ? "Loading…" : "Load more"}
+              </button>
             )}
           </>
         )}

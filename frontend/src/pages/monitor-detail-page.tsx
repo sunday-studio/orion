@@ -1,11 +1,9 @@
-import { useEffect, useState } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import {
   useGetMonitorDetail,
-  useGetMonitorHistory,
   useGetMonitorUptime,
   getMonitorHistory,
-  type MonitorReport,
   type GetMonitorDetailResponseData,
   type GetMonitorHistoryResponseData,
   type GetUptimeResponseData,
@@ -18,36 +16,35 @@ const historyPage = 10;
 
 export function MonitorDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const [extraHistory, setExtraHistory] = useState<MonitorReport[]>([]);
-  const [historyOffset, setHistoryOffset] = useState(10);
 
   const { data: detailRes, isLoading: loading, error: detailError } = useGetMonitorDetail(id ?? "", { query: { enabled: !!id } });
-  const { data: historyRes } = useGetMonitorHistory(id ?? "", { limit: historyPage, offset: 0 }, { query: { enabled: !!id } });
+  const {
+    data: historyData,
+    fetchNextPage: fetchMoreHistory,
+    hasNextPage: hasMoreHistory,
+    isFetchingNextPage: loadingMoreHistory,
+  } = useInfiniteQuery({
+    queryKey: ["/monitors", id, "history", { limit: historyPage }],
+    queryFn: ({ pageParam }) => getMonitorHistory(id!, { limit: historyPage, offset: pageParam }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      const d = dataOf<GetMonitorHistoryResponseData>(lastPage);
+      const count = d?.count ?? 0;
+      const loaded = allPages.reduce((s, p) => s + (dataOf<GetMonitorHistoryResponseData>(p)?.reports?.length ?? 0), 0);
+      return loaded < count ? loaded : undefined;
+    },
+    enabled: !!id,
+  });
   const { data: uptimeRes } = useGetMonitorUptime(id ?? "", { period: "90d" }, { query: { enabled: !!id } });
 
   const detail = dataOf<GetMonitorDetailResponseData>(detailRes);
   const monitor = detail?.monitor ?? null;
   const recentReports = detail?.recent_reports ?? [];
-  const firstPageHistory = dataOf<GetMonitorHistoryResponseData>(historyRes)?.reports ?? [];
-  const historyCount = dataOf<GetMonitorHistoryResponseData>(historyRes)?.count ?? 0;
+  const history = historyData?.pages?.flatMap((p) => dataOf<GetMonitorHistoryResponseData>(p)?.reports ?? []) ?? [];
   const uptimeData = dataOf<GetUptimeResponseData>(uptimeRes);
   const uptime = uptimeData ? { daily_buckets: uptimeData.daily_buckets ?? [], uptime_percent: uptimeData.uptime_percent } : null;
 
-  const history = [...firstPageHistory, ...extraHistory];
   const error = detailError instanceof Error ? detailError.message : detailError ? "Failed to load monitor" : null;
-
-  useEffect(() => {
-    setExtraHistory([]);
-    setHistoryOffset(10);
-  }, [id]);
-
-  const loadMoreHistory = async () => {
-    if (!id) return;
-    const d = await getMonitorHistory(id, { limit: historyPage, offset: historyOffset });
-    const payload = dataOf<GetMonitorHistoryResponseData>(d)?.reports ?? [];
-    setExtraHistory((h) => [...h, ...payload]);
-    setHistoryOffset((o) => o + historyPage);
-  };
 
   if (loading) return <main><p className="muted">Loading…</p></main>;
   if (error) return <main><p className="error">{error}</p></main>;
@@ -90,8 +87,10 @@ export function MonitorDetailPage() {
                 ))}
               </tbody>
             </table>
-            {history.length < historyCount && (
-              <button type="button" onClick={loadMoreHistory}>Load more</button>
+            {hasMoreHistory && (
+              <button type="button" onClick={() => fetchMoreHistory()} disabled={loadingMoreHistory}>
+                {loadingMoreHistory ? "Loading…" : "Load more"}
+              </button>
             )}
           </>
         )}
