@@ -1,3 +1,7 @@
+meta:
+  title: "Home"
+  description: "Home page"
+
 core_url: http://localhost:8999
 interval: 60m
 monitors:
@@ -29,6 +33,8 @@ monitors:
         port: 8999
   - name: orion-website
     description: orion website
+    meta:
+      title: "Orion"
     type: website
     interval: 15s
     website:
