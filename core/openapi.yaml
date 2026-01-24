@@ -91,6 +91,41 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
 
+  /agents/{id}/reports:
+    get:
+      summary: Get agent reports (paginated)
+      operationId: getAgentReports
+      tags: [agents]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          description: Reports and pagination
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GetAgentReportsResponse' }
+        '400':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '404':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '500':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
   /agents/{id}/monitors:
     get:
       summary: List monitors for an agent
@@ -387,6 +422,19 @@ components:
                 up_count: { type: integer }
                 down_count: { type: integer }
                 degraded_count: { type: integer }
+
+    GetAgentReportsResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                reports: { type: array, items: { $ref: '#/components/schemas/AgentReport' } }
+                count: { type: integer }
+                limit: { type: integer }
+                offset: { type: integer }
 
     ListMonitorsResponse:
       allOf:
