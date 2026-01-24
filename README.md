@@ -112,8 +112,10 @@ orion/
 
 ## Makefile
 
-- `make generate-sdk` — generate `sdk/api.d.ts` from `core/openapi.yaml`
+- `make generate-sdk` — generate frontend API client from `core/openapi.yaml` (Orval → `frontend/src/lib/api.ts`)
 - `make build-static` — build frontend and copy to `core/web/`
+- `make docker-build` — build orion-core Docker image
+- `make docker-up` — run orion-core via `docker compose up -d` (set `ORION_ADMIN_*`, `ORION_JWT_SECRET` for frontend auth)
 
 ## Development
 
