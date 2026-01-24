@@ -2,7 +2,6 @@
 FROM node:22-alpine AS frontend
 WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json frontend/
-COPY sdk/ sdk/
 RUN cd frontend && npm ci
 COPY frontend/ frontend/
 RUN cd frontend && npm run build
