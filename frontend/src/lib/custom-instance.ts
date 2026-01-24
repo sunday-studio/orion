@@ -1,6 +1,10 @@
-const base = (import.meta as unknown as { env: { VITE_API_BASE_URL?: string } }).env.VITE_API_BASE_URL ?? "";
-
 const AUTH_TOKEN_KEY = "orion_token";
+
+/** API base: VITE_API_BASE_URL (trimmed) when set, else "/v1" so SPA works when served from core without .env. */
+function getApiBase(): string {
+  const b = (import.meta as unknown as { env: { VITE_API_BASE_URL?: string } }).env.VITE_API_BASE_URL ?? "";
+  return b ? b.replace(/\/$/, "") : "/v1";
+}
 
 export function getToken(): string | null {
   return localStorage.getItem(AUTH_TOKEN_KEY);
@@ -23,7 +27,8 @@ type Envelope = { success?: boolean; message?: string; data?: unknown; error?: s
  * Sends Bearer token when orion_token exists. On 401, clears token and redirects to /login.
  */
 export const customInstance = async <T>(url: string, options?: RequestInit): Promise<T> => {
-  const full = url.startsWith("http") ? url : `${base.replace(/\/$/, "")}${url.startsWith("/") ? url : `/${url}`}`;
+  const prefix = getApiBase();
+  const full = url.startsWith("http") ? url : `${prefix}${url.startsWith("/") ? url : `/${url}`}`;
   const headers = new Headers(options?.headers as HeadersInit);
   const token = getToken();
   if (token) headers.set("Authorization", `Bearer ${token}`);
@@ -49,16 +54,9 @@ export const customInstance = async <T>(url: string, options?: RequestInit): Pro
 
 export type ErrorType<Err> = Error & { info?: Err };
 
-/** Base URL for API when building paths (no trailing slash). For "" we use relative /v1. */
-function getApiBase(): string {
-  const b = (import.meta as unknown as { env: { VITE_API_BASE_URL?: string } }).env.VITE_API_BASE_URL ?? "";
-  return b ? b.replace(/\/$/, "") : "";
-}
-
 /** POST /v1/auth/login. On success sets orion_token and returns { token }. On failure throws. */
 export async function authLogin(username: string, password: string): Promise<{ token: string }> {
-  const b = getApiBase();
-  const url = b ? `${b}/auth/login` : "/v1/auth/login";
+  const url = `${getApiBase()}/auth/login`;
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
