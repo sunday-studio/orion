@@ -29,6 +29,7 @@ type AgentRegistrationRequest struct {
 	Name      string `json:"name" binding:"required"`
 	OS        string `json:"os" binding:"required"`
 	Arch      string `json:"arch" binding:"required"`
+	Meta      string `json:"meta,omitempty"`
 }
 
 type AgentRegistrationResponse struct {
@@ -46,6 +47,7 @@ type MonitorRegistrationRequest struct {
 	Description string    `json:"description" binding:"required"`
 	Type        string    `json:"type" binding:"required"`
 	LastChecked time.Time `json:"last_checked" binding:"required"`
+	Meta        string    `json:"meta,omitempty"`
 }
 
 type UnRegisterMonitorRequest struct {
