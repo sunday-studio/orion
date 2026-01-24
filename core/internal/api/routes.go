@@ -60,10 +60,12 @@ func (s *Server) setupRoutes() {
 		public := v1.Group("/")
 		{
 			public.POST("/register", s.registerAgent)
+			public.POST("/auth/login", s.login)
 		}
 
-		// Frontend routes (no auth for now, can add later)
+		// Frontend routes (JWT when ORION_ADMIN_* and ORION_JWT_SECRET are set)
 		frontend := v1.Group("/")
+		frontend.Use(s.frontendAuthMiddleware())
 		{
 			frontend.GET("/agents", s.listAgents)
 			frontend.GET("/agents/:id", s.getAgentDetail)
