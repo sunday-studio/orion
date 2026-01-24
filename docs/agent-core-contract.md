@@ -133,9 +133,12 @@ All requests include:
   "machine_id": "unique-machine-identifier",
   "name": "hostname-or-friendly-label",
   "os": "linux|mac|windows",
-  "arch": "amd64|arm64|etc"
+  "arch": "amd64|arm64|etc",
+  "meta": "{\"title\":\"Home\",\"description\":\"...\"}"
 }
 ```
+
+- `meta` (optional): Stringified JSON key-value object from agent config. Stored as-is.
 
 **Response** (200 OK):
 
@@ -181,9 +184,12 @@ All requests include:
   "name": "monitor-name",
   "description": "Monitor description",
   "type": "http|website|pm2|internal_service|...",
-  "last_checked": "2024-01-01T12:00:00Z"
+  "last_checked": "2024-01-01T12:00:00Z",
+  "meta": "{\"title\":\"Service A\"}"
 }
 ```
+
+- `meta` (optional): Stringified JSON key-value object from monitor config. Stored as-is.
 
 **Response** (200 OK):
 
@@ -425,6 +431,7 @@ type Agent struct {
     DeletedAt     time.Time
     LastSeen      time.Time
     Location      GeoLocation
+    Meta          string  // Stringified JSON from config (title, description, etc.)
 }
 ```
 
@@ -439,6 +446,7 @@ type Monitor struct {
     AgentID     string
     Lifecycle   string  // active | disabled | deleted
     Health      string  // up | down | degraded | unknown
+    Meta        string  // Stringified JSON from config (title, tags, etc.)
     CreatedAt   time.Time
     UpdatedAt   time.Time
     DeletedAt   time.Time
