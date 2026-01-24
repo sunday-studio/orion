@@ -80,10 +80,11 @@ type PM2MonitorConfig struct {
 }
 
 type UserMonitor struct {
-	Name        string          `yaml:"name"`
-	Description string          `yaml:"description"`
-	Type        UserMonitorType `yaml:"type"`
-	Interval    string          `yaml:"interval"`
+	Name        string                 `yaml:"name"`
+	Description string                 `yaml:"description"`
+	Type        UserMonitorType        `yaml:"type"`
+	Interval    string                 `yaml:"interval"`
+	Meta        map[string]interface{} `yaml:"meta,omitempty"`
 
 	HTTP            *HTTPHealthcheckConfig `yaml:"http,omitempty"`
 	InternalService *InternalServiceConfig `yaml:"internal_service,omitempty"`
@@ -93,9 +94,10 @@ type UserMonitor struct {
 }
 
 type UserConfig struct {
-	CoreURL  string        `yaml:"core_url"`
-	Interval string        `yaml:"interval"`
-	Monitors []UserMonitor `yaml:"monitors"`
+	Meta     map[string]interface{} `yaml:"meta,omitempty"`
+	CoreURL  string                `yaml:"core_url"`
+	Interval string                `yaml:"interval"`
+	Monitors []UserMonitor         `yaml:"monitors"`
 }
 
 func LoadInternalState(path string) (*InternalState, error) {
