@@ -1,8 +1,8 @@
 import { Routes, Route } from "react-router-dom";
-import { HomePage } from "./pages/HomePage";
-import { AgentDetailPage } from "./pages/AgentDetailPage";
-import { MonitorDetailPage } from "./pages/MonitorDetailPage";
-import { LoginPage } from "./pages/LoginPage";
+import { HomePage } from "./pages/home-page";
+import { AgentDetailPage } from "./pages/agent-detail-page";
+import { MonitorDetailPage } from "./pages/monitor-detail-page";
+import { LoginPage } from "./pages/login-page";
 import "./app.css";
 
 function App() {
