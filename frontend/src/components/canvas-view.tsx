@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listAgents, listMonitors, type Agent, type Monitor } from "../lib/api";
+import { dataOf } from "../lib/custom-instance";
 import { formatLastSeen } from "../utils/format";
 
 type TreeAgent = { agent: Agent; monitors: Monitor[] };
@@ -15,13 +16,13 @@ export function CanvasView() {
     setError(null);
     try {
       const d = await listAgents({ limit: 100 });
-      const agents = d?.data?.data?.agents ?? [];
+      const agents = dataOf(d)?.agents ?? [];
       const withMonitors: TreeAgent[] = await Promise.all(
         agents.map(async (a) => {
           if (!a.id) return { agent: a, monitors: [] };
           try {
             const m = await listMonitors(a.id, { limit: 50 });
-            return { agent: a, monitors: m?.data?.data?.monitors ?? [] };
+            return { agent: a, monitors: dataOf(m)?.monitors ?? [] };
           } catch {
             return { agent: a, monitors: [] };
           }
