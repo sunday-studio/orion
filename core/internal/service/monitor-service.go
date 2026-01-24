@@ -17,6 +17,7 @@ type RegisterMonitorRequest struct {
 	Type                     string    `json:"type" binding:"required"`
 	LastChecked              time.Time `json:"last_checked" binding:"required"`
 	ReportingIntervalSeconds int       `json:"reporting_interval_seconds"` // Monitor check interval in seconds
+	Meta                     string    `json:"meta,omitempty"`
 }
 
 type UnregisterMonitorRequest struct {
@@ -65,6 +66,9 @@ func (s *MonitorService) RegisterMonitor(req *RegisterMonitorRequest) (*Register
 				"health":                     "up",
 				"updated_at":                 time.Now(),
 				"reporting_interval_seconds": interval,
+			}
+			if req.Meta != "" {
+				updates["meta"] = req.Meta
 			}
 
 			if err := s.db.Model(&monitor).Updates(updates).Error; err != nil {
@@ -133,6 +137,7 @@ func (s *MonitorService) createNewMonitor(req *RegisterMonitorRequest) (*Registe
 		Description:              req.Description,
 		Type:                     req.Type,
 		Name:                     req.Name,
+		Meta:                     req.Meta,
 		Lifecycle:                "active",
 		Health:                   "unknown",
 		ComputedHealth:           "unknown",
