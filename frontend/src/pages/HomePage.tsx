@@ -1,9 +1,15 @@
-import { useCallback, useEffect, useState, Fragment } from "react";
+import { useState, Fragment } from "react";
 import { Link } from "react-router-dom";
-import { api, type Agent, type Monitor } from "../lib/api";
+import {
+  useListAgents,
+  useListMonitors,
+  type Agent,
+  type ListAgentsStatus,
+  type Monitor,
+} from "../lib/api";
 import { useDebounce } from "../hooks/useDebounce";
 import { formatLastSeen, formatUptime, descriptionFromMeta } from "../utils/format";
-import { CanvasView } from "../components/CanvasView";
+import { CanvasView } from "../components/canvas-view";
 
 const PAGE = 20;
 type ViewMode = "list" | "canvas";
@@ -11,59 +17,42 @@ type ViewMode = "list" | "canvas";
 export function HomePage() {
   const [view, setView] = useState<ViewMode>("list");
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [count, setCount] = useState(0);
+  const [status, setStatus] = useState<"" | ListAgentsStatus>("");
   const [offset, setOffset] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [monitors, setMonitors] = useState<Record<string, Monitor[]>>({});
 
   const debouncedSearch = useDebounce(search, 300);
 
-  const fetchAgents = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const d = await api.listAgents({
-        search: debouncedSearch || undefined,
-        status: status || undefined,
-        limit: PAGE,
-        offset,
-      });
-      setAgents(d.agents ?? []);
-      setCount(d.count ?? 0);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load agents");
-    } finally {
-      setLoading(false);
-    }
-  }, [debouncedSearch, status, offset]);
+  const {
+    data: agentsRes,
+    isLoading: loading,
+    error: agentsError,
+  } = useListAgents(
+    {
+      search: debouncedSearch || undefined,
+      status: status || undefined,
+      limit: PAGE,
+      offset,
+    },
+    { query: { enabled: view === "list" } }
+  );
 
-  useEffect(() => { if (view === "list") void fetchAgents(); }, [fetchAgents, view]);
+  const agents = agentsRes?.data?.data?.agents ?? [];
+  const count = agentsRes?.data?.data?.count ?? 0;
+  const error = agentsError instanceof Error ? agentsError.message : agentsError ? "Failed to load agents" : null;
 
-  const fetchMonitors = useCallback(async (agentId: string) => {
-    if (monitors[agentId]) return;
-    try {
-      const d = await api.listMonitors(agentId, { limit: 50 });
-      setMonitors((m) => ({ ...m, [agentId]: d.monitors ?? [] }));
-    } catch {
-      setMonitors((m) => ({ ...m, [agentId]: [] }));
-    }
-  }, [monitors]);
+  const { data: monitorsRes, isFetching: monitorsLoading } = useListMonitors(
+    expanded ?? "",
+    { limit: 50 },
+    { query: { enabled: !!expanded } }
+  );
+  const expandedMonitors = monitorsRes?.data?.data?.monitors ?? [];
 
   const toggleExpand = (agentId: string) => {
-    if (expanded === agentId) {
-      setExpanded(null);
-    } else {
-      setExpanded(agentId);
-      void fetchMonitors(agentId);
-    }
+    setExpanded((e) => (e === agentId ? null : agentId));
   };
 
   const statusLabel = (a: Agent): string => {
-    // Backend may not yet include computed status in list; use maintenance or "—"
     if (a.maintenance_mode) return "maintenance";
     return "—";
   };
@@ -85,7 +74,7 @@ export function HomePage() {
               onChange={(e) => setSearch(e.target.value)}
               aria-label="Search agents"
             />
-            <select value={status} onChange={(e) => { setStatus(e.target.value); setOffset(0); }} aria-label="Filter by status">
+            <select value={status} onChange={(e) => { setStatus((e.target.value || "") as "" | ListAgentsStatus); setOffset(0); }} aria-label="Filter by status">
               <option value="">All statuses</option>
               <option value="up">Up</option>
               <option value="down">Down</option>
@@ -144,7 +133,7 @@ export function HomePage() {
                     {expanded === a.id && (
                       <tr>
                         <td colSpan={8} className="expanded">
-                          <MonitorsSubTable list={monitors[a.id!] ?? []} loading={!monitors[a.id!]} />
+                          <MonitorsSubTable list={expanded === a.id ? expandedMonitors : []} loading={monitorsLoading} />
                         </td>
                       </tr>
                     )}

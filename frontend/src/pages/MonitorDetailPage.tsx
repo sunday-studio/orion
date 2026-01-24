@@ -1,49 +1,47 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { api, type Monitor, type MonitorReport } from "../lib/api";
+import {
+  useGetMonitorDetail,
+  useGetMonitorHistory,
+  useGetMonitorUptime,
+  getMonitorHistory,
+  type MonitorReport,
+} from "../lib/api";
 import { formatLastSeen } from "../utils/format";
-import { UptimeSLA } from "../components/UptimeSLA";
+import { UptimeSLA } from "../components/uptime-sla";
+
+const historyPage = 10;
 
 export function MonitorDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const [monitor, setMonitor] = useState<Monitor | null>(null);
-  const [recentReports, setRecentReports] = useState<MonitorReport[]>([]);
-  const [history, setHistory] = useState<MonitorReport[]>([]);
-  const [historyCount, setHistoryCount] = useState(0);
-  const [uptime, setUptime] = useState<{ daily_buckets?: { date?: string; uptime_percent?: number; total?: number }[]; uptime_percent?: number } | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [historyOffset, setHistoryOffset] = useState(0);
-  const historyPage = 10;
+  const [extraHistory, setExtraHistory] = useState<MonitorReport[]>([]);
+  const [historyOffset, setHistoryOffset] = useState(10);
+
+  const { data: detailRes, isLoading: loading, error: detailError } = useGetMonitorDetail(id ?? "", { query: { enabled: !!id } });
+  const { data: historyRes } = useGetMonitorHistory(id ?? "", { limit: historyPage, offset: 0 }, { query: { enabled: !!id } });
+  const { data: uptimeRes } = useGetMonitorUptime(id ?? "", { period: "90d" }, { query: { enabled: !!id } });
+
+  const monitor = detailRes?.data?.data?.monitor ?? null;
+  const recentReports = detailRes?.data?.data?.recent_reports ?? [];
+  const firstPageHistory = historyRes?.data?.data?.reports ?? [];
+  const historyCount = historyRes?.data?.data?.count ?? 0;
+  const uptime = uptimeRes?.data?.data
+    ? { daily_buckets: uptimeRes.data.data.daily_buckets, uptime_percent: uptimeRes.data.data.uptime_percent }
+    : null;
+
+  const history = [...firstPageHistory, ...extraHistory];
+  const error = detailError instanceof Error ? detailError.message : detailError ? "Failed to load monitor" : null;
 
   useEffect(() => {
-    if (!id) return;
-    setLoading(true);
-    setError(null);
-    (async () => {
-      try {
-        const [d, hist, up] = await Promise.all([
-          api.getMonitorDetail(id),
-          api.getMonitorHistory(id, { limit: historyPage, offset: 0 }),
-          api.getMonitorUptime(id, { period: "90d" }),
-        ]);
-        setMonitor(d.monitor ?? null);
-        setRecentReports(d.recent_reports ?? []);
-        setHistory(hist.reports ?? []);
-        setHistoryCount(hist.count ?? 0);
-        setUptime(up);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to load monitor");
-      } finally {
-        setLoading(false);
-      }
-    })();
+    setExtraHistory([]);
+    setHistoryOffset(10);
   }, [id]);
 
   const loadMoreHistory = async () => {
     if (!id) return;
-    const d = await api.getMonitorHistory(id, { limit: historyPage, offset: historyOffset + historyPage });
-    setHistory((h) => [...h, ...(d.reports ?? [])]);
+    const d = await getMonitorHistory(id, { limit: historyPage, offset: historyOffset });
+    const payload = d?.data?.data?.reports ?? [];
+    setExtraHistory((h) => [...h, ...payload]);
     setHistoryOffset((o) => o + historyPage);
   };
 
@@ -77,9 +75,7 @@ export function MonitorDetailPage() {
         {history.length === 0 ? <p className="muted">No reports</p> : (
           <>
             <table>
-              <thead>
-                <tr><th>Collected</th><th>Health</th><th>Payload</th></tr>
-              </thead>
+              <thead><tr><th>Collected</th><th>Health</th><th>Payload</th></tr></thead>
               <tbody>
                 {history.map((r) => (
                   <tr key={r.id}>

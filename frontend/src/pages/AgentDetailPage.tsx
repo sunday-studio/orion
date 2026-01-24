@@ -1,52 +1,50 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { api, type Agent, type AgentReport, type Monitor, type UptimeDayBucket } from "../lib/api";
+import {
+  useGetAgentDetail,
+  useListMonitors,
+  useGetAgentReports,
+  useGetAgentUptime,
+  getAgentReports,
+  type AgentReport,
+} from "../lib/api";
 import { formatLastSeen, formatUptime } from "../utils/format";
-import { UptimeSLA } from "../components/UptimeSLA";
+import { UptimeSLA } from "../components/uptime-sla";
+
+const reportPage = 10;
 
 export function AgentDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const [agent, setAgent] = useState<Agent | null>(null);
-  const [latestReport, setLatestReport] = useState<AgentReport | null | undefined>(undefined);
-  const [monitors, setMonitors] = useState<Monitor[]>([]);
-  const [reports, setReports] = useState<AgentReport[]>([]);
-  const [reportsCount, setReportsCount] = useState(0);
-  const [uptime, setUptime] = useState<{ daily_buckets?: UptimeDayBucket[]; uptime_percent?: number } | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [reportOffset, setReportOffset] = useState(0);
-  const reportPage = 10;
+  const [extraReports, setExtraReports] = useState<AgentReport[]>([]);
+  const [reportOffset, setReportOffset] = useState(10);
+
+  const { data: detailRes, isLoading: loading, error: detailError } = useGetAgentDetail(id ?? "", { query: { enabled: !!id } });
+  const { data: monitorsRes } = useListMonitors(id ?? "", { limit: 100 }, { query: { enabled: !!id } });
+  const { data: reportsRes } = useGetAgentReports(id ?? "", { limit: reportPage, offset: 0 }, { query: { enabled: !!id } });
+  const { data: uptimeRes } = useGetAgentUptime(id ?? "", { period: "90d" }, { query: { enabled: !!id } });
+
+  const agent = detailRes?.data?.data?.agent ?? null;
+  const latestReport = detailRes?.data?.data?.latest_report;
+  const monitors = monitorsRes?.data?.data?.monitors ?? [];
+  const firstPageReports = reportsRes?.data?.data?.reports ?? [];
+  const reportsCount = reportsRes?.data?.data?.count ?? 0;
+  const uptime = uptimeRes?.data?.data
+    ? { daily_buckets: uptimeRes.data.data.daily_buckets, uptime_percent: uptimeRes.data.data.uptime_percent }
+    : null;
+
+  const reports = [...firstPageReports, ...extraReports];
+  const error = detailError instanceof Error ? detailError.message : detailError ? "Failed to load agent" : null;
 
   useEffect(() => {
-    if (!id) return;
-    setLoading(true);
-    setError(null);
-    (async () => {
-      try {
-        const [d, mon, rep, up] = await Promise.all([
-          api.getAgentDetail(id),
-          api.listMonitors(id, { limit: 100 }),
-          api.getAgentReports(id, { limit: reportPage, offset: 0 }),
-          api.getAgentUptime(id, { period: "90d" }),
-        ]);
-        setAgent(d.agent ?? null);
-        setLatestReport(d.latest_report);
-        setMonitors(mon.monitors ?? []);
-        setReports(rep.reports ?? []);
-        setReportsCount(rep.count ?? 0);
-        setUptime(up);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to load agent");
-      } finally {
-        setLoading(false);
-      }
-    })();
+    setExtraReports([]);
+    setReportOffset(10);
   }, [id]);
 
   const loadMoreReports = async () => {
     if (!id) return;
-    const d = await api.getAgentReports(id, { limit: reportPage, offset: reportOffset + reportPage });
-    setReports((r) => [...r, ...(d.reports ?? [])]);
+    const d = await getAgentReports(id, { limit: reportPage, offset: reportOffset });
+    const payload = d?.data?.data?.reports ?? [];
+    setExtraReports((r) => [...r, ...payload]);
     setReportOffset((o) => o + reportPage);
   };
 
