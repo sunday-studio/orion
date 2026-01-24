@@ -54,9 +54,6 @@ paths:
               schema: { $ref: '#/components/schemas/ListAgentsResponse' }
         '500':
           description: Internal error
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
 
   /agents/{id}:
     get:
@@ -76,14 +73,8 @@ paths:
               schema: { $ref: '#/components/schemas/GetAgentDetailResponse' }
         '400':
           description: Bad request
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
         '404':
           description: Agent not found
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
 
   /agents/{id}/uptime:
     get:
@@ -106,17 +97,11 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/GetUptimeResponse' }
         '400':
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
+          description: Bad request
         '404':
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
+          description: Not found
         '500':
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
+          description: Internal server error
 
   /agents/{id}/health:
     get:
@@ -135,17 +120,11 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/GetAgentHealthResponse' }
         '400':
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
+          description: Bad request
         '404':
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
+          description: Not found
         '500':
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
+          description: Internal server error
 
   /agents/{id}/reports:
     get:
@@ -170,17 +149,11 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/GetAgentReportsResponse' }
         '400':
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
+          description: Bad request
         '404':
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
+          description: Not found
         '500':
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
+          description: Internal server error
 
   /agents/{id}/monitors:
     get:
@@ -211,13 +184,9 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ListMonitorsResponse' }
         '400':
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
+          description: Bad request
         '500':
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
+          description: Internal server error
 
   /monitors/{id}:
     get:
@@ -236,13 +205,9 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/GetMonitorDetailResponse' }
         '400':
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
+          description: Bad request
         '404':
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
+          description: Not found
 
   /monitors/{id}/uptime:
     get:
@@ -265,17 +230,11 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/GetUptimeResponse' }
         '400':
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
+          description: Bad request
         '404':
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
+          description: Not found
         '500':
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
+          description: Internal server error
 
   /monitors/{id}/history:
     get:
@@ -300,13 +259,9 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/GetMonitorHistoryResponse' }
         '400':
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
+          description: Bad request
         '500':
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
+          description: Internal server error
 
   /health/summary:
     get:
@@ -320,9 +275,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/GetSystemHealthResponse' }
         '500':
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
+          description: Internal server error
 
   /health/issues:
     get:
@@ -336,9 +289,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/GetHealthIssuesResponse' }
         '500':
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
+          description: Internal server error
 
   /incidents/candidates:
     get:
@@ -352,9 +303,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/GetIncidentCandidatesResponse' }
         '500':
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
+          description: Internal server error
 
 components:
   schemas:
@@ -368,12 +317,12 @@ components:
         error: { type: string }
 
     ApiError:
-      allOf:
-        - $ref: '#/components/schemas/ApiEnvelope'
-        - type: object
-          properties:
-            success: { const: false }
-            error: { type: string }
+      type: object
+      required: [success, message]
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        error: { type: string }
 
     GeoLocation:
       type: object
@@ -479,42 +428,45 @@ components:
         created_at: { type: string, format: date-time }
 
     ListAgentsResponse:
-      allOf:
-        - $ref: '#/components/schemas/ApiEnvelope'
-        - type: object
+      type: object
+      required: [success, message]
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        data:
+          type: object
           properties:
-            data:
-              type: object
-              properties:
-                agents: { type: array, items: { $ref: '#/components/schemas/Agent' } }
-                count: { type: integer }
-                limit: { type: integer }
-                offset: { type: integer }
+            agents: { type: array, items: { $ref: '#/components/schemas/Agent' } }
+            count: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
 
     GetAgentDetailResponse:
-      allOf:
-        - $ref: '#/components/schemas/ApiEnvelope'
-        - type: object
+      type: object
+      required: [success, message]
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        data:
+          type: object
           properties:
-            data:
-              type: object
-              properties:
-                agent: { $ref: '#/components/schemas/Agent' }
-                latest_report: { oneOf: [{ $ref: '#/components/schemas/AgentReport' }, { type: 'null' }] }
+            agent: { $ref: '#/components/schemas/Agent' }
+            latest_report: { $ref: '#/components/schemas/AgentReport' }
 
     GetAgentHealthResponse:
-      allOf:
-        - $ref: '#/components/schemas/ApiEnvelope'
-        - type: object
+      type: object
+      required: [success, message]
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        data:
+          type: object
           properties:
-            data:
-              type: object
-              properties:
-                agent_id: { type: string }
-                overall_health: { type: string }
-                up_count: { type: integer }
-                down_count: { type: integer }
-                degraded_count: { type: integer }
+            agent_id: { type: string }
+            overall_health: { type: string }
+            up_count: { type: integer }
+            down_count: { type: integer }
+            degraded_count: { type: integer }
 
     UptimeDayBucket:
       type: object
@@ -526,85 +478,91 @@ components:
         uptime_percent: { type: number }
 
     GetUptimeResponse:
-      allOf:
-        - $ref: '#/components/schemas/ApiEnvelope'
-        - type: object
+      type: object
+      required: [success, message]
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        data:
+          type: object
           properties:
-            data:
-              type: object
-              properties:
-                daily_buckets: { type: array, items: { $ref: '#/components/schemas/UptimeDayBucket' } }
-                uptime_percent: { type: number }
+            daily_buckets: { type: array, items: { $ref: '#/components/schemas/UptimeDayBucket' } }
+            uptime_percent: { type: number }
 
     GetAgentReportsResponse:
-      allOf:
-        - $ref: '#/components/schemas/ApiEnvelope'
-        - type: object
+      type: object
+      required: [success, message]
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        data:
+          type: object
           properties:
-            data:
-              type: object
-              properties:
-                reports: { type: array, items: { $ref: '#/components/schemas/AgentReport' } }
-                count: { type: integer }
-                limit: { type: integer }
-                offset: { type: integer }
+            reports: { type: array, items: { $ref: '#/components/schemas/AgentReport' } }
+            count: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
 
     ListMonitorsResponse:
-      allOf:
-        - $ref: '#/components/schemas/ApiEnvelope'
-        - type: object
+      type: object
+      required: [success, message]
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        data:
+          type: object
           properties:
-            data:
-              type: object
-              properties:
-                monitors: { type: array, items: { $ref: '#/components/schemas/Monitor' } }
-                count: { type: integer }
-                limit: { type: integer }
-                offset: { type: integer }
+            monitors: { type: array, items: { $ref: '#/components/schemas/Monitor' } }
+            count: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
 
     GetMonitorDetailResponse:
-      allOf:
-        - $ref: '#/components/schemas/ApiEnvelope'
-        - type: object
+      type: object
+      required: [success, message]
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        data:
+          type: object
           properties:
-            data:
-              type: object
-              properties:
-                monitor: { $ref: '#/components/schemas/Monitor' }
-                recent_reports: { type: array, items: { $ref: '#/components/schemas/MonitorReport' } }
-                computed_health: { type: string }
+            monitor: { $ref: '#/components/schemas/Monitor' }
+            recent_reports: { type: array, items: { $ref: '#/components/schemas/MonitorReport' } }
+            computed_health: { type: string }
 
     GetMonitorHistoryResponse:
-      allOf:
-        - $ref: '#/components/schemas/ApiEnvelope'
-        - type: object
+      type: object
+      required: [success, message]
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        data:
+          type: object
           properties:
-            data:
-              type: object
-              properties:
-                reports: { type: array, items: { $ref: '#/components/schemas/MonitorReport' } }
-                count: { type: integer }
-                limit: { type: integer }
-                offset: { type: integer }
+            reports: { type: array, items: { $ref: '#/components/schemas/MonitorReport' } }
+            count: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
 
     GetSystemHealthResponse:
-      allOf:
-        - $ref: '#/components/schemas/ApiEnvelope'
-        - type: object
+      type: object
+      required: [success, message]
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        data:
+          type: object
           properties:
-            data:
+            overall_health: { type: string }
+            agents: { type: object, properties: { total: { type: integer } } }
+            monitors:
               type: object
               properties:
-                overall_health: { type: string }
-                agents: { type: object, properties: { total: { type: integer } } }
-                monitors:
-                  type: object
-                  properties:
-                    total: { type: integer }
-                    up: { type: integer }
-                    down: { type: integer }
-                    degraded: { type: integer }
-                    unknown: { type: integer }
+                total: { type: integer }
+                up: { type: integer }
+                down: { type: integer }
+                degraded: { type: integer }
+                unknown: { type: integer }
 
     HealthIssue:
       type: object
@@ -618,15 +576,16 @@ components:
         issue_type: { type: string }
 
     GetHealthIssuesResponse:
-      allOf:
-        - $ref: '#/components/schemas/ApiEnvelope'
-        - type: object
+      type: object
+      required: [success, message]
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        data:
+          type: object
           properties:
-            data:
-              type: object
-              properties:
-                issues: { type: array, items: { $ref: '#/components/schemas/HealthIssue' } }
-                count: { type: integer }
+            issues: { type: array, items: { $ref: '#/components/schemas/HealthIssue' } }
+            count: { type: integer }
 
     IncidentCandidate:
       type: object
@@ -641,12 +600,13 @@ components:
         down_count: { type: integer }
 
     GetIncidentCandidatesResponse:
-      allOf:
-        - $ref: '#/components/schemas/ApiEnvelope'
-        - type: object
+      type: object
+      required: [success, message]
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        data:
+          type: object
           properties:
-            data:
-              type: object
-              properties:
-                candidates: { type: array, items: { $ref: '#/components/schemas/IncidentCandidate' } }
-                count: { type: integer }
+            candidates: { type: array, items: { $ref: '#/components/schemas/IncidentCandidate' } }
+            count: { type: integer }

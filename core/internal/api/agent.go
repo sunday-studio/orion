@@ -65,23 +65,27 @@ func (s *Server) listAgents(c *gin.Context) {
 	if err != nil || limit < 0 {
 		limit = 50
 	}
-
 	offset, err := strconv.Atoi(offsetStr)
 	if err != nil || offset < 0 {
 		offset = 0
 	}
 
-	agents, err := s.agentService.ListAgents(limit, offset)
+	opts := service.ListAgentsOpts{
+		Limit:    limit,
+		Offset:   offset,
+		Search:   c.Query("search"),
+		Status:   c.Query("status"),
+		LastSeen: c.Query("last_seen"),
+		Uptime:   c.Query("uptime"),
+		Sort:     c.DefaultQuery("sort", "last_seen"),
+		Order:    c.DefaultQuery("order", "desc"),
+	}
+
+	agents, count, err := s.agentService.ListAgents(opts)
 	if err != nil {
 		s.logger.Error("Failed to list agents", "error", err)
 		utils.InternalError(c, "Failed to list agents", err)
 		return
-	}
-
-	count, err := s.agentService.GetAgentCount()
-	if err != nil {
-		s.logger.Error("Failed to get agent count", "error", err)
-		// Don't fail the request if count fails
 	}
 
 	utils.SuccessResponse(c, 200, "Agents retrieved successfully", gin.H{
@@ -147,5 +151,74 @@ func (s *Server) getAgentHealth(c *gin.Context) {
 		"up_count":       upCount,
 		"down_count":     downCount,
 		"degraded_count": degradedCount,
+	})
+}
+
+func (s *Server) getAgentReports(c *gin.Context) {
+	agentID := c.Param("id")
+	if agentID == "" {
+		utils.BadRequest(c, "Agent ID is required")
+		return
+	}
+
+	limitStr := c.DefaultQuery("limit", "50")
+	offsetStr := c.DefaultQuery("offset", "0")
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 0 {
+		limit = 50
+	}
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil || offset < 0 {
+		offset = 0
+	}
+
+	reports, err := s.reportService.GetAgentReportsById(agentID, limit, offset)
+	if err != nil {
+		s.logger.Error("Failed to get agent reports", "error", err, "agent_id", agentID)
+		utils.InternalError(c, "Failed to get agent reports", err)
+		return
+	}
+
+	count, err := s.reportService.GetAgentReportCountById(agentID)
+	if err != nil {
+		s.logger.Error("Failed to get agent report count", "error", err, "agent_id", agentID)
+		// Don't fail the request
+		count = int64(len(reports))
+	}
+
+	utils.SuccessResponse(c, 200, "Agent reports retrieved successfully", gin.H{
+		"reports": reports,
+		"count":   count,
+		"limit":   limit,
+		"offset":  offset,
+	})
+}
+
+func (s *Server) getAgentUptime(c *gin.Context) {
+	agentID := c.Param("id")
+	if agentID == "" {
+		utils.BadRequest(c, "Agent ID is required")
+		return
+	}
+
+	period := c.DefaultQuery("period", "90d")
+
+	// Verify agent exists
+	if _, err := s.agentService.GetAgent(agentID); err != nil {
+		utils.NotFound(c, "Agent not found")
+		return
+	}
+
+	result, err := s.reportService.GetAgentUptime(agentID, period)
+	if err != nil {
+		s.logger.Error("Failed to get agent uptime", "error", err, "agent_id", agentID)
+		utils.InternalError(c, "Failed to get agent uptime", err)
+		return
+	}
+
+	utils.SuccessResponse(c, 200, "Agent uptime retrieved successfully", gin.H{
+		"daily_buckets":  result.DailyBuckets,
+		"uptime_percent": result.UptimePercent,
 	})
 }

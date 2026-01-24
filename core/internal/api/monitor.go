@@ -168,3 +168,31 @@ func (s *Server) getMonitorHistory(c *gin.Context) {
 		"offset":  offset,
 	})
 }
+
+func (s *Server) getMonitorUptime(c *gin.Context) {
+	monitorID := c.Param("id")
+	if monitorID == "" {
+		utils.BadRequest(c, "Monitor ID is required")
+		return
+	}
+
+	period := c.DefaultQuery("period", "90d")
+
+	// Verify monitor exists
+	if _, err := s.monitorService.GetMonitor(monitorID); err != nil {
+		utils.NotFound(c, "Monitor not found")
+		return
+	}
+
+	result, err := s.reportService.GetMonitorUptime(monitorID, period)
+	if err != nil {
+		s.logger.Error("Failed to get monitor uptime", "error", err, "monitor_id", monitorID)
+		utils.InternalError(c, "Failed to get monitor uptime", err)
+		return
+	}
+
+	utils.SuccessResponse(c, 200, "Monitor uptime retrieved successfully", gin.H{
+		"daily_buckets":  result.DailyBuckets,
+		"uptime_percent": result.UptimePercent,
+	})
+}
