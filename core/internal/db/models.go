@@ -57,6 +57,7 @@ type Agent struct {
 	DeletedAt                time.Time                       `json:"deleted_at"`
 	LastSeen                 time.Time                       `json:"last_seen"`
 	Location                 datatypes.JSONType[GeoLocation] `json:"location" gorm:"type:json"`
+	Meta                     string                          `json:"meta" gorm:"type:text"`
 }
 
 type AgentReport struct {
@@ -84,6 +85,7 @@ type Monitor struct {
 
 	Lifecycle string `json:"lifecycle" gorm:"not null;index:idx_monitors_lifecycle"` // active | disabled | deleted
 	Health    string `json:"health" gorm:"not null;index:idx_monitors_health"`       // up | down | degraded | unknown
+	Meta      string `json:"meta" gorm:"type:text"`
 
 	CreatedAt time.Time `json:"created_at" gorm:"index:idx_monitors_created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
