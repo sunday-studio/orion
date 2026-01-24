@@ -80,7 +80,7 @@ Health check endpoint.
 ```bash
 cd core
 go mod tidy
-go build ./cmd/orion-core
+go build -o orion-core .
 ```
 
 ### Run
@@ -88,7 +88,29 @@ go build ./cmd/orion-core
 ./orion-core
 ```
 
-The server will start on port 8080 by default.
+The server listens on port **8999** by default.
+
+### Docker
+
+From the **repository root**:
+
+```bash
+# Build image
+make docker-build
+# or: docker build -f core/Dockerfile -t orion-core:latest .
+
+# Run (no frontend auth)
+docker run -p 8999:8999 -v orion-data:/data orion-core:latest
+
+# Run with frontend login (set all three)
+docker run -p 8999:8999 -v orion-data:/data \
+  -e ORION_ADMIN_USERNAME=admin \
+  -e ORION_ADMIN_PASSWORD=your-secret \
+  -e ORION_JWT_SECRET=your-jwt-secret \
+  orion-core:latest
+```
+
+Or with **docker compose** (`make docker-up` or `docker compose up -d`). Set `ORION_ADMIN_USERNAME`, `ORION_ADMIN_PASSWORD`, and `ORION_JWT_SECRET` in the environment or a `.env` file to enable frontend auth.
 
 ## Database
 
@@ -99,10 +121,17 @@ The server uses SQLite for data storage. The database file is created at `data/o
 
 ## Configuration
 
-The server can be configured by modifying the source code:
-- **Port**: Change the port in `cmd/orion-core/main.go`
-- **Database Path**: Modify the database path in `internal/db/db.go`
-- **Logging Level**: Adjust logging configuration in `internal/logging/logger.go`
+Environment variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ORION_DATA_DIR` | `data` | Directory for SQLite (`orion.db`). Use `/data` in Docker. |
+| `ORION_PORT` | `8999` | HTTP listen port. |
+| `ORION_ADMIN_USERNAME` | — | If set with `ORION_ADMIN_PASSWORD`, enables frontend login. |
+| `ORION_ADMIN_PASSWORD` | — | Admin password for the web UI. |
+| `ORION_JWT_SECRET` | — | Required when frontend auth is on; used to sign JWTs. |
+
+When both `ORION_ADMIN_USERNAME` and `ORION_ADMIN_PASSWORD` are set, the frontend requires login at `/login`. `ORION_JWT_SECRET` must also be set in that case.
 
 ## Security
 
