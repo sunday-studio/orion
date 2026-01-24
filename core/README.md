@@ -13,63 +13,15 @@ The Orion Core Server is the central hub that receives, authenticates, and store
 
 ## API Endpoints
 
-### 1. `POST /register`
-Registers a new agent or returns existing agent information.
+All REST routes except `GET /health` live under **`/v1`**.
 
-**Request Body:**
-```json
-{
-  "uuid": "unique-agent-identifier",
-  "name": "hostname-or-friendly-label",
-  "os": "linux|mac|windows",
-  "arch": "amd64|arm64|etc"
-}
-```
+- **`POST /v1/register`** – Register a new agent or return existing agent (body: `uuid`, `name`, `os`, `arch`, etc.).
+- **`POST /v1/auth/login`** – Frontend login (body: `username`, `password`). Returns JWT when `ORION_ADMIN_*` and `ORION_JWT_SECRET` are set.
+- **`POST /v1/agents/:agent_id/report`** – Agent telemetry report. `Authorization: Bearer <token>`.
+- **`POST /v1/agents/:agent_id/:monitor_id/report`** – Monitor report. `Authorization: Bearer <token>`.
+- **`GET /health`** – Health check (unversioned).
 
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Agent registered successfully",
-  "data": {
-    "agent_id": 1,
-    "token": "permanent-authentication-token"
-  }
-}
-```
-
-### 2. `POST /report/:agent_id`
-Receives periodic status data from a registered agent.
-
-**Headers:**
-- `Authorization: Bearer <token>`
-
-**Request Body:**
-- Raw JSON payload (system metrics, service status, configs, etc.)
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Report received successfully",
-  "data": {
-    "message": "Report received successfully",
-    "timestamp": "2024-01-01T12:00:00Z",
-    "report_id": 0
-  }
-}
-```
-
-### 3. `GET /health`
-Health check endpoint.
-
-**Response:**
-```json
-{
-  "status": "healthy",
-  "service": "orion-core"
-}
-```
+See [openapi.yaml](openapi.yaml) for the full frontend and agent API.
 
 ## Building and Running
 
