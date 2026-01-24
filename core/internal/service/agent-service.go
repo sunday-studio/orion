@@ -26,6 +26,7 @@ type RegisterRequest struct {
 	Name      string `json:"name" binding:"required"`
 	OS        string `json:"os" binding:"required"`
 	Arch      string `json:"arch" binding:"required"`
+	Meta      string `json:"meta,omitempty"`
 }
 
 type RegisterResponse struct {
@@ -64,6 +65,10 @@ func (s *AgentService) RegisterAgent(req *RegisterRequest) (*RegisterResponse, e
 		updates["arch"] = req.Arch
 	}
 
+	if req.Meta != "" {
+		updates["meta"] = req.Meta
+	}
+
 	// Only update if there are changes
 	if len(updates) > 0 {
 		if err := s.db.Model(&agent).Updates(updates).Error; err != nil {
@@ -98,6 +103,7 @@ func (s *AgentService) createNewAgent(req *RegisterRequest) (*RegisterResponse, 
 		OS:        req.OS,
 		Arch:      req.Arch,
 		Token:     token,
+		Meta:      req.Meta,
 		CreatedAt: time.Now(),
 		LastSeen:  time.Now(),
 	}
