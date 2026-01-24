@@ -42,30 +42,20 @@ func NewReportService(database *gorm.DB, logger *logging.Logger) *ReportService 
 func (s *ReportService) StoreMonitorReport(monitorID string, payload MonitorReportPayload) (*string, error) {
 	monitorReportID := utils.GenerateID("monitor_report")
 
-	// if health is down, store the error as payload
 	var payloadData string
-
-	// if payload.Health == "down" {
-	// 	payloadJSON, err := json.Marshal(payload)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	payloadData = string(payloadJSON)
-	// }
-
 	if payload.Error != nil {
-		payloadJSON, err := json.Marshal(payload.Error)
+		b, err := json.Marshal(payload.Error)
 		if err != nil {
 			return nil, err
 		}
-		payloadData = string(payloadJSON)
+		payloadData = string(b)
+	} else {
+		b, err := json.Marshal(payload.Metrics)
+		if err != nil {
+			return nil, err
+		}
+		payloadData = string(b)
 	}
-
-	payloadJSON, err := json.Marshal(payload.Metrics)
-	if err != nil {
-		return nil, err
-	}
-	payloadData = string(payloadJSON)
 
 	monitorReport := db.MonitorReport{
 		ID:          monitorReportID,
@@ -76,7 +66,7 @@ func (s *ReportService) StoreMonitorReport(monitorID string, payload MonitorRepo
 	}
 
 	if err := s.db.Create(&monitorReport).Error; err != nil {
-		s.logger.Error("Failed to store monitor report", err)
+		s.logger.Error("Failed to store monitor report", "error", err)
 		return nil, err
 	}
 
@@ -109,7 +99,7 @@ func (s *ReportService) StoreMonitorReport(monitorID string, payload MonitorRepo
 		}
 	}()
 
-	s.logger.Info("Monitor report stored successfully", "monitor_report_id ->", monitorReport.ID)
+	s.logger.Info("Monitor report stored successfully", "monitor_report_id", monitorReport.ID)
 	return &monitorReportID, nil
 }
 
@@ -129,11 +119,11 @@ func (s *ReportService) StoreAgentReport(agentID string, payload AgentReportPayl
 	}
 
 	if err := s.db.Create(&agentReport).Omit("Agent").Error; err != nil {
-		s.logger.Error("Failed to store agent report", err)
+		s.logger.Error("Failed to store agent report", "error", err)
 		return nil, err
 	}
 
-	s.logger.Info("Agent report stored successfully", "agent_report_id ->", agentReport.ID)
+	s.logger.Info("Agent report stored successfully", "agent_report_id", agentReport.ID)
 	return &agentReportID, nil
 }
 
