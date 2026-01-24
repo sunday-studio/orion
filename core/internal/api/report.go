@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"orion/core/internal/db"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
@@ -88,8 +87,6 @@ func (s *Server) receiveMonitorReport(c *gin.Context) {
 	agentID, agentIDExists := c.Get("agent_id")
 	monitorID := c.Param("monitor_id")
 
-	fmt.Println("agentID", agentID)
-
 	if monitorID == "" {
 		utils.BadRequest(c, "Monitor ID is required")
 		return
@@ -116,7 +113,11 @@ func (s *Server) receiveMonitorReport(c *gin.Context) {
 
 	var payloadData service.MonitorReportPayload
 	if err := json.Unmarshal(rawData, &payloadData); err != nil {
-		s.logger.Error("Failed to unmarshal report", "error", err, "rawData", string(rawData))
+		trunc := string(rawData)
+		if len(trunc) > 200 {
+			trunc = trunc[:200] + "…"
+		}
+		s.logger.Error("Failed to unmarshal report", "error", err, "rawData", trunc)
 		utils.BadRequest(c, "Failed to unmarshal report")
 		return
 	}
@@ -136,9 +137,4 @@ func (s *Server) receiveMonitorReport(c *gin.Context) {
 	utils.SuccessResponse(c, 200, "Monitor report received successfully", gin.H{
 		"message": "Monitor report received successfully",
 	})
-}
-
-func PrettyPrint(v interface{}) {
-	b, _ := json.MarshalIndent(v, "", "  ")
-	fmt.Println(string(b))
 }
