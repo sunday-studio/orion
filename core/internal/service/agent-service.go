@@ -1,13 +1,71 @@
 package service
 
 import (
-	"orion/core/internal/db"
-	"orion/core/internal/logging"
-	"orion/core/internal/utils"
+	"strconv"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
+
+	"orion/core/internal/db"
+	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 )
+
+// AgentListRow extends Agent with list-only fields from joins/subqueries.
+type AgentListRow struct {
+	db.Agent
+	MonitorCount  int64   `json:"monitor_count"`
+	IP            *string `json:"ip,omitempty"`
+	UptimeSeconds *uint64 `json:"uptime_seconds,omitempty"`
+}
+
+// parseListDuration parses "24h", "7d" into a duration. last_seen filter: agents with last_seen >= now-duration.
+func parseListDuration(s string) (time.Duration, bool) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, false
+	}
+	if strings.HasSuffix(s, "d") {
+		n, err := strconv.Atoi(strings.TrimSuffix(s, "d"))
+		if err != nil || n <= 0 {
+			return 0, false
+		}
+		return time.Duration(n) * 24 * time.Hour, true
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return 0, false
+	}
+	return d, true
+}
+
+// parseListUptime parses "72h", "3d", "259200" into seconds. Uptime filter: agents with uptime_seconds >= this.
+func parseListUptime(s string) (uint64, bool) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, false
+	}
+	if strings.HasSuffix(s, "d") {
+		n, err := strconv.Atoi(strings.TrimSuffix(s, "d"))
+		if err != nil || n < 0 {
+			return 0, false
+		}
+		return uint64(n) * 24 * 3600, true
+	}
+	if strings.HasSuffix(s, "h") {
+		n, err := strconv.Atoi(strings.TrimSuffix(s, "h"))
+		if err != nil || n < 0 {
+			return 0, false
+		}
+		return uint64(n) * 3600, true
+	}
+	n, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return n, true
+}
 
 type AgentService struct {
 	db     *gorm.DB
@@ -154,26 +212,146 @@ func (s *AgentService) GetAgent(agentID string) (*db.Agent, error) {
 	return &agent, nil
 }
 
-func (s *AgentService) ListAgents(limit int, offset int) ([]db.Agent, error) {
+// ListAgentsOpts holds query params for ListAgents.
+type ListAgentsOpts struct {
+	Limit    int
+	Offset   int
+	Search   string // name, machine_id, meta (LIKE)
+	Status   string // up, down, degraded, unknown; applied as post-filter
+	LastSeen string // e.g. 24h, 7d: last_seen >= now-duration
+	Uptime   string // e.g. 72h, 3d: uptime_seconds >= parsed
+	Sort     string // name, last_seen, created_at
+	Order    string // asc, desc
+}
+
+func (s *AgentService) ListAgents(opts ListAgentsOpts) ([]AgentListRow, int64, error) {
+	query := s.db.Model(&db.Agent{}).Where("deleted_at IS NULL")
+
+	// Search: name, machine_id, meta
+	if opts.Search != "" {
+		like := "%" + opts.Search + "%"
+		query = query.Where("name LIKE ? OR machine_id LIKE ? OR meta LIKE ?", like, like, like)
+	}
+
+	// last_seen: last_seen >= now - duration (seen within window)
+	if opts.LastSeen != "" {
+		if d, ok := parseListDuration(opts.LastSeen); ok {
+			query = query.Where("last_seen >= ?", time.Now().Add(-d))
+		}
+	}
+
+	// Sort
+	sortCol := "last_seen"
+	switch opts.Sort {
+	case "name":
+		sortCol = "name"
+	case "created_at":
+		sortCol = "created_at"
+	case "last_seen", "":
+		sortCol = "last_seen"
+	}
+	order := "DESC"
+	if strings.ToLower(opts.Order) == "asc" {
+		order = "ASC"
+	}
+	query = query.Order(sortCol + " " + order)
+
+	// Over-fetch when status or uptime filter is set (post-filter)
+	limit := opts.Limit
+	if limit <= 0 {
+		limit = 50
+	}
+	fetchLimit := limit
+	if opts.Status != "" || opts.Uptime != "" {
+		fetchLimit = limit * 5
+	}
+	query = query.Limit(fetchLimit).Offset(opts.Offset)
+
 	var agents []db.Agent
-
-	query := s.db.Where("deleted_at IS NULL").Order("created_at DESC")
-
-	if limit > 0 {
-		query = query.Limit(limit)
-	}
-
-	if offset > 0 {
-		query = query.Offset(offset)
-	}
-
 	if err := query.Find(&agents).Error; err != nil {
 		s.logger.Error("Failed to list agents", "error", err)
-		return nil, err
+		return nil, 0, err
 	}
 
-	s.logger.Debug("Retrieved agents", "count", len(agents))
-	return agents, nil
+	// Base count (same filters, no status/uptime)
+	var count int64
+	countQuery := s.db.Model(&db.Agent{}).Where("deleted_at IS NULL")
+	if opts.Search != "" {
+		like := "%" + opts.Search + "%"
+		countQuery = countQuery.Where("name LIKE ? OR machine_id LIKE ? OR meta LIKE ?", like, like, like)
+	}
+	if opts.LastSeen != "" {
+		if d, ok := parseListDuration(opts.LastSeen); ok {
+			countQuery = countQuery.Where("last_seen >= ?", time.Now().Add(-d))
+		}
+	}
+	countQuery.Count(&count)
+
+	ids := make([]string, 0, len(agents))
+	for _, a := range agents {
+		ids = append(ids, a.ID)
+	}
+
+	// monitor_count per agent
+	monitorCounts := make(map[string]int64)
+	if len(ids) > 0 {
+		var counts []struct {
+			AgentID string
+			C       int64
+		}
+		s.db.Model(&db.Monitor{}).Where("agent_id IN ? AND lifecycle = ?", ids, "active").Select("agent_id, COUNT(*) as c").Group("agent_id").Find(&counts)
+		for _, c := range counts {
+			monitorCounts[c.AgentID] = c.C
+		}
+	}
+
+	// Latest report per agent: uptime_seconds, Location.IP (N+1 acceptable for now)
+	uptimeMap := make(map[string]uint64)
+	ipMap := make(map[string]string)
+	for _, id := range ids {
+		var r db.AgentReport
+		if err := s.db.Where("agent_id = ?", id).Order("created_at DESC").Limit(1).First(&r).Error; err == nil {
+			uptimeMap[id] = r.UptimeSeconds
+			if loc := r.Location.Data(); loc.IP != "" {
+				ipMap[id] = loc.IP
+			}
+		}
+	}
+
+	// Status filter: compute health per agent, keep only matching
+	statusFilter := strings.ToLower(strings.TrimSpace(opts.Status))
+	uptimeThreshold, hasUptime := parseListUptime(opts.Uptime)
+
+	healthSvc := NewHealthService(s.db, s.logger)
+	cfg := DefaultHealthConfig()
+
+	rows := make([]AgentListRow, 0, len(agents))
+	for _, a := range agents {
+		if statusFilter != "" {
+			h, _, _, _, err := healthSvc.ComputeAgentHealth(a.ID, cfg)
+			if err != nil || h != statusFilter {
+				continue
+			}
+		}
+		u := uptimeMap[a.ID]
+		if hasUptime && u < uptimeThreshold {
+			continue
+		}
+
+		row := AgentListRow{Agent: a, MonitorCount: monitorCounts[a.ID]}
+		if v, ok := uptimeMap[a.ID]; ok {
+			row.UptimeSeconds = &v
+		}
+		if v, ok := ipMap[a.ID]; ok {
+			row.IP = &v
+		}
+		rows = append(rows, row)
+		if len(rows) >= limit {
+			break
+		}
+	}
+
+	return rows, count, nil
 }
 
 func (s *AgentService) GetAgentCount() (int64, error) {
