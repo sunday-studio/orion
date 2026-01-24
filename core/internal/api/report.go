@@ -10,10 +10,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type ReportRequest struct {
-	Data interface{} `json:"data" binding:"required"`
-}
-
 type ReportResponse struct {
 	Message   string    `json:"message"`
 	Timestamp time.Time `json:"timestamp"`
@@ -21,6 +17,21 @@ type ReportResponse struct {
 	Type      string    `json:"type"`
 }
 
+// receiveAgentReport receives a system report from an agent
+// @Summary      Receive agent report
+// @Description  Receive and store a system metrics report from an agent
+// @Tags         reports
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           receiveAgentReport
+// @Param        agent_id  path      string  true  "Agent ID"
+// @Param        data      body      service.AgentReportPayload  true  "Agent report data"
+// @Success      200       {object}  utils.APIResponse{data=ReportResponse}
+// @Failure      400       {object}  utils.APIResponse
+// @Failure      401       {object}  utils.APIResponse
+// @Failure      500       {object}  utils.APIResponse
+// @Router       /v1/agents/{agent_id}/report [post]
 func (s *Server) receiveAgentReport(c *gin.Context) {
 	agent, exists := c.Get("agent")
 	if !exists {
@@ -83,6 +94,22 @@ func (s *Server) receiveAgentReport(c *gin.Context) {
 	utils.SuccessResponse(c, 200, "Report received successfully", response)
 }
 
+// receiveMonitorReport receives a monitor report from an agent
+// @Summary      Receive monitor report
+// @Description  Receive and store a monitor report for a specific monitor
+// @Tags         reports
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           receiveMonitorReport
+// @Param        agent_id   path      string  true  "Agent ID"
+// @Param        monitor_id path      string  true  "Monitor ID"
+// @Param        data       body      service.MonitorReportPayload  true  "Monitor report data"
+// @Success      200        {object}  utils.APIResponse
+// @Failure      400        {object}  utils.APIResponse
+// @Failure      401        {object}  utils.APIResponse
+// @Failure      500        {object}  utils.APIResponse
+// @Router       /v1/agents/{agent_id}/{monitor_id}/report [post]
 func (s *Server) receiveMonitorReport(c *gin.Context) {
 	agentID, agentIDExists := c.Get("agent_id")
 	monitorID := c.Param("monitor_id")

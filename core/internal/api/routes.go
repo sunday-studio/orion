@@ -7,6 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"gorm.io/gorm"
 )
 
@@ -50,6 +52,9 @@ func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *S
 
 // setupRoutes configures all API routes
 func (s *Server) setupRoutes() {
+	// Swagger documentation
+	s.router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
 	// Health check endpoint (no versioning)
 	s.router.GET("/health", s.healthCheck)
 
@@ -127,6 +132,14 @@ func RequestIDMiddleware(logger *logging.Logger) gin.HandlerFunc {
 }
 
 // healthCheck returns server health status
+// @Summary      Health check
+// @Description  Returns the health status of the API server
+// @Tags         health
+// @Accept       json
+// @Produce      json
+// @ID           getHealth
+// @Success      200  {object}  object{status=string,service=string}
+// @Router       /health [get]
 func (s *Server) healthCheck(c *gin.Context) {
 	requestID, _ := c.Get("request_id")
 	s.logger.Debug("Health check requested", "request_id", requestID)
