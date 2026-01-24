@@ -1,0 +1,491 @@
+openapi: 3.0.3
+info:
+  title: Orion Core API
+  version: 1.0.0
+  description: |
+    Frontend-facing API for Orion. Covers only frontend routes (no agent-protected POST endpoints).
+    All responses use the envelope `{ success, message, data?, error? }`.
+
+servers:
+  - url: /v1
+    description: API base (prefixed by gateway or proxy)
+
+paths:
+  /agents:
+    get:
+      summary: List agents
+      operationId: listAgents
+      tags: [agents]
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          description: Agents and pagination
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListAgentsResponse' }
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /agents/{id}:
+    get:
+      summary: Get agent by ID
+      operationId: getAgentDetail
+      tags: [agents]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Agent and latest report
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GetAgentDetailResponse' }
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '404':
+          description: Agent not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /agents/{id}/health:
+    get:
+      summary: Get agent health
+      operationId: getAgentHealth
+      tags: [agents]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Agent health counts
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GetAgentHealthResponse' }
+        '400':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '404':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '500':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /agents/{id}/monitors:
+    get:
+      summary: List monitors for an agent
+      operationId: listMonitors
+      tags: [agents, monitors]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: health
+          in: query
+          schema: { type: string }
+        - name: lifecycle
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          description: Monitors and pagination
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListMonitorsResponse' }
+        '400':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '500':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /monitors/{id}:
+    get:
+      summary: Get monitor by ID
+      operationId: getMonitorDetail
+      tags: [monitors]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Monitor, recent reports, computed health
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GetMonitorDetailResponse' }
+        '400':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '404':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /monitors/{id}/history:
+    get:
+      summary: Get monitor report history
+      operationId: getMonitorHistory
+      tags: [monitors]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          description: Reports and pagination
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GetMonitorHistoryResponse' }
+        '400':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '500':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /health/summary:
+    get:
+      summary: System health summary
+      operationId: getSystemHealth
+      tags: [health]
+      responses:
+        '200':
+          description: Overall health and monitor counts
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GetSystemHealthResponse' }
+        '500':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /health/issues:
+    get:
+      summary: Health issues (down/degraded/stale)
+      operationId: getHealthIssues
+      tags: [health]
+      responses:
+        '200':
+          description: List of issues
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GetHealthIssuesResponse' }
+        '500':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /incidents/candidates:
+    get:
+      summary: Incident candidates (down/degraded with severity)
+      operationId: getIncidentCandidates
+      tags: [health]
+      responses:
+        '200':
+          description: List of candidates
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GetIncidentCandidatesResponse' }
+        '500':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+components:
+  schemas:
+    ApiEnvelope:
+      type: object
+      required: [success, message]
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        data: {}
+        error: { type: string }
+
+    ApiError:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            success: { const: false }
+            error: { type: string }
+
+    GeoLocation:
+      type: object
+      properties:
+        ip: { type: string }
+        hostname: { type: string }
+        city: { type: string }
+        region: { type: string }
+        country: { type: string }
+        loc: { type: string }
+        org: { type: string }
+        postal: { type: string }
+        timezone: { type: string }
+
+    CPUStats:
+      type: object
+      properties:
+        cores: { type: integer }
+        usage_percent: { type: number }
+        load_1: { type: number }
+        load_5: { type: number }
+        load_15: { type: number }
+
+    MemoryStats:
+      type: object
+      properties:
+        total_bytes: { type: integer }
+        used_bytes: { type: integer }
+        free_bytes: { type: integer }
+        available_bytes: { type: integer }
+        used_percent: { type: number }
+
+    DiskStats:
+      type: object
+      properties:
+        total_bytes: { type: integer }
+        used_bytes: { type: integer }
+        free_bytes: { type: integer }
+        used_percent: { type: number }
+
+    Agent:
+      type: object
+      properties:
+        id: { type: string }
+        machine_id: { type: string }
+        name: { type: string }
+        os: { type: string }
+        platform: { type: string }
+        kernel_version: { type: string }
+        arch: { type: string }
+        maintenance_mode: { type: boolean }
+        reporting_interval_seconds: { type: integer }
+        created_at: { type: string, format: date-time }
+        deleted_at: { type: string, format: date-time, nullable: true }
+        last_seen: { type: string, format: date-time }
+        location: { $ref: '#/components/schemas/GeoLocation' }
+        meta: { type: string }
+
+    AgentReport:
+      type: object
+      properties:
+        id: { type: string }
+        agent_id: { type: string }
+        created_at: { type: string, format: date-time }
+        uptime_seconds: { type: integer }
+        timestamp: { type: string }
+        cpu: { $ref: '#/components/schemas/CPUStats' }
+        memory: { $ref: '#/components/schemas/MemoryStats' }
+        disk: { $ref: '#/components/schemas/DiskStats' }
+        location: { $ref: '#/components/schemas/GeoLocation' }
+
+    Monitor:
+      type: object
+      properties:
+        id: { type: string }
+        description: { type: string, nullable: true }
+        type: { type: string }
+        name: { type: string }
+        agent_id: { type: string }
+        last_successful_report_at: { type: string, format: date-time, nullable: true }
+        reporting_interval_seconds: { type: integer }
+        computed_health: { type: string }
+        last_health_computation: { type: string, format: date-time, nullable: true }
+        lifecycle: { type: string }
+        health: { type: string }
+        meta: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deleted_at: { type: string, format: date-time, nullable: true }
+
+    MonitorReport:
+      type: object
+      properties:
+        id: { type: string }
+        monitor_id: { type: string }
+        payload: { type: string }
+        collected_at: { type: string }
+        health: { type: string }
+        created_at: { type: string, format: date-time }
+
+    ListAgentsResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                agents: { type: array, items: { $ref: '#/components/schemas/Agent' } }
+                count: { type: integer }
+                limit: { type: integer }
+                offset: { type: integer }
+
+    GetAgentDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                agent: { $ref: '#/components/schemas/Agent' }
+                latest_report: { oneOf: [{ $ref: '#/components/schemas/AgentReport' }, { type: 'null' }] }
+
+    GetAgentHealthResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                agent_id: { type: string }
+                overall_health: { type: string }
+                up_count: { type: integer }
+                down_count: { type: integer }
+                degraded_count: { type: integer }
+
+    ListMonitorsResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                monitors: { type: array, items: { $ref: '#/components/schemas/Monitor' } }
+                count: { type: integer }
+                limit: { type: integer }
+                offset: { type: integer }
+
+    GetMonitorDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                monitor: { $ref: '#/components/schemas/Monitor' }
+                recent_reports: { type: array, items: { $ref: '#/components/schemas/MonitorReport' } }
+                computed_health: { type: string }
+
+    GetMonitorHistoryResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                reports: { type: array, items: { $ref: '#/components/schemas/MonitorReport' } }
+                count: { type: integer }
+                limit: { type: integer }
+                offset: { type: integer }
+
+    GetSystemHealthResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                overall_health: { type: string }
+                agents: { type: object, properties: { total: { type: integer } } }
+                monitors:
+                  type: object
+                  properties:
+                    total: { type: integer }
+                    up: { type: integer }
+                    down: { type: integer }
+                    degraded: { type: integer }
+                    unknown: { type: integer }
+
+    HealthIssue:
+      type: object
+      properties:
+        monitor_id: { type: string }
+        monitor_name: { type: string }
+        monitor_type: { type: string }
+        health: { type: string }
+        agent_id: { type: string }
+        agent_name: { type: string }
+        issue_type: { type: string }
+
+    GetHealthIssuesResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                issues: { type: array, items: { $ref: '#/components/schemas/HealthIssue' } }
+                count: { type: integer }
+
+    IncidentCandidate:
+      type: object
+      properties:
+        monitor_id: { type: string }
+        monitor_name: { type: string }
+        monitor_type: { type: string }
+        health: { type: string }
+        severity: { type: string }
+        agent_id: { type: string }
+        agent_name: { type: string }
+        down_count: { type: integer }
+
+    GetIncidentCandidatesResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                candidates: { type: array, items: { $ref: '#/components/schemas/IncidentCandidate' } }
+                count: { type: integer }
