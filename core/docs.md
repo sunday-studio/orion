@@ -169,9 +169,9 @@ orion-core/
 │ │ ├── db.go
 │ │ └── models.go
 │ ├── service/ # Core business logic
-│ │ ├── auth_service.go
-│ │ ├── agent_service.go
-│ │ └── report_service.go
+│ │ ├── auth-service.go
+│ │ ├── agent-service.go
+│ │ └── report-service.go
 │ └── utils/ # Helpers (token generation, responses)
 │ ├── token.go
 │ └── response.go
