@@ -5,6 +5,7 @@ import (
 	"orion/core/internal/logging"
 	"orion/core/internal/service"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	swaggerFiles "github.com/swaggo/files"
@@ -30,6 +31,12 @@ func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *S
 	monitorService := service.NewMonitorService(database, logger)
 	router := gin.Default()
 
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:5173", "http://127.0.0.1:5173"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-Request-ID"},
+		AllowCredentials: true,
+	}))
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 	router.Use(RequestIDMiddleware(logger))
