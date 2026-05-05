@@ -10,3 +10,8 @@ apps/*/node_modules/
 
 # Frontend build outputs
 apps/console/dist/
+
+
+#agent
+apps/agent/state.yaml
+apps/agent/config.yaml
