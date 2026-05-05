@@ -6,7 +6,7 @@ Orion is a lightweight, self-hosted monitoring system: agents on your servers co
 
 - **Agent** (`apps/agent`, Go): Runs on Linux/macOS. Auto-registers with Core. Collects CPU, memory, and disk; runs monitors (HTTP, website, PM2, internal-service, command).
 - **Core** (`apps/core`, Go + SQLite): Receives reports, manages agents and monitors, serves a REST API and built-in SPA.
-- **Web** (`apps/web`, React/Vite): Editable UI source; production builds are copied into `apps/core/web/`.
+- **Console** (`apps/console`, React/Vite): Editable UI source; production builds are copied into `apps/core/web/`.
 
 ```mermaid
 flowchart LR
@@ -17,7 +17,7 @@ flowchart LR
     subgraph central [Orion Core]
         API[REST API]
         DB[(SQLite)]
-        UI[Web UI]
+        UI[Console UI]
     end
     A1 -->|HTTPS + token| API
     A2 -->|HTTPS + token| API
@@ -104,7 +104,7 @@ orion/
 ├── apps/
 │   ├── agent/    # Orion Agent (Go)
 │   ├── core/     # Orion Core (Go), API + generated apps/core/web SPA
-│   └── web/      # React/Vite UI source
+│   └── console/  # React/Vite UI source
 ├── deploy/       # Docker Compose, systemd, launchd, install/uninstall helpers
 ├── docs/         # architecture, contracts, milestones, plans
 ├── packages/
@@ -114,15 +114,15 @@ orion/
 
 ## Makefile
 
-- `make generate-sdk` — generate web API client from `apps/core/openapi.yaml` (Orval → `apps/web/src/lib/api.ts`)
-- `make build-static` — build web source and copy to `apps/core/web/`
+- `make generate-sdk` — generate console API client from `apps/core/openapi.yaml` (Orval → `apps/console/src/lib/api.ts`)
+- `make build-static` — build console source and copy to `apps/core/web/`
 - `make docker-build` — build orion-core Docker image
 - `make docker-up` — run orion-core via `docker compose -f deploy/docker-compose.yml up -d` (set `ORION_ADMIN_*`, `ORION_JWT_SECRET` for frontend auth)
 
 ## Development
 
-- **Web**: `cd apps/web && npm install && npm run dev`. Set `VITE_API_BASE_URL=http://localhost:8999/v1` in `.env` (see [apps/web/.env.example](apps/web/.env.example)).
-- **API**: [apps/core/openapi.yaml](apps/core/openapi.yaml). Regenerate the web client: `npm run generate:api` in `apps/web`.
+- **Console**: `cd apps/console && npm install && npm run dev`. Set `VITE_API_BASE_URL=http://localhost:8999/v1` in `.env` (see [apps/console/.env.example](apps/console/.env.example)).
+- **API**: [apps/core/openapi.yaml](apps/core/openapi.yaml). Regenerate the console client: `npm run generate:api` in `apps/console`.
 - **Agent CLI** ([apps/agent/main.go](apps/agent/main.go)): `start`, `stop`, `status`, `restart`, `run`, `maintenance` (`-up` / `-down`), `config` (`validate`, `diff`).
 
 ## Documentation

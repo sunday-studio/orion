@@ -1,10 +1,10 @@
 # Build frontend (Vite + React)
 FROM node:22-alpine AS frontend
 WORKDIR /app
-COPY apps/web/package.json apps/web/package-lock.json apps/web/
-RUN cd apps/web && npm ci
-COPY apps/web/ apps/web/
-RUN cd apps/web && npm run build
+COPY apps/console/package.json apps/console/package-lock.json apps/console/
+RUN cd apps/console && npm ci
+COPY apps/console/ apps/console/
+RUN cd apps/console && npm run build
 
 # Build Go binary and embed frontend dist
 FROM golang:1.25-alpine AS core
@@ -12,7 +12,7 @@ WORKDIR /app
 COPY apps/core/go.mod apps/core/go.sum apps/core/
 RUN cd apps/core && go mod download
 COPY apps/core/ apps/core/
-COPY --from=frontend /app/apps/web/dist apps/core/web
+COPY --from=frontend /app/apps/console/dist apps/core/web
 RUN cd apps/core && go build -o orion-core .
 
 # Minimal runtime

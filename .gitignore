@@ -9,4 +9,4 @@ node_modules/
 apps/*/node_modules/
 
 # Frontend build outputs
-apps/web/dist/
+apps/console/dist/

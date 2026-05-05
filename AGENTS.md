@@ -6,7 +6,7 @@ This file defines the working boundaries for humans and coding agents in this re
 
 - `apps/agent/`: Orion Agent. Go daemon, CLI, config/state handling, collectors, registration, and transport to Core.
 - `apps/core/`: Orion Core. Go API server, SQLite models/services, OpenAPI spec, generated Swagger docs, and generated `web/` assets served by Core.
-- `apps/web/`: Main editable React/Vite product UI. New frontend product work belongs here.
+- `apps/console/`: Main editable React/Vite product UI. New frontend product work belongs here.
 - `packages/sdk/`: Generated/shared API types. Treat as generated unless the task is specifically about SDK generation or contracts.
 - `deploy/`: Runtime/deployment assets: Docker Compose, systemd, launchd, install/uninstall helpers.
 - `docs/`: Architecture, contracts, plans, milestones, and operational docs.
@@ -16,12 +16,12 @@ This file defines the working boundaries for humans and coding agents in this re
 
 - Agent runtime work goes in `apps/agent/`.
 - Core API, persistence, health computation, and auth work goes in `apps/core/`.
-- Main UI work goes in `apps/web/`.
+- Main UI work goes in `apps/console/`.
 - Deployment/service integration work goes in `deploy/`.
 - Product plans and milestone records go in `docs/plans/` and `docs/milestones/`.
-- Generated Core SPA assets live in `apps/core/web/`; edit `apps/web/` source and run `make build-static` instead of hand-editing `apps/core/web/`.
+- Generated Core SPA assets live in `apps/core/web/`; edit `apps/console/` source and run `make build-static` instead of hand-editing `apps/core/web/`.
 - OpenAPI source of truth is `apps/core/openapi.yaml`.
-- Frontend API client output is `apps/web/src/lib/api.ts`; regenerate it from `apps/web` instead of hand-editing generated API code.
+- Frontend API client output is `apps/console/src/lib/api.ts`; regenerate it from `apps/console` instead of hand-editing generated API code.
 
 ## Contract Rules
 
@@ -35,7 +35,7 @@ This file defines the working boundaries for humans and coding agents in this re
 - Work in disjoint areas when possible:
   - Agent worker: `apps/agent/`
   - Core worker: `apps/core/`
-  - Web worker: `apps/web/`
+  - Console worker: `apps/console/`
   - Deploy/docs worker: `deploy/`, `docs/`, root docs
 - Do not overwrite unrelated edits. If a file has changes you did not make, read it and adapt.
 - Avoid broad refactors during feature or bug work unless the task explicitly asks for them.
@@ -56,13 +56,13 @@ Run Agent tests:
 cd apps/agent && go test ./...
 ```
 
-Install and build the main web app:
+Install and build the main console app:
 
 ```sh
-cd apps/web && npm install && npm run build
+cd apps/console && npm install && npm run build
 ```
 
-Regenerate the web API client:
+Regenerate the console API client:
 
 ```sh
 make generate-sdk

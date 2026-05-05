@@ -105,7 +105,7 @@ func (s *Server) setupRoutes() {
 		}
 	}
 
-	// SPA: serve built frontend from web/ (run `make build-static` to copy apps/web/dist to apps/core/web)
+	// SPA: serve built frontend from web/ (run `make build-static` to copy apps/console/dist to apps/core/web)
 	s.router.Static("/assets", "web/assets")
 	s.router.NoRoute(func(c *gin.Context) { c.File("web/index.html") })
 }

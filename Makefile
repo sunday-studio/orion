@@ -1,11 +1,11 @@
 .PHONY: generate-sdk build-static docker-build docker-up
 generate-sdk:
-	cd apps/web && npm run generate:api
+	cd apps/console && npm run generate:api
 
-# Build web source and copy dist to apps/core/web for SPA serving
+# Build console source and copy dist to apps/core/web for SPA serving
 build-static:
-	cd apps/web && npm run build
-	mkdir -p apps/core/web && cp -r apps/web/dist/* apps/core/web/
+	cd apps/console && npm run build
+	mkdir -p apps/core/web && cp -r apps/console/dist/* apps/core/web/
 
 # Build orion-core Docker image (context: repo root)
 docker-build:

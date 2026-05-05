@@ -13,7 +13,7 @@ This roadmap reflects the current repository state as of 2026-05-05. Orion is pa
 - [x] OpenAPI and Orval-generated frontend API client are wired.
 - [x] Dockerfile, `deploy/docker-compose.yml`, and Makefile targets exist.
 - [x] `go test ./...` passes for `core` and `agent` when dependencies are available.
-- [ ] Frontend build has been reverified in this checkout after installing `apps/web/node_modules`.
+- [ ] Frontend build has been reverified in this checkout after installing `apps/console/node_modules`.
 
 ## 0. Documentation & Project Hygiene
 

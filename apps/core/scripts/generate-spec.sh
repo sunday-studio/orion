@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Script to generate OpenAPI spec from Go code
-# This should be run before generating web API clients to ensure the spec is up to date
+# This should be run before generating console API clients to ensure the spec is up to date
 
 set -e
 

@@ -22,7 +22,7 @@ Bring the project roadmap back in sync with the current repository and create a 
 
 - `go test ./...` passed for `core` after dependencies were downloaded.
 - `go test ./...` passed for `agent` after dependencies were downloaded.
-- Frontend build was not verified because `apps/web/node_modules` is not installed in this checkout.
+- Frontend build was not verified because `apps/console/node_modules` is not installed in this checkout.
 
 ## Open Risks
 
