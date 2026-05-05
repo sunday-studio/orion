@@ -99,8 +99,9 @@ conventional-commit(scope): one-line summary
 
 - The first line must be a conventional commit style subject with a scope, for example `chore(repo): group project directories`.
 - Keep the subject concise and imperative.
-- Add a blank line after the subject only when key points exist.
+- Add one blank line after the subject only when key points exist.
 - Key points are optional; when present, format each as a bullet and end each point with `;`.
+- Do not put blank lines between key point bullets.
 
 ## Review Checklist
 
