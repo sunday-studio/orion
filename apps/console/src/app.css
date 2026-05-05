@@ -1,9 +1,14 @@
 #root {
+  min-height: 100vh;
+  width: 100%;
+}
+
+.home,
+.detail {
   max-width: 1280px;
   margin: 0 auto;
   padding: 2rem;
 }
-
 .home { text-align: left; }
 .home h1 { margin-top: 0; }
 .toolbar { display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
