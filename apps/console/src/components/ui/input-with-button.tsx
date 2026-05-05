@@ -4,7 +4,10 @@ import { cn } from "../../lib/utils";
 import { Button } from "./button";
 import { Input } from "./input";
 
-type InputWithButtonProps = Omit<React.ComponentProps<typeof Input>, "className"> & {
+type InputWithButtonProps = Omit<
+  React.ComponentProps<typeof Input>,
+  "className"
+> & {
   buttonLabel: React.ReactNode;
   buttonAriaLabel?: string;
   buttonType?: React.ComponentProps<typeof Button>["type"];
@@ -27,14 +30,14 @@ function InputWithButton({
   return (
     <div
       className={cn(
-        "border-input bg-background focus-within:border-ring focus-within:ring-ring/50 flex h-10 min-w-64 items-center overflow-hidden rounded-md border shadow-xs transition-[color,box-shadow] focus-within:ring-[3px]",
-        className
+        "p-1 ring-input ring-neutral-200 bg-white focus-within:border-ring focus-within:ring-ring/50 flex h-10 min-w-64 items-center overflow-hidden rounded-full border border-neutral-300 shadow-xs transition-[color,box-shadow] focus-within:ring-[3px]",
+        className,
       )}
     >
       <Input
         className={cn(
-          "h-full flex-1 rounded-none border-0 shadow-none focus-visible:ring-0",
-          inputClassName
+          "h-full flex-1 border-0 shadow-none focus-visible:ring-0",
+          inputClassName,
         )}
         {...inputProps}
       />
@@ -42,7 +45,7 @@ function InputWithButton({
         type={buttonType}
         aria-label={buttonAriaLabel}
         onClick={onButtonClick}
-        className={cn("h-full rounded-none border-y-0 border-r-0 px-3", buttonClassName)}
+        className={cn("h-full border-y-0 border-r-0 px-3 ", buttonClassName)}
       >
         {buttonLabel}
       </Button>
