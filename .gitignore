@@ -1,2 +1,12 @@
 todo.md
+
+# Local databases and runtime state
 core/data
+apps/core/data
+
+# Dependency directories
+node_modules/
+apps/*/node_modules/
+
+# Frontend build outputs
+apps/web/dist/
