@@ -12,6 +12,6 @@ apps/*/node_modules/
 apps/console/dist/
 
 
-#agent
+# agent
 apps/agent/state.yaml
 apps/agent/config.yaml
