@@ -44,15 +44,31 @@ func (a *Agent) Run(ctx context.Context) error {
 		logging.Infof("Agent is in maintenance mode. Reporting workers will pause until maintenance clears. Reason: %s", reason)
 	}
 
+	var workers sync.WaitGroup
+
 	// Start system metrics worker
-	go a.startSystemMetricsWorker(ctx)
-	go a.startRetryQueueWorker(ctx)
+	workers.Add(1)
+	go func() {
+		defer workers.Done()
+		a.startSystemMetricsWorker(ctx)
+	}()
+	workers.Add(1)
+	go func() {
+		defer workers.Done()
+		a.startRetryQueueWorker(ctx)
+	}()
 
 	// start one worker per monitor
 	for _, monitor := range a.userConfig.Monitors {
-		go a.startMonitorWorker(ctx, monitor)
+		workers.Add(1)
+		go func(monitor config.UserMonitor) {
+			defer workers.Done()
+			a.startMonitorWorker(ctx, monitor)
+		}(monitor)
 	}
 	<-ctx.Done()
+	workers.Wait()
+	a.retryQueue.Flush(context.Background())
 
 	logging.Infof("Agent runtime stopped")
 	return nil

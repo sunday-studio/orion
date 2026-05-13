@@ -49,7 +49,7 @@ It should be useful, understandable, and reliable before it tries to be a broad 
 - [x] Add a bounded retry queue for temporary Core outages.
 - [x] Report Agent version and config summary.
 - [x] Re-read maintenance mode during runtime.
-- [ ] Handle shutdown cleanly.
+- [x] Handle shutdown cleanly.
 - [ ] Improve CLI status and config validation errors.
 
 ## Priority 4: Operations
