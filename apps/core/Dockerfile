@@ -1,12 +1,13 @@
 # Build frontend (Vite + React)
 FROM node:22-alpine AS frontend
 WORKDIR /app
-COPY apps/console/package.json apps/console/package-lock.json apps/console/
-RUN cd apps/console && npm ci
+RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
+COPY apps/console/package.json apps/console/pnpm-lock.yaml apps/console/
+RUN cd apps/console && pnpm install --frozen-lockfile
 COPY apps/console/ apps/console/
-RUN cd apps/console && npm run build
+RUN cd apps/console && pnpm run build
 
-# Build Go binary and embed frontend dist
+# Build Go binary with embedded frontend dist
 FROM golang:1.25-alpine AS core
 WORKDIR /app
 COPY apps/core/go.mod apps/core/go.sum apps/core/
@@ -20,7 +21,6 @@ FROM alpine:3.20
 RUN apk add --no-cache ca-certificates
 WORKDIR /app
 COPY --from=core /app/apps/core/orion-core .
-COPY --from=core /app/apps/core/web ./web
 RUN mkdir -p /data
 ENV ORION_DATA_DIR=/data
 ENV ORION_PORT=8999

@@ -1,4 +1,5 @@
 import { RadialAvatar } from "./radial-avatar";
+import { Outlet } from "react-router-dom";
 
 const Header = () => {
   return (
@@ -13,11 +14,11 @@ const Header = () => {
   );
 };
 
-export const Layout = ({ children }: { children: React.ReactNode }) => {
+export const Layout = () => {
   return (
-    <div className="flex flex-col min-h-screen max-w-4xl mx-auto py-10">
+    <div className="flex flex-col min-h-screen max-w-4xl mx-auto py-10 gap-4">
       <Header />
-      {children}
+      <Outlet />
     </div>
   );
 };

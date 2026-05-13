@@ -106,7 +106,10 @@ Core reconciles incidents after monitor reports and after system reports.
 
 ```mermaid
 flowchart TD
-  Report["Monitor report stored"] --> TLS{"TLS expiring?"}
+  Report["Monitor report stored"] --> State["Derive incident_state"]
+  State --> Skip{"Repeated healthy state with no active incident?"}
+  Skip -- "yes" --> Done["No incident work"]
+  Skip -- "no" --> TLS{"TLS expiring?"}
   TLS -- "yes" --> OpenDegraded["Open/update degraded incident"]
   TLS -- "no" --> Health{"Reported health"}
   Health -- "up" --> Resolve["Resolve active incident"]
@@ -125,7 +128,9 @@ Incident rules:
 - `down` and `stale` map to high severity.
 - `degraded` maps to medium severity.
 - other states map to low severity.
-- Active incidents are matched by monitor id and status `open` or `acknowledged`.
+- Monitors cache `active_incident_id` and `incident_state` for the ingestion path.
+- Active incidents are resolved or updated by cached id when possible.
+- Fallback active incident lookup is matched by monitor id and status `open` or `acknowledged`.
 - New failures update the current active incident instead of creating duplicates.
 - Recovery resolves the active incident and records `resolved_at`.
 - Stale monitor incidents are checked when an Agent system report is received.
@@ -192,4 +197,3 @@ Validation rules:
 - rollups must be enabled when archiving is enabled.
 - rollup retention is either null or at least 1.
 - archive schedule must be `daily` or `manual`.
-

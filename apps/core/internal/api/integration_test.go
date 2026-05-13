@@ -233,6 +233,7 @@ func TestMonitorReportsOpenAndResolveIncident(t *testing.T) {
 		t.Fatalf("incident = %+v, want open high pending", incident)
 	}
 	assertAlertDelivery(t, server, incident.ID, "incident_opened", "suppressed")
+	assertMonitorIncidentState(t, server, registeredMonitor.Data.MonitorID, incident.ID, "down")
 
 	downAgainResp := performJSONRequest(t, server, http.MethodPost, reportPath, map[string]interface{}{
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
@@ -268,6 +269,7 @@ func TestMonitorReportsOpenAndResolveIncident(t *testing.T) {
 		t.Fatalf("incident = %+v, want resolved with resolved_at", incident)
 	}
 	assertAlertDelivery(t, server, incident.ID, "incident_resolved", "suppressed")
+	assertMonitorIncidentState(t, server, registeredMonitor.Data.MonitorID, "", "up")
 
 	var eventCount int64
 	if err := server.db.Model(&db.IncidentEvent{}).Where("incident_id = ?", incident.ID).Count(&eventCount).Error; err != nil {
@@ -610,6 +612,18 @@ func assertAlertDelivery(t *testing.T, server *Server, incidentID string, eventT
 	}
 	if delivery.Status != wantStatus {
 		t.Fatalf("alert delivery status = %q, want %q", delivery.Status, wantStatus)
+	}
+}
+
+func assertMonitorIncidentState(t *testing.T, server *Server, monitorID string, wantActiveIncidentID string, wantIncidentState string) {
+	t.Helper()
+
+	var monitor db.Monitor
+	if err := server.db.Where("id = ?", monitorID).First(&monitor).Error; err != nil {
+		t.Fatalf("find monitor: %v", err)
+	}
+	if monitor.ActiveIncidentID != wantActiveIncidentID || monitor.IncidentState != wantIncidentState {
+		t.Fatalf("monitor incident state = active %q state %q, want active %q state %q", monitor.ActiveIncidentID, monitor.IncidentState, wantActiveIncidentID, wantIncidentState)
 	}
 }
 

@@ -5,7 +5,7 @@ Orion is a lightweight, self-hosted monitoring system: agents on your servers co
 ## Components
 
 - **Agent** (`apps/agent`, Go): Runs on Linux/macOS. Auto-registers with Core. Collects CPU, memory, and disk; runs monitors (HTTP, website, PM2, internal-service, command).
-- **Core** (`apps/core`, Go + SQLite): Receives reports, manages agents and monitors, serves a REST API and built-in SPA.
+- **Core** (`apps/core`, Go + SQLite): Receives reports, manages agents and monitors, serves a REST API and embedded Console SPA.
 - **Console** (`apps/console`, React/Vite): Editable UI source; production builds are copied into `apps/core/web/`.
 
 ```mermaid
@@ -97,9 +97,10 @@ Port in [apps/core/main.go](apps/core/main.go) (`:8999`). Database in [apps/core
 
 - **Linux (systemd)**: [deploy/systemd/orion-agent.service](deploy/systemd/orion-agent.service). Binary: `/usr/local/bin/orion-agent`; config: `/etc/orion/config.yaml`; state: `/var/lib/orion/state.db`. Create the `orion` user/group or adjust.
 - **macOS (launchd)**: [deploy/launchd/com.orion.agent.plist](deploy/launchd/com.orion.agent.plist) — paths are in the plist.
+- **Install**: [deploy/scripts/agent-install.sh](deploy/scripts/agent-install.sh) installs the binary, config, state directory, and system service.
 - **Uninstall**: [deploy/scripts/agent-uninstall.sh](deploy/scripts/agent-uninstall.sh) (run with `sudo`).
 
-See [deploy/scripts/README.md](deploy/scripts/README.md) for manual install steps until `agent-install.sh` is available.
+See [docs/deployment/core-docker.md](docs/deployment/core-docker.md) for Core Docker deployment and [docs/deployment/agent-install-upgrade.md](docs/deployment/agent-install-upgrade.md) for Agent install, upgrade, rollback, and Tailscale/local network notes.
 
 ## Project Layout
 
@@ -121,7 +122,7 @@ orion/
 - `make generate-openapi` — generate `apps/core/openapi.yaml` and Swagger docs from Core route annotations
 - `make generate-sdk` — regenerate OpenAPI first, then generate the console API client with Orval
 - `make build-static` — build console source and copy to `apps/core/web/`
-- `make docker-build` — build orion-core Docker image
+- `make docker-build` — build one `orion-core` Docker image with the Console embedded in the Core binary
 - `make docker-up` — run orion-core via `docker compose -f deploy/docker-compose.yml up -d` (set `ORION_ADMIN_*`, `ORION_JWT_SECRET` for frontend auth)
 
 ## Development

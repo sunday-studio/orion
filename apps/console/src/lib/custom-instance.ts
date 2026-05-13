@@ -2,7 +2,7 @@ const AUTH_TOKEN_KEY = "orion_token";
 
 /** API base: VITE_API_BASE_URL (trimmed) when set, else "/v1" so SPA works when served from core without .env. */
 function getApiBase(): string {
-  return "http://localhost:8999/v1";
+  return "http://localhost:8999";
   // const b = (import.meta as unknown as { env: { VITE_API_BASE_URL?: string } }).env.VITE_API_BASE_URL ?? "";
   // return b ? b.replace(/\/$/, "") : "/v1";
 }

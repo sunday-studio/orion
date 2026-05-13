@@ -1,0 +1,49 @@
+meta:
+  title: home-server
+  description: Main home server
+
+core_url: http://orion-core.local:8999
+interval: 60s
+
+monitors:
+  - name: orion-core
+    description: Orion Core API health
+    type: internal-service
+    interval: 30s
+    internal_service:
+      ping:
+        url: http://127.0.0.1:8999/health
+        timeout: 3s
+      process:
+        port: 8999
+
+  - name: root-disk
+    description: Root disk usage
+    type: resource-threshold
+    interval: 60s
+    resource:
+      max_disk_percent: 85
+
+  - name: memory
+    description: Memory pressure
+    type: resource-threshold
+    interval: 60s
+    resource:
+      max_memory_percent: 90
+
+  - name: ssh
+    description: SSH reachability
+    type: tcp
+    interval: 60s
+    tcp:
+      host: 127.0.0.1
+      port: 22
+      timeout: 3s
+
+  - name: backup-marker
+    description: Backup marker file exists
+    type: command
+    interval: 15m
+    command:
+      command: test -f /var/lib/orion-backups/latest.ok
+      timeout: 5s

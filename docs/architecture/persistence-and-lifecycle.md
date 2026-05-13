@@ -55,6 +55,8 @@ Stores registered monitor inventory:
 - lifecycle: `active`, `disabled`, or `deleted`;
 - current reported health;
 - computed health cache;
+- cached active incident id;
+- cached incident state;
 - reporting interval;
 - last successful report timestamp;
 - meta and timestamps.
@@ -145,6 +147,7 @@ Current migrations:
 - `000001_init_schema.up.sql`: base Agent, report, monitor, incident, and alert tables.
 - `000002_data_lifecycle_settings.up.sql`: lifecycle settings.
 - `000003_monitor_uptime_rollups.up.sql`: daily uptime rollups.
+- `000004_incident_reconciliation_state.up.sql`: monitor incident-state cache and active incident lookup index.
 
 ## Uptime Rollups
 

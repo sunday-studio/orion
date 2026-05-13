@@ -18,12 +18,12 @@ flowchart TD
   B --> C["Core updates monitor.health"]
   C --> D{"Report health?"}
 
-  D -- "up" --> E["Look for active incident for this monitor"]
+  D -- "up" --> E["Use cached active incident id or indexed lookup"]
   E --> F{"Active incident exists?"}
   F -- "yes" --> G["Resolve incident"]
   F -- "no" --> H["Do nothing"]
 
-  D -- "down/degraded/stale" --> I["Look for active incident for this monitor"]
+  D -- "down/degraded/stale" --> I["Use cached active incident id or indexed lookup"]
   I --> J{"Active incident exists?"}
   J -- "yes" --> K["Update incident latest_event"]
   J -- "no" --> L["Open new incident"]
@@ -193,13 +193,16 @@ flowchart TD
   H -- "no" --> UP
 ```
 
-## Logging Note
+## Current Performance Behavior
 
-The active incident lookup is conceptually correct. The problem is the current lookup shape can make GORM log an expected "no active incident" result as `record not found`.
+The active incident lookup is conceptually correct, but it should not be an expensive table scan or a noisy expected miss.
 
-A targeted fix is better than globally ignoring all not-found logs:
+Core now uses targeted behavior:
 
-- add a helper such as `findActiveIncident(monitorID) (incident, found, error)`;
-- implement it with `Find()` and `RowsAffected`, or another query shape that does not log expected empty results;
-- keep true not-found errors visible elsewhere.
-
+- `monitors.active_incident_id` caches the active incident id when one exists;
+- `monitors.incident_state` stores the last incident-relevant state;
+- repeated healthy reports skip the active incident lookup;
+- active incidents are updated or resolved by cached incident id when possible;
+- fallback lookup uses an index on `incidents(monitor_id, status, opened_at)`;
+- expected empty results use `Find()` plus `RowsAffected`, not `First()` returning `record not found`;
+- slow active incident lookups and slow reconciliation calls are logged.

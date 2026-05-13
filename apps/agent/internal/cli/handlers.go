@@ -12,12 +12,18 @@ import (
 )
 
 func HandleMaintenance(userConfigPath, internalStatePath *string) {
-	if len(os.Args) < 3 {
-		fmt.Println("Usage: orion-agent maintenance <-up|-down> [reason]")
+	if len(os.Args) < 2 {
+		fmt.Println("Usage: orion-agent maintenance <-up|-down> [reason] [-state path]")
 		os.Exit(1)
 	}
 
-	action := os.Args[2]
+	action, reason, statePath, err := parseMaintenanceCommand(os.Args[1:], *internalStatePath)
+	if err != nil {
+		fmt.Println(err)
+		fmt.Println("Usage: orion-agent maintenance <-up|-down> [reason] [-state path]")
+		os.Exit(1)
+	}
+	*internalStatePath = statePath
 
 	stateStore, err := agentstate.Open(*internalStatePath)
 	if err != nil {
@@ -48,10 +54,6 @@ func HandleMaintenance(userConfigPath, internalStatePath *string) {
 		}
 
 	case "-down":
-		reason := ""
-		if len(os.Args) > 3 {
-			reason = strings.Join(os.Args[3:], " ")
-		}
 		var reasonPtr *string
 		if reason != "" {
 			reasonPtr = &reason
@@ -77,18 +79,57 @@ func HandleMaintenance(userConfigPath, internalStatePath *string) {
 
 	default:
 		fmt.Printf("Unknown maintenance action: %s\n", action)
-		fmt.Println("Usage: orion-agent maintenance <-up|-down> [reason]")
+		fmt.Println("Usage: orion-agent maintenance <-up|-down> [reason] [-state path]")
 		os.Exit(1)
 	}
 }
 
+func parseMaintenanceCommand(args []string, defaultStatePath string) (string, string, string, error) {
+	action := ""
+	statePath := defaultStatePath
+	reasonParts := []string{}
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "-state" || arg == "--state":
+			if i+1 >= len(args) {
+				return "", "", "", fmt.Errorf("%s requires a path", arg)
+			}
+			statePath = args[i+1]
+			i++
+		case strings.HasPrefix(arg, "-state="):
+			statePath = strings.TrimPrefix(arg, "-state=")
+		case strings.HasPrefix(arg, "--state="):
+			statePath = strings.TrimPrefix(arg, "--state=")
+		case strings.HasPrefix(arg, "-") && arg != "-up" && arg != "-down":
+			return "", "", "", fmt.Errorf("unknown maintenance option: %s", arg)
+		case action == "":
+			action = arg
+		default:
+			reasonParts = append(reasonParts, arg)
+		}
+	}
+
+	if action == "" {
+		return "", "", "", fmt.Errorf("missing maintenance action")
+	}
+	return action, strings.Join(reasonParts, " "), statePath, nil
+}
+
 func HandleConfig(userConfigPath *string) {
-	if len(os.Args) < 3 {
-		fmt.Println("Usage: orion-agent config <validate|diff>")
+	if len(os.Args) < 2 {
+		fmt.Println("Usage: orion-agent config <validate|diff> [-config path]")
 		os.Exit(1)
 	}
 
-	subcommand := os.Args[2]
+	subcommand, configPath, err := parseConfigCommand(os.Args[1:], *userConfigPath)
+	if err != nil {
+		fmt.Println(err)
+		fmt.Println("Usage: orion-agent config <validate|diff> [-config path]")
+		os.Exit(1)
+	}
+	*userConfigPath = configPath
 
 	switch subcommand {
 	case "validate":
@@ -123,7 +164,39 @@ func HandleConfig(userConfigPath *string) {
 
 	default:
 		fmt.Printf("Unknown config command: %s\n", subcommand)
-		fmt.Println("Usage: orion-agent config <validate|diff>")
+		fmt.Println("Usage: orion-agent config <validate|diff> [-config path]")
 		os.Exit(1)
 	}
+}
+
+func parseConfigCommand(args []string, defaultConfigPath string) (string, string, error) {
+	subcommand := ""
+	configPath := defaultConfigPath
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "-config" || arg == "--config":
+			if i+1 >= len(args) {
+				return "", "", fmt.Errorf("%s requires a path", arg)
+			}
+			configPath = args[i+1]
+			i++
+		case strings.HasPrefix(arg, "-config="):
+			configPath = strings.TrimPrefix(arg, "-config=")
+		case strings.HasPrefix(arg, "--config="):
+			configPath = strings.TrimPrefix(arg, "--config=")
+		case strings.HasPrefix(arg, "-"):
+			return "", "", fmt.Errorf("unknown config option: %s", arg)
+		case subcommand == "":
+			subcommand = arg
+		default:
+			return "", "", fmt.Errorf("unexpected config argument: %s", arg)
+		}
+	}
+
+	if subcommand == "" {
+		return "", "", fmt.Errorf("missing config subcommand")
+	}
+	return subcommand, configPath, nil
 }

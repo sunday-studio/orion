@@ -84,6 +84,8 @@ type Monitor struct {
 	ReportingIntervalSeconds int        `json:"reporting_interval_seconds" gorm:"default:60"` // Monitor check interval
 	ComputedHealth           string     `json:"computed_health" gorm:"default:unknown"`       // Cached computed health (up | down | degraded | unknown)
 	LastHealthComputation    *time.Time `json:"last_health_computation"`                      // When health was last computed
+	ActiveIncidentID         string     `json:"active_incident_id" gorm:"not null;default:'';index:idx_monitors_active_incident_id"`
+	IncidentState            string     `json:"incident_state" gorm:"not null;default:unknown;index:idx_monitors_incident_state"`
 
 	Lifecycle string `json:"lifecycle" gorm:"not null;index:idx_monitors_lifecycle"` // active | disabled | deleted
 	Health    string `json:"health" gorm:"not null;index:idx_monitors_health"`       // up | down | degraded | unknown

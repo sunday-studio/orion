@@ -54,13 +54,14 @@ It should be useful, understandable, and reliable before it tries to be a broad 
 
 ## Priority 4: Operations
 
-- [ ] Add raw report retention and uptime rollups.
+- [x] Add raw report retention and uptime rollups.
 - [x] Document SQLite backup and restore.
 - [x] Add explicit migrations.
 - [x] Add graceful Core shutdown.
 - [x] Add configurable CORS origins.
 - [x] Add login rate limiting.
 - [x] Add useful request logging and database health checks.
+- [x] Optimize ingestion-time incident reconciliation.
 
 ## Priority 5: Data Lifecycle And Setup
 
@@ -75,12 +76,13 @@ It should be useful, understandable, and reliable before it tries to be a broad 
 
 ## Priority 6: Deployment
 
-- Keep Core runnable as a Go binary and with Docker Compose.
-- Add Agent install and uninstall scripts.
-- Add Linux systemd and macOS launchd examples.
-- Add example home server config.
-- Add Tailscale/local network notes.
-- Add upgrade and rollback instructions.
+- [x] Keep Core runnable as a Go binary and with Docker Compose.
+- [x] Build Core and Console together as one Docker image.
+- [x] Add Agent install and uninstall scripts.
+- [x] Add Linux systemd and macOS launchd examples.
+- [x] Add example home server config.
+- [x] Add Tailscale/local network notes.
+- [x] Add upgrade and rollback instructions.
 
 ## Later
 

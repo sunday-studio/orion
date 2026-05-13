@@ -7,6 +7,7 @@ This folder documents the implemented backend and Agent system. It intentionally
 - [system-overview.md](system-overview.md): components, responsibilities, and the main runtime shape.
 - [data-ingestion.md](data-ingestion.md): how Agent registration, monitor registration, system reports, and monitor reports move through the system.
 - [incident-reconciliation-flow.md](incident-reconciliation-flow.md): how reports open, update, and resolve incidents.
+- [performance-observability.md](performance-observability.md): growth assumptions, backend performance risks, and Core self-metrics.
 - [agent-monitors.md](agent-monitors.md): every implemented monitor type and what it collects.
 - [core-features.md](core-features.md): Core services for health, incidents, alerts, auth, settings, and API routes.
 - [persistence-and-lifecycle.md](persistence-and-lifecycle.md): SQLite schema, migrations, rollups, archives, and generated API contract.

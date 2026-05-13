@@ -1,0 +1,1 @@
+Build the Console with `make build-static` or the Dockerfile to replace this placeholder.
