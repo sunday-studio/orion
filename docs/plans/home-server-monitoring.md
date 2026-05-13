@@ -55,7 +55,7 @@ It should be useful, understandable, and reliable before it tries to be a broad 
 ## Priority 4: Operations
 
 - [ ] Add raw report retention and uptime rollups.
-- [ ] Document SQLite backup and restore.
+- [x] Document SQLite backup and restore.
 - [ ] Add explicit migrations.
 - [x] Add graceful Core shutdown.
 - [x] Add configurable CORS origins.
