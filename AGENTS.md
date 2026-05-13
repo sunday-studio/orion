@@ -23,6 +23,13 @@ This file defines the working boundaries for humans and coding agents in this re
 - OpenAPI source of truth is `apps/core/openapi.yaml`.
 - Frontend API client output is `apps/console/src/lib/api.ts`; regenerate it from `apps/console` instead of hand-editing generated API code.
 
+## Naming Rules
+
+- New files and folders must use lowercase kebab-case.
+- Keep names descriptive and short enough to scan.
+- Follow existing generated-file names when editing generated outputs.
+- Do not rename existing files or folders just for style unless the task asks for it.
+
 ## Contract Rules
 
 - Core route or response changes must update `apps/core/openapi.yaml`.
@@ -91,17 +98,19 @@ make docker-up
 Use this format for commits:
 
 ```txt
-conventional-commit(scope): one-line summary
+conventional-commit-type(service/package changed): one liner
 
-- key point if any exists;
-- another key point if any exists;
+-key point if any exists;
+-another key point if any exists;
 ```
 
-- The first line must be a conventional commit style subject with a scope, for example `chore(repo): group project directories`.
-- Keep the subject concise and imperative.
-- Add one blank line after the subject only when key points exist.
-- Key points are optional; when present, format each as a bullet and end each point with `;`.
-- Do not put blank lines between key point bullets.
+- The first line must use a conventional commit type and a scope for the service or package changed.
+- Use a concise one-line summary, for example `docs(repo): clarify agent instructions`.
+- Add bullet points only when the one-liner does not cover the change.
+- When bullets are needed, add one blank line after the subject.
+- Bullet points must start with `-` immediately followed by text, with no space after the dash.
+- End each bullet with `;`.
+- Do not put blank lines between bullet points.
 
 ## Review Checklist
 
