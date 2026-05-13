@@ -69,6 +69,12 @@ func TestUserConfigValidateAcceptsValidMonitorTypes(t *testing.T) {
 				Interval: "30s",
 				Docker:   &DockerContainerConfig{Name: "postgres"},
 			},
+			{
+				Name:     "nginx",
+				Type:     UserMonitorTypeSystemd,
+				Interval: "30s",
+				Systemd:  &SystemdServiceConfig{Name: "nginx.service"},
+			},
 		},
 	}
 
@@ -188,6 +194,15 @@ func TestUserConfigValidateRejectsInvalidMonitorConfig(t *testing.T) {
 				cfg.Monitors[0].Type = UserMonitorTypeDocker
 				cfg.Monitors[0].HTTP = nil
 				cfg.Monitors[0].Docker = &DockerContainerConfig{}
+			},
+			wantErr: "name is required",
+		},
+		{
+			name: "missing systemd name",
+			mutate: func(cfg *UserConfig) {
+				cfg.Monitors[0].Type = UserMonitorTypeSystemd
+				cfg.Monitors[0].HTTP = nil
+				cfg.Monitors[0].Systemd = &SystemdServiceConfig{}
 			},
 			wantErr: "name is required",
 		},

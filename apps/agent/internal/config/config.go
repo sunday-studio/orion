@@ -38,6 +38,7 @@ const (
 	UserMonitorTypeTCP             UserMonitorType = "tcp"
 	UserMonitorTypeResource        UserMonitorType = "resource-threshold"
 	UserMonitorTypeDocker          UserMonitorType = "docker-container"
+	UserMonitorTypeSystemd         UserMonitorType = "systemd-service"
 )
 
 var UserMonitorTypes = []UserMonitorType{
@@ -49,6 +50,7 @@ var UserMonitorTypes = []UserMonitorType{
 	UserMonitorTypeTCP,
 	UserMonitorTypeResource,
 	UserMonitorTypeDocker,
+	UserMonitorTypeSystemd,
 }
 
 type HTTPHealthcheckConfig struct {
@@ -104,6 +106,10 @@ type DockerContainerConfig struct {
 	Name string `yaml:"name"`
 }
 
+type SystemdServiceConfig struct {
+	Name string `yaml:"name"`
+}
+
 type UserMonitor struct {
 	Name        string                 `yaml:"name"`
 	Description string                 `yaml:"description"`
@@ -119,6 +125,7 @@ type UserMonitor struct {
 	TCP             *TCPMonitorConfig        `yaml:"tcp,omitempty"`
 	Resource        *ResourceThresholdConfig `yaml:"resource,omitempty"`
 	Docker          *DockerContainerConfig   `yaml:"docker,omitempty"`
+	Systemd         *SystemdServiceConfig    `yaml:"systemd,omitempty"`
 }
 
 type UserConfig struct {

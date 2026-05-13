@@ -169,6 +169,24 @@ func CollectMonitorReport(internalMonitor config.InternalStateMonitor, userMonit
 			Metrics:   &result.Metrics,
 			Error:     result.Error,
 		}, nil
+	case config.UserMonitorTypeSystemd:
+		result := RunSystemdServiceMonitor(SystemdServiceConfig{
+			Name: userMonitorConfig.Systemd.Name,
+		})
+		if result.Error != nil {
+			return &MonitorResult{
+				Status:    result.Status,
+				Timestamp: result.Timestamp,
+				Metrics:   &result.Metrics,
+				Error:     result.Error,
+			}, errors.New(result.Error.Message)
+		}
+		return &MonitorResult{
+			Status:    result.Status,
+			Timestamp: result.Timestamp,
+			Metrics:   &result.Metrics,
+			Error:     result.Error,
+		}, nil
 	}
 	return &MonitorResult{
 		Status:    "down",

@@ -127,6 +127,13 @@ func (d DockerContainerConfig) Validate() error {
 	return nil
 }
 
+func (s SystemdServiceConfig) Validate() error {
+	if strings.TrimSpace(s.Name) == "" {
+		return errors.New("name is required")
+	}
+	return nil
+}
+
 func (m UserMonitor) Validate() error {
 	if strings.TrimSpace(m.Name) == "" {
 		return errors.New("name is required")
@@ -191,6 +198,12 @@ func (m UserMonitor) Validate() error {
 			return errors.New("docker config is required")
 		}
 		return m.Docker.Validate()
+
+	case UserMonitorTypeSystemd:
+		if m.Systemd == nil {
+			return errors.New("systemd config is required")
+		}
+		return m.Systemd.Validate()
 
 	default:
 		return fmt.Errorf("unsupported monitor type: %s", m.Type)
