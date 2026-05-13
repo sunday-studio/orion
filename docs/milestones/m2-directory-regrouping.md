@@ -2,7 +2,7 @@
 
 ## Goal
 
-Group the repository by clear ownership boundaries so humans and coding agents can work in parallel without guessing which copy of a component is authoritative.
+Group the repository by clear ownership boundaries.
 
 ## Scope
 
@@ -34,8 +34,8 @@ Group the repository by clear ownership boundaries so humans and coding agents c
 ## Open Risks
 
 - Frontend build remains unverified after the move until `apps/console/node_modules` is installed.
-- Git will show many deletes and adds from the directory move until the changes are staged and rename detection can be reviewed.
-- `apps/console/` is now the only product UI; future frontend work should not create a second app without an explicit product decision.
+- Git will show many deletes and adds from the directory move until rename detection can be reviewed.
+- `apps/console/` is now the only product UI.
 
 ## Next
 

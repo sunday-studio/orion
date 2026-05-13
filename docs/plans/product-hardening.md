@@ -2,122 +2,65 @@
 
 ## Objective
 
-Turn Orion from a working MVP into a reliable self-hosted monitoring product that can be installed, upgraded, operated, tested, and trusted during real incidents.
+Make Orion reliable enough to install, upgrade, operate, test, and trust during real incidents.
 
 ## Principles
 
-- Preserve the current simple architecture: Go agent, Go Core, SQLite, React UI.
-- Harden the agent/Core contract before adding many new monitor types.
+- Keep the architecture simple.
+- Stabilize the Agent/Core contract before adding many monitor types.
 - Prefer automated verification over manual confidence.
-- Keep installation and operations boring: clear config, predictable paths, simple recovery.
+- Keep install, upgrade, backup, and rollback paths boring.
 
 ## Phase 1: Verification Baseline
 
-Goal: make every future change safer.
+- Add CI for Core tests, Agent tests, frontend build/lint, Docker build, and OpenAPI generation drift.
+- Document the same local verification commands in the README.
 
-- Install frontend dependencies and verify `npm run build`.
-- Add CI for Core Go tests.
-- Add CI for Agent Go tests.
-- Add CI for frontend build and lint.
-- Add Docker image build check.
-- Add OpenAPI generation drift check.
-- Document the exact local verification commands.
-
-Exit criteria:
-
-- A clean PR can prove Core, Agent, Frontend, OpenAPI, and Docker still compile/build.
-- The root README has a short "Verification" section.
+Exit criteria: every PR can prove the main apps and generated API still build.
 
 ## Phase 2: Core Correctness
 
-Goal: make Core behavior explicit and covered by tests.
-
-- Add service tests for agent registration and re-registration.
-- Add service tests for monitor registration, duplicate handling, soft delete, and revive.
-- Add report storage tests for system and monitor reports.
-- Add health computation tests for up, down, unknown, stale, flapping, and degraded states.
-- Return precise HTTP status codes for duplicate monitors and invalid monitor ownership.
+- Add tests for agent registration, monitor lifecycle, report storage, health computation, and list counts.
+- Return predictable status codes for invalid input, duplicate monitors, and ownership errors.
 - Validate path/body ID consistency on agent-scoped routes.
-- Confirm list endpoint counts match filtered results.
 
-Exit criteria:
-
-- Core domain behavior is covered by tests.
-- API errors are predictable enough for frontend and agents to handle.
+Exit criteria: Core behavior is explicit enough for Agent and Console to depend on.
 
 ## Phase 3: Agent Reliability
 
-Goal: make agents dependable on poor networks and during restarts.
-
-- Add retry with exponential backoff for transport calls.
-- Add jitter to system and monitor intervals.
-- Run an immediate first collection cycle or document the delayed-first-report behavior.
-- Flush pending work on shutdown if batching is introduced.
+- Add retry with exponential backoff and interval jitter.
+- Run an immediate first collection cycle.
 - Re-check maintenance mode during runtime.
-- Add tests around config validation and registration reconciliation.
-- Improve CLI exit codes and error text.
+- Improve config validation, registration reconciliation, CLI exit codes, and error text.
 
-Exit criteria:
+Exit criteria: temporary Core or network failure does not permanently break reporting.
 
-- Temporary Core/network failure does not permanently break reporting.
-- Maintenance mode behavior is clear and test-backed.
+## Phase 4: Install, Upgrade, Release
 
-## Phase 4: Install, Upgrade & Release
+- Add Agent install and uninstall scripts.
+- Install binaries, config, state, services, and permissions predictably.
+- Publish versioned Core and Agent artifacts.
+- Define upgrade and rollback behavior.
 
-Goal: make Orion practical to deploy on real hosts.
+Exit criteria: a fresh Linux/macOS host can install and run an Agent from documented commands.
 
-- Add `agent-install.sh`.
-- Detect OS and architecture.
-- Install binary, config, state, service files, and permissions.
-- Generate default config.
-- Add dependency checks for optional monitors.
-- Add release binaries for Linux/macOS.
-- Add `orion-agent upgrade` design and implementation.
-- Add rollback plan for failed upgrades.
+## Phase 5: Console UX
 
-Exit criteria:
+- Build the Console around health summary, issues, servers, incidents, logs, and read-only settings.
+- Standardize status badges, loading states, error states, polling, and responsive layouts.
+- Add a small smoke suite for the main views.
 
-- A fresh Linux/macOS host can install and run an agent from documented commands.
-- Releases include versioned Core and Agent artifacts.
+Exit criteria: the UI quickly answers what is down, what is stale, and which server owns the issue.
 
-## Phase 5: Frontend Operational UX
+## Phase 6: Storage And Operations
 
-Goal: make the UI useful during normal operations and incidents.
+- Add migrations, retention, uptime rollups, backup/restore docs, CORS config, graceful shutdown, and rate limiting.
 
-- Add dashboard summary using `/v1/health/summary`, `/v1/health/issues`, and `/v1/incidents/candidates`.
-- Standardize status badges and color semantics.
-- Add empty, loading, and error states for each primary view.
-- Add polling for list/detail views.
-- Add responsive layout pass.
-- Add incident-focused view for down, degraded, and stale monitors.
-- Add a small Playwright or component-test smoke suite.
+Exit criteria: a long-running Core instance has bounded storage growth and an upgrade-safe schema path.
 
-Exit criteria:
+## Decisions Needed
 
-- Operators can quickly answer what is down, what is stale, and which agent owns the issue.
-- Main views remain usable on desktop and mobile.
-
-## Phase 6: Storage & Operations
-
-Goal: keep long-running installs healthy.
-
-- Add explicit migration files and migration runner.
-- Add report retention policy.
-- Add optional rollups for hourly/daily uptime history.
-- Document SQLite backup and restore.
-- Review SQLite pragmas and connection settings.
-- Add configurable CORS origins.
-- Add graceful Core shutdown.
-- Add login/registration rate limiting.
-
-Exit criteria:
-
-- A long-running Core instance has bounded storage growth and an upgrade-safe schema path.
-
-## Near-Term Backlog
-
-- Update older docs that still describe pre-`/v1` or Phase 1 behavior.
-- Confirm whether command monitor is implemented or only documented.
-- Decide whether Core maintenance mode should suppress incident candidates.
-- Decide product semantics for stale agents without monitors.
-- Decide release/version naming for Core, Agent, API, and SDK.
+- Whether command monitor is implemented or only documented.
+- Whether maintenance suppresses incident candidates.
+- What stale means for servers with no monitors.
+- Version naming for Core, Agent, API, and SDK.

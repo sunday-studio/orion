@@ -2,7 +2,7 @@
 
 ## Goal
 
-Bring the project roadmap back in sync with the current repository and create a durable place for milestone notes and planning.
+Bring the project roadmap back in sync with the current repository.
 
 ## Scope
 
@@ -28,7 +28,6 @@ Bring the project roadmap back in sync with the current repository and create a 
 
 - The frontend may have type or build drift until dependencies are installed and `npm run build` is run.
 - Go test coverage is still thin; passing tests mostly confirm compilation.
-- Older docs still contain some Phase 1 language that may not match the current API and product behavior.
 
 ## Next
 

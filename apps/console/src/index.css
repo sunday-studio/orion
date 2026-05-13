@@ -13,7 +13,6 @@
   font-weight: 100 900;
 }
 
-
 body {   
   font-family: "Inter", system-ui, Avenir, Helvetica, Arial, sans-serif;
   font-optical-sizing: auto;
@@ -43,4 +42,13 @@ body {
   font-family: "Instrument Serif", serif;
   font-weight: 400;
   font-style: italic;
+}
+
+
+.debug {
+  outline: 1px dotted red;
+}
+
+.debug * {
+  outline: 1px dotted blue;
 }
