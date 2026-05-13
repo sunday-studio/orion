@@ -93,6 +93,11 @@ func (s *Server) setMaintenanceMode(c *gin.Context) {
 // @ID           getAgents
 // @Param        limit   query     int     false  "Maximum number of agents to return" default(50)
 // @Param        offset  query     int     false  "Number of agents to skip" default(0)
+// @Param        search  query     string  false  "Search by server or monitor name"
+// @Param        status  query     string  false  "Filter by computed server status"
+// @Param        maintenance  query  string  false  "Filter by maintenance mode true or false"
+// @Param        stale_only  query   bool    false  "Only return stale servers"
+// @Param        has_incidents  query  bool  false  "Only return servers with active incidents"
 // @Success      200     {object}  utils.APIResponse{data=object{agents=[]AgentResponse,count=int64,limit=int,offset=int}}
 // @Failure      500     {object}  utils.APIResponse
 // @Router       /v1/agents [get]
@@ -110,14 +115,17 @@ func (s *Server) listAgents(c *gin.Context) {
 	}
 
 	opts := service.ListAgentsOpts{
-		Limit:    limit,
-		Offset:   offset,
-		Search:   c.Query("search"),
-		Status:   c.Query("status"),
-		LastSeen: c.Query("last_seen"),
-		Uptime:   c.Query("uptime"),
-		Sort:     c.DefaultQuery("sort", "last_seen"),
-		Order:    c.DefaultQuery("order", "desc"),
+		Limit:        limit,
+		Offset:       offset,
+		Search:       c.Query("search"),
+		Status:       c.Query("status"),
+		Maintenance:  c.Query("maintenance"),
+		StaleOnly:    c.Query("stale_only") == "true",
+		HasIncidents: c.Query("has_incidents") == "true",
+		LastSeen:     c.Query("last_seen"),
+		Uptime:       c.Query("uptime"),
+		Sort:         c.DefaultQuery("sort", "last_seen"),
+		Order:        c.DefaultQuery("order", "desc"),
 	}
 
 	agents, count, err := s.agentService.ListAgents(opts)

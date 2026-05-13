@@ -287,6 +287,48 @@ func TestMonitorReportsOpenAndResolveIncident(t *testing.T) {
 	}
 }
 
+func TestListIncidentsReturnsPersistedActiveIncidents(t *testing.T) {
+	server := setupTestServer(t)
+	registered := registerTestAgent(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+
+	reportPath := "/v1/agents/" + registered.Data.AgentID + "/" + registeredMonitor.Data.MonitorID + "/report"
+	reportResp := performJSONRequest(t, server, http.MethodPost, reportPath, map[string]interface{}{
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"health":    "down",
+		"metrics":   map[string]interface{}{"status_code": 500},
+	}, registered.Data.Token)
+	if reportResp.Code != http.StatusOK {
+		t.Fatalf("monitor report status = %d, body = %s", reportResp.Code, reportResp.Body.String())
+	}
+
+	incidentsResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents", nil, "")
+	if incidentsResp.Code != http.StatusOK {
+		t.Fatalf("incidents status = %d, body = %s", incidentsResp.Code, incidentsResp.Body.String())
+	}
+
+	var listed struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Incidents []struct {
+				Status      string `json:"status"`
+				AgentName   string `json:"agent_name"`
+				MonitorName string `json:"monitor_name"`
+			} `json:"incidents"`
+			Count int64 `json:"count"`
+		} `json:"data"`
+	}
+	decodeResponse(t, incidentsResp, &listed)
+	if !listed.Success || listed.Data.Count != 1 || len(listed.Data.Incidents) != 1 {
+		t.Fatalf("incidents response = %+v, want one active incident", listed)
+	}
+	if listed.Data.Incidents[0].Status != "open" ||
+		listed.Data.Incidents[0].AgentName != "test-server" ||
+		listed.Data.Incidents[0].MonitorName != "homepage" {
+		t.Fatalf("incident row = %+v, want open homepage on test-server", listed.Data.Incidents[0])
+	}
+}
+
 func TestMaintenanceSuppressesAutomaticIncidentOpen(t *testing.T) {
 	server := setupTestServer(t)
 	registered := registerTestAgent(t, server)

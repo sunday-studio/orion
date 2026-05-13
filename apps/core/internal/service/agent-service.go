@@ -214,31 +214,22 @@ func (s *AgentService) GetAgent(agentID string) (*db.Agent, error) {
 
 // ListAgentsOpts holds query params for ListAgents.
 type ListAgentsOpts struct {
-	Limit    int
-	Offset   int
-	Search   string // name, machine_id, meta (LIKE)
-	Status   string // up, down, degraded, unknown; applied as post-filter
-	LastSeen string // e.g. 24h, 7d: last_seen >= now-duration
-	Uptime   string // e.g. 72h, 3d: uptime_seconds >= parsed
-	Sort     string // name, last_seen, created_at
-	Order    string // asc, desc
+	Limit        int
+	Offset       int
+	Search       string // agent name, machine_id, meta, or monitor name (LIKE)
+	Status       string // up, down, degraded, unknown; applied as post-filter
+	Maintenance  string // true, false, or empty
+	StaleOnly    bool
+	HasIncidents bool
+	LastSeen     string // e.g. 24h, 7d: last_seen >= now-duration
+	Uptime       string // e.g. 72h, 3d: uptime_seconds >= parsed
+	Sort         string // name, last_seen, created_at
+	Order        string // asc, desc
 }
 
 func (s *AgentService) ListAgents(opts ListAgentsOpts) ([]AgentListRow, int64, error) {
 	query := s.db.Model(&db.Agent{}).Where("deleted_at IS NULL OR deleted_at = ?", time.Time{})
-
-	// Search: name, machine_id, meta
-	if opts.Search != "" {
-		like := "%" + opts.Search + "%"
-		query = query.Where("name LIKE ? OR machine_id LIKE ? OR meta LIKE ?", like, like, like)
-	}
-
-	// last_seen: last_seen >= now - duration (seen within window)
-	if opts.LastSeen != "" {
-		if d, ok := parseListDuration(opts.LastSeen); ok {
-			query = query.Where("last_seen >= ?", time.Now().Add(-d))
-		}
-	}
+	query = s.applyAgentListDatabaseFilters(query, opts)
 
 	// Sort
 	sortCol := "last_seen"
@@ -273,18 +264,10 @@ func (s *AgentService) ListAgents(opts ListAgentsOpts) ([]AgentListRow, int64, e
 		return nil, 0, err
 	}
 
-	// Base count (same filters, no status/uptime)
+	// Base count (same database filters, no status/uptime post-filter)
 	var count int64
 	countQuery := s.db.Model(&db.Agent{}).Where("deleted_at IS NULL OR deleted_at = ?", time.Time{})
-	if opts.Search != "" {
-		like := "%" + opts.Search + "%"
-		countQuery = countQuery.Where("name LIKE ? OR machine_id LIKE ? OR meta LIKE ?", like, like, like)
-	}
-	if opts.LastSeen != "" {
-		if d, ok := parseListDuration(opts.LastSeen); ok {
-			countQuery = countQuery.Where("last_seen >= ?", time.Now().Add(-d))
-		}
-	}
+	countQuery = s.applyAgentListDatabaseFilters(countQuery, opts)
 	countQuery.Count(&count)
 
 	ids := make([]string, 0, len(agents))
@@ -352,6 +335,46 @@ func (s *AgentService) ListAgents(opts ListAgentsOpts) ([]AgentListRow, int64, e
 	}
 
 	return rows, count, nil
+}
+
+func (s *AgentService) applyAgentListDatabaseFilters(query *gorm.DB, opts ListAgentsOpts) *gorm.DB {
+	if opts.Search != "" {
+		like := "%" + opts.Search + "%"
+		query = query.Where(
+			"name LIKE ? OR machine_id LIKE ? OR meta LIKE ? OR id IN (?)",
+			like,
+			like,
+			like,
+			s.db.Model(&db.Monitor{}).Select("agent_id").Where("name LIKE ? AND lifecycle = ?", like, "active"),
+		)
+	}
+
+	switch strings.ToLower(strings.TrimSpace(opts.Maintenance)) {
+	case "true":
+		query = query.Where("maintenance_mode = ?", true)
+	case "false":
+		query = query.Where("maintenance_mode = ?", false)
+	}
+
+	if opts.StaleOnly {
+		threshold := time.Now().Add(-time.Duration(DefaultHealthConfig().StaleDataThresholdMinutes) * time.Minute)
+		query = query.Where("last_seen = ? OR last_seen < ?", time.Time{}, threshold)
+	}
+
+	if opts.HasIncidents {
+		query = query.Where(
+			"id IN (?)",
+			s.db.Model(&db.Incident{}).Select("agent_id").Where("status IN ?", []string{"open", "acknowledged"}),
+		)
+	}
+
+	if opts.LastSeen != "" {
+		if d, ok := parseListDuration(opts.LastSeen); ok {
+			query = query.Where("last_seen >= ?", time.Now().Add(-d))
+		}
+	}
+
+	return query
 }
 
 func (s *AgentService) GetAgentCount() (int64, error) {

@@ -37,6 +37,41 @@ definitions:
         example: "2026-05-12"
         type: string
     type: object
+  api.IncidentResponse:
+    properties:
+      agent_id:
+        type: string
+      agent_name:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      last_event_at:
+        type: string
+      latest_event:
+        type: string
+      monitor_id:
+        type: string
+      monitor_name:
+        type: string
+      monitor_type:
+        type: string
+      notification_status:
+        type: string
+      opened_at:
+        type: string
+      resolved_at:
+        type: string
+      severity:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
   api.LoginRequest:
     properties:
       password:
@@ -409,6 +444,26 @@ paths:
         in: query
         name: offset
         type: integer
+      - description: Search by server or monitor name
+        in: query
+        name: search
+        type: string
+      - description: Filter by computed server status
+        in: query
+        name: status
+        type: string
+      - description: Filter by maintenance mode true or false
+        in: query
+        name: maintenance
+        type: string
+      - description: Only return stale servers
+        in: query
+        name: stale_only
+        type: boolean
+      - description: Only return servers with active incidents
+        in: query
+        name: has_incidents
+        type: boolean
       produces:
       - application/json
       responses:
@@ -942,6 +997,64 @@ paths:
       summary: Get system health summary
       tags:
       - health
+  /v1/incidents:
+    get:
+      consumes:
+      - application/json
+      description: Get a paginated list of persisted incidents. Defaults to active
+        incidents.
+      operationId: getIncidents
+      parameters:
+      - default: open,acknowledged
+        description: Comma-separated incident statuses
+        in: query
+        name: status
+        type: string
+      - default: 50
+        description: Maximum number of incidents to return
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of incidents to skip
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      format: int64
+                      type: integer
+                    incidents:
+                      items:
+                        $ref: '#/definitions/api.IncidentResponse'
+                      type: array
+                    limit:
+                      type: integer
+                    offset:
+                      type: integer
+                    status:
+                      items:
+                        type: string
+                      type: array
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: List incidents
+      tags:
+      - incidents
   /v1/incidents/candidates:
     get:
       consumes:

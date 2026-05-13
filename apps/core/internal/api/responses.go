@@ -67,6 +67,26 @@ type AgentReportResponse struct {
 	Location      db.GeoLocation `json:"location"`
 }
 
+// IncidentResponse represents a persisted incident in frontend API responses.
+type IncidentResponse struct {
+	ID                 string     `json:"id"`
+	Status             string     `json:"status"`
+	Severity           string     `json:"severity"`
+	Title              string     `json:"title"`
+	AgentID            string     `json:"agent_id"`
+	AgentName          string     `json:"agent_name"`
+	MonitorID          string     `json:"monitor_id"`
+	MonitorName        string     `json:"monitor_name"`
+	MonitorType        string     `json:"monitor_type"`
+	OpenedAt           time.Time  `json:"opened_at"`
+	ResolvedAt         *time.Time `json:"resolved_at"`
+	LastEventAt        time.Time  `json:"last_event_at"`
+	LatestEvent        string     `json:"latest_event"`
+	NotificationStatus string     `json:"notification_status"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+}
+
 func agentResponse(agent db.Agent) AgentResponse {
 	return AgentResponse{
 		ID:                       agent.ID,
@@ -167,4 +187,25 @@ func agentReportResponses(reports []db.AgentReport) []AgentReportResponse {
 		responses = append(responses, agentReportResponse(report))
 	}
 	return responses
+}
+
+func incidentResponse(incident db.Incident, agent db.Agent, monitor db.Monitor) IncidentResponse {
+	return IncidentResponse{
+		ID:                 incident.ID,
+		Status:             incident.Status,
+		Severity:           incident.Severity,
+		Title:              incident.Title,
+		AgentID:            incident.AgentID,
+		AgentName:          agent.Name,
+		MonitorID:          incident.MonitorID,
+		MonitorName:        monitor.Name,
+		MonitorType:        monitor.Type,
+		OpenedAt:           incident.OpenedAt,
+		ResolvedAt:         incident.ResolvedAt,
+		LastEventAt:        incident.LastEventAt,
+		LatestEvent:        incident.LatestEvent,
+		NotificationStatus: incident.NotificationStatus,
+		CreatedAt:          incident.CreatedAt,
+		UpdatedAt:          incident.UpdatedAt,
+	}
 }

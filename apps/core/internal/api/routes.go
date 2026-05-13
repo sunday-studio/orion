@@ -110,6 +110,7 @@ func (s *Server) setupRoutes() {
 			frontend.GET("/monitors/:id/history", s.getMonitorHistory)
 			frontend.GET("/health/summary", s.getSystemHealth)
 			frontend.GET("/health/issues", s.getHealthIssues)
+			frontend.GET("/incidents", s.listIncidents)
 			frontend.GET("/incidents/candidates", s.getIncidentCandidates)
 			frontend.GET("/settings/data-lifecycle", s.getDataLifecycleSettings)
 			frontend.PUT("/settings/data-lifecycle", s.updateDataLifecycleSettings)
