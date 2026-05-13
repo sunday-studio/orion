@@ -162,6 +162,20 @@ func (s *HealthService) isDegraded(reports []db.MonitorReport, failureRateThresh
 
 // ComputeAgentHealth computes the overall health for an agent based on its monitors
 func (s *HealthService) ComputeAgentHealth(agentID string, config HealthComputationConfig) (string, int, int, int, error) {
+	var agent db.Agent
+	if err := s.db.Where("id = ?", agentID).First(&agent).Error; err != nil {
+		s.logger.Error("Failed to get agent", "agent_id", agentID, "error", err)
+		return "unknown", 0, 0, 0, err
+	}
+
+	if agent.MaintenanceMode {
+		return "maintenance", 0, 0, 0, nil
+	}
+
+	if agent.LastSeen.IsZero() || agent.LastSeen.Before(time.Now().Add(-time.Duration(config.StaleDataThresholdMinutes)*time.Minute)) {
+		return "stale", 0, 0, 0, nil
+	}
+
 	var monitors []db.Monitor
 	if err := s.db.Where("agent_id = ? AND lifecycle = ?", agentID, "active").
 		Find(&monitors).Error; err != nil {
@@ -170,7 +184,7 @@ func (s *HealthService) ComputeAgentHealth(agentID string, config HealthComputat
 	}
 
 	if len(monitors) == 0 {
-		return "unknown", 0, 0, 0, nil
+		return "up", 0, 0, 0, nil
 	}
 
 	upCount := 0

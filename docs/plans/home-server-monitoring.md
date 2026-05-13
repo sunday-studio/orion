@@ -20,7 +20,7 @@ It should be useful, understandable, and reliable before it tries to be a broad 
 - [x] Cover monitor registration and monitor reports.
 - [x] Improve monitor config validation.
 - [x] Send the first Agent report immediately on startup.
-- [ ] Decide health semantics for servers with no monitors.
+- [x] Decide health semantics for servers with no monitors.
 - [ ] Decide how maintenance affects alerts and incidents.
 
 ## Priority 1: Useful Monitors
