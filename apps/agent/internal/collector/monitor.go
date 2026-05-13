@@ -104,6 +104,32 @@ func CollectMonitorReport(internalMonitor config.InternalStateMonitor, userMonit
 			Metrics:   &result.Metrics,
 			Error:     result.Error,
 		}, nil
+	case config.UserMonitorTypeTCP:
+		timeout := defaultTimeout
+		if userMonitorConfig.TCP.Timeout != "" {
+			if d, err := time.ParseDuration(userMonitorConfig.TCP.Timeout); err == nil {
+				timeout = d
+			}
+		}
+		result := RunTCPMonitor(TCPMonitorConfig{
+			Host:    userMonitorConfig.TCP.Host,
+			Port:    userMonitorConfig.TCP.Port,
+			Timeout: timeout,
+		})
+		if result.Error != nil {
+			return &MonitorResult{
+				Status:    result.Status,
+				Timestamp: result.Timestamp,
+				Metrics:   &result.Metrics,
+				Error:     result.Error,
+			}, errors.New(result.Error.Message)
+		}
+		return &MonitorResult{
+			Status:    result.Status,
+			Timestamp: result.Timestamp,
+			Metrics:   &result.Metrics,
+			Error:     result.Error,
+		}, nil
 	}
 	return &MonitorResult{
 		Status:    "down",

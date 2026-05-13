@@ -51,6 +51,12 @@ func TestUserConfigValidateAcceptsValidMonitorTypes(t *testing.T) {
 				Interval: "1m",
 				PM2:      &PM2MonitorConfig{AppName: "worker"},
 			},
+			{
+				Name:     "postgres",
+				Type:     UserMonitorTypeTCP,
+				Interval: "30s",
+				TCP:      &TCPMonitorConfig{Host: "127.0.0.1", Port: 5432, Timeout: "2s"},
+			},
 		},
 	}
 
@@ -136,6 +142,15 @@ func TestUserConfigValidateRejectsInvalidMonitorConfig(t *testing.T) {
 				cfg.Monitors[0].Command = &CommandMonitorConfig{Command: "   "}
 			},
 			wantErr: "command is required",
+		},
+		{
+			name: "invalid tcp port",
+			mutate: func(cfg *UserConfig) {
+				cfg.Monitors[0].Type = UserMonitorTypeTCP
+				cfg.Monitors[0].HTTP = nil
+				cfg.Monitors[0].TCP = &TCPMonitorConfig{Host: "localhost", Port: 0}
+			},
+			wantErr: "port must be between 1 and 65535",
 		},
 	}
 

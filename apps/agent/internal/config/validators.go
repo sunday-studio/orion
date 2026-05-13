@@ -81,6 +81,24 @@ func (p PM2MonitorConfig) Validate() error {
 	return nil
 }
 
+func (t TCPMonitorConfig) Validate() error {
+	if strings.TrimSpace(t.Host) == "" {
+		return errors.New("host is required")
+	}
+
+	if t.Port <= 0 || t.Port > 65535 {
+		return errors.New("port must be between 1 and 65535")
+	}
+
+	if t.Timeout != "" {
+		if _, err := parsePositiveDuration(t.Timeout, "timeout"); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (m UserMonitor) Validate() error {
 	if strings.TrimSpace(m.Name) == "" {
 		return errors.New("name is required")
@@ -127,6 +145,12 @@ func (m UserMonitor) Validate() error {
 			return errors.New("pm2 config is required")
 		}
 		return m.PM2.Validate()
+
+	case UserMonitorTypeTCP:
+		if m.TCP == nil {
+			return errors.New("tcp config is required")
+		}
+		return m.TCP.Validate()
 
 	default:
 		return fmt.Errorf("unsupported monitor type: %s", m.Type)

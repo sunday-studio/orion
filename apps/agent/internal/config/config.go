@@ -35,6 +35,7 @@ const (
 	UserMonitorTypeCommand         UserMonitorType = "command"
 	UserMonitorTypeWebsite         UserMonitorType = "website"
 	UserMonitorTypePM2             UserMonitorType = "pm2"
+	UserMonitorTypeTCP             UserMonitorType = "tcp"
 )
 
 var UserMonitorTypes = []UserMonitorType{
@@ -43,6 +44,7 @@ var UserMonitorTypes = []UserMonitorType{
 	UserMonitorTypeCommand,
 	UserMonitorTypeWebsite,
 	UserMonitorTypePM2,
+	UserMonitorTypeTCP,
 }
 
 type HTTPHealthcheckConfig struct {
@@ -81,6 +83,12 @@ type PM2MonitorConfig struct {
 	AppName string `yaml:"app_name"`
 }
 
+type TCPMonitorConfig struct {
+	Host    string `yaml:"host"`
+	Port    int    `yaml:"port"`
+	Timeout string `yaml:"timeout,omitempty"`
+}
+
 type UserMonitor struct {
 	Name        string                 `yaml:"name"`
 	Description string                 `yaml:"description"`
@@ -93,6 +101,7 @@ type UserMonitor struct {
 	Command         *CommandMonitorConfig  `yaml:"command,omitempty"`
 	Website         *WebsiteMonitorConfig  `yaml:"website,omitempty"`
 	PM2             *PM2MonitorConfig      `yaml:"pm2,omitempty"`
+	TCP             *TCPMonitorConfig      `yaml:"tcp,omitempty"`
 }
 
 type UserConfig struct {

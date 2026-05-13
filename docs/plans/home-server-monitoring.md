@@ -27,7 +27,7 @@ It should be useful, understandable, and reliable before it tries to be a broad 
 
 - [x] HTTP status, latency, body contains, and body regex.
 - [x] Website monitor with status, latency, DNS, and TLS expiry.
-- TCP port check.
+- [x] TCP port check.
 - Disk, memory, CPU, and system load thresholds.
 - Docker container status.
 - systemd service status.
