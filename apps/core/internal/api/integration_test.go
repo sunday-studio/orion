@@ -191,6 +191,110 @@ func TestMaintenanceSuppressesIncidentCandidates(t *testing.T) {
 	assertIncidentCandidateCount(t, afterMaintenance, 0)
 }
 
+func TestMonitorReportsOpenAndResolveIncident(t *testing.T) {
+	server := setupTestServer(t)
+	registered := registerTestAgent(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+	reportPath := "/v1/agents/" + registered.Data.AgentID + "/" + registeredMonitor.Data.MonitorID + "/report"
+
+	downResp := performJSONRequest(t, server, http.MethodPost, reportPath, map[string]interface{}{
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"health":    "down",
+		"metrics": map[string]interface{}{
+			"failure_reason": "connection refused",
+		},
+	}, registered.Data.Token)
+	if downResp.Code != http.StatusOK {
+		t.Fatalf("down report status = %d, body = %s", downResp.Code, downResp.Body.String())
+	}
+
+	var incident db.Incident
+	if err := server.db.Where("monitor_id = ?", registeredMonitor.Data.MonitorID).First(&incident).Error; err != nil {
+		t.Fatalf("find incident: %v", err)
+	}
+	if incident.Status != "open" || incident.Severity != "high" || incident.NotificationStatus != "pending" {
+		t.Fatalf("incident = %+v, want open high pending", incident)
+	}
+
+	downAgainResp := performJSONRequest(t, server, http.MethodPost, reportPath, map[string]interface{}{
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"health":    "down",
+		"metrics":   map[string]interface{}{},
+	}, registered.Data.Token)
+	if downAgainResp.Code != http.StatusOK {
+		t.Fatalf("second down report status = %d, body = %s", downAgainResp.Code, downAgainResp.Body.String())
+	}
+	var incidentCount int64
+	if err := server.db.Model(&db.Incident{}).Where("monitor_id = ?", registeredMonitor.Data.MonitorID).Count(&incidentCount).Error; err != nil {
+		t.Fatalf("count incidents: %v", err)
+	}
+	if incidentCount != 1 {
+		t.Fatalf("incident count = %d, want 1", incidentCount)
+	}
+
+	upResp := performJSONRequest(t, server, http.MethodPost, reportPath, map[string]interface{}{
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"health":    "up",
+		"metrics": map[string]interface{}{
+			"status_code": 200,
+		},
+	}, registered.Data.Token)
+	if upResp.Code != http.StatusOK {
+		t.Fatalf("up report status = %d, body = %s", upResp.Code, upResp.Body.String())
+	}
+
+	if err := server.db.Where("id = ?", incident.ID).First(&incident).Error; err != nil {
+		t.Fatalf("reload incident: %v", err)
+	}
+	if incident.Status != "resolved" || incident.ResolvedAt == nil {
+		t.Fatalf("incident = %+v, want resolved with resolved_at", incident)
+	}
+
+	var eventCount int64
+	if err := server.db.Model(&db.IncidentEvent{}).Where("incident_id = ?", incident.ID).Count(&eventCount).Error; err != nil {
+		t.Fatalf("count incident events: %v", err)
+	}
+	if eventCount != 3 {
+		t.Fatalf("incident event count = %d, want 3", eventCount)
+	}
+}
+
+func TestMaintenanceSuppressesAutomaticIncidentOpen(t *testing.T) {
+	server := setupTestServer(t)
+	registered := registerTestAgent(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+
+	maintenanceResp := performJSONRequest(
+		t,
+		server,
+		http.MethodPut,
+		"/v1/agents/"+registered.Data.AgentID+"/maintenance",
+		map[string]bool{"maintenance_mode": true},
+		registered.Data.Token,
+	)
+	if maintenanceResp.Code != http.StatusOK {
+		t.Fatalf("maintenance status = %d, body = %s", maintenanceResp.Code, maintenanceResp.Body.String())
+	}
+
+	reportPath := "/v1/agents/" + registered.Data.AgentID + "/" + registeredMonitor.Data.MonitorID + "/report"
+	downResp := performJSONRequest(t, server, http.MethodPost, reportPath, map[string]interface{}{
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"health":    "down",
+		"metrics":   map[string]interface{}{},
+	}, registered.Data.Token)
+	if downResp.Code != http.StatusOK {
+		t.Fatalf("down report status = %d, body = %s", downResp.Code, downResp.Body.String())
+	}
+
+	var incidentCount int64
+	if err := server.db.Model(&db.Incident{}).Where("monitor_id = ?", registeredMonitor.Data.MonitorID).Count(&incidentCount).Error; err != nil {
+		t.Fatalf("count incidents: %v", err)
+	}
+	if incidentCount != 0 {
+		t.Fatalf("incident count = %d, want 0", incidentCount)
+	}
+}
+
 func setupTestServer(t *testing.T) *Server {
 	t.Helper()
 	gin.SetMode(gin.TestMode)

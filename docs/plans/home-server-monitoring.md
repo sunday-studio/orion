@@ -36,12 +36,12 @@ It should be useful, understandable, and reliable before it tries to be a broad 
 
 ## Priority 2: Alerts And Incidents
 
-- Alert on down, degraded, stale, high resource usage, and expiring TLS.
-- Support cooldowns, recovery notifications, and maintenance suppression.
-- Support webhook and email channels.
-- Open incidents automatically when health fails.
-- Resolve incidents automatically when health recovers.
-- Track affected server, monitor, severity, status, timing, and notification attempts.
+- [ ] Alert on down, degraded, stale, high resource usage, and expiring TLS.
+- [ ] Support cooldowns, recovery notifications, and maintenance suppression.
+- [ ] Support webhook and email channels.
+- [x] Open incidents automatically when health fails.
+- [x] Resolve incidents automatically when health recovers.
+- [ ] Track affected server, monitor, severity, status, timing, and notification attempts.
 
 ## Priority 3: Agent Reliability
 

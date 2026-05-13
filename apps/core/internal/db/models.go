@@ -100,3 +100,28 @@ type MonitorReport struct {
 	Health      string    `json:"health" gorm:"not null"` // up | down
 	CreatedAt   time.Time `json:"created_at" gorm:"index:idx_monitor_reports_created_at"`
 }
+
+type Incident struct {
+	ID                 string     `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	Status             string     `json:"status" gorm:"not null;index:idx_incidents_status"` // open | acknowledged | resolved
+	Severity           string     `json:"severity" gorm:"not null;index:idx_incidents_severity"`
+	Title              string     `json:"title" gorm:"not null"`
+	AgentID            string     `json:"agent_id" gorm:"index:idx_incidents_agent_id;not null"`
+	MonitorID          string     `json:"monitor_id" gorm:"index:idx_incidents_monitor_id;not null"`
+	OpenedAt           time.Time  `json:"opened_at" gorm:"not null;index:idx_incidents_opened_at"`
+	ResolvedAt         *time.Time `json:"resolved_at"`
+	LastEventAt        time.Time  `json:"last_event_at" gorm:"not null"`
+	LatestEvent        string     `json:"latest_event" gorm:"type:text"`
+	NotificationStatus string     `json:"notification_status" gorm:"not null;default:pending"` // pending | sent | failed | suppressed | cooldown
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+}
+
+type IncidentEvent struct {
+	ID              string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	IncidentID      string    `json:"incident_id" gorm:"index:idx_incident_events_incident_id;not null"`
+	Type            string    `json:"type" gorm:"not null"`
+	Message         string    `json:"message" gorm:"type:text"`
+	MonitorReportID string    `json:"monitor_report_id" gorm:"index:idx_incident_events_monitor_report_id"`
+	CreatedAt       time.Time `json:"created_at" gorm:"index:idx_incident_events_created_at"`
+}

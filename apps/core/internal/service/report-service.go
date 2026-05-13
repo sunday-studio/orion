@@ -86,6 +86,12 @@ func (s *ReportService) StoreMonitorReport(monitorID string, payload MonitorRepo
 		// Don't fail the request if monitor update fails
 	}
 
+	incidentService := NewIncidentService(s.db, s.logger)
+	if err := incidentService.ReconcileMonitorReport(monitorID, monitorReportID, payload.Health); err != nil {
+		s.logger.Error("Failed to reconcile incident after monitor report", "monitor_id", monitorID, "monitor_report_id", monitorReportID, "error", err)
+		return nil, err
+	}
+
 	// Trigger health computation to update cache (async, don't block report storage)
 	// This ensures cache is refreshed when new reports arrive
 	go func() {
