@@ -17,7 +17,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   return (
     <div className="flex flex-col min-h-screen max-w-4xl mx-auto py-10">
       <Header />
-      {/* {children} */}
+      {children}
     </div>
   );
 };

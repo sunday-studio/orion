@@ -1,12 +1,15 @@
 {
   "name": "@sunday-studio/orion-console",
-  "private": true,
   "version": "0.0.1",
+  "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
+    "lint": "oxlint . --react-plugin --deny-warnings",
+    "lint:eslint": "eslint .",
+    "format": "oxfmt . --write",
+    "format:check": "oxfmt . --check",
     "preview": "vite preview",
     "generate:api": "orval"
   },
@@ -34,6 +37,8 @@
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
     "orval": "^8.0.3",
+    "oxfmt": "^0.49.0",
+    "oxlint": "^1.64.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "vite": "^7.2.4"
