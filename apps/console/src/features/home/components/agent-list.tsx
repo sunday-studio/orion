@@ -1,9 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useGetAgents, type GetAgentsParams } from "@/orion-sdk";
 import { AgentFilters, type AttentionFilterValue } from "./agent-filters";
 import { AgentRow } from "./agent-row";
 import { Separator } from "@/components/ui/separator";
 import { Fragment } from "react/jsx-runtime";
+import { ListPagination } from "./list-pagination";
+
+const SERVER_LIMIT = 20;
 
 export const AgentList = () => {
   const [search, setSearch] = useState("");
@@ -11,21 +14,24 @@ export const AgentList = () => {
   const [maintenanceOnly, setMaintenanceOnly] = useState(false);
   const [staleOnly, setStaleOnly] = useState(false);
   const [hasIncidents, setHasIncidents] = useState(false);
+  const [offset, setOffset] = useState(0);
 
   const params = useMemo<GetAgentsParams>(
     () => ({
-      limit: 100,
+      limit: SERVER_LIMIT,
+      offset,
       search: search.trim() || undefined,
       status: status === "all" ? undefined : status,
       maintenance: maintenanceOnly ? "true" : undefined,
       stale_only: staleOnly || undefined,
       has_incidents: hasIncidents || undefined,
     }),
-    [hasIncidents, maintenanceOnly, search, staleOnly, status],
+    [hasIncidents, maintenanceOnly, offset, search, staleOnly, status],
   );
 
   const agentsResponse = useGetAgents(params);
   const agents = agentsResponse.data?.agents ?? [];
+  const count = agentsResponse.data?.count ?? agents.length;
   const hasFilters =
     search.trim() !== "" || status !== "all" || maintenanceOnly || staleOnly || hasIncidents;
   const selectedAttentionFilters = useMemo<AttentionFilterValue[]>(
@@ -51,7 +57,12 @@ export const AgentList = () => {
     setMaintenanceOnly(false);
     setStaleOnly(false);
     setHasIncidents(false);
+    setOffset(0);
   };
+
+  useEffect(() => {
+    setOffset(0);
+  }, [hasIncidents, maintenanceOnly, search, staleOnly, status]);
 
   return (
     <div className="space-y-3">
@@ -78,6 +89,12 @@ export const AgentList = () => {
           {index < agents.length - 1 && <Separator />}{" "}
         </Fragment>
       ))}
+      <ListPagination
+        count={count}
+        limit={SERVER_LIMIT}
+        offset={offset}
+        onOffsetChange={setOffset}
+      />
     </div>
   );
 };

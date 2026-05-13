@@ -19,6 +19,7 @@ This turns the information architecture into a build checklist for the Console U
 - [x] Home servers tab reads servers with `getAgents`.
 - [x] Home server filters exist: search, status, maintenance, stale only, has incidents.
 - [x] Home filter controls live in `agent-filters.tsx`.
+- [x] Home owns server and incident list pagination.
 - [x] shadcn config resolves `@/*` to `src/*`.
 
 
@@ -33,11 +34,9 @@ Goal: add the navigation structure from the IA without filling every page yet.
   - Operations: `getHealthSummary`, session state.
 - [x] Add primary navigation.
   - Home.
-  - Servers.
-  - Incidents.
   - Logs.
   - Settings.
-- [x] Add placeholder routes for pages not built yet.
+- [x] Add placeholder routes for pages/detail views not built yet.
   - Keep placeholders plain and useful.
   - Include the operation gaps needed for each page.
 - [x] Ensure active navigation state is obvious.
@@ -62,49 +61,19 @@ Goal: make Home a useful operations summary without leaving the first page.
   - Keep rows text-first.
   - Show severity, title, server, monitor, status, opened time, latest event.
   - Operation: `getIncidents`.
+  - Pagination stays here, not on a separate Incidents page.
 - [x] Tighten the Servers tab layout.
   - Keep server rows scannable.
   - Show name, status, platform, monitor count, last seen, maintenance.
   - Operation: `getAgents`.
+  - Pagination stays here, not on a separate Servers page.
 - [x] Expand server rows into monitor rows.
   - Show monitor name, type, health, last success, latest error when present.
   - Operation: `getAgentMonitors`.
 - [x] Make empty/loading/error states consistent across both tabs.
 
 
-## Phase 3: Servers Page
-
-Goal: make server inventory easier to compare than the Home tab.
-
-- [ ] Add Servers route and page shell.
-- [ ] Add server grouping tabs.
-  - All.
-  - Healthy.
-  - Needs attention.
-  - Maintenance.
-  - Stale.
-  - Operation: `getAgents`.
-- [ ] Add server table/list.
-  - Name.
-  - Status.
-  - OS/platform.
-  - IP/location if available.
-  - CPU.
-  - Memory.
-  - Disk.
-  - Uptime.
-  - Last seen.
-  - Monitor count.
-  - Open incidents.
-  - Operations: `getAgents`, `getAgent`.
-- [ ] Add row actions.
-  - Open server detail.
-  - View monitors.
-  - View related incidents.
-  - View server events placeholder.
-- [ ] Add pagination or simple limit controls if the list gets long.
-
-## Phase 4: Server Detail Page
+## Phase 3: Server Detail Page
 
 Goal: explain one server's current health and recent behavior.
 
@@ -144,7 +113,7 @@ Goal: explain one server's current health and recent behavior.
   - Operations: `getAgent`, `getAgentMonitors`.
 - [ ] Defer server events until an event log API exists.
 
-## Phase 5: Monitor Detail Page
+## Phase 4: Monitor Detail Page
 
 Goal: explain a single check and why it is failing or healthy.
 
@@ -185,32 +154,44 @@ Goal: explain a single check and why it is failing or healthy.
   - Alert enabled state.
 - [ ] Defer uptime graph until `GET /v1/monitors/{id}/uptime` has a generated SDK operation.
 
-## Phase 6: Incidents Page
+## Phase 5: Incident Detail Page
 
-Goal: make operational history searchable and easy to triage.
+Goal: explain one operational event without duplicating the Home incident list.
 
-- [ ] Add Incidents route and page shell.
-- [ ] Add incident list.
-  - Severity.
-  - Status.
+- [ ] Add incident detail route.
+  - Route should use incident id.
+  - Operation: future incident detail operation.
+- [ ] Add incident header.
   - Title.
+  - Status.
+  - Severity.
   - Server.
   - Monitor.
   - Opened time.
+  - Resolved time.
   - Duration.
+- [ ] Add cause summary.
+  - Triggering monitor/report.
+  - First failing result.
+  - Latest result.
+  - Recovery result when resolved.
+- [ ] Add timeline.
+  - Incident opened.
+  - Alert rule matched.
+  - Notifications sent/failed/suppressed.
+  - Status changes.
+  - Monitor recovered.
+  - Incident resolved.
+- [ ] Add linked data.
+  - Related monitor reports.
+  - Related server events.
+  - Alert delivery attempts.
+- [ ] Keep incident list/table on Home.
+  - Home Incidents tab owns the incident list and pagination.
   - Latest event.
-  - Notification status.
   - Operation: `getIncidents`.
-- [ ] Add filters.
-  - Status.
-  - Severity.
-  - Server.
-  - Monitor.
-  - Date range.
-  - Backend work may be needed if `getIncidents` does not support all filters yet.
-- [ ] Add incident detail route only after Core exposes detail/events.
 
-## Phase 7: Settings Page
+## Phase 6: Settings Page
 
 Goal: expose Core-owned settings without pretending Agent-local config is editable.
 
@@ -241,7 +222,7 @@ Goal: expose Core-owned settings without pretending Agent-local config is editab
   - Tailscale/local network notes.
 - [ ] Defer alert channels/rules until Core exposes read APIs.
 
-## Phase 8: Logs Page
+## Phase 7: Logs Page
 
 Goal: add operational history once the backend can serve it.
 
@@ -272,9 +253,8 @@ Goal: add operational history once the backend can serve it.
 
 1. Finish Home summary and row tightening.
 2. Add App Shell navigation.
-3. Build Servers page.
-4. Build Server Detail page.
-5. Build Monitor Detail page.
-6. Build Incidents page.
-7. Build Settings data lifecycle controls.
-8. Add backend gaps before Logs and detailed incident timelines.
+3. Build Server Detail page.
+4. Build Monitor Detail page.
+5. Build Incident Detail page.
+6. Build Settings data lifecycle controls.
+7. Add backend gaps before Logs and detailed incident timelines.

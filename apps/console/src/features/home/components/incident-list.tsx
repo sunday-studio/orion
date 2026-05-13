@@ -3,9 +3,14 @@ import { Separator } from "@/components/ui/separator";
 import { type ApiIncidentResponse, useGetIncidents } from "@/orion-sdk";
 import { Fragment } from "react/jsx-runtime";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
+import { useState } from "react";
+import { ListPagination } from "./list-pagination";
+
+const INCIDENT_LIMIT = 20;
 
 export const IncidentList = () => {
-  const incidentsResponse = useGetIncidents({ limit: 100 });
+  const [offset, setOffset] = useState(0);
+  const incidentsResponse = useGetIncidents({ limit: INCIDENT_LIMIT, offset });
   const incidents = incidentsResponse.data?.incidents ?? [];
   const count = incidentsResponse.data?.count ?? incidents.length;
 
@@ -51,6 +56,12 @@ export const IncidentList = () => {
           </Fragment>
         ))}
       </div>
+      <ListPagination
+        count={count}
+        limit={INCIDENT_LIMIT}
+        offset={offset}
+        onOffsetChange={setOffset}
+      />
     </div>
   );
 };

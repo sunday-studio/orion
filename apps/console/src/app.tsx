@@ -11,21 +11,31 @@ function App() {
       <Route path="/" element={<Layout />}>
         <Route index element={<HomePage />} />
         <Route
-          path="servers"
+          path="servers/:serverId"
           element={
             <PlaceholderPage
-              title="Servers"
-              description="Inventory and comparison across all monitored servers."
+              title="Server Detail"
+              description="Current health, monitors, metrics, and configuration for one server."
               operations={["getAgents", "getAgent", "getAgentHealth", "getAgentMonitors"]}
             />
           }
         />
         <Route
-          path="incidents"
+          path="monitors/:monitorId"
           element={
             <PlaceholderPage
-              title="Incidents"
-              description="Operational history of things that broke or needed attention."
+              title="Monitor Detail"
+              description="Current result, check history, and configuration for one monitor."
+              operations={["getMonitor", "getMonitorHistory", "getIncidents"]}
+            />
+          }
+        />
+        <Route
+          path="incidents/:incidentId"
+          element={
+            <PlaceholderPage
+              title="Incident Detail"
+              description="Timeline and linked data for one operational event."
               operations={["getIncidents", "future incident detail", "future incident events"]}
             />
           }
