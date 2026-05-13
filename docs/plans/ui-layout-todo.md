@@ -200,13 +200,10 @@ Goal: explain one operational event without duplicating the Incidents list.
 
 Goal: expose Core-owned settings without pretending Agent-local config is editable.
 
-- [ ] Add Settings route and overview.
-  - Core version.
-  - Database path/status if exposed.
-  - Known servers.
-  - Configured monitor types.
-  - Operations: `getHealth`, `getAgents`.
-- [ ] Add Data Lifecycle section.
+- [x] Add Settings route.
+  - Keep the page focused on settings users can understand or change.
+  - Do not show Core internals just because the API exposes them.
+- [x] Add Data Lifecycle section.
   - Raw report hot window.
   - Archive enabled.
   - Archive directory.
@@ -215,17 +212,15 @@ Goal: expose Core-owned settings without pretending Agent-local config is editab
   - Archive schedule.
   - Last rollup/archive status.
   - Operations: `getDataLifecycleSettings`, `updateDataLifecycleSettings`.
-- [ ] Add manual data actions.
+- [x] Add manual data actions.
   - Run rollup.
   - Run archive.
   - Show result counts/status.
   - Operations: `runDataLifecycleRollup`, `runDataLifecycleArchive`.
-- [ ] Add Agent Setup section.
-  - Expected config shape.
-  - Linux/macOS install paths.
-  - Agent `state.db` paths.
-  - Tailscale/local network notes.
-- [ ] Defer alert channels/rules until Core exposes read APIs.
+- [x] Keep Agent setup out of Settings for now.
+  - Setup references stay in docs until there is a focused setup flow.
+  - Do not mix install notes into editable Core settings.
+- [x] Defer alert channels/rules until Core exposes read APIs.
 
 ## Phase 7: Logs Page
 

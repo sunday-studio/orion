@@ -6,6 +6,7 @@ import { ServerDetailPage } from "@/features/server-detail/server-detail.view";
 import { MonitorDetailPage } from "@/features/monitor-detail/monitor-detail.view";
 import { IncidentsPage } from "@/features/incidents/incidents.view";
 import { ServersPage } from "@/features/servers/servers.view";
+import { SettingsPage } from "@/features/settings/settings.view";
 
 function App() {
   return (
@@ -37,21 +38,7 @@ function App() {
             />
           }
         />
-        <Route
-          path="settings"
-          element={
-            <PlaceholderPage
-              title="Settings"
-              description="Core-owned settings and setup references."
-              operations={[
-                "getDataLifecycleSettings",
-                "updateDataLifecycleSettings",
-                "runDataLifecycleRollup",
-                "runDataLifecycleArchive",
-              ]}
-            />
-          }
-        />
+        <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>
   );
