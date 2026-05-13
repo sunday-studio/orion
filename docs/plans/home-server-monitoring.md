@@ -60,7 +60,7 @@ It should be useful, understandable, and reliable before it tries to be a broad 
 - [x] Add graceful Core shutdown.
 - [x] Add configurable CORS origins.
 - [x] Add login rate limiting.
-- [ ] Add useful request logging and database health checks.
+- [x] Add useful request logging and database health checks.
 
 ## Priority 5: Deployment
 

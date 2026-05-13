@@ -185,8 +185,28 @@ func RequestIDMiddleware(logger *logging.Logger) gin.HandlerFunc {
 func (s *Server) healthCheck(c *gin.Context) {
 	requestID, _ := c.Get("request_id")
 	s.logger.Debug("Health check requested", "request_id", requestID)
+	sqlDB, err := s.db.DB()
+	if err != nil {
+		s.logger.Error("Database health check failed", "request_id", requestID, "error", err)
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"status":   "unhealthy",
+			"service":  "orion-core",
+			"database": "unavailable",
+		})
+		return
+	}
+	if err := sqlDB.PingContext(c.Request.Context()); err != nil {
+		s.logger.Error("Database ping failed", "request_id", requestID, "error", err)
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"status":   "unhealthy",
+			"service":  "orion-core",
+			"database": "unavailable",
+		})
+		return
+	}
 	c.JSON(200, gin.H{
-		"status":  "healthy",
-		"service": "orion-core",
+		"status":   "healthy",
+		"service":  "orion-core",
+		"database": "ok",
 	})
 }
