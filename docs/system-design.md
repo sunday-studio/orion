@@ -68,5 +68,6 @@ The Console is an operations UI, not the configuration source of truth.
 
 - API behavior: `apps/core/openapi.yaml`.
 - Agent/Core responsibility split: `docs/agent-core-contract.md`.
+- Backend and Agent architecture: `docs/architecture/`.
 - Product priorities: `docs/plans/home-server-monitoring.md`.
 - UI direction: `docs/plans/ui-information-architecture.md`.
