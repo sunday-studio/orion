@@ -17,6 +17,7 @@ type AgentListRow struct {
 	db.Agent
 	MonitorCount  int64   `json:"monitor_count"`
 	IP            *string `json:"ip,omitempty"`
+	Status        string  `json:"status"`
 	UptimeSeconds *uint64 `json:"uptime_seconds,omitempty"`
 }
 
@@ -310,9 +311,12 @@ func (s *AgentService) ListAgents(opts ListAgentsOpts) ([]AgentListRow, int64, e
 
 	rows := make([]AgentListRow, 0, len(agents))
 	for _, a := range agents {
+		health := "unknown"
+		if h, _, _, _, err := healthSvc.ComputeAgentHealth(a.ID, cfg); err == nil {
+			health = h
+		}
 		if statusFilter != "" {
-			h, _, _, _, err := healthSvc.ComputeAgentHealth(a.ID, cfg)
-			if err != nil || h != statusFilter {
+			if health != statusFilter {
 				continue
 			}
 		}
@@ -321,7 +325,7 @@ func (s *AgentService) ListAgents(opts ListAgentsOpts) ([]AgentListRow, int64, e
 			continue
 		}
 
-		row := AgentListRow{Agent: a, MonitorCount: monitorCounts[a.ID]}
+		row := AgentListRow{Agent: a, MonitorCount: monitorCounts[a.ID], Status: health}
 		if v, ok := uptimeMap[a.ID]; ok {
 			row.UptimeSeconds = &v
 		}

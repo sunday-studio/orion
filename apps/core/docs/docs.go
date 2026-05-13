@@ -1587,6 +1587,9 @@ const docTemplate = `{
                 "reporting_interval_seconds": {
                     "type": "integer"
                 },
+                "status": {
+                    "type": "string"
+                },
                 "uptime_seconds": {
                     "type": "integer"
                 }

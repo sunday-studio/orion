@@ -15,6 +15,7 @@ type AgentResponse struct {
 	KernelVersion            string         `json:"kernel_version"`
 	Arch                     string         `json:"arch"`
 	MaintenanceMode          bool           `json:"maintenance_mode"`
+	Status                   string         `json:"status,omitempty"`
 	ReportingIntervalSeconds int            `json:"reporting_interval_seconds"`
 	CreatedAt                time.Time      `json:"created_at"`
 	LastSeen                 time.Time      `json:"last_seen"`
@@ -107,6 +108,7 @@ func agentListResponse(row service.AgentListRow) AgentResponse {
 	response := agentResponse(row.Agent)
 	response.MonitorCount = row.MonitorCount
 	response.IP = row.IP
+	response.Status = row.Status
 	response.UptimeSeconds = row.UptimeSeconds
 	return response
 }

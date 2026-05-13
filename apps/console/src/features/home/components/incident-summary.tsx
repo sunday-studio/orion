@@ -6,7 +6,7 @@ export const IncidentSummary = ({ count }: { count: number }) => {
       <p className="font-medium">
         {count} {label}
       </p>
-      <p>Open monitor issues that may need a closer look.</p>
+      <p className="text-sm text-neutral-600">Open monitor issues that may need a closer look.</p>
     </div>
   );
 };

@@ -54,12 +54,12 @@ export const AgentFilters = ({
 
   return (
     <div className="space-y-2 py-2">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Input
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
           placeholder="Search servers or monitors"
-          className="max-w-sm"
+          className="w-full max-w-sm sm:w-auto"
         />
         <Select value={status} onValueChange={onStatusChange}>
           <SelectTrigger className="w-40 rounded-full text-xs">
@@ -83,7 +83,7 @@ export const AgentFilters = ({
           <ComboboxInput
             readOnly
             value={attentionFilterLabel}
-            className="w-56"
+            className="w-full sm:w-56"
             aria-label="Attention filters"
           />
           <ComboboxContent>

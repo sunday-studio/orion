@@ -7,12 +7,13 @@ const MonitorRow = ({ monitor }: { monitor: ApiMonitorResponse }) => {
   const health = monitor.health ?? monitor.computed_health ?? "unknown";
 
   return (
-    <div className="flex items-center gap-3 py-2">
-      <span className="font-medium">{monitor.name ?? monitor.id}</span>
+    <div className="grid grid-cols-[minmax(0,1fr)_5rem] items-center gap-3 py-2 text-sm sm:grid-cols-[minmax(0,1.4fr)_7rem_7rem_minmax(0,1fr)]">
+      <span className="truncate font-medium">{monitor.name ?? monitor.id}</span>
       <span>{health}</span>
-      <span>{monitor.type}</span>
-      <span>last success {formatDate(monitor.last_successful_report_at, DATE_TIME_FORMAT)}</span>
-      {monitor.lifecycle && monitor.lifecycle !== "active" && <span>{monitor.lifecycle}</span>}
+      <span className="hidden sm:inline">{monitor.type ?? "unknown"}</span>
+      <span className="truncate text-neutral-600">
+        last success {formatDate(monitor.last_successful_report_at, DATE_TIME_FORMAT)}
+      </span>
     </div>
   );
 };
@@ -20,6 +21,19 @@ const MonitorRow = ({ monitor }: { monitor: ApiMonitorResponse }) => {
 export const MonitorList = ({ agentId }: { agentId: string }) => {
   const monitorsResponse = useGetAgentMonitors(agentId);
   const monitors = monitorsResponse.data?.monitors ?? [];
+
+  if (monitorsResponse.isLoading) {
+    return <div className="py-2 pl-6 text-sm text-neutral-600">Loading monitors...</div>;
+  }
+
+  if (monitorsResponse.error) {
+    return <div className="py-2 pl-6 text-sm">Unable to load monitors.</div>;
+  }
+
+  if (monitors.length === 0) {
+    return <div className="py-2 pl-6 text-sm text-neutral-600">No monitors registered.</div>;
+  }
+
   return (
     <div className="pl-6">
       {monitors.map((monitor: ApiMonitorResponse, index: number) => (
