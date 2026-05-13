@@ -1,4 +1,8 @@
-import type { UptimeDayBucket } from "../lib/api";
+type UptimeDayBucket = {
+  date?: string;
+  total?: number;
+  uptime_percent?: number;
+};
 
 export function UptimeSLA({ buckets, percent }: { buckets: UptimeDayBucket[]; percent?: number }) {
   return (
@@ -12,7 +16,9 @@ export function UptimeSLA({ buckets, percent }: { buckets: UptimeDayBucket[]; pe
           else if (p >= 99) className += " up";
           else if (p >= 95) className += " degraded";
           else className += " down";
-          return <div key={b.date} className={className} title={`${b.date ?? ""}: ${p.toFixed(1)}%`} />;
+          return (
+            <div key={b.date} className={className} title={`${b.date ?? ""}: ${p.toFixed(1)}%`} />
+          );
         })}
       </div>
     </div>

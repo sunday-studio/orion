@@ -1,7 +1,7 @@
 import { Server } from "lucide-react";
 import { useState } from "react";
 
-import { InputWithButton } from "../../components/ui/input-with-button";
+import { InputWithButton } from "@/components/ui/input-with-button";
 
 export function LoginPage() {
   const [password, setPassword] = useState("");

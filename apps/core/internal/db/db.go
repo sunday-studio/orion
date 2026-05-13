@@ -86,6 +86,10 @@ func MigrateWithFiles(db *gorm.DB, migrationsPath string, logger *logging.Logger
 		logger.Info("Migration applied", "version", migration.version, "name", migration.name)
 	}
 
+	if err := ensureAgentReportMetadataColumns(sqlDB); err != nil {
+		return err
+	}
+
 	logger.Info("Database migrations completed successfully")
 	return nil
 }
@@ -158,4 +162,57 @@ func applyMigration(db *sql.DB, migration migration) error {
 		return fmt.Errorf("record migration %s: %w", migration.name, err)
 	}
 	return tx.Commit()
+}
+
+func ensureAgentReportMetadataColumns(db *sql.DB) error {
+	columns, err := tableColumns(db, "agent_reports")
+	if err != nil {
+		return err
+	}
+	if len(columns) == 0 {
+		return nil
+	}
+
+	for _, column := range []struct {
+		name string
+		sql  string
+	}{
+		{name: "agent_version", sql: `ALTER TABLE agent_reports ADD COLUMN agent_version TEXT`},
+		{name: "config_summary", sql: `ALTER TABLE agent_reports ADD COLUMN config_summary TEXT`},
+	} {
+		if columns[column.name] {
+			continue
+		}
+		if _, err := db.Exec(column.sql); err != nil {
+			return fmt.Errorf("add agent_reports.%s column: %w", column.name, err)
+		}
+	}
+
+	return nil
+}
+
+func tableColumns(db *sql.DB, table string) (map[string]bool, error) {
+	rows, err := db.Query(fmt.Sprintf(`PRAGMA table_info(%s)`, table))
+	if err != nil {
+		return nil, fmt.Errorf("inspect %s columns: %w", table, err)
+	}
+	defer rows.Close()
+
+	columns := map[string]bool{}
+	for rows.Next() {
+		var cid int
+		var name, columnType string
+		var notNull int
+		var defaultValue interface{}
+		var primaryKey int
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+			return nil, fmt.Errorf("scan %s column: %w", table, err)
+		}
+		columns[name] = true
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate %s columns: %w", table, err)
+	}
+
+	return columns, nil
 }

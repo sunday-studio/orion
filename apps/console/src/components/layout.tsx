@@ -1,4 +1,4 @@
-import { RadialAvatar } from "./radial-avatar";
+import { RadialAvatar } from "@/components/radial-avatar";
 import { Outlet } from "react-router-dom";
 
 const Header = () => {
@@ -16,7 +16,7 @@ const Header = () => {
 
 export const Layout = () => {
   return (
-    <div className="flex flex-col min-h-screen max-w-4xl mx-auto py-10 gap-4">
+    <div className="flex flex-col min-h-screen max-w-4xl mx-auto py-10 gap-4 debug">
       <Header />
       <Outlet />
     </div>

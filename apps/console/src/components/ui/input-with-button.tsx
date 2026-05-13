@@ -1,13 +1,10 @@
 import * as React from "react";
 
-import { cn } from "../../lib/utils";
-import { Button } from "./button";
-import { Input } from "./input";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
-type InputWithButtonProps = Omit<
-  React.ComponentProps<typeof Input>,
-  "className"
-> & {
+type InputWithButtonProps = Omit<React.ComponentProps<typeof Input>, "className"> & {
   buttonLabel: React.ReactNode;
   buttonAriaLabel?: string;
   buttonType?: React.ComponentProps<typeof Button>["type"];
@@ -35,10 +32,7 @@ function InputWithButton({
       )}
     >
       <Input
-        className={cn(
-          "h-full flex-1 border-0 shadow-none focus-visible:ring-0",
-          inputClassName,
-        )}
+        className={cn("h-full flex-1 border-0 shadow-none focus-visible:ring-0", inputClassName)}
         {...inputProps}
       />
       <Button

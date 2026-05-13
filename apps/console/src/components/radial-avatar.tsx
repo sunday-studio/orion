@@ -70,8 +70,7 @@ export function RadialAvatar({
     const colors = colorCombinations[colorIndex];
 
     // Pick position based on seed
-    const positionIndex =
-      Math.floor(hash / colorCombinations.length) % radialPositions.length;
+    const positionIndex = Math.floor(hash / colorCombinations.length) % radialPositions.length;
     const position = radialPositions[positionIndex];
 
     // Sometimes add from/to percentages for variety

@@ -27,7 +27,12 @@ export function descriptionFromMeta(meta?: string | null): string {
   if (!meta) return "—";
   try {
     const o = JSON.parse(meta) as unknown;
-    if (o && typeof o === "object" && "description" in o && typeof (o as { description?: string }).description === "string") {
+    if (
+      o &&
+      typeof o === "object" &&
+      "description" in o &&
+      typeof (o as { description?: string }).description === "string"
+    ) {
       return (o as { description: string }).description;
     }
   } catch {

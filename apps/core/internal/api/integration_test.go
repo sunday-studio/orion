@@ -519,6 +519,31 @@ func TestDataLifecycleActionsFlow(t *testing.T) {
 	}
 }
 
+func TestCORSPreflightAllowsConsoleFetchHeaders(t *testing.T) {
+	server := setupTestServer(t)
+
+	req := httptest.NewRequest(http.MethodOptions, "/v1/agents", nil)
+	req.Header.Set("Origin", "http://localhost:5173")
+	req.Header.Set("Access-Control-Request-Method", http.MethodGet)
+	req.Header.Set("Access-Control-Request-Headers", "authorization,content-type,cache-control,pragma")
+	recorder := httptest.NewRecorder()
+
+	server.router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("preflight status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	if got := recorder.Header().Get("Access-Control-Allow-Origin"); got != "http://localhost:5173" {
+		t.Fatalf("allow origin = %q, want localhost Vite origin", got)
+	}
+	allowHeaders := strings.ToLower(recorder.Header().Get("Access-Control-Allow-Headers"))
+	for _, header := range []string{"authorization", "content-type", "cache-control", "pragma"} {
+		if !strings.Contains(allowHeaders, header) {
+			t.Fatalf("allow headers = %q, missing %q", allowHeaders, header)
+		}
+	}
+}
+
 func registerTestAgent(t *testing.T, server *Server) struct {
 	Success bool `json:"success"`
 	Data    struct {

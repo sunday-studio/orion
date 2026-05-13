@@ -124,6 +124,7 @@ orion/
 - `make build-static` — build console source and copy to `apps/core/web/`
 - `make docker-build` — build one `orion-core` Docker image with the Console embedded in the Core binary
 - `make docker-up` — run orion-core via `docker compose -f deploy/docker-compose.yml up -d` (set `ORION_ADMIN_*`, `ORION_JWT_SECRET` for frontend auth)
+- `make seed-demo-data` — seed Core SQLite with 90 days of local demo data
 
 ## Development
 
@@ -137,6 +138,7 @@ orion/
 - [Agent–Core contract](docs/agent-core-contract.md)
 - [Agent registration](apps/agent/docs/agent-registration.md)
 - [Core server](apps/core/README.md)
+- [Seed demo data](docs/development/seed-demo-data.md)
 
 ## Contributing
 

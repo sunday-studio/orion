@@ -50,7 +50,7 @@ func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *S
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     corsOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-Request-ID"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Request-ID", "Cache-Control", "Pragma"},
 		AllowCredentials: true,
 	}))
 	router.Use(gin.Logger())

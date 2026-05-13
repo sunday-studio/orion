@@ -1,14 +1,10 @@
-import { useState, Fragment } from "react";
-import { useGetAgents } from "../../orion-sdk";
+import { AgentList } from "@/features/home/components/agent-list";
 
 export function HomePage() {
-  const { data, isLoading, error } = useGetAgents();
-
-
-  console.log(data);
   return (
-    <div>
+    <div className="space-y-4">
       <h1>Home</h1>
+      <AgentList />
     </div>
   );
 }
