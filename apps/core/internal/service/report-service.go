@@ -245,14 +245,32 @@ func parsePeriod(period string) int {
 
 // GetMonitorUptime returns daily buckets and overall uptime percent for a monitor.
 func (s *ReportService) GetMonitorUptime(monitorID string, period string) (*UptimeResult, error) {
+	return s.getMonitorUptime(monitorID, period, time.Now())
+}
+
+func (s *ReportService) getMonitorUptime(monitorID string, period string, now time.Time) (*UptimeResult, error) {
 	days := parsePeriod(period)
-	since := time.Now().AddDate(0, 0, -days)
+	since := now.AddDate(0, 0, -days)
+	settingsService := NewSettingsService(s.db, s.logger, s.cfg.DataDir)
+	settings, err := settingsService.GetDataLifecycleSettings()
+	if err != nil {
+		return nil, err
+	}
+	rawCutoffDay := dayStart(now.AddDate(0, 0, -settings.RawReportHotDays))
 
 	var reports []db.MonitorReport
-	if err := s.db.Where("monitor_id = ? AND created_at >= ?", monitorID, since).
+	if err := s.db.Where("monitor_id = ? AND created_at >= ? AND created_at >= ?", monitorID, since, rawCutoffDay).
 		Order("created_at ASC").
 		Find(&reports).Error; err != nil {
 		s.logger.Error("Failed to get monitor reports for uptime", "monitor_id", monitorID, "error", err)
+		return nil, err
+	}
+
+	var rollups []db.MonitorUptimeRollup
+	if err := s.db.Where("monitor_id = ? AND date >= ? AND date < ?", monitorID, since.Format("2006-01-02"), rawCutoffDay.Format("2006-01-02")).
+		Order("date ASC").
+		Find(&rollups).Error; err != nil {
+		s.logger.Error("Failed to get monitor uptime rollups", "monitor_id", monitorID, "error", err)
 		return nil, err
 	}
 
@@ -262,6 +280,12 @@ func (s *ReportService) GetMonitorUptime(monitorID string, period string) (*Upti
 	}
 	buckets := make(map[string]*day)
 	var totalUp, totalCount int
+
+	for _, r := range rollups {
+		buckets[r.Date] = &day{up: r.UpCount, total: r.TotalCount}
+		totalUp += r.UpCount
+		totalCount += r.TotalCount
+	}
 
 	for _, r := range reports {
 		dateKey := r.CreatedAt.Format("2006-01-02")

@@ -70,7 +70,7 @@ It should be useful, understandable, and reliable before it tries to be a broad 
 - [x] Add daily monitor uptime rollup table and service.
 - [x] Archive old raw reports to local SQLite archive files instead of deleting them.
 - [ ] Add manual archive and rollup actions in Core and Console.
-- [ ] Query recent details from hot raw reports and long-term history from rollups.
+- [x] Query recent details from hot raw reports and long-term history from rollups.
 
 ## Priority 6: Deployment
 
