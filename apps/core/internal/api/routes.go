@@ -26,6 +26,8 @@ type Server struct {
 	reportService   *service.ReportService
 	monitorService  *service.MonitorService
 	settingsService *service.SettingsService
+	rollupService   *service.RollupService
+	archiveService  *service.ArchiveService
 	loginLimiter    *RateLimiter
 	router          *gin.Engine
 }
@@ -36,6 +38,8 @@ func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *S
 	reportService := service.NewReportService(database, logger, cfg)
 	monitorService := service.NewMonitorService(database, logger)
 	settingsService := service.NewSettingsService(database, logger, cfg.DataDir)
+	rollupService := service.NewRollupService(database, logger)
+	archiveService := service.NewArchiveService(database, logger, cfg.DataDir)
 	router := gin.Default()
 	corsOrigins := cfg.CORSOrigins
 	if len(corsOrigins) == 0 {
@@ -61,6 +65,8 @@ func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *S
 		reportService:   reportService,
 		monitorService:  monitorService,
 		settingsService: settingsService,
+		rollupService:   rollupService,
+		archiveService:  archiveService,
 		loginLimiter:    NewRateLimiter(cfg.LoginRateLimitAttempts, time.Duration(cfg.LoginRateLimitWindowSecs)*time.Second),
 		router:          router,
 	}
@@ -106,6 +112,8 @@ func (s *Server) setupRoutes() {
 			frontend.GET("/incidents/candidates", s.getIncidentCandidates)
 			frontend.GET("/settings/data-lifecycle", s.getDataLifecycleSettings)
 			frontend.PUT("/settings/data-lifecycle", s.updateDataLifecycleSettings)
+			frontend.POST("/settings/data-lifecycle/actions/rollup", s.runDataLifecycleRollup)
+			frontend.POST("/settings/data-lifecycle/actions/archive", s.runDataLifecycleArchive)
 		}
 
 		// Protected routes (agent-to-core)

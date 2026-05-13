@@ -444,6 +444,72 @@ func setupTestServer(t *testing.T) *Server {
 	return NewServer(database, logging.NewLogger(), &config.Config{AlertRecoveryNotifications: true, AlertTLSExpiryDays: 14})
 }
 
+func TestDataLifecycleActionsFlow(t *testing.T) {
+	server := setupTestServer(t)
+	registered := registerTestAgent(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+
+	reportTime := time.Date(2026, 5, 12, 10, 0, 0, 0, time.UTC)
+	reportPath := "/v1/agents/" + registered.Data.AgentID + "/" + registeredMonitor.Data.MonitorID + "/report"
+	for _, health := range []string{"up", "down"} {
+		resp := performJSONRequest(t, server, http.MethodPost, reportPath, map[string]interface{}{
+			"timestamp": reportTime.Format(time.RFC3339),
+			"health":    health,
+			"metrics":   map[string]interface{}{},
+		}, registered.Data.Token)
+		if resp.Code != http.StatusOK {
+			t.Fatalf("monitor report status = %d, body = %s", resp.Code, resp.Body.String())
+		}
+	}
+	if err := server.db.Model(&db.MonitorReport{}).Where("monitor_id = ?", registeredMonitor.Data.MonitorID).Update("created_at", reportTime).Error; err != nil {
+		t.Fatalf("set monitor report created_at: %v", err)
+	}
+
+	rollupResp := performJSONRequest(t, server, http.MethodPost, "/v1/settings/data-lifecycle/actions/rollup", map[string]string{
+		"date": "2026-05-12",
+	}, "")
+	if rollupResp.Code != http.StatusOK {
+		t.Fatalf("rollup status = %d, body = %s", rollupResp.Code, rollupResp.Body.String())
+	}
+
+	var rollup db.MonitorUptimeRollup
+	if err := server.db.Where("monitor_id = ? AND date = ?", registeredMonitor.Data.MonitorID, "2026-05-12").First(&rollup).Error; err != nil {
+		t.Fatalf("find rollup: %v", err)
+	}
+	if rollup.UpCount != 1 || rollup.DownCount != 1 || rollup.TotalCount != 2 {
+		t.Fatalf("rollup = %+v, want one up, one down, two total", rollup)
+	}
+
+	updateResp := performJSONRequest(t, server, http.MethodPut, "/v1/settings/data-lifecycle", map[string]interface{}{
+		"raw_report_hot_days":   0,
+		"archive_raw_reports":   true,
+		"archive_dir":           t.TempDir(),
+		"rollups_enabled":       true,
+		"rollup_retention_days": nil,
+		"archive_schedule":      "manual",
+	}, "")
+	if updateResp.Code != http.StatusBadRequest {
+		t.Fatalf("invalid settings status = %d, body = %s", updateResp.Code, updateResp.Body.String())
+	}
+
+	updateResp = performJSONRequest(t, server, http.MethodPut, "/v1/settings/data-lifecycle", map[string]interface{}{
+		"raw_report_hot_days":   1,
+		"archive_raw_reports":   true,
+		"archive_dir":           t.TempDir(),
+		"rollups_enabled":       true,
+		"rollup_retention_days": nil,
+		"archive_schedule":      "manual",
+	}, "")
+	if updateResp.Code != http.StatusOK {
+		t.Fatalf("settings update status = %d, body = %s", updateResp.Code, updateResp.Body.String())
+	}
+
+	archiveResp := performJSONRequest(t, server, http.MethodPost, "/v1/settings/data-lifecycle/actions/archive", nil, "")
+	if archiveResp.Code != http.StatusOK {
+		t.Fatalf("archive status = %d, body = %s", archiveResp.Code, archiveResp.Body.String())
+	}
+}
+
 func registerTestAgent(t *testing.T, server *Server) struct {
 	Success bool `json:"success"`
 	Data    struct {

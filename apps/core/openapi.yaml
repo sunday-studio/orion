@@ -1,612 +1,1257 @@
-openapi: 3.0.3
+basePath: /
+definitions:
+  api.AgentResponse:
+    properties:
+      arch:
+        type: string
+      created_at:
+        type: string
+      deleted_at:
+        type: string
+      id:
+        type: string
+      kernel_version:
+        type: string
+      last_seen:
+        type: string
+      location:
+        $ref: '#/definitions/db.GeoLocation'
+      machine_id:
+        type: string
+      maintenance_mode:
+        type: boolean
+      name:
+        type: string
+      os:
+        type: string
+      platform:
+        type: string
+      reporting_interval_seconds:
+        type: integer
+      token:
+        type: string
+    type: object
+  api.DataLifecycleRollupRequest:
+    properties:
+      date:
+        example: "2026-05-12"
+        type: string
+    type: object
+  api.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  api.LoginResponse:
+    properties:
+      token:
+        type: string
+    type: object
+  api.MonitorReportResponse:
+    properties:
+      collected_at:
+        type: string
+      created_at:
+        type: string
+      health:
+        type: string
+      id:
+        type: string
+      monitor_id:
+        type: string
+      payload:
+        type: string
+    type: object
+  api.MonitorResponse:
+    properties:
+      agent_id:
+        type: string
+      computed_health:
+        type: string
+      created_at:
+        type: string
+      deleted_at:
+        type: string
+      description:
+        type: string
+      health:
+        type: string
+      id:
+        type: string
+      last_health_computation:
+        type: string
+      last_successful_report_at:
+        type: string
+      lifecycle:
+        type: string
+      name:
+        type: string
+      reporting_interval_seconds:
+        type: integer
+      type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  api.ReportResponse:
+    properties:
+      message:
+        type: string
+      report_id:
+        type: string
+      timestamp:
+        type: string
+      type:
+        type: string
+    type: object
+  db.CPUStats:
+    properties:
+      cores:
+        type: integer
+      load_1:
+        type: number
+      load_5:
+        type: number
+      load_15:
+        type: number
+      usage_percent:
+        type: number
+    type: object
+  db.DataLifecycleSettings:
+    properties:
+      archive_dir:
+        type: string
+      archive_raw_reports:
+        type: boolean
+      archive_schedule:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      last_archive_error:
+        type: string
+      last_archive_run_at:
+        type: string
+      last_archive_status:
+        type: string
+      last_rollup_run_at:
+        type: string
+      raw_report_hot_days:
+        type: integer
+      rollup_retention_days:
+        type: integer
+      rollups_enabled:
+        type: boolean
+      updated_at:
+        type: string
+    type: object
+  db.DiskStats:
+    properties:
+      free_bytes:
+        type: integer
+      total_bytes:
+        type: integer
+      used_bytes:
+        type: integer
+      used_percent:
+        type: number
+    type: object
+  db.GeoLocation:
+    properties:
+      city:
+        type: string
+      country:
+        type: string
+      hostname:
+        type: string
+      ip:
+        type: string
+      loc:
+        type: string
+      org:
+        type: string
+      postal:
+        type: string
+      region:
+        type: string
+      timezone:
+        type: string
+    type: object
+  db.MemoryStats:
+    properties:
+      available_bytes:
+        type: integer
+      free_bytes:
+        type: integer
+      total_bytes:
+        type: integer
+      used_bytes:
+        type: integer
+      used_percent:
+        type: number
+    type: object
+  service.AgentReportPayload:
+    properties:
+      agent_version:
+        type: string
+      config_summary: {}
+      cpu:
+        $ref: '#/definitions/db.CPUStats'
+      disk:
+        $ref: '#/definitions/db.DiskStats'
+      location:
+        $ref: '#/definitions/db.GeoLocation'
+      memory:
+        $ref: '#/definitions/db.MemoryStats'
+      timestamp:
+        type: string
+      uptime_seconds:
+        type: integer
+    type: object
+  service.ArchiveRunResult:
+    properties:
+      agent_reports_archived:
+        type: integer
+      archive_path:
+        type: string
+      archive_raw_reports:
+        type: boolean
+      cutoff:
+        type: string
+      monitor_reports_archived:
+        type: integer
+      skipped_because_disabled:
+        type: boolean
+      skipped_because_no_reports:
+        type: boolean
+    type: object
+  service.DataLifecycleSettingsPayload:
+    properties:
+      archive_dir:
+        type: string
+      archive_raw_reports:
+        type: boolean
+      archive_schedule:
+        type: string
+      raw_report_hot_days:
+        type: integer
+      rollup_retention_days:
+        type: integer
+      rollups_enabled:
+        type: boolean
+    type: object
+  service.MonitorReportPayload:
+    properties:
+      error: {}
+      health:
+        description: up | down
+        type: string
+      metrics: {}
+      timestamp:
+        type: string
+    required:
+    - health
+    - metrics
+    - timestamp
+    type: object
+  service.RegisterMonitorRequest:
+    properties:
+      agent_id:
+        type: string
+      description:
+        type: string
+      last_checked:
+        type: string
+      meta:
+        type: string
+      name:
+        type: string
+      reporting_interval_seconds:
+        description: Monitor check interval in seconds
+        type: integer
+      type:
+        type: string
+    required:
+    - agent_id
+    - description
+    - last_checked
+    - name
+    - type
+    type: object
+  service.RegisterMonitorResponse:
+    properties:
+      monitor_id:
+        type: string
+    type: object
+  service.RegisterRequest:
+    properties:
+      arch:
+        type: string
+      machine_id:
+        type: string
+      meta:
+        type: string
+      name:
+        type: string
+      os:
+        type: string
+    required:
+    - arch
+    - machine_id
+    - name
+    - os
+    type: object
+  service.RegisterResponse:
+    properties:
+      agent_id:
+        type: string
+      token:
+        type: string
+    type: object
+  service.RollupRunResult:
+    properties:
+      date:
+        type: string
+      monitor_days:
+        type: integer
+      report_count:
+        type: integer
+      skipped_today:
+        type: boolean
+    type: object
+  service.SetMaintenanceModeRequest:
+    properties:
+      maintenance_mode:
+        type: boolean
+    required:
+    - maintenance_mode
+    type: object
+  service.UnregisterMonitorRequest:
+    properties:
+      agent_id:
+        type: string
+      monitor_id:
+        type: string
+    required:
+    - agent_id
+    - monitor_id
+    type: object
+  service.UnregisterMonitorResponse:
+    properties:
+      success:
+        type: boolean
+    type: object
+  utils.APIResponse:
+    properties:
+      data: {}
+      error:
+        type: string
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+host: localhost:8999
 info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: Orion Core API for agent management and monitoring
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
   title: Orion Core API
-  version: 1.0.0
-  description: |
-    Frontend-facing API for Orion. Covers only frontend routes (no agent-protected POST endpoints).
-    All responses use the envelope `{ success, message, data?, error? }`.
-
-servers:
-  - url: /v1
-    description: API base (prefixed by gateway or proxy)
-
+  version: "1.0"
 paths:
-  /agents:
+  /health:
     get:
-      summary: List agents
-      operationId: listAgents
-      tags: [agents]
+      consumes:
+      - application/json
+      description: Returns the health status of the API server
+      operationId: getHealth
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              service:
+                type: string
+              status:
+                type: string
+            type: object
+      summary: Health check
+      tags:
+      - health
+  /v1/agents:
+    get:
+      consumes:
+      - application/json
+      description: Get a paginated list of all registered agents
+      operationId: getAgents
       parameters:
-        - name: search
-          in: query
-          description: Search by name, machine_id, or meta
-          schema: { type: string }
-        - name: status
-          in: query
-          description: Filter by health (up, down, degraded, unknown)
-          schema: { type: string, enum: [up, down, degraded, unknown] }
-        - name: last_seen
-          in: query
-          description: Filter by last seen (e.g. 24h, 7d)
-          schema: { type: string }
-        - name: uptime
-          in: query
-          description: Filter by uptime threshold
-          schema: { type: string }
-        - name: sort
-          in: query
-          description: Sort field (name, last_seen, uptime_seconds, monitor_count, etc.)
-          schema: { type: string }
-        - name: order
-          in: query
-          schema: { type: string, enum: [asc, desc], default: desc }
-        - name: limit
-          in: query
-          schema: { type: integer, default: 50 }
-        - name: offset
-          in: query
-          schema: { type: integer, default: 0 }
+      - default: 50
+        description: Maximum number of agents to return
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of agents to skip
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
       responses:
-        '200':
-          description: Agents and pagination
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ListAgentsResponse' }
-        '500':
-          description: Internal error
-
-  /agents/{id}:
-    get:
-      summary: Get agent by ID
-      operationId: getAgentDetail
-      tags: [agents]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Agent and latest report
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/GetAgentDetailResponse' }
-        '400':
-          description: Bad request
-        '404':
-          description: Agent not found
-
-  /agents/{id}/uptime:
-    get:
-      summary: Get agent uptime SLA (aggregated from monitors)
-      operationId: getAgentUptime
-      tags: [agents]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
-        - name: period
-          in: query
-          description: e.g. 90d, 30d
-          schema: { type: string, default: '90d' }
-      responses:
-        '200':
-          description: Daily buckets and uptime_percent
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/GetUptimeResponse' }
-        '400':
-          description: Bad request
-        '404':
-          description: Not found
-        '500':
-          description: Internal server error
-
-  /agents/{id}/health:
-    get:
-      summary: Get agent health
-      operationId: getAgentHealth
-      tags: [agents]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Agent health counts
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/GetAgentHealthResponse' }
-        '400':
-          description: Bad request
-        '404':
-          description: Not found
-        '500':
-          description: Internal server error
-
-  /agents/{id}/reports:
-    get:
-      summary: Get agent reports (paginated)
-      operationId: getAgentReports
-      tags: [agents]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
-        - name: limit
-          in: query
-          schema: { type: integer, default: 50 }
-        - name: offset
-          in: query
-          schema: { type: integer, default: 0 }
-      responses:
-        '200':
-          description: Reports and pagination
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/GetAgentReportsResponse' }
-        '400':
-          description: Bad request
-        '404':
-          description: Not found
-        '500':
-          description: Internal server error
-
-  /agents/{id}/monitors:
-    get:
-      summary: List monitors for an agent
-      operationId: listMonitors
-      tags: [agents, monitors]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
-        - name: health
-          in: query
-          schema: { type: string }
-        - name: lifecycle
-          in: query
-          schema: { type: string }
-        - name: limit
-          in: query
-          schema: { type: integer, default: 50 }
-        - name: offset
-          in: query
-          schema: { type: integer, default: 0 }
-      responses:
-        '200':
-          description: Monitors and pagination
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ListMonitorsResponse' }
-        '400':
-          description: Bad request
-        '500':
-          description: Internal server error
-
-  /monitors/{id}:
-    get:
-      summary: Get monitor by ID
-      operationId: getMonitorDetail
-      tags: [monitors]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Monitor, recent reports, computed health
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/GetMonitorDetailResponse' }
-        '400':
-          description: Bad request
-        '404':
-          description: Not found
-
-  /monitors/{id}/uptime:
-    get:
-      summary: Get monitor uptime SLA (daily buckets and percent)
-      operationId: getMonitorUptime
-      tags: [monitors]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
-        - name: period
-          in: query
-          description: e.g. 90d, 30d
-          schema: { type: string, default: '90d' }
-      responses:
-        '200':
-          description: Daily buckets and uptime_percent
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/GetUptimeResponse' }
-        '400':
-          description: Bad request
-        '404':
-          description: Not found
-        '500':
-          description: Internal server error
-
-  /monitors/{id}/history:
-    get:
-      summary: Get monitor report history
-      operationId: getMonitorHistory
-      tags: [monitors]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
-        - name: limit
-          in: query
-          schema: { type: integer, default: 50 }
-        - name: offset
-          in: query
-          schema: { type: integer, default: 0 }
-      responses:
-        '200':
-          description: Reports and pagination
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/GetMonitorHistoryResponse' }
-        '400':
-          description: Bad request
-        '500':
-          description: Internal server error
-
-  /health/summary:
-    get:
-      summary: System health summary
-      operationId: getSystemHealth
-      tags: [health]
-      responses:
-        '200':
-          description: Overall health and monitor counts
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/GetSystemHealthResponse' }
-        '500':
-          description: Internal server error
-
-  /health/issues:
-    get:
-      summary: Health issues (down/degraded/stale)
-      operationId: getHealthIssues
-      tags: [health]
-      responses:
-        '200':
-          description: List of issues
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/GetHealthIssuesResponse' }
-        '500':
-          description: Internal server error
-
-  /incidents/candidates:
-    get:
-      summary: Incident candidates (down/degraded with severity)
-      operationId: getIncidentCandidates
-      tags: [health]
-      responses:
-        '200':
-          description: List of candidates
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/GetIncidentCandidatesResponse' }
-        '500':
-          description: Internal server error
-
-components:
-  schemas:
-    ApiEnvelope:
-      type: object
-      required: [success, message]
-      properties:
-        success: { type: boolean }
-        message: { type: string }
-        data: {}
-        error: { type: string }
-
-    ApiError:
-      type: object
-      required: [success, message]
-      properties:
-        success: { type: boolean }
-        message: { type: string }
-        error: { type: string }
-
-    GeoLocation:
-      type: object
-      properties:
-        ip: { type: string }
-        hostname: { type: string }
-        city: { type: string }
-        region: { type: string }
-        country: { type: string }
-        loc: { type: string }
-        org: { type: string }
-        postal: { type: string }
-        timezone: { type: string }
-
-    CPUStats:
-      type: object
-      properties:
-        cores: { type: integer }
-        usage_percent: { type: number }
-        load_1: { type: number }
-        load_5: { type: number }
-        load_15: { type: number }
-
-    MemoryStats:
-      type: object
-      properties:
-        total_bytes: { type: integer }
-        used_bytes: { type: integer }
-        free_bytes: { type: integer }
-        available_bytes: { type: integer }
-        used_percent: { type: number }
-
-    DiskStats:
-      type: object
-      properties:
-        total_bytes: { type: integer }
-        used_bytes: { type: integer }
-        free_bytes: { type: integer }
-        used_percent: { type: number }
-
-    Agent:
-      type: object
-      properties:
-        id: { type: string }
-        machine_id: { type: string }
-        name: { type: string }
-        os: { type: string }
-        platform: { type: string }
-        kernel_version: { type: string }
-        arch: { type: string }
-        maintenance_mode: { type: boolean }
-        reporting_interval_seconds: { type: integer }
-        created_at: { type: string, format: date-time }
-        deleted_at: { type: string, format: date-time, nullable: true }
-        last_seen: { type: string, format: date-time }
-        location: { $ref: '#/components/schemas/GeoLocation' }
-        meta: { type: string }
-        # List response extras (from joins/subqueries)
-        monitor_count: { type: integer, description: Present in list response }
-        ip: { type: string, nullable: true, description: From latest AgentReport.Location.IP }
-        uptime_seconds: { type: integer, nullable: true, description: From latest AgentReport }
-
-    AgentReport:
-      type: object
-      properties:
-        id: { type: string }
-        agent_id: { type: string }
-        created_at: { type: string, format: date-time }
-        uptime_seconds: { type: integer }
-        timestamp: { type: string }
-        cpu: { $ref: '#/components/schemas/CPUStats' }
-        memory: { $ref: '#/components/schemas/MemoryStats' }
-        disk: { $ref: '#/components/schemas/DiskStats' }
-        location: { $ref: '#/components/schemas/GeoLocation' }
-
-    Monitor:
-      type: object
-      properties:
-        id: { type: string }
-        description: { type: string, nullable: true }
-        type: { type: string }
-        name: { type: string }
-        agent_id: { type: string }
-        last_successful_report_at: { type: string, format: date-time, nullable: true }
-        reporting_interval_seconds: { type: integer }
-        computed_health: { type: string }
-        last_health_computation: { type: string, format: date-time, nullable: true }
-        lifecycle: { type: string }
-        health: { type: string }
-        meta: { type: string }
-        created_at: { type: string, format: date-time }
-        updated_at: { type: string, format: date-time }
-        deleted_at: { type: string, format: date-time, nullable: true }
-
-    MonitorReport:
-      type: object
-      properties:
-        id: { type: string }
-        monitor_id: { type: string }
-        payload: { type: string }
-        collected_at: { type: string }
-        health: { type: string }
-        created_at: { type: string, format: date-time }
-
-    ListAgentsResponse:
-      type: object
-      required: [success, message]
-      properties:
-        success: { type: boolean }
-        message: { type: string }
-        data:
-          type: object
-          properties:
-            agents: { type: array, items: { $ref: '#/components/schemas/Agent' } }
-            count: { type: integer }
-            limit: { type: integer }
-            offset: { type: integer }
-
-    GetAgentDetailResponse:
-      type: object
-      required: [success, message]
-      properties:
-        success: { type: boolean }
-        message: { type: string }
-        data:
-          type: object
-          properties:
-            agent: { $ref: '#/components/schemas/Agent' }
-            latest_report: { $ref: '#/components/schemas/AgentReport' }
-
-    GetAgentHealthResponse:
-      type: object
-      required: [success, message]
-      properties:
-        success: { type: boolean }
-        message: { type: string }
-        data:
-          type: object
-          properties:
-            agent_id: { type: string }
-            overall_health: { type: string }
-            up_count: { type: integer }
-            down_count: { type: integer }
-            degraded_count: { type: integer }
-
-    UptimeDayBucket:
-      type: object
-      description: One day in the SLA heatmap
-      properties:
-        date: { type: string, format: date }
-        up: { type: integer }
-        total: { type: integer }
-        uptime_percent: { type: number }
-
-    GetUptimeResponse:
-      type: object
-      required: [success, message]
-      properties:
-        success: { type: boolean }
-        message: { type: string }
-        data:
-          type: object
-          properties:
-            daily_buckets: { type: array, items: { $ref: '#/components/schemas/UptimeDayBucket' } }
-            uptime_percent: { type: number }
-
-    GetAgentReportsResponse:
-      type: object
-      required: [success, message]
-      properties:
-        success: { type: boolean }
-        message: { type: string }
-        data:
-          type: object
-          properties:
-            reports: { type: array, items: { $ref: '#/components/schemas/AgentReport' } }
-            count: { type: integer }
-            limit: { type: integer }
-            offset: { type: integer }
-
-    ListMonitorsResponse:
-      type: object
-      required: [success, message]
-      properties:
-        success: { type: boolean }
-        message: { type: string }
-        data:
-          type: object
-          properties:
-            monitors: { type: array, items: { $ref: '#/components/schemas/Monitor' } }
-            count: { type: integer }
-            limit: { type: integer }
-            offset: { type: integer }
-
-    GetMonitorDetailResponse:
-      type: object
-      required: [success, message]
-      properties:
-        success: { type: boolean }
-        message: { type: string }
-        data:
-          type: object
-          properties:
-            monitor: { $ref: '#/components/schemas/Monitor' }
-            recent_reports: { type: array, items: { $ref: '#/components/schemas/MonitorReport' } }
-            computed_health: { type: string }
-
-    GetMonitorHistoryResponse:
-      type: object
-      required: [success, message]
-      properties:
-        success: { type: boolean }
-        message: { type: string }
-        data:
-          type: object
-          properties:
-            reports: { type: array, items: { $ref: '#/components/schemas/MonitorReport' } }
-            count: { type: integer }
-            limit: { type: integer }
-            offset: { type: integer }
-
-    GetSystemHealthResponse:
-      type: object
-      required: [success, message]
-      properties:
-        success: { type: boolean }
-        message: { type: string }
-        data:
-          type: object
-          properties:
-            overall_health: { type: string }
-            agents: { type: object, properties: { total: { type: integer } } }
-            monitors:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    agents:
+                      items:
+                        $ref: '#/definitions/api.AgentResponse'
+                      type: array
+                    count:
+                      format: int64
+                      type: integer
+                    limit:
+                      type: integer
+                    offset:
+                      type: integer
+                  type: object
               type: object
-              properties:
-                total: { type: integer }
-                up: { type: integer }
-                down: { type: integer }
-                degraded: { type: integer }
-                unknown: { type: integer }
-
-    HealthIssue:
-      type: object
-      properties:
-        monitor_id: { type: string }
-        monitor_name: { type: string }
-        monitor_type: { type: string }
-        health: { type: string }
-        agent_id: { type: string }
-        agent_name: { type: string }
-        issue_type: { type: string }
-
-    GetHealthIssuesResponse:
-      type: object
-      required: [success, message]
-      properties:
-        success: { type: boolean }
-        message: { type: string }
-        data:
-          type: object
-          properties:
-            issues: { type: array, items: { $ref: '#/components/schemas/HealthIssue' } }
-            count: { type: integer }
-
-    IncidentCandidate:
-      type: object
-      properties:
-        monitor_id: { type: string }
-        monitor_name: { type: string }
-        monitor_type: { type: string }
-        health: { type: string }
-        severity: { type: string }
-        agent_id: { type: string }
-        agent_name: { type: string }
-        down_count: { type: integer }
-
-    GetIncidentCandidatesResponse:
-      type: object
-      required: [success, message]
-      properties:
-        success: { type: boolean }
-        message: { type: string }
-        data:
-          type: object
-          properties:
-            candidates: { type: array, items: { $ref: '#/components/schemas/IncidentCandidate' } }
-            count: { type: integer }
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: List agents
+      tags:
+      - agents
+  /v1/agents/{agent_id}/{monitor_id}/report:
+    post:
+      consumes:
+      - application/json
+      description: Receive and store a monitor report for a specific monitor
+      operationId: receiveMonitorReport
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agent_id
+        required: true
+        type: string
+      - description: Monitor ID
+        in: path
+        name: monitor_id
+        required: true
+        type: string
+      - description: Monitor report data
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/service.MonitorReportPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Receive monitor report
+      tags:
+      - reports
+  /v1/agents/{agent_id}/maintenance:
+    put:
+      consumes:
+      - application/json
+      description: Enable or disable maintenance mode for a specific agent
+      operationId: setMaintenanceMode
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agent_id
+        required: true
+        type: string
+      - description: Maintenance mode request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.SetMaintenanceModeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Set agent maintenance mode
+      tags:
+      - agents
+  /v1/agents/{agent_id}/register-monitor:
+    post:
+      consumes:
+      - application/json
+      description: Register a new monitor for a specific agent
+      operationId: registerMonitor
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agent_id
+        required: true
+        type: string
+      - description: Monitor registration request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.RegisterMonitorRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.RegisterMonitorResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Register a monitor
+      tags:
+      - monitors
+  /v1/agents/{agent_id}/report:
+    post:
+      consumes:
+      - application/json
+      description: Receive and store a system metrics report from an agent
+      operationId: receiveAgentReport
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agent_id
+        required: true
+        type: string
+      - description: Agent report data
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/service.AgentReportPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.ReportResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Receive agent report
+      tags:
+      - reports
+  /v1/agents/{agent_id}/unregister-monitor:
+    post:
+      consumes:
+      - application/json
+      description: Unregister a monitor for a specific agent
+      operationId: unregisterMonitor
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agent_id
+        required: true
+        type: string
+      - description: Monitor unregistration request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.UnregisterMonitorRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.UnregisterMonitorResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Unregister a monitor
+      tags:
+      - monitors
+  /v1/agents/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information about a specific agent including latest
+        report
+      operationId: getAgent
+      parameters:
+      - description: Agent ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    agent:
+                      $ref: '#/definitions/api.AgentResponse'
+                    latest_report:
+                      type: object
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get agent details
+      tags:
+      - agents
+  /v1/agents/{id}/health:
+    get:
+      consumes:
+      - application/json
+      description: Get computed health status for a specific agent and its monitors
+      operationId: getAgentHealth
+      parameters:
+      - description: Agent ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    agent_id:
+                      type: string
+                    degraded_count:
+                      type: integer
+                    down_count:
+                      type: integer
+                    overall_health:
+                      type: string
+                    up_count:
+                      type: integer
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get agent health
+      tags:
+      - agents
+  /v1/agents/{id}/monitors:
+    get:
+      consumes:
+      - application/json
+      description: Get a paginated list of monitors for a specific agent with optional
+        filters
+      operationId: getAgentMonitors
+      parameters:
+      - description: Agent ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Filter by health status (up|down|degraded|unknown)
+        in: query
+        name: health
+        type: string
+      - description: Filter by lifecycle status (active|disabled|deleted)
+        in: query
+        name: lifecycle
+        type: string
+      - default: 50
+        description: Maximum number of monitors to return
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of monitors to skip
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      format: int64
+                      type: integer
+                    limit:
+                      type: integer
+                    monitors:
+                      items:
+                        $ref: '#/definitions/api.MonitorResponse'
+                      type: array
+                    offset:
+                      type: integer
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: List monitors for an agent
+      tags:
+      - monitors
+  /v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Returns a JWT for frontend API requests when frontend auth is configured.
+      operationId: login
+      parameters:
+      - description: Login request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.LoginResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Log in to Console
+      tags:
+      - auth
+  /v1/health/issues:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all monitors with health issues (down, degraded,
+        or stale)
+      operationId: getHealthIssues
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    issues:
+                      items:
+                        type: object
+                      type: array
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get health issues
+      tags:
+      - health
+  /v1/health/summary:
+    get:
+      consumes:
+      - application/json
+      description: Get overall system health summary including agent and monitor counts
+      operationId: getHealthSummary
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    agents:
+                      properties:
+                        total:
+                          type: integer
+                      type: object
+                    monitors:
+                      properties:
+                        degraded:
+                          type: integer
+                        down:
+                          type: integer
+                        total:
+                          type: integer
+                        unknown:
+                          type: integer
+                        up:
+                          type: integer
+                      type: object
+                    overall_health:
+                      type: string
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get system health summary
+      tags:
+      - health
+  /v1/incidents/candidates:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of monitors that are candidates for incidents based
+        on health status and recent reports
+      operationId: getIncidentsCandidates
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    candidates:
+                      items:
+                        type: object
+                      type: array
+                    count:
+                      type: integer
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get incident candidates
+      tags:
+      - health
+  /v1/monitors/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information about a specific monitor including recent
+        reports and computed health
+      operationId: getMonitor
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    computed_health:
+                      type: string
+                    monitor:
+                      $ref: '#/definitions/api.MonitorResponse'
+                    recent_reports:
+                      items:
+                        $ref: '#/definitions/api.MonitorReportResponse'
+                      type: array
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get monitor details
+      tags:
+      - monitors
+  /v1/monitors/{id}/history:
+    get:
+      consumes:
+      - application/json
+      description: Get a paginated list of reports for a specific monitor
+      operationId: getMonitorHistory
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 50
+        description: Maximum number of reports to return
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of reports to skip
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      format: int64
+                      type: integer
+                    limit:
+                      type: integer
+                    offset:
+                      type: integer
+                    reports:
+                      items:
+                        $ref: '#/definitions/api.MonitorReportResponse'
+                      type: array
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get monitor history
+      tags:
+      - monitors
+  /v1/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new agent or reconnect an existing agent by machine
+        ID
+      operationId: registerAgent
+      parameters:
+      - description: Agent registration request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.RegisterResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Register an agent
+      tags:
+      - agents
+  /v1/settings/data-lifecycle:
+    get:
+      consumes:
+      - application/json
+      description: Get persisted raw report archive and uptime rollup settings
+      operationId: getDataLifecycleSettings
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    settings:
+                      $ref: '#/definitions/db.DataLifecycleSettings'
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get data lifecycle settings
+      tags:
+      - settings
+    put:
+      consumes:
+      - application/json
+      description: Update persisted raw report archive and uptime rollup settings
+      operationId: updateDataLifecycleSettings
+      parameters:
+      - description: Data lifecycle settings
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.DataLifecycleSettingsPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    settings:
+                      $ref: '#/definitions/db.DataLifecycleSettings'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Update data lifecycle settings
+      tags:
+      - settings
+  /v1/settings/data-lifecycle/actions/archive:
+    post:
+      consumes:
+      - application/json
+      description: Archive old raw reports to the configured local SQLite archive
+        file
+      operationId: runDataLifecycleArchive
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    result:
+                      $ref: '#/definitions/service.ArchiveRunResult'
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Run data lifecycle archive
+      tags:
+      - settings
+  /v1/settings/data-lifecycle/actions/rollup:
+    post:
+      consumes:
+      - application/json
+      description: Compute daily monitor uptime rollups. When date is omitted, rolls
+        up yesterday.
+      operationId: runDataLifecycleRollup
+      parameters:
+      - description: Optional rollup date
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/api.DataLifecycleRollupRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    result:
+                      $ref: '#/definitions/service.RollupRunResult'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Run data lifecycle rollup
+      tags:
+      - settings
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

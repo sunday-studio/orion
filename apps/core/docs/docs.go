@@ -1204,6 +1204,225 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/v1/settings/data-lifecycle": {
+            "get": {
+                "description": "Get persisted raw report archive and uptime rollup settings",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Get data lifecycle settings",
+                "operationId": "getDataLifecycleSettings",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "settings": {
+                                                    "$ref": "#/definitions/db.DataLifecycleSettings"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Update persisted raw report archive and uptime rollup settings",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Update data lifecycle settings",
+                "operationId": "updateDataLifecycleSettings",
+                "parameters": [
+                    {
+                        "description": "Data lifecycle settings",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.DataLifecycleSettingsPayload"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "settings": {
+                                                    "$ref": "#/definitions/db.DataLifecycleSettings"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/settings/data-lifecycle/actions/archive": {
+            "post": {
+                "description": "Archive old raw reports to the configured local SQLite archive file",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Run data lifecycle archive",
+                "operationId": "runDataLifecycleArchive",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "result": {
+                                                    "$ref": "#/definitions/service.ArchiveRunResult"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/settings/data-lifecycle/actions/rollup": {
+            "post": {
+                "description": "Compute daily monitor uptime rollups. When date is omitted, rolls up yesterday.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Run data lifecycle rollup",
+                "operationId": "runDataLifecycleRollup",
+                "parameters": [
+                    {
+                        "description": "Optional rollup date",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/api.DataLifecycleRollupRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "result": {
+                                                    "$ref": "#/definitions/service.RollupRunResult"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -1251,6 +1470,15 @@ const docTemplate = `{
                 },
                 "token": {
                     "type": "string"
+                }
+            }
+        },
+        "api.DataLifecycleRollupRequest": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string",
+                    "example": "2026-05-12"
                 }
             }
         },
@@ -1384,6 +1612,50 @@ const docTemplate = `{
                 }
             }
         },
+        "db.DataLifecycleSettings": {
+            "type": "object",
+            "properties": {
+                "archive_dir": {
+                    "type": "string"
+                },
+                "archive_raw_reports": {
+                    "type": "boolean"
+                },
+                "archive_schedule": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "last_archive_error": {
+                    "type": "string"
+                },
+                "last_archive_run_at": {
+                    "type": "string"
+                },
+                "last_archive_status": {
+                    "type": "string"
+                },
+                "last_rollup_run_at": {
+                    "type": "string"
+                },
+                "raw_report_hot_days": {
+                    "type": "integer"
+                },
+                "rollup_retention_days": {
+                    "type": "integer"
+                },
+                "rollups_enabled": {
+                    "type": "boolean"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "db.DiskStats": {
             "type": "object",
             "properties": {
@@ -1456,6 +1728,10 @@ const docTemplate = `{
         "service.AgentReportPayload": {
             "type": "object",
             "properties": {
+                "agent_version": {
+                    "type": "string"
+                },
+                "config_summary": {},
                 "cpu": {
                     "$ref": "#/definitions/db.CPUStats"
                 },
@@ -1473,6 +1749,55 @@ const docTemplate = `{
                 },
                 "uptime_seconds": {
                     "type": "integer"
+                }
+            }
+        },
+        "service.ArchiveRunResult": {
+            "type": "object",
+            "properties": {
+                "agent_reports_archived": {
+                    "type": "integer"
+                },
+                "archive_path": {
+                    "type": "string"
+                },
+                "archive_raw_reports": {
+                    "type": "boolean"
+                },
+                "cutoff": {
+                    "type": "string"
+                },
+                "monitor_reports_archived": {
+                    "type": "integer"
+                },
+                "skipped_because_disabled": {
+                    "type": "boolean"
+                },
+                "skipped_because_no_reports": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "service.DataLifecycleSettingsPayload": {
+            "type": "object",
+            "properties": {
+                "archive_dir": {
+                    "type": "string"
+                },
+                "archive_raw_reports": {
+                    "type": "boolean"
+                },
+                "archive_schedule": {
+                    "type": "string"
+                },
+                "raw_report_hot_days": {
+                    "type": "integer"
+                },
+                "rollup_retention_days": {
+                    "type": "integer"
+                },
+                "rollups_enabled": {
+                    "type": "boolean"
                 }
             }
         },
@@ -1571,6 +1896,23 @@ const docTemplate = `{
                 },
                 "token": {
                     "type": "string"
+                }
+            }
+        },
+        "service.RollupRunResult": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string"
+                },
+                "monitor_days": {
+                    "type": "integer"
+                },
+                "report_count": {
+                    "type": "integer"
+                },
+                "skipped_today": {
+                    "type": "boolean"
                 }
             }
         },

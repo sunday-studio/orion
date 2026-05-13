@@ -113,12 +113,13 @@ orion/
 ├── docs/         # architecture, contracts, milestones, plans
 ├── packages/
 │   └── sdk/      # OpenAPI types (make generate-sdk)
-└── Makefile      # generate-sdk, build-static, docker-build, docker-up
+└── Makefile      # generate-openapi, generate-sdk, build-static, docker-build, docker-up
 ```
 
 ## Makefile
 
-- `make generate-sdk` — generate console API client from `apps/core/openapi.yaml` (Orval → `apps/console/src/lib/api.ts`)
+- `make generate-openapi` — generate `apps/core/openapi.yaml` and Swagger docs from Core route annotations
+- `make generate-sdk` — regenerate OpenAPI first, then generate the console API client with Orval
 - `make build-static` — build console source and copy to `apps/core/web/`
 - `make docker-build` — build orion-core Docker image
 - `make docker-up` — run orion-core via `docker compose -f deploy/docker-compose.yml up -d` (set `ORION_ADMIN_*`, `ORION_JWT_SECRET` for frontend auth)
@@ -126,7 +127,7 @@ orion/
 ## Development
 
 - **Console**: `cd apps/console && npm install && npm run dev`. Set `VITE_API_BASE_URL=http://localhost:8999/v1` in `.env` (see [apps/console/.env.example](apps/console/.env.example)).
-- **API**: [apps/core/openapi.yaml](apps/core/openapi.yaml). Regenerate the console client: `npm run generate:api` in `apps/console`.
+- **API**: [apps/core/openapi.yaml](apps/core/openapi.yaml) is generated. Regenerate it with `make generate-openapi`; regenerate the console client with `make generate-sdk`.
 - **Agent CLI** ([apps/agent/main.go](apps/agent/main.go)): `start`, `stop`, `status`, `restart`, `run`, `maintenance` (`-up` / `-down`), `config` (`validate`, `diff`).
 
 ## Documentation

@@ -31,6 +31,12 @@ definitions:
       token:
         type: string
     type: object
+  api.DataLifecycleRollupRequest:
+    properties:
+      date:
+        example: "2026-05-12"
+        type: string
+    type: object
   api.LoginRequest:
     properties:
       password:
@@ -116,6 +122,35 @@ definitions:
       usage_percent:
         type: number
     type: object
+  db.DataLifecycleSettings:
+    properties:
+      archive_dir:
+        type: string
+      archive_raw_reports:
+        type: boolean
+      archive_schedule:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      last_archive_error:
+        type: string
+      last_archive_run_at:
+        type: string
+      last_archive_status:
+        type: string
+      last_rollup_run_at:
+        type: string
+      raw_report_hot_days:
+        type: integer
+      rollup_retention_days:
+        type: integer
+      rollups_enabled:
+        type: boolean
+      updated_at:
+        type: string
+    type: object
   db.DiskStats:
     properties:
       free_bytes:
@@ -163,6 +198,9 @@ definitions:
     type: object
   service.AgentReportPayload:
     properties:
+      agent_version:
+        type: string
+      config_summary: {}
       cpu:
         $ref: '#/definitions/db.CPUStats'
       disk:
@@ -175,6 +213,38 @@ definitions:
         type: string
       uptime_seconds:
         type: integer
+    type: object
+  service.ArchiveRunResult:
+    properties:
+      agent_reports_archived:
+        type: integer
+      archive_path:
+        type: string
+      archive_raw_reports:
+        type: boolean
+      cutoff:
+        type: string
+      monitor_reports_archived:
+        type: integer
+      skipped_because_disabled:
+        type: boolean
+      skipped_because_no_reports:
+        type: boolean
+    type: object
+  service.DataLifecycleSettingsPayload:
+    properties:
+      archive_dir:
+        type: string
+      archive_raw_reports:
+        type: boolean
+      archive_schedule:
+        type: string
+      raw_report_hot_days:
+        type: integer
+      rollup_retention_days:
+        type: integer
+      rollups_enabled:
+        type: boolean
     type: object
   service.MonitorReportPayload:
     properties:
@@ -243,6 +313,17 @@ definitions:
         type: string
       token:
         type: string
+    type: object
+  service.RollupRunResult:
+    properties:
+      date:
+        type: string
+      monitor_days:
+        type: integer
+      report_count:
+        type: integer
+      skipped_today:
+        type: boolean
     type: object
   service.SetMaintenanceModeRequest:
     properties:
@@ -1033,6 +1114,140 @@ paths:
       summary: Register an agent
       tags:
       - agents
+  /v1/settings/data-lifecycle:
+    get:
+      consumes:
+      - application/json
+      description: Get persisted raw report archive and uptime rollup settings
+      operationId: getDataLifecycleSettings
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    settings:
+                      $ref: '#/definitions/db.DataLifecycleSettings'
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get data lifecycle settings
+      tags:
+      - settings
+    put:
+      consumes:
+      - application/json
+      description: Update persisted raw report archive and uptime rollup settings
+      operationId: updateDataLifecycleSettings
+      parameters:
+      - description: Data lifecycle settings
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.DataLifecycleSettingsPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    settings:
+                      $ref: '#/definitions/db.DataLifecycleSettings'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Update data lifecycle settings
+      tags:
+      - settings
+  /v1/settings/data-lifecycle/actions/archive:
+    post:
+      consumes:
+      - application/json
+      description: Archive old raw reports to the configured local SQLite archive
+        file
+      operationId: runDataLifecycleArchive
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    result:
+                      $ref: '#/definitions/service.ArchiveRunResult'
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Run data lifecycle archive
+      tags:
+      - settings
+  /v1/settings/data-lifecycle/actions/rollup:
+    post:
+      consumes:
+      - application/json
+      description: Compute daily monitor uptime rollups. When date is omitted, rolls
+        up yesterday.
+      operationId: runDataLifecycleRollup
+      parameters:
+      - description: Optional rollup date
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/api.DataLifecycleRollupRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    result:
+                      $ref: '#/definitions/service.RollupRunResult'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Run data lifecycle rollup
+      tags:
+      - settings
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.

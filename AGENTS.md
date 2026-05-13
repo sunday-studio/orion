@@ -20,8 +20,8 @@ This file defines the working boundaries for humans and coding agents in this re
 - Deployment/service integration work goes in `deploy/`.
 - Product plans and milestone records go in `docs/plans/` and `docs/milestones/`.
 - Generated Core SPA assets live in `apps/core/web/`; edit `apps/console/` source and run `make build-static` instead of hand-editing `apps/core/web/`.
-- OpenAPI source of truth is `apps/core/openapi.yaml`.
-- Frontend API client output is `apps/console/src/lib/api.ts`; regenerate it from `apps/console` instead of hand-editing generated API code.
+- OpenAPI source of truth is Core route annotations; generate `apps/core/openapi.yaml` with `make generate-openapi`.
+- Frontend API client output is `apps/console/src/orion-sdk/index.ts`; regenerate it with `make generate-sdk` instead of hand-editing generated API code.
 
 ## Naming Rules
 
@@ -32,7 +32,7 @@ This file defines the working boundaries for humans and coding agents in this re
 
 ## Contract Rules
 
-- Core route or response changes must update `apps/core/openapi.yaml`.
+- Core route or response changes must update route annotations and regenerate `apps/core/openapi.yaml`.
 - Agent/Core behavior changes must update `docs/agent-core-contract.md` when the wire contract or responsibility split changes.
 - UI changes that rely on new API fields must land with matching Core/OpenAPI updates.
 - Deployment path changes must update `README.md`, `Makefile`, and relevant files under `deploy/`.
@@ -73,6 +73,12 @@ Regenerate the console API client:
 
 ```sh
 make generate-sdk
+```
+
+Regenerate the OpenAPI contract:
+
+```sh
+make generate-openapi
 ```
 
 Build static web assets into Core:

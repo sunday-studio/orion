@@ -21,7 +21,7 @@ All REST routes except `GET /health` live under **`/v1`**.
 - **`POST /v1/agents/:agent_id/:monitor_id/report`** – Monitor report. `Authorization: Bearer <token>`.
 - **`GET /health`** – Health check (unversioned).
 
-See [openapi.yaml](openapi.yaml) for the full frontend and agent API.
+See [openapi.yaml](openapi.yaml) for the full frontend and agent API. Generate it from Core route annotations with `make generate-openapi` from the repository root.
 
 ## Building and Running
 

@@ -1,5 +1,8 @@
-.PHONY: generate-sdk build-static docker-build docker-up
-generate-sdk:
+.PHONY: generate-openapi generate-sdk build-static docker-build docker-up
+generate-openapi:
+	cd apps/core && ./scripts/generate-openapi.sh
+
+generate-sdk: generate-openapi
 	cd apps/console && npm run generate:api
 
 # Build console source and copy dist to apps/core/web for SPA serving
