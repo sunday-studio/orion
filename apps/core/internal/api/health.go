@@ -210,6 +210,9 @@ func (s *Server) getIncidentCandidates(c *gin.Context) {
 			if err := s.db.Where("id = ?", monitor.AgentID).First(&agent).Error; err != nil {
 				continue
 			}
+			if agent.MaintenanceMode {
+				continue
+			}
 
 			// Get recent reports to determine severity
 			var recentReports []db.MonitorReport

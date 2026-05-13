@@ -86,32 +86,7 @@ func TestRegisterReportListFlow(t *testing.T) {
 func TestRegisterMonitorReportHistoryFlow(t *testing.T) {
 	server := setupTestServer(t)
 	registered := registerTestAgent(t, server)
-
-	description := "Checks the homepage"
-	registerMonitorBody := map[string]interface{}{
-		"agent_id":                   registered.Data.AgentID,
-		"name":                       "homepage",
-		"description":                description,
-		"type":                       "http-healthcheck",
-		"last_checked":               time.Now().UTC().Format(time.RFC3339),
-		"reporting_interval_seconds": 30,
-	}
-	registerMonitorPath := "/v1/agents/" + registered.Data.AgentID + "/register-monitor"
-	registerMonitorResp := performJSONRequest(t, server, http.MethodPost, registerMonitorPath, registerMonitorBody, registered.Data.Token)
-	if registerMonitorResp.Code != http.StatusOK {
-		t.Fatalf("register monitor status = %d, body = %s", registerMonitorResp.Code, registerMonitorResp.Body.String())
-	}
-
-	var registeredMonitor struct {
-		Success bool `json:"success"`
-		Data    struct {
-			MonitorID string `json:"monitor_id"`
-		} `json:"data"`
-	}
-	decodeResponse(t, registerMonitorResp, &registeredMonitor)
-	if !registeredMonitor.Success || registeredMonitor.Data.MonitorID == "" {
-		t.Fatalf("registration response missing monitor identity: %+v", registeredMonitor)
-	}
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
 
 	monitorReportBody := map[string]interface{}{
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
@@ -178,6 +153,44 @@ func TestRegisterMonitorReportHistoryFlow(t *testing.T) {
 	}
 }
 
+func TestMaintenanceSuppressesIncidentCandidates(t *testing.T) {
+	server := setupTestServer(t)
+	registered := registerTestAgent(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+
+	reportBody := map[string]interface{}{
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"health":    "down",
+		"metrics":   map[string]interface{}{},
+		"error": map[string]string{
+			"message": "connection refused",
+		},
+	}
+	reportPath := "/v1/agents/" + registered.Data.AgentID + "/" + registeredMonitor.Data.MonitorID + "/report"
+	reportResp := performJSONRequest(t, server, http.MethodPost, reportPath, reportBody, registered.Data.Token)
+	if reportResp.Code != http.StatusOK {
+		t.Fatalf("monitor report status = %d, body = %s", reportResp.Code, reportResp.Body.String())
+	}
+
+	beforeMaintenance := performJSONRequest(t, server, http.MethodGet, "/v1/incidents/candidates", nil, "")
+	assertIncidentCandidateCount(t, beforeMaintenance, 1)
+
+	maintenanceResp := performJSONRequest(
+		t,
+		server,
+		http.MethodPut,
+		"/v1/agents/"+registered.Data.AgentID+"/maintenance",
+		map[string]bool{"maintenance_mode": true},
+		registered.Data.Token,
+	)
+	if maintenanceResp.Code != http.StatusOK {
+		t.Fatalf("maintenance status = %d, body = %s", maintenanceResp.Code, maintenanceResp.Body.String())
+	}
+
+	afterMaintenance := performJSONRequest(t, server, http.MethodGet, "/v1/incidents/candidates", nil, "")
+	assertIncidentCandidateCount(t, afterMaintenance, 0)
+}
+
 func setupTestServer(t *testing.T) *Server {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
@@ -227,6 +240,62 @@ func registerTestAgent(t *testing.T, server *Server) struct {
 	}
 
 	return registered
+}
+
+func registerTestMonitor(t *testing.T, server *Server, agentID string, token string) struct {
+	Success bool `json:"success"`
+	Data    struct {
+		MonitorID string `json:"monitor_id"`
+	} `json:"data"`
+} {
+	t.Helper()
+
+	description := "Checks the homepage"
+	registerMonitorBody := map[string]interface{}{
+		"agent_id":                   agentID,
+		"name":                       "homepage",
+		"description":                description,
+		"type":                       "http-healthcheck",
+		"last_checked":               time.Now().UTC().Format(time.RFC3339),
+		"reporting_interval_seconds": 30,
+	}
+	registerMonitorPath := "/v1/agents/" + agentID + "/register-monitor"
+	registerMonitorResp := performJSONRequest(t, server, http.MethodPost, registerMonitorPath, registerMonitorBody, token)
+	if registerMonitorResp.Code != http.StatusOK {
+		t.Fatalf("register monitor status = %d, body = %s", registerMonitorResp.Code, registerMonitorResp.Body.String())
+	}
+
+	var registeredMonitor struct {
+		Success bool `json:"success"`
+		Data    struct {
+			MonitorID string `json:"monitor_id"`
+		} `json:"data"`
+	}
+	decodeResponse(t, registerMonitorResp, &registeredMonitor)
+	if !registeredMonitor.Success || registeredMonitor.Data.MonitorID == "" {
+		t.Fatalf("registration response missing monitor identity: %+v", registeredMonitor)
+	}
+
+	return registeredMonitor
+}
+
+func assertIncidentCandidateCount(t *testing.T, response *httptest.ResponseRecorder, want int) {
+	t.Helper()
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("incident candidates status = %d, body = %s", response.Code, response.Body.String())
+	}
+
+	var candidates struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Count int `json:"count"`
+		} `json:"data"`
+	}
+	decodeResponse(t, response, &candidates)
+	if !candidates.Success || candidates.Data.Count != want {
+		t.Fatalf("incident candidate count = %+v, want %d", candidates, want)
+	}
 }
 
 func performJSONRequest(t *testing.T, server *Server, method string, path string, body interface{}, token string) *httptest.ResponseRecorder {

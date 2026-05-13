@@ -108,6 +108,13 @@ Health states:
 - `stale`: expected data has not arrived recently enough.
 - `maintenance`: intentionally suppressed or paused.
 
+Server health rules:
+
+- A server in maintenance reports `maintenance`.
+- A stale server reports `stale`.
+- A fresh server with no active monitors reports `up`.
+- Maintenance suppresses incident candidates and should suppress future alert delivery.
+
 Lifecycle states:
 
 - `active`: currently managed by config.
@@ -141,7 +148,5 @@ Core behavior:
 
 ## Open Contract Decisions
 
-- Exact stale thresholds for agents and monitors.
 - Whether Agent should send all monitor reports individually or support batch reporting.
 - Token rotation and revocation flow.
-- How maintenance mode affects incident candidates and alerts.

@@ -61,6 +61,4 @@ Exit criteria: a long-running Core instance has bounded storage growth and an up
 ## Decisions Needed
 
 - Whether command monitor is implemented or only documented.
-- Whether maintenance suppresses incident candidates.
-- What stale means for servers with no monitors.
 - Version naming for Core, Agent, API, and SDK.
