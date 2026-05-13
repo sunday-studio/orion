@@ -26,21 +26,21 @@ This turns the information architecture into a build checklist for the Console U
 
 Goal: add the navigation structure from the IA without filling every page yet.
 
-- [ ] Add app header.
+- [x] Add app header.
   - Orion name/logo text.
   - Global health indicator.
   - User/profile action.
   - Operations: `getHealthSummary`, session state.
-- [ ] Add primary navigation.
+- [x] Add primary navigation.
   - Home.
   - Servers.
   - Incidents.
   - Logs.
   - Settings.
-- [ ] Add placeholder routes for pages not built yet.
+- [x] Add placeholder routes for pages not built yet.
   - Keep placeholders plain and useful.
   - Include the operation gaps needed for each page.
-- [ ] Ensure active navigation state is obvious.
+- [x] Ensure active navigation state is obvious.
 
 
 ## Phase 2: Home Layout

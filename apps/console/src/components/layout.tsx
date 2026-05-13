@@ -1,23 +1,10 @@
-import { RadialAvatar } from "@/components/radial-avatar";
+import { AppHeader } from "@/components/app-header";
 import { Outlet } from "react-router-dom";
-
-const Header = () => {
-  return (
-    <div className="flex debug justify-between items-center">
-      <div className="ring-2 ring-lime-950 rounded-lg p-[2px] hover:ring-lime-900 transition-all duration-300 cursor-pointer group">
-        <div className="rounded-md p-1 px-1.5 bg-lime-950 transition-all duration-300">
-          <p className="text-white font-medium">Orion</p>
-        </div>
-      </div>
-      <RadialAvatar seed="casprin-eSs" size="sm" />
-    </div>
-  );
-};
 
 export const Layout = () => {
   return (
-    <div className="flex flex-col min-h-screen max-w-4xl mx-auto py-10 gap-4 debug">
-      <Header />
+    <div className="mx-auto flex min-h-screen max-w-4xl flex-col gap-6 px-4 py-8 sm:px-6">
+      <AppHeader />
       <Outlet />
     </div>
   );
