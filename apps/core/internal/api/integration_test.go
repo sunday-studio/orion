@@ -385,6 +385,49 @@ func TestAgentReportOpensStaleMonitorIncident(t *testing.T) {
 	}
 }
 
+func TestDataLifecycleSettingsFlow(t *testing.T) {
+	server := setupTestServer(t)
+
+	getResp := performJSONRequest(t, server, http.MethodGet, "/v1/settings/data-lifecycle", nil, "")
+	if getResp.Code != http.StatusOK {
+		t.Fatalf("get settings status = %d, body = %s", getResp.Code, getResp.Body.String())
+	}
+
+	var settingsResp struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Settings struct {
+				RawReportHotDays  int    `json:"raw_report_hot_days"`
+				ArchiveRawReports bool   `json:"archive_raw_reports"`
+				ArchiveDir        string `json:"archive_dir"`
+				RollupsEnabled    bool   `json:"rollups_enabled"`
+				ArchiveSchedule   string `json:"archive_schedule"`
+			} `json:"settings"`
+		} `json:"data"`
+	}
+	decodeResponse(t, getResp, &settingsResp)
+	if !settingsResp.Success || settingsResp.Data.Settings.RawReportHotDays != 90 {
+		t.Fatalf("settings response = %+v, want default hot days", settingsResp)
+	}
+
+	updateResp := performJSONRequest(t, server, http.MethodPut, "/v1/settings/data-lifecycle", map[string]interface{}{
+		"raw_report_hot_days":   120,
+		"archive_raw_reports":   true,
+		"archive_dir":           "data/archive",
+		"rollups_enabled":       true,
+		"rollup_retention_days": nil,
+		"archive_schedule":      "manual",
+	}, "")
+	if updateResp.Code != http.StatusOK {
+		t.Fatalf("update settings status = %d, body = %s", updateResp.Code, updateResp.Body.String())
+	}
+
+	decodeResponse(t, updateResp, &settingsResp)
+	if settingsResp.Data.Settings.RawReportHotDays != 120 || settingsResp.Data.Settings.ArchiveSchedule != "manual" {
+		t.Fatalf("updated settings = %+v, want updated values", settingsResp.Data.Settings)
+	}
+}
+
 func setupTestServer(t *testing.T) *Server {
 	t.Helper()
 	gin.SetMode(gin.TestMode)

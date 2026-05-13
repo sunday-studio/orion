@@ -139,3 +139,19 @@ type AlertDelivery struct {
 	CreatedAt  time.Time `json:"created_at" gorm:"index:idx_alert_deliveries_created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
 }
+
+type DataLifecycleSettings struct {
+	ID                  int        `json:"id" gorm:"primaryKey"`
+	RawReportHotDays    int        `json:"raw_report_hot_days" gorm:"not null"`
+	ArchiveRawReports   bool       `json:"archive_raw_reports" gorm:"not null"`
+	ArchiveDir          string     `json:"archive_dir" gorm:"not null"`
+	RollupsEnabled      bool       `json:"rollups_enabled" gorm:"not null"`
+	RollupRetentionDays *int       `json:"rollup_retention_days"`
+	ArchiveSchedule     string     `json:"archive_schedule" gorm:"not null"`
+	LastRollupRunAt     *time.Time `json:"last_rollup_run_at"`
+	LastArchiveRunAt    *time.Time `json:"last_archive_run_at"`
+	LastArchiveStatus   string     `json:"last_archive_status"`
+	LastArchiveError    string     `json:"last_archive_error" gorm:"type:text"`
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
+}

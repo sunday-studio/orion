@@ -18,15 +18,16 @@ import (
 )
 
 type Server struct {
-	db             *gorm.DB
-	logger         *logging.Logger
-	cfg            *config.Config
-	agentService   *service.AgentService
-	authService    *service.AuthService
-	reportService  *service.ReportService
-	monitorService *service.MonitorService
-	loginLimiter   *RateLimiter
-	router         *gin.Engine
+	db              *gorm.DB
+	logger          *logging.Logger
+	cfg             *config.Config
+	agentService    *service.AgentService
+	authService     *service.AuthService
+	reportService   *service.ReportService
+	monitorService  *service.MonitorService
+	settingsService *service.SettingsService
+	loginLimiter    *RateLimiter
+	router          *gin.Engine
 }
 
 func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *Server {
@@ -34,6 +35,7 @@ func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *S
 	authService := service.NewAuthService(database, logger)
 	reportService := service.NewReportService(database, logger, cfg)
 	monitorService := service.NewMonitorService(database, logger)
+	settingsService := service.NewSettingsService(database, logger, cfg.DataDir)
 	router := gin.Default()
 	corsOrigins := cfg.CORSOrigins
 	if len(corsOrigins) == 0 {
@@ -51,15 +53,16 @@ func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *S
 	router.Use(RequestIDMiddleware(logger))
 
 	server := &Server{
-		db:             database,
-		logger:         logger,
-		cfg:            cfg,
-		agentService:   agentService,
-		authService:    authService,
-		reportService:  reportService,
-		monitorService: monitorService,
-		loginLimiter:   NewRateLimiter(cfg.LoginRateLimitAttempts, time.Duration(cfg.LoginRateLimitWindowSecs)*time.Second),
-		router:         router,
+		db:              database,
+		logger:          logger,
+		cfg:             cfg,
+		agentService:    agentService,
+		authService:     authService,
+		reportService:   reportService,
+		monitorService:  monitorService,
+		settingsService: settingsService,
+		loginLimiter:    NewRateLimiter(cfg.LoginRateLimitAttempts, time.Duration(cfg.LoginRateLimitWindowSecs)*time.Second),
+		router:          router,
 	}
 
 	server.setupRoutes()
@@ -101,6 +104,8 @@ func (s *Server) setupRoutes() {
 			frontend.GET("/health/summary", s.getSystemHealth)
 			frontend.GET("/health/issues", s.getHealthIssues)
 			frontend.GET("/incidents/candidates", s.getIncidentCandidates)
+			frontend.GET("/settings/data-lifecycle", s.getDataLifecycleSettings)
+			frontend.PUT("/settings/data-lifecycle", s.updateDataLifecycleSettings)
 		}
 
 		// Protected routes (agent-to-core)

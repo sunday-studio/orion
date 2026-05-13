@@ -64,8 +64,8 @@ It should be useful, understandable, and reliable before it tries to be a broad 
 
 ## Priority 5: Data Lifecycle And Setup
 
-- [ ] Add Core data lifecycle settings stored in the database.
-- [ ] Configure lifecycle defaults during Core setup.
+- [x] Add Core data lifecycle settings stored in the database.
+- [x] Configure lifecycle defaults during Core setup.
 - [ ] Add Console settings UI for lifecycle options.
 - [ ] Add daily monitor uptime rollup table and service.
 - [ ] Archive old raw reports to local SQLite archive files instead of deleting them.
