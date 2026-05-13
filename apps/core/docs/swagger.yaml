@@ -31,6 +31,21 @@ definitions:
       token:
         type: string
     type: object
+  api.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  api.LoginResponse:
+    properties:
+      token:
+        type: string
+    type: object
   api.MonitorReportResponse:
     properties:
       collected_at:
@@ -183,6 +198,8 @@ definitions:
         type: string
       last_checked:
         type: string
+      meta:
+        type: string
       name:
         type: string
       reporting_interval_seconds:
@@ -207,6 +224,8 @@ definitions:
       arch:
         type: string
       machine_id:
+        type: string
+      meta:
         type: string
       name:
         type: string
@@ -723,6 +742,46 @@ paths:
       summary: List monitors for an agent
       tags:
       - monitors
+  /v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Returns a JWT for frontend API requests when frontend auth is configured.
+      operationId: login
+      parameters:
+      - description: Login request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.LoginResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Log in to Console
+      tags:
+      - auth
   /v1/health/issues:
     get:
       consumes:

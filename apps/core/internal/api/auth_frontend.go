@@ -11,25 +11,37 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// loginRequest is the JSON body for POST /v1/auth/login.
-type loginRequest struct {
+// LoginRequest is the JSON body for POST /v1/auth/login.
+type LoginRequest struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
 
-// loginResponse is returned on success.
-type loginResponse struct {
+// LoginResponse is returned on successful Console login.
+type LoginResponse struct {
 	Token string `json:"token"`
 }
 
 // login handles POST /v1/auth/login. When frontend auth is disabled, returns 401.
+// @Summary      Log in to Console
+// @Description  Returns a JWT for frontend API requests when frontend auth is configured.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @ID           login
+// @Param        request  body      LoginRequest  true  "Login request"
+// @Success      200      {object}  utils.APIResponse{data=LoginResponse}
+// @Failure      400      {object}  utils.APIResponse
+// @Failure      401      {object}  utils.APIResponse
+// @Failure      500      {object}  utils.APIResponse
+// @Router       /v1/auth/login [post]
 func (s *Server) login(c *gin.Context) {
 	if !s.cfg.FrontendAuthOn {
 		utils.Unauthorized(c, "Frontend auth is not configured")
 		return
 	}
 
-	var req loginRequest
+	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.BadRequest(c, "username and password are required")
 		return
@@ -56,7 +68,7 @@ func (s *Server) login(c *gin.Context) {
 		return
 	}
 
-	utils.SuccessResponse(c, http.StatusOK, "OK", loginResponse{Token: tokenStr})
+	utils.SuccessResponse(c, http.StatusOK, "OK", LoginResponse{Token: tokenStr})
 }
 
 // frontendAuthMiddleware returns a handler that enforces JWT when frontend auth is on.
