@@ -125,3 +125,15 @@ type IncidentEvent struct {
 	MonitorReportID string    `json:"monitor_report_id" gorm:"index:idx_incident_events_monitor_report_id"`
 	CreatedAt       time.Time `json:"created_at" gorm:"index:idx_incident_events_created_at"`
 }
+
+type AlertDelivery struct {
+	ID         string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	IncidentID string    `json:"incident_id" gorm:"index:idx_alert_deliveries_incident_id;not null"`
+	EventType  string    `json:"event_type" gorm:"not null"` // incident_opened | incident_resolved
+	Channel    string    `json:"channel" gorm:"not null"`
+	Type       string    `json:"type" gorm:"not null"`   // webhook | email | none
+	Status     string    `json:"status" gorm:"not null"` // pending | sent | failed | suppressed | cooldown
+	Error      string    `json:"error" gorm:"type:text"`
+	CreatedAt  time.Time `json:"created_at" gorm:"index:idx_alert_deliveries_created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}

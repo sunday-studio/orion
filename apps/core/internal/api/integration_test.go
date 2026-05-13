@@ -215,6 +215,7 @@ func TestMonitorReportsOpenAndResolveIncident(t *testing.T) {
 	if incident.Status != "open" || incident.Severity != "high" || incident.NotificationStatus != "pending" {
 		t.Fatalf("incident = %+v, want open high pending", incident)
 	}
+	assertAlertDelivery(t, server, incident.ID, "incident_opened", "suppressed")
 
 	downAgainResp := performJSONRequest(t, server, http.MethodPost, reportPath, map[string]interface{}{
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
@@ -249,6 +250,7 @@ func TestMonitorReportsOpenAndResolveIncident(t *testing.T) {
 	if incident.Status != "resolved" || incident.ResolvedAt == nil {
 		t.Fatalf("incident = %+v, want resolved with resolved_at", incident)
 	}
+	assertAlertDelivery(t, server, incident.ID, "incident_resolved", "suppressed")
 
 	var eventCount int64
 	if err := server.db.Model(&db.IncidentEvent{}).Where("incident_id = ?", incident.ID).Count(&eventCount).Error; err != nil {
@@ -308,7 +310,7 @@ func setupTestServer(t *testing.T) *Server {
 		t.Fatalf("migrate database: %v", err)
 	}
 
-	return NewServer(database, logging.NewLogger(), &config.Config{})
+	return NewServer(database, logging.NewLogger(), &config.Config{AlertRecoveryNotifications: true})
 }
 
 func registerTestAgent(t *testing.T, server *Server) struct {
@@ -399,6 +401,18 @@ func assertIncidentCandidateCount(t *testing.T, response *httptest.ResponseRecor
 	decodeResponse(t, response, &candidates)
 	if !candidates.Success || candidates.Data.Count != want {
 		t.Fatalf("incident candidate count = %+v, want %d", candidates, want)
+	}
+}
+
+func assertAlertDelivery(t *testing.T, server *Server, incidentID string, eventType string, wantStatus string) {
+	t.Helper()
+
+	var delivery db.AlertDelivery
+	if err := server.db.Where("incident_id = ? AND event_type = ?", incidentID, eventType).First(&delivery).Error; err != nil {
+		t.Fatalf("find alert delivery: %v", err)
+	}
+	if delivery.Status != wantStatus {
+		t.Fatalf("alert delivery status = %q, want %q", delivery.Status, wantStatus)
 	}
 }
 

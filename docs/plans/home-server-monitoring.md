@@ -41,7 +41,7 @@ It should be useful, understandable, and reliable before it tries to be a broad 
 - [ ] Support webhook and email channels.
 - [x] Open incidents automatically when health fails.
 - [x] Resolve incidents automatically when health recovers.
-- [ ] Track affected server, monitor, severity, status, timing, and notification attempts.
+- [x] Track affected server, monitor, severity, status, timing, and notification attempts.
 
 ## Priority 3: Agent Reliability
 

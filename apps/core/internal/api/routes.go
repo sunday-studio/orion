@@ -27,7 +27,7 @@ type Server struct {
 func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *Server {
 	agentService := service.NewAgentService(database, logger)
 	authService := service.NewAuthService(database, logger)
-	reportService := service.NewReportService(database, logger)
+	reportService := service.NewReportService(database, logger, cfg)
 	monitorService := service.NewMonitorService(database, logger)
 	router := gin.Default()
 

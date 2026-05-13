@@ -82,6 +82,19 @@ Environment variables:
 | `ORION_ADMIN_USERNAME` | — | If set with `ORION_ADMIN_PASSWORD`, enables frontend login. |
 | `ORION_ADMIN_PASSWORD` | — | Admin password for the web UI. |
 | `ORION_JWT_SECRET` | — | Required when frontend auth is on; used to sign JWTs. |
+| `ORION_ALERT_WEBHOOK_URL` | — | Adds a webhook alert channel. |
+| `ORION_ALERT_WEBHOOK_NAME` | `default-webhook` | Webhook alert channel name. |
+| `ORION_ALERT_WEBHOOK_ENABLED` | `true` | Enables or suppresses the webhook alert channel. |
+| `ORION_ALERT_EMAIL_TO` | — | Adds an email alert channel recipient. |
+| `ORION_ALERT_EMAIL_FROM` | — | Email alert sender address. |
+| `ORION_ALERT_SMTP_HOST` | — | SMTP host for email alerts. |
+| `ORION_ALERT_SMTP_PORT` | `587` | SMTP port for email alerts. |
+| `ORION_ALERT_SMTP_USERNAME` | — | Optional SMTP username. |
+| `ORION_ALERT_SMTP_PASSWORD` | — | Optional SMTP password. |
+| `ORION_ALERT_EMAIL_NAME` | `default-email` | Email alert channel name. |
+| `ORION_ALERT_EMAIL_ENABLED` | `true` | Enables or suppresses the email alert channel. |
+| `ORION_ALERT_COOLDOWN_SECONDS` | `300` | Default alert cooldown window. |
+| `ORION_ALERT_RECOVERY_NOTIFICATIONS` | `true` | Queue recovery notifications when incidents resolve. |
 
 When both `ORION_ADMIN_USERNAME` and `ORION_ADMIN_PASSWORD` are set, the frontend requires login at `/login`. `ORION_JWT_SECRET` must also be set in that case.
 

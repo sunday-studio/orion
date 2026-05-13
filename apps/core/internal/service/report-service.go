@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"orion/core/internal/config"
 	"orion/core/internal/db"
 	"orion/core/internal/logging"
 	"orion/core/internal/utils"
@@ -30,12 +31,14 @@ type MonitorReportPayload struct {
 type ReportService struct {
 	db     *gorm.DB
 	logger *logging.Logger
+	cfg    *config.Config
 }
 
-func NewReportService(database *gorm.DB, logger *logging.Logger) *ReportService {
+func NewReportService(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *ReportService {
 	return &ReportService{
 		db:     database,
 		logger: logger,
+		cfg:    cfg,
 	}
 }
 
@@ -86,7 +89,7 @@ func (s *ReportService) StoreMonitorReport(monitorID string, payload MonitorRepo
 		// Don't fail the request if monitor update fails
 	}
 
-	incidentService := NewIncidentService(s.db, s.logger)
+	incidentService := NewIncidentService(s.db, s.logger, s.cfg)
 	if err := incidentService.ReconcileMonitorReport(monitorID, monitorReportID, payload.Health); err != nil {
 		s.logger.Error("Failed to reconcile incident after monitor report", "monitor_id", monitorID, "monitor_report_id", monitorReportID, "error", err)
 		return nil, err

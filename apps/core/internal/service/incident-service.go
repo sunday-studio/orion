@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"fmt"
+	"orion/core/internal/config"
 	"orion/core/internal/db"
 	"orion/core/internal/logging"
 	"orion/core/internal/utils"
@@ -14,12 +15,14 @@ import (
 type IncidentService struct {
 	db     *gorm.DB
 	logger *logging.Logger
+	cfg    *config.Config
 }
 
-func NewIncidentService(database *gorm.DB, logger *logging.Logger) *IncidentService {
+func NewIncidentService(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *IncidentService {
 	return &IncidentService{
 		db:     database,
 		logger: logger,
+		cfg:    cfg,
 	}
 }
 
@@ -89,7 +92,10 @@ func (s *IncidentService) openOrUpdateIncident(agent db.Agent, monitor db.Monito
 		return err
 	}
 
-	return s.createIncidentEvent(incident.ID, "incident_opened", message, monitorReportID)
+	if err := s.createIncidentEvent(incident.ID, "incident_opened", message, monitorReportID); err != nil {
+		return err
+	}
+	return NewAlertService(s.db, s.logger, s.cfg).QueueIncidentNotifications(incident.ID, "incident_opened")
 }
 
 func (s *IncidentService) resolveActiveIncident(monitor db.Monitor, monitorReportID string) error {
@@ -117,7 +123,13 @@ func (s *IncidentService) resolveActiveIncident(monitor db.Monitor, monitorRepor
 		return err
 	}
 
-	return s.createIncidentEvent(incident.ID, "incident_resolved", message, monitorReportID)
+	if err := s.createIncidentEvent(incident.ID, "incident_resolved", message, monitorReportID); err != nil {
+		return err
+	}
+	if s.cfg != nil && !s.cfg.AlertRecoveryNotifications {
+		return nil
+	}
+	return NewAlertService(s.db, s.logger, s.cfg).QueueIncidentNotifications(incident.ID, "incident_resolved")
 }
 
 func (s *IncidentService) createIncidentEvent(incidentID string, eventType string, message string, monitorReportID string) error {
