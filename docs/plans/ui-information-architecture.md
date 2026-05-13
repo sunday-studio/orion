@@ -1,138 +1,417 @@
 # Orion UI/UX Information Architecture
 
-## Goal
+## Summary
 
-Design Orion as an operations-first home server monitoring UI. The app should answer, in order:
+Design Orion as an operations-first home server monitoring UI. The app should help answer, in order:
 
-1. What needs attention?
-2. Which server owns it?
-3. What monitor failed?
-4. What happened over time?
-5. What configuration exists?
+- What needs attention?
+- Which server owns it?
+- What monitor failed?
+- What happened over time?
+- What configuration exists?
 
-Use **Servers** as the user-facing term for agents. Configuration stays read-only in the UI for now.
+Use **Servers** as the primary user-facing term. The UI is mostly read-only and config-driven: it displays current configuration and can explain or reference setup, but monitor and alert configuration remain outside the UI for now.
 
-## Status Language
+## Global Layout
 
-- Server and monitor: `up`, `down`, `degraded`, `maintenance`, `unknown`, `stale`.
-- Incident: `open`, `acknowledged`, `resolved`.
-- Alert: `pending`, `sent`, `failed`, `suppressed`, `cooldown`.
+### Header
 
-## Navigation
+- Orion logo/name.
+- Global health indicator: `All good`, `Issues`, `Maintenance`, or `Unknown`.
+- Primary navigation:
+  - Home.
+  - Servers.
+  - Incidents.
+  - Logs.
+  - Settings.
+- User/profile icon:
+  - Account/session.
+  - Sign out.
 
-- Home.
-- Servers.
-- Incidents.
-- Logs.
-- Settings.
-- Account menu with session details and sign out.
+### Global Status Language
 
-## Home
+- Server status: `up`, `down`, `degraded`, `maintenance`, `unknown`, `stale`.
+- Monitor status: `up`, `down`, `degraded`, `unknown`, `stale`.
+- Incident status: `open`, `acknowledged`, `resolved`.
+- Alert status: `pending`, `sent`, `failed`, `suppressed`, `cooldown`.
 
-Purpose: show current problems first, then a quick server overview.
+## Home Page
 
-Show:
+Purpose: show what needs attention first, then provide a fast server overview.
 
-- Counts for open incidents, failing monitors, stale servers, failed/suppressed alerts, and expiring TLS certificates.
-- A "Needs Attention" list for incidents, failing monitors, and stale servers.
-- A server list with status, uptime, last seen, monitor count, incident count, and maintenance state.
-- Expandable monitor rows with type, status, latency, last checked, last success, and current failure reason.
+### Attention Summary
 
-Filters:
+- Open incidents count.
+- Down monitors count.
+- Degraded monitors count.
+- Stale servers count.
+- Alerts failed/suppressed count.
+- Expiring TLS certificates count.
 
-- Search by server or monitor.
+### Needs Attention
+
+Incident rows:
+
+- Severity.
+- Affected server.
+- Affected monitor.
 - Status.
-- Maintenance.
+- Opened duration.
+- Latest event.
+
+Down/degraded monitor rows if no incident model exists yet:
+
+- Monitor name.
+- Server name.
+- Status.
+- Last failure time.
+- Failure reason.
+
+Stale server rows:
+
+- Server name.
+- Last seen timestamp.
+- Last seen duration.
+- Expected reporting interval.
+
+### Server List
+
+Server row:
+
+- Name.
+- Status.
+- Uptime percentage.
+- Uptime duration.
+- Last seen timestamp.
+- Last seen duration.
+- Monitor count.
+- Active incident count.
+- Maintenance indicator.
+
+Expandable monitors:
+
+- Monitor name.
+- Type.
+- Status.
+- Latency where applicable.
+- Last checked.
+- Last success.
+- Current failure reason.
+
+### Filters
+
+- Search by server or monitor name.
+- Status filter.
+- Maintenance filter.
 - Stale only.
 - Has incidents.
 
-## Servers
+## Servers Page
 
-Purpose: compare all monitored servers.
+Purpose: inventory and comparison across all monitored servers.
 
-Show:
+### Server Table
 
-- Name, status, OS/platform, IP/location when available.
-- CPU, memory, disk, uptime, last seen, monitor count, and open incidents.
-- Grouping for all, healthy, needs attention, maintenance, and stale.
-- Row actions for detail, monitors, incidents, and events.
+- Name.
+- Status.
+- OS/platform.
+- IP/location if available.
+- CPU.
+- Memory.
+- Disk.
+- Uptime.
+- Last seen.
+- Monitor count.
+- Open incidents.
 
-## Server Detail
+### Server Grouping
 
-Purpose: explain one server's current health and recent history.
+- All.
+- Healthy.
+- Needs attention.
+- Maintenance.
+- Stale.
 
-Show:
+### Server Row Actions
 
-- Name, status, maintenance state, last seen, uptime, and Agent version.
-- Health summary with monitor counts, stale state, latest report, and active incidents.
-- System metrics: CPU, memory, disk, load, uptime, and location/IP metadata.
-- Monitors grouped as failing first, unknown/stale second, healthy last.
-- Server events: registration, reconnect, reports, maintenance, stale, recovery, alerts, and incidents.
-- Read-only server and monitor configuration snapshot.
+- Open server detail.
+- View monitors.
+- View related incidents.
+- View server events.
 
-## Monitor Detail
+## Server Detail Page
+
+Purpose: explain one server's current health and history.
+
+### Header
+
+- Server name.
+- Status.
+- Maintenance state.
+- Last seen timestamp and duration.
+- Uptime duration.
+- Agent version when available.
+
+### Health Summary
+
+- Overall server health.
+- Monitor health counts.
+- Stale status.
+- Latest report timestamp.
+- Active incidents affecting this server.
+
+### System Metrics
+
+- CPU usage.
+- Memory usage.
+- Disk usage.
+- System load.
+- Uptime.
+- Latest location/IP metadata if available.
+
+### Monitors
+
+Monitor row:
+
+- Name.
+- Type.
+- Status.
+- Uptime percentage.
+- Last checked.
+- Last success.
+- Latest error.
+
+Grouped by:
+
+- Down/degraded first.
+- Unknown/stale second.
+- Up last.
+
+### Server Events
+
+- Agent registered/reconnected.
+- Report received.
+- Maintenance changed.
+- Server became stale.
+- Server recovered.
+- Alert/incident events related to this server.
+
+### Configuration Snapshot
+
+- Display current server/agent config summary.
+- Display monitor config summary.
+- Read-only; no editing in UI.
+
+## Monitor Detail Page
 
 Purpose: explain one check's behavior, reliability, and latest failure.
 
-Show:
+### Header
 
-- Name, parent server, type, status, current incident, last checked, and last success.
-- Current result: health, latency, status code, resolved IP, TLS expiry, failure reason, and raw error details.
-- Uptime percentage, uptime duration, daily buckets, and recent down/degraded windows.
-- Check history with timestamp, status, latency, result summary, error payload, and collected metrics.
-- Related incidents and notification outcomes.
-- Read-only monitor configuration snapshot.
-
-## Incidents
-
-Purpose: show operational history for things that broke or needed attention.
-
-List:
-
-- Severity, status, title, affected server/monitor, opened time, duration, latest event, and notification status.
-
-Filters:
-
+- Monitor name.
+- Parent server.
+- Type.
 - Status.
+- Current incident if any.
+- Last checked.
+- Last successful check.
+
+### Current Result
+
+- Health.
+- Latency.
+- Status code where applicable.
+- Resolved IP for external HTTP/website checks.
+- TLS expiry where applicable.
+- Failure reason.
+- Raw error details.
+
+### Uptime
+
+- Uptime percentage.
+- Uptime duration.
+- Daily uptime buckets.
+- Recent down/degraded windows.
+
+### Check History
+
+- Timestamp.
+- Status.
+- Latency.
+- Result summary.
+- Error payload.
+- Collected payload/metrics.
+
+### Related Incidents
+
+- Open/resolved incidents for this monitor.
+- Opened time.
+- Resolved time.
+- Severity.
+- Notifications sent.
+
+### Configuration Snapshot
+
+- Monitor type.
+- Interval.
+- Timeout.
+- Expected status/body/regex where applicable.
+- Threshold values.
+- Alert enabled/disabled state.
+- Read-only.
+
+## Incidents Page
+
+Purpose: operational history of things that broke or needed attention.
+
+### Incident List
+
+- Severity.
+- Status.
+- Title.
+- Affected server.
+- Affected monitor.
+- Opened timestamp.
+- Duration.
+- Latest event.
+- Notification status.
+
+### Filters
+
+- Open.
+- Acknowledged.
+- Resolved.
 - Severity.
 - Server.
 - Monitor.
 - Date range.
 
-Detail:
+## Incident Detail Page
 
-- Header with title, status, severity, affected server/monitor, opened time, resolved time, and duration.
-- Cause summary from the triggering report through the latest or recovery result.
-- Timeline for open, alert match, notifications, status changes, recovery, and resolution.
-- Links to related monitor reports, server events, and alert attempts.
+Purpose: timeline for one operational event.
+
+### Incident Header
+
+- Title.
+- Status.
+- Severity.
+- Affected server.
+- Affected monitor.
+- Opened timestamp.
+- Resolved timestamp.
+- Duration.
+
+### Cause Summary
+
+- Triggering monitor/report.
+- First failing result.
+- Latest result.
+- Recovery result if resolved.
+
+### Timeline
+
+- Incident opened.
+- Alert rule matched.
+- Notifications sent/failed/suppressed.
+- Status changes.
+- Monitor recovered.
+- Incident resolved.
+
+### Linked Data
+
+- Related monitor reports.
+- Related server events.
+- Alert delivery attempts.
 
 ## Logs
 
-Purpose: keep Orion's own event trail separate from future service logs.
+### Orion Event Log
 
-Orion event log:
+Purpose: internal operational trail for Orion itself.
 
-- Registration, monitor lifecycle, reports, health changes, incidents, alerts, maintenance, cleanup, and migrations.
+- Server registered/reconnected.
+- Monitor registered/unregistered.
+- Report received.
+- Health changed.
+- Incident opened/resolved.
+- Alert sent/failed/suppressed.
+- Maintenance changed.
+- Retention cleanup ran.
+- Migration ran.
+- Auth/login events if useful.
 
-Future service logs:
+### Service Logs
 
-- Source, server, timestamp, level, message, and optional monitor/incident correlation.
+Purpose: future separate area for logs collected from monitored services.
+
+- Keep separate from Orion events.
+- Do not mix service logs into incident/event history by default.
+
+Initial IA placeholder:
+
+- Service/source.
+- Server.
+- Timestamp.
+- Level.
+- Message.
+- Correlated monitor/incident if available.
 
 ## Settings
 
-Purpose: show current configuration and runtime facts without editing them.
+Settings are read-only and config-driven for now.
 
-Show:
+### Settings Overview
 
-- Core version, database status/path, retention settings, known servers, and monitor types.
-- Alert channels with name, type, enabled state, last delivery status, and secret environment variable references.
-- Alert rules with trigger, severity, cooldown, recovery notification, maintenance suppression, and target channels.
-- Retention values, last cleanup run, and estimated database size.
-- Agent setup reference: config shape, known servers, install paths, service files, and Tailscale/local network notes.
+- Core version.
+- Database path/status.
+- Retention settings.
+- Configured alert channels.
+- Configured alert rules.
+- Known agents/servers.
+- Configured monitor types.
+
+### Alert Channels
+
+List configured channels:
+
+- Name.
+- Type: webhook or email.
+- Enabled/disabled.
+- Last delivery status.
+- Last delivery timestamp.
+- Show environment variable references for secrets, not secret values.
+
+### Alert Rules
+
+List configured rules:
+
+- Name.
+- Trigger condition.
+- Severity.
+- Cooldown.
+- Recovery notification enabled.
+- Maintenance suppression enabled.
+- Target channels.
+
+### Retention
+
+- Raw report retention.
+- Daily uptime rollup retention.
+- Last cleanup run.
+- Estimated database size.
+
+### Agent Setup
+
+- Expected agent config shape.
+- Current known servers.
+- Install paths for Linux/macOS.
+- systemd/launchd references.
+- Tailscale/local network notes.
 
 ## Assumptions
 
-- Home prioritizes current problems before inventory.
-- YAML/env configuration stays the source of truth.
-- Logs are split between Orion events and future service logs.
-- Deferred features should not appear as active UI promises.
+- The UI uses **Servers** instead of Agents as the user-facing term.
+- Home page prioritizes current problems before inventory.
+- Configuration remains read-only in the UI; YAML/env configuration stays source of truth.
+- Logs are split into Orion event logs and future service logs.
+- Removed or intentionally deferred features are excluded from the IA.
