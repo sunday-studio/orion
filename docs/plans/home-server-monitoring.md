@@ -46,7 +46,7 @@ It should be useful, understandable, and reliable before it tries to be a broad 
 ## Priority 3: Agent Reliability
 
 - [x] Add exponential backoff and jitter.
-- [ ] Add a bounded retry queue for temporary Core outages.
+- [x] Add a bounded retry queue for temporary Core outages.
 - [ ] Report Agent version and config summary.
 - [ ] Re-read maintenance mode during runtime.
 - [ ] Handle shutdown cleanly.

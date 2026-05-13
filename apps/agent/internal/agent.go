@@ -14,6 +14,7 @@ type Agent struct {
 	userConfig    *config.UserConfig
 	internalState *config.InternalState
 	transport     *transport.Client
+	retryQueue    *RetryQueue
 }
 
 func New(userConfig *config.UserConfig, internalState *config.InternalState) *Agent {
@@ -21,6 +22,7 @@ func New(userConfig *config.UserConfig, internalState *config.InternalState) *Ag
 		userConfig:    userConfig,
 		transport:     transport.NewClient(userConfig.CoreURL, internalState.Token),
 		internalState: internalState,
+		retryQueue:    NewRetryQueue(100),
 	}
 }
 
@@ -40,6 +42,7 @@ func (a *Agent) Run(ctx context.Context) error {
 
 	// Start system metrics worker
 	go a.startSystemMetricsWorker(ctx)
+	go a.startRetryQueueWorker(ctx)
 
 	// start one worker per monitor
 	for _, monitor := range a.userConfig.Monitors {
@@ -105,6 +108,24 @@ func (a *Agent) startSystemMetricsWorker(ctx context.Context) {
 	}
 }
 
+func (a *Agent) startRetryQueueWorker(ctx context.Context) {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			logging.Infof("Retry queue worker stopped")
+			return
+		case <-ticker.C:
+			if a.retryQueue.Len() > 0 {
+				logging.Infof("Flushing retry queue (%d pending)", a.retryQueue.Len())
+				a.retryQueue.Flush(ctx)
+			}
+		}
+	}
+}
+
 // Start Monitor Worker
 func (a *Agent) startMonitorWorker(ctx context.Context, monitor config.UserMonitor) {
 	logging.Infof("Starting monitor worker for %s...", monitor.Name)
@@ -162,7 +183,12 @@ func (a *Agent) runSystemMetrics() error {
 		Location:      metrics.Location,
 	}
 
-	if err := a.transport.SendReport(*report, a.internalState.AgentID); err != nil {
+	send := func(context.Context) error {
+		return a.transport.SendReport(*report, a.internalState.AgentID)
+	}
+
+	if err := send(context.Background()); err != nil {
+		a.retryQueue.Push(RetryItem{Name: "system-report", Send: send})
 		return err
 	}
 
@@ -184,7 +210,12 @@ func (a *Agent) runMonitorMetrics(monitor config.InternalStateMonitor, userMonit
 		Error:     result.Error,
 	}
 
-	if err := a.transport.SendMonitorReport(*report, a.internalState.AgentID, monitor.ID); err != nil {
+	send := func(context.Context) error {
+		return a.transport.SendMonitorReport(*report, a.internalState.AgentID, monitor.ID)
+	}
+
+	if err := send(context.Background()); err != nil {
+		a.retryQueue.Push(RetryItem{Name: "monitor-report:" + monitor.Name, Send: send})
 		return err
 	}
 
