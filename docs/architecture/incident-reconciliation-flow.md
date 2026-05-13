@@ -1,0 +1,205 @@
+# Incident Reconciliation Flow
+
+This note explains why Core checks for an active incident on monitor reports, why `record not found` can appear in logs, and how raw report ingestion turns into derived monitor/server state.
+
+## Why Core Looks For An Incident On Every Monitor Report
+
+Every monitor report is a chance to move the incident state machine forward:
+
+- healthy report with no active incident: do nothing;
+- healthy report with an active incident: resolve it;
+- failing report with no active incident: open one;
+- failing report with an active incident: update it;
+- healthy report with expiring TLS: treat it as degraded and open/update an incident.
+
+```mermaid
+flowchart TD
+  A["Agent sends monitor report"] --> B["Core stores monitor_report"]
+  B --> C["Core updates monitor.health"]
+  C --> D{"Report health?"}
+
+  D -- "up" --> E["Look for active incident for this monitor"]
+  E --> F{"Active incident exists?"}
+  F -- "yes" --> G["Resolve incident"]
+  F -- "no" --> H["Do nothing"]
+
+  D -- "down/degraded/stale" --> I["Look for active incident for this monitor"]
+  I --> J{"Active incident exists?"}
+  J -- "yes" --> K["Update incident latest_event"]
+  J -- "no" --> L["Open new incident"]
+
+  D -- "up + TLS expiring" --> M["Treat as degraded"]
+  M --> I
+```
+
+## The Normal No-Incident Case
+
+The noisy log appears when this lookup returns no rows:
+
+```sql
+SELECT *
+FROM incidents
+WHERE monitor_id = ?
+  AND status IN ("open", "acknowledged")
+ORDER BY opened_at DESC
+LIMIT 1;
+```
+
+That does not mean ingestion failed. For a healthy monitor, no active incident is the expected state.
+
+```mermaid
+flowchart LR
+  A["Look for active incident"] --> B["SELECT active incident by monitor_id"]
+  B --> C{"Found?"}
+  C -- "yes" --> D["Update or resolve it"]
+  C -- "no" --> E["Normal: no active incident"]
+```
+
+## Incident State Machine
+
+```mermaid
+stateDiagram-v2
+  [*] --> NoIncident
+
+  NoIncident --> NoIncident: report up
+  NoIncident --> Open: report down/degraded/stale
+  NoIncident --> Open: report up but TLS expiring
+
+  Open --> Open: report still failing
+  Open --> Resolved: report up and TLS ok
+
+  Resolved --> Open: later failing report
+  Resolved --> Resolved: report up
+```
+
+## Healthy Report With No Incident
+
+```mermaid
+sequenceDiagram
+  participant Agent
+  participant Core
+  participant Reports as monitor_reports
+  participant Monitors as monitors
+  participant Incidents as incidents
+
+  Agent->>Core: monitor report: up
+  Core->>Reports: insert raw report
+  Core->>Monitors: set health = up, last_successful_report_at = now
+  Core->>Incidents: find active incident for monitor
+  Incidents-->>Core: no rows
+  Core-->>Agent: OK
+```
+
+## Failing Report With No Incident
+
+```mermaid
+sequenceDiagram
+  participant Agent
+  participant Core
+  participant Reports as monitor_reports
+  participant Monitors as monitors
+  participant Incidents as incidents
+  participant Alerts as alert_deliveries
+
+  Agent->>Core: monitor report: down
+  Core->>Reports: insert raw report
+  Core->>Monitors: set health = down
+  Core->>Incidents: find active incident for monitor
+  Incidents-->>Core: no rows
+  Core->>Incidents: create open incident
+  Core->>Incidents: create incident_opened event
+  Core->>Alerts: queue notification delivery
+  Core-->>Agent: OK
+```
+
+## Continued Failure
+
+```mermaid
+sequenceDiagram
+  participant Agent
+  participant Core
+  participant Incidents as incidents
+
+  Agent->>Core: monitor report: down
+  Core->>Incidents: find active incident for monitor
+  Incidents-->>Core: existing open incident
+  Core->>Incidents: update latest_event and last_event_at
+  Core->>Incidents: add monitor_failed event
+  Core-->>Agent: OK
+```
+
+## Recovery
+
+```mermaid
+sequenceDiagram
+  participant Agent
+  participant Core
+  participant Incidents as incidents
+  participant Alerts as alert_deliveries
+
+  Agent->>Core: monitor report: up
+  Core->>Incidents: find active incident for monitor
+  Incidents-->>Core: existing open incident
+  Core->>Incidents: set status = resolved
+  Core->>Incidents: set resolved_at
+  Core->>Incidents: add incident_resolved event
+  Core->>Alerts: queue recovery notification if enabled
+  Core-->>Agent: OK
+```
+
+## Derived Monitor Health
+
+Incident reconciliation uses the reported health and TLS checks directly. Core also computes a derived monitor health for broader health views.
+
+```mermaid
+flowchart TD
+  A["Raw monitor report"] --> B["Store reported health"]
+  B --> C["Compute derived monitor health"]
+  C --> D["Load last 20 reports"]
+  D --> E{"No reports?"}
+  E -- "yes" --> U["unknown"]
+  E -- "no" --> F{"Latest report stale?"}
+  F -- "yes" --> U
+  F -- "no" --> G{"Flapping?"}
+  G -- "yes" --> DEG["degraded"]
+  G -- "no" --> H{"Failure rate >= 30% and < 100%?"}
+  H -- "yes" --> DEG
+  H -- "no" --> I["Use latest reported health"]
+
+  U --> J["Cache computed_health on monitor"]
+  DEG --> J
+  I --> J
+```
+
+## Derived Server Health
+
+Server health rolls monitor state up to the server level.
+
+```mermaid
+flowchart TD
+  A["Compute server health"] --> B{"Server in maintenance?"}
+  B -- "yes" --> M["maintenance"]
+  B -- "no" --> C{"Server last_seen stale?"}
+  C -- "yes" --> S["stale"]
+  C -- "no" --> D{"Has active monitors?"}
+  D -- "no" --> UP["up"]
+  D -- "yes" --> E["Compute monitor healths"]
+  E --> F{"Any down?"}
+  F -- "yes" --> DOWN["down"]
+  F -- "no" --> G{"Any degraded?"}
+  G -- "yes" --> DEG["degraded"]
+  G -- "no" --> H{"Any unknown?"}
+  H -- "yes" --> UNK["unknown"]
+  H -- "no" --> UP
+```
+
+## Logging Note
+
+The active incident lookup is conceptually correct. The problem is the current lookup shape can make GORM log an expected "no active incident" result as `record not found`.
+
+A targeted fix is better than globally ignoring all not-found logs:
+
+- add a helper such as `findActiveIncident(monitorID) (incident, found, error)`;
+- implement it with `Find()` and `RowsAffected`, or another query shape that does not log expected empty results;
+- keep true not-found errors visible elsewhere.
+
