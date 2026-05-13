@@ -18,6 +18,7 @@ type Config struct {
 	AlertChannels              []AlertChannelConfig
 	AlertCooldownSeconds       int
 	AlertRecoveryNotifications bool
+	AlertTLSExpiryDays         int
 }
 
 type AlertChannelConfig struct {
@@ -53,6 +54,7 @@ func Load() *Config {
 		AlertChannels:              loadAlertChannels(),
 		AlertCooldownSeconds:       getEnvInt("ORION_ALERT_COOLDOWN_SECONDS", 300),
 		AlertRecoveryNotifications: getEnvBool("ORION_ALERT_RECOVERY_NOTIFICATIONS", true),
+		AlertTLSExpiryDays:         getEnvInt("ORION_ALERT_TLS_EXPIRY_DAYS", 14),
 	}
 }
 
@@ -63,6 +65,9 @@ func (c *Config) Validate() error {
 	}
 	if c.AlertCooldownSeconds < 0 {
 		return &ValidationError{Msg: "ORION_ALERT_COOLDOWN_SECONDS must be >= 0"}
+	}
+	if c.AlertTLSExpiryDays < 0 {
+		return &ValidationError{Msg: "ORION_ALERT_TLS_EXPIRY_DAYS must be >= 0"}
 	}
 	for _, channel := range c.AlertChannels {
 		if err := channel.Validate(); err != nil {

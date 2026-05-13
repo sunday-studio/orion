@@ -90,7 +90,7 @@ func (s *ReportService) StoreMonitorReport(monitorID string, payload MonitorRepo
 	}
 
 	incidentService := NewIncidentService(s.db, s.logger, s.cfg)
-	if err := incidentService.ReconcileMonitorReport(monitorID, monitorReportID, payload.Health); err != nil {
+	if err := incidentService.ReconcileMonitorReport(monitorID, monitorReportID, payload); err != nil {
 		s.logger.Error("Failed to reconcile incident after monitor report", "monitor_id", monitorID, "monitor_report_id", monitorReportID, "error", err)
 		return nil, err
 	}
@@ -133,6 +133,11 @@ func (s *ReportService) StoreAgentReport(agentID string, payload AgentReportPayl
 	}
 
 	s.logger.Info("Agent report stored successfully", "agent_report_id", agentReport.ID)
+	incidentService := NewIncidentService(s.db, s.logger, s.cfg)
+	if err := incidentService.ReconcileStaleMonitors(agentID); err != nil {
+		s.logger.Error("Failed to reconcile stale monitor incidents after agent report", "agent_id", agentID, "error", err)
+		return nil, err
+	}
 	return &agentReportID, nil
 }
 

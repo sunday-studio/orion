@@ -95,6 +95,7 @@ Environment variables:
 | `ORION_ALERT_EMAIL_ENABLED` | `true` | Enables or suppresses the email alert channel. |
 | `ORION_ALERT_COOLDOWN_SECONDS` | `300` | Default alert cooldown window. |
 | `ORION_ALERT_RECOVERY_NOTIFICATIONS` | `true` | Queue recovery notifications when incidents resolve. |
+| `ORION_ALERT_TLS_EXPIRY_DAYS` | `14` | Open a degraded incident when `tls_days_remaining` is at or below this value. |
 
 When both `ORION_ADMIN_USERNAME` and `ORION_ADMIN_PASSWORD` are set, the frontend requires login at `/login`. `ORION_JWT_SECRET` must also be set in that case.
 

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"orion/core/internal/config"
@@ -26,7 +27,7 @@ func NewIncidentService(database *gorm.DB, logger *logging.Logger, cfg *config.C
 	}
 }
 
-func (s *IncidentService) ReconcileMonitorReport(monitorID string, monitorReportID string, health string) error {
+func (s *IncidentService) ReconcileMonitorReport(monitorID string, monitorReportID string, payload MonitorReportPayload) error {
 	var monitor db.Monitor
 	if err := s.db.Where("id = ?", monitorID).First(&monitor).Error; err != nil {
 		return err
@@ -37,7 +38,9 @@ func (s *IncidentService) ReconcileMonitorReport(monitorID string, monitorReport
 		return err
 	}
 
-	if health == "up" {
+	reportedHealth := payload.Health
+	tlsExpiring := s.isTLSExpiring(payload.Metrics)
+	if reportedHealth == "up" && !tlsExpiring {
 		return s.resolveActiveIncident(monitor, monitorReportID)
 	}
 
@@ -46,8 +49,39 @@ func (s *IncidentService) ReconcileMonitorReport(monitorID string, monitorReport
 		return nil
 	}
 
-	if health == "down" || health == "degraded" || health == "stale" {
-		return s.openOrUpdateIncident(agent, monitor, monitorReportID, health)
+	if tlsExpiring {
+		return s.openOrUpdateIncident(agent, monitor, monitorReportID, "degraded")
+	}
+
+	if reportedHealth == "down" || reportedHealth == "degraded" || reportedHealth == "stale" {
+		return s.openOrUpdateIncident(agent, monitor, monitorReportID, reportedHealth)
+	}
+
+	return nil
+}
+
+func (s *IncidentService) ReconcileStaleMonitors(agentID string) error {
+	var agent db.Agent
+	if err := s.db.Where("id = ?", agentID).First(&agent).Error; err != nil {
+		return err
+	}
+	if agent.MaintenanceMode {
+		return nil
+	}
+
+	healthService := NewHealthService(s.db, s.logger)
+	staleMonitors, err := healthService.DetectStaleMonitors(DefaultHealthConfig())
+	if err != nil {
+		return err
+	}
+
+	for _, monitor := range staleMonitors {
+		if monitor.AgentID != agentID {
+			continue
+		}
+		if err := s.openOrUpdateIncident(agent, monitor, "", "stale"); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -151,5 +185,46 @@ func incidentSeverity(health string) string {
 		return "medium"
 	default:
 		return "low"
+	}
+}
+
+func (s *IncidentService) isTLSExpiring(metrics interface{}) bool {
+	threshold := 14
+	if s.cfg != nil {
+		threshold = s.cfg.AlertTLSExpiryDays
+	}
+	if threshold <= 0 {
+		return false
+	}
+
+	metricsMap, ok := metrics.(map[string]interface{})
+	if !ok {
+		return false
+	}
+
+	rawDays, exists := metricsMap["tls_days_remaining"]
+	if !exists {
+		return false
+	}
+
+	days, ok := numericValue(rawDays)
+	return ok && days <= float64(threshold)
+}
+
+func numericValue(value interface{}) (float64, bool) {
+	switch typed := value.(type) {
+	case float64:
+		return typed, true
+	case float32:
+		return float64(typed), true
+	case int:
+		return float64(typed), true
+	case int64:
+		return float64(typed), true
+	case json.Number:
+		parsed, err := typed.Float64()
+		return parsed, err == nil
+	default:
+		return 0, false
 	}
 }

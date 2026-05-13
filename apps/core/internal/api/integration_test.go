@@ -297,6 +297,77 @@ func TestMaintenanceSuppressesAutomaticIncidentOpen(t *testing.T) {
 	}
 }
 
+func TestTLSExpiryMetricOpensAndResolvesIncident(t *testing.T) {
+	server := setupTestServer(t)
+	registered := registerTestAgent(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+	reportPath := "/v1/agents/" + registered.Data.AgentID + "/" + registeredMonitor.Data.MonitorID + "/report"
+
+	expiringResp := performJSONRequest(t, server, http.MethodPost, reportPath, map[string]interface{}{
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"health":    "up",
+		"metrics": map[string]interface{}{
+			"tls_days_remaining": 3,
+		},
+	}, registered.Data.Token)
+	if expiringResp.Code != http.StatusOK {
+		t.Fatalf("expiring TLS report status = %d, body = %s", expiringResp.Code, expiringResp.Body.String())
+	}
+
+	var incident db.Incident
+	if err := server.db.Where("monitor_id = ?", registeredMonitor.Data.MonitorID).First(&incident).Error; err != nil {
+		t.Fatalf("find incident: %v", err)
+	}
+	if incident.Status != "open" || incident.Severity != "medium" {
+		t.Fatalf("incident = %+v, want open medium", incident)
+	}
+
+	healthyResp := performJSONRequest(t, server, http.MethodPost, reportPath, map[string]interface{}{
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"health":    "up",
+		"metrics": map[string]interface{}{
+			"tls_days_remaining": 90,
+		},
+	}, registered.Data.Token)
+	if healthyResp.Code != http.StatusOK {
+		t.Fatalf("healthy TLS report status = %d, body = %s", healthyResp.Code, healthyResp.Body.String())
+	}
+
+	if err := server.db.Where("id = ?", incident.ID).First(&incident).Error; err != nil {
+		t.Fatalf("reload incident: %v", err)
+	}
+	if incident.Status != "resolved" {
+		t.Fatalf("incident status = %q, want resolved", incident.Status)
+	}
+}
+
+func TestAgentReportOpensStaleMonitorIncident(t *testing.T) {
+	server := setupTestServer(t)
+	registered := registerTestAgent(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+
+	reportBody := map[string]interface{}{
+		"uptime_seconds": 120,
+		"timestamp":      time.Now().UTC().Format(time.RFC3339),
+		"cpu":            map[string]interface{}{},
+		"memory":         map[string]interface{}{},
+		"disk":           map[string]interface{}{},
+	}
+	reportPath := "/v1/agents/" + registered.Data.AgentID + "/report"
+	reportResp := performJSONRequest(t, server, http.MethodPost, reportPath, reportBody, registered.Data.Token)
+	if reportResp.Code != http.StatusOK {
+		t.Fatalf("agent report status = %d, body = %s", reportResp.Code, reportResp.Body.String())
+	}
+
+	var incident db.Incident
+	if err := server.db.Where("monitor_id = ?", registeredMonitor.Data.MonitorID).First(&incident).Error; err != nil {
+		t.Fatalf("find incident: %v", err)
+	}
+	if incident.Status != "open" || incident.Severity != "high" {
+		t.Fatalf("incident = %+v, want open high stale incident", incident)
+	}
+}
+
 func setupTestServer(t *testing.T) *Server {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
@@ -310,7 +381,7 @@ func setupTestServer(t *testing.T) *Server {
 		t.Fatalf("migrate database: %v", err)
 	}
 
-	return NewServer(database, logging.NewLogger(), &config.Config{AlertRecoveryNotifications: true})
+	return NewServer(database, logging.NewLogger(), &config.Config{AlertRecoveryNotifications: true, AlertTLSExpiryDays: 14})
 }
 
 func registerTestAgent(t *testing.T, server *Server) struct {
