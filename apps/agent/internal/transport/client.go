@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"time"
 
@@ -15,6 +16,15 @@ type Client struct {
 	coreURL    string
 	httpClient *http.Client
 	authToken  string
+	retry      RetryConfig
+	sleep      func(time.Duration)
+}
+
+type RetryConfig struct {
+	MaxAttempts int
+	BaseDelay   time.Duration
+	MaxDelay    time.Duration
+	JitterRatio float64
 }
 
 func NewClient(coreURL, authToken string) *Client {
@@ -24,6 +34,13 @@ func NewClient(coreURL, authToken string) *Client {
 			Timeout: 10 * time.Second,
 		},
 		authToken: authToken,
+		retry: RetryConfig{
+			MaxAttempts: 3,
+			BaseDelay:   200 * time.Millisecond,
+			MaxDelay:    5 * time.Second,
+			JitterRatio: 0.2,
+		},
+		sleep: time.Sleep,
 	}
 }
 
@@ -32,31 +49,91 @@ func (c *Client) SetAuthToken(authToken string) {
 }
 
 func (c *Client) makeRequest(method, endpoint string, body interface{}, headers map[string]string) (*http.Response, error) {
-	var bodyReader io.Reader
+	var payload []byte
+	var err error
 	if body != nil {
-		payload, err := json.Marshal(body)
+		payload, err = json.Marshal(body)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal request body: %w", err)
 		}
-		bodyReader = bytes.NewReader(payload)
 	}
 
-	req, err := http.NewRequest(method, fmt.Sprintf("%s%s", c.coreURL, endpoint), bodyReader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+	return c.sendWithRetry(method, fmt.Sprintf("%s%s", c.coreURL, endpoint), payload, headers)
+}
+
+func (c *Client) sendWithRetry(method string, url string, payload []byte, headers map[string]string) (*http.Response, error) {
+	attempts := c.retry.MaxAttempts
+	if attempts <= 0 {
+		attempts = 1
 	}
 
-	req.Header.Set("Content-Type", "application/json")
-	for key, value := range headers {
-		req.Header.Set(key, value)
+	var lastErr error
+	for attempt := 1; attempt <= attempts; attempt++ {
+		req, err := http.NewRequest(method, url, bytes.NewReader(payload))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create request: %w", err)
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+		for key, value := range headers {
+			req.Header.Set(key, value)
+		}
+
+		resp, err := c.httpClient.Do(req)
+		if err == nil && !shouldRetryStatus(resp.StatusCode) {
+			return resp, nil
+		}
+
+		if err != nil {
+			lastErr = err
+		} else {
+			lastErr = fmt.Errorf("core server returned status %d", resp.StatusCode)
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+		}
+
+		if attempt == attempts {
+			break
+		}
+
+		delay := c.retryDelay(attempt)
+		logging.Warnf("request failed; retrying in %s (attempt %d/%d): %v", delay, attempt+1, attempts, lastErr)
+		c.sleep(delay)
 	}
 
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
+	return nil, fmt.Errorf("failed to send request after %d attempts: %w", attempts, lastErr)
+}
+
+func shouldRetryStatus(statusCode int) bool {
+	return statusCode == http.StatusTooManyRequests || statusCode >= 500
+}
+
+func (c *Client) retryDelay(attempt int) time.Duration {
+	baseDelay := c.retry.BaseDelay
+	if baseDelay <= 0 {
+		baseDelay = 200 * time.Millisecond
+	}
+	maxDelay := c.retry.MaxDelay
+	if maxDelay <= 0 {
+		maxDelay = 5 * time.Second
 	}
 
-	return resp, nil
+	delay := baseDelay * (1 << (attempt - 1))
+	if delay > maxDelay {
+		delay = maxDelay
+	}
+
+	if c.retry.JitterRatio <= 0 {
+		return delay
+	}
+
+	jitterRange := int64(float64(delay) * c.retry.JitterRatio)
+	if jitterRange <= 0 {
+		return delay
+	}
+
+	jitter := time.Duration(rand.Int63n(jitterRange*2+1) - jitterRange)
+	return delay + jitter
 }
 
 func (c *Client) makeProtectedRequest(method, endpoint string, body interface{}) (*http.Response, error) {
@@ -161,19 +238,7 @@ func (c *Client) SendMonitorReport(report MonitorReport, agentID string, monitor
 }
 
 func (c *Client) RegisterAgent(req AgentRegistrationRequest) (*AgentRegistrationResponse, error) {
-	payload, err := json.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal registration request: %w", err)
-	}
-
-	httpReq, err := http.NewRequest("POST", fmt.Sprintf("%s/v1/register", c.coreURL), bytes.NewBuffer(payload))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create registration request: %w", err)
-	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(httpReq)
+	resp, err := c.makeRequest("POST", "/v1/register", req, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send registration request: %w", err)
 	}
