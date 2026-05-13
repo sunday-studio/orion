@@ -241,6 +241,19 @@ func (s *Server) getMonitorHistory(c *gin.Context) {
 	})
 }
 
+// getMonitorUptime returns monitor uptime over a period.
+// @Summary      Get monitor uptime
+// @Description  Returns daily uptime buckets and overall uptime percentage for a monitor.
+// @Tags         monitors
+// @Produce      json
+// @ID           getMonitorUptime
+// @Param        id      path      string  true   "Monitor ID"
+// @Param        period  query     string  false  "Uptime period such as 7d, 30d, or 90d"
+// @Success      200     {object}  object{daily_buckets=[]UptimeDayBucketResponse,uptime_percent=number}
+// @Failure      400     {object}  utils.APIResponse
+// @Failure      404     {object}  utils.APIResponse
+// @Failure      500     {object}  utils.APIResponse
+// @Router       /v1/monitors/{id}/uptime [get]
 func (s *Server) getMonitorUptime(c *gin.Context) {
 	monitorID := c.Param("id")
 	if monitorID == "" {

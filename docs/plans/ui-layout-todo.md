@@ -150,6 +150,10 @@ Goal: explain a single check and why it is failing or healthy.
   - Result summary.
   - Error payload.
   - Operation: `getMonitorHistory`.
+- [x] Add uptime summary.
+  - 90 day uptime percentage.
+  - Recent daily uptime buckets.
+  - Operation: `getMonitorUptime`.
 - [x] Add configuration snapshot.
   - Type.
   - Interval.
@@ -157,16 +161,16 @@ Goal: explain a single check and why it is failing or healthy.
   - Expected status/body/regex.
   - Thresholds.
   - Alert enabled state.
-- [x] Defer uptime graph until `GET /v1/monitors/{id}/uptime` has a generated SDK operation.
+- [x] Keep uptime text-first; defer graphing until it is useful.
 
 ## Phase 5: Incident Detail Page
 
 Goal: explain one operational event without duplicating the Incidents list.
 
-- [ ] Add incident detail route.
-  - Route should use incident id.
-  - Operation: future incident detail operation.
-- [ ] Add incident header.
+- [x] Add incident detail route.
+  - Route uses incident id.
+  - Operation: `getIncidents` until a dedicated detail operation exists.
+- [x] Add incident header.
   - Title.
   - Status.
   - Severity.
@@ -175,7 +179,7 @@ Goal: explain one operational event without duplicating the Incidents list.
   - Opened time.
   - Resolved time.
   - Duration.
-- [ ] Add cause summary.
+- [x] Add cause summary.
   - Triggering monitor/report.
   - First failing result.
   - Latest result.
@@ -241,13 +245,37 @@ Goal: add operational history once the backend can serve it.
 ## Backend Contract Gaps
 
 - [x] Add generated operation for server report history: `GET /v1/agents/{id}/reports`.
-- [ ] Add generated operation for server uptime: `GET /v1/agents/{id}/uptime`.
-- [ ] Add generated operation for monitor uptime: `GET /v1/monitors/{id}/uptime`.
+- [x] Add generated operation for agent uptime: `GET /v1/agents/{id}/uptime`.
+- [x] Add generated operation for monitor uptime: `GET /v1/monitors/{id}/uptime`.
 - [ ] Add incident detail endpoint and generated operation.
 - [ ] Add incident event timeline endpoint and generated operation.
 - [ ] Add Orion event log endpoint and generated operation.
 - [ ] Add alert channel listing endpoint and generated operation.
 - [ ] Add alert rule listing endpoint and generated operation.
+
+## Backend-to-Console Priority List
+
+1. [x] Show agent uptime on Agent detail.
+  - Backend route exists: `GET /v1/agents/{id}/uptime`.
+  - Generated SDK operation and rendered on the Agent CPU tab.
+2. [x] Show monitor uptime on Monitor detail.
+  - Backend route exists: `GET /v1/monitors/{id}/uptime`.
+  - Generated SDK operation and rendered on Monitor detail.
+3. [x] Ignore API health as a UI priority for now.
+  - If Core health is unavailable, Console cannot meaningfully render a remediation view.
+4. [ ] Add incident detail contract.
+  - Current Console detail can only resolve from `getIncidents`.
+  - Add `GET /v1/incidents/{id}` before treating this as complete.
+5. [ ] Add incident event timeline contract.
+  - Needed for incident opened, alert matched, delivery attempts, recovery, and resolution events.
+6. [ ] Add alert delivery listing contract.
+  - Backend stores `alert_deliveries`; Console needs a read endpoint for notification logs.
+7. [ ] Add alert channel listing contract.
+  - Backend reads webhook/email channels from config; Console needs redacted channel metadata only.
+8. [ ] Add alert rules/settings listing contract.
+  - Console should show cooldown/recovery/suppression behavior once Core exposes it.
+9. [ ] Leave agent-to-Core write routes out of Console unless explicit admin tooling is planned.
+  - Register/report/monitor write endpoints are runtime protocol endpoints, not normal UI features.
 
 ## First Execution Order
 

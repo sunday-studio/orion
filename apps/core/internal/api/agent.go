@@ -280,6 +280,19 @@ func (s *Server) getAgentReports(c *gin.Context) {
 	})
 }
 
+// getAgentUptime returns agent uptime over a period.
+// @Summary      Get agent uptime
+// @Description  Returns daily uptime buckets and overall uptime percentage for an agent.
+// @Tags         agents
+// @Produce      json
+// @ID           getAgentUptime
+// @Param        id      path      string  true   "Agent ID"
+// @Param        period  query     string  false  "Uptime period such as 7d, 30d, or 90d"
+// @Success      200     {object}  object{daily_buckets=[]UptimeDayBucketResponse,uptime_percent=number}
+// @Failure      400     {object}  utils.APIResponse
+// @Failure      404     {object}  utils.APIResponse
+// @Failure      500     {object}  utils.APIResponse
+// @Router       /v1/agents/{id}/uptime [get]
 func (s *Server) getAgentUptime(c *gin.Context) {
 	agentID := c.Param("id")
 	if agentID == "" {

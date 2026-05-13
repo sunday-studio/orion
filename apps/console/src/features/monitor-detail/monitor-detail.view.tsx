@@ -1,16 +1,26 @@
-import { ListPagination } from "@/components/list-pagination";
+import { InfiniteScrollSentinel } from "@/components/infinite-scroll-sentinel";
 import { PageBreadcrumbs } from "@/components/page-breadcrumbs";
-import { Separator } from "@/components/ui/separator";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   type ApiMonitorReportResponse,
+  getMonitorHistory,
+  type GetMonitorHistory200,
   useGetAgent,
   useGetIncidents,
   useGetMonitor,
-  useGetMonitorHistory,
+  useGetMonitorUptime,
 } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { useCallback } from "react";
 import { useParams } from "react-router-dom";
-import { useState } from "react";
 
 const HISTORY_LIMIT = 20;
 
@@ -72,22 +82,37 @@ const DetailItem = ({ label, value }: { label: string; value: string | number })
   </div>
 );
 
+const getNextOffset = (lastPage: GetMonitorHistory200) => {
+  const offset = lastPage.offset ?? 0;
+  const limit = lastPage.limit ?? HISTORY_LIMIT;
+  const count = lastPage.count ?? 0;
+  const nextOffset = offset + limit;
+  return nextOffset < count ? nextOffset : undefined;
+};
+
+const formatUptime = (value?: number) => (typeof value === "number" ? `${value.toFixed(1)}%` : "—");
+
 export const MonitorDetailPage = () => {
   const { monitorId = "" } = useParams();
-  const [historyOffset, setHistoryOffset] = useState(0);
   const monitorResponse = useGetMonitor(monitorId);
-  const historyResponse = useGetMonitorHistory(monitorId, {
-    limit: HISTORY_LIMIT,
-    offset: historyOffset,
+  const uptimeResponse = useGetMonitorUptime(monitorId, { period: "90d" });
+  const historyQuery = useInfiniteQuery({
+    queryKey: ["monitor-history", monitorId, HISTORY_LIMIT],
+    queryFn: ({ pageParam, signal }) =>
+      getMonitorHistory(monitorId, { limit: HISTORY_LIMIT, offset: pageParam }, { signal }),
+    initialPageParam: 0,
+    getNextPageParam: getNextOffset,
+    enabled: monitorId !== "",
   });
   const incidentsResponse = useGetIncidents({ limit: 100 });
 
   const monitor = monitorResponse.data?.monitor;
   const parentAgentResponse = useGetAgent(monitor?.agent_id ?? "");
-  const reports = historyResponse.data?.reports ?? [];
-  const reportCount = historyResponse.data?.count ?? reports.length;
+  const reports = historyQuery.data?.pages.flatMap((page) => page.reports ?? []) ?? [];
   const latestReport = monitorResponse.data?.recent_reports?.[0] ?? reports[0];
   const latestPayload = parsePayload(latestReport?.payload);
+  const uptimeBuckets = uptimeResponse.data?.daily_buckets ?? [];
+  const recentUptimeBuckets = uptimeBuckets.slice(-7);
   const health =
     monitorResponse.data?.computed_health ??
     monitor?.computed_health ??
@@ -97,6 +122,10 @@ export const MonitorDetailPage = () => {
     (incident) => incident.monitor_id === monitorId,
   );
   const rawPayload = latestReport?.payload ?? "No payload recorded.";
+  const { fetchNextPage } = historyQuery;
+  const loadMoreHistory = useCallback(() => {
+    void fetchNextPage();
+  }, [fetchNextPage]);
 
   if (monitorResponse.isLoading) {
     return <div className="py-3 text-sm text-neutral-600">Loading monitor...</div>;
@@ -171,39 +200,68 @@ export const MonitorDetailPage = () => {
       </section>
 
       <section className="space-y-3">
+        <h2 className="text-sm font-medium">Uptime</h2>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <DetailItem
+            label="90d uptime"
+            value={formatUptime(uptimeResponse.data?.uptime_percent)}
+          />
+          <DetailItem label="days sampled" value={uptimeBuckets.length} />
+        </div>
+        {recentUptimeBuckets.length > 0 && (
+          <div className="grid gap-2 sm:grid-cols-7">
+            {recentUptimeBuckets.map((bucket) => (
+              <div key={bucket.date} className="text-sm">
+                <div className="text-neutral-600">{bucket.date ?? "—"}</div>
+                <div className="font-medium">{formatUptime(bucket.uptime_percent)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-3">
         <h2 className="text-sm font-medium">Check History</h2>
-        {historyResponse.isLoading && (
+        {historyQuery.isLoading && (
           <div className="text-sm text-neutral-600">Loading check history...</div>
         )}
-        {historyResponse.error && <div className="text-sm">Unable to load check history.</div>}
-        {!historyResponse.isLoading && !historyResponse.error && reports.length === 0 && (
+        {historyQuery.error && <div className="text-sm">Unable to load check history.</div>}
+        {!historyQuery.isLoading && !historyQuery.error && reports.length === 0 && (
           <div className="text-sm text-neutral-600">No check history recorded.</div>
         )}
-        <div>
-          {reports.map((report, index) => {
-            const payload = parsePayload(report.payload);
-            return (
-              <div key={report.id ?? index}>
-                <div className="grid grid-cols-[minmax(0,1fr)_6rem] items-center gap-3 py-2 text-sm sm:grid-cols-[minmax(0,1.2fr)_6rem_7rem_minmax(0,1fr)]">
-                  <span className="truncate font-medium">
-                    {formatDate(report.created_at ?? report.collected_at, DATE_TIME_FORMAT)}
-                  </span>
-                  <span>{report.health ?? "unknown"}</span>
-                  <span className="hidden sm:inline">{formatLatency(payload)}</span>
-                  <span className="hidden truncate text-neutral-600 sm:inline">
-                    {payloadSummary(report)}
-                  </span>
-                </div>
-                {index < reports.length - 1 && <Separator />}
-              </div>
-            );
-          })}
-        </div>
-        <ListPagination
-          count={reportCount}
-          limit={HISTORY_LIMIT}
-          offset={historyOffset}
-          onOffsetChange={setHistoryOffset}
+        {reports.length > 0 && (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Time</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Latency</TableHead>
+                <TableHead>Result</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {reports.map((report, index) => {
+                const payload = parsePayload(report.payload);
+                return (
+                  <TableRow key={report.id ?? index}>
+                    <TableCell className="font-medium">
+                      {formatDate(report.created_at ?? report.collected_at, DATE_TIME_FORMAT)}
+                    </TableCell>
+                    <TableCell>{report.health ?? "unknown"}</TableCell>
+                    <TableCell>{formatLatency(payload)}</TableCell>
+                    <TableCell className="max-w-[22rem] truncate text-neutral-600">
+                      {payloadSummary(report)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
+        <InfiniteScrollSentinel
+          hasNextPage={Boolean(historyQuery.hasNextPage)}
+          isFetchingNextPage={historyQuery.isFetchingNextPage}
+          onLoadMore={loadMoreHistory}
         />
       </section>
 

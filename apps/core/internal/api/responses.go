@@ -88,6 +88,20 @@ type IncidentResponse struct {
 	UpdatedAt          time.Time  `json:"updated_at"`
 }
 
+// UptimeDayBucketResponse represents one daily uptime bucket.
+type UptimeDayBucketResponse struct {
+	Date          string  `json:"date"`
+	Up            int     `json:"up"`
+	Total         int     `json:"total"`
+	UptimePercent float64 `json:"uptime_percent"`
+}
+
+// UptimeResponse represents uptime over a requested period.
+type UptimeResponse struct {
+	DailyBuckets  []UptimeDayBucketResponse `json:"daily_buckets"`
+	UptimePercent float64                   `json:"uptime_percent"`
+}
+
 func agentResponse(agent db.Agent) AgentResponse {
 	return AgentResponse{
 		ID:                       agent.ID,

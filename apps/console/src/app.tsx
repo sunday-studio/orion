@@ -1,9 +1,9 @@
 import { Navigate, Routes, Route } from "react-router-dom";
 import { LoginPage } from "@/features/auth/login-page";
 import { Layout } from "@/components/layout";
-import { PlaceholderPage } from "@/components/placeholder-page";
 import { AgentDetailPage } from "@/features/server-detail/server-detail.view";
 import { MonitorDetailPage } from "@/features/monitor-detail/monitor-detail.view";
+import { IncidentDetailPage } from "@/features/incidents/incident-detail.view";
 import { IncidentsPage } from "@/features/incidents/incidents.view";
 import { AgentsPage } from "@/features/servers/servers.view";
 import { SettingsPage } from "@/features/settings/settings.view";
@@ -20,16 +20,7 @@ function App() {
         <Route path="servers" element={<Navigate to="/agents" replace />} />
         <Route path="servers/:serverId" element={<AgentDetailPage />} />
         <Route path="monitors/:monitorId" element={<MonitorDetailPage />} />
-        <Route
-          path="incidents/:incidentId"
-          element={
-            <PlaceholderPage
-              title="Incident Detail"
-              description="Timeline and linked data for one operational event."
-              operations={["getIncidents", "future incident detail", "future incident events"]}
-            />
-          }
-        />
+        <Route path="incidents/:incidentId" element={<IncidentDetailPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>

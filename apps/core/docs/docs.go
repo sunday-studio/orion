@@ -859,6 +859,71 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/agents/{id}/uptime": {
+            "get": {
+                "description": "Returns daily uptime buckets and overall uptime percentage for an agent.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "Get agent uptime",
+                "operationId": "getAgentUptime",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Uptime period such as 7d, 30d, or 90d",
+                        "name": "period",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "daily_buckets": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/api.UptimeDayBucketResponse"
+                                    }
+                                },
+                                "uptime_percent": {
+                                    "type": "number"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/auth/login": {
             "post": {
                 "description": "Returns a JWT for frontend API requests when frontend auth is configured.",
@@ -1341,6 +1406,71 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/monitors/{id}/uptime": {
+            "get": {
+                "description": "Returns daily uptime buckets and overall uptime percentage for a monitor.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "Get monitor uptime",
+                "operationId": "getMonitorUptime",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Monitor ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Uptime period such as 7d, 30d, or 90d",
+                        "name": "period",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "daily_buckets": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/api.UptimeDayBucketResponse"
+                                    }
+                                },
+                                "uptime_percent": {
+                                    "type": "number"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/utils.APIResponse"
                         }
@@ -1891,6 +2021,23 @@ const docTemplate = `{
                 },
                 "type": {
                     "type": "string"
+                }
+            }
+        },
+        "api.UptimeDayBucketResponse": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "up": {
+                    "type": "integer"
+                },
+                "uptime_percent": {
+                    "type": "number"
                 }
             }
         },

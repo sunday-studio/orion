@@ -2,13 +2,16 @@ import { type ApiMonitorResponse, useGetAgentMonitors } from "@/orion-sdk";
 import { Separator } from "@/components/ui/separator";
 import { Fragment } from "react/jsx-runtime";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
+import { Link } from "react-router-dom";
 
 const MonitorRow = ({ monitor }: { monitor: ApiMonitorResponse }) => {
   const health = monitor.health ?? monitor.computed_health ?? "unknown";
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_5rem] items-center gap-3 py-2 text-sm sm:grid-cols-[minmax(0,1.4fr)_7rem_7rem_minmax(0,1fr)]">
-      <span className="truncate font-medium">{monitor.name ?? monitor.id}</span>
+      <Link to={`/monitors/${monitor.id}`} className="truncate font-medium hover:text-neutral-600">
+        {monitor.name ?? monitor.id}
+      </Link>
       <span>{health}</span>
       <span className="hidden sm:inline">{monitor.type ?? "unknown"}</span>
       <span className="truncate text-neutral-600">

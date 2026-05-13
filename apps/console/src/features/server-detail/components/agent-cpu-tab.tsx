@@ -1,4 +1,8 @@
-import type { ApiAgentReportResponse, ApiAgentResponse } from "@/orion-sdk";
+import type {
+  ApiAgentReportResponse,
+  ApiAgentResponse,
+  ApiUptimeDayBucketResponse,
+} from "@/orion-sdk";
 import { DetailItem } from "./detail-item";
 import { formatBytes, formatDuration, formatPercent } from "./agent-detail-utils";
 
@@ -11,6 +15,8 @@ type AgentCpuTabProps = {
   degradedCount: number;
   activeIncidentCount: number;
   configSummary: string;
+  uptimePercent?: number;
+  uptimeBuckets: ApiUptimeDayBucketResponse[];
 };
 
 export const AgentCpuTab = ({
@@ -22,8 +28,11 @@ export const AgentCpuTab = ({
   degradedCount,
   activeIncidentCount,
   configSummary,
+  uptimePercent,
+  uptimeBuckets,
 }: AgentCpuTabProps) => {
   const location = latestReport.location ?? agent.location;
+  const recentBuckets = uptimeBuckets.slice(-7);
 
   return (
     <div className="space-y-6">
@@ -35,9 +44,22 @@ export const AgentCpuTab = ({
           <DetailItem label="down" value={downCount} />
           <DetailItem label="degraded" value={degradedCount} />
         </div>
+        <div className="grid gap-3 sm:grid-cols-4">
+          <DetailItem label="90d uptime" value={formatPercent(uptimePercent)} />
+        </div>
         <p className="text-sm text-neutral-600">
           {activeIncidentCount} active incident{activeIncidentCount === 1 ? "" : "s"} on this agent.
         </p>
+        {recentBuckets.length > 0 && (
+          <div className="grid gap-2 sm:grid-cols-7">
+            {recentBuckets.map((bucket) => (
+              <div key={bucket.date} className="text-sm">
+                <div className="text-neutral-600">{bucket.date ?? "—"}</div>
+                <div className="font-medium">{formatPercent(bucket.uptime_percent)}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="space-y-3">

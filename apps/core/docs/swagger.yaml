@@ -171,6 +171,17 @@ definitions:
       type:
         type: string
     type: object
+  api.UptimeDayBucketResponse:
+    properties:
+      date:
+        type: string
+      total:
+        type: integer
+      up:
+        type: integer
+      uptime_percent:
+        type: number
+    type: object
   db.CPUStats:
     properties:
       cores:
@@ -962,6 +973,50 @@ paths:
       summary: Get agent reports
       tags:
       - agents
+  /v1/agents/{id}/uptime:
+    get:
+      description: Returns daily uptime buckets and overall uptime percentage for
+        an agent.
+      operationId: getAgentUptime
+      parameters:
+      - description: Agent ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Uptime period such as 7d, 30d, or 90d
+        in: query
+        name: period
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              daily_buckets:
+                items:
+                  $ref: '#/definitions/api.UptimeDayBucketResponse'
+                type: array
+              uptime_percent:
+                type: number
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get agent uptime
+      tags:
+      - agents
   /v1/auth/login:
     post:
       consumes:
@@ -1272,6 +1327,50 @@ paths:
           schema:
             $ref: '#/definitions/utils.APIResponse'
       summary: Get monitor history
+      tags:
+      - monitors
+  /v1/monitors/{id}/uptime:
+    get:
+      description: Returns daily uptime buckets and overall uptime percentage for
+        a monitor.
+      operationId: getMonitorUptime
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Uptime period such as 7d, 30d, or 90d
+        in: query
+        name: period
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              daily_buckets:
+                items:
+                  $ref: '#/definitions/api.UptimeDayBucketResponse'
+                type: array
+              uptime_percent:
+                type: number
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get monitor uptime
       tags:
       - monitors
   /v1/register:

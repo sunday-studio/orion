@@ -5,18 +5,22 @@ import {
   useGetAgent,
   useGetAgentHealth,
   useGetAgentMonitors,
-  useGetAgentReports,
+  useGetAgentUptime,
   useGetIncidents,
 } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
-import { useParams } from "react-router-dom";
-import { useState } from "react";
+import { useCallback, useEffect } from "react";
+import { useLocation, useParams, useSearchParams } from "react-router-dom";
 import { AgentCpuTab } from "./components/agent-cpu-tab";
 import { monitorPriority } from "./components/agent-detail-utils";
 import { AgentLogsTab } from "./components/agent-logs-tab";
 import { AgentMonitorsTab } from "./components/agent-monitors-tab";
 
-const REPORT_LIMIT = 10;
+const AGENT_DETAIL_TABS = ["logs", "monitors", "cpu"] as const;
+type AgentDetailTab = (typeof AGENT_DETAIL_TABS)[number];
+
+const isAgentDetailTab = (value: string | null): value is AgentDetailTab =>
+  AGENT_DETAIL_TABS.includes(value as AgentDetailTab);
 
 const asLatestReport = (value: unknown): ApiAgentReportResponse => {
   if (!value || typeof value !== "object") return {};
@@ -25,21 +29,19 @@ const asLatestReport = (value: unknown): ApiAgentReportResponse => {
 
 export const AgentDetailPage = () => {
   const { agentId = "", serverId = "" } = useParams();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const currentAgentId = agentId || serverId;
-  const [reportOffset, setReportOffset] = useState(0);
+  const selectedTab = searchParams.get("tab");
+  const activeTab = isAgentDetailTab(selectedTab) ? selectedTab : "logs";
   const agentResponse = useGetAgent(currentAgentId);
   const healthResponse = useGetAgentHealth(currentAgentId);
   const monitorsResponse = useGetAgentMonitors(currentAgentId, { limit: 100 });
-  const reportsResponse = useGetAgentReports(currentAgentId, {
-    limit: REPORT_LIMIT,
-    offset: reportOffset,
-  });
+  const uptimeResponse = useGetAgentUptime(currentAgentId, { period: "90d" });
   const incidentsResponse = useGetIncidents({ limit: 100 });
 
   const agent = agentResponse.data?.agent;
   const latestReport = asLatestReport(agentResponse.data?.latest_report);
-  const reports = reportsResponse.data?.reports ?? [];
-  const reportCount = reportsResponse.data?.count ?? reports.length;
   const monitors = [...(monitorsResponse.data?.monitors ?? [])].sort(
     (left, right) => monitorPriority(left) - monitorPriority(right),
   );
@@ -54,6 +56,47 @@ export const AgentDetailPage = () => {
     typeof latestReport.config_summary === "string"
       ? latestReport.config_summary
       : JSON.stringify(latestReport.config_summary ?? {}, null, 2);
+  const scrollKey = useCallback(
+    (tab: AgentDetailTab) => `orion:scroll:${location.pathname}:${tab}`,
+    [location.pathname],
+  );
+  const saveScroll = useCallback(
+    (tab: AgentDetailTab) => {
+      window.sessionStorage.setItem(scrollKey(tab), String(window.scrollY));
+    },
+    [scrollKey],
+  );
+  const handleTabChange = useCallback(
+    (value: string) => {
+      if (!isAgentDetailTab(value)) return;
+      saveScroll(activeTab);
+      setSearchParams((params) => {
+        const nextParams = new URLSearchParams(params);
+        if (value === "logs") {
+          nextParams.delete("tab");
+        } else {
+          nextParams.set("tab", value);
+        }
+        return nextParams;
+      });
+    },
+    [activeTab, saveScroll, setSearchParams],
+  );
+
+  useEffect(() => {
+    const savedScroll = Number(window.sessionStorage.getItem(scrollKey(activeTab)));
+    if (!Number.isFinite(savedScroll) || savedScroll <= 0) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      window.scrollTo(0, savedScroll);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeTab, scrollKey]);
+
+  useEffect(() => {
+    return () => saveScroll(activeTab);
+  }, [activeTab, saveScroll]);
 
   if (agentResponse.isLoading) {
     return <div className="py-3 text-sm text-neutral-600">Loading agent...</div>;
@@ -80,7 +123,7 @@ export const AgentDetailPage = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="logs" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList variant="line">
           <TabsTrigger value="logs">Logs</TabsTrigger>
           <TabsTrigger value="monitors">Monitors</TabsTrigger>
@@ -88,15 +131,7 @@ export const AgentDetailPage = () => {
         </TabsList>
 
         <TabsContent value="logs">
-          <AgentLogsTab
-            reports={reports}
-            isLoading={reportsResponse.isLoading}
-            hasError={Boolean(reportsResponse.error)}
-            count={reportCount}
-            limit={REPORT_LIMIT}
-            offset={reportOffset}
-            onOffsetChange={setReportOffset}
-          />
+          <AgentLogsTab agentId={currentAgentId} />
         </TabsContent>
 
         <TabsContent value="monitors">
@@ -117,6 +152,8 @@ export const AgentDetailPage = () => {
             degradedCount={healthResponse.data?.degraded_count ?? 0}
             activeIncidentCount={activeIncidents.length}
             configSummary={configSummary}
+            uptimePercent={uptimeResponse.data?.uptime_percent}
+            uptimeBuckets={uptimeResponse.data?.daily_buckets ?? []}
           />
         </TabsContent>
       </Tabs>

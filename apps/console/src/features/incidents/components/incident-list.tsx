@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/table";
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
 import { parseAsInteger, parseAsStringLiteral, useQueryStates } from "nuqs";
+import { Link } from "react-router-dom";
 
 const INCIDENT_LIMIT = 20;
 const incidentStatuses = ["all", "open", "acknowledged", "resolved"] as const;
@@ -31,7 +32,12 @@ const columns: ColumnDef<ApiIncidentResponse>[] = [
       const incident = row.original;
       return (
         <div className="min-w-56">
-          <div className="truncate font-medium">{incident.title ?? "Untitled incident"}</div>
+          <Link
+            to={`/incidents/${incident.id}`}
+            className="block truncate font-medium hover:text-neutral-600"
+          >
+            {incident.title ?? "Untitled incident"}
+          </Link>
           <div className="truncate text-neutral-600">
             {incident.latest_event ?? "No recent event"}
           </div>
