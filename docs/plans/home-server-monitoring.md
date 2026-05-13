@@ -68,7 +68,7 @@ It should be useful, understandable, and reliable before it tries to be a broad 
 - [x] Configure lifecycle defaults during Core setup.
 - [ ] Add Console settings UI for lifecycle options.
 - [x] Add daily monitor uptime rollup table and service.
-- [ ] Archive old raw reports to local SQLite archive files instead of deleting them.
+- [x] Archive old raw reports to local SQLite archive files instead of deleting them.
 - [ ] Add manual archive and rollup actions in Core and Console.
 - [ ] Query recent details from hot raw reports and long-term history from rollups.
 
