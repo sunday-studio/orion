@@ -19,7 +19,7 @@ It should be useful, understandable, and reliable before it tries to be a broad 
 - [x] Add integration coverage for register -> report -> list.
 - [x] Cover monitor registration and monitor reports.
 - [x] Improve monitor config validation.
-- [ ] Send the first Agent report immediately on startup.
+- [x] Send the first Agent report immediately on startup.
 - [ ] Decide health semantics for servers with no monitors.
 - [ ] Decide how maintenance affects alerts and incidents.
 

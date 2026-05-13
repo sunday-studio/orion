@@ -85,6 +85,10 @@ func (a *Agent) startSystemMetricsWorker(ctx context.Context) {
 		return
 	}
 
+	if err := a.runSystemMetrics(); err != nil {
+		logging.Errorf("System metrics error: %v", err)
+	}
+
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -117,6 +121,10 @@ func (a *Agent) startMonitorWorker(ctx context.Context, monitor config.UserMonit
 	if err != nil {
 		logging.Errorf("Invalid monitor interval: %v", err)
 		return
+	}
+
+	if err := a.runMonitorMetrics(*internalMonitor, monitor); err != nil {
+		logging.Errorf("Monitor metrics error: %v", err)
 	}
 
 	ticker := time.NewTicker(interval)
