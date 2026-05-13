@@ -175,6 +175,8 @@ func (a *Agent) runSystemMetrics() error {
 
 	report := &transport.SystemReport{
 		KernelVersion: metrics.Kernel,
+		AgentVersion:  Version,
+		ConfigSummary: a.configSummary(),
 		UptimeSeconds: metrics.UptimeSeconds,
 		Timestamp:     metrics.Timestamp,
 		CPU:           &metrics.CPU,
@@ -193,6 +195,19 @@ func (a *Agent) runSystemMetrics() error {
 	}
 
 	return nil
+}
+
+func (a *Agent) configSummary() map[string]interface{} {
+	monitorTypes := make(map[string]int)
+	for _, monitor := range a.userConfig.Monitors {
+		monitorTypes[string(monitor.Type)]++
+	}
+
+	return map[string]interface{}{
+		"reporting_interval": a.userConfig.Interval,
+		"monitor_count":      len(a.userConfig.Monitors),
+		"monitor_types":      monitorTypes,
+	}
 }
 
 func (a *Agent) runMonitorMetrics(monitor config.InternalStateMonitor, userMonitor config.UserMonitor) error {

@@ -64,6 +64,8 @@ type AgentReport struct {
 	ID            string                          `json:"id" gorm:"primaryKey;type:varchar(255)"`
 	AgentID       string                          `json:"agent_id" gorm:"index:idx_agent_reports_agent_id;not null"`
 	CreatedAt     time.Time                       `json:"created_at" gorm:"index:idx_agent_reports_created_at"`
+	AgentVersion  string                          `json:"agent_version"`
+	ConfigSummary string                          `json:"config_summary" gorm:"type:text"`
 	UptimeSeconds uint64                          `json:"uptime_seconds"`
 	Timestamp     string                          `json:"timestamp"`
 	CPU           datatypes.JSONType[CPUStats]    `json:"cpu" gorm:"type:json"`

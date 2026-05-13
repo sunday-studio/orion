@@ -9,6 +9,8 @@ import (
 
 type SystemReport struct {
 	KernelVersion string                 `json:"kernel_version"`
+	AgentVersion  string                 `json:"agent_version,omitempty"`
+	ConfigSummary map[string]interface{} `json:"config_summary,omitempty"`
 	UptimeSeconds uint64                 `json:"uptime_seconds"`
 	Timestamp     string                 `json:"timestamp"`
 	CPU           *collector.CPUStats    `json:"cpu"`

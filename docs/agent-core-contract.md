@@ -89,6 +89,8 @@ The Agent should not:
 
 - Reports update `last_seen`.
 - Core stores metrics and location metadata when present.
+- Agent reports may include `agent_version`.
+- Agent reports may include a compact `config_summary` with reporting interval, monitor count, and monitor type counts.
 - Core owns retention and rollups.
 
 ### Monitor Reports

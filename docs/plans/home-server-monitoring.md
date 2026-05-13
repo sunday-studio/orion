@@ -47,7 +47,7 @@ It should be useful, understandable, and reliable before it tries to be a broad 
 
 - [x] Add exponential backoff and jitter.
 - [x] Add a bounded retry queue for temporary Core outages.
-- [ ] Report Agent version and config summary.
+- [x] Report Agent version and config summary.
 - [ ] Re-read maintenance mode during runtime.
 - [ ] Handle shutdown cleanly.
 - [ ] Improve CLI status and config validation errors.

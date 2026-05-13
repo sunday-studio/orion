@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -25,6 +26,11 @@ func TestRegisterReportListFlow(t *testing.T) {
 	reportBody := map[string]interface{}{
 		"uptime_seconds": 120,
 		"timestamp":      time.Now().UTC().Format(time.RFC3339),
+		"agent_version":  "dev-test",
+		"config_summary": map[string]interface{}{
+			"monitor_count":      1,
+			"reporting_interval": "60s",
+		},
 		"cpu": map[string]interface{}{
 			"cores":         4,
 			"usage_percent": 12.5,
@@ -80,6 +86,17 @@ func TestRegisterReportListFlow(t *testing.T) {
 	}
 	if listed.Data.Agents[0].UptimeSeconds == nil || *listed.Data.Agents[0].UptimeSeconds != 120 {
 		t.Fatalf("list did not include latest uptime: %+v", listed.Data.Agents[0].UptimeSeconds)
+	}
+
+	var storedReport db.AgentReport
+	if err := server.db.Where("agent_id = ?", registered.Data.AgentID).First(&storedReport).Error; err != nil {
+		t.Fatalf("find stored agent report: %v", err)
+	}
+	if storedReport.AgentVersion != "dev-test" {
+		t.Fatalf("agent_version = %q, want dev-test", storedReport.AgentVersion)
+	}
+	if !strings.Contains(storedReport.ConfigSummary, `"monitor_count":1`) {
+		t.Fatalf("config_summary = %q, want monitor_count", storedReport.ConfigSummary)
 	}
 }
 

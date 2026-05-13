@@ -15,6 +15,8 @@ import (
 type AgentReportPayload struct {
 	UptimeSeconds uint64         `json:"uptime_seconds"`
 	Timestamp     string         `json:"timestamp"`
+	AgentVersion  string         `json:"agent_version,omitempty"`
+	ConfigSummary interface{}    `json:"config_summary,omitempty"`
 	CPU           db.CPUStats    `json:"cpu"`
 	Memory        db.MemoryStats `json:"memory"`
 	Disk          db.DiskStats   `json:"disk"`
@@ -114,10 +116,20 @@ func (s *ReportService) StoreMonitorReport(monitorID string, payload MonitorRepo
 
 func (s *ReportService) StoreAgentReport(agentID string, payload AgentReportPayload) (*string, error) {
 	agentReportID := utils.GenerateID("agent_report")
+	configSummary := ""
+	if payload.ConfigSummary != nil {
+		configSummaryBytes, err := json.Marshal(payload.ConfigSummary)
+		if err != nil {
+			return nil, err
+		}
+		configSummary = string(configSummaryBytes)
+	}
 
 	agentReport := db.AgentReport{
 		ID:            agentReportID,
 		AgentID:       agentID,
+		AgentVersion:  payload.AgentVersion,
+		ConfigSummary: configSummary,
 		UptimeSeconds: payload.UptimeSeconds,
 		Timestamp:     payload.Timestamp,
 
