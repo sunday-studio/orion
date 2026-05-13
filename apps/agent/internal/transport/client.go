@@ -125,7 +125,7 @@ func (c *Client) UnregisterMonitor(req UnRegisterMonitorRequest) (*UnRegisterMon
 }
 
 func (c *Client) SendReport(report SystemReport, agentID string) error {
-	endpoint := fmt.Sprintf("/agents/%s/report", agentID)
+	endpoint := fmt.Sprintf("/v1/agents/%s/report", agentID)
 	resp, err := c.makeProtectedRequest("POST", endpoint, report)
 	if err != nil {
 		return fmt.Errorf("failed to send report: %w", err)
