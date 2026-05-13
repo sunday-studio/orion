@@ -102,7 +102,7 @@ func (s *MonitorService) UnregisterMonitor(req *UnregisterMonitorRequest) (*Unre
 	now := time.Now()
 
 	if err := s.db.Model(&db.Monitor{}).
-		Where("agent_id = ? AND id = ? AND deleted_at IS NULL", req.AgentID, req.MonitorID).
+		Where("agent_id = ? AND id = ? AND (deleted_at IS NULL OR deleted_at = ?)", req.AgentID, req.MonitorID, time.Time{}).
 		Updates(map[string]interface{}{
 			"lifecycle":  "deleted",
 			"health":     "unknown",

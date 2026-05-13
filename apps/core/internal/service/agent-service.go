@@ -225,7 +225,7 @@ type ListAgentsOpts struct {
 }
 
 func (s *AgentService) ListAgents(opts ListAgentsOpts) ([]AgentListRow, int64, error) {
-	query := s.db.Model(&db.Agent{}).Where("deleted_at IS NULL")
+	query := s.db.Model(&db.Agent{}).Where("deleted_at IS NULL OR deleted_at = ?", time.Time{})
 
 	// Search: name, machine_id, meta
 	if opts.Search != "" {
@@ -275,7 +275,7 @@ func (s *AgentService) ListAgents(opts ListAgentsOpts) ([]AgentListRow, int64, e
 
 	// Base count (same filters, no status/uptime)
 	var count int64
-	countQuery := s.db.Model(&db.Agent{}).Where("deleted_at IS NULL")
+	countQuery := s.db.Model(&db.Agent{}).Where("deleted_at IS NULL OR deleted_at = ?", time.Time{})
 	if opts.Search != "" {
 		like := "%" + opts.Search + "%"
 		countQuery = countQuery.Where("name LIKE ? OR machine_id LIKE ? OR meta LIKE ?", like, like, like)
@@ -356,7 +356,7 @@ func (s *AgentService) ListAgents(opts ListAgentsOpts) ([]AgentListRow, int64, e
 
 func (s *AgentService) GetAgentCount() (int64, error) {
 	var count int64
-	if err := s.db.Model(&db.Agent{}).Where("deleted_at IS NULL").Count(&count).Error; err != nil {
+	if err := s.db.Model(&db.Agent{}).Where("deleted_at IS NULL OR deleted_at = ?", time.Time{}).Count(&count).Error; err != nil {
 		s.logger.Error("Failed to count agents", "error", err)
 		return 0, err
 	}

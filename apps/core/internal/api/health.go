@@ -4,6 +4,7 @@ import (
 	"orion/core/internal/db"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -24,7 +25,7 @@ func (s *Server) getSystemHealth(c *gin.Context) {
 
 	// Get all active agents
 	var agents []db.Agent
-	if err := s.db.Where("deleted_at IS NULL").Find(&agents).Error; err != nil {
+	if err := s.db.Where("deleted_at IS NULL OR deleted_at = ?", time.Time{}).Find(&agents).Error; err != nil {
 		s.logger.Error("Failed to get agents", "error", err)
 		utils.InternalError(c, "Failed to get system health", err)
 		return

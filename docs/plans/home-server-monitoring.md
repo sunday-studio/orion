@@ -14,14 +14,14 @@ It should be useful, understandable, and reliable before it tries to be a broad 
 
 ## Priority 0: Trust The Current System
 
-- Fix Agent/Core endpoint mismatches.
-- Keep OpenAPI aligned with actual Core behavior.
-- Add integration coverage for register -> report -> list.
-- Cover monitor registration and monitor reports.
-- Improve monitor config validation.
-- Send the first Agent report immediately on startup.
-- Decide health semantics for servers with no monitors.
-- Decide how maintenance affects alerts and incidents.
+- [x] Fix Agent/Core endpoint mismatches.
+- [x] Keep generated OpenAPI/Swagger docs aligned with actual Core behavior.
+- [x] Add integration coverage for register -> report -> list.
+- [ ] Cover monitor registration and monitor reports.
+- [ ] Improve monitor config validation.
+- [ ] Send the first Agent report immediately on startup.
+- [ ] Decide health semantics for servers with no monitors.
+- [ ] Decide how maintenance affects alerts and incidents.
 
 ## Priority 1: Useful Monitors
 
