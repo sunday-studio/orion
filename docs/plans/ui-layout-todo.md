@@ -124,10 +124,10 @@ Goal: explain one server's current health and recent behavior.
 
 Goal: explain a single check and why it is failing or healthy.
 
-- [ ] Add monitor detail route.
+- [x] Add monitor detail route.
   - Route should use monitor id.
   - Operation: `getMonitor`.
-- [ ] Add monitor detail header.
+- [x] Add monitor detail header.
   - Name.
   - Parent server.
   - Type.
@@ -136,7 +136,7 @@ Goal: explain a single check and why it is failing or healthy.
   - Last checked.
   - Last success.
   - Operations: `getMonitor`, `getIncidents`.
-- [ ] Add current result block.
+- [x] Add current result block.
   - Health.
   - Latency.
   - Status code.
@@ -145,21 +145,21 @@ Goal: explain a single check and why it is failing or healthy.
   - Failure reason.
   - Raw error details.
   - Operation: `getMonitor`.
-- [ ] Add check history list.
+- [x] Add check history list.
   - Timestamp.
   - Status.
   - Latency.
   - Result summary.
   - Error payload.
   - Operation: `getMonitorHistory`.
-- [ ] Add configuration snapshot.
+- [x] Add configuration snapshot.
   - Type.
   - Interval.
   - Timeout.
   - Expected status/body/regex.
   - Thresholds.
   - Alert enabled state.
-- [ ] Defer uptime graph until `GET /v1/monitors/{id}/uptime` has a generated SDK operation.
+- [x] Defer uptime graph until `GET /v1/monitors/{id}/uptime` has a generated SDK operation.
 
 ## Phase 5: Incident Detail Page
 

@@ -4,6 +4,7 @@ import { LoginPage } from "@/features/auth/login-page";
 import { Layout } from "@/components/layout";
 import { PlaceholderPage } from "@/components/placeholder-page";
 import { ServerDetailPage } from "@/features/server-detail/server-detail.view";
+import { MonitorDetailPage } from "@/features/monitor-detail/monitor-detail.view";
 
 function App() {
   return (
@@ -12,16 +13,7 @@ function App() {
       <Route path="/" element={<Layout />}>
         <Route index element={<HomePage />} />
         <Route path="servers/:serverId" element={<ServerDetailPage />} />
-        <Route
-          path="monitors/:monitorId"
-          element={
-            <PlaceholderPage
-              title="Monitor Detail"
-              description="Current result, check history, and configuration for one monitor."
-              operations={["getMonitor", "getMonitorHistory", "getIncidents"]}
-            />
-          }
-        />
+        <Route path="monitors/:monitorId" element={<MonitorDetailPage />} />
         <Route
           path="incidents/:incidentId"
           element={
