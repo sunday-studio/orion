@@ -25,6 +25,7 @@ type Server struct {
 	authService    *service.AuthService
 	reportService  *service.ReportService
 	monitorService *service.MonitorService
+	loginLimiter   *RateLimiter
 	router         *gin.Engine
 }
 
@@ -57,6 +58,7 @@ func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *S
 		authService:    authService,
 		reportService:  reportService,
 		monitorService: monitorService,
+		loginLimiter:   NewRateLimiter(cfg.LoginRateLimitAttempts, time.Duration(cfg.LoginRateLimitWindowSecs)*time.Second),
 		router:         router,
 	}
 

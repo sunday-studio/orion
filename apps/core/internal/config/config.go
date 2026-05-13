@@ -16,6 +16,8 @@ type Config struct {
 	AdminPassword              string
 	JWTSecret                  string
 	FrontendAuthOn             bool
+	LoginRateLimitAttempts     int
+	LoginRateLimitWindowSecs   int
 	AlertChannels              []AlertChannelConfig
 	AlertCooldownSeconds       int
 	AlertRecoveryNotifications bool
@@ -53,6 +55,8 @@ func Load() *Config {
 		AdminPassword:              adminPass,
 		JWTSecret:                  jwtSecret,
 		FrontendAuthOn:             frontendAuthOn,
+		LoginRateLimitAttempts:     getEnvInt("ORION_LOGIN_RATE_LIMIT_ATTEMPTS", 5),
+		LoginRateLimitWindowSecs:   getEnvInt("ORION_LOGIN_RATE_LIMIT_WINDOW_SECONDS", 60),
 		AlertChannels:              loadAlertChannels(),
 		AlertCooldownSeconds:       getEnvInt("ORION_ALERT_COOLDOWN_SECONDS", 300),
 		AlertRecoveryNotifications: getEnvBool("ORION_ALERT_RECOVERY_NOTIFICATIONS", true),
@@ -64,6 +68,12 @@ func Load() *Config {
 func (c *Config) Validate() error {
 	if c.FrontendAuthOn && c.JWTSecret == "" {
 		return &ValidationError{Msg: "ORION_JWT_SECRET is required when ORION_ADMIN_USERNAME and ORION_ADMIN_PASSWORD are set"}
+	}
+	if c.LoginRateLimitAttempts < 0 {
+		return &ValidationError{Msg: "ORION_LOGIN_RATE_LIMIT_ATTEMPTS must be >= 0"}
+	}
+	if c.LoginRateLimitWindowSecs < 0 {
+		return &ValidationError{Msg: "ORION_LOGIN_RATE_LIMIT_WINDOW_SECONDS must be >= 0"}
 	}
 	if c.AlertCooldownSeconds < 0 {
 		return &ValidationError{Msg: "ORION_ALERT_COOLDOWN_SECONDS must be >= 0"}

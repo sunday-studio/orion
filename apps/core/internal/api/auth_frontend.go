@@ -41,6 +41,12 @@ func (s *Server) login(c *gin.Context) {
 		return
 	}
 
+	clientIP := c.ClientIP()
+	if s.loginLimiter.TooManyFailures(clientIP) {
+		utils.ErrorResponse(c, http.StatusTooManyRequests, "Too many login attempts", nil)
+		return
+	}
+
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.BadRequest(c, "username and password are required")
@@ -51,9 +57,11 @@ func (s *Server) login(c *gin.Context) {
 	userOk := subtle.ConstantTimeCompare([]byte(req.Username), []byte(s.cfg.AdminUsername)) == 1
 	passOk := subtle.ConstantTimeCompare([]byte(req.Password), []byte(s.cfg.AdminPassword)) == 1
 	if !userOk || !passOk {
+		s.loginLimiter.RecordFailure(clientIP)
 		utils.Unauthorized(c, "Invalid credentials")
 		return
 	}
+	s.loginLimiter.Reset(clientIP)
 
 	claims := jwt.MapClaims{
 		"sub": req.Username,

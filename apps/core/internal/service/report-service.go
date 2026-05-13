@@ -97,18 +97,11 @@ func (s *ReportService) StoreMonitorReport(monitorID string, payload MonitorRepo
 		return nil, err
 	}
 
-	// Trigger health computation to update cache (async, don't block report storage)
-	// This ensures cache is refreshed when new reports arrive
-	go func() {
-		healthService := NewHealthService(s.db, s.logger)
-		config := DefaultHealthConfig()
-		_, err := healthService.ComputeMonitorHealth(monitorID, config)
-		if err != nil {
-			s.logger.Error("Failed to compute health after report", "monitor_id", monitorID, "error", err)
-		} else {
-			s.logger.Debug("Health cache updated after report", "monitor_id", monitorID)
-		}
-	}()
+	healthService := NewHealthService(s.db, s.logger)
+	config := DefaultHealthConfig()
+	if _, err := healthService.ComputeMonitorHealth(monitorID, config); err != nil {
+		s.logger.Error("Failed to compute health after report", "monitor_id", monitorID, "error", err)
+	}
 
 	s.logger.Info("Monitor report stored successfully", "monitor_report_id", monitorReport.ID)
 	return &monitorReportID, nil

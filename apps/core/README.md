@@ -83,6 +83,8 @@ Environment variables:
 | `ORION_ADMIN_USERNAME` | — | If set with `ORION_ADMIN_PASSWORD`, enables frontend login. |
 | `ORION_ADMIN_PASSWORD` | — | Admin password for the web UI. |
 | `ORION_JWT_SECRET` | — | Required when frontend auth is on; used to sign JWTs. |
+| `ORION_LOGIN_RATE_LIMIT_ATTEMPTS` | `5` | Failed login attempts allowed per client IP before rate limiting. |
+| `ORION_LOGIN_RATE_LIMIT_WINDOW_SECONDS` | `60` | Login rate-limit window in seconds. |
 | `ORION_ALERT_WEBHOOK_URL` | — | Adds a webhook alert channel. |
 | `ORION_ALERT_WEBHOOK_NAME` | `default-webhook` | Webhook alert channel name. |
 | `ORION_ALERT_WEBHOOK_ENABLED` | `true` | Enables or suppresses the webhook alert channel. |
