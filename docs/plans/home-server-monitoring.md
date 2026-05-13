@@ -29,7 +29,7 @@ It should be useful, understandable, and reliable before it tries to be a broad 
 - [x] Website monitor with status, latency, DNS, and TLS expiry.
 - [x] TCP port check.
 - [x] Disk, memory, CPU, and system load thresholds.
-- Docker container status.
+- [x] Docker container status.
 - systemd service status.
 - PM2 process status.
 - Command monitor with timeout, exit code, stdout, and stderr.

@@ -63,6 +63,12 @@ func TestUserConfigValidateAcceptsValidMonitorTypes(t *testing.T) {
 				Interval: "30s",
 				Resource: &ResourceThresholdConfig{MaxCPUPercent: 90, MaxMemoryPercent: 90, MaxDiskPercent: 85, MaxLoad1: 4},
 			},
+			{
+				Name:     "postgres-container",
+				Type:     UserMonitorTypeDocker,
+				Interval: "30s",
+				Docker:   &DockerContainerConfig{Name: "postgres"},
+			},
 		},
 	}
 
@@ -175,6 +181,15 @@ func TestUserConfigValidateRejectsInvalidMonitorConfig(t *testing.T) {
 				cfg.Monitors[0].Resource = &ResourceThresholdConfig{MaxCPUPercent: 101}
 			},
 			wantErr: "max_cpu_percent must be between 0 and 100",
+		},
+		{
+			name: "missing docker name",
+			mutate: func(cfg *UserConfig) {
+				cfg.Monitors[0].Type = UserMonitorTypeDocker
+				cfg.Monitors[0].HTTP = nil
+				cfg.Monitors[0].Docker = &DockerContainerConfig{}
+			},
+			wantErr: "name is required",
 		},
 	}
 

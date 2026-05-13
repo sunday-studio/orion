@@ -37,6 +37,7 @@ const (
 	UserMonitorTypePM2             UserMonitorType = "pm2"
 	UserMonitorTypeTCP             UserMonitorType = "tcp"
 	UserMonitorTypeResource        UserMonitorType = "resource-threshold"
+	UserMonitorTypeDocker          UserMonitorType = "docker-container"
 )
 
 var UserMonitorTypes = []UserMonitorType{
@@ -47,6 +48,7 @@ var UserMonitorTypes = []UserMonitorType{
 	UserMonitorTypePM2,
 	UserMonitorTypeTCP,
 	UserMonitorTypeResource,
+	UserMonitorTypeDocker,
 }
 
 type HTTPHealthcheckConfig struct {
@@ -98,6 +100,10 @@ type ResourceThresholdConfig struct {
 	MaxLoad1         float64 `yaml:"max_load_1,omitempty"`
 }
 
+type DockerContainerConfig struct {
+	Name string `yaml:"name"`
+}
+
 type UserMonitor struct {
 	Name        string                 `yaml:"name"`
 	Description string                 `yaml:"description"`
@@ -112,6 +118,7 @@ type UserMonitor struct {
 	PM2             *PM2MonitorConfig        `yaml:"pm2,omitempty"`
 	TCP             *TCPMonitorConfig        `yaml:"tcp,omitempty"`
 	Resource        *ResourceThresholdConfig `yaml:"resource,omitempty"`
+	Docker          *DockerContainerConfig   `yaml:"docker,omitempty"`
 }
 
 type UserConfig struct {

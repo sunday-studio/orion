@@ -120,6 +120,13 @@ func (r ResourceThresholdConfig) Validate() error {
 	return nil
 }
 
+func (d DockerContainerConfig) Validate() error {
+	if strings.TrimSpace(d.Name) == "" {
+		return errors.New("name is required")
+	}
+	return nil
+}
+
 func (m UserMonitor) Validate() error {
 	if strings.TrimSpace(m.Name) == "" {
 		return errors.New("name is required")
@@ -178,6 +185,12 @@ func (m UserMonitor) Validate() error {
 			return errors.New("resource config is required")
 		}
 		return m.Resource.Validate()
+
+	case UserMonitorTypeDocker:
+		if m.Docker == nil {
+			return errors.New("docker config is required")
+		}
+		return m.Docker.Validate()
 
 	default:
 		return fmt.Errorf("unsupported monitor type: %s", m.Type)
