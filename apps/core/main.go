@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"log"
 	"orion/core/internal/api"
 	"orion/core/internal/config"
 	"orion/core/internal/db"
 	"orion/core/internal/logging"
+	"os/signal"
+	"syscall"
 )
 
 // @title           Orion Core API
@@ -48,9 +51,11 @@ func main() {
 
 	// Initialize and start HTTP server
 	server := api.NewServer(database, logger, cfg)
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
 	logger.Info("Orion Core Server started successfully")
-	if err := server.Start(":" + cfg.Port); err != nil {
+	if err := server.Start(ctx, ":"+cfg.Port); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
 }

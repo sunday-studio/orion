@@ -1,9 +1,13 @@
 package api
 
 import (
+	"context"
+	"errors"
+	"net/http"
 	"orion/core/internal/config"
 	"orion/core/internal/logging"
 	"orion/core/internal/service"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -114,9 +118,34 @@ func (s *Server) setupRoutes() {
 	s.router.NoRoute(func(c *gin.Context) { c.File("web/index.html") })
 }
 
-func (s *Server) Start(addr string) error {
+func (s *Server) Start(ctx context.Context, addr string) error {
 	s.logger.Info("Starting HTTP server", "address", addr)
-	return s.router.Run(addr)
+	httpServer := &http.Server{
+		Addr:    addr,
+		Handler: s.router,
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errCh <- err
+			return
+		}
+		errCh <- nil
+	}()
+
+	select {
+	case err := <-errCh:
+		return err
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		s.logger.Info("Shutting down HTTP server")
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
+			return err
+		}
+		return <-errCh
+	}
 }
 
 // RequestIDMiddleware generates a unique request ID for each request

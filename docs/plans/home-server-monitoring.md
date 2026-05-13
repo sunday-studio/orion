@@ -57,7 +57,7 @@ It should be useful, understandable, and reliable before it tries to be a broad 
 - [ ] Add raw report retention and uptime rollups.
 - [ ] Document SQLite backup and restore.
 - [ ] Add explicit migrations.
-- [ ] Add graceful Core shutdown.
+- [x] Add graceful Core shutdown.
 - [x] Add configurable CORS origins.
 - [ ] Add login rate limiting.
 - [ ] Add useful request logging and database health checks.
