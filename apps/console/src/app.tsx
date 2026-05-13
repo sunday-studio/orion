@@ -3,6 +3,7 @@ import { HomePage } from "@/features/home/home.view";
 import { LoginPage } from "@/features/auth/login-page";
 import { Layout } from "@/components/layout";
 import { PlaceholderPage } from "@/components/placeholder-page";
+import { ServerDetailPage } from "@/features/server-detail/server-detail.view";
 
 function App() {
   return (
@@ -10,16 +11,7 @@ function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<Layout />}>
         <Route index element={<HomePage />} />
-        <Route
-          path="servers/:serverId"
-          element={
-            <PlaceholderPage
-              title="Server Detail"
-              description="Current health, monitors, metrics, and configuration for one server."
-              operations={["getAgents", "getAgent", "getAgentHealth", "getAgentMonitors"]}
-            />
-          }
-        />
+        <Route path="servers/:serverId" element={<ServerDetailPage />} />
         <Route
           path="monitors/:monitorId"
           element={

@@ -77,10 +77,10 @@ Goal: make Home a useful operations summary without leaving the first page.
 
 Goal: explain one server's current health and recent behavior.
 
-- [ ] Add server detail route.
+- [x] Add server detail route.
   - Route should use server/agent id.
   - Operation: `getAgent`.
-- [ ] Add server detail header.
+- [x] Add server detail header.
   - Name.
   - Status.
   - Maintenance state.
@@ -88,30 +88,30 @@ Goal: explain one server's current health and recent behavior.
   - Uptime.
   - Agent version.
   - Operations: `getAgent`, `getAgentHealth`.
-- [ ] Add health summary block.
+- [x] Add health summary block.
   - Overall health.
   - Monitor health counts.
   - Stale status.
   - Active incidents affecting this server.
   - Operations: `getAgentHealth`, `getIncidents`.
-- [ ] Add latest system metrics block.
+- [x] Add latest system metrics block.
   - CPU.
   - Memory.
   - Disk.
   - Load.
   - IP/location.
   - Operation: `getAgent`.
-- [ ] Add monitor list grouped by severity.
+- [x] Add monitor list grouped by severity.
   - Down/degraded first.
   - Unknown/stale second.
   - Up last.
   - Operation: `getAgentMonitors`.
-- [ ] Add configuration snapshot.
+- [x] Add configuration snapshot.
   - Agent config summary.
   - Monitor config summary.
   - Explain `config.yaml` vs Agent `state.db`.
   - Operations: `getAgent`, `getAgentMonitors`.
-- [ ] Defer server events until an event log API exists.
+- [x] Defer server events until an event log API exists.
 
 ## Phase 4: Monitor Detail Page
 
