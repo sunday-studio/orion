@@ -1435,10 +1435,10 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
-                "deleted_at": {
+                "id": {
                     "type": "string"
                 },
-                "id": {
+                "ip": {
                     "type": "string"
                 },
                 "kernel_version": {
@@ -1450,11 +1450,11 @@ const docTemplate = `{
                 "location": {
                     "$ref": "#/definitions/db.GeoLocation"
                 },
-                "machine_id": {
-                    "type": "string"
-                },
                 "maintenance_mode": {
                     "type": "boolean"
+                },
+                "monitor_count": {
+                    "type": "integer"
                 },
                 "name": {
                     "type": "string"
@@ -1468,8 +1468,8 @@ const docTemplate = `{
                 "reporting_interval_seconds": {
                     "type": "integer"
                 },
-                "token": {
-                    "type": "string"
+                "uptime_seconds": {
+                    "type": "integer"
                 }
             }
         },

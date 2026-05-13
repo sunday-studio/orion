@@ -128,7 +128,7 @@ func (s *Server) listAgents(c *gin.Context) {
 	}
 
 	utils.SuccessResponse(c, 200, "Agents retrieved successfully", gin.H{
-		"agents": agents,
+		"agents": agentListResponses(agents),
 		"count":  count,
 		"limit":  limit,
 		"offset": offset,
@@ -170,11 +170,11 @@ func (s *Server) getAgentDetail(c *gin.Context) {
 
 	var latestReport interface{}
 	if len(reports) > 0 {
-		latestReport = reports[0]
+		latestReport = agentReportResponse(reports[0])
 	}
 
 	utils.SuccessResponse(c, 200, "Agent retrieved successfully", gin.H{
-		"agent":         agent,
+		"agent":         agentResponse(*agent),
 		"latest_report": latestReport,
 	})
 }
@@ -251,7 +251,7 @@ func (s *Server) getAgentReports(c *gin.Context) {
 	}
 
 	utils.SuccessResponse(c, 200, "Agent reports retrieved successfully", gin.H{
-		"reports": reports,
+		"reports": agentReportResponses(reports),
 		"count":   count,
 		"limit":   limit,
 		"offset":  offset,

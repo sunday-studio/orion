@@ -129,7 +129,7 @@ func (s *Server) listMonitors(c *gin.Context) {
 	}
 
 	utils.SuccessResponse(c, 200, "Monitors retrieved successfully", gin.H{
-		"monitors": monitors,
+		"monitors": monitorResponses(monitors),
 		"count":    count,
 		"limit":    limit,
 		"offset":   offset,
@@ -180,8 +180,8 @@ func (s *Server) getMonitorDetail(c *gin.Context) {
 	}
 
 	utils.SuccessResponse(c, 200, "Monitor retrieved successfully", gin.H{
-		"monitor":         monitor,
-		"recent_reports":  reports,
+		"monitor":         monitorResponse(*monitor),
+		"recent_reports":  monitorReportResponses(reports),
 		"computed_health": computedHealth,
 	})
 }
@@ -234,7 +234,7 @@ func (s *Server) getMonitorHistory(c *gin.Context) {
 	}
 
 	utils.SuccessResponse(c, 200, "Monitor history retrieved successfully", gin.H{
-		"reports": reports,
+		"reports": monitorReportResponses(reports),
 		"count":   count,
 		"limit":   limit,
 		"offset":  offset,

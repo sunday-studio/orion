@@ -62,6 +62,7 @@ func TestRegisterReportListFlow(t *testing.T) {
 	if listResp.Code != http.StatusOK {
 		t.Fatalf("list status = %d, body = %s", listResp.Code, listResp.Body.String())
 	}
+	assertFrontendResponseDoesNotExposeAgentSecrets(t, listResp.Body.String(), registered.Data.Token)
 
 	var listed struct {
 		Success bool `json:"success"`
@@ -87,6 +88,12 @@ func TestRegisterReportListFlow(t *testing.T) {
 	if listed.Data.Agents[0].UptimeSeconds == nil || *listed.Data.Agents[0].UptimeSeconds != 120 {
 		t.Fatalf("list did not include latest uptime: %+v", listed.Data.Agents[0].UptimeSeconds)
 	}
+
+	detailResp := performJSONRequest(t, server, http.MethodGet, "/v1/agents/"+registered.Data.AgentID, nil, "")
+	if detailResp.Code != http.StatusOK {
+		t.Fatalf("detail status = %d, body = %s", detailResp.Code, detailResp.Body.String())
+	}
+	assertFrontendResponseDoesNotExposeAgentSecrets(t, detailResp.Body.String(), registered.Data.Token)
 
 	var storedReport db.AgentReport
 	if err := server.db.Where("agent_id = ?", registered.Data.AgentID).First(&storedReport).Error; err != nil {
@@ -624,6 +631,20 @@ func assertMonitorIncidentState(t *testing.T, server *Server, monitorID string, 
 	}
 	if monitor.ActiveIncidentID != wantActiveIncidentID || monitor.IncidentState != wantIncidentState {
 		t.Fatalf("monitor incident state = active %q state %q, want active %q state %q", monitor.ActiveIncidentID, monitor.IncidentState, wantActiveIncidentID, wantIncidentState)
+	}
+}
+
+func assertFrontendResponseDoesNotExposeAgentSecrets(t *testing.T, body string, token string) {
+	t.Helper()
+
+	if strings.Contains(body, token) {
+		t.Fatalf("frontend response exposed agent token: %s", body)
+	}
+	if strings.Contains(body, `"token"`) {
+		t.Fatalf("frontend response exposed token field: %s", body)
+	}
+	if strings.Contains(body, `"machine_id"`) {
+		t.Fatalf("frontend response exposed machine_id field: %s", body)
 	}
 }
 
