@@ -103,6 +103,20 @@ type MonitorReport struct {
 	CreatedAt   time.Time `json:"created_at" gorm:"index:idx_monitor_reports_created_at"`
 }
 
+type MonitorUptimeRollup struct {
+	ID            int       `json:"id" gorm:"primaryKey"`
+	MonitorID     string    `json:"monitor_id" gorm:"not null;uniqueIndex:idx_monitor_uptime_rollups_monitor_date"`
+	Date          string    `json:"date" gorm:"not null;uniqueIndex:idx_monitor_uptime_rollups_monitor_date;index:idx_monitor_uptime_rollups_date"`
+	UpCount       int       `json:"up_count" gorm:"not null;default:0"`
+	DownCount     int       `json:"down_count" gorm:"not null;default:0"`
+	DegradedCount int       `json:"degraded_count" gorm:"not null;default:0"`
+	UnknownCount  int       `json:"unknown_count" gorm:"not null;default:0"`
+	TotalCount    int       `json:"total_count" gorm:"not null;default:0"`
+	UptimePercent float64   `json:"uptime_percent" gorm:"not null;default:0"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
 type Incident struct {
 	ID                 string     `json:"id" gorm:"primaryKey;type:varchar(255)"`
 	Status             string     `json:"status" gorm:"not null;index:idx_incidents_status"` // open | acknowledged | resolved
