@@ -17,7 +17,7 @@ It should be useful, understandable, and reliable before it tries to be a broad 
 - [x] Fix Agent/Core endpoint mismatches.
 - [x] Keep generated OpenAPI/Swagger docs aligned with actual Core behavior.
 - [x] Add integration coverage for register -> report -> list.
-- [ ] Cover monitor registration and monitor reports.
+- [x] Cover monitor registration and monitor reports.
 - [ ] Improve monitor config validation.
 - [ ] Send the first Agent report immediately on startup.
 - [ ] Decide health semantics for servers with no monitors.
