@@ -79,6 +79,7 @@ Environment variables:
 |----------|---------|-------------|
 | `ORION_DATA_DIR` | `data` | Directory for SQLite (`orion.db`). Use `/data` in Docker. |
 | `ORION_PORT` | `8999` | HTTP listen port. |
+| `ORION_CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Comma-separated allowed browser origins. |
 | `ORION_ADMIN_USERNAME` | — | If set with `ORION_ADMIN_PASSWORD`, enables frontend login. |
 | `ORION_ADMIN_PASSWORD` | — | Admin password for the web UI. |
 | `ORION_JWT_SECRET` | — | Required when frontend auth is on; used to sign JWTs. |

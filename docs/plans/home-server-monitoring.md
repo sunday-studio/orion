@@ -54,13 +54,13 @@ It should be useful, understandable, and reliable before it tries to be a broad 
 
 ## Priority 4: Operations
 
-- Add raw report retention and uptime rollups.
-- Document SQLite backup and restore.
-- Add explicit migrations.
-- Add graceful Core shutdown.
-- Add configurable CORS origins.
-- Add login rate limiting.
-- Add useful request logging and database health checks.
+- [ ] Add raw report retention and uptime rollups.
+- [ ] Document SQLite backup and restore.
+- [ ] Add explicit migrations.
+- [ ] Add graceful Core shutdown.
+- [x] Add configurable CORS origins.
+- [ ] Add login rate limiting.
+- [ ] Add useful request logging and database health checks.
 
 ## Priority 5: Deployment
 

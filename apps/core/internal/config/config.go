@@ -11,6 +11,7 @@ import (
 type Config struct {
 	DataDir                    string
 	Port                       string
+	CORSOrigins                []string
 	AdminUsername              string
 	AdminPassword              string
 	JWTSecret                  string
@@ -47,6 +48,7 @@ func Load() *Config {
 	return &Config{
 		DataDir:                    getEnv("ORION_DATA_DIR", "data"),
 		Port:                       getEnv("ORION_PORT", "8999"),
+		CORSOrigins:                getEnvList("ORION_CORS_ORIGINS", []string{"http://localhost:5173", "http://127.0.0.1:5173"}),
 		AdminUsername:              adminUser,
 		AdminPassword:              adminPass,
 		JWTSecret:                  jwtSecret,
@@ -132,6 +134,26 @@ func getEnvInt(key string, fallback int) int {
 		return fallback
 	}
 	return parsed
+}
+
+func getEnvList(key string, fallback []string) []string {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+
+	parts := strings.Split(value, ",")
+	items := make([]string, 0, len(parts))
+	for _, part := range parts {
+		item := strings.TrimSpace(part)
+		if item != "" {
+			items = append(items, item)
+		}
+	}
+	if len(items) == 0 {
+		return fallback
+	}
+	return items
 }
 
 func loadAlertChannels() []AlertChannelConfig {
