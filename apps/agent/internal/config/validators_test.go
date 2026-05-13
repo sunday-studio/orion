@@ -101,6 +101,13 @@ func TestUserConfigValidateRejectsInvalidMonitorConfig(t *testing.T) {
 			wantErr: "expected_status is required",
 		},
 		{
+			name: "invalid http body regex",
+			mutate: func(cfg *UserConfig) {
+				cfg.Monitors[0].HTTP.ExpectedBodyRegex = "["
+			},
+			wantErr: "invalid expected_body_regex",
+		},
+		{
 			name: "invalid website status",
 			mutate: func(cfg *UserConfig) {
 				cfg.Monitors[0].Type = UserMonitorTypeWebsite

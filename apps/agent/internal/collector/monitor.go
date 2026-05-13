@@ -25,9 +25,11 @@ func CollectMonitorReport(internalMonitor config.InternalStateMonitor, userMonit
 			}
 		}
 		httpResult, err := RunHTTPMonitor(HTTPMonitorConfig{
-			URL:            userMonitorConfig.HTTP.URL,
-			Timeout:        timeout,
-			ExpectedStatus: 200,
+			URL:               userMonitorConfig.HTTP.URL,
+			Timeout:           timeout,
+			ExpectedStatus:    userMonitorConfig.HTTP.ExpectedStatus,
+			ExpectedBody:      userMonitorConfig.HTTP.ExpectedBody,
+			ExpectedBodyRegex: userMonitorConfig.HTTP.ExpectedBodyRegex,
 		})
 		if err != nil {
 			return &MonitorResult{

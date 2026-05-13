@@ -73,7 +73,7 @@ flowchart LR
 
 | Type | Required config |
 |------|-----------------|
-| `http-healthcheck` | `http.url`, `http.timeout`, `http.expected_status` |
+| `http-healthcheck` | `http.url`, `http.timeout`, `http.expected_status`; optional `expected_body`, `expected_body_regex` |
 | `website` | `website.url`; optional `timeout`, `expected_status` |
 | `internal-service` | `internal_service.ping.url`, `internal_service.ping.timeout`, `internal_service.process.port` |
 | `pm2` | `pm2.app_name` |

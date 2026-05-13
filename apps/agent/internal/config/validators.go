@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -20,7 +21,17 @@ func (h HTTPHealthcheckConfig) Validate() error {
 		return err
 	}
 
-	return validateHTTPStatus(h.ExpectedStatus, true)
+	if err := validateHTTPStatus(h.ExpectedStatus, true); err != nil {
+		return err
+	}
+
+	if h.ExpectedBodyRegex != "" {
+		if _, err := regexp.Compile(h.ExpectedBodyRegex); err != nil {
+			return fmt.Errorf("invalid expected_body_regex: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func (i InternalServiceConfig) Validate() error {

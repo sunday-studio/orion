@@ -3,13 +3,17 @@ package collector
 import (
 	"io"
 	"net/http"
+	"regexp"
+	"strings"
 	"time"
 )
 
 type HTTPMonitorConfig struct {
-	URL            string
-	Timeout        time.Duration
-	ExpectedStatus int
+	URL               string
+	Timeout           time.Duration
+	ExpectedStatus    int
+	ExpectedBody      string
+	ExpectedBodyRegex string
 }
 
 type HTTPMonitorResult struct {
@@ -19,11 +23,15 @@ type HTTPMonitorResult struct {
 }
 
 func RunHTTPMonitor(cfg HTTPMonitorConfig) (*HTTPMonitorResult, error) {
-	start := time.Now()
-
 	client := &http.Client{
 		Timeout: cfg.Timeout,
 	}
+
+	return runHTTPMonitorWithClient(cfg, client)
+}
+
+func runHTTPMonitorWithClient(cfg HTTPMonitorConfig, client *http.Client) (*HTTPMonitorResult, error) {
+	start := time.Now()
 
 	req, err := http.NewRequest(http.MethodGet, cfg.URL, nil)
 	if err != nil {
@@ -40,18 +48,42 @@ func RunHTTPMonitor(cfg HTTPMonitorConfig) (*HTTPMonitorResult, error) {
 	latency := time.Since(start).Milliseconds()
 
 	status := "up"
+	var failureReason string
 	if cfg.ExpectedStatus > 0 && resp.StatusCode != cfg.ExpectedStatus {
 		status = "down"
+		failureReason = "unexpected status code"
+	}
+
+	bodyText := string(body)
+	if status == "up" && cfg.ExpectedBody != "" && !strings.Contains(bodyText, cfg.ExpectedBody) {
+		status = "down"
+		failureReason = "expected body content not found"
+	}
+
+	if status == "up" && cfg.ExpectedBodyRegex != "" {
+		matched, err := regexp.MatchString(cfg.ExpectedBodyRegex, bodyText)
+		if err != nil {
+			status = "down"
+			failureReason = "invalid expected body regex"
+		} else if !matched {
+			status = "down"
+			failureReason = "expected body regex did not match"
+		}
+	}
+
+	metrics := map[string]interface{}{
+		"status_code":         resp.StatusCode,
+		"latency_ms":          latency,
+		"response_size_bytes": len(body),
+	}
+	if failureReason != "" {
+		metrics["failure_reason"] = failureReason
 	}
 
 	return &HTTPMonitorResult{
 		Status:    status,
 		Timestamp: time.Now().UTC(),
-		Metrics: map[string]interface{}{
-			"status_code":         resp.StatusCode,
-			"latency_ms":          latency,
-			"response_size_bytes": len(body),
-		},
+		Metrics:   metrics,
 	}, nil
 }
 

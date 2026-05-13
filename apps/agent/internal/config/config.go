@@ -46,9 +46,11 @@ var UserMonitorTypes = []UserMonitorType{
 }
 
 type HTTPHealthcheckConfig struct {
-	URL            string `yaml:"url"`
-	Timeout        string `yaml:"timeout"`
-	ExpectedStatus int    `yaml:"expected_status"`
+	URL               string `yaml:"url"`
+	Timeout           string `yaml:"timeout"`
+	ExpectedStatus    int    `yaml:"expected_status"`
+	ExpectedBody      string `yaml:"expected_body,omitempty"`
+	ExpectedBodyRegex string `yaml:"expected_body_regex,omitempty"`
 }
 
 type InternalServiceConfig struct {
@@ -95,9 +97,9 @@ type UserMonitor struct {
 
 type UserConfig struct {
 	Meta     map[string]interface{} `yaml:"meta,omitempty"`
-	CoreURL  string                `yaml:"core_url"`
-	Interval string                `yaml:"interval"`
-	Monitors []UserMonitor         `yaml:"monitors"`
+	CoreURL  string                 `yaml:"core_url"`
+	Interval string                 `yaml:"interval"`
+	Monitors []UserMonitor          `yaml:"monitors"`
 }
 
 func LoadInternalState(path string) (*InternalState, error) {
