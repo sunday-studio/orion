@@ -3,77 +3,75 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/url"
+	"strings"
 	"time"
 )
 
 func (h HTTPHealthcheckConfig) Validate() error {
-	if h.URL == "" {
-		return errors.New("url is required")
+	if err := validateHTTPURL(h.URL, "url"); err != nil {
+		return err
 	}
 
-	if h.Timeout != "" {
-		if _, err := time.ParseDuration(h.Timeout); err != nil {
-			return fmt.Errorf("invalid timeout: %w", err)
-		}
+	if h.Timeout == "" {
+		return errors.New("timeout is required")
+	}
+	if _, err := parsePositiveDuration(h.Timeout, "timeout"); err != nil {
+		return err
 	}
 
-	return nil
+	return validateHTTPStatus(h.ExpectedStatus, true)
 }
 
 func (i InternalServiceConfig) Validate() error {
-	if i.Ping.URL == "" {
-		return errors.New("ping.url is required")
+	if err := validateHTTPURL(i.Ping.URL, "ping.url"); err != nil {
+		return err
 	}
 
 	if i.Ping.Timeout == "" {
 		return errors.New("ping.timeout is required")
 	}
-
-	if _, err := time.ParseDuration(i.Ping.Timeout); err != nil {
-		return fmt.Errorf("invalid ping.timeout: %w", err)
+	if _, err := parsePositiveDuration(i.Ping.Timeout, "ping.timeout"); err != nil {
+		return err
 	}
 
-	if i.Process.Port <= 0 {
-		return errors.New("process.port must be > 0")
+	if i.Process.Port <= 0 || i.Process.Port > 65535 {
+		return errors.New("process.port must be between 1 and 65535")
 	}
 
 	return nil
 }
 
 func (c CommandMonitorConfig) Validate() error {
-	if c.Command == "" {
-		return errors.New("cmd is required")
+	if strings.TrimSpace(c.Command) == "" {
+		return errors.New("command is required")
 	}
 	return nil
 }
 
 func (w WebsiteMonitorConfig) Validate() error {
-	if w.URL == "" {
-		return errors.New("url is required")
+	if err := validateHTTPURL(w.URL, "url"); err != nil {
+		return err
 	}
 
 	if w.Timeout != "" {
-		if _, err := time.ParseDuration(w.Timeout); err != nil {
-			return fmt.Errorf("invalid timeout: %w", err)
+		if _, err := parsePositiveDuration(w.Timeout, "timeout"); err != nil {
+			return err
 		}
 	}
 
-	if w.ExpectedStatus < 0 {
-		return errors.New("expected_status must be >= 0")
-	}
-
-	return nil
+	return validateHTTPStatus(w.ExpectedStatus, false)
 }
 
 func (p PM2MonitorConfig) Validate() error {
-	if p.AppName == "" {
+	if strings.TrimSpace(p.AppName) == "" {
 		return errors.New("app_name is required")
 	}
 	return nil
 }
 
 func (m UserMonitor) Validate() error {
-	if m.Name == "" {
+	if strings.TrimSpace(m.Name) == "" {
 		return errors.New("name is required")
 	}
 
@@ -84,9 +82,8 @@ func (m UserMonitor) Validate() error {
 	if m.Interval == "" {
 		return errors.New("interval is required")
 	}
-
-	if _, err := time.ParseDuration(m.Interval); err != nil {
-		return fmt.Errorf("invalid interval: %w", err)
+	if _, err := parsePositiveDuration(m.Interval, "interval"); err != nil {
+		return err
 	}
 
 	switch m.Type {
@@ -126,22 +123,74 @@ func (m UserMonitor) Validate() error {
 }
 
 func (c *UserConfig) Validate() error {
-	if c.CoreURL == "" {
-		return errors.New("core_url is required")
+	if err := validateHTTPURL(c.CoreURL, "core_url"); err != nil {
+		return err
 	}
 
 	if c.Interval == "" {
 		return errors.New("interval is required")
 	}
-
-	if _, err := time.ParseDuration(c.Interval); err != nil {
-		return fmt.Errorf("invalid interval format: %w", err)
+	if _, err := parsePositiveDuration(c.Interval, "interval"); err != nil {
+		return err
 	}
 
+	names := make(map[string]int, len(c.Monitors))
 	for i, monitor := range c.Monitors {
 		if err := monitor.Validate(); err != nil {
 			return fmt.Errorf("monitor[%d] (%s): %w", i, monitor.Name, err)
 		}
+
+		normalizedName := strings.TrimSpace(monitor.Name)
+		if firstIndex, exists := names[normalizedName]; exists {
+			return fmt.Errorf("monitor[%d] (%s): duplicate name also used by monitor[%d]", i, monitor.Name, firstIndex)
+		}
+		names[normalizedName] = i
+	}
+
+	return nil
+}
+
+func validateHTTPURL(rawURL string, field string) error {
+	if strings.TrimSpace(rawURL) == "" {
+		return fmt.Errorf("%s is required", field)
+	}
+
+	parsed, err := url.ParseRequestURI(rawURL)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return fmt.Errorf("%s must be an absolute http or https URL", field)
+	}
+
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return fmt.Errorf("%s must use http or https", field)
+	}
+
+	return nil
+}
+
+func parsePositiveDuration(rawDuration string, field string) (time.Duration, error) {
+	duration, err := time.ParseDuration(rawDuration)
+	if err != nil {
+		return 0, fmt.Errorf("invalid %s: %w", field, err)
+	}
+
+	if duration <= 0 {
+		return 0, fmt.Errorf("%s must be > 0", field)
+	}
+
+	return duration, nil
+}
+
+func validateHTTPStatus(status int, required bool) error {
+	if status == 0 && !required {
+		return nil
+	}
+
+	if status == 0 && required {
+		return errors.New("expected_status is required")
+	}
+
+	if status < 100 || status > 599 {
+		return errors.New("expected_status must be between 100 and 599")
 	}
 
 	return nil
