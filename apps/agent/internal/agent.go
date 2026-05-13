@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"orion/agent/internal/collector"
@@ -13,31 +14,34 @@ import (
 type Agent struct {
 	userConfig    *config.UserConfig
 	internalState *config.InternalState
+	statePath     string
+	stateMu       sync.Mutex
 	transport     *transport.Client
 	retryQueue    *RetryQueue
 }
 
 func New(userConfig *config.UserConfig, internalState *config.InternalState) *Agent {
+	return NewWithStatePath(userConfig, internalState, "")
+}
+
+func NewWithStatePath(userConfig *config.UserConfig, internalState *config.InternalState, statePath string) *Agent {
 	return &Agent{
 		userConfig:    userConfig,
 		transport:     transport.NewClient(userConfig.CoreURL, internalState.Token),
 		internalState: internalState,
+		statePath:     statePath,
 		retryQueue:    NewRetryQueue(100),
 	}
 }
 
 func (a *Agent) Run(ctx context.Context) error {
 	// Check if agent is in maintenance mode
-	if a.internalState.MaintenanceMode {
+	if a.isInMaintenanceMode() {
 		reason := "No reason provided"
 		if a.internalState.MaintenanceReason != nil {
 			reason = *a.internalState.MaintenanceReason
 		}
-		logging.Infof("Agent is in maintenance mode. Pausing reporting. Reason: %s", reason)
-		// Just wait for context cancellation
-		<-ctx.Done()
-		logging.Infof("Agent runtime stopped (maintenance mode)")
-		return nil
+		logging.Infof("Agent is in maintenance mode. Reporting workers will pause until maintenance clears. Reason: %s", reason)
 	}
 
 	// Start system metrics worker
@@ -167,6 +171,11 @@ func (a *Agent) startMonitorWorker(ctx context.Context, monitor config.UserMonit
 
 // Run System Metrics
 func (a *Agent) runSystemMetrics() error {
+	if a.isInMaintenanceMode() {
+		logging.Infof("Skipping system report while agent is in maintenance mode")
+		return nil
+	}
+
 	metrics, err := collector.Collect()
 
 	if err != nil {
@@ -211,6 +220,11 @@ func (a *Agent) configSummary() map[string]interface{} {
 }
 
 func (a *Agent) runMonitorMetrics(monitor config.InternalStateMonitor, userMonitor config.UserMonitor) error {
+	if a.isInMaintenanceMode() {
+		logging.Infof("Skipping monitor report for %s while agent is in maintenance mode", monitor.Name)
+		return nil
+	}
+
 	result, err := collector.CollectMonitorReport(monitor, userMonitor)
 	if err != nil {
 		logging.Errorf("Monitor check error: %v", err)
@@ -235,4 +249,29 @@ func (a *Agent) runMonitorMetrics(monitor config.InternalStateMonitor, userMonit
 	}
 
 	return nil
+}
+
+func (a *Agent) isInMaintenanceMode() bool {
+	a.refreshInternalState()
+
+	a.stateMu.Lock()
+	defer a.stateMu.Unlock()
+	return a.internalState.MaintenanceMode
+}
+
+func (a *Agent) refreshInternalState() {
+	if a.statePath == "" {
+		return
+	}
+
+	latestState, err := config.LoadInternalState(a.statePath)
+	if err != nil {
+		logging.Warnf("Failed to refresh internal state: %v", err)
+		return
+	}
+
+	a.stateMu.Lock()
+	defer a.stateMu.Unlock()
+	a.internalState = latestState
+	a.transport.SetAuthToken(latestState.Token)
 }

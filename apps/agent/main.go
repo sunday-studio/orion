@@ -134,7 +134,7 @@ func handleRun() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
-	agentInstance := agent.New(userConfig, internalState)
+	agentInstance := agent.NewWithStatePath(userConfig, internalState, *internalStatePath)
 
 	go func() {
 		<-sigs
