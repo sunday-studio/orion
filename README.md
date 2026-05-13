@@ -76,6 +76,7 @@ flowchart LR
 | `http-healthcheck` | `http.url`, `http.timeout`, `http.expected_status`; optional `expected_body`, `expected_body_regex` |
 | `website` | `website.url`; optional `timeout`, `expected_status` |
 | `tcp` | `tcp.host`, `tcp.port`; optional `timeout` |
+| `resource-threshold` | At least one of `resource.max_cpu_percent`, `max_memory_percent`, `max_disk_percent`, `max_load_1` |
 | `internal-service` | `internal_service.ping.url`, `internal_service.ping.timeout`, `internal_service.process.port` |
 | `pm2` | `pm2.app_name` |
 | `command` | `command.command` |

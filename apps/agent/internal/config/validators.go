@@ -99,6 +99,27 @@ func (t TCPMonitorConfig) Validate() error {
 	return nil
 }
 
+func (r ResourceThresholdConfig) Validate() error {
+	if r.MaxCPUPercent == 0 && r.MaxMemoryPercent == 0 && r.MaxDiskPercent == 0 && r.MaxLoad1 == 0 {
+		return errors.New("at least one resource threshold is required")
+	}
+
+	if err := validatePercentThreshold(r.MaxCPUPercent, "max_cpu_percent"); err != nil {
+		return err
+	}
+	if err := validatePercentThreshold(r.MaxMemoryPercent, "max_memory_percent"); err != nil {
+		return err
+	}
+	if err := validatePercentThreshold(r.MaxDiskPercent, "max_disk_percent"); err != nil {
+		return err
+	}
+	if r.MaxLoad1 < 0 {
+		return errors.New("max_load_1 must be >= 0")
+	}
+
+	return nil
+}
+
 func (m UserMonitor) Validate() error {
 	if strings.TrimSpace(m.Name) == "" {
 		return errors.New("name is required")
@@ -151,6 +172,12 @@ func (m UserMonitor) Validate() error {
 			return errors.New("tcp config is required")
 		}
 		return m.TCP.Validate()
+
+	case UserMonitorTypeResource:
+		if m.Resource == nil {
+			return errors.New("resource config is required")
+		}
+		return m.Resource.Validate()
 
 	default:
 		return fmt.Errorf("unsupported monitor type: %s", m.Type)
@@ -228,5 +255,12 @@ func validateHTTPStatus(status int, required bool) error {
 		return errors.New("expected_status must be between 100 and 599")
 	}
 
+	return nil
+}
+
+func validatePercentThreshold(value float64, field string) error {
+	if value < 0 || value > 100 {
+		return fmt.Errorf("%s must be between 0 and 100", field)
+	}
 	return nil
 }

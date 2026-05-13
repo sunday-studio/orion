@@ -57,6 +57,12 @@ func TestUserConfigValidateAcceptsValidMonitorTypes(t *testing.T) {
 				Interval: "30s",
 				TCP:      &TCPMonitorConfig{Host: "127.0.0.1", Port: 5432, Timeout: "2s"},
 			},
+			{
+				Name:     "resources",
+				Type:     UserMonitorTypeResource,
+				Interval: "30s",
+				Resource: &ResourceThresholdConfig{MaxCPUPercent: 90, MaxMemoryPercent: 90, MaxDiskPercent: 85, MaxLoad1: 4},
+			},
 		},
 	}
 
@@ -151,6 +157,24 @@ func TestUserConfigValidateRejectsInvalidMonitorConfig(t *testing.T) {
 				cfg.Monitors[0].TCP = &TCPMonitorConfig{Host: "localhost", Port: 0}
 			},
 			wantErr: "port must be between 1 and 65535",
+		},
+		{
+			name: "missing resource threshold",
+			mutate: func(cfg *UserConfig) {
+				cfg.Monitors[0].Type = UserMonitorTypeResource
+				cfg.Monitors[0].HTTP = nil
+				cfg.Monitors[0].Resource = &ResourceThresholdConfig{}
+			},
+			wantErr: "at least one resource threshold is required",
+		},
+		{
+			name: "invalid resource percent",
+			mutate: func(cfg *UserConfig) {
+				cfg.Monitors[0].Type = UserMonitorTypeResource
+				cfg.Monitors[0].HTTP = nil
+				cfg.Monitors[0].Resource = &ResourceThresholdConfig{MaxCPUPercent: 101}
+			},
+			wantErr: "max_cpu_percent must be between 0 and 100",
 		},
 	}
 

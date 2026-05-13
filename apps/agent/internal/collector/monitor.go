@@ -130,6 +130,27 @@ func CollectMonitorReport(internalMonitor config.InternalStateMonitor, userMonit
 			Metrics:   &result.Metrics,
 			Error:     result.Error,
 		}, nil
+	case config.UserMonitorTypeResource:
+		result := RunResourceThresholdMonitor(ResourceThresholdConfig{
+			MaxCPUPercent:    userMonitorConfig.Resource.MaxCPUPercent,
+			MaxMemoryPercent: userMonitorConfig.Resource.MaxMemoryPercent,
+			MaxDiskPercent:   userMonitorConfig.Resource.MaxDiskPercent,
+			MaxLoad1:         userMonitorConfig.Resource.MaxLoad1,
+		})
+		if result.Error != nil {
+			return &MonitorResult{
+				Status:    result.Status,
+				Timestamp: result.Timestamp,
+				Metrics:   &result.Metrics,
+				Error:     result.Error,
+			}, errors.New(result.Error.Message)
+		}
+		return &MonitorResult{
+			Status:    result.Status,
+			Timestamp: result.Timestamp,
+			Metrics:   &result.Metrics,
+			Error:     result.Error,
+		}, nil
 	}
 	return &MonitorResult{
 		Status:    "down",

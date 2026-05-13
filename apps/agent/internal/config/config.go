@@ -36,6 +36,7 @@ const (
 	UserMonitorTypeWebsite         UserMonitorType = "website"
 	UserMonitorTypePM2             UserMonitorType = "pm2"
 	UserMonitorTypeTCP             UserMonitorType = "tcp"
+	UserMonitorTypeResource        UserMonitorType = "resource-threshold"
 )
 
 var UserMonitorTypes = []UserMonitorType{
@@ -45,6 +46,7 @@ var UserMonitorTypes = []UserMonitorType{
 	UserMonitorTypeWebsite,
 	UserMonitorTypePM2,
 	UserMonitorTypeTCP,
+	UserMonitorTypeResource,
 }
 
 type HTTPHealthcheckConfig struct {
@@ -89,6 +91,13 @@ type TCPMonitorConfig struct {
 	Timeout string `yaml:"timeout,omitempty"`
 }
 
+type ResourceThresholdConfig struct {
+	MaxCPUPercent    float64 `yaml:"max_cpu_percent,omitempty"`
+	MaxMemoryPercent float64 `yaml:"max_memory_percent,omitempty"`
+	MaxDiskPercent   float64 `yaml:"max_disk_percent,omitempty"`
+	MaxLoad1         float64 `yaml:"max_load_1,omitempty"`
+}
+
 type UserMonitor struct {
 	Name        string                 `yaml:"name"`
 	Description string                 `yaml:"description"`
@@ -96,12 +105,13 @@ type UserMonitor struct {
 	Interval    string                 `yaml:"interval"`
 	Meta        map[string]interface{} `yaml:"meta,omitempty"`
 
-	HTTP            *HTTPHealthcheckConfig `yaml:"http,omitempty"`
-	InternalService *InternalServiceConfig `yaml:"internal_service,omitempty"`
-	Command         *CommandMonitorConfig  `yaml:"command,omitempty"`
-	Website         *WebsiteMonitorConfig  `yaml:"website,omitempty"`
-	PM2             *PM2MonitorConfig      `yaml:"pm2,omitempty"`
-	TCP             *TCPMonitorConfig      `yaml:"tcp,omitempty"`
+	HTTP            *HTTPHealthcheckConfig   `yaml:"http,omitempty"`
+	InternalService *InternalServiceConfig   `yaml:"internal_service,omitempty"`
+	Command         *CommandMonitorConfig    `yaml:"command,omitempty"`
+	Website         *WebsiteMonitorConfig    `yaml:"website,omitempty"`
+	PM2             *PM2MonitorConfig        `yaml:"pm2,omitempty"`
+	TCP             *TCPMonitorConfig        `yaml:"tcp,omitempty"`
+	Resource        *ResourceThresholdConfig `yaml:"resource,omitempty"`
 }
 
 type UserConfig struct {
