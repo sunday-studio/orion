@@ -4,7 +4,7 @@ import { type ApiIncidentResponse, useGetIncidents } from "@/orion-sdk";
 import { Fragment } from "react/jsx-runtime";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import { useState } from "react";
-import { ListPagination } from "./list-pagination";
+import { ListPagination } from "@/components/list-pagination";
 
 const INCIDENT_LIMIT = 20;
 

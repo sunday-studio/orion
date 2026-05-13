@@ -106,6 +106,13 @@ Goal: explain one server's current health and recent behavior.
   - Unknown/stale second.
   - Up last.
   - Operation: `getAgentMonitors`.
+- [x] Add report log.
+  - Timestamp.
+  - CPU usage.
+  - Memory usage.
+  - Disk usage.
+  - Uptime.
+  - Operation: `getAgentReports`.
 - [x] Add configuration snapshot.
   - Agent config summary.
   - Monitor config summary.
@@ -240,7 +247,7 @@ Goal: add operational history once the backend can serve it.
 
 ## Backend Contract Gaps
 
-- [ ] Add generated operation for server report history: `GET /v1/agents/{id}/reports`.
+- [x] Add generated operation for server report history: `GET /v1/agents/{id}/reports`.
 - [ ] Add generated operation for server uptime: `GET /v1/agents/{id}/uptime`.
 - [ ] Add generated operation for monitor uptime: `GET /v1/monitors/{id}/uptime`.
 - [ ] Add incident detail endpoint and generated operation.

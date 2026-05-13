@@ -1,52 +1,23 @@
+import { ListPagination } from "@/components/list-pagination";
 import { Separator } from "@/components/ui/separator";
 import {
+  type ApiAgentReportResponse,
   type ApiMonitorResponse,
   useGetAgent,
   useGetAgentHealth,
   useGetAgentMonitors,
+  useGetAgentReports,
   useGetIncidents,
 } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import { Link, useParams } from "react-router-dom";
+import { useState } from "react";
 
-type LatestReport = {
-  agent_version?: string;
-  config_summary?: unknown;
-  cpu?: {
-    cores?: number;
-    load_1?: number;
-    load_5?: number;
-    load_15?: number;
-    usage_percent?: number;
-  };
-  disk?: {
-    free_bytes?: number;
-    total_bytes?: number;
-    used_bytes?: number;
-    used_percent?: number;
-  };
-  location?: {
-    city?: string;
-    country?: string;
-    hostname?: string;
-    ip?: string;
-    org?: string;
-    region?: string;
-  };
-  memory?: {
-    available_bytes?: number;
-    free_bytes?: number;
-    total_bytes?: number;
-    used_bytes?: number;
-    used_percent?: number;
-  };
-  timestamp?: string;
-  uptime_seconds?: number;
-};
+const REPORT_LIMIT = 10;
 
-const asLatestReport = (value: unknown): LatestReport => {
+const asLatestReport = (value: unknown): ApiAgentReportResponse => {
   if (!value || typeof value !== "object") return {};
-  return value as LatestReport;
+  return value as ApiAgentReportResponse;
 };
 
 const formatPercent = (value?: number) =>
@@ -91,13 +62,20 @@ const DetailItem = ({ label, value }: { label: string; value: string | number })
 
 export const ServerDetailPage = () => {
   const { serverId = "" } = useParams();
+  const [reportOffset, setReportOffset] = useState(0);
   const agentResponse = useGetAgent(serverId);
   const healthResponse = useGetAgentHealth(serverId);
   const monitorsResponse = useGetAgentMonitors(serverId, { limit: 100 });
+  const reportsResponse = useGetAgentReports(serverId, {
+    limit: REPORT_LIMIT,
+    offset: reportOffset,
+  });
   const incidentsResponse = useGetIncidents({ limit: 100 });
 
   const agent = agentResponse.data?.agent;
   const latestReport = asLatestReport(agentResponse.data?.latest_report);
+  const reports = reportsResponse.data?.reports ?? [];
+  const reportCount = reportsResponse.data?.count ?? reports.length;
   const monitors = [...(monitorsResponse.data?.monitors ?? [])].sort(
     (left, right) => monitorPriority(left) - monitorPriority(right),
   );
@@ -202,6 +180,43 @@ export const ServerDetailPage = () => {
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium">Report Log</h2>
+        {reportsResponse.isLoading && (
+          <div className="text-sm text-neutral-600">Loading reports...</div>
+        )}
+        {reportsResponse.error && <div className="text-sm">Unable to load reports.</div>}
+        {!reportsResponse.isLoading && !reportsResponse.error && reports.length === 0 && (
+          <div className="text-sm text-neutral-600">No reports recorded.</div>
+        )}
+        <div>
+          {reports.map((report, index) => (
+            <div key={report.id ?? index}>
+              <div className="grid grid-cols-[minmax(0,1fr)_6rem] items-center gap-3 py-2 text-sm sm:grid-cols-[minmax(0,1.2fr)_7rem_7rem_7rem_minmax(0,1fr)]">
+                <span className="truncate font-medium">
+                  {formatDate(report.created_at ?? report.timestamp, DATE_TIME_FORMAT)}
+                </span>
+                <span>{formatPercent(report.cpu?.usage_percent)}</span>
+                <span className="hidden sm:inline">
+                  {formatPercent(report.memory?.used_percent)}
+                </span>
+                <span className="hidden sm:inline">{formatPercent(report.disk?.used_percent)}</span>
+                <span className="hidden truncate text-neutral-600 sm:inline">
+                  uptime {formatDuration(report.uptime_seconds)}
+                </span>
+              </div>
+              {index < reports.length - 1 && <Separator />}
+            </div>
+          ))}
+        </div>
+        <ListPagination
+          count={reportCount}
+          limit={REPORT_LIMIT}
+          offset={reportOffset}
+          onOffsetChange={setReportOffset}
+        />
       </section>
 
       <section className="space-y-3">

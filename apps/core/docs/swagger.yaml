@@ -1,5 +1,30 @@
 basePath: /
 definitions:
+  api.AgentReportResponse:
+    properties:
+      agent_id:
+        type: string
+      agent_version:
+        type: string
+      config_summary:
+        type: string
+      cpu:
+        $ref: '#/definitions/db.CPUStats'
+      created_at:
+        type: string
+      disk:
+        $ref: '#/definitions/db.DiskStats'
+      id:
+        type: string
+      location:
+        $ref: '#/definitions/db.GeoLocation'
+      memory:
+        $ref: '#/definitions/db.MemoryStats'
+      timestamp:
+        type: string
+      uptime_seconds:
+        type: integer
+    type: object
   api.AgentResponse:
     properties:
       arch:
@@ -880,6 +905,63 @@ paths:
       summary: List monitors for an agent
       tags:
       - monitors
+  /v1/agents/{id}/reports:
+    get:
+      consumes:
+      - application/json
+      description: Get a paginated list of system metric reports for a specific agent
+      operationId: getAgentReports
+      parameters:
+      - description: Agent ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 50
+        description: Maximum number of reports to return
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of reports to skip
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      format: int64
+                      type: integer
+                    limit:
+                      type: integer
+                    offset:
+                      type: integer
+                    reports:
+                      items:
+                        $ref: '#/definitions/api.AgentReportResponse'
+                      type: array
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get agent reports
+      tags:
+      - agents
   /v1/auth/login:
     post:
       consumes:

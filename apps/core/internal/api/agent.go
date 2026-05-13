@@ -225,6 +225,20 @@ func (s *Server) getAgentHealth(c *gin.Context) {
 	})
 }
 
+// getAgentReports retrieves paginated system reports for a specific agent.
+// @Summary      Get agent reports
+// @Description  Get a paginated list of system metric reports for a specific agent
+// @Tags         agents
+// @Accept       json
+// @Produce      json
+// @ID           getAgentReports
+// @Param        id      path      string  true   "Agent ID"
+// @Param        limit   query     int     false  "Maximum number of reports to return" default(50)
+// @Param        offset  query     int     false  "Number of reports to skip" default(0)
+// @Success      200     {object}  utils.APIResponse{data=object{reports=[]AgentReportResponse,count=int64,limit=int,offset=int}}
+// @Failure      400     {object}  utils.APIResponse
+// @Failure      500     {object}  utils.APIResponse
+// @Router       /v1/agents/{id}/reports [get]
 func (s *Server) getAgentReports(c *gin.Context) {
 	agentID := c.Param("id")
 	if agentID == "" {

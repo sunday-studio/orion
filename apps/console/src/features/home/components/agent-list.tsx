@@ -4,7 +4,7 @@ import { AgentFilters, type AttentionFilterValue } from "./agent-filters";
 import { AgentRow } from "./agent-row";
 import { Separator } from "@/components/ui/separator";
 import { Fragment } from "react/jsx-runtime";
-import { ListPagination } from "./list-pagination";
+import { ListPagination } from "@/components/list-pagination";
 
 const SERVER_LIMIT = 20;
 
