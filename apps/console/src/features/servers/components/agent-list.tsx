@@ -1,68 +1,77 @@
-import { useEffect, useMemo, useState } from "react";
 import { useGetAgents, type GetAgentsParams } from "@/orion-sdk";
 import { AgentFilters, type AttentionFilterValue } from "./agent-filters";
 import { AgentRow } from "./agent-row";
 import { Separator } from "@/components/ui/separator";
 import { Fragment } from "react/jsx-runtime";
 import { ListPagination } from "@/components/list-pagination";
+import { parseAsBoolean, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 
 const SERVER_LIMIT = 20;
 
 export const AgentList = () => {
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("all");
-  const [maintenanceOnly, setMaintenanceOnly] = useState(false);
-  const [staleOnly, setStaleOnly] = useState(false);
-  const [hasIncidents, setHasIncidents] = useState(false);
-  const [offset, setOffset] = useState(0);
+  const [{ search, status, maintenance, stale, incidents, page }, setServerQuery] = useQueryStates({
+    search: parseAsString.withDefault(""),
+    status: parseAsString.withDefault("all"),
+    maintenance: parseAsBoolean.withDefault(false),
+    stale: parseAsBoolean.withDefault(false),
+    incidents: parseAsBoolean.withDefault(false),
+    page: parseAsInteger.withDefault(1),
+  });
+  const currentPage = Math.max(page, 1);
+  const offset = (currentPage - 1) * SERVER_LIMIT;
 
-  const params = useMemo<GetAgentsParams>(
-    () => ({
-      limit: SERVER_LIMIT,
-      offset,
-      search: search.trim() || undefined,
-      status: status === "all" ? undefined : status,
-      maintenance: maintenanceOnly ? "true" : undefined,
-      stale_only: staleOnly || undefined,
-      has_incidents: hasIncidents || undefined,
-    }),
-    [hasIncidents, maintenanceOnly, offset, search, staleOnly, status],
-  );
+  const params: GetAgentsParams = {
+    limit: SERVER_LIMIT,
+    offset,
+    search: search.trim() || undefined,
+    status: status === "all" ? undefined : status,
+    maintenance: maintenance ? "true" : undefined,
+    stale_only: stale || undefined,
+    has_incidents: incidents || undefined,
+  };
 
   const agentsResponse = useGetAgents(params);
   const agents = agentsResponse.data?.agents ?? [];
   const count = agentsResponse.data?.count ?? agents.length;
-  const hasFilters =
-    search.trim() !== "" || status !== "all" || maintenanceOnly || staleOnly || hasIncidents;
-  const selectedAttentionFilters = useMemo<AttentionFilterValue[]>(
-    () =>
-      [
-        maintenanceOnly ? "maintenance" : undefined,
-        staleOnly ? "stale" : undefined,
-        hasIncidents ? "incidents" : undefined,
-      ].filter((value): value is AttentionFilterValue => value !== undefined),
-    [hasIncidents, maintenanceOnly, staleOnly],
-  );
+  const hasFilters = search.trim() !== "" || status !== "all" || maintenance || stale || incidents;
+  const selectedAttentionFilters: AttentionFilterValue[] = [
+    maintenance ? "maintenance" : undefined,
+    stale ? "stale" : undefined,
+    incidents ? "incidents" : undefined,
+  ].filter((value): value is AttentionFilterValue => value !== undefined);
+
+  const setSearch = (value: string) => {
+    void setServerQuery({ search: value, page: 1 });
+  };
+
+  const setStatus = (value: string) => {
+    void setServerQuery({ status: value, page: 1 });
+  };
 
   const setAttentionFilters = (values: AttentionFilterValue[]) => {
     const selected = new Set(values);
-    setMaintenanceOnly(selected.has("maintenance"));
-    setStaleOnly(selected.has("stale"));
-    setHasIncidents(selected.has("incidents"));
+    void setServerQuery({
+      maintenance: selected.has("maintenance"),
+      stale: selected.has("stale"),
+      incidents: selected.has("incidents"),
+      page: 1,
+    });
   };
 
   const clearFilters = () => {
-    setSearch("");
-    setStatus("all");
-    setMaintenanceOnly(false);
-    setStaleOnly(false);
-    setHasIncidents(false);
-    setOffset(0);
+    void setServerQuery({
+      search: "",
+      status: "all",
+      maintenance: false,
+      stale: false,
+      incidents: false,
+      page: 1,
+    });
   };
 
-  useEffect(() => {
-    setOffset(0);
-  }, [hasIncidents, maintenanceOnly, search, staleOnly, status]);
+  const setOffset = (nextOffset: number) => {
+    void setServerQuery({ page: Math.floor(nextOffset / SERVER_LIMIT) + 1 });
+  };
 
   return (
     <div className="space-y-3">

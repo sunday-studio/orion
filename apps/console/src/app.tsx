@@ -28,16 +28,6 @@ function App() {
             />
           }
         />
-        <Route
-          path="logs"
-          element={
-            <PlaceholderPage
-              title="Logs"
-              description="Orion event logs and future service logs."
-              operations={["future Orion event log", "future service logs"]}
-            />
-          }
-        />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>

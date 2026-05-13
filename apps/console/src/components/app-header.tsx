@@ -5,7 +5,6 @@ import { NavLink } from "react-router-dom";
 const navItems = [
   { label: "Incidents", to: "/incidents" },
   { label: "Servers", to: "/servers" },
-  { label: "Logs", to: "/logs" },
   { label: "Settings", to: "/settings" },
 ];
 
@@ -29,27 +28,28 @@ export const AppHeader = () => {
         <NavLink to="/incidents" className="font-medium">
           Orion
         </NavLink>
+        <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                isActive
+                  ? "font-medium text-neutral-950"
+                  : "text-neutral-600 hover:text-neutral-950"
+              }
+            >
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
         <div className="flex items-center gap-4">
           <span className="text-sm text-neutral-600">
             {summaryResponse.isLoading ? "Checking..." : label}
           </span>
-          <RadialAvatar seed="casprin-eSs" size="sm" />
+          <RadialAvatar seed="casprin-eSs" />
         </div>
       </div>
-      <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === "/incidents" || item.to === "/servers"}
-            className={({ isActive }) =>
-              isActive ? "font-medium text-neutral-950" : "text-neutral-600 hover:text-neutral-950"
-            }
-          >
-            {item.label}
-          </NavLink>
-        ))}
-      </nav>
     </header>
   );
 };

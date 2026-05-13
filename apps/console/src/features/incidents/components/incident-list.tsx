@@ -1,60 +1,170 @@
 import { IncidentSummary } from "./incident-summary";
-import { Separator } from "@/components/ui/separator";
 import { type ApiIncidentResponse, useGetIncidents } from "@/orion-sdk";
-import { Fragment } from "react/jsx-runtime";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
-import { useState } from "react";
 import { ListPagination } from "@/components/list-pagination";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
+import { parseAsInteger, parseAsStringLiteral, useQueryStates } from "nuqs";
 
 const INCIDENT_LIMIT = 20;
+const incidentStatuses = ["all", "open", "acknowledged", "resolved"] as const;
+
+const columns: ColumnDef<ApiIncidentResponse>[] = [
+  {
+    accessorKey: "title",
+    header: "Incident",
+    cell: ({ row }) => {
+      const incident = row.original;
+      return (
+        <div className="min-w-56">
+          <div className="truncate font-medium">{incident.title ?? "Untitled incident"}</div>
+          <div className="truncate text-neutral-600">
+            {incident.latest_event ?? "No recent event"}
+          </div>
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: "agent_name",
+    header: "Server",
+    cell: ({ row }) => row.original.agent_name ?? "Unknown server",
+  },
+  {
+    accessorKey: "monitor_name",
+    header: "Monitor",
+    cell: ({ row }) => row.original.monitor_name ?? "Unknown monitor",
+  },
+  {
+    accessorKey: "severity",
+    header: "Severity",
+    cell: ({ row }) => row.original.severity ?? "unknown",
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }) => row.original.status ?? "unknown",
+  },
+  {
+    accessorKey: "notification_status",
+    header: "Notification",
+    cell: ({ row }) => row.original.notification_status ?? "—",
+  },
+  {
+    accessorKey: "opened_at",
+    header: "Opened",
+    cell: ({ row }) => formatDate(row.original.opened_at, DATE_TIME_FORMAT),
+  },
+];
 
 export const IncidentList = () => {
-  const [offset, setOffset] = useState(0);
+  const [{ page, status }, setIncidentQuery] = useQueryStates({
+    page: parseAsInteger.withDefault(1),
+    status: parseAsStringLiteral(incidentStatuses).withDefault("all"),
+  });
+  const currentPage = Math.max(page, 1);
+  const offset = (currentPage - 1) * INCIDENT_LIMIT;
   const incidentsResponse = useGetIncidents({ limit: INCIDENT_LIMIT, offset });
-  const incidents = incidentsResponse.data?.incidents ?? [];
-  const count = incidentsResponse.data?.count ?? incidents.length;
+  const filteredIncidentsResponse = useGetIncidents({
+    status: status === "all" ? undefined : status,
+    limit: INCIDENT_LIMIT,
+    offset,
+  });
+  const openIncidentsResponse = useGetIncidents({ status: "open", limit: 1 });
+  const acknowledgedIncidentsResponse = useGetIncidents({ status: "acknowledged", limit: 1 });
+  const resolvedIncidentsResponse = useGetIncidents({ status: "resolved", limit: 1 });
+  const incidents = filteredIncidentsResponse.data?.incidents ?? [];
+  const count = filteredIncidentsResponse.data?.count ?? incidents.length;
+  const table = useReactTable({
+    data: incidents,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  });
 
-  if (incidentsResponse.isLoading) {
+  const setStatus = (nextStatus: (typeof incidentStatuses)[number]) => {
+    void setIncidentQuery({ status: nextStatus, page: 1 });
+  };
+
+  const setOffset = (nextOffset: number) => {
+    void setIncidentQuery({ page: Math.floor(nextOffset / INCIDENT_LIMIT) + 1 });
+  };
+
+  if (incidentsResponse.isLoading || filteredIncidentsResponse.isLoading) {
     return <div className="py-3 text-sm text-neutral-600">Loading incidents...</div>;
   }
 
-  if (incidentsResponse.error) {
+  if (incidentsResponse.error || filteredIncidentsResponse.error) {
     return <div className="py-3 text-sm">Unable to load incidents.</div>;
   }
 
   return (
-    <div className="space-y-2">
-      <IncidentSummary count={count} />
+    <div className="space-y-3">
+      <IncidentSummary
+        totalCount={incidentsResponse.data?.count ?? count}
+        openCount={openIncidentsResponse.data?.count ?? 0}
+        acknowledgedCount={acknowledgedIncidentsResponse.data?.count ?? 0}
+        resolvedCount={resolvedIncidentsResponse.data?.count ?? 0}
+        visibleIncidents={incidents}
+      />
+      <div className="flex flex-wrap items-center gap-2">
+        <Select value={status} onValueChange={setStatus}>
+          <SelectTrigger className="w-44 rounded-full text-xs">
+            <SelectValue placeholder="All statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            <SelectItem value="open">Open</SelectItem>
+            <SelectItem value="acknowledged">Acknowledged</SelectItem>
+            <SelectItem value="resolved">Resolved</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
       <div>
         {incidents.length === 0 && (
           <div className="py-3 text-sm text-neutral-600">No incidents recorded.</div>
         )}
-        {incidents.map((incident: ApiIncidentResponse, index: number) => (
-          <Fragment key={incident.id ?? index}>
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-2 text-sm sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto]">
-              <div className="min-w-0">
-                <div className="truncate font-medium">{incident.title ?? "Untitled incident"}</div>
-                <div className="truncate text-neutral-600">
-                  {incident.latest_event ?? "No recent event"}
-                </div>
-              </div>
-              <span className="hidden truncate sm:inline">
-                {incident.agent_name ?? "Unknown server"}
-              </span>
-              <span className="hidden truncate sm:inline">
-                {incident.monitor_name ?? "Unknown monitor"}
-              </span>
-              <span className="hidden sm:inline">{incident.severity ?? "unknown"}</span>
-              <div className="text-right">
-                <div>{incident.status ?? "unknown"}</div>
-                <div className="text-neutral-600">
-                  {formatDate(incident.opened_at, DATE_TIME_FORMAT)}
-                </div>
-              </div>
-            </div>
-            {index < incidents.length - 1 && <Separator />}
-          </Fragment>
-        ))}
+        {incidents.length > 0 && (
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </div>
       <ListPagination
         count={count}
