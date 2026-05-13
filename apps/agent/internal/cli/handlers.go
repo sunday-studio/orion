@@ -87,12 +87,18 @@ func HandleConfig(userConfigPath *string) {
 
 	switch subcommand {
 	case "validate":
-		_, err := config.LoadUserConfig(*userConfigPath)
+		userConfig, err := config.LoadUserConfig(*userConfigPath)
 		if err != nil {
-			fmt.Printf("Config validation failed: %v\n", err)
+			fmt.Println("Config validation failed")
+			fmt.Printf("  file: %s\n", *userConfigPath)
+			fmt.Printf("  error: %v\n", err)
 			os.Exit(1)
 		}
 		fmt.Println("Config file is valid")
+		fmt.Printf("  file: %s\n", *userConfigPath)
+		fmt.Printf("  core_url: %s\n", userConfig.CoreURL)
+		fmt.Printf("  interval: %s\n", userConfig.Interval)
+		fmt.Printf("  monitors: %d\n", len(userConfig.Monitors))
 
 	case "diff":
 		// Load current config

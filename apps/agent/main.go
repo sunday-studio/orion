@@ -90,15 +90,39 @@ func handleStop() {
 }
 
 func handleStatus() {
+	flag.Parse()
 	running, status, err := cli.GetServiceStatus()
 	if err != nil {
 		logging.Fatalf("Failed to get service status: %v", err)
 	}
 
+	fmt.Printf("Service manager: %s\n", cli.DetectServiceManager())
 	if running {
-		fmt.Printf("Agent service is %s\n", status)
+		fmt.Printf("Agent service: %s\n", status)
 	} else {
-		fmt.Printf("Agent service is %s\n", status)
+		fmt.Printf("Agent service: %s\n", status)
+	}
+
+	internalState, err := config.LoadInternalState(*internalStatePath)
+	if err != nil {
+		fmt.Printf("State file: %s\n", *internalStatePath)
+		fmt.Printf("State: unavailable (%v)\n", err)
+	} else {
+		fmt.Printf("State file: %s\n", *internalStatePath)
+		fmt.Printf("Registered: %t\n", internalState.IsRegistered())
+		if internalState.AgentID != "" {
+			fmt.Printf("Agent ID: %s\n", internalState.AgentID)
+		}
+		if internalState.CoreURL != "" {
+			fmt.Printf("Core URL: %s\n", internalState.CoreURL)
+		}
+		fmt.Printf("Maintenance: %t\n", internalState.MaintenanceMode)
+		if internalState.MaintenanceReason != nil {
+			fmt.Printf("Maintenance reason: %s\n", *internalState.MaintenanceReason)
+		}
+	}
+
+	if !running {
 		os.Exit(1)
 	}
 }
