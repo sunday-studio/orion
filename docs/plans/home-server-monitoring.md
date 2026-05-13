@@ -56,13 +56,23 @@ It should be useful, understandable, and reliable before it tries to be a broad 
 
 - [ ] Add raw report retention and uptime rollups.
 - [x] Document SQLite backup and restore.
-- [ ] Add explicit migrations.
+- [x] Add explicit migrations.
 - [x] Add graceful Core shutdown.
 - [x] Add configurable CORS origins.
 - [x] Add login rate limiting.
 - [x] Add useful request logging and database health checks.
 
-## Priority 5: Deployment
+## Priority 5: Data Lifecycle And Setup
+
+- [ ] Add Core data lifecycle settings stored in the database.
+- [ ] Configure lifecycle defaults during Core setup.
+- [ ] Add Console settings UI for lifecycle options.
+- [ ] Add daily monitor uptime rollup table and service.
+- [ ] Archive old raw reports to local SQLite archive files instead of deleting them.
+- [ ] Add manual archive and rollup actions in Core and Console.
+- [ ] Query recent details from hot raw reports and long-term history from rollups.
+
+## Priority 6: Deployment
 
 - Keep Core runnable as a Go binary and with Docker Compose.
 - Add Agent install and uninstall scripts.

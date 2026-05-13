@@ -66,10 +66,13 @@ Or with **docker compose** (`make docker-up` or `docker compose -f deploy/docker
 
 ## Database
 
-The server uses SQLite for data storage. The database file is created at `data/orion.db` and includes:
+The server uses SQLite for data storage. The database file is created at `data/orion.db`.
+Core applies embedded SQL migrations from `apps/core/internal/db/migrations` during startup and records applied versions in `schema_migrations`.
 
 - **Agents Table**: Stores agent metadata and authentication tokens
 - **Reports Table**: Stores all telemetry reports from agents
+- **Monitors Table**: Stores registered monitor inventory and current health
+- **Incidents And Alerts Tables**: Store incident lifecycle events and notification attempts
 
 ## Configuration
 
