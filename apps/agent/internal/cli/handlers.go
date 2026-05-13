@@ -7,6 +7,7 @@ import (
 
 	"orion/agent/internal/config"
 	"orion/agent/internal/logging"
+	agentstate "orion/agent/internal/state"
 	"orion/agent/internal/transport"
 )
 
@@ -18,16 +19,20 @@ func HandleMaintenance(userConfigPath, internalStatePath *string) {
 
 	action := os.Args[2]
 
-	internalState, err := config.LoadInternalState(*internalStatePath)
+	stateStore, err := agentstate.Open(*internalStatePath)
 	if err != nil {
-		logging.Fatalf("Failed to load internal state: %v", err)
+		logging.Fatalf("Failed to open state database: %v", err)
+	}
+	defer stateStore.Close()
+
+	internalState, err := stateStore.Get()
+	if err != nil {
+		logging.Fatalf("Failed to load state: %v", err)
 	}
 
 	switch action {
 	case "-up":
-		internalState.MaintenanceMode = false
-		internalState.MaintenanceReason = nil
-		if err := internalState.Save(*internalStatePath); err != nil {
+		if err := stateStore.SetMaintenanceMode(false, nil); err != nil {
 			logging.Fatalf("Failed to save state: %v", err)
 		}
 		fmt.Println("Maintenance mode disabled")
@@ -47,11 +52,11 @@ func HandleMaintenance(userConfigPath, internalStatePath *string) {
 		if len(os.Args) > 3 {
 			reason = strings.Join(os.Args[3:], " ")
 		}
-		internalState.MaintenanceMode = true
+		var reasonPtr *string
 		if reason != "" {
-			internalState.MaintenanceReason = &reason
+			reasonPtr = &reason
 		}
-		if err := internalState.Save(*internalStatePath); err != nil {
+		if err := stateStore.SetMaintenanceMode(true, reasonPtr); err != nil {
 			logging.Fatalf("Failed to save state: %v", err)
 		}
 		fmt.Printf("Maintenance mode enabled")

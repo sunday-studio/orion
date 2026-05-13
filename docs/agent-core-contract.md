@@ -12,7 +12,7 @@ The exact HTTP schema lives in `apps/core/openapi.yaml`.
 
 ## Agent Responsibilities
 
-- Load config and local state.
+- Load user config from YAML and local Agent-owned state from SQLite.
 - Register itself with Core and reuse its existing identity on restart.
 - Register configured monitors and unregister removed monitors.
 - Collect system metrics: uptime, CPU, memory, disk, OS/platform, and optional location metadata.
@@ -20,7 +20,7 @@ The exact HTTP schema lives in `apps/core/openapi.yaml`.
 - Send system and monitor reports on schedule.
 - Send an initial report soon after startup.
 - Retry temporary network failures without crashing.
-- Store only identity, token, and monitor mapping state locally.
+- Store only identity, token, maintenance state, and monitor mapping state locally.
 
 The Agent should not:
 
@@ -144,7 +144,7 @@ Core behavior:
 ## Security
 
 - Tokens are permanent until explicit rotation/revocation exists.
-- Agent stores token in local state; file permissions must protect it.
+- Agent stores token in local SQLite state; file permissions must protect it.
 - Production deployments should use HTTPS or a trusted private network.
 - Secret values should not be returned to Console.
 

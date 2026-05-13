@@ -13,8 +13,8 @@ This ensures zero manual setup — simply install and start the agent binary, an
 
 1. **Startup Check**
 
-   - On startup, the agent checks its local config file (e.g., `/etc/orion/config.yaml` or `~/.orion/config.json`).
-   - If it finds `agent_id` and `token`, registration is skipped — it proceeds to normal operation.
+   - On startup, the agent reads user config from YAML and runtime state from `state.db`.
+   - If `state.db` has an `agent_id` and `token`, registration is skipped and monitor reconciliation starts.
 
 2. **UUID Generation**
 
@@ -22,7 +22,7 @@ This ensures zero manual setup — simply install and start the agent binary, an
    - UUID generation combines system info such as:
      - Hostname
      - MAC address
-   - The resulting UUID is stored in the config file so it remains consistent across restarts.
+   - The resulting identity is stored in local SQLite state so it remains consistent across restarts.
 
 3. **Registration Request**
 
@@ -48,7 +48,7 @@ This ensures zero manual setup — simply install and start the agent binary, an
    }
    ```
 
-   save the token in the config and attach it as a header when making report calls
+     save the token in `state.db` and attach it as a header when making report calls
 
 4. **Core Server Handling**
 
@@ -65,11 +65,7 @@ This ensures zero manual setup — simply install and start the agent binary, an
        "token": "f9c23a45b7..."
      }
      ```
-   - The agent saves this in its local config file:
-     ```
-     agent_id: 42
-     token: f9c23a45b7...
-     ```
+   - The agent saves this in local SQLite state.
 
 6. **Subsequent Operations**
    - All future network calls (e.g., `/report/:agent_id`) include the token via an `Authorization: Bearer` header.

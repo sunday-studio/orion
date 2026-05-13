@@ -1,8 +1,10 @@
 # Persistence And Data Lifecycle
 
-## SQLite Database
+## SQLite Databases
 
 Core stores runtime state in SQLite at `<ORION_DATA_DIR>/orion.db`. The default data directory is `data`.
+
+The Agent also stores its local runtime state in SQLite at `state.db`. User-facing monitor configuration remains in YAML.
 
 ```mermaid
 erDiagram
@@ -246,3 +248,26 @@ flowchart LR
 
 Do not hand-edit generated API contract or SDK files. Update route annotations, then regenerate.
 
+## Agent Local State Layer
+
+The Agent's local SQLite state is intentionally not user-facing configuration. It stores data the Agent owns:
+
+- registered Agent id;
+- Agent auth token;
+- Core URL used for registration;
+- last sync time;
+- local maintenance flag and reason;
+- monitor name to Core monitor id mapping;
+- monitor runtime status and last checked time.
+
+Keeping this in SQLite gives the Agent an atomic state layer without making users edit a database. This product direction allows future Agent features without changing the YAML config model:
+
+- durable offline report spool;
+- retry attempts with next retry time and last error;
+- local Agent event log;
+- last check result cache per monitor;
+- richer `orion-agent status` and future `doctor` output;
+- safer concurrent access from daemon and CLI;
+- future Agent update bookkeeping;
+- future token rotation or credential metadata;
+- local diagnostics without requiring Core to be reachable.

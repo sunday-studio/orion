@@ -9,7 +9,7 @@ Its job is to:
 - Manage sub-processes defined in its config
 - Periodically send system data to **Orion Core**
 - Run as a background service (systemd or launchd)
-- Be fast, minimal, and SQLite-free (agent doesn’t persist anything long term)
+- Be fast and minimal while keeping user config in YAML and Agent-owned runtime state in local SQLite
 
 ---
 
@@ -18,14 +18,19 @@ Its job is to:
 1. **Configuration**
 
    - Read `/etc/orion/config.yaml` (or local `config.yaml` if running manually)
+   - Keep identity, token, monitor ids, and maintenance state in `state.db`
    - Contain fields for:
      ```yaml
      core_url: "https://orion-core.example.com"
-     token: "abcd1234"
      interval: "60s"
-     subprocesses:
-       - name: "nginx_monitor"
-         cmd: "/usr/bin/nginx -t"
+     monitors:
+       - name: "homepage"
+         type: "http-healthcheck"
+         interval: "30s"
+         http:
+           url: "https://example.com"
+           timeout: "5s"
+           expected_status: 200
      ```
 
 2. **Collection**
@@ -43,7 +48,7 @@ Its job is to:
 
    - Every `interval`, POST data to Core endpoint:
      ```
-     POST /api/agents/{id}/metrics
+     POST /v1/agents/{id}/report
      Content-Type: application/json
      Authorization: Bearer <token>
      ```
@@ -53,7 +58,7 @@ Its job is to:
      - `orion start` — start agent loop
      - `orion stop` — stop agent
      - `orion status` — check if running
-     - `orion send` — manually send now
+     - `orion-agent run -once` — manually collect and send once
 
 ---
 

@@ -136,33 +136,6 @@ type UserConfig struct {
 	Monitors []UserMonitor          `yaml:"monitors"`
 }
 
-func LoadInternalState(path string) (*InternalState, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		// First run: state file does not exist
-		if os.IsNotExist(err) {
-			state := &InternalState{
-				Monitors: []InternalStateMonitor{},
-			}
-
-			if err := state.Save(path); err != nil {
-				return nil, fmt.Errorf("failed to create internal state file: %w", err)
-			}
-
-			return state, nil
-		}
-
-		return nil, fmt.Errorf("failed to read internal state file: %w", err)
-	}
-
-	var internalState InternalState
-	if err := yaml.Unmarshal(data, &internalState); err != nil {
-		return nil, fmt.Errorf("failed to parse internal state: %w", err)
-	}
-
-	return &internalState, nil
-}
-
 func LoadUserConfig(path string) (*UserConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -183,40 +156,6 @@ func LoadUserConfig(path string) (*UserConfig, error) {
 
 func (c *InternalState) IsRegistered() bool {
 	return c.AgentID != "" && c.Token != ""
-}
-
-func (c *InternalState) Save(path string) error {
-	data, err := yaml.Marshal(c)
-	if err != nil {
-		return fmt.Errorf("failed to marshal config: %w", err)
-	}
-
-	if err := os.WriteFile(path, data, 0644); err != nil {
-		return fmt.Errorf("failed to write config file: %w", err)
-	}
-
-	return nil
-}
-
-func (c *InternalState) UpdateRegistration(agentID string, token string, coreURL string) {
-	c.AgentID = agentID
-	c.Token = token
-	c.Registered = true
-	c.LastSync = time.Now()
-	c.CoreURL = coreURL
-}
-
-func (c *InternalState) UpdateMonitors(monitors []InternalStateMonitor) {
-	c.Monitors = monitors
-}
-
-func (c *InternalState) GetMonitorByName(name string) *InternalStateMonitor {
-	for _, monitor := range c.Monitors {
-		if monitor.Name == name {
-			return &monitor
-		}
-	}
-	return nil
 }
 
 // DefaultPath returns the default path for the agent config.

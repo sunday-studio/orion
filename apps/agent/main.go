@@ -13,11 +13,12 @@ import (
 	"orion/agent/internal/config"
 	"orion/agent/internal/logging"
 	"orion/agent/internal/registration"
+	agentstate "orion/agent/internal/state"
 )
 
 var (
 	userConfigPath    = flag.String("config", "config.yaml", config.DefaultPath())
-	internalStatePath = flag.String("state", "state.yaml", config.DefaultPath())
+	internalStatePath = flag.String("state", agentstate.DefaultPath(), "Path to SQLite state database")
 	once              = flag.Bool("once", false, "Run once and exit (for debugging)")
 )
 
@@ -71,7 +72,7 @@ func printUsage() {
 	fmt.Println("")
 	fmt.Println("Options:")
 	fmt.Println("  -config   Path to config file (default: config.yaml)")
-	fmt.Println("  -state    Path to state file (default: state.yaml)")
+	fmt.Println("  -state    Path to SQLite state database (default: state.db)")
 	fmt.Println("  -once     Run once and exit (for debugging)")
 }
 
@@ -103,22 +104,29 @@ func handleStatus() {
 		fmt.Printf("Agent service: %s\n", status)
 	}
 
-	internalState, err := config.LoadInternalState(*internalStatePath)
+	stateStore, err := agentstate.Open(*internalStatePath)
 	if err != nil {
-		fmt.Printf("State file: %s\n", *internalStatePath)
+		fmt.Printf("State database: %s\n", *internalStatePath)
 		fmt.Printf("State: unavailable (%v)\n", err)
 	} else {
-		fmt.Printf("State file: %s\n", *internalStatePath)
-		fmt.Printf("Registered: %t\n", internalState.IsRegistered())
-		if internalState.AgentID != "" {
-			fmt.Printf("Agent ID: %s\n", internalState.AgentID)
-		}
-		if internalState.CoreURL != "" {
-			fmt.Printf("Core URL: %s\n", internalState.CoreURL)
-		}
-		fmt.Printf("Maintenance: %t\n", internalState.MaintenanceMode)
-		if internalState.MaintenanceReason != nil {
-			fmt.Printf("Maintenance reason: %s\n", *internalState.MaintenanceReason)
+		defer stateStore.Close()
+		internalState, err := stateStore.Get()
+		if err != nil {
+			fmt.Printf("State database: %s\n", *internalStatePath)
+			fmt.Printf("State: unavailable (%v)\n", err)
+		} else {
+			fmt.Printf("State database: %s\n", stateStore.Path())
+			fmt.Printf("Registered: %t\n", internalState.IsRegistered())
+			if internalState.AgentID != "" {
+				fmt.Printf("Agent ID: %s\n", internalState.AgentID)
+			}
+			if internalState.CoreURL != "" {
+				fmt.Printf("Core URL: %s\n", internalState.CoreURL)
+			}
+			fmt.Printf("Maintenance: %t\n", internalState.MaintenanceMode)
+			if internalState.MaintenanceReason != nil {
+				fmt.Printf("Maintenance reason: %s\n", *internalState.MaintenanceReason)
+			}
 		}
 	}
 
@@ -143,12 +151,13 @@ func handleRun() {
 		logging.Fatalf("Failed to load user config: %v", err)
 	}
 
-	internalState, err := config.LoadInternalState(*internalStatePath)
+	stateStore, err := agentstate.Open(*internalStatePath)
 	if err != nil {
-		logging.Fatalf("Failed to load internal state: %v", err)
+		logging.Fatalf("Failed to open state database: %v", err)
 	}
+	defer stateStore.Close()
 
-	registrationService := registration.New(userConfig, *userConfigPath, internalState, *internalStatePath)
+	registrationService := registration.New(userConfig, *userConfigPath, stateStore)
 	if err := registrationService.RegisterAgentIfNeeded(); err != nil {
 		logging.Fatalf("Failed to register agent & monitors: %v", err)
 	}
@@ -158,7 +167,10 @@ func handleRun() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
-	agentInstance := agent.NewWithStatePath(userConfig, internalState, *internalStatePath)
+	agentInstance, err := agent.NewWithStateStore(userConfig, stateStore)
+	if err != nil {
+		logging.Fatalf("Failed to initialize agent: %v", err)
+	}
 
 	go func() {
 		<-sigs

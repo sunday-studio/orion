@@ -12,7 +12,7 @@
         <string>-config</string>
         <string>/usr/local/etc/orion/config.yaml</string>
         <string>-state</string>
-        <string>/usr/local/var/lib/orion/state.yaml</string>
+        <string>/usr/local/var/lib/orion/state.db</string>
     </array>
     
     <key>RunAtLoad</key>
@@ -60,4 +60,3 @@
     </dict>
 </dict>
 </plist>
-

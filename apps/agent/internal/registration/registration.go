@@ -7,30 +7,33 @@ import (
 
 	"orion/agent/internal/config"
 	"orion/agent/internal/logging"
+	"orion/agent/internal/state"
 	"orion/agent/internal/transport"
 	"orion/agent/internal/utils"
 )
 
 type RegistrationService struct {
-	userConfig        *config.UserConfig
-	internalState     *config.InternalState
-	client            *transport.Client
-	userConfigPath    string
-	internalStatePath string
+	userConfig     *config.UserConfig
+	stateStore     *state.Store
+	client         *transport.Client
+	userConfigPath string
 }
 
-func New(userConfig *config.UserConfig, userConfigPath string, internalState *config.InternalState, internalStatePath string) *RegistrationService {
+func New(userConfig *config.UserConfig, userConfigPath string, stateStore *state.Store) *RegistrationService {
 	return &RegistrationService{
-		userConfig:        userConfig,
-		client:            transport.NewClient(userConfig.CoreURL, ""),
-		userConfigPath:    userConfigPath,
-		internalState:     internalState,
-		internalStatePath: internalStatePath,
+		userConfig:     userConfig,
+		client:         transport.NewClient(userConfig.CoreURL, ""),
+		userConfigPath: userConfigPath,
+		stateStore:     stateStore,
 	}
 }
 
 func (s *RegistrationService) RegisterAgentIfNeeded() error {
-	if s.internalState.IsRegistered() {
+	internalState, err := s.stateStore.Get()
+	if err != nil {
+		return fmt.Errorf("failed to load state: %w", err)
+	}
+	if internalState.IsRegistered() {
 		if err := s.RegisterAgentMonitorsIfNeeded(); err != nil {
 			return fmt.Errorf("failed to register monitors: %w", err)
 		}
@@ -64,12 +67,10 @@ func (s *RegistrationService) RegisterAgentIfNeeded() error {
 		return fmt.Errorf("failed to register agent: %w", err)
 	}
 
-	s.internalState.UpdateRegistration(resp.Data.AgentID, resp.Data.Token, s.userConfig.CoreURL)
-	s.client.SetAuthToken(resp.Data.Token)
-
-	if err := s.internalState.Save(s.internalStatePath); err != nil {
-		return fmt.Errorf("failed to save updated config: %w", err)
+	if err := s.stateStore.UpdateRegistration(resp.Data.AgentID, resp.Data.Token, s.userConfig.CoreURL); err != nil {
+		return fmt.Errorf("failed to save registration state: %w", err)
 	}
+	s.client.SetAuthToken(resp.Data.Token)
 
 	if err := s.RegisterAgentMonitorsIfNeeded(); err != nil {
 		return fmt.Errorf("failed to register monitors: %w", err)
@@ -79,14 +80,18 @@ func (s *RegistrationService) RegisterAgentIfNeeded() error {
 }
 
 func (s *RegistrationService) RegisterAgentMonitorsIfNeeded() error {
-	s.client.SetAuthToken(s.internalState.Token)
+	internalState, err := s.stateStore.Get()
+	if err != nil {
+		return fmt.Errorf("failed to load state: %w", err)
+	}
+	s.client.SetAuthToken(internalState.Token)
 
 	configMonitors := make(map[string]config.UserMonitor)
 	for _, m := range s.userConfig.Monitors {
 		configMonitors[m.Name] = m
 	}
 
-	stateMonitors := buildStateMonitorMap(s.internalState.Monitors)
+	stateMonitors := buildStateMonitorMap(internalState.Monitors)
 
 	logging.Infof("stateMonitors: %v", stateMonitors)
 
@@ -103,7 +108,7 @@ func (s *RegistrationService) RegisterAgentMonitorsIfNeeded() error {
 		logging.Infof("Registering monitor %q", name)
 
 		req := transport.MonitorRegistrationRequest{
-			AgentID:     s.internalState.AgentID,
+			AgentID:     internalState.AgentID,
 			Name:        monitor.Name,
 			Description: monitor.Description,
 			Type:        string(monitor.Type),
@@ -137,7 +142,7 @@ func (s *RegistrationService) RegisterAgentMonitorsIfNeeded() error {
 		logging.Infof("Unregistering monitor %q", name)
 
 		req := transport.UnRegisterMonitorRequest{
-			AgentID:   s.internalState.AgentID,
+			AgentID:   internalState.AgentID,
 			MonitorID: stateMonitor.ID,
 		}
 
@@ -147,10 +152,8 @@ func (s *RegistrationService) RegisterAgentMonitorsIfNeeded() error {
 		}
 	}
 
-	s.internalState.UpdateMonitors(updatedState)
-
-	if err := s.internalState.Save(s.internalStatePath); err != nil {
-		return fmt.Errorf("failed to save updated config: %w", err)
+	if err := s.stateStore.ReplaceMonitors(updatedState); err != nil {
+		return fmt.Errorf("failed to save monitor state: %w", err)
 	}
 
 	return nil

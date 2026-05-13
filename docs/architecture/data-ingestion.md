@@ -39,7 +39,7 @@ sequenceDiagram
 
 ## Agent Registration
 
-The Agent stores its durable identity in `state.yaml`.
+The Agent stores its durable identity in local SQLite state at `state.db`.
 
 On first registration:
 
@@ -91,7 +91,7 @@ flowchart TD
   New --> RegisterCore["POST register-monitor"]
   Existing --> Keep["Keep monitor id"]
   Removed --> UnregisterCore["POST unregister-monitor"]
-  RegisterCore --> SaveState["Save refreshed state.yaml"]
+  RegisterCore --> SaveState["Save refreshed state.db"]
   Keep --> SaveState
   UnregisterCore --> SaveState
 ```
@@ -189,4 +189,3 @@ flowchart TD
   RetryTick --> Flush["Flush queued sends"]
   Flush --> RetryHTTP
 ```
-

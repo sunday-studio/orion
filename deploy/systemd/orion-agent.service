@@ -9,7 +9,7 @@ Type=simple
 User=orion
 Group=orion
 WorkingDirectory=/var/lib/orion
-ExecStart=/usr/local/bin/orion-agent run -config /etc/orion/config.yaml -state /var/lib/orion/state.yaml
+ExecStart=/usr/local/bin/orion-agent run -config /etc/orion/config.yaml -state /var/lib/orion/state.db
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=10s
@@ -45,4 +45,3 @@ Environment="PATH=/usr/local/bin:/usr/bin:/bin"
 
 [Install]
 WantedBy=multi-user.target
-

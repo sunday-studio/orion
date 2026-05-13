@@ -10,7 +10,7 @@ Orion monitors self-hosted servers without Prometheus, Postgres, Kubernetes, or 
 flowchart LR
   subgraph Server["Monitored server"]
     Config["config.yaml"]
-    State["state.yaml"]
+    State["state.db"]
     Agent["Orion Agent"]
     Collectors["System and monitor collectors"]
     RetryQueue["Retry queue"]
@@ -39,7 +39,7 @@ flowchart LR
 ## Agent Responsibilities
 
 - Load user config from YAML.
-- Load and update internal state from YAML.
+- Load user config from YAML and update internal Agent state in SQLite.
 - Register the server with Core on first run.
 - Register configured monitors and unregister removed monitors.
 - Collect system reports on the global interval.
@@ -114,4 +114,3 @@ Alert delivery statuses are:
 - `failed`
 - `suppressed`
 - `cooldown`
-

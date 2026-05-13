@@ -8,30 +8,35 @@ import (
 	"orion/agent/internal/collector"
 	"orion/agent/internal/config"
 	"orion/agent/internal/logging"
+	"orion/agent/internal/state"
 	"orion/agent/internal/transport"
 )
 
 type Agent struct {
 	userConfig    *config.UserConfig
 	internalState *config.InternalState
-	statePath     string
+	stateStore    *state.Store
 	stateMu       sync.Mutex
 	transport     *transport.Client
 	retryQueue    *RetryQueue
 }
 
-func New(userConfig *config.UserConfig, internalState *config.InternalState) *Agent {
-	return NewWithStatePath(userConfig, internalState, "")
-}
-
-func NewWithStatePath(userConfig *config.UserConfig, internalState *config.InternalState, statePath string) *Agent {
+func New(userConfig *config.UserConfig, stateStore *state.Store, internalState *config.InternalState) *Agent {
 	return &Agent{
 		userConfig:    userConfig,
 		transport:     transport.NewClient(userConfig.CoreURL, internalState.Token),
 		internalState: internalState,
-		statePath:     statePath,
+		stateStore:    stateStore,
 		retryQueue:    NewRetryQueue(100),
 	}
+}
+
+func NewWithStateStore(userConfig *config.UserConfig, stateStore *state.Store) (*Agent, error) {
+	internalState, err := stateStore.Get()
+	if err != nil {
+		return nil, err
+	}
+	return New(userConfig, stateStore, internalState), nil
 }
 
 func (a *Agent) Run(ctx context.Context) error {
@@ -85,7 +90,10 @@ func (a *Agent) RunOnce(ctx context.Context) error {
 
 	// Run all monitors once
 	for _, monitor := range a.userConfig.Monitors {
-		internalMonitor := a.internalState.GetMonitorByName(monitor.Name)
+		internalMonitor, err := a.stateStore.GetMonitorByName(monitor.Name)
+		if err != nil {
+			return err
+		}
 		if internalMonitor == nil {
 			logging.Warnf("Monitor not found in internal state: %s", monitor.Name)
 			continue
@@ -150,7 +158,11 @@ func (a *Agent) startRetryQueueWorker(ctx context.Context) {
 func (a *Agent) startMonitorWorker(ctx context.Context, monitor config.UserMonitor) {
 	logging.Infof("Starting monitor worker for %s...", monitor.Name)
 
-	internalMonitor := a.internalState.GetMonitorByName(monitor.Name)
+	internalMonitor, err := a.stateStore.GetMonitorByName(monitor.Name)
+	if err != nil {
+		logging.Errorf("Failed to load monitor state for %s: %v", monitor.Name, err)
+		return
+	}
 
 	if internalMonitor == nil {
 		logging.Errorf("Monitor not found in internal state: %s", monitor.Name)
@@ -276,11 +288,7 @@ func (a *Agent) isInMaintenanceMode() bool {
 }
 
 func (a *Agent) refreshInternalState() {
-	if a.statePath == "" {
-		return
-	}
-
-	latestState, err := config.LoadInternalState(a.statePath)
+	latestState, err := a.stateStore.Get()
 	if err != nil {
 		logging.Warnf("Failed to refresh internal state: %v", err)
 		return

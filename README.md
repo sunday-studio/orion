@@ -57,7 +57,7 @@ flowchart LR
 
 5. **Run Agent**
    ```bash
-   cd apps/agent && ./orion-agent run -config config.yaml -state state.yaml
+   cd apps/agent && ./orion-agent run -config config.yaml -state state.db
    ```
 
 6. **Open UI** — `http://localhost:8999` (from `apps/core/web/`). If the UI is empty, run `make build-static` and restart Core.
@@ -85,9 +85,9 @@ flowchart LR
 
 ### Paths
 
-- **Linux**: `/etc/orion/config.yaml`, `/var/lib/orion/state.yaml` — see [deploy/systemd/orion-agent.service](deploy/systemd/orion-agent.service)
-- **macOS**: `/usr/local/etc/orion/config.yaml`, `/usr/local/var/lib/orion/state.yaml` — see [deploy/launchd/com.orion.agent.plist](deploy/launchd/com.orion.agent.plist)
-- **Dev**: `config.yaml` and `state.yaml` in the agent directory, with `-config` and `-state`
+- **Linux**: `/etc/orion/config.yaml`, `/var/lib/orion/state.db` — see [deploy/systemd/orion-agent.service](deploy/systemd/orion-agent.service)
+- **macOS**: `/usr/local/etc/orion/config.yaml`, `/usr/local/var/lib/orion/state.db` — see [deploy/launchd/com.orion.agent.plist](deploy/launchd/com.orion.agent.plist)
+- **Dev**: `config.yaml` and `state.db` in the agent directory, with `-config` and `-state`
 
 ### Core
 
@@ -95,7 +95,7 @@ Port in [apps/core/main.go](apps/core/main.go) (`:8999`). Database in [apps/core
 
 ## Running as a Service
 
-- **Linux (systemd)**: [deploy/systemd/orion-agent.service](deploy/systemd/orion-agent.service). Binary: `/usr/local/bin/orion-agent`; config: `/etc/orion/config.yaml`; state: `/var/lib/orion/state.yaml`. Create the `orion` user/group or adjust.
+- **Linux (systemd)**: [deploy/systemd/orion-agent.service](deploy/systemd/orion-agent.service). Binary: `/usr/local/bin/orion-agent`; config: `/etc/orion/config.yaml`; state: `/var/lib/orion/state.db`. Create the `orion` user/group or adjust.
 - **macOS (launchd)**: [deploy/launchd/com.orion.agent.plist](deploy/launchd/com.orion.agent.plist) — paths are in the plist.
 - **Uninstall**: [deploy/scripts/agent-uninstall.sh](deploy/scripts/agent-uninstall.sh) (run with `sudo`).
 

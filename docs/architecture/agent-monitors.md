@@ -11,13 +11,13 @@ Each monitor is configured in `config.yaml` with:
 - optional `meta`
 - one type-specific config block
 
-The Agent validates config before runtime. Monitor names must be unique. Each monitor gets a Core-side id during registration and that id is stored in `state.yaml`.
+The Agent validates config before runtime. Monitor names must be unique. Each monitor gets a Core-side id during registration and that id is stored in local `state.db`.
 
 ```mermaid
 flowchart TD
   Config["UserMonitor config"] --> Validate["Validate type-specific config"]
   Validate --> Register["Register monitor with Core"]
-  Register --> State["Persist monitor id in state.yaml"]
+  Register --> State["Persist monitor id in state.db"]
   State --> Worker["Start monitor worker"]
   Worker --> Collect["Collect monitor result"]
   Collect --> Report["Send monitor report"]
@@ -197,4 +197,3 @@ classDiagram
 ```
 
 Successful checks generally place details under `metrics`. Failed checks place structured details under `error` when available. Core stores metrics or error JSON in `monitor_reports.payload`.
-
