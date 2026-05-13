@@ -27,7 +27,7 @@ export const IncidentList = () => {
       <IncidentSummary count={count} />
       <div>
         {incidents.length === 0 && (
-          <div className="py-3 text-sm text-neutral-600">No active incidents.</div>
+          <div className="py-3 text-sm text-neutral-600">No incidents recorded.</div>
         )}
         {incidents.map((incident: ApiIncidentResponse, index: number) => (
           <Fragment key={incident.id ?? index}>

@@ -1,12 +1,12 @@
 export const IncidentSummary = ({ count }: { count: number }) => {
-  const label = count === 1 ? "incident needs attention" : "incidents need attention";
+  const label = count === 1 ? "incident found" : "incidents found";
 
   return (
     <div className="py-2">
       <p className="font-medium">
         {count} {label}
       </p>
-      <p className="text-sm text-neutral-600">Open monitor issues that may need a closer look.</p>
+      <p className="text-sm text-neutral-600">Operational issues recorded by Core.</p>
     </div>
   );
 };

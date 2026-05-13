@@ -3,7 +3,8 @@ import { useGetHealthSummary } from "@/orion-sdk";
 import { NavLink } from "react-router-dom";
 
 const navItems = [
-  { label: "Home", to: "/" },
+  { label: "Incidents", to: "/incidents" },
+  { label: "Servers", to: "/servers" },
   { label: "Logs", to: "/logs" },
   { label: "Settings", to: "/settings" },
 ];
@@ -25,7 +26,7 @@ export const AppHeader = () => {
   return (
     <header className="space-y-4">
       <div className="flex items-center justify-between gap-4">
-        <NavLink to="/" className="font-medium">
+        <NavLink to="/incidents" className="font-medium">
           Orion
         </NavLink>
         <div className="flex items-center gap-4">
@@ -40,7 +41,7 @@ export const AppHeader = () => {
           <NavLink
             key={item.to}
             to={item.to}
-            end={item.to === "/"}
+            end={item.to === "/incidents" || item.to === "/servers"}
             className={({ isActive }) =>
               isActive ? "font-medium text-neutral-950" : "text-neutral-600 hover:text-neutral-950"
             }

@@ -1,4 +1,5 @@
 import { ListPagination } from "@/components/list-pagination";
+import { PageBreadcrumbs } from "@/components/page-breadcrumbs";
 import { Separator } from "@/components/ui/separator";
 import {
   type ApiMonitorReportResponse,
@@ -8,7 +9,7 @@ import {
   useGetMonitorHistory,
 } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useState } from "react";
 
 const HISTORY_LIMIT = 20;
@@ -108,12 +109,16 @@ export const MonitorDetailPage = () => {
   return (
     <div className="space-y-7">
       <div className="space-y-1">
-        <Link
-          to={`/servers/${monitor.agent_id}`}
-          className="text-sm text-neutral-600 hover:text-neutral-950"
-        >
-          {parentAgentResponse.data?.agent?.name ?? "Server"}
-        </Link>
+        <PageBreadcrumbs
+          items={[
+            { label: "Servers", to: "/servers" },
+            {
+              label: parentAgentResponse.data?.agent?.name ?? "Server",
+              to: `/servers/${monitor.agent_id}`,
+            },
+            { label: monitor.name ?? "Monitor" },
+          ]}
+        />
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-base font-medium">

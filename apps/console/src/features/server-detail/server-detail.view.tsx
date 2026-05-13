@@ -1,4 +1,5 @@
 import { ListPagination } from "@/components/list-pagination";
+import { PageBreadcrumbs } from "@/components/page-breadcrumbs";
 import { Separator } from "@/components/ui/separator";
 import {
   type ApiAgentReportResponse,
@@ -103,9 +104,9 @@ export const ServerDetailPage = () => {
   return (
     <div className="space-y-7">
       <div className="space-y-1">
-        <Link to="/" className="text-sm text-neutral-600 hover:text-neutral-950">
-          Home
-        </Link>
+        <PageBreadcrumbs
+          items={[{ label: "Servers", to: "/servers" }, { label: agent.name ?? "Server" }]}
+        />
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-base font-medium">{agent.name ?? agent.id ?? "Unknown server"}</h1>

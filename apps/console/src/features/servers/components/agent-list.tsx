@@ -85,8 +85,8 @@ export const AgentList = () => {
       )}
       {agents.map((agent, index) => (
         <Fragment key={agent.id}>
-          <AgentRow key={agent.id} agent={agent} />
-          {index < agents.length - 1 && <Separator />}{" "}
+          <AgentRow agent={agent} />
+          {index < agents.length - 1 && <Separator />}
         </Fragment>
       ))}
       <ListPagination

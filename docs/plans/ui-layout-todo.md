@@ -13,15 +13,15 @@ This turns the information architecture into a build checklist for the Console U
 
 ## Current Baseline
 
-- [x] Home shell exists.
-- [x] Home uses tabs with Incidents selected by default.
-- [x] Home incidents tab reads persisted incidents with `getIncidents`.
-- [x] Home servers tab reads servers with `getAgents`.
-- [x] Home server filters exist: search, status, maintenance, stale only, has incidents.
-- [x] Home filter controls live in `agent-filters.tsx`.
-- [x] Home owns server and incident list pagination.
+- [x] Incidents is the first navigation item.
+- [x] `/` redirects to `/incidents`.
+- [x] Incidents page reads persisted incidents with `getIncidents`.
+- [x] Servers page reads servers with `getAgents`.
+- [x] Server filters exist: search, status, maintenance, stale only, has incidents.
+- [x] Server filter controls live in `servers/components/agent-filters.tsx`.
+- [x] Servers and Incidents own their own list pagination.
+- [x] Detail pages use breadcrumbs to return to list context.
 - [x] shadcn config resolves `@/*` to `src/*`.
-
 
 ## Phase 1: App Shell
 
@@ -33,7 +33,8 @@ Goal: add the navigation structure from the IA without filling every page yet.
   - User/profile action.
   - Operations: `getHealthSummary`, session state.
 - [x] Add primary navigation.
-  - Home.
+  - Incidents.
+  - Servers.
   - Logs.
   - Settings.
 - [x] Add placeholder routes for pages/detail views not built yet.
@@ -42,35 +43,32 @@ Goal: add the navigation structure from the IA without filling every page yet.
 - [x] Ensure active navigation state is obvious.
 
 
-## Phase 2: Home Layout
+## Phase 2: Incidents And Servers Lists
 
-Goal: make Home a useful operations summary without leaving the first page.
+Goal: keep operational list views separate, text-first, and easy to scan.
 
-- [x] Add a compact page header.
-  - Title: `Home`.
-  - Subtitle: current operational summary in one line.
-  - Operation: `getHealthSummary`.
-- [x] Add global attention summary row.
-  - Open incidents.
-  - Down monitors.
-  - Degraded monitors.
-  - Stale servers.
-  - Expiring TLS certificates if available.
-  - Operations: `getHealthSummary`, `getIncidents`.
-- [x] Tighten the Incidents tab layout.
+- [x] Add Incidents page.
+  - Route: `/incidents`.
+  - First navigation item.
+  - Operation: `getIncidents`.
+- [x] Add Servers page.
+  - Route: `/servers`.
+  - Operation: `getAgents`.
+- [x] Tighten the Incidents list layout.
   - Keep rows text-first.
   - Show severity, title, server, monitor, status, opened time, latest event.
   - Operation: `getIncidents`.
-  - Pagination stays here, not on a separate Incidents page.
-- [x] Tighten the Servers tab layout.
+  - Pagination stays on the Incidents page.
+- [x] Tighten the Servers list layout.
   - Keep server rows scannable.
   - Show name, status, platform, monitor count, last seen, maintenance.
   - Operation: `getAgents`.
-  - Pagination stays here, not on a separate Servers page.
+  - Pagination stays on the Servers page.
 - [x] Expand server rows into monitor rows.
   - Show monitor name, type, health, last success, latest error when present.
   - Operation: `getAgentMonitors`.
-- [x] Make empty/loading/error states consistent across both tabs.
+- [x] Add direct server detail navigation from each server row.
+- [x] Make empty/loading/error states consistent across both lists.
 
 
 ## Phase 3: Server Detail Page
@@ -163,7 +161,7 @@ Goal: explain a single check and why it is failing or healthy.
 
 ## Phase 5: Incident Detail Page
 
-Goal: explain one operational event without duplicating the Home incident list.
+Goal: explain one operational event without duplicating the Incidents list.
 
 - [ ] Add incident detail route.
   - Route should use incident id.
@@ -193,8 +191,8 @@ Goal: explain one operational event without duplicating the Home incident list.
   - Related monitor reports.
   - Related server events.
   - Alert delivery attempts.
-- [ ] Keep incident list/table on Home.
-  - Home Incidents tab owns the incident list and pagination.
+- [x] Keep incident list/table on Incidents.
+  - Incidents page owns the incident list and pagination.
   - Latest event.
   - Operation: `getIncidents`.
 
@@ -258,8 +256,8 @@ Goal: add operational history once the backend can serve it.
 
 ## First Execution Order
 
-1. Finish Home summary and row tightening.
-2. Add App Shell navigation.
+1. Build App Shell navigation.
+2. Build Incidents and Servers list pages.
 3. Build Server Detail page.
 4. Build Monitor Detail page.
 5. Build Incident Detail page.
