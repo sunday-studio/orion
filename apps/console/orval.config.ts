@@ -4,7 +4,7 @@ export default defineConfig({
   orion: {
     input: "../core/openapi.yaml",
     output: {
-      target: "./src/lib/api.ts",
+      target: "./src/orion-sdk/index.ts",
       client: "react-query",
       httpClient: "fetch",
       baseUrl: { getBaseUrlFromSpecification: false, baseUrl: "" },

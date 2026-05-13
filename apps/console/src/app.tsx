@@ -1,16 +1,12 @@
 import { Routes, Route } from "react-router-dom";
-import { HomePage } from "./pages/home-page";
-import { AgentDetailPage } from "./pages/agent-detail-page";
-import { MonitorDetailPage } from "./pages/monitor-detail-page";
-import { LoginPage } from "./pages/login-page";
+import { HomePage } from "./features/home/home.view";
+import { LoginPage } from "./features/auth/login-page";
 
 function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<HomePage />} />
-      <Route path="/agents/:id" element={<AgentDetailPage />} />
-      <Route path="/monitors/:id" element={<MonitorDetailPage />} />
     </Routes>
   );
 }

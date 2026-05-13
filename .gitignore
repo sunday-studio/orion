@@ -10,6 +10,7 @@ apps/*/node_modules/
 
 # Frontend build outputs
 apps/console/dist/
+apps/console/src/orion-sdk/
 
 
 # agent

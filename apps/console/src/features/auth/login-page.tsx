@@ -1,7 +1,7 @@
 import { Server } from "lucide-react";
 import { useState } from "react";
 
-import { InputWithButton } from "../components/ui/input-with-button";
+import { InputWithButton } from "../../components/ui/input-with-button";
 
 export function LoginPage() {
   const [password, setPassword] = useState("");
@@ -12,7 +12,7 @@ export function LoginPage() {
         <div className="border border-neutral-200 rounded-full w-12 h-12 bg-white flex items-center justify-center outline-4 outline-neutral-100">
           <Server className="w-4 h-4 text-neutral-500" />
         </div>
-        <p className="font-medium">Monitor your own systems and services</p>
+        <p>Monitor your own systems and services</p>
 
         <InputWithButton
           placeholder="Password"
