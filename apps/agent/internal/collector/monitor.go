@@ -70,6 +70,31 @@ func CollectMonitorReport(internalMonitor config.InternalStateMonitor, userMonit
 			Metrics:   &result.Metrics,
 			Error:     result.Error,
 		}, nil
+	case config.UserMonitorTypeCommand:
+		timeout := defaultTimeout
+		if userMonitorConfig.Command.Timeout != "" {
+			if d, err := time.ParseDuration(userMonitorConfig.Command.Timeout); err == nil {
+				timeout = d
+			}
+		}
+		result := RunCommandMonitor(CommandMonitorConfig{
+			Command: userMonitorConfig.Command.Command,
+			Timeout: timeout,
+		})
+		if result.Error != nil {
+			return &MonitorResult{
+				Status:    result.Status,
+				Timestamp: result.Timestamp,
+				Metrics:   &result.Metrics,
+				Error:     result.Error,
+			}, errors.New(result.Error.Message)
+		}
+		return &MonitorResult{
+			Status:    result.Status,
+			Timestamp: result.Timestamp,
+			Metrics:   &result.Metrics,
+			Error:     result.Error,
+		}, nil
 	case config.UserMonitorTypeWebsite:
 		result := RunWebsiteMonitor(*userMonitorConfig.Website)
 		if result.Error != nil {

@@ -77,6 +77,7 @@ type ProcessConfig struct {
 
 type CommandMonitorConfig struct {
 	Command string `yaml:"command"`
+	Timeout string `yaml:"timeout,omitempty"`
 }
 
 type WebsiteMonitorConfig struct {

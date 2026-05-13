@@ -43,7 +43,7 @@ func TestUserConfigValidateAcceptsValidMonitorTypes(t *testing.T) {
 				Name:     "backup",
 				Type:     UserMonitorTypeCommand,
 				Interval: "5m",
-				Command:  &CommandMonitorConfig{Command: "test -f /tmp/backup-ok"},
+				Command:  &CommandMonitorConfig{Command: "test -f /tmp/backup-ok", Timeout: "30s"},
 			},
 			{
 				Name:     "worker",
@@ -160,6 +160,15 @@ func TestUserConfigValidateRejectsInvalidMonitorConfig(t *testing.T) {
 				cfg.Monitors[0].Command = &CommandMonitorConfig{Command: "   "}
 			},
 			wantErr: "command is required",
+		},
+		{
+			name: "invalid command timeout",
+			mutate: func(cfg *UserConfig) {
+				cfg.Monitors[0].Type = UserMonitorTypeCommand
+				cfg.Monitors[0].HTTP = nil
+				cfg.Monitors[0].Command = &CommandMonitorConfig{Command: "test -f /tmp/backup-ok", Timeout: "0s"}
+			},
+			wantErr: "timeout must be > 0",
 		},
 		{
 			name: "invalid tcp port",

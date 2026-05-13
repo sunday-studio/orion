@@ -57,6 +57,13 @@ func (c CommandMonitorConfig) Validate() error {
 	if strings.TrimSpace(c.Command) == "" {
 		return errors.New("command is required")
 	}
+
+	if c.Timeout != "" {
+		if _, err := parsePositiveDuration(c.Timeout, "timeout"); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
