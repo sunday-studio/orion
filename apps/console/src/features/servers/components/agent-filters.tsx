@@ -58,7 +58,7 @@ export const AgentFilters = ({
         <Input
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="Search servers or monitors"
+          placeholder="Search agents or monitors"
           className="w-full max-w-sm sm:w-auto"
         />
         <Select value={status} onValueChange={onStatusChange}>

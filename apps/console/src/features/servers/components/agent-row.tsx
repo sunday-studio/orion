@@ -24,7 +24,7 @@ export const AgentRow = ({ agent }: { agent: ApiAgentResponse }) => {
         >
           {showMonitors ? "−" : "+"}
         </button>
-        <span className="truncate font-medium">{agent.name ?? agent.id ?? "Unknown server"}</span>
+        <span className="truncate font-medium">{agent.name ?? agent.id ?? "Unknown agent"}</span>
         <span className="hidden sm:inline">{status}</span>
         <span className="hidden sm:inline">{platform}</span>
         <span className="hidden truncate sm:inline">
@@ -32,9 +32,9 @@ export const AgentRow = ({ agent }: { agent: ApiAgentResponse }) => {
         </span>
         <span className="text-right text-neutral-600">{monitorCount} monitors</span>
         <Link
-          to={`/servers/${agent.id}`}
+          to={`/agents/${agent.id}`}
           className="inline-flex size-8 items-center justify-center rounded-full hover:bg-neutral-100"
-          aria-label={`Open ${agent.name ?? "server"} detail`}
+          aria-label={`Open ${agent.name ?? "agent"} detail`}
         >
           <ArrowRightIcon className="size-4" />
         </Link>

@@ -111,10 +111,10 @@ export const MonitorDetailPage = () => {
       <div className="space-y-1">
         <PageBreadcrumbs
           items={[
-            { label: "Servers", to: "/servers" },
+            { label: "Agents", to: "/agents" },
             {
-              label: parentAgentResponse.data?.agent?.name ?? "Server",
-              to: `/servers/${monitor.agent_id}`,
+              label: parentAgentResponse.data?.agent?.name ?? "Agent",
+              to: `/agents/${monitor.agent_id}`,
             },
             { label: monitor.name ?? "Monitor" },
           ]}

@@ -2,10 +2,10 @@ import { Navigate, Routes, Route } from "react-router-dom";
 import { LoginPage } from "@/features/auth/login-page";
 import { Layout } from "@/components/layout";
 import { PlaceholderPage } from "@/components/placeholder-page";
-import { ServerDetailPage } from "@/features/server-detail/server-detail.view";
+import { AgentDetailPage } from "@/features/server-detail/server-detail.view";
 import { MonitorDetailPage } from "@/features/monitor-detail/monitor-detail.view";
 import { IncidentsPage } from "@/features/incidents/incidents.view";
-import { ServersPage } from "@/features/servers/servers.view";
+import { AgentsPage } from "@/features/servers/servers.view";
 import { SettingsPage } from "@/features/settings/settings.view";
 
 function App() {
@@ -15,8 +15,10 @@ function App() {
       <Route path="/" element={<Layout />}>
         <Route index element={<Navigate to="/incidents" replace />} />
         <Route path="incidents" element={<IncidentsPage />} />
-        <Route path="servers" element={<ServersPage />} />
-        <Route path="servers/:serverId" element={<ServerDetailPage />} />
+        <Route path="agents" element={<AgentsPage />} />
+        <Route path="agents/:agentId" element={<AgentDetailPage />} />
+        <Route path="servers" element={<Navigate to="/agents" replace />} />
+        <Route path="servers/:serverId" element={<AgentDetailPage />} />
         <Route path="monitors/:monitorId" element={<MonitorDetailPage />} />
         <Route
           path="incidents/:incidentId"

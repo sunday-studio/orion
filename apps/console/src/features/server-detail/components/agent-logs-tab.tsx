@@ -1,0 +1,73 @@
+import { ListPagination } from "@/components/list-pagination";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import type { ApiAgentReportResponse } from "@/orion-sdk";
+import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
+import { formatDuration, formatPercent } from "./agent-detail-utils";
+
+type AgentLogsTabProps = {
+  reports: ApiAgentReportResponse[];
+  isLoading: boolean;
+  hasError: boolean;
+  count: number;
+  limit: number;
+  offset: number;
+  onOffsetChange: (offset: number) => void;
+};
+
+export const AgentLogsTab = ({
+  reports,
+  isLoading,
+  hasError,
+  count,
+  limit,
+  offset,
+  onOffsetChange,
+}: AgentLogsTabProps) => {
+  return (
+    <div className="space-y-3">
+      <div>
+        <h2 className="text-sm font-medium">Agent Reports</h2>
+        <p className="text-sm text-neutral-600">Reports received from this agent.</p>
+      </div>
+      {isLoading && <div className="text-sm text-neutral-600">Loading reports...</div>}
+      {hasError && <div className="text-sm">Unable to load reports.</div>}
+      {!isLoading && !hasError && reports.length === 0 && (
+        <div className="text-sm text-neutral-600">No reports recorded.</div>
+      )}
+      {reports.length > 0 && (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Time</TableHead>
+              <TableHead>CPU</TableHead>
+              <TableHead>Memory</TableHead>
+              <TableHead>Disk</TableHead>
+              <TableHead>Uptime</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {reports.map((report, index) => (
+              <TableRow key={report.id ?? index}>
+                <TableCell className="font-medium">
+                  {formatDate(report.created_at ?? report.timestamp, DATE_TIME_FORMAT)}
+                </TableCell>
+                <TableCell>{formatPercent(report.cpu?.usage_percent)}</TableCell>
+                <TableCell>{formatPercent(report.memory?.used_percent)}</TableCell>
+                <TableCell>{formatPercent(report.disk?.used_percent)}</TableCell>
+                <TableCell>{formatDuration(report.uptime_seconds)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+      <ListPagination count={count} limit={limit} offset={offset} onOffsetChange={onOffsetChange} />
+    </div>
+  );
+};

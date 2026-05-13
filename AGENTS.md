@@ -37,6 +37,14 @@ This file defines the working boundaries for humans and coding agents in this re
 - UI changes that rely on new API fields must land with matching Core/OpenAPI updates.
 - Deployment path changes must update `README.md`, `Makefile`, and relevant files under `deploy/`.
 
+## Console Table Rules
+
+- Use the OpenStatus data-table pattern for log-like tables in `apps/console/`.
+- Log-like tables include Agent report logs, monitor check logs, incident timelines/events, Orion event logs, alert delivery logs, and any future operational history view.
+- Prefer schema-driven data-table components, TanStack Table, TanStack Query, and `nuqs` URL-backed state for filters, sorting, and pagination.
+- Do not hand-roll one-off log tables unless the OpenStatus data-table components cannot support the required interaction.
+- Keep server-side pagination and filtering wired to Core API query params when the API supports them.
+
 ## Coordination Rules for Multiple Agents
 
 - Work in disjoint areas when possible:

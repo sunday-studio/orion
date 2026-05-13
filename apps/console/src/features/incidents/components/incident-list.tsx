@@ -41,8 +41,8 @@ const columns: ColumnDef<ApiIncidentResponse>[] = [
   },
   {
     accessorKey: "agent_name",
-    header: "Server",
-    cell: ({ row }) => row.original.agent_name ?? "Unknown server",
+    header: "Agent",
+    cell: ({ row }) => row.original.agent_name ?? "Unknown agent",
   },
   {
     accessorKey: "monitor_name",

@@ -86,11 +86,11 @@ export const AgentList = () => {
         onClear={clearFilters}
       />
       {agentsResponse.isLoading && (
-        <div className="py-3 text-sm text-neutral-600">Loading servers...</div>
+        <div className="py-3 text-sm text-neutral-600">Loading agents...</div>
       )}
-      {agentsResponse.error && <div className="py-3 text-sm">Unable to load servers.</div>}
+      {agentsResponse.error && <div className="py-3 text-sm">Unable to load agents.</div>}
       {!agentsResponse.isLoading && !agentsResponse.error && agents.length === 0 && (
-        <div className="py-3 text-sm text-neutral-600">No servers match these filters.</div>
+        <div className="py-3 text-sm text-neutral-600">No agents match these filters.</div>
       )}
       {agents.map((agent, index) => (
         <Fragment key={agent.id}>

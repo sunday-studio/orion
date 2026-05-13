@@ -4,7 +4,7 @@ import { NavLink } from "react-router-dom";
 
 const navItems = [
   { label: "Incidents", to: "/incidents" },
-  { label: "Servers", to: "/servers" },
+  { label: "Agents", to: "/agents" },
   { label: "Settings", to: "/settings" },
 ];
 
