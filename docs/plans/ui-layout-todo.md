@@ -250,8 +250,9 @@ Goal: add operational history once the backend can serve it.
 - [ ] Add incident detail endpoint and generated operation.
 - [ ] Add incident event timeline endpoint and generated operation.
 - [ ] Add Orion event log endpoint and generated operation.
-- [ ] Add alert channel listing endpoint and generated operation.
-- [ ] Add alert rule listing endpoint and generated operation.
+- [x] Add alert delivery listing endpoint and generated operation.
+- [x] Add alert channel listing endpoint and generated operation.
+- [x] Add alert rule listing endpoint and generated operation.
 
 ## Backend-to-Console Priority List
 
@@ -268,12 +269,12 @@ Goal: add operational history once the backend can serve it.
   - Add `GET /v1/incidents/{id}` before treating this as complete.
 5. [ ] Add incident event timeline contract.
   - Needed for incident opened, alert matched, delivery attempts, recovery, and resolution events.
-6. [ ] Add alert delivery listing contract.
-  - Backend stores `alert_deliveries`; Console needs a read endpoint for notification logs.
-7. [ ] Add alert channel listing contract.
-  - Backend reads webhook/email channels from config; Console needs redacted channel metadata only.
-8. [ ] Add alert rules/settings listing contract.
-  - Console should show cooldown/recovery/suppression behavior once Core exposes it.
+6. [x] Add alert delivery listing contract.
+  - Backend stores `alert_deliveries`; Console shows the notification log with infinite scroll.
+7. [x] Add alert channel listing contract.
+  - Backend reads webhook/email channels from config; Console shows redacted channel metadata only.
+8. [x] Add alert rules/settings listing contract.
+  - Console shows cooldown/recovery/suppression behavior from Core.
 9. [ ] Leave agent-to-Core write routes out of Console unless explicit admin tooling is planned.
   - Register/report/monitor write endpoints are runtime protocol endpoints, not normal UI features.
 

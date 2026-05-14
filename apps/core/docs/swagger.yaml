@@ -58,6 +58,73 @@ definitions:
       uptime_seconds:
         type: integer
     type: object
+  api.AlertChannelResponse:
+    properties:
+      email_from_configured:
+        type: boolean
+      email_to_configured:
+        type: boolean
+      enabled:
+        type: boolean
+      last_delivery_at:
+        type: string
+      last_delivery_status:
+        type: string
+      name:
+        type: string
+      smtp_host_configured:
+        type: boolean
+      smtp_port_configured:
+        type: boolean
+      smtp_username_configured:
+        type: boolean
+      type:
+        type: string
+      webhook_configured:
+        type: boolean
+    type: object
+  api.AlertDeliveryResponse:
+    properties:
+      channel:
+        type: string
+      created_at:
+        type: string
+      error:
+        type: string
+      event_type:
+        type: string
+      id:
+        type: string
+      incident_id:
+        type: string
+      status:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  api.AlertRuleResponse:
+    properties:
+      cooldown_seconds:
+        type: integer
+      enabled:
+        type: boolean
+      maintenance_suppression_enabled:
+        type: boolean
+      name:
+        type: string
+      recovery_notification_enabled:
+        type: boolean
+      severity:
+        type: string
+      target_channels:
+        items:
+          type: string
+        type: array
+      trigger_condition:
+        type: string
+    type: object
   api.DataLifecycleRollupRequest:
     properties:
       date:
@@ -1017,6 +1084,123 @@ paths:
       summary: Get agent uptime
       tags:
       - agents
+  /v1/alerts/channels:
+    get:
+      consumes:
+      - application/json
+      description: Get redacted configured alert channels and their last delivery
+        status
+      operationId: getAlertChannels
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    channels:
+                      items:
+                        $ref: '#/definitions/api.AlertChannelResponse'
+                      type: array
+                    count:
+                      type: integer
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: List alert channels
+      tags:
+      - alerts
+  /v1/alerts/deliveries:
+    get:
+      consumes:
+      - application/json
+      description: Get a paginated list of alert delivery attempts
+      operationId: getAlertDeliveries
+      parameters:
+      - description: Filter by incident ID
+        in: query
+        name: incident_id
+        type: string
+      - description: Filter by delivery status
+        in: query
+        name: status
+        type: string
+      - default: 50
+        description: Maximum number of deliveries to return
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of deliveries to skip
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      format: int64
+                      type: integer
+                    deliveries:
+                      items:
+                        $ref: '#/definitions/api.AlertDeliveryResponse'
+                      type: array
+                    limit:
+                      type: integer
+                    offset:
+                      type: integer
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: List alert deliveries
+      tags:
+      - alerts
+  /v1/alerts/rules:
+    get:
+      consumes:
+      - application/json
+      description: Get effective built-in alert rules derived from Core configuration
+      operationId: getAlertRules
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    rules:
+                      items:
+                        $ref: '#/definitions/api.AlertRuleResponse'
+                      type: array
+                  type: object
+              type: object
+      summary: List alert rules
+      tags:
+      - alerts
   /v1/auth/login:
     post:
       consumes:

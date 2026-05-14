@@ -924,6 +924,194 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/alerts/channels": {
+            "get": {
+                "description": "Get redacted configured alert channels and their last delivery status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "List alert channels",
+                "operationId": "getAlertChannels",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "channels": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/api.AlertChannelResponse"
+                                                    }
+                                                },
+                                                "count": {
+                                                    "type": "integer"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/alerts/deliveries": {
+            "get": {
+                "description": "Get a paginated list of alert delivery attempts",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "List alert deliveries",
+                "operationId": "getAlertDeliveries",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by incident ID",
+                        "name": "incident_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by delivery status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Maximum number of deliveries to return",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Number of deliveries to skip",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer",
+                                                    "format": "int64"
+                                                },
+                                                "deliveries": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/api.AlertDeliveryResponse"
+                                                    }
+                                                },
+                                                "limit": {
+                                                    "type": "integer"
+                                                },
+                                                "offset": {
+                                                    "type": "integer"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/alerts/rules": {
+            "get": {
+                "description": "Get effective built-in alert rules derived from Core configuration",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "List alert rules",
+                "operationId": "getAlertRules",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "rules": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/api.AlertRuleResponse"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/v1/auth/login": {
             "post": {
                 "description": "Returns a JWT for frontend API requests when frontend auth is configured.",
@@ -1849,6 +2037,108 @@ const docTemplate = `{
                 },
                 "uptime_seconds": {
                     "type": "integer"
+                }
+            }
+        },
+        "api.AlertChannelResponse": {
+            "type": "object",
+            "properties": {
+                "email_from_configured": {
+                    "type": "boolean"
+                },
+                "email_to_configured": {
+                    "type": "boolean"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "last_delivery_at": {
+                    "type": "string"
+                },
+                "last_delivery_status": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "smtp_host_configured": {
+                    "type": "boolean"
+                },
+                "smtp_port_configured": {
+                    "type": "boolean"
+                },
+                "smtp_username_configured": {
+                    "type": "boolean"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "webhook_configured": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "api.AlertDeliveryResponse": {
+            "type": "object",
+            "properties": {
+                "channel": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "event_type": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "incident_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.AlertRuleResponse": {
+            "type": "object",
+            "properties": {
+                "cooldown_seconds": {
+                    "type": "integer"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "maintenance_suppression_enabled": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "recovery_notification_enabled": {
+                    "type": "boolean"
+                },
+                "severity": {
+                    "type": "string"
+                },
+                "target_channels": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "trigger_condition": {
+                    "type": "string"
                 }
             }
         },

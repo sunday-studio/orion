@@ -586,6 +586,100 @@ func TestCORSPreflightAllowsConsoleFetchHeaders(t *testing.T) {
 	}
 }
 
+func TestAlertReadEndpointsRedactConfiguration(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())
+	database, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	if err := db.Migrate(database); err != nil {
+		t.Fatalf("migrate database: %v", err)
+	}
+
+	server := NewServer(database, logging.NewLogger(), &config.Config{
+		AlertRecoveryNotifications: true,
+		AlertTLSExpiryDays:         14,
+		AlertCooldownSeconds:       300,
+		AlertChannels: []config.AlertChannelConfig{
+			{
+				Name:       "ops-webhook",
+				Type:       "webhook",
+				Enabled:    true,
+				WebhookURL: "https://secret.example.com/hook",
+			},
+			{
+				Name:         "ops-email",
+				Type:         "email",
+				Enabled:      false,
+				EmailTo:      "ops@example.com",
+				EmailFrom:    "orion@example.com",
+				SMTPHost:     "smtp.example.com",
+				SMTPPort:     587,
+				SMTPUsername: "mailer",
+				SMTPPassword: "secret-password",
+			},
+		},
+	})
+
+	delivery := db.AlertDelivery{
+		ID:         "alert-delivery-test",
+		IncidentID: "incident-test",
+		EventType:  "incident_opened",
+		Channel:    "ops-webhook",
+		Type:       "webhook",
+		Status:     "failed",
+		Error:      "post https://secret.example.com/hook: connection refused",
+	}
+	if err := server.db.Create(&delivery).Error; err != nil {
+		t.Fatalf("create alert delivery: %v", err)
+	}
+
+	channelsResp := performJSONRequest(t, server, http.MethodGet, "/v1/alerts/channels", nil, "")
+	if channelsResp.Code != http.StatusOK {
+		t.Fatalf("channels status = %d, body = %s", channelsResp.Code, channelsResp.Body.String())
+	}
+	assertNotContains(t, channelsResp.Body.String(), "secret.example.com")
+	assertNotContains(t, channelsResp.Body.String(), "secret-password")
+
+	var channels struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Channels []struct {
+				Name               string `json:"name"`
+				Type               string `json:"type"`
+				WebhookConfigured  bool   `json:"webhook_configured"`
+				LastDeliveryStatus string `json:"last_delivery_status"`
+			} `json:"channels"`
+			Count int `json:"count"`
+		} `json:"data"`
+	}
+	decodeResponse(t, channelsResp, &channels)
+	if !channels.Success || channels.Data.Count != 2 || len(channels.Data.Channels) != 2 {
+		t.Fatalf("channels response = %+v, want two channels", channels)
+	}
+	if !channels.Data.Channels[0].WebhookConfigured || channels.Data.Channels[0].LastDeliveryStatus != "failed" {
+		t.Fatalf("webhook channel response = %+v, want redacted webhook with last failed status", channels.Data.Channels[0])
+	}
+
+	deliveriesResp := performJSONRequest(t, server, http.MethodGet, "/v1/alerts/deliveries?limit=10", nil, "")
+	if deliveriesResp.Code != http.StatusOK {
+		t.Fatalf("deliveries status = %d, body = %s", deliveriesResp.Code, deliveriesResp.Body.String())
+	}
+	assertNotContains(t, deliveriesResp.Body.String(), "secret.example.com")
+	if !strings.Contains(deliveriesResp.Body.String(), "delivery failed; check Core logs") {
+		t.Fatalf("delivery error was not sanitized: %s", deliveriesResp.Body.String())
+	}
+
+	rulesResp := performJSONRequest(t, server, http.MethodGet, "/v1/alerts/rules", nil, "")
+	if rulesResp.Code != http.StatusOK {
+		t.Fatalf("rules status = %d, body = %s", rulesResp.Code, rulesResp.Body.String())
+	}
+	assertNotContains(t, rulesResp.Body.String(), "secret.example.com")
+	assertNotContains(t, rulesResp.Body.String(), "secret-password")
+}
+
 func registerTestAgent(t *testing.T, server *Server) struct {
 	Success bool `json:"success"`
 	Data    struct {
@@ -712,6 +806,14 @@ func assertFrontendResponseDoesNotExposeAgentSecrets(t *testing.T, body string, 
 	}
 	if strings.Contains(body, `"machine_id"`) {
 		t.Fatalf("frontend response exposed machine_id field: %s", body)
+	}
+}
+
+func assertNotContains(t *testing.T, body string, value string) {
+	t.Helper()
+
+	if strings.Contains(body, value) {
+		t.Fatalf("response exposed %q: %s", value, body)
 	}
 }
 

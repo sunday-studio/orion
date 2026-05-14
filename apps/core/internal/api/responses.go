@@ -102,6 +102,46 @@ type UptimeResponse struct {
 	UptimePercent float64                   `json:"uptime_percent"`
 }
 
+// AlertDeliveryResponse represents a frontend-safe alert delivery record.
+type AlertDeliveryResponse struct {
+	ID         string    `json:"id"`
+	IncidentID string    `json:"incident_id"`
+	EventType  string    `json:"event_type"`
+	Channel    string    `json:"channel"`
+	Type       string    `json:"type"`
+	Status     string    `json:"status"`
+	Error      string    `json:"error,omitempty"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+// AlertChannelResponse represents a redacted configured alert channel.
+type AlertChannelResponse struct {
+	Name                   string     `json:"name"`
+	Type                   string     `json:"type"`
+	Enabled                bool       `json:"enabled"`
+	WebhookConfigured      bool       `json:"webhook_configured,omitempty"`
+	EmailToConfigured      bool       `json:"email_to_configured,omitempty"`
+	EmailFromConfigured    bool       `json:"email_from_configured,omitempty"`
+	SMTPHostConfigured     bool       `json:"smtp_host_configured,omitempty"`
+	SMTPPortConfigured     bool       `json:"smtp_port_configured,omitempty"`
+	SMTPUsernameConfigured bool       `json:"smtp_username_configured,omitempty"`
+	LastDeliveryStatus     string     `json:"last_delivery_status,omitempty"`
+	LastDeliveryAt         *time.Time `json:"last_delivery_at,omitempty"`
+}
+
+// AlertRuleResponse represents an effective Core alert rule.
+type AlertRuleResponse struct {
+	Name                          string   `json:"name"`
+	TriggerCondition              string   `json:"trigger_condition"`
+	Severity                      string   `json:"severity"`
+	Enabled                       bool     `json:"enabled"`
+	CooldownSeconds               int      `json:"cooldown_seconds"`
+	RecoveryNotificationEnabled   bool     `json:"recovery_notification_enabled"`
+	MaintenanceSuppressionEnabled bool     `json:"maintenance_suppression_enabled"`
+	TargetChannels                []string `json:"target_channels"`
+}
+
 func agentResponse(agent db.Agent) AgentResponse {
 	return AgentResponse{
 		ID:                       agent.ID,
@@ -223,5 +263,36 @@ func incidentResponse(incident db.Incident, agent db.Agent, monitor db.Monitor) 
 		NotificationStatus: incident.NotificationStatus,
 		CreatedAt:          incident.CreatedAt,
 		UpdatedAt:          incident.UpdatedAt,
+	}
+}
+
+func alertDeliveryResponse(delivery db.AlertDelivery) AlertDeliveryResponse {
+	return AlertDeliveryResponse{
+		ID:         delivery.ID,
+		IncidentID: delivery.IncidentID,
+		EventType:  delivery.EventType,
+		Channel:    delivery.Channel,
+		Type:       delivery.Type,
+		Status:     delivery.Status,
+		Error:      safeAlertDeliveryError(delivery.Error),
+		CreatedAt:  delivery.CreatedAt,
+		UpdatedAt:  delivery.UpdatedAt,
+	}
+}
+
+func alertDeliveryResponses(deliveries []db.AlertDelivery) []AlertDeliveryResponse {
+	responses := make([]AlertDeliveryResponse, 0, len(deliveries))
+	for _, delivery := range deliveries {
+		responses = append(responses, alertDeliveryResponse(delivery))
+	}
+	return responses
+}
+
+func safeAlertDeliveryError(value string) string {
+	switch value {
+	case "", "alert channel disabled", "alert cooldown active", "no alert channels configured":
+		return value
+	default:
+		return "delivery failed; check Core logs"
 	}
 }
