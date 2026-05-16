@@ -1,17 +1,15 @@
-import { EmptyState } from "@/components/empty-state";
+import { DataTable } from "@/components/data-table";
 import { ListPagination } from "@/components/list-pagination";
 import { DataTableLink } from "@/components/data-table-link";
+import { StatusBadge, toStatus } from "@/components/status-badges";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { type ApiIncidentResponse, useGetAgentMonitors } from "@/orion-sdk";
+  type ApiIncidentResponse,
+  type ApiMonitorResponse,
+  useGetAgentMonitors,
+} from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
+import type { ColumnDef } from "@tanstack/react-table";
 import { useState } from "react";
 import { monitorHealth, monitorPriority } from "./agent-detail-utils";
 
@@ -21,6 +19,45 @@ type AgentMonitorsTabProps = {
   agentId: string;
   highlightedIncident?: ApiIncidentResponse;
 };
+
+const monitorPath = (monitor: ApiMonitorResponse, highlightedIncident?: ApiIncidentResponse) => {
+  const isHighlightedMonitor = highlightedIncident?.monitor_id === monitor.id;
+
+  if (isHighlightedMonitor && highlightedIncident) {
+    return `/monitors/${monitor.id}?incident=${encodeURIComponent(highlightedIncident.id ?? "")}`;
+  }
+
+  return `/monitors/${monitor.id}`;
+};
+
+const monitorColumns = (
+  highlightedIncident?: ApiIncidentResponse,
+): ColumnDef<ApiMonitorResponse>[] => [
+  {
+    accessorKey: "name",
+    header: "Name",
+    cell: ({ row }) => (
+      <DataTableLink to={monitorPath(row.original, highlightedIncident)}>
+        {row.original.name ?? row.original.id}
+      </DataTableLink>
+    ),
+  },
+  {
+    id: "health",
+    header: "Health",
+    cell: ({ row }) => <StatusBadge value={toStatus(monitorHealth(row.original))} />,
+  },
+  {
+    accessorKey: "type",
+    header: "Type",
+    cell: ({ row }) => row.original.type ?? "unknown",
+  },
+  {
+    accessorKey: "last_successful_report_at",
+    header: "Last success",
+    cell: ({ row }) => formatDate(row.original.last_successful_report_at, DATE_TIME_FORMAT),
+  },
+];
 
 export const AgentMonitorsTab = ({ agentId, highlightedIncident }: AgentMonitorsTabProps) => {
   const [page, setPage] = useState(1);
@@ -36,57 +73,28 @@ export const AgentMonitorsTab = ({ agentId, highlightedIncident }: AgentMonitors
 
   return (
     <div className="space-y-3">
-      <div>
-        <h2 className="text-sm font-medium">Monitors</h2>
-        <p className="text-sm text-neutral-600">Checks registered by this agent.</p>
-      </div>
-      {monitorsResponse.isLoading && (
-        <div className="text-sm text-neutral-600">Loading monitors...</div>
-      )}
       {monitorsResponse.error && <div className="text-sm">Unable to load monitors.</div>}
-      {!monitorsResponse.isLoading && !monitorsResponse.error && monitors.length === 0 && (
-        <EmptyState title="No monitors registered" />
+      {!monitorsResponse.error && (
+        <DataTable
+          columns={monitorColumns(highlightedIncident)}
+          data={monitors}
+          emptyMessage="No monitors registered"
+          getRowId={(monitor) => monitor.id ?? ""}
+          isLoading={monitorsResponse.isLoading}
+          loadingMessage="Loading monitors..."
+          rowClassName={(row) =>
+            cn(highlightedIncident?.monitor_id === row.original.id && "bg-amber-50")
+          }
+        />
       )}
-      {monitors.length > 0 && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Health</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Last success</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {monitors.map((monitor) => {
-              const isHighlightedMonitor = highlightedIncident?.monitor_id === monitor.id;
-              const monitorPath =
-                isHighlightedMonitor && highlightedIncident
-                  ? `/monitors/${monitor.id}?incident=${encodeURIComponent(highlightedIncident.id ?? "")}`
-                  : `/monitors/${monitor.id}`;
-
-              return (
-                <TableRow key={monitor.id} className={cn(isHighlightedMonitor && "bg-amber-50")}>
-                  <TableCell className="font-medium">
-                    <DataTableLink to={monitorPath}>{monitor.name ?? monitor.id}</DataTableLink>
-                  </TableCell>
-                  <TableCell>{monitorHealth(monitor)}</TableCell>
-                  <TableCell>{monitor.type ?? "unknown"}</TableCell>
-                  <TableCell>
-                    {formatDate(monitor.last_successful_report_at, DATE_TIME_FORMAT)}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+      {count > 0 && (
+        <ListPagination
+          count={count}
+          limit={AGENT_MONITOR_LIMIT}
+          offset={offset}
+          onOffsetChange={setOffset}
+        />
       )}
-      <ListPagination
-        count={count}
-        limit={AGENT_MONITOR_LIMIT}
-        offset={offset}
-        onOffsetChange={setOffset}
-      />
     </div>
   );
 };

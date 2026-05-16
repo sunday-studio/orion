@@ -159,18 +159,7 @@ func (s *MonitorService) createNewMonitor(req *RegisterMonitorRequest) (*Registe
 func (s *MonitorService) ListMonitors(agentID string, healthFilter string, lifecycleFilter string, limit int, offset int) ([]db.Monitor, error) {
 	var monitors []db.Monitor
 
-	query := s.db.Where("agent_id = ?", agentID)
-
-	if healthFilter != "" {
-		query = query.Where("health = ?", healthFilter)
-	}
-
-	if lifecycleFilter != "" {
-		query = query.Where("lifecycle = ?", lifecycleFilter)
-	} else {
-		// Default to active monitors only
-		query = query.Where("lifecycle = ?", "active")
-	}
+	query := s.applyMonitorListFilters(s.db, agentID, healthFilter, lifecycleFilter)
 
 	query = query.Order("created_at DESC")
 
@@ -200,11 +189,25 @@ func (s *MonitorService) GetMonitor(monitorID string) (*db.Monitor, error) {
 	return &monitor, nil
 }
 
-func (s *MonitorService) GetMonitorCount(agentID string) (int64, error) {
+func (s *MonitorService) GetMonitorCount(agentID string, healthFilter string, lifecycleFilter string) (int64, error) {
 	var count int64
-	if err := s.db.Model(&db.Monitor{}).Where("agent_id = ? AND lifecycle = ?", agentID, "active").Count(&count).Error; err != nil {
+	if err := s.applyMonitorListFilters(s.db.Model(&db.Monitor{}), agentID, healthFilter, lifecycleFilter).Count(&count).Error; err != nil {
 		s.logger.Error("Failed to count monitors", "agent_id", agentID, "error", err)
 		return 0, err
 	}
 	return count, nil
+}
+
+func (s *MonitorService) applyMonitorListFilters(query *gorm.DB, agentID string, healthFilter string, lifecycleFilter string) *gorm.DB {
+	query = query.Where("agent_id = ?", agentID)
+
+	if healthFilter != "" {
+		query = query.Where("health = ?", healthFilter)
+	}
+
+	if lifecycleFilter != "" {
+		return query.Where("lifecycle = ?", lifecycleFilter)
+	}
+
+	return query.Where("lifecycle = ?", "active")
 }

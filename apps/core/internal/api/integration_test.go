@@ -177,6 +177,155 @@ func TestRegisterMonitorReportHistoryFlow(t *testing.T) {
 	}
 }
 
+func TestAgentHealthReturnsStoredMonitorCountsForStaleAgent(t *testing.T) {
+	server := setupTestServer(t)
+	agent := db.Agent{
+		ID:        "agent-stale-health-counts",
+		MachineId: "machine-stale-health-counts",
+		Name:      "stale health counts",
+		OS:        "linux",
+		Arch:      "arm64",
+		Token:     "token-stale-health-counts",
+		LastSeen:  time.Now().Add(-30 * time.Minute),
+	}
+	if err := server.db.Create(&agent).Error; err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+
+	monitors := []db.Monitor{
+		{
+			ID:        "monitor-stale-up",
+			AgentID:   agent.ID,
+			Name:      "stale up",
+			Type:      "http",
+			Lifecycle: "active",
+			Health:    "up",
+		},
+		{
+			ID:        "monitor-stale-down",
+			AgentID:   agent.ID,
+			Name:      "stale down",
+			Type:      "http",
+			Lifecycle: "active",
+			Health:    "down",
+		},
+		{
+			ID:        "monitor-stale-degraded",
+			AgentID:   agent.ID,
+			Name:      "stale degraded",
+			Type:      "http",
+			Lifecycle: "active",
+			Health:    "degraded",
+		},
+	}
+	if err := server.db.Create(&monitors).Error; err != nil {
+		t.Fatalf("create monitors: %v", err)
+	}
+
+	healthResp := performJSONRequest(t, server, http.MethodGet, "/v1/agents/"+agent.ID+"/health", nil, "")
+	if healthResp.Code != http.StatusOK {
+		t.Fatalf("health status = %d, body = %s", healthResp.Code, healthResp.Body.String())
+	}
+
+	var health struct {
+		Success bool `json:"success"`
+		Data    struct {
+			OverallHealth string `json:"overall_health"`
+			UpCount       int    `json:"up_count"`
+			DownCount     int    `json:"down_count"`
+			DegradedCount int    `json:"degraded_count"`
+		} `json:"data"`
+	}
+	decodeResponse(t, healthResp, &health)
+	if !health.Success || health.Data.OverallHealth != "stale" {
+		t.Fatalf("health response = %+v, want stale", health)
+	}
+	if health.Data.UpCount != 1 || health.Data.DownCount != 1 || health.Data.DegradedCount != 1 {
+		t.Fatalf("health counts = %+v, want 1/1/1", health.Data)
+	}
+}
+
+func TestListMonitorsCountMatchesFilters(t *testing.T) {
+	server := setupTestServer(t)
+	agent := db.Agent{
+		ID:        "agent-monitor-filter-counts",
+		MachineId: "machine-monitor-filter-counts",
+		Name:      "monitor filter counts",
+		OS:        "linux",
+		Arch:      "arm64",
+		Token:     "token-monitor-filter-counts",
+		LastSeen:  time.Now(),
+	}
+	if err := server.db.Create(&agent).Error; err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+
+	monitors := []db.Monitor{
+		{
+			ID:        "monitor-filter-up",
+			AgentID:   agent.ID,
+			Name:      "up",
+			Type:      "http",
+			Lifecycle: "active",
+			Health:    "up",
+		},
+		{
+			ID:        "monitor-filter-down",
+			AgentID:   agent.ID,
+			Name:      "down",
+			Type:      "http",
+			Lifecycle: "active",
+			Health:    "down",
+		},
+		{
+			ID:        "monitor-filter-disabled-down",
+			AgentID:   agent.ID,
+			Name:      "disabled down",
+			Type:      "http",
+			Lifecycle: "disabled",
+			Health:    "down",
+		},
+	}
+	if err := server.db.Create(&monitors).Error; err != nil {
+		t.Fatalf("create monitors: %v", err)
+	}
+
+	downResp := performJSONRequest(t, server, http.MethodGet, "/v1/agents/"+agent.ID+"/monitors?health=down", nil, "")
+	if downResp.Code != http.StatusOK {
+		t.Fatalf("down monitors status = %d, body = %s", downResp.Code, downResp.Body.String())
+	}
+	var listed struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Monitors []struct {
+				ID        string `json:"id"`
+				Health    string `json:"health"`
+				Lifecycle string `json:"lifecycle"`
+			} `json:"monitors"`
+			Count int64 `json:"count"`
+		} `json:"data"`
+	}
+	decodeResponse(t, downResp, &listed)
+	if !listed.Success || listed.Data.Count != 1 || len(listed.Data.Monitors) != 1 {
+		t.Fatalf("filtered active down monitors = %+v, want one row and count one", listed)
+	}
+	if listed.Data.Monitors[0].Health != "down" || listed.Data.Monitors[0].Lifecycle != "active" {
+		t.Fatalf("filtered monitor = %+v, want active down", listed.Data.Monitors[0])
+	}
+
+	disabledResp := performJSONRequest(t, server, http.MethodGet, "/v1/agents/"+agent.ID+"/monitors?health=down&lifecycle=disabled", nil, "")
+	if disabledResp.Code != http.StatusOK {
+		t.Fatalf("disabled monitors status = %d, body = %s", disabledResp.Code, disabledResp.Body.String())
+	}
+	decodeResponse(t, disabledResp, &listed)
+	if !listed.Success || listed.Data.Count != 1 || len(listed.Data.Monitors) != 1 {
+		t.Fatalf("filtered disabled down monitors = %+v, want one row and count one", listed)
+	}
+	if listed.Data.Monitors[0].Health != "down" || listed.Data.Monitors[0].Lifecycle != "disabled" {
+		t.Fatalf("filtered monitor = %+v, want disabled down", listed.Data.Monitors[0])
+	}
+}
+
 func TestMaintenanceSuppressesIncidentCandidates(t *testing.T) {
 	server := setupTestServer(t)
 	registered := registerTestAgent(t, server)

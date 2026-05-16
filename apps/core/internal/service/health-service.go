@@ -168,14 +168,6 @@ func (s *HealthService) ComputeAgentHealth(agentID string, config HealthComputat
 		return "unknown", 0, 0, 0, err
 	}
 
-	if agent.MaintenanceMode {
-		return "maintenance", 0, 0, 0, nil
-	}
-
-	if agent.LastSeen.IsZero() || agent.LastSeen.Before(time.Now().Add(-time.Duration(config.StaleDataThresholdMinutes)*time.Minute)) {
-		return "stale", 0, 0, 0, nil
-	}
-
 	var monitors []db.Monitor
 	if err := s.db.Where("agent_id = ? AND lifecycle = ?", agentID, "active").
 		Find(&monitors).Error; err != nil {
@@ -184,7 +176,23 @@ func (s *HealthService) ComputeAgentHealth(agentID string, config HealthComputat
 	}
 
 	if len(monitors) == 0 {
+		if agent.MaintenanceMode {
+			return "maintenance", 0, 0, 0, nil
+		}
+		if agent.LastSeen.IsZero() || agent.LastSeen.Before(time.Now().Add(-time.Duration(config.StaleDataThresholdMinutes)*time.Minute)) {
+			return "stale", 0, 0, 0, nil
+		}
 		return "up", 0, 0, 0, nil
+	}
+
+	if agent.MaintenanceMode {
+		upCount, downCount, degradedCount, _ := countStoredMonitorHealth(monitors)
+		return "maintenance", upCount, downCount, degradedCount, nil
+	}
+
+	if agent.LastSeen.IsZero() || agent.LastSeen.Before(time.Now().Add(-time.Duration(config.StaleDataThresholdMinutes)*time.Minute)) {
+		upCount, downCount, degradedCount, _ := countStoredMonitorHealth(monitors)
+		return "stale", upCount, downCount, degradedCount, nil
 	}
 
 	upCount := 0
@@ -225,6 +233,33 @@ func (s *HealthService) ComputeAgentHealth(agentID string, config HealthComputat
 	}
 
 	return overallHealth, upCount, downCount, degradedCount, nil
+}
+
+func countStoredMonitorHealth(monitors []db.Monitor) (int, int, int, int) {
+	upCount := 0
+	downCount := 0
+	degradedCount := 0
+	unknownCount := 0
+
+	for _, monitor := range monitors {
+		health := monitor.Health
+		if health == "" {
+			health = monitor.ComputedHealth
+		}
+
+		switch health {
+		case "up":
+			upCount++
+		case "down":
+			downCount++
+		case "degraded":
+			degradedCount++
+		default:
+			unknownCount++
+		}
+	}
+
+	return upCount, downCount, degradedCount, unknownCount
 }
 
 // DetectStaleMonitors finds monitors with stale data

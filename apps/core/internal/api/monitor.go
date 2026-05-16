@@ -111,7 +111,7 @@ func (s *Server) listMonitors(c *gin.Context) {
 		return
 	}
 
-	count, err := s.monitorService.GetMonitorCount(agentID)
+	count, err := s.monitorService.GetMonitorCount(agentID, healthFilter, lifecycleFilter)
 	if err != nil {
 		s.logger.Error("Failed to get monitor count", "error", err, "agent_id", agentID)
 		// Don't fail the request if count fails
