@@ -25,12 +25,15 @@ export const AppHeader = () => {
   const label = healthLabel[overallHealth as keyof typeof healthLabel] ?? "Unknown";
 
   return (
-    <header className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
+    <header className="fixed inset-x-0 top-0 z-50 bg-[#fdfdfc]/95 backdrop-blur">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
         <NavLink to="/incidents" className="font-medium">
           Orion
         </NavLink>
-        <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+        <nav
+          aria-label="Primary navigation"
+          className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm"
+        >
           {navItems.map((item) => (
             <NavLink
               key={item.to}
