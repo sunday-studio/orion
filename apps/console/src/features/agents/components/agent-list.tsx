@@ -56,11 +56,11 @@ export const AgentList = () => {
       {!agentsResponse.isLoading && !agentsResponse.error && agents.length === 0 && (
         <div className="py-3 text-sm text-neutral-600">No agents match these filters.</div>
       )}
-      <div className="space-y-1">
+      <div className="space-y-3">
         {agents.map((agent, index) => (
           <Fragment key={agent.id}>
             <AgentRow agent={agent} />
-            {index < agents.length - 1 && <Separator />}
+            {/* {index < agents.length - 1 && <Separator />} */}
           </Fragment>
         ))}
       </div>
