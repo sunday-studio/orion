@@ -11,7 +11,7 @@ import (
 )
 
 type RegisterMonitorRequest struct {
-	AgentID                  string    `json:"agent_id" binding:"required"`
+	AgentID                  string    `json:"agent_id,omitempty"`
 	Name                     string    `json:"name" binding:"required"`
 	Description              *string   `json:"description" binding:"required"`
 	Type                     string    `json:"type" binding:"required"`
@@ -21,7 +21,7 @@ type RegisterMonitorRequest struct {
 }
 
 type UnregisterMonitorRequest struct {
-	AgentID   string `json:"agent_id" binding:"required"`
+	AgentID   string `json:"agent_id,omitempty"`
 	MonitorID string `json:"monitor_id" binding:"required"`
 }
 

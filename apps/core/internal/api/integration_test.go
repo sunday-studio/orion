@@ -177,6 +177,69 @@ func TestRegisterMonitorReportHistoryFlow(t *testing.T) {
 	}
 }
 
+func TestRegisterAndUnregisterMonitorUseRouteAgentID(t *testing.T) {
+	server := setupTestServer(t)
+	registered := registerTestAgent(t, server)
+
+	description := "route scoped monitor"
+	registerMonitorBody := map[string]interface{}{
+		"name":                       "route-scoped-monitor",
+		"description":                description,
+		"type":                       "http-healthcheck",
+		"last_checked":               time.Now().UTC().Format(time.RFC3339),
+		"reporting_interval_seconds": 30,
+	}
+	registerMonitorResp := performJSONRequest(
+		t,
+		server,
+		http.MethodPost,
+		"/v1/agents/"+registered.Data.AgentID+"/register-monitor",
+		registerMonitorBody,
+		registered.Data.Token,
+	)
+	if registerMonitorResp.Code != http.StatusOK {
+		t.Fatalf("register monitor status = %d, body = %s", registerMonitorResp.Code, registerMonitorResp.Body.String())
+	}
+
+	var registeredMonitor struct {
+		Success bool `json:"success"`
+		Data    struct {
+			MonitorID string `json:"monitor_id"`
+		} `json:"data"`
+	}
+	decodeResponse(t, registerMonitorResp, &registeredMonitor)
+	if !registeredMonitor.Success || registeredMonitor.Data.MonitorID == "" {
+		t.Fatalf("register monitor response = %+v, want monitor id", registeredMonitor)
+	}
+
+	var monitor db.Monitor
+	if err := server.db.Where("id = ?", registeredMonitor.Data.MonitorID).First(&monitor).Error; err != nil {
+		t.Fatalf("find monitor: %v", err)
+	}
+	if monitor.AgentID != registered.Data.AgentID {
+		t.Fatalf("monitor agent id = %q, want route agent id %q", monitor.AgentID, registered.Data.AgentID)
+	}
+
+	unregisterResp := performJSONRequest(
+		t,
+		server,
+		http.MethodPost,
+		"/v1/agents/"+registered.Data.AgentID+"/unregister-monitor",
+		map[string]interface{}{"monitor_id": registeredMonitor.Data.MonitorID},
+		registered.Data.Token,
+	)
+	if unregisterResp.Code != http.StatusOK {
+		t.Fatalf("unregister monitor status = %d, body = %s", unregisterResp.Code, unregisterResp.Body.String())
+	}
+
+	if err := server.db.Where("id = ?", registeredMonitor.Data.MonitorID).First(&monitor).Error; err != nil {
+		t.Fatalf("reload monitor: %v", err)
+	}
+	if monitor.Lifecycle != "deleted" {
+		t.Fatalf("monitor lifecycle = %q, want deleted", monitor.Lifecycle)
+	}
+}
+
 func TestAgentCannotRegisterMonitorForDifferentAgent(t *testing.T) {
 	server := setupTestServer(t)
 	firstAgent := registerTestAgent(t, server)

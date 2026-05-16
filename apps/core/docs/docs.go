@@ -2979,7 +2979,6 @@ const docTemplate = `{
         "service.RegisterMonitorRequest": {
             "type": "object",
             "required": [
-                "agent_id",
                 "description",
                 "last_checked",
                 "name",
@@ -3086,7 +3085,6 @@ const docTemplate = `{
         "service.UnregisterMonitorRequest": {
             "type": "object",
             "required": [
-                "agent_id",
                 "monitor_id"
             ],
             "properties": {

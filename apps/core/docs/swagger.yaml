@@ -492,7 +492,6 @@ definitions:
       type:
         type: string
     required:
-    - agent_id
     - description
     - last_checked
     - name
@@ -553,7 +552,6 @@ definitions:
       monitor_id:
         type: string
     required:
-    - agent_id
     - monitor_id
     type: object
   service.UnregisterMonitorResponse:
