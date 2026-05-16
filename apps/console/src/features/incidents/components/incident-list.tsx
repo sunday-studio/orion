@@ -25,28 +25,15 @@ const columns: ColumnDef<ApiIncidentResponse>[] = [
       const incident = row.original;
       return (
         <div className="min-w-56">
-          <Link
-            to={`/incidents/${incident.id}`}
-            className="block truncate font-medium hover:text-neutral-600"
-          >
+          <Link to={`/incidents/${incident.id}`} className="block truncate hover:text-neutral-600">
             {incident.title ?? "Untitled incident"}
           </Link>
-          <div className="truncate text-neutral-600">
+          {/* <div className="truncate text-neutral-600">
             {incident.latest_event ?? "No recent event"}
-          </div>
+          </div> */}
         </div>
       );
     },
-  },
-  {
-    accessorKey: "agent_name",
-    header: "Agent",
-    cell: ({ row }) => row.original.agent_name ?? "Unknown agent",
-  },
-  {
-    accessorKey: "monitor_name",
-    header: "Monitor",
-    cell: ({ row }) => row.original.monitor_name ?? "Unknown monitor",
   },
   {
     accessorKey: "severity",
@@ -58,6 +45,17 @@ const columns: ColumnDef<ApiIncidentResponse>[] = [
     header: "Status",
     cell: ({ row }) => row.original.status ?? "unknown",
   },
+  {
+    accessorKey: "agent_name",
+    header: "Agent",
+    cell: ({ row }) => row.original.agent_name ?? "Unknown agent",
+  },
+  {
+    accessorKey: "monitor_name",
+    header: "Monitor",
+    cell: ({ row }) => row.original.monitor_name ?? "Unknown monitor",
+  },
+
   {
     accessorKey: "notification_status",
     header: "Notification",
@@ -83,6 +81,7 @@ export const IncidentList = () => {
     limit: INCIDENT_LIMIT,
     offset,
   });
+
   const openIncidentsResponse = useGetIncidents({ status: "open", limit: 1 });
   const acknowledgedIncidentsResponse = useGetIncidents({ status: "acknowledged", limit: 1 });
   const resolvedIncidentsResponse = useGetIncidents({ status: "resolved", limit: 1 });

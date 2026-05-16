@@ -162,6 +162,8 @@ Filter implementation notes:
 - Monitor name filtering across all servers is not a dedicated API yet; start by filtering expanded `getAgentMonitors` results client-side.
 - Has incidents should use `getIncidentsCandidates` until incident list APIs exist.
 
+
+<!-- 
 ## Servers Page
 
 Purpose: inventory and comparison across all monitored servers.
@@ -207,7 +209,7 @@ Action operation mapping:
 - Open server detail: `getAgent`.
 - View monitors: `getAgentMonitors`.
 - View related incidents: use `getIncidentsCandidates` for now; replace with future incident list route.
-- View server events: not implemented yet.
+- View server events: not implemented yet. -->
 
 ## Server Detail Page
 
