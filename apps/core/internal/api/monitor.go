@@ -3,7 +3,6 @@ package api
 import (
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -88,7 +87,7 @@ func (s *Server) unregisterMonitor(c *gin.Context) {
 // @Param        lifecycle  query     string  false  "Filter by lifecycle status (active|disabled|deleted)"
 // @Param        limit      query     int     false  "Maximum number of monitors to return" default(50)
 // @Param        offset     query     int     false  "Number of monitors to skip" default(0)
-// @Success      200        {object}  utils.APIResponse{data=object{monitors=[]MonitorResponse,count=int64,limit=int,offset=int}}
+// @Success      200        {object}  utils.APIResponse{data=object{monitors=[]MonitorResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta}}
 // @Failure      400        {object}  utils.APIResponse
 // @Failure      500        {object}  utils.APIResponse
 // @Router       /v1/agents/{id}/monitors [get]
@@ -102,18 +101,8 @@ func (s *Server) listMonitors(c *gin.Context) {
 	healthFilter := c.Query("health")
 	lifecycleFilter := c.Query("lifecycle")
 
-	limitStr := c.DefaultQuery("limit", "50")
-	offsetStr := c.DefaultQuery("offset", "0")
-
-	limit, err := strconv.Atoi(limitStr)
-	if err != nil || limit < 0 {
-		limit = 50
-	}
-
-	offset, err := strconv.Atoi(offsetStr)
-	if err != nil || offset < 0 {
-		offset = 0
-	}
+	limit := queryInt(c, "limit", 50)
+	offset := queryInt(c, "offset", 0)
 
 	monitors, err := s.monitorService.ListMonitors(agentID, healthFilter, lifecycleFilter, limit, offset)
 	if err != nil {
@@ -128,11 +117,13 @@ func (s *Server) listMonitors(c *gin.Context) {
 		// Don't fail the request if count fails
 	}
 
+	responses := monitorResponses(monitors)
 	utils.SuccessResponse(c, 200, "Monitors retrieved successfully", gin.H{
-		"monitors": monitorResponses(monitors),
-		"count":    count,
-		"limit":    limit,
-		"offset":   offset,
+		"monitors":   responses,
+		"count":      count,
+		"limit":      limit,
+		"offset":     offset,
+		"pagination": utils.NewPaginationMeta(count, limit, offset, len(responses)),
 	})
 }
 
@@ -196,7 +187,7 @@ func (s *Server) getMonitorDetail(c *gin.Context) {
 // @Param        id      path      string  true   "Monitor ID"
 // @Param        limit   query     int     false  "Maximum number of reports to return" default(50)
 // @Param        offset  query     int     false  "Number of reports to skip" default(0)
-// @Success      200     {object}  utils.APIResponse{data=object{reports=[]MonitorReportResponse,count=int64,limit=int,offset=int}}
+// @Success      200     {object}  utils.APIResponse{data=object{reports=[]MonitorReportResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta}}
 // @Failure      400     {object}  utils.APIResponse
 // @Failure      500     {object}  utils.APIResponse
 // @Router       /v1/monitors/{id}/history [get]
@@ -207,18 +198,8 @@ func (s *Server) getMonitorHistory(c *gin.Context) {
 		return
 	}
 
-	limitStr := c.DefaultQuery("limit", "50")
-	offsetStr := c.DefaultQuery("offset", "0")
-
-	limit, err := strconv.Atoi(limitStr)
-	if err != nil || limit < 0 {
-		limit = 50
-	}
-
-	offset, err := strconv.Atoi(offsetStr)
-	if err != nil || offset < 0 {
-		offset = 0
-	}
+	limit := queryInt(c, "limit", 50)
+	offset := queryInt(c, "offset", 0)
 
 	reports, err := s.reportService.GetMonitorReports(monitorID, limit, offset)
 	if err != nil {
@@ -233,11 +214,13 @@ func (s *Server) getMonitorHistory(c *gin.Context) {
 		// Don't fail the request if count fails
 	}
 
+	responses := monitorReportResponses(reports)
 	utils.SuccessResponse(c, 200, "Monitor history retrieved successfully", gin.H{
-		"reports": monitorReportResponses(reports),
-		"count":   count,
-		"limit":   limit,
-		"offset":  offset,
+		"reports":    responses,
+		"count":      count,
+		"limit":      limit,
+		"offset":     offset,
+		"pagination": utils.NewPaginationMeta(count, limit, offset, len(responses)),
 	})
 }
 

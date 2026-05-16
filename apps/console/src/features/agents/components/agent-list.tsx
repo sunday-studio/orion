@@ -1,5 +1,4 @@
 import { type GetAgentsParams, useGetAgents } from "@/orion-sdk";
-import { AgentFilters, type AttentionFilterValue } from "./agent-filters";
 import { AgentRow } from "./agent-row";
 import { ListPagination } from "@/components/list-pagination";
 import { Separator } from "@/components/ui/separator";
@@ -33,41 +32,6 @@ export const AgentList = () => {
   const agentsResponse = useGetAgents(params);
   const agents = agentsResponse.data?.agents ?? [];
   const count = agentsResponse.data?.count ?? agents.length;
-  const hasFilters = search.trim() !== "" || status !== "all" || maintenance || stale || incidents;
-  const selectedAttentionFilters: AttentionFilterValue[] = [
-    maintenance ? "maintenance" : undefined,
-    stale ? "stale" : undefined,
-    incidents ? "incidents" : undefined,
-  ].filter((value): value is AttentionFilterValue => value !== undefined);
-
-  const setSearch = (value: string) => {
-    void setServerQuery({ search: value, page: 1 });
-  };
-
-  const setStatus = (value: string) => {
-    void setServerQuery({ status: value, page: 1 });
-  };
-
-  const setAttentionFilters = (values: AttentionFilterValue[]) => {
-    const selected = new Set(values);
-    void setServerQuery({
-      maintenance: selected.has("maintenance"),
-      stale: selected.has("stale"),
-      incidents: selected.has("incidents"),
-      page: 1,
-    });
-  };
-
-  const clearFilters = () => {
-    void setServerQuery({
-      search: "",
-      status: "all",
-      maintenance: false,
-      stale: false,
-      incidents: false,
-      page: 1,
-    });
-  };
 
   const setOffset = (nextOffset: number) => {
     void setServerQuery({ page: Math.floor(nextOffset / AGENT_LIMIT) + 1 });
@@ -92,12 +56,14 @@ export const AgentList = () => {
       {!agentsResponse.isLoading && !agentsResponse.error && agents.length === 0 && (
         <div className="py-3 text-sm text-neutral-600">No agents match these filters.</div>
       )}
-      {agents.map((agent, index) => (
-        <Fragment key={agent.id}>
-          <AgentRow agent={agent} />
-          {index < agents.length - 1 && <Separator />}
-        </Fragment>
-      ))}
+      <div className="space-y-1">
+        {agents.map((agent, index) => (
+          <Fragment key={agent.id}>
+            <AgentRow agent={agent} />
+            {index < agents.length - 1 && <Separator />}
+          </Fragment>
+        ))}
+      </div>
       <ListPagination
         count={count}
         limit={AGENT_LIMIT}

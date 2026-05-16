@@ -20,7 +20,7 @@ import (
 // @Param        status       query     string  false  "Filter by delivery status"
 // @Param        limit        query     int     false  "Maximum number of deliveries to return" default(50)
 // @Param        offset       query     int     false  "Number of deliveries to skip" default(0)
-// @Success      200          {object}  utils.APIResponse{data=object{deliveries=[]AlertDeliveryResponse,count=int64,limit=int,offset=int}}
+// @Success      200          {object}  utils.APIResponse{data=object{deliveries=[]AlertDeliveryResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta}}
 // @Failure      500          {object}  utils.APIResponse
 // @Router       /v1/alerts/deliveries [get]
 func (s *Server) listAlertDeliveries(c *gin.Context) {
@@ -49,11 +49,13 @@ func (s *Server) listAlertDeliveries(c *gin.Context) {
 		return
 	}
 
+	responses := alertDeliveryResponses(deliveries)
 	utils.SuccessResponse(c, http.StatusOK, "Alert deliveries retrieved successfully", gin.H{
-		"deliveries": alertDeliveryResponses(deliveries),
+		"deliveries": responses,
 		"count":      count,
 		"limit":      limit,
 		"offset":     offset,
+		"pagination": utils.NewPaginationMeta(count, limit, offset, len(responses)),
 	})
 }
 

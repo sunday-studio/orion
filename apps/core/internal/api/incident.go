@@ -22,7 +22,7 @@ import (
 // @Param        status  query     string  false  "Comma-separated incident statuses" default(open,acknowledged)
 // @Param        limit   query     int     false  "Maximum number of incidents to return" default(50)
 // @Param        offset  query     int     false  "Number of incidents to skip" default(0)
-// @Success      200     {object}  utils.APIResponse{data=object{incidents=[]IncidentResponse,count=int64,limit=int,offset=int,status=[]string}}
+// @Success      200     {object}  utils.APIResponse{data=object{incidents=[]IncidentResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta,status=[]string}}
 // @Failure      500     {object}  utils.APIResponse
 // @Router       /v1/incidents [get]
 func (s *Server) listIncidents(c *gin.Context) {
@@ -62,11 +62,12 @@ func (s *Server) listIncidents(c *gin.Context) {
 	}
 
 	utils.SuccessResponse(c, 200, "Incidents retrieved successfully", gin.H{
-		"incidents": responses,
-		"count":     count,
-		"limit":     limit,
-		"offset":    offset,
-		"status":    statuses,
+		"incidents":  responses,
+		"count":      count,
+		"limit":      limit,
+		"offset":     offset,
+		"pagination": utils.NewPaginationMeta(count, limit, offset, len(responses)),
+		"status":     statuses,
 	})
 }
 

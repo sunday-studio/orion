@@ -1,38 +1,43 @@
 import { type ApiMonitorResponse, useGetAgentMonitors } from "@/orion-sdk";
-import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
+import type { ColumnDef } from "@tanstack/react-table";
+import { DataTable } from "@/components/data-table";
 import { DataTableLink } from "@/components/data-table-link";
 import { ListPagination } from "@/components/list-pagination";
 import { StatusBadge, toStatus } from "@/components/status-badges";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import { useState } from "react";
 
 const MONITOR_LIMIT = 10;
 
-const MonitorRow = ({ monitor }: { monitor: ApiMonitorResponse }) => {
-  const health = monitor.health ?? monitor.computed_health ?? "unknown";
-
-  return (
-    <TableRow>
-      <TableCell className="font-medium">
-        <DataTableLink to={`/monitors/${monitor.id}`} truncate>
-          {monitor.name ?? monitor.id}
-        </DataTableLink>
-      </TableCell>
-      <TableCell>
-        <StatusBadge value={toStatus(health)} />
-      </TableCell>
-      <TableCell>{monitor.type ?? "unknown"}</TableCell>
-      <TableCell>{formatDate(monitor.last_successful_report_at, DATE_TIME_FORMAT)}</TableCell>
-    </TableRow>
-  );
-};
+const monitorColumns: ColumnDef<ApiMonitorResponse>[] = [
+  {
+    accessorKey: "name",
+    header: "Monitor",
+    cell: ({ row }) => (
+      <DataTableLink to={`/monitors/${row.original.id}`} truncate>
+        {row.original.name ?? row.original.id}
+      </DataTableLink>
+    ),
+  },
+  {
+    id: "health",
+    header: "Health",
+    cell: ({ row }) => {
+      const health = row.original.health ?? row.original.computed_health ?? "unknown";
+      return <StatusBadge value={toStatus(health)} />;
+    },
+  },
+  {
+    accessorKey: "type",
+    header: "Type",
+    cell: ({ row }) => row.original.type ?? "unknown",
+  },
+  {
+    accessorKey: "last_successful_report_at",
+    header: "Last success",
+    cell: ({ row }) => formatDate(row.original.last_successful_report_at, DATE_TIME_FORMAT),
+  },
+];
 
 export const MonitorList = ({ agentId }: { agentId: string }) => {
   const [page, setPage] = useState(1);
@@ -57,27 +62,19 @@ export const MonitorList = ({ agentId }: { agentId: string }) => {
   }
 
   return (
-    <div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Monitor</TableHead>
-            <TableHead>Health</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Last success</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {monitors.map((monitor: ApiMonitorResponse) => (
-            <MonitorRow key={monitor.id} monitor={monitor} />
-          ))}
-        </TableBody>
-      </Table>
+    <div className="overflow-hidden">
+      <DataTable
+        columns={monitorColumns}
+        data={monitors}
+        emptyMessage="No monitors registered."
+        getRowId={(monitor) => monitor.id ?? ""}
+      />
       <ListPagination
         count={count}
         limit={MONITOR_LIMIT}
         offset={offset}
         onOffsetChange={setOffset}
+        className="rounded-b-lg! bg-neutral-100/80 border-t border-neutral-300/60 py-1"
       />
     </div>
   );

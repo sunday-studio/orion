@@ -18,7 +18,7 @@ import (
 // @ID           getOrionEvents
 // @Param        limit   query     int  false  "Maximum number of events to return" default(50)
 // @Param        offset  query     int  false  "Number of events to skip" default(0)
-// @Success      200     {object}  utils.APIResponse{data=object{events=[]OrionEventResponse,count=int,limit=int,offset=int}}
+// @Success      200     {object}  utils.APIResponse{data=object{events=[]OrionEventResponse,count=int,limit=int,offset=int,pagination=utils.PaginationMeta}}
 // @Failure      500     {object}  utils.APIResponse
 // @Router       /v1/events [get]
 func (s *Server) listOrionEvents(c *gin.Context) {
@@ -42,11 +42,13 @@ func (s *Server) listOrionEvents(c *gin.Context) {
 		end = count
 	}
 
+	responses := events[start:end]
 	utils.SuccessResponse(c, http.StatusOK, "Orion events retrieved successfully", gin.H{
-		"events": events[start:end],
-		"count":  count,
-		"limit":  limit,
-		"offset": offset,
+		"events":     responses,
+		"count":      count,
+		"limit":      limit,
+		"offset":     offset,
+		"pagination": utils.NewPaginationMeta(int64(count), limit, offset, len(responses)),
 	})
 }
 

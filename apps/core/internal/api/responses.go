@@ -25,6 +25,18 @@ type AgentResponse struct {
 	UptimeSeconds            *uint64        `json:"uptime_seconds,omitempty"`
 }
 
+// AgentSummaryResponse represents aggregate agent counts for list summary cards.
+type AgentSummaryResponse struct {
+	Total        int64 `json:"total"`
+	Up           int64 `json:"up"`
+	Down         int64 `json:"down"`
+	Degraded     int64 `json:"degraded"`
+	Unknown      int64 `json:"unknown"`
+	Maintenance  int64 `json:"maintenance"`
+	Stale        int64 `json:"stale"`
+	HasIncidents int64 `json:"has_incidents"`
+}
+
 // MonitorResponse represents a monitor in API responses
 type MonitorResponse struct {
 	ID                       string     `json:"id"`

@@ -58,6 +58,25 @@ definitions:
       uptime_seconds:
         type: integer
     type: object
+  api.AgentSummaryResponse:
+    properties:
+      degraded:
+        type: integer
+      down:
+        type: integer
+      has_incidents:
+        type: integer
+      maintenance:
+        type: integer
+      stale:
+        type: integer
+      total:
+        type: integer
+      unknown:
+        type: integer
+      up:
+        type: integer
+    type: object
   api.AlertChannelResponse:
     properties:
       email_from_configured:
@@ -552,6 +571,33 @@ definitions:
       success:
         type: boolean
     type: object
+  utils.PaginationMeta:
+    properties:
+      current_count:
+        type: integer
+      current_page:
+        type: integer
+      has_next:
+        type: boolean
+      has_previous:
+        type: boolean
+      limit:
+        type: integer
+      next_offset:
+        type: integer
+      offset:
+        type: integer
+      previous_offset:
+        type: integer
+      range_end:
+        type: integer
+      range_start:
+        type: integer
+      total_items:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
 host: localhost:8999
 info:
   contact:
@@ -646,6 +692,8 @@ paths:
                       type: integer
                     offset:
                       type: integer
+                    pagination:
+                      $ref: '#/definitions/utils.PaginationMeta'
                   type: object
               type: object
         "500":
@@ -1025,6 +1073,8 @@ paths:
                       type: array
                     offset:
                       type: integer
+                    pagination:
+                      $ref: '#/definitions/utils.PaginationMeta'
                   type: object
               type: object
         "400":
@@ -1078,6 +1128,8 @@ paths:
                       type: integer
                     offset:
                       type: integer
+                    pagination:
+                      $ref: '#/definitions/utils.PaginationMeta'
                     reports:
                       items:
                         $ref: '#/definitions/api.AgentReportResponse'
@@ -1137,6 +1189,32 @@ paths:
           schema:
             $ref: '#/definitions/utils.APIResponse'
       summary: Get agent uptime
+      tags:
+      - agents
+  /v1/agents/summary:
+    get:
+      consumes:
+      - application/json
+      description: Get aggregate counts for registered agents by health, maintenance,
+        stale, and incident status
+      operationId: getAgentSummary
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.AgentSummaryResponse'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get agent summary
       tags:
       - agents
   /v1/alerts/channels:
@@ -1219,6 +1297,8 @@ paths:
                       type: integer
                     offset:
                       type: integer
+                    pagination:
+                      $ref: '#/definitions/utils.PaginationMeta'
                   type: object
               type: object
         "500":
@@ -1335,6 +1415,8 @@ paths:
                       type: integer
                     offset:
                       type: integer
+                    pagination:
+                      $ref: '#/definitions/utils.PaginationMeta'
                   type: object
               type: object
         "500":
@@ -1468,6 +1550,8 @@ paths:
                       type: integer
                     offset:
                       type: integer
+                    pagination:
+                      $ref: '#/definitions/utils.PaginationMeta'
                     status:
                       items:
                         type: string
@@ -1697,6 +1781,8 @@ paths:
                       type: integer
                     offset:
                       type: integer
+                    pagination:
+                      $ref: '#/definitions/utils.PaginationMeta'
                     reports:
                       items:
                         $ref: '#/definitions/api.MonitorReportResponse'

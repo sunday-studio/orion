@@ -100,6 +100,7 @@ func (s *Server) setupRoutes() {
 		frontend.Use(s.frontendAuthMiddleware())
 		{
 			frontend.GET("/agents", s.listAgents)
+			frontend.GET("/agents/summary", s.getAgentSummary)
 			frontend.GET("/agents/:id", s.getAgentDetail)
 			frontend.GET("/agents/:id/health", s.getAgentHealth)
 			frontend.GET("/agents/:id/reports", s.getAgentReports)

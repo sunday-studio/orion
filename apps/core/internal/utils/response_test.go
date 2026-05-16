@@ -57,3 +57,35 @@ func TestErrorResponse(t *testing.T) {
 		t.Errorf("body = %+v", got)
 	}
 }
+
+func TestNewPaginationMeta(t *testing.T) {
+	meta := NewPaginationMeta(50, 10, 0, 10)
+	if meta.RangeStart != 1 || meta.RangeEnd != 10 {
+		t.Fatalf("range = %d-%d, want 1-10", meta.RangeStart, meta.RangeEnd)
+	}
+	if meta.CurrentPage != 1 || meta.TotalPages != 5 {
+		t.Fatalf("pages = %d/%d, want 1/5", meta.CurrentPage, meta.TotalPages)
+	}
+	if !meta.HasNext || meta.HasPrevious {
+		t.Fatalf("next/previous = %t/%t, want true/false", meta.HasNext, meta.HasPrevious)
+	}
+	if meta.NextOffset == nil || *meta.NextOffset != 10 {
+		t.Fatalf("next offset = %v, want 10", meta.NextOffset)
+	}
+
+	meta = NewPaginationMeta(50, 10, 40, 10)
+	if meta.RangeStart != 41 || meta.RangeEnd != 50 {
+		t.Fatalf("last range = %d-%d, want 41-50", meta.RangeStart, meta.RangeEnd)
+	}
+	if meta.HasNext || !meta.HasPrevious {
+		t.Fatalf("last next/previous = %t/%t, want false/true", meta.HasNext, meta.HasPrevious)
+	}
+	if meta.PreviousOffset == nil || *meta.PreviousOffset != 30 {
+		t.Fatalf("previous offset = %v, want 30", meta.PreviousOffset)
+	}
+
+	meta = NewPaginationMeta(0, 10, 0, 0)
+	if meta.RangeStart != 0 || meta.RangeEnd != 0 || meta.TotalPages != 0 {
+		t.Fatalf("empty meta = %+v, want empty range and zero total pages", meta)
+	}
+}

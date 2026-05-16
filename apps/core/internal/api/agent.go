@@ -1,9 +1,10 @@
 package api
 
 import (
+	"orion/core/internal/db"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
-	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -98,21 +99,12 @@ func (s *Server) setMaintenanceMode(c *gin.Context) {
 // @Param        maintenance  query  string  false  "Filter by maintenance mode true or false"
 // @Param        stale_only  query   bool    false  "Only return stale servers"
 // @Param        has_incidents  query  bool  false  "Only return servers with active incidents"
-// @Success      200     {object}  utils.APIResponse{data=object{agents=[]AgentResponse,count=int64,limit=int,offset=int}}
+// @Success      200     {object}  utils.APIResponse{data=object{agents=[]AgentResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta}}
 // @Failure      500     {object}  utils.APIResponse
 // @Router       /v1/agents [get]
 func (s *Server) listAgents(c *gin.Context) {
-	limitStr := c.DefaultQuery("limit", "50")
-	offsetStr := c.DefaultQuery("offset", "0")
-
-	limit, err := strconv.Atoi(limitStr)
-	if err != nil || limit < 0 {
-		limit = 50
-	}
-	offset, err := strconv.Atoi(offsetStr)
-	if err != nil || offset < 0 {
-		offset = 0
-	}
+	limit := queryInt(c, "limit", 50)
+	offset := queryInt(c, "offset", 0)
 
 	opts := service.ListAgentsOpts{
 		Limit:        limit,
@@ -135,12 +127,84 @@ func (s *Server) listAgents(c *gin.Context) {
 		return
 	}
 
+	responses := agentListResponses(agents)
 	utils.SuccessResponse(c, 200, "Agents retrieved successfully", gin.H{
-		"agents": agentListResponses(agents),
-		"count":  count,
-		"limit":  limit,
-		"offset": offset,
+		"agents":     responses,
+		"count":      count,
+		"limit":      limit,
+		"offset":     offset,
+		"pagination": utils.NewPaginationMeta(count, limit, offset, len(responses)),
 	})
+}
+
+// getAgentSummary retrieves aggregate counts for the agent list.
+// @Summary      Get agent summary
+// @Description  Get aggregate counts for registered agents by health, maintenance, stale, and incident status
+// @Tags         agents
+// @Accept       json
+// @Produce      json
+// @ID           getAgentSummary
+// @Success      200  {object}  utils.APIResponse{data=api.AgentSummaryResponse}
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/agents/summary [get]
+func (s *Server) getAgentSummary(c *gin.Context) {
+	healthService := service.NewHealthService(s.db, s.logger)
+	config := service.DefaultHealthConfig()
+
+	var agents []db.Agent
+	if err := s.db.Where("deleted_at IS NULL OR deleted_at = ?", time.Time{}).Find(&agents).Error; err != nil {
+		s.logger.Error("Failed to load agent summary", "error", err)
+		utils.InternalError(c, "Failed to get agent summary", err)
+		return
+	}
+
+	summary := AgentSummaryResponse{Total: int64(len(agents))}
+	staleThreshold := time.Now().Add(-time.Duration(config.StaleDataThresholdMinutes) * time.Minute)
+	agentIDs := make([]string, 0, len(agents))
+
+	for _, agent := range agents {
+		agentIDs = append(agentIDs, agent.ID)
+		if agent.MaintenanceMode {
+			summary.Maintenance++
+		}
+		if agent.LastSeen.IsZero() || agent.LastSeen.Before(staleThreshold) {
+			summary.Stale++
+		}
+
+		health := "unknown"
+		if computedHealth, _, _, _, err := healthService.ComputeAgentHealth(agent.ID, config); err == nil {
+			health = computedHealth
+		}
+
+		switch health {
+		case "up":
+			summary.Up++
+		case "down":
+			summary.Down++
+		case "degraded":
+			summary.Degraded++
+		default:
+			summary.Unknown++
+		}
+	}
+
+	if len(agentIDs) > 0 {
+		var rows []struct {
+			AgentID string
+		}
+		if err := s.db.Model(&db.Incident{}).
+			Select("agent_id").
+			Where("agent_id IN ? AND status IN ?", agentIDs, []string{"open", "acknowledged"}).
+			Group("agent_id").
+			Find(&rows).Error; err != nil {
+			s.logger.Error("Failed to load agent incident summary", "error", err)
+			utils.InternalError(c, "Failed to get agent summary", err)
+			return
+		}
+		summary.HasIncidents = int64(len(rows))
+	}
+
+	utils.SuccessResponse(c, 200, "Agent summary retrieved successfully", summary)
 }
 
 // getAgentDetail retrieves detailed information about a specific agent
@@ -235,7 +299,7 @@ func (s *Server) getAgentHealth(c *gin.Context) {
 // @Param        id      path      string  true   "Agent ID"
 // @Param        limit   query     int     false  "Maximum number of reports to return" default(50)
 // @Param        offset  query     int     false  "Number of reports to skip" default(0)
-// @Success      200     {object}  utils.APIResponse{data=object{reports=[]AgentReportResponse,count=int64,limit=int,offset=int}}
+// @Success      200     {object}  utils.APIResponse{data=object{reports=[]AgentReportResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta}}
 // @Failure      400     {object}  utils.APIResponse
 // @Failure      500     {object}  utils.APIResponse
 // @Router       /v1/agents/{id}/reports [get]
@@ -246,17 +310,8 @@ func (s *Server) getAgentReports(c *gin.Context) {
 		return
 	}
 
-	limitStr := c.DefaultQuery("limit", "50")
-	offsetStr := c.DefaultQuery("offset", "0")
-
-	limit, err := strconv.Atoi(limitStr)
-	if err != nil || limit < 0 {
-		limit = 50
-	}
-	offset, err := strconv.Atoi(offsetStr)
-	if err != nil || offset < 0 {
-		offset = 0
-	}
+	limit := queryInt(c, "limit", 50)
+	offset := queryInt(c, "offset", 0)
 
 	reports, err := s.reportService.GetAgentReportsById(agentID, limit, offset)
 	if err != nil {
@@ -272,11 +327,13 @@ func (s *Server) getAgentReports(c *gin.Context) {
 		count = int64(len(reports))
 	}
 
+	responses := agentReportResponses(reports)
 	utils.SuccessResponse(c, 200, "Agent reports retrieved successfully", gin.H{
-		"reports": agentReportResponses(reports),
-		"count":   count,
-		"limit":   limit,
-		"offset":  offset,
+		"reports":    responses,
+		"count":      count,
+		"limit":      limit,
+		"offset":     offset,
+		"pagination": utils.NewPaginationMeta(count, limit, offset, len(responses)),
 	})
 }
 

@@ -16,7 +16,7 @@ export const AgentRow = ({ agent }: { agent: ApiAgentResponse }) => {
 
   return (
     <div>
-      <div className="grid w-full grid-cols-[1.75rem_minmax(0,1fr)_auto_auto] items-center gap-3 py-2 text-left text-sm sm:grid-cols-[1.75rem_minmax(0,1.4fr)_7rem_7rem_minmax(0,1fr)_auto_auto]">
+      <div className="grid w-full grid-cols-[1.75rem_minmax(0,1fr)_auto_auto] items-center gap-3 text-left text-sm sm:grid-cols-[1.75rem_minmax(0,1.4fr)_7rem_7rem_minmax(0,1fr)_auto_auto]">
         <div>
           <button
             type="button"
@@ -51,13 +51,14 @@ export const AgentRow = ({ agent }: { agent: ApiAgentResponse }) => {
         </Link>
       </div>
       {agent.id && showMonitors && (
-        <div className="outline outline-neutral-200 rounded-md overflow-hidden">
-          <div className="px-3 py-2 bg-neutral-100">
+        <div className="outline outline-neutral-200/60 rounded-lg overflow-hidden mt-2">
+          <div className="px-3 py-2 ">
             <p>Monitors</p>
           </div>
-
-          <div className="outline outline-neutral-200">
-            <MonitorList agentId={agent.id} />
+          <div className="overflow-hidden">
+            <div className="bg-neutral-100/80 rounded-t-lg overflow-hidden ">
+              <MonitorList agentId={agent.id} />
+            </div>
           </div>
         </div>
       )}

@@ -145,8 +145,53 @@ const docTemplate = `{
                                                 },
                                                 "offset": {
                                                     "type": "integer"
+                                                },
+                                                "pagination": {
+                                                    "$ref": "#/definitions/utils.PaginationMeta"
                                                 }
                                             }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/agents/summary": {
+            "get": {
+                "description": "Get aggregate counts for registered agents by health, maintenance, stale, and incident status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "Get agent summary",
+                "operationId": "getAgentSummary",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/api.AgentSummaryResponse"
                                         }
                                     }
                                 }
@@ -747,6 +792,9 @@ const docTemplate = `{
                                                 },
                                                 "offset": {
                                                     "type": "integer"
+                                                },
+                                                "pagination": {
+                                                    "$ref": "#/definitions/utils.PaginationMeta"
                                                 }
                                             }
                                         }
@@ -830,6 +878,9 @@ const docTemplate = `{
                                                 },
                                                 "offset": {
                                                     "type": "integer"
+                                                },
+                                                "pagination": {
+                                                    "$ref": "#/definitions/utils.PaginationMeta"
                                                 },
                                                 "reports": {
                                                     "type": "array",
@@ -1048,6 +1099,9 @@ const docTemplate = `{
                                                 },
                                                 "offset": {
                                                     "type": "integer"
+                                                },
+                                                "pagination": {
+                                                    "$ref": "#/definitions/utils.PaginationMeta"
                                                 }
                                             }
                                         }
@@ -1235,6 +1289,9 @@ const docTemplate = `{
                                                 },
                                                 "offset": {
                                                     "type": "integer"
+                                                },
+                                                "pagination": {
+                                                    "$ref": "#/definitions/utils.PaginationMeta"
                                                 }
                                             }
                                         }
@@ -1446,6 +1503,9 @@ const docTemplate = `{
                                                 },
                                                 "offset": {
                                                     "type": "integer"
+                                                },
+                                                "pagination": {
+                                                    "$ref": "#/definitions/utils.PaginationMeta"
                                                 },
                                                 "status": {
                                                     "type": "array",
@@ -1807,6 +1867,9 @@ const docTemplate = `{
                                                 },
                                                 "offset": {
                                                     "type": "integer"
+                                                },
+                                                "pagination": {
+                                                    "$ref": "#/definitions/utils.PaginationMeta"
                                                 },
                                                 "reports": {
                                                     "type": "array",
@@ -2265,6 +2328,35 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "uptime_seconds": {
+                    "type": "integer"
+                }
+            }
+        },
+        "api.AgentSummaryResponse": {
+            "type": "object",
+            "properties": {
+                "degraded": {
+                    "type": "integer"
+                },
+                "down": {
+                    "type": "integer"
+                },
+                "has_incidents": {
+                    "type": "integer"
+                },
+                "maintenance": {
+                    "type": "integer"
+                },
+                "stale": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "unknown": {
+                    "type": "integer"
+                },
+                "up": {
                     "type": "integer"
                 }
             }
@@ -3014,6 +3106,47 @@ const docTemplate = `{
                 },
                 "success": {
                     "type": "boolean"
+                }
+            }
+        },
+        "utils.PaginationMeta": {
+            "type": "object",
+            "properties": {
+                "current_count": {
+                    "type": "integer"
+                },
+                "current_page": {
+                    "type": "integer"
+                },
+                "has_next": {
+                    "type": "boolean"
+                },
+                "has_previous": {
+                    "type": "boolean"
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "next_offset": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "previous_offset": {
+                    "type": "integer"
+                },
+                "range_end": {
+                    "type": "integer"
+                },
+                "range_start": {
+                    "type": "integer"
+                },
+                "total_items": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
                 }
             }
         }
