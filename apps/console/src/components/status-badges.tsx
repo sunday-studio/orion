@@ -37,33 +37,33 @@ const badgeBaseClass =
   "inline-flex w-fit items-center rounded-sm text-xs leading-5 font-medium px-1";
 
 const severityClass: Record<Severity, string> = {
-  low: "bg-teal-300 text-teal-900",
-  medium: "bg-amber-300 text-amber-900",
-  high: "bg-rose-300 text-rose-900",
+  low: "bg-teal-100 text-teal-950",
+  medium: "bg-amber-100 text-amber-900",
+  high: "bg-rose-100 text-rose-900",
   critical: "bg-red-400 text-red-950",
-  error: "bg-rose-300 text-rose-900",
-  warning: "bg-amber-300 text-amber-900",
-  info: "bg-teal-300 text-teal-900",
+  error: "bg-rose-100 text-rose-900",
+  warning: "bg-amber-100 text-amber-900",
+  info: "bg-teal-100 text-teal-900",
 };
 
 const statusClass: Record<Status, string> = {
-  up: "bg-teal-300 text-teal-900",
-  down: "bg-rose-300 text-rose-900",
-  degraded: "bg-amber-300 text-amber-900",
-  maintenance: "bg-cyan-300 text-cyan-900",
-  unknown: "bg-neutral-300 text-neutral-900",
-  stale: "bg-slate-300 text-slate-900",
-  open: "bg-rose-300 text-rose-900",
-  acknowledged: "bg-amber-300 text-amber-900",
-  resolved: "bg-teal-300 text-teal-900",
+  up: "bg-teal-100 text-teal-900",
+  down: "bg-rose-100 text-rose-900",
+  degraded: "bg-amber-100 text-amber-900",
+  maintenance: "bg-cyan-100 text-cyan-900",
+  unknown: "bg-neutral-100 text-neutral-900",
+  stale: "bg-slate-100 text-slate-900",
+  open: "bg-rose-100 text-rose-900",
+  acknowledged: "bg-amber-100 text-amber-900",
+  resolved: "bg-teal-100 text-teal-900",
 };
 
 const notificationClass: Record<NotificationStatus, string> = {
-  pending: "bg-neutral-300 text-neutral-900",
-  sent: "bg-teal-300 text-teal-900",
-  failed: "bg-rose-300 text-rose-900",
-  suppressed: "bg-slate-300 text-slate-900",
-  cooldown: "bg-cyan-300 text-cyan-900",
+  pending: "bg-neutral-100 text-neutral-900",
+  sent: "bg-teal-100 text-teal-900",
+  failed: "bg-rose-100 text-rose-900",
+  suppressed: "bg-slate-100 text-slate-900",
+  cooldown: "bg-cyan-100 text-cyan-900",
 };
 
 const normalize = (value?: string | null) => value?.trim().toLowerCase();

@@ -115,7 +115,7 @@ export const IncidentDetailPage = () => {
         <div className="flex flex-wrap gap-4 text-sm">
           {incident.agent_id && (
             <Link
-              to={`/agents/${incident.agent_id}`}
+              to={`/agents/${incident.agent_id}?tab=monitors&incident=${encodeURIComponent(incident.id ?? "")}`}
               className="font-medium hover:text-neutral-600"
             >
               View agent
@@ -123,7 +123,7 @@ export const IncidentDetailPage = () => {
           )}
           {incident.monitor_id && (
             <Link
-              to={`/monitors/${incident.monitor_id}`}
+              to={`/monitors/${incident.monitor_id}?incident=${encodeURIComponent(incident.id ?? "")}`}
               className="font-medium hover:text-neutral-600"
             >
               View monitor

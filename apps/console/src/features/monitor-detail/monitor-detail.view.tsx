@@ -13,14 +13,16 @@ import {
   type GetMonitorHistory200,
   getMonitorHistory,
   useGetAgent,
+  useGetIncident,
   useGetIncidents,
   useGetMonitor,
   useGetMonitorUptime,
 } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
+import { cn } from "@/lib/utils";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 
 const HISTORY_LIMIT = 20;
 
@@ -94,6 +96,8 @@ const formatUptime = (value?: number) => (typeof value === "number" ? `${value.t
 
 export const MonitorDetailPage = () => {
   const { monitorId = "" } = useParams();
+  const [searchParams] = useSearchParams();
+  const highlightedIncidentId = searchParams.get("incident") ?? "";
   const monitorResponse = useGetMonitor(monitorId);
   const uptimeResponse = useGetMonitorUptime(monitorId, { period: "90d" });
   const historyQuery = useInfiniteQuery({
@@ -105,6 +109,7 @@ export const MonitorDetailPage = () => {
     enabled: monitorId !== "",
   });
   const incidentsResponse = useGetIncidents({ limit: 100 });
+  const highlightedIncidentResponse = useGetIncident(highlightedIncidentId);
 
   const monitor = monitorResponse.data?.monitor;
   const parentAgentResponse = useGetAgent(monitor?.agent_id ?? "");
@@ -121,6 +126,13 @@ export const MonitorDetailPage = () => {
   const relatedIncidents = (incidentsResponse.data?.incidents ?? []).filter(
     (incident) => incident.monitor_id === monitorId,
   );
+  const highlightedIncidentFromList = relatedIncidents.find(
+    (incident) => incident.id === highlightedIncidentId,
+  );
+  const highlightedIncident =
+    highlightedIncidentResponse.data?.incident?.monitor_id === monitorId
+      ? highlightedIncidentResponse.data.incident
+      : highlightedIncidentFromList;
   const rawPayload = latestReport?.payload ?? "No payload recorded.";
   const { fetchNextPage } = historyQuery;
   const loadMoreHistory = useCallback(() => {
@@ -161,6 +173,17 @@ export const MonitorDetailPage = () => {
           <div className="text-sm font-medium">{relatedIncidents.length} active incidents</div>
         </div>
       </div>
+
+      {highlightedIncident && (
+        <section className="space-y-1 bg-amber-50 px-3 py-2 text-sm">
+          <div className="font-medium">
+            Highlighted incident: {highlightedIncident.title ?? highlightedIncident.id}
+          </div>
+          <div className="text-neutral-700">
+            {highlightedIncident.latest_event ?? "No latest event recorded."}
+          </div>
+        </section>
+      )}
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium">Current Result</h2>
@@ -263,6 +286,52 @@ export const MonitorDetailPage = () => {
           isFetchingNextPage={historyQuery.isFetchingNextPage}
           onLoadMore={loadMoreHistory}
         />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium">Related Incidents</h2>
+        {incidentsResponse.isLoading && (
+          <div className="text-sm text-neutral-600">Loading related incidents...</div>
+        )}
+        {incidentsResponse.error && (
+          <div className="text-sm">Unable to load related incidents.</div>
+        )}
+        {!incidentsResponse.isLoading &&
+          !incidentsResponse.error &&
+          relatedIncidents.length === 0 && (
+            <div className="text-sm text-neutral-600">No related incidents recorded.</div>
+          )}
+        {relatedIncidents.length > 0 && (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Incident</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Opened</TableHead>
+                <TableHead>Latest event</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {relatedIncidents.map((incident) => (
+                <TableRow
+                  key={incident.id}
+                  className={cn(incident.id === highlightedIncidentId && "bg-amber-50")}
+                >
+                  <TableCell className="font-medium">
+                    <Link to={`/incidents/${incident.id}`} className="hover:text-neutral-600">
+                      {incident.title ?? incident.id ?? "Untitled incident"}
+                    </Link>
+                  </TableCell>
+                  <TableCell>{incident.status ?? "unknown"}</TableCell>
+                  <TableCell>{formatDate(incident.opened_at, DATE_TIME_FORMAT)}</TableCell>
+                  <TableCell className="max-w-[22rem] truncate text-neutral-600">
+                    {incident.latest_event ?? "—"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </section>
 
       <section className="space-y-3">

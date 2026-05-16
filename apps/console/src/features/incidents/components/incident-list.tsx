@@ -25,6 +25,16 @@ import { Link } from "react-router-dom";
 const INCIDENT_LIMIT = 20;
 const incidentStatuses = ["all", "open", "acknowledged", "resolved"] as const;
 
+const incidentAgentPath = (incident: ApiIncidentResponse) =>
+  incident.agent_id
+    ? `/agents/${incident.agent_id}?tab=monitors&incident=${encodeURIComponent(incident.id ?? "")}`
+    : undefined;
+
+const incidentMonitorPath = (incident: ApiIncidentResponse) =>
+  incident.monitor_id
+    ? `/monitors/${incident.monitor_id}?incident=${encodeURIComponent(incident.id ?? "")}`
+    : undefined;
+
 const columns: ColumnDef<ApiIncidentResponse>[] = [
   {
     accessorKey: "title",
@@ -56,12 +66,32 @@ const columns: ColumnDef<ApiIncidentResponse>[] = [
   {
     accessorKey: "agent_name",
     header: "Agent",
-    cell: ({ row }) => row.original.agent_name ?? "Unknown agent",
+    cell: ({ row }) => {
+      const incident = row.original;
+      const path = incidentAgentPath(incident);
+      if (!path) return incident.agent_name ?? "Unknown agent";
+
+      return (
+        <Link to={path} className="hover:text-neutral-600">
+          {incident.agent_name ?? "Unknown agent"}
+        </Link>
+      );
+    },
   },
   {
     accessorKey: "monitor_name",
     header: "Monitor",
-    cell: ({ row }) => row.original.monitor_name ?? "Unknown monitor",
+    cell: ({ row }) => {
+      const incident = row.original;
+      const path = incidentMonitorPath(incident);
+      if (!path) return incident.monitor_name ?? "Unknown monitor";
+
+      return (
+        <Link to={path} className="hover:text-neutral-600">
+          {incident.monitor_name ?? "Unknown monitor"}
+        </Link>
+      );
+    },
   },
 
   {
@@ -101,8 +131,9 @@ export const IncidentList = () => {
   const incidents = filteredIncidentsResponse.data?.incidents ?? [];
   const count = filteredIncidentsResponse.data?.count ?? incidents.length;
 
-  const setStatus = (nextStatus: (typeof incidentStatuses)[number]) => {
-    void setIncidentQuery({ status: nextStatus, page: 1 });
+  const setStatus = (nextStatus: string) => {
+    if (!incidentStatuses.includes(nextStatus as (typeof incidentStatuses)[number])) return;
+    void setIncidentQuery({ status: nextStatus as (typeof incidentStatuses)[number], page: 1 });
   };
 
   const setOffset = (nextOffset: number) => {

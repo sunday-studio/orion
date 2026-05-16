@@ -6,8 +6,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { ApiMonitorResponse } from "@/orion-sdk";
+import type { ApiIncidentResponse, ApiMonitorResponse } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
+import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
 import { monitorHealth } from "./agent-detail-utils";
 
@@ -15,9 +16,15 @@ type AgentMonitorsTabProps = {
   monitors: ApiMonitorResponse[];
   isLoading: boolean;
   hasError: boolean;
+  highlightedIncident?: ApiIncidentResponse;
 };
 
-export const AgentMonitorsTab = ({ monitors, isLoading, hasError }: AgentMonitorsTabProps) => {
+export const AgentMonitorsTab = ({
+  monitors,
+  isLoading,
+  hasError,
+  highlightedIncident,
+}: AgentMonitorsTabProps) => {
   return (
     <div className="space-y-3">
       <div>
@@ -40,20 +47,28 @@ export const AgentMonitorsTab = ({ monitors, isLoading, hasError }: AgentMonitor
             </TableRow>
           </TableHeader>
           <TableBody>
-            {monitors.map((monitor) => (
-              <TableRow key={monitor.id}>
-                <TableCell className="font-medium">
-                  <Link to={`/monitors/${monitor.id}`} className="hover:text-neutral-600">
-                    {monitor.name ?? monitor.id}
-                  </Link>
-                </TableCell>
-                <TableCell>{monitorHealth(monitor)}</TableCell>
-                <TableCell>{monitor.type ?? "unknown"}</TableCell>
-                <TableCell>
-                  {formatDate(monitor.last_successful_report_at, DATE_TIME_FORMAT)}
-                </TableCell>
-              </TableRow>
-            ))}
+            {monitors.map((monitor) => {
+              const isHighlightedMonitor = highlightedIncident?.monitor_id === monitor.id;
+              const monitorPath =
+                isHighlightedMonitor && highlightedIncident
+                  ? `/monitors/${monitor.id}?incident=${encodeURIComponent(highlightedIncident.id ?? "")}`
+                  : `/monitors/${monitor.id}`;
+
+              return (
+                <TableRow key={monitor.id} className={cn(isHighlightedMonitor && "bg-amber-50")}>
+                  <TableCell className="font-medium">
+                    <Link to={monitorPath} className="hover:text-neutral-600">
+                      {monitor.name ?? monitor.id}
+                    </Link>
+                  </TableCell>
+                  <TableCell>{monitorHealth(monitor)}</TableCell>
+                  <TableCell>{monitor.type ?? "unknown"}</TableCell>
+                  <TableCell>
+                    {formatDate(monitor.last_successful_report_at, DATE_TIME_FORMAT)}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       )}

@@ -6,6 +6,7 @@ import {
   useGetAgentHealth,
   useGetAgentMonitors,
   useGetAgentUptime,
+  useGetIncident,
   useGetIncidents,
 } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
@@ -33,12 +34,14 @@ export const AgentDetailPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const currentAgentId = agentId || serverId;
   const selectedTab = searchParams.get("tab");
+  const highlightedIncidentId = searchParams.get("incident") ?? "";
   const activeTab = isAgentDetailTab(selectedTab) ? selectedTab : "logs";
   const agentResponse = useGetAgent(currentAgentId);
   const healthResponse = useGetAgentHealth(currentAgentId);
   const monitorsResponse = useGetAgentMonitors(currentAgentId, { limit: 100 });
   const uptimeResponse = useGetAgentUptime(currentAgentId, { period: "90d" });
   const incidentsResponse = useGetIncidents({ limit: 100 });
+  const highlightedIncidentResponse = useGetIncident(highlightedIncidentId);
 
   const agent = agentResponse.data?.agent;
   const latestReport = asLatestReport(agentResponse.data?.latest_report);
@@ -48,6 +51,13 @@ export const AgentDetailPage = () => {
   const activeIncidents = (incidentsResponse.data?.incidents ?? []).filter(
     (incident) => incident.agent_id === currentAgentId,
   );
+  const highlightedIncidentFromList = activeIncidents.find(
+    (incident) => incident.id === highlightedIncidentId,
+  );
+  const highlightedIncident =
+    highlightedIncidentResponse.data?.incident?.agent_id === currentAgentId
+      ? highlightedIncidentResponse.data.incident
+      : highlightedIncidentFromList;
   const status =
     healthResponse.data?.overall_health ??
     agent?.status ??
@@ -123,6 +133,17 @@ export const AgentDetailPage = () => {
         </div>
       </div>
 
+      {highlightedIncident && (
+        <section className="space-y-1 bg-amber-50 px-3 py-2 text-sm">
+          <div className="font-medium">
+            Highlighted incident: {highlightedIncident.title ?? highlightedIncident.id}
+          </div>
+          <div className="text-neutral-700">
+            {highlightedIncident.latest_event ?? "No latest event recorded."}
+          </div>
+        </section>
+      )}
+
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList variant="line">
           <TabsTrigger value="logs">Logs</TabsTrigger>
@@ -139,6 +160,7 @@ export const AgentDetailPage = () => {
             monitors={monitors}
             isLoading={monitorsResponse.isLoading}
             hasError={Boolean(monitorsResponse.error)}
+            highlightedIncident={highlightedIncident}
           />
         </TabsContent>
 
