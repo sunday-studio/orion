@@ -31,15 +31,20 @@ func (s *Server) listOrionEvents(c *gin.Context) {
 		utils.InternalError(c, "Failed to list Orion events", err)
 		return
 	}
+	count, err := s.orionEventCount()
+	if err != nil {
+		s.logger.Error("Failed to count Orion events", "error", err)
+		utils.InternalError(c, "Failed to list Orion events", err)
+		return
+	}
 
-	count := len(events)
 	start := offset
-	if start > count {
-		start = count
+	if start > len(events) {
+		start = len(events)
 	}
 	end := start + limit
-	if end > count {
-		end = count
+	if end > len(events) {
+		end = len(events)
 	}
 
 	responses := events[start:end]
@@ -50,6 +55,37 @@ func (s *Server) listOrionEvents(c *gin.Context) {
 		"offset":     offset,
 		"pagination": utils.NewPaginationMeta(int64(count), limit, offset, len(responses)),
 	})
+}
+
+func (s *Server) orionEventCount() (int, error) {
+	total := int64(0)
+	for _, model := range []interface{}{
+		&db.Agent{},
+		&db.Monitor{},
+		&db.AgentReport{},
+		&db.MonitorReport{},
+		&db.IncidentEvent{},
+		&db.AlertDelivery{},
+	} {
+		var count int64
+		if err := s.db.Model(model).Count(&count).Error; err != nil {
+			return 0, err
+		}
+		total += count
+	}
+
+	var settings db.DataLifecycleSettings
+	result := s.db.First(&settings, 1)
+	if result.Error == nil {
+		if settings.LastRollupRunAt != nil {
+			total++
+		}
+		if settings.LastArchiveRunAt != nil {
+			total++
+		}
+	}
+
+	return int(total), nil
 }
 
 func (s *Server) orionEvents(fetchLimit int) ([]OrionEventResponse, error) {

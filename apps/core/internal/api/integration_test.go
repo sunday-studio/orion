@@ -754,6 +754,30 @@ func TestListOrionEvents(t *testing.T) {
 	if !foundIncidentEvent {
 		t.Fatalf("events response = %+v, want incident event", listed.Data.Events)
 	}
+
+	pagedResp := performJSONRequest(t, server, http.MethodGet, "/v1/events?limit=1&offset=0", nil, "")
+	if pagedResp.Code != http.StatusOK {
+		t.Fatalf("paged events status = %d, body = %s", pagedResp.Code, pagedResp.Body.String())
+	}
+	var paged struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Events []struct {
+				Type string `json:"type"`
+			} `json:"events"`
+			Count      int `json:"count"`
+			Pagination struct {
+				TotalItems int64 `json:"total_items"`
+			} `json:"pagination"`
+		} `json:"data"`
+	}
+	decodeResponse(t, pagedResp, &paged)
+	if !paged.Success || len(paged.Data.Events) != 1 {
+		t.Fatalf("paged events response = %+v, want one returned event", paged)
+	}
+	if paged.Data.Count <= len(paged.Data.Events) || paged.Data.Pagination.TotalItems != int64(paged.Data.Count) {
+		t.Fatalf("paged event count = %+v, want total count larger than returned rows", paged.Data)
+	}
 }
 
 func TestMaintenanceSuppressesAutomaticIncidentOpen(t *testing.T) {
@@ -1062,6 +1086,17 @@ func TestAlertReadEndpointsRedactConfiguration(t *testing.T) {
 	if err := server.db.Create(&delivery).Error; err != nil {
 		t.Fatalf("create alert delivery: %v", err)
 	}
+	secondDelivery := db.AlertDelivery{
+		ID:         "alert-delivery-sent",
+		IncidentID: "incident-other",
+		EventType:  "incident_resolved",
+		Channel:    "ops-email",
+		Type:       "email",
+		Status:     "sent",
+	}
+	if err := server.db.Create(&secondDelivery).Error; err != nil {
+		t.Fatalf("create second alert delivery: %v", err)
+	}
 
 	channelsResp := performJSONRequest(t, server, http.MethodGet, "/v1/alerts/channels", nil, "")
 	if channelsResp.Code != http.StatusOK {
@@ -1097,6 +1132,30 @@ func TestAlertReadEndpointsRedactConfiguration(t *testing.T) {
 	assertNotContains(t, deliveriesResp.Body.String(), "secret.example.com")
 	if !strings.Contains(deliveriesResp.Body.String(), "delivery failed; check Core logs") {
 		t.Fatalf("delivery error was not sanitized: %s", deliveriesResp.Body.String())
+	}
+
+	filteredDeliveriesResp := performJSONRequest(t, server, http.MethodGet, "/v1/alerts/deliveries?status=failed&incident_id=incident-test", nil, "")
+	if filteredDeliveriesResp.Code != http.StatusOK {
+		t.Fatalf("filtered deliveries status = %d, body = %s", filteredDeliveriesResp.Code, filteredDeliveriesResp.Body.String())
+	}
+	var filteredDeliveries struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Deliveries []struct {
+				IncidentID string `json:"incident_id"`
+				Status     string `json:"status"`
+				Error      string `json:"error"`
+			} `json:"deliveries"`
+			Count int64 `json:"count"`
+		} `json:"data"`
+	}
+	decodeResponse(t, filteredDeliveriesResp, &filteredDeliveries)
+	if !filteredDeliveries.Success || filteredDeliveries.Data.Count != 1 || len(filteredDeliveries.Data.Deliveries) != 1 {
+		t.Fatalf("filtered deliveries response = %+v, want one delivery", filteredDeliveries)
+	}
+	filteredDelivery := filteredDeliveries.Data.Deliveries[0]
+	if filteredDelivery.IncidentID != "incident-test" || filteredDelivery.Status != "failed" || filteredDelivery.Error != "delivery failed; check Core logs" {
+		t.Fatalf("filtered delivery = %+v, want sanitized failed incident-test delivery", filteredDelivery)
 	}
 
 	rulesResp := performJSONRequest(t, server, http.MethodGet, "/v1/alerts/rules", nil, "")
