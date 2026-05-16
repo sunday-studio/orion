@@ -31,6 +31,17 @@ func (s *Server) registerMonitor(c *gin.Context) {
 		return
 	}
 
+	agentID := c.Param("agent_id")
+	if agentID == "" {
+		utils.BadRequest(c, "Agent ID is required")
+		return
+	}
+	if req.AgentID != "" && req.AgentID != agentID {
+		utils.BadRequest(c, "Request agent_id must match route agent_id")
+		return
+	}
+	req.AgentID = agentID
+
 	response, err := s.monitorService.RegisterMonitor(&req)
 	if err != nil {
 		s.logger.Error("Failed to register monitor", "error", err)
@@ -64,6 +75,17 @@ func (s *Server) unregisterMonitor(c *gin.Context) {
 		utils.BadRequest(c, "Invalid request payload")
 		return
 	}
+
+	agentID := c.Param("agent_id")
+	if agentID == "" {
+		utils.BadRequest(c, "Agent ID is required")
+		return
+	}
+	if req.AgentID != "" && req.AgentID != agentID {
+		utils.BadRequest(c, "Request agent_id must match route agent_id")
+		return
+	}
+	req.AgentID = agentID
 
 	response, err := s.monitorService.UnregisterMonitor(&req)
 	if err != nil {

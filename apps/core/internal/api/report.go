@@ -124,6 +124,17 @@ func (s *Server) receiveMonitorReport(c *gin.Context) {
 		utils.InternalError(c, "Internal server error", nil)
 		return
 	}
+	agentIDString := agentID.(string)
+
+	monitor, err := s.monitorService.GetMonitor(monitorID)
+	if err != nil {
+		utils.BadRequest(c, "Monitor not found")
+		return
+	}
+	if monitor.AgentID != agentIDString {
+		utils.Unauthorized(c, "Monitor does not belong to this agent")
+		return
+	}
 
 	rawData, err := c.GetRawData()
 	if err != nil {

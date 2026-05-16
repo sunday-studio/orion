@@ -177,6 +177,107 @@ func TestRegisterMonitorReportHistoryFlow(t *testing.T) {
 	}
 }
 
+func TestAgentCannotRegisterMonitorForDifferentAgent(t *testing.T) {
+	server := setupTestServer(t)
+	firstAgent := registerTestAgent(t, server)
+	secondAgent := db.Agent{
+		ID:        "agent-register-monitor-other",
+		MachineId: "machine-register-monitor-other",
+		Name:      "other register agent",
+		OS:        "linux",
+		Arch:      "arm64",
+		Token:     "token-register-monitor-other",
+		LastSeen:  time.Now(),
+	}
+	if err := server.db.Create(&secondAgent).Error; err != nil {
+		t.Fatalf("create second agent: %v", err)
+	}
+
+	description := "wrong agent monitor"
+	registerMonitorBody := map[string]interface{}{
+		"agent_id":                   secondAgent.ID,
+		"name":                       "wrong-agent-monitor",
+		"description":                description,
+		"type":                       "http-healthcheck",
+		"last_checked":               time.Now().UTC().Format(time.RFC3339),
+		"reporting_interval_seconds": 30,
+	}
+
+	registerMonitorResp := performJSONRequest(
+		t,
+		server,
+		http.MethodPost,
+		"/v1/agents/"+firstAgent.Data.AgentID+"/register-monitor",
+		registerMonitorBody,
+		firstAgent.Data.Token,
+	)
+	if registerMonitorResp.Code != http.StatusBadRequest {
+		t.Fatalf("register monitor status = %d, body = %s, want 400", registerMonitorResp.Code, registerMonitorResp.Body.String())
+	}
+
+	var count int64
+	if err := server.db.Model(&db.Monitor{}).Where("agent_id = ? AND name = ?", secondAgent.ID, "wrong-agent-monitor").Count(&count).Error; err != nil {
+		t.Fatalf("count monitors: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("monitor count = %d, want no cross-agent monitor", count)
+	}
+}
+
+func TestAgentCannotReportForAnotherAgentsMonitor(t *testing.T) {
+	server := setupTestServer(t)
+	firstAgent := registerTestAgent(t, server)
+	secondAgent := db.Agent{
+		ID:        "agent-report-monitor-other",
+		MachineId: "machine-report-monitor-other",
+		Name:      "other report agent",
+		OS:        "linux",
+		Arch:      "arm64",
+		Token:     "token-report-monitor-other",
+		LastSeen:  time.Now(),
+	}
+	if err := server.db.Create(&secondAgent).Error; err != nil {
+		t.Fatalf("create second agent: %v", err)
+	}
+	secondMonitor := db.Monitor{
+		ID:                       "monitor-report-other-agent",
+		AgentID:                  secondAgent.ID,
+		Name:                     "other agent monitor",
+		Type:                     "http",
+		Lifecycle:                "active",
+		Health:                   "up",
+		ComputedHealth:           "up",
+		ReportingIntervalSeconds: 60,
+	}
+	if err := server.db.Create(&secondMonitor).Error; err != nil {
+		t.Fatalf("create second monitor: %v", err)
+	}
+
+	reportResp := performJSONRequest(
+		t,
+		server,
+		http.MethodPost,
+		"/v1/agents/"+firstAgent.Data.AgentID+"/"+secondMonitor.ID+"/report",
+		map[string]interface{}{
+			"timestamp": time.Now().UTC().Format(time.RFC3339),
+			"health":    "down",
+			"metrics":   map[string]interface{}{},
+		},
+		firstAgent.Data.Token,
+	)
+	if reportResp.Code != http.StatusUnauthorized {
+		t.Fatalf("cross-agent monitor report status = %d, body = %s, want 401", reportResp.Code, reportResp.Body.String())
+	}
+
+	var count int64
+	if err := server.db.Model(&db.MonitorReport{}).Where("monitor_id = ?", secondMonitor.ID).Count(&count).Error; err != nil {
+		t.Fatalf("count monitor reports: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("monitor report count = %d, want no cross-agent report", count)
+	}
+}
+
 func TestMonitorDetailReturnsConsistentComputedHealth(t *testing.T) {
 	server := setupTestServer(t)
 	registered := registerTestAgent(t, server)
