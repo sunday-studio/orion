@@ -56,7 +56,8 @@ export const AgentDetailPage = () => {
       ? highlightedIncidentResponse.data.incident
       : highlightedIncidentFromList;
 
-  const primaryIncident = highlightedIncident ?? activeIncidents[0];
+  const visibleIncident = highlightedIncident ?? activeIncidents[0];
+  const visibleIncidentLabel = highlightedIncident ? "Highlighted incident" : "Active incident";
 
   const status =
     healthResponse.data?.overall_health ??
@@ -113,30 +114,19 @@ export const AgentDetailPage = () => {
           />
         </div>
       </div>
-      {highlightedIncident && (
-        <section className="space-y-1 bg-amber-50 px-3 py-2 text-sm">
-          <div className="font-medium">
-            Highlighted incident: {highlightedIncident.title ?? highlightedIncident.id}
-          </div>
-          <div className="text-neutral-700">
-            {highlightedIncident.latest_event ?? "No latest event recorded."}
-          </div>
-        </section>
-      )}
-
-      {!highlightedIncident && primaryIncident && (
+      {visibleIncident && (
         <section className="flex flex-wrap items-center justify-between gap-3 bg-rose-50 px-3 py-2.5 text-sm">
           <div>
             <div className="font-medium text-rose-900">
-              Active incident: {primaryIncident.title ?? primaryIncident.id}
+              {visibleIncidentLabel}: {visibleIncident.title ?? visibleIncident.id}
             </div>
             <div className="text-neutral-600">
-              {primaryIncident.latest_event ?? "No latest event recorded."}
+              {visibleIncident.latest_event ?? "No latest event recorded."}
             </div>
           </div>
           <Link
             className="font-medium text-rose-900 px-2 py-1.5 hover:bg-rose-200"
-            to={`/incidents/${primaryIncident.id}`}
+            to={`/incidents/${visibleIncident.id}`}
           >
             View incident
           </Link>
