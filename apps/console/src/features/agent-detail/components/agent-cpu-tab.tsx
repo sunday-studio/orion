@@ -5,10 +5,9 @@ import { formatBytes, formatDuration, formatPercent } from "./agent-detail-utils
 type AgentCpuTabProps = {
   agent: ApiAgentResponse;
   latestReport: ApiAgentReportResponse;
-  configSummary: string;
 };
 
-export const AgentCpuTab = ({ agent, latestReport, configSummary }: AgentCpuTabProps) => {
+export const AgentCpuTab = ({ agent, latestReport }: AgentCpuTabProps) => {
   const location = latestReport.location ?? agent.location;
 
   return (
@@ -26,25 +25,14 @@ export const AgentCpuTab = ({ agent, latestReport, configSummary }: AgentCpuTabP
             label="uptime"
             value={formatDuration(latestReport.uptime_seconds ?? agent.uptime_seconds)}
           />
-          <DetailItem label="ip" value={location?.ip ?? agent.ip ?? "—"} />
+          <DetailItem label="IP address" value={location?.ip ?? agent.ip ?? "—"} />
           <DetailItem label="memory used" value={formatBytes(latestReport.memory?.used_bytes)} />
           <DetailItem label="disk used" value={formatBytes(latestReport.disk?.used_bytes)} />
           <DetailItem label="agent version" value={latestReport.agent_version ?? "—"} />
-        </div>
-        <p className="text-sm text-neutral-600">
-          {location?.hostname ?? location?.org ?? location?.city ?? "No location metadata"}
-        </p>
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium">Configuration Snapshot</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
+          <DetailItem label="hostname" value={location?.hostname ?? "—"} />
           <DetailItem label="platform" value={agent.platform ?? agent.os ?? "unknown"} />
           <DetailItem label="arch" value={agent.arch ?? "unknown"} />
         </div>
-        <pre className="overflow-auto whitespace-pre-wrap py-2 text-sm text-neutral-700">
-          {configSummary}
-        </pre>
       </section>
     </div>
   );
@@ -52,7 +40,7 @@ export const AgentCpuTab = ({ agent, latestReport, configSummary }: AgentCpuTabP
 
 const MetricCard = ({ label, value }: { label: string; value: string | number }) => (
   <div className="flex min-h-24 flex-col justify-between bg-neutral-100 px-3 py-2">
-    <div className="text-neutral-600 text-sm">{label}</div>
+    <div className="text-neutral-600 text-sm capitalize">{label}</div>
     <div className="font-medium text-2xl text-neutral-950">{value}</div>
   </div>
 );

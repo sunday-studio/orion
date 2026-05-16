@@ -3,7 +3,7 @@ import { Outlet } from "react-router-dom";
 
 export const Layout = () => {
   return (
-    <div className="min-h-screen bg-neutral-100 ">
+    <div className="min-h-screen bg-neutral-100">
       <AppHeader />
 
       <div className="w-full bg-white h-screen">

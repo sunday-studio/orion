@@ -63,11 +63,6 @@ export const AgentDetailPage = () => {
     agent?.status ??
     (agent?.maintenance_mode ? "maintenance" : "unknown");
 
-  const configSummary =
-    typeof latestReport.config_summary === "string"
-      ? latestReport.config_summary
-      : JSON.stringify(latestReport.config_summary ?? {}, null, 2);
-
   const handleTabChange = useCallback(
     (value: string) => {
       if (!isAgentDetailTab(value)) return;
@@ -159,7 +154,7 @@ export const AgentDetailPage = () => {
         </TabsContent>
 
         <TabsContent value="cpu">
-          <AgentCpuTab agent={agent} latestReport={latestReport} configSummary={configSummary} />
+          <AgentCpuTab agent={agent} latestReport={latestReport} />
         </TabsContent>
       </Tabs>
     </div>
