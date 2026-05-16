@@ -1,4 +1,5 @@
-import { InfiniteScrollSentinel } from "@/components/infinite-scroll-sentinel";
+import { EmptyState } from "@/components/empty-state";
+import { ListPagination } from "@/components/list-pagination";
 import {
   Table,
   TableBody,
@@ -7,10 +8,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { type GetAgentReports200, getAgentReports } from "@/orion-sdk";
+import { useGetAgentReports } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
-import { useInfiniteQuery } from "@tanstack/react-query";
-import { useCallback } from "react";
+import { useState } from "react";
 import { formatDuration, formatPercent } from "./agent-detail-utils";
 
 const AGENT_LOG_LIMIT = 20;
@@ -19,28 +19,15 @@ type AgentLogsTabProps = {
   agentId: string;
 };
 
-const getNextOffset = (lastPage: GetAgentReports200) => {
-  const offset = lastPage.offset ?? 0;
-  const limit = lastPage.limit ?? AGENT_LOG_LIMIT;
-  const count = lastPage.count ?? 0;
-  const nextOffset = offset + limit;
-  return nextOffset < count ? nextOffset : undefined;
-};
-
 export const AgentLogsTab = ({ agentId }: AgentLogsTabProps) => {
-  const reportsQuery = useInfiniteQuery({
-    queryKey: ["agent-reports", agentId, AGENT_LOG_LIMIT],
-    queryFn: ({ pageParam, signal }) =>
-      getAgentReports(agentId, { limit: AGENT_LOG_LIMIT, offset: pageParam }, { signal }),
-    initialPageParam: 0,
-    getNextPageParam: getNextOffset,
-    enabled: agentId !== "",
-  });
-  const { fetchNextPage } = reportsQuery;
-  const reports = reportsQuery.data?.pages.flatMap((page) => page.reports ?? []) ?? [];
-  const loadMore = useCallback(() => {
-    void fetchNextPage();
-  }, [fetchNextPage]);
+  const [page, setPage] = useState(1);
+  const offset = (Math.max(page, 1) - 1) * AGENT_LOG_LIMIT;
+  const reportsQuery = useGetAgentReports(agentId, { limit: AGENT_LOG_LIMIT, offset });
+  const reports = reportsQuery.data?.reports ?? [];
+  const count = reportsQuery.data?.count ?? reports.length;
+  const setOffset = (nextOffset: number) => {
+    setPage(Math.floor(nextOffset / AGENT_LOG_LIMIT) + 1);
+  };
 
   return (
     <div className="space-y-3">
@@ -51,7 +38,7 @@ export const AgentLogsTab = ({ agentId }: AgentLogsTabProps) => {
       {reportsQuery.isLoading && <div className="text-sm text-neutral-600">Loading reports...</div>}
       {reportsQuery.error && <div className="text-sm">Unable to load reports.</div>}
       {!reportsQuery.isLoading && !reportsQuery.error && reports.length === 0 && (
-        <div className="text-sm text-neutral-600">No reports recorded.</div>
+        <EmptyState title="No reports recorded" />
       )}
       {reports.length > 0 && (
         <Table>
@@ -79,10 +66,11 @@ export const AgentLogsTab = ({ agentId }: AgentLogsTabProps) => {
           </TableBody>
         </Table>
       )}
-      <InfiniteScrollSentinel
-        hasNextPage={Boolean(reportsQuery.hasNextPage)}
-        isFetchingNextPage={reportsQuery.isFetchingNextPage}
-        onLoadMore={loadMore}
+      <ListPagination
+        count={count}
+        limit={AGENT_LOG_LIMIT}
+        offset={offset}
+        onOffsetChange={setOffset}
       />
     </div>
   );

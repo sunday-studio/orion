@@ -1,74 +1,27 @@
-import type {
-  ApiAgentReportResponse,
-  ApiAgentResponse,
-  ApiUptimeDayBucketResponse,
-} from "@/orion-sdk";
+import type { ApiAgentReportResponse, ApiAgentResponse } from "@/orion-sdk";
 import { DetailItem } from "./detail-item";
 import { formatBytes, formatDuration, formatPercent } from "./agent-detail-utils";
 
 type AgentCpuTabProps = {
   agent: ApiAgentResponse;
   latestReport: ApiAgentReportResponse;
-  status: string;
-  upCount: number;
-  downCount: number;
-  degradedCount: number;
-  activeIncidentCount: number;
   configSummary: string;
-  uptimePercent?: number;
-  uptimeBuckets: ApiUptimeDayBucketResponse[];
 };
 
-export const AgentCpuTab = ({
-  agent,
-  latestReport,
-  status,
-  upCount,
-  downCount,
-  degradedCount,
-  activeIncidentCount,
-  configSummary,
-  uptimePercent,
-  uptimeBuckets,
-}: AgentCpuTabProps) => {
+export const AgentCpuTab = ({ agent, latestReport, configSummary }: AgentCpuTabProps) => {
   const location = latestReport.location ?? agent.location;
-  const recentBuckets = uptimeBuckets.slice(-7);
 
   return (
     <div className="space-y-6">
       <section className="space-y-3">
-        <h2 className="text-sm font-medium">Health</h2>
-        <div className="grid gap-3 sm:grid-cols-4">
-          <DetailItem label="overall" value={status} />
-          <DetailItem label="up" value={upCount} />
-          <DetailItem label="down" value={downCount} />
-          <DetailItem label="degraded" value={degradedCount} />
-        </div>
-        <div className="grid gap-3 sm:grid-cols-4">
-          <DetailItem label="90d uptime" value={formatPercent(uptimePercent)} />
-        </div>
-        <p className="text-sm text-neutral-600">
-          {activeIncidentCount} active incident{activeIncidentCount === 1 ? "" : "s"} on this agent.
-        </p>
-        {recentBuckets.length > 0 && (
-          <div className="grid gap-2 sm:grid-cols-7">
-            {recentBuckets.map((bucket) => (
-              <div key={bucket.date} className="text-sm">
-                <div className="text-neutral-600">{bucket.date ?? "—"}</div>
-                <div className="font-medium">{formatPercent(bucket.uptime_percent)}</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section className="space-y-3">
         <h2 className="text-sm font-medium">System Metrics</h2>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <DetailItem label="cpu" value={formatPercent(latestReport.cpu?.usage_percent)} />
-          <DetailItem label="memory" value={formatPercent(latestReport.memory?.used_percent)} />
-          <DetailItem label="disk" value={formatPercent(latestReport.disk?.used_percent)} />
-          <DetailItem label="load" value={latestReport.cpu?.load_1?.toFixed(2) ?? "—"} />
+        <div className="grid gap-1 sm:grid-cols-3">
+          <MetricCard label="cpu" value={formatPercent(latestReport.cpu?.usage_percent)} />
+          <MetricCard label="memory" value={formatPercent(latestReport.memory?.used_percent)} />
+          <MetricCard label="disk" value={formatPercent(latestReport.disk?.used_percent)} />
+        </div>
+        <div className="grid gap-3 pt-2 sm:grid-cols-3">
+          <DetailItem label="system load" value={latestReport.cpu?.load_1?.toFixed(2) ?? "—"} />
           <DetailItem
             label="uptime"
             value={formatDuration(latestReport.uptime_seconds ?? agent.uptime_seconds)}
@@ -96,3 +49,10 @@ export const AgentCpuTab = ({
     </div>
   );
 };
+
+const MetricCard = ({ label, value }: { label: string; value: string | number }) => (
+  <div className="flex min-h-24 flex-col justify-between bg-neutral-100 px-3 py-2">
+    <div className="text-neutral-600 text-sm">{label}</div>
+    <div className="font-medium text-2xl text-neutral-950">{value}</div>
+  </div>
+);

@@ -4,16 +4,15 @@ import {
   type ApiAgentReportResponse,
   useGetAgent,
   useGetAgentHealth,
-  useGetAgentMonitors,
   useGetAgentUptime,
   useGetIncident,
   useGetIncidents,
 } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import { useCallback, useEffect } from "react";
-import { useLocation, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 import { AgentCpuTab } from "./components/agent-cpu-tab";
-import { monitorPriority } from "./components/agent-detail-utils";
+import { AgentHealthSummary } from "./components/agent-health-summary";
 import { AgentLogsTab } from "./components/agent-logs-tab";
 import { AgentMonitorsTab } from "./components/agent-monitors-tab";
 
@@ -38,16 +37,12 @@ export const AgentDetailPage = () => {
   const activeTab = isAgentDetailTab(selectedTab) ? selectedTab : "logs";
   const agentResponse = useGetAgent(currentAgentId);
   const healthResponse = useGetAgentHealth(currentAgentId);
-  const monitorsResponse = useGetAgentMonitors(currentAgentId, { limit: 100 });
   const uptimeResponse = useGetAgentUptime(currentAgentId, { period: "90d" });
   const incidentsResponse = useGetIncidents({ limit: 100 });
   const highlightedIncidentResponse = useGetIncident(highlightedIncidentId);
 
   const agent = agentResponse.data?.agent;
   const latestReport = asLatestReport(agentResponse.data?.latest_report);
-  const monitors = [...(monitorsResponse.data?.monitors ?? [])].sort(
-    (left, right) => monitorPriority(left) - monitorPriority(right),
-  );
   const activeIncidents = (incidentsResponse.data?.incidents ?? []).filter(
     (incident) => incident.agent_id === currentAgentId,
   );
@@ -58,6 +53,7 @@ export const AgentDetailPage = () => {
     highlightedIncidentResponse.data?.incident?.agent_id === currentAgentId
       ? highlightedIncidentResponse.data.incident
       : highlightedIncidentFromList;
+  const primaryIncident = highlightedIncident ?? activeIncidents[0];
   const status =
     healthResponse.data?.overall_health ??
     agent?.status ??
@@ -144,11 +140,37 @@ export const AgentDetailPage = () => {
         </section>
       )}
 
+      {!highlightedIncident && primaryIncident && (
+        <section className="flex flex-wrap items-center justify-between gap-3 bg-rose-50 px-3 py-2 text-sm">
+          <div>
+            <div className="font-medium">
+              Active incident: {primaryIncident.title ?? primaryIncident.id}
+            </div>
+            <div className="text-neutral-700">
+              {primaryIncident.latest_event ?? "No latest event recorded."}
+            </div>
+          </div>
+          <Link className="font-medium hover:text-rose-900" to={`/incidents/${primaryIncident.id}`}>
+            View incident
+          </Link>
+        </section>
+      )}
+
+      <AgentHealthSummary
+        activeIncidentCount={activeIncidents.length}
+        degradedCount={healthResponse.data?.degraded_count ?? 0}
+        downCount={healthResponse.data?.down_count ?? 0}
+        status={status}
+        upCount={healthResponse.data?.up_count ?? 0}
+        uptimePercent={uptimeResponse.data?.uptime_percent}
+        uptimeBuckets={uptimeResponse.data?.daily_buckets ?? []}
+      />
+
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList variant="line">
           <TabsTrigger value="logs">Logs</TabsTrigger>
           <TabsTrigger value="monitors">Monitors</TabsTrigger>
-          <TabsTrigger value="cpu">CPU</TabsTrigger>
+          <TabsTrigger value="cpu">System</TabsTrigger>
         </TabsList>
 
         <TabsContent value="logs">
@@ -156,27 +178,11 @@ export const AgentDetailPage = () => {
         </TabsContent>
 
         <TabsContent value="monitors">
-          <AgentMonitorsTab
-            monitors={monitors}
-            isLoading={monitorsResponse.isLoading}
-            hasError={Boolean(monitorsResponse.error)}
-            highlightedIncident={highlightedIncident}
-          />
+          <AgentMonitorsTab agentId={currentAgentId} highlightedIncident={highlightedIncident} />
         </TabsContent>
 
         <TabsContent value="cpu">
-          <AgentCpuTab
-            agent={agent}
-            latestReport={latestReport}
-            status={status}
-            upCount={healthResponse.data?.up_count ?? 0}
-            downCount={healthResponse.data?.down_count ?? 0}
-            degradedCount={healthResponse.data?.degraded_count ?? 0}
-            activeIncidentCount={activeIncidents.length}
-            configSummary={configSummary}
-            uptimePercent={uptimeResponse.data?.uptime_percent}
-            uptimeBuckets={uptimeResponse.data?.daily_buckets ?? []}
-          />
+          <AgentCpuTab agent={agent} latestReport={latestReport} configSummary={configSummary} />
         </TabsContent>
       </Tabs>
     </div>
