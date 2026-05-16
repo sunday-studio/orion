@@ -15,6 +15,8 @@ import { AgentCpuTab } from "./components/agent-cpu-tab";
 import { AgentHealthSummary } from "./components/agent-health-summary";
 import { AgentLogsTab } from "./components/agent-logs-tab";
 import { AgentMonitorsTab } from "./components/agent-monitors-tab";
+import { PageHeader } from "@/components/page-header";
+import { StatusBadge, toStatus } from "@/components/status-badges";
 
 const AGENT_DETAIL_TABS = ["logs", "monitors", "cpu"] as const;
 type AgentDetailTab = (typeof AGENT_DETAIL_TABS)[number];
@@ -72,6 +74,7 @@ export const AgentDetailPage = () => {
     },
     [scrollKey],
   );
+
   const handleTabChange = useCallback(
     (value: string) => {
       if (!isAgentDetailTab(value)) return;
@@ -114,18 +117,20 @@ export const AgentDetailPage = () => {
 
   return (
     <div className="space-y-7">
-      <div className="space-y-1">
+      <div className="space-y-2">
         <PageBreadcrumbs
           items={[{ label: "Agents", to: "/agents" }, { label: agent.name ?? "Agent" }]}
         />
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-base font-medium">{agent.name ?? agent.id ?? "Unknown agent"}</h1>
-            <p className="text-sm text-neutral-600">
-              {status} · last seen {formatDate(agent.last_seen, DATE_TIME_FORMAT)}
-            </p>
-          </div>
-          {agent.maintenance_mode && <div className="text-sm font-medium">maintenance</div>}
+        <div className="flex flex-wrap items-start justify-between gap-1 flex-col ">
+          <PageHeader
+            title={agent.name ?? agent.id ?? "Unknown agent"}
+            description={
+              <p className="text-sm text-neutral-600">
+                <StatusBadge className="text-sm px-1.5 py-1 capitalize" value={toStatus(status)} />{" "}
+                · last update {formatDate(agent.last_seen, DATE_TIME_FORMAT)}
+              </p>
+            }
+          />
         </div>
       </div>
 
@@ -140,22 +145,25 @@ export const AgentDetailPage = () => {
         </section>
       )}
 
-      {!highlightedIncident && primaryIncident && (
-        <section className="flex flex-wrap items-center justify-between gap-3 bg-rose-50 px-3 py-2 text-sm">
+      {/* {!highlightedIncident && primaryIncident && (
+        <section className="flex flex-wrap items-center justify-between gap-3 bg-rose-100 px-3 py-4 text-sm">
           <div>
-            <div className="font-medium">
+            <div className="font-medium text-rose-900">
               Active incident: {primaryIncident.title ?? primaryIncident.id}
             </div>
-            <div className="text-neutral-700">
+            <div className="text-neutral-600">
               {primaryIncident.latest_event ?? "No latest event recorded."}
             </div>
           </div>
-          <Link className="font-medium hover:text-rose-900" to={`/incidents/${primaryIncident.id}`}>
+          <Link
+            className="font-medium hover:text-rose-900 px-2 py-1.5 hover:bg-rose-200"
+            to={`/incidents/${primaryIncident.id}`}
+          >
             View incident
           </Link>
         </section>
-      )}
-
+      )} */}
+      {/*
       <AgentHealthSummary
         activeIncidentCount={activeIncidents.length}
         degradedCount={healthResponse.data?.degraded_count ?? 0}
@@ -184,7 +192,7 @@ export const AgentDetailPage = () => {
         <TabsContent value="cpu">
           <AgentCpuTab agent={agent} latestReport={latestReport} configSummary={configSummary} />
         </TabsContent>
-      </Tabs>
+      </Tabs> */}
     </div>
   );
 };

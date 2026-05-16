@@ -25,8 +25,8 @@ export const AppHeader = () => {
   const label = healthLabel[overallHealth as keyof typeof healthLabel] ?? "Unknown";
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 bg-[#fdfdfc]/95 backdrop-blur">
-      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
+    <header className="sticky inset-x-0 top-0 z-50 backdrop-blur h-14  flex items-center bg-neutral-100">
+      <div className="flex w-full items-center justify-between gap-4 px-4 sm:px-6 max-w-7xl mx-auto">
         <NavLink to="/incidents" className="font-medium">
           Orion
         </NavLink>

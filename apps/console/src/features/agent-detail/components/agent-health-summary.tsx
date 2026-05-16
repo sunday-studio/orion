@@ -27,7 +27,7 @@ export const AgentHealthSummary = ({
     <section className="space-y-3">
       <div className="grid gap-1 sm:grid-cols-5">
         <div className="flex min-h-24 flex-col justify-between bg-neutral-100 px-3 py-2">
-          <div className="text-neutral-600 text-sm">overall</div>
+          <div className="text-neutral-600 text-sm capitalize">overall</div>
           <div>
             <StatusBadge value={toStatus(status)} />
           </div>
@@ -43,12 +43,12 @@ export const AgentHealthSummary = ({
           {activeIncidentCount} active incident{activeIncidentCount === 1 ? "" : "s"} on this agent.
         </p>
         {recentBuckets.length > 0 && (
-          <div className="flex gap-1">
+          <div className="flex gap-0.5">
             {recentBuckets.map((bucket) => (
               <div
                 key={bucket.date}
                 title={`${bucket.date}: ${formatPercent(bucket.uptime_percent)}`}
-                className="flex h-7 w-3 items-end bg-neutral-100"
+                className="flex h-7 w-2 items-end bg-neutral-100"
               >
                 <div
                   className="mt-auto bg-emerald-300"
@@ -65,7 +65,7 @@ export const AgentHealthSummary = ({
 
 const SummaryCell = ({ label, value }: { label: string; value: string | number }) => (
   <div className="flex min-h-24 flex-col justify-between bg-neutral-100 px-3 py-2">
-    <div className="text-neutral-600 text-sm">{label}</div>
+    <div className="text-neutral-600 text-sm capitalize">{label}</div>
     <div className="font-medium text-2xl text-neutral-950">{value}</div>
   </div>
 );

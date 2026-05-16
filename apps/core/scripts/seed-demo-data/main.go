@@ -8,6 +8,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -47,6 +48,8 @@ type seedConfig struct {
 	resetSeed      bool
 	updateSettings bool
 }
+
+const defaultAgentCount = 36
 
 type dayCounts struct {
 	up       int
@@ -131,7 +134,7 @@ func parseFlags() seedConfig {
 	flag.StringVar(&cfg.dataDir, "data-dir", "data", "Core data directory used when -db is empty")
 	flag.StringVar(&cfg.dbPath, "db", "", "SQLite database path. Defaults to <data-dir>/orion.db")
 	flag.IntVar(&cfg.days, "days", 90, "Number of days of data to generate")
-	flag.IntVar(&cfg.agents, "agents", len(scenarios), "Number of seed agents to generate")
+	flag.IntVar(&cfg.agents, "agents", defaultAgentCount, "Number of seed agents to generate")
 	flag.DurationVar(&cfg.reportInterval, "report-interval", time.Hour, "Time between generated report samples")
 	flag.BoolVar(&cfg.resetSeed, "reset-seed", true, "Delete previous seed-* rows before inserting new data")
 	flag.BoolVar(&cfg.updateSettings, "update-settings", true, "Upsert data lifecycle settings for demo data")
@@ -281,16 +284,28 @@ func scenarioForIndex(i int) scenario {
 	base := scenarios[i%len(scenarios)]
 	base.key = fmt.Sprintf("%s-%02d", base.key, i+1)
 	base.name = fmt.Sprintf("%s %02d", base.name, i+1)
+	if i%11 == 0 {
+		base.maintenance = true
+		base.status = "maintenance"
+	}
+	if i%13 == 0 {
+		base.stale = true
+		base.status = "stale"
+		base.noReports = false
+	}
 	return base
 }
 
 func makeAgent(index int, sc scenario, now time.Time) db.Agent {
-	lastSeen := now.Add(-time.Duration(index%5) * time.Minute)
+	lastSeen := now.Add(-time.Duration(index%8) * time.Minute)
 	if sc.stale {
-		lastSeen = now.Add(-72 * time.Hour)
+		lastSeen = now.Add(-time.Duration(45+index%72) * time.Minute)
 	}
 	if sc.noReports {
-		lastSeen = time.Time{}
+		lastSeen = now.Add(-time.Duration(index%6) * time.Minute)
+	}
+	if scenarioBaseKey(sc) == "down" || scenarioBaseKey(sc) == "alerts" {
+		lastSeen = now.Add(-time.Duration(index%3) * time.Minute)
 	}
 	location := db.GeoLocation{
 		IP:       fmt.Sprintf("100.64.%d.%d", index/200, 10+index),
@@ -361,7 +376,6 @@ func makeMonitors(agent db.Agent, sc scenario, now time.Time) []db.Monitor {
 
 	disabledDescription := "Disabled monitor for lifecycle filtering"
 	deletedDescription := "Deleted monitor for lifecycle filtering"
-	neverDescription := "Active monitor with no reports for unknown state"
 	monitors = append(monitors,
 		db.Monitor{
 			ID:          fmt.Sprintf("seed-monitor-%s-disabled", agent.ID),
@@ -388,7 +402,11 @@ func makeMonitors(agent db.Agent, sc scenario, now time.Time) []db.Monitor {
 			UpdatedAt:   now.AddDate(0, 0, -20),
 			DeletedAt:   now.AddDate(0, 0, -20),
 		},
-		db.Monitor{
+	)
+
+	if sc.noReports {
+		neverDescription := "Active monitor with no reports for unknown state"
+		monitors = append(monitors, db.Monitor{
 			ID:          fmt.Sprintf("seed-monitor-%s-never-reported", agent.ID),
 			Description: &neverDescription,
 			Type:        "tcp",
@@ -399,8 +417,8 @@ func makeMonitors(agent db.Agent, sc scenario, now time.Time) []db.Monitor {
 			Meta:        mustJSON(map[string]interface{}{"seed": true, "scenario": sc.key, "edge_case": "never_reported"}),
 			CreatedAt:   now.AddDate(0, 0, -20),
 			UpdatedAt:   now.AddDate(0, 0, -20),
-		},
-	)
+		})
+	}
 	return monitors
 }
 
@@ -408,7 +426,7 @@ func seedAgentReports(database *gorm.DB, agent db.Agent, sc scenario, cfg seedCo
 	reports := make([]db.AgentReport, 0, cfg.days)
 	stop := now
 	if sc.stale {
-		stop = now.Add(-72 * time.Hour)
+		stop = now.Add(-time.Duration(45+len(sc.key)%72) * time.Minute)
 	}
 	for t := start; !t.After(stop); t = t.Add(cfg.reportInterval) {
 		cpu, memory, disk := systemStats(sc, t)
@@ -435,7 +453,7 @@ func seedMonitorReports(database *gorm.DB, monitor db.Monitor, sc scenario, tpl 
 	counts := map[string]dayCounts{}
 	stop := now
 	if sc.stale {
-		stop = now.Add(-72 * time.Hour)
+		stop = now.Add(-time.Duration(45+len(sc.key)%72) * time.Minute)
 	}
 	for t := start; !t.After(stop); t = t.Add(cfg.reportInterval) {
 		health := reportHealth(sc, tpl, t, now)
@@ -513,7 +531,7 @@ func seedIncidents(database *gorm.DB, monitors []db.Monitor, monitorToAgent map[
 		}
 		sc := monitorToScenario[monitor.ID]
 		tpl := monitorToTemplate[monitor.ID]
-		if sc.status == "up" && tpl.key != "website" {
+		if sc.status == "up" {
 			continue
 		}
 		if sc.noReports {
@@ -624,25 +642,34 @@ func seedLifecycleSettings(database *gorm.DB, cfg seedConfig, now time.Time) err
 }
 
 func currentHealth(sc scenario, tpl monitorTemplate) string {
-	switch sc.key {
+	if sc.maintenance {
+		if tpl.key == "resource" || tpl.key == "http" {
+			return "degraded"
+		}
+		return "up"
+	}
+	if sc.stale {
+		return "unknown"
+	}
+	switch scenarioBaseKey(sc) {
 	case "healthy":
 		return "up"
 	case "degraded", "flapping", "tls", "resource", "maintenance":
-		return "degraded"
+		if tpl.key == "website" || tpl.key == "resource" || tpl.key == "http" {
+			return "degraded"
+		}
+		return "up"
 	case "down", "alerts":
-		return "down"
+		if tpl.key == "http" || tpl.key == "website" || tpl.key == "internal" {
+			return "down"
+		}
+		if tpl.key == "resource" {
+			return "degraded"
+		}
+		return "up"
 	case "stale", "unknown":
 		return "unknown"
 	default:
-		if strings.Contains(sc.key, "down") {
-			return "down"
-		}
-		if strings.Contains(sc.key, "degraded") {
-			return "degraded"
-		}
-		if tpl.key == "website" && strings.Contains(sc.key, "tls") {
-			return "degraded"
-		}
 		return "up"
 	}
 }
@@ -654,7 +681,7 @@ func reportHealth(sc scenario, tpl monitorTemplate, t time.Time, now time.Time) 
 		}
 		return "up"
 	}
-	switch sc.key {
+	switch scenarioBaseKey(sc) {
 	case "healthy":
 		if t.Hour() == 3 && t.Day()%17 == 0 {
 			return "degraded"
@@ -702,14 +729,12 @@ func reportHealth(sc scenario, tpl monitorTemplate, t time.Time, now time.Time) 
 		}
 		return "up"
 	default:
-		if strings.Contains(sc.key, "down") && t.After(now.Add(-12*time.Hour)) {
-			return "down"
-		}
 		return "up"
 	}
 }
 
 func reportPayload(sc scenario, tpl monitorTemplate, health string, t time.Time, now time.Time) map[string]interface{} {
+	baseKey := scenarioBaseKey(sc)
 	payload := map[string]interface{}{
 		"seed":        true,
 		"scenario":    sc.key,
@@ -739,7 +764,7 @@ func reportPayload(sc scenario, tpl monitorTemplate, health string, t time.Time,
 		payload["dns_lookup_ms"] = 12 + t.Hour()%40
 		payload["resolved_ip"] = "203.0.113.10"
 		daysRemaining := int(now.Sub(t).Hours() / 24)
-		if sc.key == "tls" {
+		if baseKey == "tls" {
 			daysRemaining = 14 - int(now.Sub(t).Hours()/24)
 			if daysRemaining < 1 {
 				daysRemaining = 1
@@ -785,12 +810,12 @@ func systemStats(sc scenario, t time.Time) (db.CPUStats, db.MemoryStats, db.Disk
 	cpuUsed := 15 + wave*2
 	memUsed := 40 + wave
 	diskUsed := 55 + float64(t.Day()%20)
-	if sc.key == "resource" {
+	switch scenarioBaseKey(sc) {
+	case "resource":
 		cpuUsed = 88 + float64(t.Hour()%10)
 		memUsed = 91
 		diskUsed = 93
-	}
-	if sc.key == "degraded" {
+	case "degraded":
 		cpuUsed += 25
 		memUsed += 15
 	}
@@ -824,19 +849,31 @@ func templateByMonitor(monitor db.Monitor) monitorTemplate {
 }
 
 func edgeCase(sc scenario, tpl monitorTemplate) string {
-	if sc.key == "tls" && tpl.key == "website" {
+	baseKey := scenarioBaseKey(sc)
+	if baseKey == "tls" && tpl.key == "website" {
 		return "tls_expiring"
 	}
-	if sc.key == "resource" && tpl.key == "resource" {
+	if baseKey == "resource" && tpl.key == "resource" {
 		return "resource_threshold"
 	}
-	if sc.key == "flapping" {
+	if baseKey == "flapping" {
 		return "flapping"
 	}
 	if sc.stale {
 		return "stale_server"
 	}
 	return sc.status
+}
+
+func scenarioBaseKey(sc scenario) string {
+	key := sc.key
+	if idx := strings.LastIndex(key, "-"); idx > 0 && idx+1 < len(key) {
+		suffix := key[idx+1:]
+		if _, err := strconv.Atoi(suffix); err == nil {
+			return key[:idx]
+		}
+	}
+	return key
 }
 
 func incidentState(health string) string {

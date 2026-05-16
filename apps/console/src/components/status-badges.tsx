@@ -33,8 +33,7 @@ type BadgeProps<TValue extends string> = {
   className?: string;
 };
 
-const badgeBaseClass =
-  "inline-flex w-fit items-center rounded-sm text-xs leading-5 font-medium px-1";
+const badgeBaseClass = "inline-flex w-fit items-center text-xs leading-5 px-1.5";
 
 const severityClass: Record<Severity, string> = {
   low: "bg-teal-100 text-teal-950",
@@ -50,7 +49,7 @@ const statusClass: Record<Status, string> = {
   up: "bg-teal-100 text-teal-900",
   down: "bg-rose-100 text-rose-900",
   degraded: "bg-amber-100 text-amber-900",
-  maintenance: "bg-cyan-100 text-cyan-900",
+  maintenance: "bg-violet-100 text-violet-900",
   unknown: "bg-neutral-100 text-neutral-900",
   stale: "bg-slate-100 text-slate-900",
   open: "bg-rose-100 text-rose-900",
