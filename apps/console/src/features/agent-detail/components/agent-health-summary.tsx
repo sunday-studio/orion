@@ -1,6 +1,7 @@
 import type { ApiUptimeDayBucketResponse } from "@/orion-sdk";
 import { formatPercent } from "./agent-detail-utils";
 import { Link } from "react-router-dom";
+import { cn } from "@/lib/utils";
 
 type AgentHealthSummaryProps = {
   activeIncidentCount: number;
@@ -11,6 +12,15 @@ type AgentHealthSummaryProps = {
   uptimeBuckets: ApiUptimeDayBucketResponse[];
   uptimePercent?: number;
   agentId: string;
+};
+
+const bucketFillClassName = (bucket: ApiUptimeDayBucketResponse) => {
+  const percent = bucket.uptime_percent ?? 0;
+
+  if (!bucket.total) return "bg-neutral-300";
+  if (percent >= 99) return "bg-emerald-400";
+  if (percent >= 95) return "bg-amber-300";
+  return "bg-rose-400";
 };
 
 export const AgentHealthSummary = ({
@@ -56,7 +66,7 @@ export const AgentHealthSummary = ({
                 className="flex h-7 w-2 items-end bg-neutral-100"
               >
                 <div
-                  className="mt-auto bg-emerald-300"
+                  className={cn("mt-auto w-full", bucketFillClassName(bucket))}
                   style={{ height: `${Math.max(4, bucket.uptime_percent ?? 0)}%` }}
                 />
               </div>

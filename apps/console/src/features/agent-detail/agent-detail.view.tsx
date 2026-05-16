@@ -9,8 +9,8 @@ import {
   useGetIncidents,
 } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
-import { useCallback, useEffect } from "react";
-import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
+import { useCallback } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { AgentCpuTab } from "./components/agent-cpu-tab";
 import { AgentHealthSummary } from "./components/agent-health-summary";
 import { AgentLogsTab } from "./components/agent-logs-tab";
@@ -31,7 +31,6 @@ const asLatestReport = (value: unknown): ApiAgentReportResponse => {
 
 export const AgentDetailPage = () => {
   const { agentId = "" } = useParams();
-  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const currentAgentId = agentId;
   const selectedTab = searchParams.get("tab");
@@ -144,7 +143,7 @@ export const AgentDetailPage = () => {
         uptimeBuckets={uptimeResponse.data?.daily_buckets ?? []}
       />
 
-      {/* <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList variant="line">
           <TabsTrigger value="logs">Logs</TabsTrigger>
           <TabsTrigger value="monitors">Monitors</TabsTrigger>
@@ -162,7 +161,7 @@ export const AgentDetailPage = () => {
         <TabsContent value="cpu">
           <AgentCpuTab agent={agent} latestReport={latestReport} configSummary={configSummary} />
         </TabsContent>
-      </Tabs> */}
+      </Tabs>
     </div>
   );
 };
