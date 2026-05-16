@@ -107,6 +107,89 @@ func TestRegisterReportListFlow(t *testing.T) {
 	}
 }
 
+func TestHealthCheckResponse(t *testing.T) {
+	server := setupTestServer(t)
+
+	healthResp := performJSONRequest(t, server, http.MethodGet, "/health", nil, "")
+	if healthResp.Code != http.StatusOK {
+		t.Fatalf("health status = %d, body = %s", healthResp.Code, healthResp.Body.String())
+	}
+
+	var health struct {
+		Status   string `json:"status"`
+		Service  string `json:"service"`
+		Database string `json:"database"`
+	}
+	decodeResponse(t, healthResp, &health)
+	if health.Status != "healthy" || health.Service != "orion-core" || health.Database != "ok" {
+		t.Fatalf("health response = %+v, want healthy orion-core ok", health)
+	}
+	if healthResp.Header().Get("X-Request-ID") == "" {
+		t.Fatalf("health response missing X-Request-ID header")
+	}
+}
+
+func TestLoginRequiresConfiguredFrontendAuth(t *testing.T) {
+	server := setupTestServer(t)
+
+	loginResp := performJSONRequest(t, server, http.MethodPost, "/v1/auth/login", map[string]string{
+		"username": "admin",
+		"password": "password",
+	}, "")
+	if loginResp.Code != http.StatusUnauthorized {
+		t.Fatalf("login status = %d, body = %s, want 401 when auth is not configured", loginResp.Code, loginResp.Body.String())
+	}
+}
+
+func TestLoginReturnsTokenForValidConfiguredCredentials(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())
+	database, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	if err := db.Migrate(database); err != nil {
+		t.Fatalf("migrate database: %v", err)
+	}
+
+	server := NewServer(database, logging.NewLogger(), &config.Config{
+		FrontendAuthOn: true,
+		AdminUsername:  "admin",
+		AdminPassword:  "correct-password",
+		JWTSecret:      "test-secret",
+	})
+
+	badResp := performJSONRequest(t, server, http.MethodPost, "/v1/auth/login", map[string]string{
+		"username": "admin",
+		"password": "wrong-password",
+	}, "")
+	if badResp.Code != http.StatusUnauthorized {
+		t.Fatalf("bad login status = %d, body = %s, want 401", badResp.Code, badResp.Body.String())
+	}
+	assertNotContains(t, badResp.Body.String(), "correct-password")
+
+	goodResp := performJSONRequest(t, server, http.MethodPost, "/v1/auth/login", map[string]string{
+		"username": "admin",
+		"password": "correct-password",
+	}, "")
+	if goodResp.Code != http.StatusOK {
+		t.Fatalf("good login status = %d, body = %s", goodResp.Code, goodResp.Body.String())
+	}
+	assertNotContains(t, goodResp.Body.String(), "correct-password")
+
+	var login struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	decodeResponse(t, goodResp, &login)
+	if !login.Success || login.Data.Token == "" {
+		t.Fatalf("login response = %+v, want token", login)
+	}
+}
+
 func TestRegisterMonitorReportHistoryFlow(t *testing.T) {
 	server := setupTestServer(t)
 	registered := registerTestAgent(t, server)
