@@ -265,12 +265,18 @@ func (s *Server) getAgentDetail(c *gin.Context) {
 // @Param        id   path      string  true  "Agent ID"
 // @Success      200  {object}  utils.APIResponse{data=object{agent_id=string,overall_health=string,up_count=int,down_count=int,degraded_count=int}}
 // @Failure      400  {object}  utils.APIResponse
+// @Failure      404  {object}  utils.APIResponse
 // @Failure      500  {object}  utils.APIResponse
 // @Router       /v1/agents/{id}/health [get]
 func (s *Server) getAgentHealth(c *gin.Context) {
 	agentID := c.Param("id")
 	if agentID == "" {
 		utils.BadRequest(c, "Agent ID is required")
+		return
+	}
+
+	if _, err := s.agentService.GetAgent(agentID); err != nil {
+		utils.NotFound(c, "Agent not found")
 		return
 	}
 
@@ -305,6 +311,7 @@ func (s *Server) getAgentHealth(c *gin.Context) {
 // @Param        offset  query     int     false  "Number of reports to skip" default(0)
 // @Success      200     {object}  utils.APIResponse{data=object{reports=[]AgentReportResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta}}
 // @Failure      400     {object}  utils.APIResponse
+// @Failure      404     {object}  utils.APIResponse
 // @Failure      500     {object}  utils.APIResponse
 // @Router       /v1/agents/{id}/reports [get]
 func (s *Server) getAgentReports(c *gin.Context) {
@@ -316,6 +323,11 @@ func (s *Server) getAgentReports(c *gin.Context) {
 
 	limit := queryInt(c, "limit", 50)
 	offset := queryInt(c, "offset", 0)
+
+	if _, err := s.agentService.GetAgent(agentID); err != nil {
+		utils.NotFound(c, "Agent not found")
+		return
+	}
 
 	reports, err := s.reportService.GetAgentReportsById(agentID, limit, offset)
 	if err != nil {

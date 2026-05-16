@@ -542,6 +542,21 @@ func TestMonitorHistoryReturnsNotFoundForUnknownMonitor(t *testing.T) {
 	}
 }
 
+func TestAgentScopedReadEndpointsReturnNotFoundForMissingAgent(t *testing.T) {
+	server := setupTestServer(t)
+
+	for _, path := range []string{
+		"/v1/agents/agent-missing/health",
+		"/v1/agents/agent-missing/reports",
+		"/v1/agents/agent-missing/monitors",
+	} {
+		resp := performJSONRequest(t, server, http.MethodGet, path, nil, "")
+		if resp.Code != http.StatusNotFound {
+			t.Fatalf("%s status = %d, body = %s, want 404", path, resp.Code, resp.Body.String())
+		}
+	}
+}
+
 func TestAgentHealthReturnsStoredMonitorCountsForStaleAgent(t *testing.T) {
 	server := setupTestServer(t)
 	agent := db.Agent{

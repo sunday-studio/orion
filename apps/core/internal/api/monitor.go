@@ -112,6 +112,7 @@ func (s *Server) unregisterMonitor(c *gin.Context) {
 // @Param        offset     query     int     false  "Number of monitors to skip" default(0)
 // @Success      200        {object}  utils.APIResponse{data=object{monitors=[]MonitorResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta}}
 // @Failure      400        {object}  utils.APIResponse
+// @Failure      404        {object}  utils.APIResponse
 // @Failure      500        {object}  utils.APIResponse
 // @Router       /v1/agents/{id}/monitors [get]
 func (s *Server) listMonitors(c *gin.Context) {
@@ -126,6 +127,11 @@ func (s *Server) listMonitors(c *gin.Context) {
 
 	limit := queryInt(c, "limit", 50)
 	offset := queryInt(c, "offset", 0)
+
+	if _, err := s.agentService.GetAgent(agentID); err != nil {
+		utils.NotFound(c, "Agent not found")
+		return
+	}
 
 	monitors, err := s.monitorService.ListMonitors(agentID, healthFilter, lifecycleFilter, limit, offset)
 	if err != nil {
