@@ -5,11 +5,6 @@ generate-openapi:
 generate-sdk: generate-openapi
 	cd apps/console && npm run generate:api
 
-# Build console source and copy dist to apps/core/web for SPA serving
-build-static:
-	cd apps/console && npm run build
-	mkdir -p apps/core/web && cp -r apps/console/dist/* apps/core/web/
-
 # Build orion-core Docker image (context: repo root)
 docker-build:
 	docker build -f apps/core/Dockerfile -t orion-core:latest .
