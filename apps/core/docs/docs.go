@@ -1745,6 +1745,171 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/monitors": {
+            "get": {
+                "description": "Get a paginated list of all monitors with optional filters",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "List monitors",
+                "operationId": "getMonitors",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Maximum number of monitors to return",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Number of monitors to skip",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by monitor, agent, or type",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by health status (up|down|degraded|unknown)",
+                        "name": "health",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by lifecycle status (active|disabled|deleted)",
+                        "name": "lifecycle",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Only return stale monitors",
+                        "name": "stale_only",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Only return monitors with active incidents",
+                        "name": "has_incidents",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "updated_at",
+                        "description": "Sort column",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "desc",
+                        "description": "Sort order (asc|desc)",
+                        "name": "order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer",
+                                                    "format": "int64"
+                                                },
+                                                "limit": {
+                                                    "type": "integer"
+                                                },
+                                                "monitors": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/api.MonitorResponse"
+                                                    }
+                                                },
+                                                "offset": {
+                                                    "type": "integer"
+                                                },
+                                                "pagination": {
+                                                    "$ref": "#/definitions/utils.PaginationMeta"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/monitors/summary": {
+            "get": {
+                "description": "Get aggregate counts for active monitors by health, stale, and incident status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "Get monitor summary",
+                "operationId": "getMonitorSummary",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.MonitorSummary"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/monitors/{id}": {
             "get": {
                 "description": "Get detailed information about a specific monitor including recent reports and computed health",
@@ -2259,6 +2424,23 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "api.AgentConfigSummaryResponse": {
+            "type": "object",
+            "properties": {
+                "monitor_count": {
+                    "type": "integer"
+                },
+                "monitor_types": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "reporting_interval": {
+                    "type": "string"
+                }
+            }
+        },
         "api.AgentReportResponse": {
             "type": "object",
             "properties": {
@@ -2269,7 +2451,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "config_summary": {
-                    "type": "string"
+                    "$ref": "#/definitions/api.AgentConfigSummaryResponse"
                 },
                 "cpu": {
                     "$ref": "#/definitions/db.CPUStats"
@@ -2644,7 +2826,13 @@ const docTemplate = `{
         "api.MonitorResponse": {
             "type": "object",
             "properties": {
+                "active_incident_id": {
+                    "type": "string"
+                },
                 "agent_id": {
+                    "type": "string"
+                },
+                "agent_name": {
                     "type": "string"
                 },
                 "computed_health": {
@@ -2663,6 +2851,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "id": {
+                    "type": "string"
+                },
+                "incident_state": {
                     "type": "string"
                 },
                 "last_health_computation": {
@@ -2976,6 +3167,32 @@ const docTemplate = `{
                 "metrics": {},
                 "timestamp": {
                     "type": "string"
+                }
+            }
+        },
+        "service.MonitorSummary": {
+            "type": "object",
+            "properties": {
+                "degraded": {
+                    "type": "integer"
+                },
+                "down": {
+                    "type": "integer"
+                },
+                "has_incidents": {
+                    "type": "integer"
+                },
+                "stale": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "unknown": {
+                    "type": "integer"
+                },
+                "up": {
+                    "type": "integer"
                 }
             }
         },

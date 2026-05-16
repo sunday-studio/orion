@@ -1,6 +1,7 @@
 package api
 
 import (
+	"orion/core/internal/db"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
 
@@ -147,6 +148,108 @@ func (s *Server) listMonitors(c *gin.Context) {
 		"offset":     offset,
 		"pagination": utils.NewPaginationMeta(count, limit, offset, len(responses)),
 	})
+}
+
+// listAllMonitors retrieves a paginated list of monitors across agents.
+// @Summary      List monitors
+// @Description  Get a paginated list of all monitors with optional filters
+// @Tags         monitors
+// @Accept       json
+// @Produce      json
+// @ID           getMonitors
+// @Param        limit          query     int     false  "Maximum number of monitors to return" default(50)
+// @Param        offset         query     int     false  "Number of monitors to skip" default(0)
+// @Param        search         query     string  false  "Search by monitor, agent, or type"
+// @Param        health         query     string  false  "Filter by health status (up|down|degraded|unknown)"
+// @Param        lifecycle      query     string  false  "Filter by lifecycle status (active|disabled|deleted)"
+// @Param        stale_only     query     bool    false  "Only return stale monitors"
+// @Param        has_incidents  query     bool    false  "Only return monitors with active incidents"
+// @Param        sort           query     string  false  "Sort column" default(updated_at)
+// @Param        order          query     string  false  "Sort order (asc|desc)" default(desc)
+// @Success      200            {object}  utils.APIResponse{data=object{monitors=[]MonitorResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta}}
+// @Failure      500            {object}  utils.APIResponse
+// @Router       /v1/monitors [get]
+func (s *Server) listAllMonitors(c *gin.Context) {
+	limit := queryInt(c, "limit", 50)
+	offset := queryInt(c, "offset", 0)
+
+	monitors, count, err := s.monitorService.ListAllMonitors(service.ListAllMonitorsOpts{
+		Limit:        limit,
+		Offset:       offset,
+		Search:       c.Query("search"),
+		Health:       c.Query("health"),
+		Lifecycle:    c.Query("lifecycle"),
+		StaleOnly:    c.Query("stale_only") == "true",
+		HasIncidents: c.Query("has_incidents") == "true",
+		Sort:         c.DefaultQuery("sort", "updated_at"),
+		Order:        c.DefaultQuery("order", "desc"),
+	})
+	if err != nil {
+		s.logger.Error("Failed to list all monitors", "error", err)
+		utils.InternalError(c, "Failed to list monitors", err)
+		return
+	}
+
+	responses := monitorResponsesWithAgents(monitors, s.monitorAgentsByID(monitors))
+	utils.SuccessResponse(c, 200, "Monitors retrieved successfully", gin.H{
+		"monitors":   responses,
+		"count":      count,
+		"limit":      limit,
+		"offset":     offset,
+		"pagination": utils.NewPaginationMeta(count, limit, offset, len(responses)),
+	})
+}
+
+// getMonitorSummary retrieves aggregate counts for the monitor list.
+// @Summary      Get monitor summary
+// @Description  Get aggregate counts for active monitors by health, stale, and incident status
+// @Tags         monitors
+// @Accept       json
+// @Produce      json
+// @ID           getMonitorSummary
+// @Success      200  {object}  utils.APIResponse{data=service.MonitorSummary}
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/monitors/summary [get]
+func (s *Server) getMonitorSummary(c *gin.Context) {
+	summary, err := s.monitorService.GetMonitorSummary()
+	if err != nil {
+		s.logger.Error("Failed to get monitor summary", "error", err)
+		utils.InternalError(c, "Failed to get monitor summary", err)
+		return
+	}
+
+	utils.SuccessResponse(c, 200, "Monitor summary retrieved successfully", summary)
+}
+
+func (s *Server) monitorAgentsByID(monitors []db.Monitor) map[string]db.Agent {
+	agentIDs := make([]string, 0, len(monitors))
+	seen := make(map[string]struct{}, len(monitors))
+	for _, monitor := range monitors {
+		if monitor.AgentID == "" {
+			continue
+		}
+		if _, ok := seen[monitor.AgentID]; ok {
+			continue
+		}
+		seen[monitor.AgentID] = struct{}{}
+		agentIDs = append(agentIDs, monitor.AgentID)
+	}
+
+	agentsByID := make(map[string]db.Agent, len(agentIDs))
+	if len(agentIDs) == 0 {
+		return agentsByID
+	}
+
+	var agents []db.Agent
+	if err := s.db.Where("id IN ?", agentIDs).Find(&agents).Error; err != nil {
+		s.logger.Error("Failed to load monitor agents", "error", err)
+		return agentsByID
+	}
+	for _, agent := range agents {
+		agentsByID[agent.ID] = agent
+	}
+
+	return agentsByID
 }
 
 // getMonitorDetail retrieves detailed information about a specific monitor

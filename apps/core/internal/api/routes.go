@@ -106,6 +106,8 @@ func (s *Server) setupRoutes() {
 			frontend.GET("/agents/:id/reports", s.getAgentReports)
 			frontend.GET("/agents/:id/uptime", s.getAgentUptime)
 			frontend.GET("/agents/:id/monitors", s.listMonitors)
+			frontend.GET("/monitors", s.listAllMonitors)
+			frontend.GET("/monitors/summary", s.getMonitorSummary)
 			frontend.GET("/monitors/:id", s.getMonitorDetail)
 			frontend.GET("/monitors/:id/uptime", s.getMonitorUptime)
 			frontend.GET("/monitors/:id/history", s.getMonitorHistory)

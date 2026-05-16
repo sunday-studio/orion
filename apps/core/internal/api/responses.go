@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"orion/core/internal/db"
 	"orion/core/internal/service"
 	"time"
@@ -44,10 +45,13 @@ type MonitorResponse struct {
 	Type                     string     `json:"type"`
 	Name                     string     `json:"name"`
 	AgentID                  string     `json:"agent_id"`
+	AgentName                string     `json:"agent_name,omitempty"`
 	LastSuccessfulReportAt   *time.Time `json:"last_successful_report_at"`
 	ReportingIntervalSeconds int        `json:"reporting_interval_seconds"`
 	ComputedHealth           string     `json:"computed_health"`
 	LastHealthComputation    *time.Time `json:"last_health_computation"`
+	ActiveIncidentID         string     `json:"active_incident_id,omitempty"`
+	IncidentState            string     `json:"incident_state,omitempty"`
 	Lifecycle                string     `json:"lifecycle"`
 	Health                   string     `json:"health"`
 	CreatedAt                time.Time  `json:"created_at"`
@@ -67,17 +71,24 @@ type MonitorReportResponse struct {
 
 // AgentReportResponse represents a system report in frontend API responses.
 type AgentReportResponse struct {
-	ID            string         `json:"id"`
-	AgentID       string         `json:"agent_id"`
-	CreatedAt     time.Time      `json:"created_at"`
-	AgentVersion  string         `json:"agent_version"`
-	ConfigSummary string         `json:"config_summary"`
-	UptimeSeconds uint64         `json:"uptime_seconds"`
-	Timestamp     string         `json:"timestamp"`
-	CPU           db.CPUStats    `json:"cpu"`
-	Memory        db.MemoryStats `json:"memory"`
-	Disk          db.DiskStats   `json:"disk"`
-	Location      db.GeoLocation `json:"location"`
+	ID            string                      `json:"id"`
+	AgentID       string                      `json:"agent_id"`
+	CreatedAt     time.Time                   `json:"created_at"`
+	AgentVersion  string                      `json:"agent_version"`
+	ConfigSummary *AgentConfigSummaryResponse `json:"config_summary,omitempty"`
+	UptimeSeconds uint64                      `json:"uptime_seconds"`
+	Timestamp     string                      `json:"timestamp"`
+	CPU           db.CPUStats                 `json:"cpu"`
+	Memory        db.MemoryStats              `json:"memory"`
+	Disk          db.DiskStats                `json:"disk"`
+	Location      db.GeoLocation              `json:"location"`
+}
+
+// AgentConfigSummaryResponse is the frontend-safe subset of an agent's reported config summary.
+type AgentConfigSummaryResponse struct {
+	ReportingInterval string         `json:"reporting_interval,omitempty"`
+	MonitorCount      int            `json:"monitor_count,omitempty"`
+	MonitorTypes      map[string]int `json:"monitor_types,omitempty"`
 }
 
 // IncidentResponse represents a persisted incident in frontend API responses.
@@ -233,6 +244,8 @@ func monitorResponse(monitor db.Monitor) MonitorResponse {
 		ReportingIntervalSeconds: monitor.ReportingIntervalSeconds,
 		ComputedHealth:           monitor.ComputedHealth,
 		LastHealthComputation:    monitor.LastHealthComputation,
+		ActiveIncidentID:         monitor.ActiveIncidentID,
+		IncidentState:            monitor.IncidentState,
 		Lifecycle:                monitor.Lifecycle,
 		Health:                   monitor.Health,
 		CreatedAt:                monitor.CreatedAt,
@@ -245,6 +258,18 @@ func monitorResponses(monitors []db.Monitor) []MonitorResponse {
 	responses := make([]MonitorResponse, 0, len(monitors))
 	for _, monitor := range monitors {
 		responses = append(responses, monitorResponse(monitor))
+	}
+	return responses
+}
+
+func monitorResponsesWithAgents(monitors []db.Monitor, agentsByID map[string]db.Agent) []MonitorResponse {
+	responses := make([]MonitorResponse, 0, len(monitors))
+	for _, monitor := range monitors {
+		response := monitorResponse(monitor)
+		if agent, ok := agentsByID[monitor.AgentID]; ok {
+			response.AgentName = agent.Name
+		}
+		responses = append(responses, response)
 	}
 	return responses
 }
@@ -274,7 +299,7 @@ func agentReportResponse(report db.AgentReport) AgentReportResponse {
 		AgentID:       report.AgentID,
 		CreatedAt:     report.CreatedAt,
 		AgentVersion:  report.AgentVersion,
-		ConfigSummary: report.ConfigSummary,
+		ConfigSummary: agentConfigSummaryResponse(report.ConfigSummary),
 		UptimeSeconds: report.UptimeSeconds,
 		Timestamp:     report.Timestamp,
 		CPU:           report.CPU.Data(),
@@ -282,6 +307,22 @@ func agentReportResponse(report db.AgentReport) AgentReportResponse {
 		Disk:          report.Disk.Data(),
 		Location:      report.Location.Data(),
 	}
+}
+
+func agentConfigSummaryResponse(raw string) *AgentConfigSummaryResponse {
+	if raw == "" {
+		return nil
+	}
+
+	var summary AgentConfigSummaryResponse
+	if err := json.Unmarshal([]byte(raw), &summary); err != nil {
+		return nil
+	}
+
+	if summary.ReportingInterval == "" && summary.MonitorCount == 0 && len(summary.MonitorTypes) == 0 {
+		return nil
+	}
+	return &summary
 }
 
 func agentReportResponses(reports []db.AgentReport) []AgentReportResponse {

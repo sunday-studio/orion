@@ -5,6 +5,7 @@ import (
 	"orion/core/internal/db"
 	"orion/core/internal/logging"
 	"orion/core/internal/utils"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -31,6 +32,28 @@ type UnregisterMonitorResponse struct {
 
 type RegisterMonitorResponse struct {
 	MonitorID string `json:"monitor_id"`
+}
+
+type ListAllMonitorsOpts struct {
+	Limit        int
+	Offset       int
+	Search       string
+	Health       string
+	Lifecycle    string
+	StaleOnly    bool
+	HasIncidents bool
+	Sort         string
+	Order        string
+}
+
+type MonitorSummary struct {
+	Total        int64 `json:"total"`
+	Up           int64 `json:"up"`
+	Down         int64 `json:"down"`
+	Degraded     int64 `json:"degraded"`
+	Unknown      int64 `json:"unknown"`
+	Stale        int64 `json:"stale"`
+	HasIncidents int64 `json:"has_incidents"`
 }
 
 type MonitorService struct {
@@ -180,6 +203,105 @@ func (s *MonitorService) ListMonitors(agentID string, healthFilter string, lifec
 	return monitors, nil
 }
 
+func (s *MonitorService) ListAllMonitors(opts ListAllMonitorsOpts) ([]db.Monitor, int64, error) {
+	var monitors []db.Monitor
+	staleMonitorIDs, err := s.staleMonitorIDs()
+	if err != nil {
+		s.logger.Error("Failed to load stale monitor IDs", "error", err)
+		return nil, 0, err
+	}
+	query := s.applyAllMonitorListFilters(s.db.Model(&db.Monitor{}), opts, staleMonitorIDs)
+
+	var count int64
+	if err := query.Count(&count).Error; err != nil {
+		s.logger.Error("Failed to count all monitors", "error", err)
+		return nil, 0, err
+	}
+
+	sortColumn := "updated_at"
+	switch strings.ToLower(strings.TrimSpace(opts.Sort)) {
+	case "name", "type", "health", "lifecycle", "created_at", "updated_at", "last_successful_report_at":
+		sortColumn = strings.ToLower(strings.TrimSpace(opts.Sort))
+	}
+
+	order := "desc"
+	if strings.EqualFold(opts.Order, "asc") {
+		order = "asc"
+	}
+
+	query = query.Order(sortColumn + " " + order)
+
+	if opts.Limit > 0 {
+		query = query.Limit(opts.Limit)
+	}
+	if opts.Offset > 0 {
+		query = query.Offset(opts.Offset)
+	}
+
+	if err := query.Find(&monitors).Error; err != nil {
+		s.logger.Error("Failed to list all monitors", "error", err)
+		return nil, 0, err
+	}
+
+	return monitorsWithDerivedStaleHealth(monitors, staleMonitorIDs), count, nil
+}
+
+func (s *MonitorService) GetMonitorSummary() (MonitorSummary, error) {
+	var monitors []db.Monitor
+	if err := s.db.Where("lifecycle = ?", "active").Find(&monitors).Error; err != nil {
+		s.logger.Error("Failed to load monitor summary", "error", err)
+		return MonitorSummary{}, err
+	}
+
+	summary := MonitorSummary{Total: int64(len(monitors))}
+	monitorIDs := make([]string, 0, len(monitors))
+	staleMonitorIDs, err := s.staleMonitorIDs()
+	if err != nil {
+		s.logger.Error("Failed to load stale monitor summary", "error", err)
+		return MonitorSummary{}, err
+	}
+	staleMonitorIDSet := make(map[string]struct{}, len(staleMonitorIDs))
+	for _, monitorID := range staleMonitorIDs {
+		staleMonitorIDSet[monitorID] = struct{}{}
+	}
+
+	for _, monitor := range monitors {
+		monitorIDs = append(monitorIDs, monitor.ID)
+		if _, stale := staleMonitorIDSet[monitor.ID]; stale {
+			summary.Stale++
+			continue
+		}
+
+		switch strings.ToLower(monitor.Health) {
+		case "up":
+			summary.Up++
+		case "down":
+			summary.Down++
+		case "degraded":
+			summary.Degraded++
+		default:
+			summary.Unknown++
+		}
+	}
+
+	if len(monitorIDs) > 0 {
+		var rows []struct {
+			MonitorID string
+		}
+		if err := s.db.Model(&db.Incident{}).
+			Select("monitor_id").
+			Where("monitor_id IN ? AND status IN ?", monitorIDs, []string{"open", "acknowledged"}).
+			Group("monitor_id").
+			Find(&rows).Error; err != nil {
+			s.logger.Error("Failed to load monitor incident summary", "error", err)
+			return MonitorSummary{}, err
+		}
+		summary.HasIncidents = int64(len(rows))
+	}
+
+	return summary, nil
+}
+
 func (s *MonitorService) GetMonitor(monitorID string) (*db.Monitor, error) {
 	var monitor db.Monitor
 	if err := s.db.Where("id = ?", monitorID).First(&monitor).Error; err != nil {
@@ -210,4 +332,91 @@ func (s *MonitorService) applyMonitorListFilters(query *gorm.DB, agentID string,
 	}
 
 	return query.Where("lifecycle = ?", "active")
+}
+
+func (s *MonitorService) applyAllMonitorListFilters(query *gorm.DB, opts ListAllMonitorsOpts, staleMonitorIDs []string) *gorm.DB {
+	if opts.Search != "" {
+		like := "%" + opts.Search + "%"
+		query = query.Where(
+			"name LIKE ? OR type LIKE ? OR id LIKE ? OR agent_id IN (?)",
+			like,
+			like,
+			like,
+			s.db.Model(&db.Agent{}).Select("id").Where("name LIKE ? OR machine_id LIKE ?", like, like),
+		)
+	}
+
+	health := strings.ToLower(strings.TrimSpace(opts.Health))
+	if opts.Health != "" {
+		if health == "stale" {
+			if len(staleMonitorIDs) == 0 {
+				query = query.Where("1 = 0")
+			} else {
+				query = query.Where("id IN ?", staleMonitorIDs)
+			}
+		} else {
+			query = query.Where("health = ?", opts.Health)
+			if len(staleMonitorIDs) > 0 {
+				query = query.Where("id NOT IN ?", staleMonitorIDs)
+			}
+		}
+	}
+
+	if opts.Lifecycle != "" {
+		query = query.Where("lifecycle = ?", opts.Lifecycle)
+	} else {
+		query = query.Where("lifecycle = ?", "active")
+	}
+
+	if opts.StaleOnly {
+		if len(staleMonitorIDs) == 0 {
+			query = query.Where("1 = 0")
+		} else {
+			query = query.Where("id IN ?", staleMonitorIDs)
+		}
+	}
+
+	if opts.HasIncidents {
+		query = query.Where(
+			"id IN (?)",
+			s.db.Model(&db.Incident{}).Select("monitor_id").Where("status IN ?", []string{"open", "acknowledged"}),
+		)
+	}
+
+	return query
+}
+
+func (s *MonitorService) staleMonitorIDs() ([]string, error) {
+	healthService := NewHealthService(s.db, s.logger)
+	staleMonitors, err := healthService.DetectStaleMonitors(DefaultHealthConfig())
+	if err != nil {
+		return nil, err
+	}
+
+	monitorIDs := make([]string, 0, len(staleMonitors))
+	for _, monitor := range staleMonitors {
+		monitorIDs = append(monitorIDs, monitor.ID)
+	}
+	return monitorIDs, nil
+}
+
+func monitorsWithDerivedStaleHealth(monitors []db.Monitor, staleMonitorIDs []string) []db.Monitor {
+	if len(staleMonitorIDs) == 0 {
+		return monitors
+	}
+
+	staleMonitorIDSet := make(map[string]struct{}, len(staleMonitorIDs))
+	for _, monitorID := range staleMonitorIDs {
+		staleMonitorIDSet[monitorID] = struct{}{}
+	}
+
+	for index := range monitors {
+		if _, stale := staleMonitorIDSet[monitors[index].ID]; !stale {
+			continue
+		}
+		monitors[index].Health = "stale"
+		monitors[index].ComputedHealth = "stale"
+	}
+
+	return monitors
 }

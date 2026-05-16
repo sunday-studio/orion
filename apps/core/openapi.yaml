@@ -1,5 +1,16 @@
 basePath: /
 definitions:
+  api.AgentConfigSummaryResponse:
+    properties:
+      monitor_count:
+        type: integer
+      monitor_types:
+        additionalProperties:
+          type: integer
+        type: object
+      reporting_interval:
+        type: string
+    type: object
   api.AgentReportResponse:
     properties:
       agent_id:
@@ -7,7 +18,7 @@ definitions:
       agent_version:
         type: string
       config_summary:
-        type: string
+        $ref: '#/definitions/api.AgentConfigSummaryResponse'
       cpu:
         $ref: '#/definitions/db.CPUStats'
       created_at:
@@ -253,7 +264,11 @@ definitions:
     type: object
   api.MonitorResponse:
     properties:
+      active_incident_id:
+        type: string
       agent_id:
+        type: string
+      agent_name:
         type: string
       computed_health:
         type: string
@@ -266,6 +281,8 @@ definitions:
       health:
         type: string
       id:
+        type: string
+      incident_state:
         type: string
       last_health_computation:
         type: string
@@ -473,6 +490,23 @@ definitions:
     - health
     - metrics
     - timestamp
+    type: object
+  service.MonitorSummary:
+    properties:
+      degraded:
+        type: integer
+      down:
+        type: integer
+      has_incidents:
+        type: integer
+      stale:
+        type: integer
+      total:
+        type: integer
+      unknown:
+        type: integer
+      up:
+        type: integer
     type: object
   service.RegisterMonitorRequest:
     properties:
@@ -1700,6 +1734,86 @@ paths:
       summary: Get incident candidates
       tags:
       - health
+  /v1/monitors:
+    get:
+      consumes:
+      - application/json
+      description: Get a paginated list of all monitors with optional filters
+      operationId: getMonitors
+      parameters:
+      - default: 50
+        description: Maximum number of monitors to return
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of monitors to skip
+        in: query
+        name: offset
+        type: integer
+      - description: Search by monitor, agent, or type
+        in: query
+        name: search
+        type: string
+      - description: Filter by health status (up|down|degraded|unknown)
+        in: query
+        name: health
+        type: string
+      - description: Filter by lifecycle status (active|disabled|deleted)
+        in: query
+        name: lifecycle
+        type: string
+      - description: Only return stale monitors
+        in: query
+        name: stale_only
+        type: boolean
+      - description: Only return monitors with active incidents
+        in: query
+        name: has_incidents
+        type: boolean
+      - default: updated_at
+        description: Sort column
+        in: query
+        name: sort
+        type: string
+      - default: desc
+        description: Sort order (asc|desc)
+        in: query
+        name: order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      format: int64
+                      type: integer
+                    limit:
+                      type: integer
+                    monitors:
+                      items:
+                        $ref: '#/definitions/api.MonitorResponse'
+                      type: array
+                    offset:
+                      type: integer
+                    pagination:
+                      $ref: '#/definitions/utils.PaginationMeta'
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: List monitors
+      tags:
+      - monitors
   /v1/monitors/{id}:
     get:
       consumes:
@@ -1850,6 +1964,32 @@ paths:
           schema:
             $ref: '#/definitions/utils.APIResponse'
       summary: Get monitor uptime
+      tags:
+      - monitors
+  /v1/monitors/summary:
+    get:
+      consumes:
+      - application/json
+      description: Get aggregate counts for active monitors by health, stale, and
+        incident status
+      operationId: getMonitorSummary
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.MonitorSummary'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get monitor summary
       tags:
       - monitors
   /v1/register:
