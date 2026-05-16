@@ -1,4 +1,5 @@
 import { InfiniteScrollSentinel } from "@/components/infinite-scroll-sentinel";
+import { DataTableLink } from "@/components/data-table-link";
 import { PageBreadcrumbs } from "@/components/page-breadcrumbs";
 import {
   Table,
@@ -22,7 +23,7 @@ import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 const HISTORY_LIMIT = 20;
 
@@ -318,9 +319,9 @@ export const MonitorDetailPage = () => {
                   className={cn(incident.id === highlightedIncidentId && "bg-amber-50")}
                 >
                   <TableCell className="font-medium">
-                    <Link to={`/incidents/${incident.id}`} className="hover:text-neutral-600">
+                    <DataTableLink to={`/incidents/${incident.id}`}>
                       {incident.title ?? incident.id ?? "Untitled incident"}
-                    </Link>
+                    </DataTableLink>
                   </TableCell>
                   <TableCell>{incident.status ?? "unknown"}</TableCell>
                   <TableCell>{formatDate(incident.opened_at, DATE_TIME_FORMAT)}</TableCell>

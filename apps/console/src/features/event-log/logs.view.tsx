@@ -1,4 +1,5 @@
 import { InfiniteScrollSentinel } from "@/components/infinite-scroll-sentinel";
+import { DataTableLink } from "@/components/data-table-link";
 import {
   Table,
   TableBody,
@@ -11,7 +12,6 @@ import { type GetOrionEvents200, getOrionEvents } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
-import { Link } from "react-router-dom";
 
 const EVENT_LIMIT = 40;
 
@@ -85,28 +85,22 @@ export const LogsPage = () => {
                   <TableCell>
                     <div className="flex flex-wrap gap-3">
                       {event.incident_id && (
-                        <Link
+                        <DataTableLink
                           to={`/incidents/${event.incident_id}`}
-                          className="font-medium hover:text-neutral-600"
+                          className="font-medium"
                         >
                           incident
-                        </Link>
+                        </DataTableLink>
                       )}
                       {event.agent_id && (
-                        <Link
-                          to={`/agents/${event.agent_id}`}
-                          className="font-medium hover:text-neutral-600"
-                        >
+                        <DataTableLink to={`/agents/${event.agent_id}`} className="font-medium">
                           agent
-                        </Link>
+                        </DataTableLink>
                       )}
                       {event.monitor_id && (
-                        <Link
-                          to={`/monitors/${event.monitor_id}`}
-                          className="font-medium hover:text-neutral-600"
-                        >
+                        <DataTableLink to={`/monitors/${event.monitor_id}`} className="font-medium">
                           monitor
-                        </Link>
+                        </DataTableLink>
                       )}
                       {!event.incident_id && !event.agent_id && !event.monitor_id && "—"}
                     </div>

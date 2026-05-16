@@ -1,3 +1,4 @@
+import { DataTableLink } from "@/components/data-table-link";
 import {
   Table,
   TableBody,
@@ -9,7 +10,6 @@ import {
 import type { ApiIncidentResponse, ApiMonitorResponse } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
-import { Link } from "react-router-dom";
 import { monitorHealth } from "./agent-detail-utils";
 
 type AgentMonitorsTabProps = {
@@ -57,9 +57,7 @@ export const AgentMonitorsTab = ({
               return (
                 <TableRow key={monitor.id} className={cn(isHighlightedMonitor && "bg-amber-50")}>
                   <TableCell className="font-medium">
-                    <Link to={monitorPath} className="hover:text-neutral-600">
-                      {monitor.name ?? monitor.id}
-                    </Link>
+                    <DataTableLink to={monitorPath}>{monitor.name ?? monitor.id}</DataTableLink>
                   </TableCell>
                   <TableCell>{monitorHealth(monitor)}</TableCell>
                   <TableCell>{monitor.type ?? "unknown"}</TableCell>
