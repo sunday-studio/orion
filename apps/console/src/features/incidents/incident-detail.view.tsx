@@ -1,3 +1,4 @@
+import { DataTable } from "@/components/data-table";
 import { PageBreadcrumbs } from "@/components/page-breadcrumbs";
 import {
   NotificationBadge,
@@ -7,17 +8,17 @@ import {
   toSeverity,
   toStatus,
 } from "@/components/status-badges";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { type ApiIncidentResponse, useGetIncident } from "@/orion-sdk";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
-import { Link, useParams } from "react-router-dom";
+import {
+  type ApiAlertDeliveryResponse,
+  type ApiIncidentResponse,
+  type ApiIncidentTimelineItemResponse,
+  type ApiMonitorReportResponse,
+  useGetIncident,
+} from "@/orion-sdk";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 
 const DetailItem = ({ label, value }: { label: string; value: string | number }) => (
   <div>
@@ -39,13 +40,109 @@ const durationLabel = (incident: ApiIncidentResponse) => {
   return `${minutes}m`;
 };
 
+const detailTabs = ["timeline", "notifications", "monitor-reports"] as const;
+type DetailTab = (typeof detailTabs)[number];
+
+const isDetailTab = (value: string | null): value is DetailTab =>
+  detailTabs.includes(value as DetailTab);
+
+const timelineColumns: ColumnDef<ApiIncidentTimelineItemResponse>[] = [
+  {
+    accessorKey: "created_at",
+    header: "Time",
+    cell: ({ row }) => formatDate(row.original.created_at, DATE_TIME_FORMAT),
+  },
+  {
+    accessorKey: "type",
+    header: "Type",
+    cell: ({ row }) => row.original.type ?? "unknown",
+  },
+  {
+    accessorKey: "source",
+    header: "Source",
+    cell: ({ row }) => row.original.source ?? "unknown",
+  },
+  {
+    accessorKey: "message",
+    header: "Message",
+    cell: ({ row }) => (
+      <div className="max-w-[28rem] truncate text-neutral-600">{row.original.message ?? "—"}</div>
+    ),
+  },
+];
+
+const notificationColumns: ColumnDef<ApiAlertDeliveryResponse>[] = [
+  {
+    accessorKey: "created_at",
+    header: "Time",
+    cell: ({ row }) => formatDate(row.original.created_at, DATE_TIME_FORMAT),
+  },
+  {
+    accessorKey: "channel",
+    header: "Channel",
+    cell: ({ row }) => row.original.channel ?? "none",
+  },
+  {
+    accessorKey: "event_type",
+    header: "Event",
+    cell: ({ row }) => row.original.event_type ?? "unknown",
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }) => <NotificationBadge value={toNotificationStatus(row.original.status)} />,
+  },
+  {
+    accessorKey: "error",
+    header: "Error",
+    cell: ({ row }) => (
+      <div className="max-w-[24rem] truncate text-neutral-600">{row.original.error ?? "—"}</div>
+    ),
+  },
+];
+
+const monitorReportColumns: ColumnDef<ApiMonitorReportResponse>[] = [
+  {
+    accessorKey: "created_at",
+    header: "Time",
+    cell: ({ row }) =>
+      formatDate(row.original.created_at ?? row.original.collected_at, DATE_TIME_FORMAT),
+  },
+  {
+    accessorKey: "health",
+    header: "Health",
+    cell: ({ row }) => <StatusBadge value={toStatus(row.original.health)} />,
+  },
+  {
+    accessorKey: "id",
+    header: "Report ID",
+    cell: ({ row }) => (
+      <div className="max-w-[24rem] truncate text-neutral-600">{row.original.id ?? "—"}</div>
+    ),
+  },
+];
+
 export const IncidentDetailPage = () => {
   const { incidentId = "" } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const incidentResponse = useGetIncident(incidentId);
   const incident = incidentResponse.data?.incident;
   const timeline = incidentResponse.data?.timeline ?? [];
   const alertDeliveries = incidentResponse.data?.alert_deliveries ?? [];
   const monitorReports = incidentResponse.data?.monitor_reports ?? [];
+  const requestedTab = searchParams.get("tab");
+  const activeTab: DetailTab = isDetailTab(requestedTab) ? requestedTab : "timeline";
+
+  const handleTabChange = (tab: string) => {
+    if (!isDetailTab(tab)) return;
+    setSearchParams(
+      (params) => {
+        params.set("tab", tab);
+        return params;
+      },
+      { replace: true },
+    );
+  };
 
   if (incidentResponse.isLoading) {
     return <div className="py-3 text-sm text-neutral-600">Loading incident...</div>;
@@ -132,100 +229,44 @@ export const IncidentDetailPage = () => {
         </div>
       </section>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium">Timeline</h2>
-        {timeline.length === 0 && (
-          <div className="text-sm text-neutral-600">No timeline events recorded.</div>
-        )}
-        {timeline.length > 0 && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Time</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead>Message</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {timeline.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium">
-                    {formatDate(item.created_at, DATE_TIME_FORMAT)}
-                  </TableCell>
-                  <TableCell>{item.type ?? "unknown"}</TableCell>
-                  <TableCell>{item.source ?? "unknown"}</TableCell>
-                  <TableCell className="max-w-[28rem] truncate text-neutral-600">
-                    {item.message ?? "—"}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium">Linked Data</h2>
+      <section className="space-y-4">
+        <h2 className="text-sm font-medium">Operational Data</h2>
         <div className="grid gap-3 sm:grid-cols-3">
           <DetailItem label="alert deliveries" value={alertDeliveries.length} />
           <DetailItem label="monitor reports" value={monitorReports.length} />
           <DetailItem label="timeline events" value={timeline.length} />
         </div>
-        {alertDeliveries.length > 0 && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Time</TableHead>
-                <TableHead>Channel</TableHead>
-                <TableHead>Event</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Error</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {alertDeliveries.map((delivery) => (
-                <TableRow key={delivery.id}>
-                  <TableCell className="font-medium">
-                    {formatDate(delivery.created_at, DATE_TIME_FORMAT)}
-                  </TableCell>
-                  <TableCell>{delivery.channel ?? "none"}</TableCell>
-                  <TableCell>{delivery.event_type ?? "unknown"}</TableCell>
-                  <TableCell>
-                    <NotificationBadge value={toNotificationStatus(delivery.status)} />
-                  </TableCell>
-                  <TableCell className="max-w-[24rem] truncate text-neutral-600">
-                    {delivery.error ?? "—"}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-        {monitorReports.length > 0 && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Time</TableHead>
-                <TableHead>Health</TableHead>
-                <TableHead>Report ID</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {monitorReports.map((report) => (
-                <TableRow key={report.id}>
-                  <TableCell className="font-medium">
-                    {formatDate(report.created_at ?? report.collected_at, DATE_TIME_FORMAT)}
-                  </TableCell>
-                  <TableCell>{report.health ?? "unknown"}</TableCell>
-                  <TableCell className="max-w-[24rem] truncate text-neutral-600">
-                    {report.id ?? "—"}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-3">
+          <TabsList>
+            <TabsTrigger value="timeline">Timeline</TabsTrigger>
+            <TabsTrigger value="notifications">Notifications</TabsTrigger>
+            <TabsTrigger value="monitor-reports">Monitor reports</TabsTrigger>
+          </TabsList>
+          <TabsContent value="timeline">
+            <DataTable
+              columns={timelineColumns}
+              data={timeline}
+              emptyMessage="No timeline events recorded."
+              getRowId={(item, index) => item.id ?? `timeline-${index}`}
+            />
+          </TabsContent>
+          <TabsContent value="notifications">
+            <DataTable
+              columns={notificationColumns}
+              data={alertDeliveries}
+              emptyMessage="No notification deliveries recorded."
+              getRowId={(delivery, index) => delivery.id ?? `notification-${index}`}
+            />
+          </TabsContent>
+          <TabsContent value="monitor-reports">
+            <DataTable
+              columns={monitorReportColumns}
+              data={monitorReports}
+              emptyMessage="No monitor reports linked."
+              getRowId={(report, index) => report.id ?? `monitor-report-${index}`}
+            />
+          </TabsContent>
+        </Tabs>
       </section>
 
       <section className="space-y-3">
