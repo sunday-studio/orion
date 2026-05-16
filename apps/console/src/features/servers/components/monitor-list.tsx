@@ -1,50 +1,84 @@
 import { type ApiMonitorResponse, useGetAgentMonitors } from "@/orion-sdk";
-import { Separator } from "@/components/ui/separator";
-import { Fragment } from "react/jsx-runtime";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
-import { Link } from "react-router-dom";
+import { DataTableLink } from "@/components/data-table-link";
+import { ListPagination } from "@/components/list-pagination";
+import { StatusBadge, toStatus } from "@/components/status-badges";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useState } from "react";
+
+const MONITOR_LIMIT = 10;
 
 const MonitorRow = ({ monitor }: { monitor: ApiMonitorResponse }) => {
   const health = monitor.health ?? monitor.computed_health ?? "unknown";
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_5rem] items-center gap-3 py-2 text-sm sm:grid-cols-[minmax(0,1.4fr)_7rem_7rem_minmax(0,1fr)]">
-      <Link to={`/monitors/${monitor.id}`} className="truncate font-medium hover:text-neutral-600">
-        {monitor.name ?? monitor.id}
-      </Link>
-      <span>{health}</span>
-      <span className="hidden sm:inline">{monitor.type ?? "unknown"}</span>
-      <span className="truncate text-neutral-600">
-        last success {formatDate(monitor.last_successful_report_at, DATE_TIME_FORMAT)}
-      </span>
-    </div>
+    <TableRow>
+      <TableCell className="font-medium">
+        <DataTableLink to={`/monitors/${monitor.id}`} truncate>
+          {monitor.name ?? monitor.id}
+        </DataTableLink>
+      </TableCell>
+      <TableCell>
+        <StatusBadge value={toStatus(health)} />
+      </TableCell>
+      <TableCell>{monitor.type ?? "unknown"}</TableCell>
+      <TableCell>{formatDate(monitor.last_successful_report_at, DATE_TIME_FORMAT)}</TableCell>
+    </TableRow>
   );
 };
 
 export const MonitorList = ({ agentId }: { agentId: string }) => {
-  const monitorsResponse = useGetAgentMonitors(agentId);
+  const [page, setPage] = useState(1);
+  const offset = (Math.max(page, 1) - 1) * MONITOR_LIMIT;
+  const monitorsResponse = useGetAgentMonitors(agentId, { limit: MONITOR_LIMIT, offset });
   const monitors = monitorsResponse.data?.monitors ?? [];
+  const count = monitorsResponse.data?.count ?? monitors.length;
+  const setOffset = (nextOffset: number) => {
+    setPage(Math.floor(nextOffset / MONITOR_LIMIT) + 1);
+  };
 
   if (monitorsResponse.isLoading) {
-    return <div className="py-2 pl-6 text-sm text-neutral-600">Loading monitors...</div>;
+    return <div className="px-3 py-3 text-sm text-neutral-600">Loading monitors...</div>;
   }
 
   if (monitorsResponse.error) {
-    return <div className="py-2 pl-6 text-sm">Unable to load monitors.</div>;
+    return <div className="px-3 py-3 text-sm">Unable to load monitors.</div>;
   }
 
   if (monitors.length === 0) {
-    return <div className="py-2 pl-6 text-sm text-neutral-600">No monitors registered.</div>;
+    return <div className="px-3 py-3 text-sm text-neutral-600">No monitors registered.</div>;
   }
 
   return (
-    <div className="pl-6">
-      {monitors.map((monitor: ApiMonitorResponse, index: number) => (
-        <Fragment key={monitor.id}>
-          <MonitorRow monitor={monitor} />
-          {index < monitors.length - 1 && <Separator />}
-        </Fragment>
-      ))}
+    <div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Monitor</TableHead>
+            <TableHead>Health</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Last success</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {monitors.map((monitor: ApiMonitorResponse) => (
+            <MonitorRow key={monitor.id} monitor={monitor} />
+          ))}
+        </TableBody>
+      </Table>
+      <ListPagination
+        count={count}
+        limit={MONITOR_LIMIT}
+        offset={offset}
+        onOffsetChange={setOffset}
+      />
     </div>
   );
 };

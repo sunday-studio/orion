@@ -1,12 +1,12 @@
 import { type GetAgentsParams, useGetAgents } from "@/orion-sdk";
 import { AgentFilters, type AttentionFilterValue } from "./agent-filters";
 import { AgentRow } from "./agent-row";
-import { Separator } from "@/components/ui/separator";
-import { Fragment } from "react/jsx-runtime";
 import { ListPagination } from "@/components/list-pagination";
+import { Separator } from "@/components/ui/separator";
 import { parseAsBoolean, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
+import { Fragment } from "react/jsx-runtime";
 
-const SERVER_LIMIT = 20;
+const AGENT_LIMIT = 20;
 
 export const AgentList = () => {
   const [{ search, status, maintenance, stale, incidents, page }, setServerQuery] = useQueryStates({
@@ -18,10 +18,10 @@ export const AgentList = () => {
     page: parseAsInteger.withDefault(1),
   });
   const currentPage = Math.max(page, 1);
-  const offset = (currentPage - 1) * SERVER_LIMIT;
+  const offset = (currentPage - 1) * AGENT_LIMIT;
 
   const params: GetAgentsParams = {
-    limit: SERVER_LIMIT,
+    limit: AGENT_LIMIT,
     offset,
     search: search.trim() || undefined,
     status: status === "all" ? undefined : status,
@@ -70,7 +70,7 @@ export const AgentList = () => {
   };
 
   const setOffset = (nextOffset: number) => {
-    void setServerQuery({ page: Math.floor(nextOffset / SERVER_LIMIT) + 1 });
+    void setServerQuery({ page: Math.floor(nextOffset / AGENT_LIMIT) + 1 });
   };
 
   return (
@@ -100,7 +100,7 @@ export const AgentList = () => {
       ))}
       <ListPagination
         count={count}
-        limit={SERVER_LIMIT}
+        limit={AGENT_LIMIT}
         offset={offset}
         onOffsetChange={setOffset}
       />
