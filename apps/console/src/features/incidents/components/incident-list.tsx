@@ -1,4 +1,5 @@
 import { IncidentSummary } from "./incident-summary";
+import { DataTable } from "@/components/data-table";
 import { type ApiIncidentResponse, useGetIncidents } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import { ListPagination } from "@/components/list-pagination";
@@ -9,15 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
+import { type ColumnDef } from "@tanstack/react-table";
 import { parseAsInteger, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { Link } from "react-router-dom";
 
@@ -95,11 +88,6 @@ export const IncidentList = () => {
   const resolvedIncidentsResponse = useGetIncidents({ status: "resolved", limit: 1 });
   const incidents = filteredIncidentsResponse.data?.incidents ?? [];
   const count = filteredIncidentsResponse.data?.count ?? incidents.length;
-  const table = useReactTable({
-    data: incidents,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-  });
 
   const setStatus = (nextStatus: (typeof incidentStatuses)[number]) => {
     void setIncidentQuery({ status: nextStatus, page: 1 });
@@ -140,37 +128,12 @@ export const IncidentList = () => {
         </Select>
       </div>
       <div>
-        {incidents.length === 0 && (
-          <div className="py-3 text-sm text-neutral-600">No incidents recorded.</div>
-        )}
-        {incidents.length > 0 && (
-          <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(header.column.columnDef.header, header.getContext())}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
+        <DataTable
+          columns={columns}
+          data={incidents}
+          emptyMessage="No incidents recorded."
+          getRowId={(incident) => incident.id ?? ""}
+        />
       </div>
       <ListPagination
         count={count}
