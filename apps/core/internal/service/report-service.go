@@ -78,7 +78,9 @@ func (s *ReportService) StoreMonitorReport(monitorID string, payload MonitorRepo
 	// Update monitor health and last successful report timestamp
 	now := time.Now()
 	updates := map[string]interface{}{
-		"health": payload.Health,
+		"health":                  payload.Health,
+		"computed_health":         "",
+		"last_health_computation": nil,
 	}
 
 	// Only update last successful report if health is "up"

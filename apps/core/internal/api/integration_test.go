@@ -225,6 +225,39 @@ func TestMonitorDetailReturnsConsistentComputedHealth(t *testing.T) {
 	}
 }
 
+func TestMonitorReportInvalidatesComputedHealthCache(t *testing.T) {
+	server := setupTestServer(t)
+	registered := registerTestAgent(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+
+	if err := server.db.Model(&db.Monitor{}).
+		Where("id = ?", registeredMonitor.Data.MonitorID).
+		Updates(map[string]interface{}{
+			"computed_health":         "up",
+			"last_health_computation": time.Now(),
+		}).Error; err != nil {
+		t.Fatalf("prime monitor health cache: %v", err)
+	}
+
+	reportPath := "/v1/agents/" + registered.Data.AgentID + "/" + registeredMonitor.Data.MonitorID + "/report"
+	reportResp := performJSONRequest(t, server, http.MethodPost, reportPath, map[string]interface{}{
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"health":    "down",
+		"metrics":   map[string]interface{}{"status_code": 500},
+	}, registered.Data.Token)
+	if reportResp.Code != http.StatusOK {
+		t.Fatalf("monitor report status = %d, body = %s", reportResp.Code, reportResp.Body.String())
+	}
+
+	var monitor db.Monitor
+	if err := server.db.Where("id = ?", registeredMonitor.Data.MonitorID).First(&monitor).Error; err != nil {
+		t.Fatalf("reload monitor: %v", err)
+	}
+	if monitor.Health != "down" || monitor.ComputedHealth != "down" {
+		t.Fatalf("monitor health = %q computed = %q, want down/down", monitor.Health, monitor.ComputedHealth)
+	}
+}
+
 func TestMonitorHistoryReturnsNotFoundForUnknownMonitor(t *testing.T) {
 	server := setupTestServer(t)
 
