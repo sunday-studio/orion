@@ -1,6 +1,7 @@
 import { type GetAgentsParams, useGetAgentSummary, useGetAgents } from "@/orion-sdk";
 import { AgentRow } from "./agent-row";
 import { AgentSummary, type AgentSummaryFilter } from "./agent-summary";
+import { EmptyState } from "@/components/empty-state";
 import { ListPagination } from "@/components/list-pagination";
 import { parseAsBoolean, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 import { Fragment } from "react/jsx-runtime";
@@ -80,7 +81,10 @@ export const AgentList = () => {
       )}
       {agentsResponse.error && <div className="py-3 text-sm">Unable to load agents.</div>}
       {!agentsResponse.isLoading && !agentsResponse.error && agents.length === 0 && (
-        <div className="py-3 text-sm text-neutral-600">No agents match these filters.</div>
+        <EmptyState
+          title="No agents found"
+          description="No installed agents match the current filters."
+        />
       )}
       <div className="space-y-1 my-6">
         {agents.map((agent, index) => (

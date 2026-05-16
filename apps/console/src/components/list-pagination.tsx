@@ -21,6 +21,8 @@ export const ListPagination = ({
   const canGoBack = offset > 0;
   const canGoForward = offset + limit < count;
 
+  if (count === 0) return null;
+
   return (
     <div
       className={cn(

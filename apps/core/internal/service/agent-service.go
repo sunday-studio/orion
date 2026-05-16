@@ -248,28 +248,20 @@ func (s *AgentService) ListAgents(opts ListAgentsOpts) ([]AgentListRow, int64, e
 	}
 	query = query.Order(sortCol + " " + order)
 
-	// Over-fetch when status or uptime filter is set (post-filter)
 	limit := opts.Limit
 	if limit <= 0 {
 		limit = 50
 	}
-	fetchLimit := limit
-	if opts.Status != "" || opts.Uptime != "" {
-		fetchLimit = limit * 5
+	offset := opts.Offset
+	if offset < 0 {
+		offset = 0
 	}
-	query = query.Limit(fetchLimit).Offset(opts.Offset)
 
 	var agents []db.Agent
 	if err := query.Find(&agents).Error; err != nil {
 		s.logger.Error("Failed to list agents", "error", err)
 		return nil, 0, err
 	}
-
-	// Base count (same database filters, no status/uptime post-filter)
-	var count int64
-	countQuery := s.db.Model(&db.Agent{}).Where("deleted_at IS NULL OR deleted_at = ?", time.Time{})
-	countQuery = s.applyAgentListDatabaseFilters(countQuery, opts)
-	countQuery.Count(&count)
 
 	ids := make([]string, 0, len(agents))
 	for _, a := range agents {
@@ -333,12 +325,19 @@ func (s *AgentService) ListAgents(opts ListAgentsOpts) ([]AgentListRow, int64, e
 			row.IP = &v
 		}
 		rows = append(rows, row)
-		if len(rows) >= limit {
-			break
-		}
 	}
 
-	return rows, count, nil
+	count := int64(len(rows))
+	if offset >= len(rows) {
+		return []AgentListRow{}, count, nil
+	}
+
+	end := offset + limit
+	if end > len(rows) {
+		end = len(rows)
+	}
+
+	return rows[offset:end], count, nil
 }
 
 func (s *AgentService) applyAgentListDatabaseFilters(query *gorm.DB, opts ListAgentsOpts) *gorm.DB {

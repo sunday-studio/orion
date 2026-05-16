@@ -6,6 +6,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import type * as React from "react";
+import { EmptyState } from "@/components/empty-state";
 import {
   Table,
   TableBody,
@@ -68,7 +69,7 @@ export function DataTable<TData>({
   }
 
   if (data.length === 0) {
-    return <div className="py-3 text-sm text-neutral-600">{emptyMessage}</div>;
+    return <EmptyState title={emptyMessage} />;
   }
 
   return (
