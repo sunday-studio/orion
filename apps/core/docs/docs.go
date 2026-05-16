@@ -1460,6 +1460,12 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "string",
+                        "description": "Filter incidents by agent ID",
+                        "name": "agent_id",
+                        "in": "query"
+                    },
+                    {
                         "type": "integer",
                         "default": 50,
                         "description": "Maximum number of incidents to return",

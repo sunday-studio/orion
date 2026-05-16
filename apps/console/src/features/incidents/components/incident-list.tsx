@@ -13,7 +13,7 @@ import { type ApiIncidentResponse, useGetIncidents } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import { ListPagination } from "@/components/list-pagination";
 import { type ColumnDef } from "@tanstack/react-table";
-import { parseAsInteger, parseAsStringLiteral, useQueryStates } from "nuqs";
+import { parseAsInteger, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 
 const INCIDENT_LIMIT = 20;
 const incidentStatuses = ["all", "open", "acknowledged", "resolved", "errors"] as const;
@@ -106,30 +106,44 @@ const columns: ColumnDef<ApiIncidentResponse>[] = [
 ];
 
 export const IncidentList = () => {
-  const [{ page, status }, setIncidentQuery] = useQueryStates({
+  const [{ page, status, agent }, setIncidentQuery] = useQueryStates({
+    agent: parseAsString.withDefault(""),
     page: parseAsInteger.withDefault(1),
     status: parseAsStringLiteral(incidentStatuses).withDefault("all"),
   });
   const currentPage = Math.max(page, 1);
   const offset = (currentPage - 1) * INCIDENT_LIMIT;
   const incidentsResponse = useGetIncidents({
+    agent_id: agent || undefined,
     status: allIncidentStatuses,
     limit: INCIDENT_LIMIT,
     offset,
   });
   const filteredIncidentsResponse = useGetIncidents({
+    agent_id: agent || undefined,
     status: statusParam(status),
     limit: INCIDENT_LIMIT,
     offset,
   });
 
-  const openIncidentsResponse = useGetIncidents({ status: "open", limit: 1, offset: 0 });
+  const openIncidentsResponse = useGetIncidents({
+    agent_id: agent || undefined,
+    status: "open",
+    limit: 1,
+    offset: 0,
+  });
   const acknowledgedIncidentsResponse = useGetIncidents({
+    agent_id: agent || undefined,
     status: "acknowledged",
     limit: 1,
     offset: 0,
   });
-  const resolvedIncidentsResponse = useGetIncidents({ status: "resolved", limit: 1, offset: 0 });
+  const resolvedIncidentsResponse = useGetIncidents({
+    agent_id: agent || undefined,
+    status: "resolved",
+    limit: 1,
+    offset: 0,
+  });
   const responseIncidents = filteredIncidentsResponse.data?.incidents ?? [];
   const incidents =
     status === "errors" ? responseIncidents.filter(isErrorIncident) : responseIncidents;

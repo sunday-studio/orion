@@ -1518,6 +1518,10 @@ paths:
         in: query
         name: status
         type: string
+      - description: Filter incidents by agent ID
+        in: query
+        name: agent_id
+        type: string
       - default: 50
         description: Maximum number of incidents to return
         in: query

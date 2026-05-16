@@ -20,6 +20,7 @@ import (
 // @Produce      json
 // @ID           getIncidents
 // @Param        status  query     string  false  "Comma-separated incident statuses" default(open,acknowledged)
+// @Param        agent_id  query   string  false  "Filter incidents by agent ID"
 // @Param        limit   query     int     false  "Maximum number of incidents to return" default(50)
 // @Param        offset  query     int     false  "Number of incidents to skip" default(0)
 // @Success      200     {object}  utils.APIResponse{data=object{incidents=[]IncidentResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta,status=[]string}}
@@ -29,8 +30,12 @@ func (s *Server) listIncidents(c *gin.Context) {
 	limit := queryInt(c, "limit", 50)
 	offset := queryInt(c, "offset", 0)
 	statuses := queryStatuses(c.DefaultQuery("status", "open,acknowledged"))
+	agentID := strings.TrimSpace(c.Query("agent_id"))
 
 	query := s.db.Model(&db.Incident{}).Where("status IN ?", statuses)
+	if agentID != "" {
+		query = query.Where("agent_id = ?", agentID)
+	}
 
 	var count int64
 	if err := query.Count(&count).Error; err != nil {

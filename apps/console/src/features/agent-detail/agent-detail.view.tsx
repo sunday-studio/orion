@@ -55,30 +55,22 @@ export const AgentDetailPage = () => {
     highlightedIncidentResponse.data?.incident?.agent_id === currentAgentId
       ? highlightedIncidentResponse.data.incident
       : highlightedIncidentFromList;
+
   const primaryIncident = highlightedIncident ?? activeIncidents[0];
+
   const status =
     healthResponse.data?.overall_health ??
     agent?.status ??
     (agent?.maintenance_mode ? "maintenance" : "unknown");
+
   const configSummary =
     typeof latestReport.config_summary === "string"
       ? latestReport.config_summary
       : JSON.stringify(latestReport.config_summary ?? {}, null, 2);
-  const scrollKey = useCallback(
-    (tab: AgentDetailTab) => `orion:scroll:${location.pathname}:${tab}`,
-    [location.pathname],
-  );
-  const saveScroll = useCallback(
-    (tab: AgentDetailTab) => {
-      window.sessionStorage.setItem(scrollKey(tab), String(window.scrollY));
-    },
-    [scrollKey],
-  );
 
   const handleTabChange = useCallback(
     (value: string) => {
       if (!isAgentDetailTab(value)) return;
-      saveScroll(activeTab);
       setSearchParams((params) => {
         const nextParams = new URLSearchParams(params);
         if (value === "logs") {
@@ -89,23 +81,8 @@ export const AgentDetailPage = () => {
         return nextParams;
       });
     },
-    [activeTab, saveScroll, setSearchParams],
+    [setSearchParams],
   );
-
-  useEffect(() => {
-    const savedScroll = Number(window.sessionStorage.getItem(scrollKey(activeTab)));
-    if (!Number.isFinite(savedScroll) || savedScroll <= 0) return;
-
-    const frame = window.requestAnimationFrame(() => {
-      window.scrollTo(0, savedScroll);
-    });
-
-    return () => window.cancelAnimationFrame(frame);
-  }, [activeTab, scrollKey]);
-
-  useEffect(() => {
-    return () => saveScroll(activeTab);
-  }, [activeTab, saveScroll]);
 
   if (agentResponse.isLoading) {
     return <div className="py-3 text-sm text-neutral-600">Loading agent...</div>;
@@ -126,14 +103,16 @@ export const AgentDetailPage = () => {
             title={agent.name ?? agent.id ?? "Unknown agent"}
             description={
               <p className="text-sm text-neutral-600">
-                <StatusBadge className="text-sm px-1.5 py-1 capitalize" value={toStatus(status)} />{" "}
+                <StatusBadge
+                  className="text-[13px] px-1.5 py-0.5 capitalize"
+                  value={toStatus(status)}
+                />{" "}
                 · last update {formatDate(agent.last_seen, DATE_TIME_FORMAT)}
               </p>
             }
           />
         </div>
       </div>
-
       {highlightedIncident && (
         <section className="space-y-1 bg-amber-50 px-3 py-2 text-sm">
           <div className="font-medium">
@@ -145,8 +124,8 @@ export const AgentDetailPage = () => {
         </section>
       )}
 
-      {/* {!highlightedIncident && primaryIncident && (
-        <section className="flex flex-wrap items-center justify-between gap-3 bg-rose-100 px-3 py-4 text-sm">
+      {!highlightedIncident && primaryIncident && (
+        <section className="flex flex-wrap items-center justify-between gap-3 bg-rose-50 px-3 py-2.5 text-sm">
           <div>
             <div className="font-medium text-rose-900">
               Active incident: {primaryIncident.title ?? primaryIncident.id}
@@ -156,15 +135,16 @@ export const AgentDetailPage = () => {
             </div>
           </div>
           <Link
-            className="font-medium hover:text-rose-900 px-2 py-1.5 hover:bg-rose-200"
+            className="font-medium text-rose-900 px-2 py-1.5 hover:bg-rose-200"
             to={`/incidents/${primaryIncident.id}`}
           >
             View incident
           </Link>
         </section>
-      )} */}
-      {/*
+      )}
+
       <AgentHealthSummary
+        agentId={currentAgentId}
         activeIncidentCount={activeIncidents.length}
         degradedCount={healthResponse.data?.degraded_count ?? 0}
         downCount={healthResponse.data?.down_count ?? 0}
@@ -174,7 +154,7 @@ export const AgentDetailPage = () => {
         uptimeBuckets={uptimeResponse.data?.daily_buckets ?? []}
       />
 
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
+      {/* <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList variant="line">
           <TabsTrigger value="logs">Logs</TabsTrigger>
           <TabsTrigger value="monitors">Monitors</TabsTrigger>

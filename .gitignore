@@ -1,8 +1,9 @@
 todo.md
 
 # Local databases and runtime state
-core/data
+app/core/data
 apps/core/data
+apps/core/tmp/
 
 # Dependency directories
 node_modules/

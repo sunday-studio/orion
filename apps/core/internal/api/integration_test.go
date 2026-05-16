@@ -312,6 +312,7 @@ func TestListIncidentsReturnsPersistedActiveIncidents(t *testing.T) {
 		Data    struct {
 			Incidents []struct {
 				Status      string `json:"status"`
+				AgentID     string `json:"agent_id"`
 				AgentName   string `json:"agent_name"`
 				MonitorName string `json:"monitor_name"`
 			} `json:"incidents"`
@@ -326,6 +327,38 @@ func TestListIncidentsReturnsPersistedActiveIncidents(t *testing.T) {
 		listed.Data.Incidents[0].AgentName != "test-server" ||
 		listed.Data.Incidents[0].MonitorName != "homepage" {
 		t.Fatalf("incident row = %+v, want open homepage on test-server", listed.Data.Incidents[0])
+	}
+
+	filteredResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents?agent_id="+registered.Data.AgentID, nil, "")
+	if filteredResp.Code != http.StatusOK {
+		t.Fatalf("filtered incidents status = %d, body = %s", filteredResp.Code, filteredResp.Body.String())
+	}
+	var filtered struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Incidents []struct {
+				AgentID string `json:"agent_id"`
+			} `json:"incidents"`
+			Count int64 `json:"count"`
+		} `json:"data"`
+	}
+	decodeResponse(t, filteredResp, &filtered)
+	if !filtered.Success || filtered.Data.Count != 1 || filtered.Data.Incidents[0].AgentID != registered.Data.AgentID {
+		t.Fatalf("filtered incidents response = %+v, want one incident for agent %s", filtered, registered.Data.AgentID)
+	}
+
+	noMatchResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents?agent_id=agent-no-match", nil, "")
+	if noMatchResp.Code != http.StatusOK {
+		t.Fatalf("no match incidents status = %d, body = %s", noMatchResp.Code, noMatchResp.Body.String())
+	}
+	var noMatch struct {
+		Data struct {
+			Count int64 `json:"count"`
+		} `json:"data"`
+	}
+	decodeResponse(t, noMatchResp, &noMatch)
+	if noMatch.Data.Count != 0 {
+		t.Fatalf("no match incident count = %d, want 0", noMatch.Data.Count)
 	}
 }
 
