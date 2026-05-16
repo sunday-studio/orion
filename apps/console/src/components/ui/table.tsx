@@ -17,8 +17,8 @@ const tableVariantClasses = {
     body: "[&>tr:has(+_tr:hover)]:border-emerald-100 [&>tr:hover]:border-emerald-100 [&>tr:hover]:bg-emerald-50 [&>tr:hover>td]:border-emerald-100",
     footer: "border-t bg-muted/50 font-medium [&>tr]:last:border-b-0 border-neutral-200",
     row: "border-b border-neutral-200/70 transition-colors group",
-    head: "border-neutral-200/70 border-b border-l first:border-l-0 h-10 px-3 py-2 text-left align-middle whitespace-nowrap text-neutral-950 [&:has([role=checkbox])]:pr-0 *:[[role=checkbox]]:translate-y-[2px] font-medium",
-    cell: "py-2 px-3 align-middle text-sm whitespace-nowrap [&:has([role=checkbox])]:pr-0 *:[[role=checkbox]]:translate-y-[2px] border-neutral-200/70 border-l first:border-l-0",
+    head: "border-neutral-200/70 border-b border-l first:border-l-0 h-10 px-3 py-2 text-left whitespace-nowrap text-neutral-950 [&:has([role=checkbox])]:pr-0 *:[[role=checkbox]]:translate-y-[2px] font-medium",
+    cell: "text-start py-2 px-3 text-sm whitespace-nowrap [&:has([role=checkbox])]:pr-0 *:[[role=checkbox]]:translate-y-[2px] border-neutral-200/70 border-l first:border-l-0",
   },
   contained: {
     container: "rounded-t-lg bg-neutral-100/70",
@@ -27,8 +27,8 @@ const tableVariantClasses = {
     body: "[&>tr:has(+_tr:hover)]:border-emerald-200 [&>tr:hover]:border-emerald-200 [&>tr:hover]:bg-emerald-50 [&>tr:hover>td]:border-emerald-200",
     footer: "border-t bg-neutral-100 font-medium [&>tr]:last:border-b-0 border-neutral-300/60",
     row: "border-b border-neutral-300/60 transition-colors group last:border-b-0",
-    head: "border-neutral-300/60 border-b border-l first:border-l-0 h-10 px-3 py-2 text-left align-middle whitespace-nowrap text-neutral-950 [&:has([role=checkbox])]:pr-0 *:[[role=checkbox]]:translate-y-[2px] font-medium",
-    cell: "py-2 px-3 align-middle text-sm whitespace-nowrap [&:has([role=checkbox])]:pr-0 *:[[role=checkbox]]:translate-y-[2px] border-neutral-300/60 border-l first:border-l-0",
+    head: "border-neutral-300/60 border-b border-l first:border-l-0 h-10 px-3 py-2 text-left whitespace-nowrap text-neutral-950 [&:has([role=checkbox])]:pr-0 *:[[role=checkbox]]:translate-y-[2px] font-medium",
+    cell: "text-start py-2 px-3 text-sm whitespace-nowrap [&:has([role=checkbox])]:pr-0 *:[[role=checkbox]]:translate-y-[2px] border-neutral-300/60 border-l first:border-l-0",
   },
 } satisfies Record<TableVariant, Record<string, string>>;
 

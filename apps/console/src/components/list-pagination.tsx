@@ -24,7 +24,7 @@ export const ListPagination = ({
   return (
     <div
       className={cn(
-        "sticky bottom-0 z-10 flex items-center justify-between gap-3 border-t border-neutral-200 bg-[#fdfdfc]/95 px-3 h-9text-sm backdrop-blur",
+        "sticky bottom-0 z-10 flex items-center justify-between gap-3 bg-[#fdfdfc]/95 px-3 h-9text-sm backdrop-blur",
         className,
       )}
     >

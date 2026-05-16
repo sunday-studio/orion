@@ -1,7 +1,7 @@
-import { type GetAgentsParams, useGetAgents } from "@/orion-sdk";
+import { type GetAgentsParams, useGetAgentSummary, useGetAgents } from "@/orion-sdk";
 import { AgentRow } from "./agent-row";
+import { AgentSummary, type AgentSummaryFilter } from "./agent-summary";
 import { ListPagination } from "@/components/list-pagination";
-import { Separator } from "@/components/ui/separator";
 import { parseAsBoolean, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 import { Fragment } from "react/jsx-runtime";
 
@@ -30,15 +30,35 @@ export const AgentList = () => {
   };
 
   const agentsResponse = useGetAgents(params);
+  const summaryResponse = useGetAgentSummary();
   const agents = agentsResponse.data?.agents ?? [];
   const count = agentsResponse.data?.count ?? agents.length;
+  const selectedSummaryFilter: AgentSummaryFilter = incidents
+    ? "incidents"
+    : stale
+      ? "stale"
+      : maintenance
+        ? "maintenance"
+        : status === "up" || status === "down" || status === "degraded" || status === "unknown"
+          ? status
+          : "all";
 
   const setOffset = (nextOffset: number) => {
     void setServerQuery({ page: Math.floor(nextOffset / AGENT_LIMIT) + 1 });
   };
 
+  const setSummaryFilter = (filter: AgentSummaryFilter) => {
+    void setServerQuery({
+      status: ["up", "down", "degraded", "unknown"].includes(filter) ? filter : "all",
+      maintenance: filter === "maintenance",
+      stale: filter === "stale",
+      incidents: filter === "incidents",
+      page: 1,
+    });
+  };
+
   return (
-    <div className="space-y-3">
+    <div>
       {/* <AgentFilters
         search={search}
         status={status}
@@ -49,6 +69,12 @@ export const AgentList = () => {
         onAttentionFiltersChange={setAttentionFilters}
         onClear={clearFilters}
       /> */}
+      <AgentSummary
+        summary={summaryResponse.data}
+        selectedFilter={selectedSummaryFilter}
+        onFilterChange={setSummaryFilter}
+      />
+      {summaryResponse.error && <div className="py-3 text-sm">Unable to load agent summary.</div>}
       {agentsResponse.isLoading && (
         <div className="py-3 text-sm text-neutral-600">Loading agents...</div>
       )}
@@ -56,11 +82,10 @@ export const AgentList = () => {
       {!agentsResponse.isLoading && !agentsResponse.error && agents.length === 0 && (
         <div className="py-3 text-sm text-neutral-600">No agents match these filters.</div>
       )}
-      <div className="space-y-3">
+      <div className="space-y-1 my-6">
         {agents.map((agent, index) => (
           <Fragment key={agent.id}>
-            <AgentRow agent={agent} />
-            {/* {index < agents.length - 1 && <Separator />} */}
+            <AgentRow agent={agent} index={index} />
           </Fragment>
         ))}
       </div>

@@ -184,3 +184,12 @@ body {
 .debug * {
   outline: 1px dotted blue;
 }
+
+hr {
+  grid-column: content;
+  border: none;
+  height: 10px;
+  width: 100%;
+  margin: 0;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' height='10' viewBox='0 0 18 10' width='18'%3E%3CclipPath id='a'%3E%3Cpath d='m0 0h18v10h-18z'/%3E%3C/clipPath%3E%3Cg clip-path='url(%23a)'%3E%3Cpath d='m0 1c4.56 0 4.56 8 9.14 8s4.56-8 9.14-8 4.56 8 9.14 8 4.56-8 9.14-8 4.58 8 9.14 8 4.58-8 9.14-8 4.58 8 9.16 8' stroke='%23a8a29e' stroke-miterlimit='10'/%3E%3C/g%3E%3C/svg%3E");
+}
