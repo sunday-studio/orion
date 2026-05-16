@@ -16,7 +16,7 @@ export const ListPagination = ({ count, limit, offset, onOffsetChange }: ListPag
   if (count <= limit) return null;
 
   return (
-    <div className="flex items-center justify-between gap-3 py-3 text-sm px-3">
+    <div className="sticky bottom-0 z-10 flex items-center justify-between gap-3 border-t border-neutral-200 bg-[#fdfdfc]/95 px-3 py-3 text-sm backdrop-blur">
       <span className="text-neutral-600 tabular-nums">
         {pageStart} - {pageEnd} of {count}
       </span>

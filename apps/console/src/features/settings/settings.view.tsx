@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/page-header";
 import {
   type ServiceDataLifecycleSettingsPayload,
   getGetDataLifecycleSettingsQueryKey,
@@ -121,10 +122,7 @@ export const SettingsPage = () => {
 
   return (
     <div className="space-y-7">
-      <div>
-        <h1 className="text-base font-medium">Settings</h1>
-        <p className="text-sm text-neutral-600">Control how Core keeps and archives report data.</p>
-      </div>
+      <PageHeader title="Settings" description="Control how Core keeps and archives report data." />
 
       <section className="space-y-3">
         <div>

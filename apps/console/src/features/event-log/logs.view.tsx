@@ -1,5 +1,6 @@
-import { InfiniteScrollSentinel } from "@/components/infinite-scroll-sentinel";
 import { DataTableLink } from "@/components/data-table-link";
+import { ListPagination } from "@/components/list-pagination";
+import { PageHeader } from "@/components/page-header";
 import {
   Table,
   TableBody,
@@ -8,51 +9,55 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { type GetOrionEvents200, getOrionEvents } from "@/orion-sdk";
+import { useGetOrionEvents } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
-import { useInfiniteQuery } from "@tanstack/react-query";
-import { useCallback } from "react";
+import { parseAsInteger, useQueryState } from "nuqs";
 
 const EVENT_LIMIT = 40;
 
-const getNextOffset = (lastPage: GetOrionEvents200) => {
-  const offset = lastPage.offset ?? 0;
-  const limit = lastPage.limit ?? EVENT_LIMIT;
-  const count = lastPage.count ?? 0;
-  const nextOffset = offset + limit;
-  return nextOffset < count ? nextOffset : undefined;
-};
+const hasRelatedData = (event: { incident_id?: string; agent_id?: string; monitor_id?: string }) =>
+  Boolean(event.incident_id || event.agent_id || event.monitor_id);
 
 export const LogsPage = () => {
-  const eventsQuery = useInfiniteQuery({
-    queryKey: ["orion-events", EVENT_LIMIT],
-    queryFn: ({ pageParam, signal }) =>
-      getOrionEvents({ limit: EVENT_LIMIT, offset: pageParam }, { signal }),
-    initialPageParam: 0,
-    getNextPageParam: getNextOffset,
-  });
-  const { fetchNextPage } = eventsQuery;
-  const events = eventsQuery.data?.pages.flatMap((page) => page.events ?? []) ?? [];
-  const loadMoreEvents = useCallback(() => {
-    void fetchNextPage();
-  }, [fetchNextPage]);
+  const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
+  const currentPage = Math.max(page, 1);
+  const offset = (currentPage - 1) * EVENT_LIMIT;
+  const eventsQuery = useGetOrionEvents({ limit: EVENT_LIMIT, offset });
+  const events = eventsQuery.data?.events ?? [];
+  const count = eventsQuery.data?.count ?? events.length;
+  const linkedEventCount = events.filter(hasRelatedData).length;
+  const sourceCount = new Set(events.map((event) => event.source ?? "unknown")).size;
+  const setOffset = (nextOffset: number) => {
+    void setPage(Math.floor(nextOffset / EVENT_LIMIT) + 1);
+  };
 
   return (
     <div className="space-y-7">
-      <div>
-        <h1 className="text-base font-medium">Logs</h1>
-        <p className="text-sm text-neutral-600">
-          Orion operational events derived from Core records.
-        </p>
-      </div>
+      <PageHeader
+        title="Logs"
+        description="Agent, monitor, report, incident, alert, and lifecycle activity."
+      />
 
       <section className="space-y-3">
-        <div>
-          <h2 className="text-sm font-medium">Orion Event Log</h2>
-          <p className="text-sm text-neutral-600">
-            Agent, monitor, report, incident, alert, and lifecycle activity.
-          </p>
+        <div className="grid gap-1 text-sm sm:grid-cols-4">
+          <div className="bg-neutral-100 p-3">
+            <div className="text-neutral-600">total events</div>
+            <div className="font-medium">{count}</div>
+          </div>
+          <div className="bg-neutral-100 p-3">
+            <div className="text-neutral-600">visible</div>
+            <div className="font-medium">{events.length}</div>
+          </div>
+          <div className="bg-neutral-100 p-3">
+            <div className="text-neutral-600">linked</div>
+            <div className="font-medium">{linkedEventCount}</div>
+          </div>
+          <div className="bg-neutral-100 p-3">
+            <div className="text-neutral-600">sources</div>
+            <div className="font-medium">{sourceCount}</div>
+          </div>
         </div>
+
         {eventsQuery.isLoading && (
           <div className="text-sm text-neutral-600">Loading event log...</div>
         )}
@@ -110,10 +115,11 @@ export const LogsPage = () => {
             </TableBody>
           </Table>
         )}
-        <InfiniteScrollSentinel
-          hasNextPage={Boolean(eventsQuery.hasNextPage)}
-          isFetchingNextPage={eventsQuery.isFetchingNextPage}
-          onLoadMore={loadMoreEvents}
+        <ListPagination
+          count={count}
+          limit={EVENT_LIMIT}
+          offset={offset}
+          onOffsetChange={setOffset}
         />
       </section>
 

@@ -1,4 +1,5 @@
 import { InfiniteScrollSentinel } from "@/components/infinite-scroll-sentinel";
+import { PageHeader } from "@/components/page-header";
 import {
   NotificationBadge,
   SeverityBadge,
@@ -71,12 +72,10 @@ export const AlertsPage = () => {
 
   return (
     <div className="space-y-7">
-      <div>
-        <h1 className="text-base font-medium">Alerts</h1>
-        <p className="text-sm text-neutral-600">
-          Review notification channels, effective alert behavior, and delivery attempts.
-        </p>
-      </div>
+      <PageHeader
+        title="Alerts"
+        description="Review notification channels, effective alert behavior, and delivery attempts."
+      />
 
       <section className="space-y-3">
         <div>
