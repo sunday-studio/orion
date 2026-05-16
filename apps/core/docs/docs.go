@@ -1537,7 +1537,7 @@ const docTemplate = `{
         },
         "/v1/incidents/candidates": {
             "get": {
-                "description": "Get a list of monitors that are candidates for incidents based on health status and recent reports",
+                "description": "Get a list of monitors that are candidates for incidents based on failing health status or stale reports",
                 "consumes": [
                     "application/json"
                 ],

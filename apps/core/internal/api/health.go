@@ -175,7 +175,7 @@ func (s *Server) getHealthIssues(c *gin.Context) {
 
 // getIncidentCandidates retrieves monitors that are candidates for incidents
 // @Summary      Get incident candidates
-// @Description  Get a list of monitors that are candidates for incidents based on health status and recent reports
+// @Description  Get a list of monitors that are candidates for incidents based on failing health status or stale reports
 // @Tags         health
 // @Accept       json
 // @Produce      json
@@ -196,6 +196,7 @@ func (s *Server) getIncidentCandidates(c *gin.Context) {
 	}
 
 	var candidates []gin.H
+	candidateMonitorIDs := map[string]struct{}{}
 
 	// Check each monitor for incident candidates (down or degraded)
 	for _, monitor := range monitors {
@@ -244,7 +245,40 @@ func (s *Server) getIncidentCandidates(c *gin.Context) {
 					"agent_name":   agent.Name,
 					"down_count":   downCount,
 				})
+				candidateMonitorIDs[monitor.ID] = struct{}{}
 			}
+		}
+	}
+
+	staleMonitors, err := healthService.DetectStaleMonitors(config)
+	if err != nil {
+		s.logger.Error("Failed to detect stale incident candidates", "error", err)
+	} else {
+		for _, monitor := range staleMonitors {
+			if _, exists := candidateMonitorIDs[monitor.ID]; exists {
+				continue
+			}
+
+			var agent db.Agent
+			if err := s.db.Where("id = ?", monitor.AgentID).First(&agent).Error; err != nil {
+				continue
+			}
+			if agent.MaintenanceMode {
+				continue
+			}
+
+			candidates = append(candidates, gin.H{
+				"monitor_id":   monitor.ID,
+				"monitor_name": monitor.Name,
+				"monitor_type": monitor.Type,
+				"health":       "stale",
+				"issue_type":   "stale_data",
+				"severity":     "high",
+				"agent_id":     monitor.AgentID,
+				"agent_name":   agent.Name,
+				"down_count":   0,
+			})
+			candidateMonitorIDs[monitor.ID] = struct{}{}
 		}
 	}
 

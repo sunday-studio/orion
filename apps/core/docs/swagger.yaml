@@ -1672,7 +1672,7 @@ paths:
       consumes:
       - application/json
       description: Get a list of monitors that are candidates for incidents based
-        on health status and recent reports
+        on failing health status or stale reports
       operationId: getIncidentsCandidates
       produces:
       - application/json

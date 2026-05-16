@@ -421,6 +421,75 @@ func TestMaintenanceSuppressesIncidentCandidates(t *testing.T) {
 	assertIncidentCandidateCount(t, afterMaintenance, 0)
 }
 
+func TestIncidentCandidatesIncludeStaleMonitors(t *testing.T) {
+	server := setupTestServer(t)
+	agent := db.Agent{
+		ID:        "agent-stale-candidate",
+		MachineId: "machine-stale-candidate",
+		Name:      "stale candidate",
+		OS:        "linux",
+		Arch:      "arm64",
+		Token:     "token-stale-candidate",
+		LastSeen:  time.Now(),
+	}
+	if err := server.db.Create(&agent).Error; err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+
+	monitor := db.Monitor{
+		ID:                       "monitor-stale-candidate",
+		AgentID:                  agent.ID,
+		Name:                     "stale monitor",
+		Type:                     "http",
+		Lifecycle:                "active",
+		Health:                   "up",
+		ComputedHealth:           "up",
+		ReportingIntervalSeconds: 60,
+	}
+	if err := server.db.Create(&monitor).Error; err != nil {
+		t.Fatalf("create monitor: %v", err)
+	}
+
+	oldTimestamp := time.Now().Add(-30 * time.Minute)
+	report := db.MonitorReport{
+		ID:          "monitor-report-stale-candidate",
+		MonitorID:   monitor.ID,
+		Payload:     "{}",
+		CollectedAt: oldTimestamp.UTC().Format(time.RFC3339),
+		Health:      "up",
+		CreatedAt:   oldTimestamp,
+	}
+	if err := server.db.Create(&report).Error; err != nil {
+		t.Fatalf("create monitor report: %v", err)
+	}
+
+	candidatesResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents/candidates", nil, "")
+	if candidatesResp.Code != http.StatusOK {
+		t.Fatalf("incident candidates status = %d, body = %s", candidatesResp.Code, candidatesResp.Body.String())
+	}
+
+	var candidates struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Candidates []struct {
+				MonitorID string `json:"monitor_id"`
+				Health    string `json:"health"`
+				Severity  string `json:"severity"`
+				IssueType string `json:"issue_type"`
+			} `json:"candidates"`
+			Count int `json:"count"`
+		} `json:"data"`
+	}
+	decodeResponse(t, candidatesResp, &candidates)
+	if !candidates.Success || candidates.Data.Count != 1 || len(candidates.Data.Candidates) != 1 {
+		t.Fatalf("incident candidates = %+v, want one stale candidate", candidates)
+	}
+	candidate := candidates.Data.Candidates[0]
+	if candidate.MonitorID != monitor.ID || candidate.Health != "stale" || candidate.Severity != "high" || candidate.IssueType != "stale_data" {
+		t.Fatalf("stale candidate = %+v, want monitor stale high stale_data", candidate)
+	}
+}
+
 func TestMonitorReportsOpenAndResolveIncident(t *testing.T) {
 	server := setupTestServer(t)
 	registered := registerTestAgent(t, server)
