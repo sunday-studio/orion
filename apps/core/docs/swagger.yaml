@@ -1485,6 +1485,8 @@ paths:
                           type: integer
                         down:
                           type: integer
+                        stale:
+                          type: integer
                         total:
                           type: integer
                         unknown:

@@ -582,6 +582,117 @@ func TestAgentHealthReturnsStoredMonitorCountsForStaleAgent(t *testing.T) {
 	}
 }
 
+func TestSystemHealthSeparatesStaleMonitorCounts(t *testing.T) {
+	server := setupTestServer(t)
+	agent := db.Agent{
+		ID:        "agent-system-health-stale",
+		MachineId: "machine-system-health-stale",
+		Name:      "system health stale",
+		OS:        "linux",
+		Arch:      "arm64",
+		Token:     "token-system-health-stale",
+		LastSeen:  time.Now(),
+	}
+	if err := server.db.Create(&agent).Error; err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+
+	monitors := []db.Monitor{
+		{
+			ID:        "monitor-system-health-up",
+			AgentID:   agent.ID,
+			Name:      "fresh monitor",
+			Type:      "http",
+			Lifecycle: "active",
+			Health:    "up",
+		},
+		{
+			ID:        "monitor-system-health-stale",
+			AgentID:   agent.ID,
+			Name:      "stale monitor",
+			Type:      "http",
+			Lifecycle: "active",
+			Health:    "up",
+		},
+	}
+	if err := server.db.Create(&monitors).Error; err != nil {
+		t.Fatalf("create monitors: %v", err)
+	}
+
+	freshTime := time.Now().UTC()
+	oldTime := freshTime.Add(-30 * time.Minute)
+	reports := []db.MonitorReport{
+		{
+			ID:          "monitor-report-system-health-up",
+			MonitorID:   "monitor-system-health-up",
+			Payload:     "{}",
+			CollectedAt: freshTime.Format(time.RFC3339),
+			Health:      "up",
+			CreatedAt:   freshTime,
+		},
+		{
+			ID:          "monitor-report-system-health-stale",
+			MonitorID:   "monitor-system-health-stale",
+			Payload:     "{}",
+			CollectedAt: oldTime.Format(time.RFC3339),
+			Health:      "up",
+			CreatedAt:   oldTime,
+		},
+	}
+	if err := server.db.Create(&reports).Error; err != nil {
+		t.Fatalf("create reports: %v", err)
+	}
+
+	resp := performJSONRequest(t, server, http.MethodGet, "/v1/health/summary", nil, "")
+	if resp.Code != http.StatusOK {
+		t.Fatalf("health summary status = %d, body = %s", resp.Code, resp.Body.String())
+	}
+
+	var summary struct {
+		Success bool `json:"success"`
+		Data    struct {
+			OverallHealth string `json:"overall_health"`
+			Monitors      struct {
+				Up      int `json:"up"`
+				Unknown int `json:"unknown"`
+				Stale   int `json:"stale"`
+			} `json:"monitors"`
+		} `json:"data"`
+	}
+	decodeResponse(t, resp, &summary)
+	if !summary.Success || summary.Data.OverallHealth != "stale" {
+		t.Fatalf("summary = %+v, want overall stale", summary)
+	}
+	if summary.Data.Monitors.Up != 1 || summary.Data.Monitors.Stale != 1 || summary.Data.Monitors.Unknown != 0 {
+		t.Fatalf("monitor counts = %+v, want up 1 stale 1 unknown 0", summary.Data.Monitors)
+	}
+
+	issuesResp := performJSONRequest(t, server, http.MethodGet, "/v1/health/issues", nil, "")
+	if issuesResp.Code != http.StatusOK {
+		t.Fatalf("health issues status = %d, body = %s", issuesResp.Code, issuesResp.Body.String())
+	}
+
+	var issues struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Issues []struct {
+				MonitorID string `json:"monitor_id"`
+				Health    string `json:"health"`
+				IssueType string `json:"issue_type"`
+			} `json:"issues"`
+			Count int `json:"count"`
+		} `json:"data"`
+	}
+	decodeResponse(t, issuesResp, &issues)
+	if !issues.Success || issues.Data.Count != 1 || len(issues.Data.Issues) != 1 {
+		t.Fatalf("health issues = %+v, want one stale issue", issues)
+	}
+	issue := issues.Data.Issues[0]
+	if issue.MonitorID != "monitor-system-health-stale" || issue.Health != "stale" || issue.IssueType != "stale_data" {
+		t.Fatalf("health issue = %+v, want stale monitor issue", issue)
+	}
+}
+
 func TestListMonitorsCountMatchesFilters(t *testing.T) {
 	server := setupTestServer(t)
 	agent := db.Agent{

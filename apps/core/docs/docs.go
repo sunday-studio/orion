@@ -1407,6 +1407,9 @@ const docTemplate = `{
                                                         "down": {
                                                             "type": "integer"
                                                         },
+                                                        "stale": {
+                                                            "type": "integer"
+                                                        },
                                                         "total": {
                                                             "type": "integer"
                                                         },

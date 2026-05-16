@@ -16,7 +16,7 @@ import (
 // @Accept       json
 // @Produce      json
 // @ID           getHealthSummary
-// @Success      200  {object}  utils.APIResponse{data=object{overall_health=string,agents=object{total=int},monitors=object{total=int,up=int,down=int,degraded=int,unknown=int}}}
+// @Success      200  {object}  utils.APIResponse{data=object{overall_health=string,agents=object{total=int},monitors=object{total=int,up=int,down=int,degraded=int,unknown=int,stale=int}}}
 // @Failure      500  {object}  utils.APIResponse
 // @Router       /v1/health/summary [get]
 func (s *Server) getSystemHealth(c *gin.Context) {
@@ -37,6 +37,7 @@ func (s *Server) getSystemHealth(c *gin.Context) {
 	downCount := 0
 	degradedCount := 0
 	unknownCount := 0
+	staleCount := 0
 
 	// Get all active monitors
 	var monitors []db.Monitor
@@ -48,8 +49,23 @@ func (s *Server) getSystemHealth(c *gin.Context) {
 
 	totalMonitors = len(monitors)
 
+	staleMonitorIDs := map[string]struct{}{}
+	staleMonitors, err := healthService.DetectStaleMonitors(config)
+	if err != nil {
+		s.logger.Error("Failed to detect stale monitors", "error", err)
+	} else {
+		for _, monitor := range staleMonitors {
+			staleMonitorIDs[monitor.ID] = struct{}{}
+		}
+	}
+
 	// Compute health for each monitor
 	for _, monitor := range monitors {
+		if _, stale := staleMonitorIDs[monitor.ID]; stale {
+			staleCount++
+			continue
+		}
+
 		computedHealth, err := healthService.ComputeMonitorHealth(monitor.ID, config)
 		if err != nil {
 			unknownCount++
@@ -74,6 +90,8 @@ func (s *Server) getSystemHealth(c *gin.Context) {
 		overallHealth = "down"
 	} else if degradedCount > 0 {
 		overallHealth = "degraded"
+	} else if staleCount > 0 {
+		overallHealth = "stale"
 	} else if unknownCount > 0 {
 		overallHealth = "unknown"
 	} else {
@@ -91,6 +109,7 @@ func (s *Server) getSystemHealth(c *gin.Context) {
 			"down":     downCount,
 			"degraded": degradedCount,
 			"unknown":  unknownCount,
+			"stale":    staleCount,
 		},
 	})
 }
@@ -159,7 +178,7 @@ func (s *Server) getHealthIssues(c *gin.Context) {
 				"monitor_id":   monitor.ID,
 				"monitor_name": monitor.Name,
 				"monitor_type": monitor.Type,
-				"health":       "unknown",
+				"health":       "stale",
 				"issue_type":   "stale_data",
 				"agent_id":     monitor.AgentID,
 				"agent_name":   agent.Name,
