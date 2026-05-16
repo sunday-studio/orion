@@ -68,6 +68,7 @@ export const MonitorList = ({ agentId }: { agentId: string }) => {
         data={monitors}
         emptyMessage="No monitors registered."
         getRowId={(monitor) => monitor.id ?? ""}
+        variant="contained"
       />
       <ListPagination
         count={count}
