@@ -169,6 +169,7 @@ func (s *Server) getMonitorDetail(c *gin.Context) {
 		// Don't fail if health computation fails
 		computedHealth = monitor.Health
 	}
+	monitor.ComputedHealth = computedHealth
 
 	utils.SuccessResponse(c, 200, "Monitor retrieved successfully", gin.H{
 		"monitor":         monitorResponse(*monitor),
@@ -189,6 +190,7 @@ func (s *Server) getMonitorDetail(c *gin.Context) {
 // @Param        offset  query     int     false  "Number of reports to skip" default(0)
 // @Success      200     {object}  utils.APIResponse{data=object{reports=[]MonitorReportResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta}}
 // @Failure      400     {object}  utils.APIResponse
+// @Failure      404     {object}  utils.APIResponse
 // @Failure      500     {object}  utils.APIResponse
 // @Router       /v1/monitors/{id}/history [get]
 func (s *Server) getMonitorHistory(c *gin.Context) {
@@ -200,6 +202,11 @@ func (s *Server) getMonitorHistory(c *gin.Context) {
 
 	limit := queryInt(c, "limit", 50)
 	offset := queryInt(c, "offset", 0)
+
+	if _, err := s.monitorService.GetMonitor(monitorID); err != nil {
+		utils.NotFound(c, "Monitor not found")
+		return
+	}
 
 	reports, err := s.reportService.GetMonitorReports(monitorID, limit, offset)
 	if err != nil {

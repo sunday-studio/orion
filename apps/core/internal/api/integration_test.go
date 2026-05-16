@@ -177,6 +177,63 @@ func TestRegisterMonitorReportHistoryFlow(t *testing.T) {
 	}
 }
 
+func TestMonitorDetailReturnsConsistentComputedHealth(t *testing.T) {
+	server := setupTestServer(t)
+	registered := registerTestAgent(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+
+	staleComputation := time.Now().Add(-10 * time.Minute)
+	if err := server.db.Model(&db.Monitor{}).
+		Where("id = ?", registeredMonitor.Data.MonitorID).
+		Updates(map[string]interface{}{
+			"health":                  "down",
+			"computed_health":         "up",
+			"last_health_computation": staleComputation,
+		}).Error; err != nil {
+		t.Fatalf("update monitor health cache: %v", err)
+	}
+
+	report := db.MonitorReport{
+		ID:          "monitor-report-computed-detail",
+		MonitorID:   registeredMonitor.Data.MonitorID,
+		Payload:     "{}",
+		CollectedAt: time.Now().UTC().Format(time.RFC3339),
+		Health:      "down",
+		CreatedAt:   time.Now(),
+	}
+	if err := server.db.Create(&report).Error; err != nil {
+		t.Fatalf("create monitor report: %v", err)
+	}
+
+	detailResp := performJSONRequest(t, server, http.MethodGet, "/v1/monitors/"+registeredMonitor.Data.MonitorID, nil, "")
+	if detailResp.Code != http.StatusOK {
+		t.Fatalf("monitor detail status = %d, body = %s", detailResp.Code, detailResp.Body.String())
+	}
+
+	var detail struct {
+		Success bool `json:"success"`
+		Data    struct {
+			ComputedHealth string `json:"computed_health"`
+			Monitor        struct {
+				ComputedHealth string `json:"computed_health"`
+			} `json:"monitor"`
+		} `json:"data"`
+	}
+	decodeResponse(t, detailResp, &detail)
+	if !detail.Success || detail.Data.ComputedHealth != "down" || detail.Data.Monitor.ComputedHealth != "down" {
+		t.Fatalf("monitor detail health = %+v, want both computed health fields down", detail)
+	}
+}
+
+func TestMonitorHistoryReturnsNotFoundForUnknownMonitor(t *testing.T) {
+	server := setupTestServer(t)
+
+	historyResp := performJSONRequest(t, server, http.MethodGet, "/v1/monitors/monitor-missing/history", nil, "")
+	if historyResp.Code != http.StatusNotFound {
+		t.Fatalf("monitor history status = %d, body = %s, want 404", historyResp.Code, historyResp.Body.String())
+	}
+}
+
 func TestAgentHealthReturnsStoredMonitorCountsForStaleAgent(t *testing.T) {
 	server := setupTestServer(t)
 	agent := db.Agent{
