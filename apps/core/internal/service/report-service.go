@@ -327,8 +327,12 @@ func (s *ReportService) getMonitorUptime(monitorID string, period string, now ti
 	return &UptimeResult{DailyBuckets: daily, UptimePercent: pct}, nil
 }
 
-// GetAgentUptime aggregates uptime from the agent's monitors (average of each monitor's uptime_percent).
+// GetAgentUptime aggregates uptime from the agent's active monitors.
 func (s *ReportService) GetAgentUptime(agentID string, period string) (*UptimeResult, error) {
+	return s.getAgentUptime(agentID, period, time.Now())
+}
+
+func (s *ReportService) getAgentUptime(agentID string, period string, now time.Time) (*UptimeResult, error) {
 	var monitorIDs []string
 	if err := s.db.Model(&db.Monitor{}).Where("agent_id = ? AND lifecycle = ?", agentID, "active").Pluck("id", &monitorIDs).Error; err != nil {
 		s.logger.Error("Failed to list monitors for agent uptime", "agent_id", agentID, "error", err)
@@ -336,44 +340,61 @@ func (s *ReportService) GetAgentUptime(agentID string, period string) (*UptimeRe
 	}
 
 	if len(monitorIDs) == 0 {
-		days := parsePeriod(period)
-		var daily []UptimeDayBucket
-		for d := 0; d < days; d++ {
-			dt := time.Now().AddDate(0, 0, -days+d)
-			daily = append(daily, UptimeDayBucket{Date: dt.Format("2006-01-02"), Up: 0, Total: 0, UptimePercent: 0})
-		}
-		return &UptimeResult{DailyBuckets: daily, UptimePercent: 0}, nil
+		return &UptimeResult{DailyBuckets: emptyUptimeBuckets(period, now), UptimePercent: 0}, nil
 	}
 
-	var sumPct float64
-	var first *UptimeResult
+	dailyByDate := make(map[string]*UptimeDayBucket)
+	var totalUp, totalCount int
 	for _, mid := range monitorIDs {
-		res, err := s.GetMonitorUptime(mid, period)
+		res, err := s.getMonitorUptime(mid, period, now)
 		if err != nil {
 			continue
 		}
-		if first == nil {
-			first = res
+
+		for _, bucket := range res.DailyBuckets {
+			agentBucket := dailyByDate[bucket.Date]
+			if agentBucket == nil {
+				agentBucket = &UptimeDayBucket{Date: bucket.Date}
+				dailyByDate[bucket.Date] = agentBucket
+			}
+			agentBucket.Up += bucket.Up
+			agentBucket.Total += bucket.Total
+			totalUp += bucket.Up
+			totalCount += bucket.Total
 		}
-		sumPct += res.UptimePercent
 	}
 
-	avg := 0.0
-	if len(monitorIDs) > 0 {
-		avg = sumPct / float64(len(monitorIDs))
-	}
-
-	// Use first monitor's daily_buckets as shape; we could average each day across monitors but that's heavier.
-	// For agent we aggregate by average of overall uptime; daily_buckets can mirror one monitor or be simplified.
-	if first == nil {
-		days := parsePeriod(period)
-		var daily []UptimeDayBucket
-		for d := 0; d < days; d++ {
-			dt := time.Now().AddDate(0, 0, -days+d)
-			daily = append(daily, UptimeDayBucket{Date: dt.Format("2006-01-02"), Up: 0, Total: 0, UptimePercent: 0})
+	days := parsePeriod(period)
+	since := now.AddDate(0, 0, -days)
+	daily := make([]UptimeDayBucket, 0, days)
+	for d := 0; d < days; d++ {
+		dateKey := since.AddDate(0, 0, d).Format("2006-01-02")
+		bucket := UptimeDayBucket{Date: dateKey}
+		if aggregated := dailyByDate[dateKey]; aggregated != nil {
+			bucket.Up = aggregated.Up
+			bucket.Total = aggregated.Total
+			if bucket.Total > 0 {
+				bucket.UptimePercent = 100 * float64(bucket.Up) / float64(bucket.Total)
+			}
 		}
-		return &UptimeResult{DailyBuckets: daily, UptimePercent: avg}, nil
+		daily = append(daily, bucket)
 	}
 
-	return &UptimeResult{DailyBuckets: first.DailyBuckets, UptimePercent: avg}, nil
+	pct := 0.0
+	if totalCount > 0 {
+		pct = 100 * float64(totalUp) / float64(totalCount)
+	}
+
+	return &UptimeResult{DailyBuckets: daily, UptimePercent: pct}, nil
+}
+
+func emptyUptimeBuckets(period string, now time.Time) []UptimeDayBucket {
+	days := parsePeriod(period)
+	since := now.AddDate(0, 0, -days)
+	daily := make([]UptimeDayBucket, 0, days)
+	for d := 0; d < days; d++ {
+		dt := since.AddDate(0, 0, d)
+		daily = append(daily, UptimeDayBucket{Date: dt.Format("2006-01-02")})
+	}
+	return daily
 }
