@@ -144,10 +144,10 @@ export const AgentDetailPage = () => {
       />
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-        <TabsList variant="line">
-          <TabsTrigger value="logs">Logs</TabsTrigger>
+        <TabsList>
+          <TabsTrigger value="logs">Agent Reports</TabsTrigger>
           <TabsTrigger value="monitors">Monitors</TabsTrigger>
-          <TabsTrigger value="cpu">System</TabsTrigger>
+          <TabsTrigger value="cpu">System Metrics</TabsTrigger>
         </TabsList>
 
         <TabsContent value="logs">
