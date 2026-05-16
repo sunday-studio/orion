@@ -765,6 +765,36 @@ func TestListMonitorsCountMatchesFilters(t *testing.T) {
 	if err := server.db.Create(&monitors).Error; err != nil {
 		t.Fatalf("create monitors: %v", err)
 	}
+	reportTime := time.Now().UTC()
+	reports := []db.MonitorReport{
+		{
+			ID:          "monitor-report-filter-up",
+			MonitorID:   "monitor-filter-up",
+			Payload:     "{}",
+			CollectedAt: reportTime.Format(time.RFC3339),
+			Health:      "up",
+			CreatedAt:   reportTime,
+		},
+		{
+			ID:          "monitor-report-filter-down",
+			MonitorID:   "monitor-filter-down",
+			Payload:     "{}",
+			CollectedAt: reportTime.Format(time.RFC3339),
+			Health:      "down",
+			CreatedAt:   reportTime,
+		},
+		{
+			ID:          "monitor-report-filter-disabled-down",
+			MonitorID:   "monitor-filter-disabled-down",
+			Payload:     "{}",
+			CollectedAt: reportTime.Format(time.RFC3339),
+			Health:      "down",
+			CreatedAt:   reportTime,
+		},
+	}
+	if err := server.db.Create(&reports).Error; err != nil {
+		t.Fatalf("create monitor reports: %v", err)
+	}
 
 	downResp := performJSONRequest(t, server, http.MethodGet, "/v1/agents/"+agent.ID+"/monitors?health=down", nil, "")
 	if downResp.Code != http.StatusOK {

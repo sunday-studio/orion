@@ -7,7 +7,6 @@ import (
 	"orion/core/internal/config"
 	"orion/core/internal/logging"
 	"orion/core/internal/service"
-	"orion/core/web"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -139,15 +138,8 @@ func (s *Server) setupRoutes() {
 		}
 	}
 
-	// SPA: serve the embedded Console bundle from apps/core/web.
-	s.router.StaticFS("/assets", web.Assets())
 	s.router.NoRoute(func(c *gin.Context) {
-		index, err := web.Index()
-		if err != nil {
-			c.Status(http.StatusNotFound)
-			return
-		}
-		c.Data(http.StatusOK, "text/html; charset=utf-8", index)
+		c.Status(http.StatusNotFound)
 	})
 }
 

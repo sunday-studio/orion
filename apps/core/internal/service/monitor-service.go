@@ -182,7 +182,12 @@ func (s *MonitorService) createNewMonitor(req *RegisterMonitorRequest) (*Registe
 func (s *MonitorService) ListMonitors(agentID string, healthFilter string, lifecycleFilter string, limit int, offset int) ([]db.Monitor, error) {
 	var monitors []db.Monitor
 
-	query := s.applyMonitorListFilters(s.db, agentID, healthFilter, lifecycleFilter)
+	staleMonitorIDs, err := s.staleMonitorIDs()
+	if err != nil {
+		s.logger.Error("Failed to load stale monitor IDs", "error", err)
+		return nil, err
+	}
+	query := s.applyMonitorListFilters(s.db, agentID, healthFilter, lifecycleFilter, staleMonitorIDs)
 
 	query = query.Order("created_at DESC")
 
@@ -199,13 +204,8 @@ func (s *MonitorService) ListMonitors(agentID string, healthFilter string, lifec
 		return nil, err
 	}
 
-	monitors, err := s.monitorsWithDerivedHealth(monitors)
-	if err != nil {
-		return nil, err
-	}
-
 	s.logger.Debug("Retrieved monitors", "agent_id", agentID, "count", len(monitors))
-	return monitors, nil
+	return monitorsWithDerivedStaleHealth(monitors, staleMonitorIDs), nil
 }
 
 func (s *MonitorService) ListAllMonitors(opts ListAllMonitorsOpts) ([]db.Monitor, int64, error) {
@@ -322,18 +322,35 @@ func (s *MonitorService) GetMonitor(monitorID string) (*db.Monitor, error) {
 
 func (s *MonitorService) GetMonitorCount(agentID string, healthFilter string, lifecycleFilter string) (int64, error) {
 	var count int64
-	if err := s.applyMonitorListFilters(s.db.Model(&db.Monitor{}), agentID, healthFilter, lifecycleFilter).Count(&count).Error; err != nil {
+	staleMonitorIDs, err := s.staleMonitorIDs()
+	if err != nil {
+		s.logger.Error("Failed to load stale monitor IDs", "error", err)
+		return 0, err
+	}
+	if err := s.applyMonitorListFilters(s.db.Model(&db.Monitor{}), agentID, healthFilter, lifecycleFilter, staleMonitorIDs).Count(&count).Error; err != nil {
 		s.logger.Error("Failed to count monitors", "agent_id", agentID, "error", err)
 		return 0, err
 	}
 	return count, nil
 }
 
-func (s *MonitorService) applyMonitorListFilters(query *gorm.DB, agentID string, healthFilter string, lifecycleFilter string) *gorm.DB {
+func (s *MonitorService) applyMonitorListFilters(query *gorm.DB, agentID string, healthFilter string, lifecycleFilter string, staleMonitorIDs []string) *gorm.DB {
 	query = query.Where("agent_id = ?", agentID)
 
 	if healthFilter != "" {
-		query = query.Where("health = ?", healthFilter)
+		health := strings.ToLower(strings.TrimSpace(healthFilter))
+		if health == "stale" {
+			if len(staleMonitorIDs) == 0 {
+				query = query.Where("1 = 0")
+			} else {
+				query = query.Where("id IN ?", staleMonitorIDs)
+			}
+		} else {
+			query = query.Where("health = ?", healthFilter)
+			if len(staleMonitorIDs) > 0 {
+				query = query.Where("id NOT IN ?", staleMonitorIDs)
+			}
+		}
 	}
 
 	if lifecycleFilter != "" {
