@@ -75,7 +75,7 @@ export const AgentList = () => {
 
   return (
     <div className="space-y-3">
-      <AgentFilters
+      {/* <AgentFilters
         search={search}
         status={status}
         selectedAttentionFilters={selectedAttentionFilters}
@@ -84,7 +84,7 @@ export const AgentList = () => {
         onStatusChange={setStatus}
         onAttentionFiltersChange={setAttentionFilters}
         onClear={clearFilters}
-      />
+      /> */}
       {agentsResponse.isLoading && (
         <div className="py-3 text-sm text-neutral-600">Loading agents...</div>
       )}

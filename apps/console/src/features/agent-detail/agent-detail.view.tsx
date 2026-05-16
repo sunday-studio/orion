@@ -29,10 +29,10 @@ const asLatestReport = (value: unknown): ApiAgentReportResponse => {
 };
 
 export const AgentDetailPage = () => {
-  const { agentId = "", serverId = "" } = useParams();
+  const { agentId = "" } = useParams();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const currentAgentId = agentId || serverId;
+  const currentAgentId = agentId;
   const selectedTab = searchParams.get("tab");
   const highlightedIncidentId = searchParams.get("incident") ?? "";
   const activeTab = isAgentDetailTab(selectedTab) ? selectedTab : "logs";

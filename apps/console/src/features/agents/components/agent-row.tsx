@@ -51,8 +51,14 @@ export const AgentRow = ({ agent }: { agent: ApiAgentResponse }) => {
         </Link>
       </div>
       {agent.id && showMonitors && (
-        <div className="py-2 pl-7">
-          <MonitorList agentId={agent.id} />
+        <div className="outline outline-neutral-200 rounded-md overflow-hidden">
+          <div className="px-3 py-2 bg-neutral-100">
+            <p>Monitors</p>
+          </div>
+
+          <div className="outline outline-neutral-200">
+            <MonitorList agentId={agent.id} />
+          </div>
         </div>
       )}
     </div>

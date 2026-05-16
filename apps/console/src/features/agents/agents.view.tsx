@@ -1,5 +1,5 @@
 import { PageHeader } from "@/components/page-header";
-import { AgentList } from "@/features/servers/components/agent-list";
+import { AgentList } from "@/features/agents/components/agent-list";
 
 export const AgentsPage = () => {
   return (
