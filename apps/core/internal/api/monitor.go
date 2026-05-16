@@ -288,11 +288,15 @@ func (s *Server) getMonitorDetail(c *gin.Context) {
 	// Compute derived health
 	healthService := service.NewHealthService(s.db, s.logger)
 	config := service.DefaultHealthConfig()
-	computedHealth, err := healthService.ComputeMonitorHealth(monitorID, config)
-	if err != nil {
-		s.logger.Error("Failed to compute monitor health", "error", err, "monitor_id", monitorID)
-		// Don't fail if health computation fails
-		computedHealth = monitor.Health
+	computedHealth := monitor.Health
+	if monitor.Health != "stale" {
+		var err error
+		computedHealth, err = healthService.ComputeMonitorHealth(monitorID, config)
+		if err != nil {
+			s.logger.Error("Failed to compute monitor health", "error", err, "monitor_id", monitorID)
+			// Don't fail if health computation fails
+			computedHealth = monitor.Health
+		}
 	}
 	monitor.ComputedHealth = computedHealth
 

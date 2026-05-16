@@ -914,7 +914,7 @@ func TestListAllMonitorsAndSummaryUseDerivedStaleState(t *testing.T) {
 		} `json:"data"`
 	}
 	decodeResponse(t, downResp, &listed)
-	if !listed.Success || listed.Data.Count != 1 || listed.Data.Monitors[0].ID != "monitor-all-down" || listed.Data.Monitors[0].AgentName != agent.Name {
+	if !listed.Success || listed.Data.Count != 1 || listed.Data.Monitors[0].ID != "monitor-all-down" || listed.Data.Monitors[0].Health != "down" || listed.Data.Monitors[0].AgentName != agent.Name {
 		t.Fatalf("down monitor list = %+v, want fresh down monitor with agent name", listed)
 	}
 
@@ -934,6 +934,26 @@ func TestListAllMonitorsAndSummaryUseDerivedStaleState(t *testing.T) {
 	decodeResponse(t, staleResp, &listed)
 	if !listed.Success || listed.Data.Count != 1 || listed.Data.Monitors[0].ID != "monitor-all-stale" || listed.Data.Monitors[0].Health != "stale" {
 		t.Fatalf("stale monitor list = %+v, want stale monitor with stale health", listed)
+	}
+
+	detailResp := performJSONRequest(t, server, http.MethodGet, "/v1/monitors/monitor-all-stale", nil, "")
+	if detailResp.Code != http.StatusOK {
+		t.Fatalf("stale monitor detail status = %d, body = %s", detailResp.Code, detailResp.Body.String())
+	}
+	var detail struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Monitor struct {
+				ID             string `json:"id"`
+				Health         string `json:"health"`
+				ComputedHealth string `json:"computed_health"`
+			} `json:"monitor"`
+			ComputedHealth string `json:"computed_health"`
+		} `json:"data"`
+	}
+	decodeResponse(t, detailResp, &detail)
+	if !detail.Success || detail.Data.Monitor.ID != "monitor-all-stale" || detail.Data.Monitor.Health != "stale" || detail.Data.Monitor.ComputedHealth != "stale" || detail.Data.ComputedHealth != "stale" {
+		t.Fatalf("stale monitor detail = %+v, want stale health", detail)
 	}
 }
 

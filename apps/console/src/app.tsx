@@ -9,6 +9,7 @@ import { AlertsPage } from "@/features/alerts/alerts.view";
 import { LogsPage } from "@/features/event-log/logs.view";
 import { AgentsPage } from "@/features/agents/agents.view";
 import { SettingsPage } from "@/features/settings/settings.view";
+import { MonitorsPage } from "@/features/monitors/monitors.view";
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
         <Route path="agents/:agentId" element={<AgentDetailPage />} />
         <Route path="servers" element={<Navigate to="/agents" replace />} />
         <Route path="servers/:agentId" element={<AgentDetailPage />} />
+        <Route path="monitors" element={<MonitorsPage />} />
         <Route path="monitors/:monitorId" element={<MonitorDetailPage />} />
         <Route path="incidents/:incidentId" element={<IncidentDetailPage />} />
         <Route path="settings" element={<SettingsPage />} />

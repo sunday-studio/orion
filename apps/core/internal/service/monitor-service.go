@@ -199,6 +199,11 @@ func (s *MonitorService) ListMonitors(agentID string, healthFilter string, lifec
 		return nil, err
 	}
 
+	monitors, err := s.monitorsWithDerivedHealth(monitors)
+	if err != nil {
+		return nil, err
+	}
+
 	s.logger.Debug("Retrieved monitors", "agent_id", agentID, "count", len(monitors))
 	return monitors, nil
 }
@@ -308,7 +313,11 @@ func (s *MonitorService) GetMonitor(monitorID string) (*db.Monitor, error) {
 		s.logger.Error("Failed to get monitor", "monitor_id", monitorID, "error", err)
 		return nil, err
 	}
-	return &monitor, nil
+	monitors, err := s.monitorsWithDerivedHealth([]db.Monitor{monitor})
+	if err != nil {
+		return nil, err
+	}
+	return &monitors[0], nil
 }
 
 func (s *MonitorService) GetMonitorCount(agentID string, healthFilter string, lifecycleFilter string) (int64, error) {
@@ -419,4 +428,13 @@ func monitorsWithDerivedStaleHealth(monitors []db.Monitor, staleMonitorIDs []str
 	}
 
 	return monitors
+}
+
+func (s *MonitorService) monitorsWithDerivedHealth(monitors []db.Monitor) ([]db.Monitor, error) {
+	staleMonitorIDs, err := s.staleMonitorIDs()
+	if err != nil {
+		s.logger.Error("Failed to derive monitor health", "error", err)
+		return nil, err
+	}
+	return monitorsWithDerivedStaleHealth(monitors, staleMonitorIDs), nil
 }
