@@ -183,6 +183,10 @@ func (s *Server) getAgentSummary(c *gin.Context) {
 			summary.Down++
 		case "degraded":
 			summary.Degraded++
+		case "maintenance":
+			// Maintenance is counted from agent state above and is not an unknown health state.
+		case "stale":
+			// Stale is counted from last_seen above and is not an unknown health state.
 		default:
 			summary.Unknown++
 		}
