@@ -1,9 +1,15 @@
 import { PageBreadcrumbs } from "@/components/page-breadcrumbs";
-import { type ApiIncidentResponse, useGetIncidents } from "@/orion-sdk";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { type ApiIncidentResponse, useGetIncident } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import { Link, useParams } from "react-router-dom";
-
-const INCIDENT_LOOKUP_LIMIT = 1000;
 
 const DetailItem = ({ label, value }: { label: string; value: string | number }) => (
   <div>
@@ -27,14 +33,17 @@ const durationLabel = (incident: ApiIncidentResponse) => {
 
 export const IncidentDetailPage = () => {
   const { incidentId = "" } = useParams();
-  const incidentsResponse = useGetIncidents({ limit: INCIDENT_LOOKUP_LIMIT });
-  const incident = (incidentsResponse.data?.incidents ?? []).find((item) => item.id === incidentId);
+  const incidentResponse = useGetIncident(incidentId);
+  const incident = incidentResponse.data?.incident;
+  const timeline = incidentResponse.data?.timeline ?? [];
+  const alertDeliveries = incidentResponse.data?.alert_deliveries ?? [];
+  const monitorReports = incidentResponse.data?.monitor_reports ?? [];
 
-  if (incidentsResponse.isLoading) {
+  if (incidentResponse.isLoading) {
     return <div className="py-3 text-sm text-neutral-600">Loading incident...</div>;
   }
 
-  if (incidentsResponse.error) {
+  if (incidentResponse.error) {
     return <div className="py-3 text-sm">Unable to load incident.</div>;
   }
 
@@ -105,6 +114,100 @@ export const IncidentDetailPage = () => {
             </Link>
           )}
         </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium">Timeline</h2>
+        {timeline.length === 0 && (
+          <div className="text-sm text-neutral-600">No timeline events recorded.</div>
+        )}
+        {timeline.length > 0 && (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Time</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Source</TableHead>
+                <TableHead>Message</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {timeline.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium">
+                    {formatDate(item.created_at, DATE_TIME_FORMAT)}
+                  </TableCell>
+                  <TableCell>{item.type ?? "unknown"}</TableCell>
+                  <TableCell>{item.source ?? "unknown"}</TableCell>
+                  <TableCell className="max-w-[28rem] truncate text-neutral-600">
+                    {item.message ?? "—"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium">Linked Data</h2>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <DetailItem label="alert deliveries" value={alertDeliveries.length} />
+          <DetailItem label="monitor reports" value={monitorReports.length} />
+          <DetailItem label="timeline events" value={timeline.length} />
+        </div>
+        {alertDeliveries.length > 0 && (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Time</TableHead>
+                <TableHead>Channel</TableHead>
+                <TableHead>Event</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Error</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {alertDeliveries.map((delivery) => (
+                <TableRow key={delivery.id}>
+                  <TableCell className="font-medium">
+                    {formatDate(delivery.created_at, DATE_TIME_FORMAT)}
+                  </TableCell>
+                  <TableCell>{delivery.channel ?? "none"}</TableCell>
+                  <TableCell>{delivery.event_type ?? "unknown"}</TableCell>
+                  <TableCell>{delivery.status ?? "unknown"}</TableCell>
+                  <TableCell className="max-w-[24rem] truncate text-neutral-600">
+                    {delivery.error ?? "—"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+        {monitorReports.length > 0 && (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Time</TableHead>
+                <TableHead>Health</TableHead>
+                <TableHead>Report ID</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {monitorReports.map((report) => (
+                <TableRow key={report.id}>
+                  <TableCell className="font-medium">
+                    {formatDate(report.created_at ?? report.collected_at, DATE_TIME_FORMAT)}
+                  </TableCell>
+                  <TableCell>{report.health ?? "unknown"}</TableCell>
+                  <TableCell className="max-w-[24rem] truncate text-neutral-600">
+                    {report.id ?? "—"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </section>
 
       <section className="space-y-3">

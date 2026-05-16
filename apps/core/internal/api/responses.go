@@ -88,6 +88,16 @@ type IncidentResponse struct {
 	UpdatedAt          time.Time  `json:"updated_at"`
 }
 
+// IncidentEventResponse represents an incident event in frontend API responses.
+type IncidentEventResponse struct {
+	ID              string    `json:"id"`
+	IncidentID      string    `json:"incident_id"`
+	Type            string    `json:"type"`
+	Message         string    `json:"message"`
+	MonitorReportID string    `json:"monitor_report_id"`
+	CreatedAt       time.Time `json:"created_at"`
+}
+
 // UptimeDayBucketResponse represents one daily uptime bucket.
 type UptimeDayBucketResponse struct {
 	Date          string  `json:"date"`
@@ -140,6 +150,31 @@ type AlertRuleResponse struct {
 	RecoveryNotificationEnabled   bool     `json:"recovery_notification_enabled"`
 	MaintenanceSuppressionEnabled bool     `json:"maintenance_suppression_enabled"`
 	TargetChannels                []string `json:"target_channels"`
+}
+
+// IncidentTimelineItemResponse represents a normalized incident timeline item.
+type IncidentTimelineItemResponse struct {
+	ID              string    `json:"id"`
+	Type            string    `json:"type"`
+	Source          string    `json:"source"`
+	Message         string    `json:"message"`
+	MonitorReportID string    `json:"monitor_report_id,omitempty"`
+	AlertDeliveryID string    `json:"alert_delivery_id,omitempty"`
+	Channel         string    `json:"channel,omitempty"`
+	Status          string    `json:"status,omitempty"`
+	CreatedAt       time.Time `json:"created_at"`
+}
+
+// OrionEventResponse represents an operational Core event derived from stored records.
+type OrionEventResponse struct {
+	ID         string    `json:"id"`
+	Type       string    `json:"type"`
+	Source     string    `json:"source"`
+	Message    string    `json:"message"`
+	AgentID    string    `json:"agent_id,omitempty"`
+	MonitorID  string    `json:"monitor_id,omitempty"`
+	IncidentID string    `json:"incident_id,omitempty"`
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 func agentResponse(agent db.Agent) AgentResponse {
@@ -264,6 +299,25 @@ func incidentResponse(incident db.Incident, agent db.Agent, monitor db.Monitor) 
 		CreatedAt:          incident.CreatedAt,
 		UpdatedAt:          incident.UpdatedAt,
 	}
+}
+
+func incidentEventResponse(event db.IncidentEvent) IncidentEventResponse {
+	return IncidentEventResponse{
+		ID:              event.ID,
+		IncidentID:      event.IncidentID,
+		Type:            event.Type,
+		Message:         event.Message,
+		MonitorReportID: event.MonitorReportID,
+		CreatedAt:       event.CreatedAt,
+	}
+}
+
+func incidentEventResponses(events []db.IncidentEvent) []IncidentEventResponse {
+	responses := make([]IncidentEventResponse, 0, len(events))
+	for _, event := range events {
+		responses = append(responses, incidentEventResponse(event))
+	}
+	return responses
 }
 
 func alertDeliveryResponse(delivery db.AlertDelivery) AlertDeliveryResponse {

@@ -184,14 +184,14 @@ Goal: explain one operational event without duplicating the Incidents list.
   - First failing result.
   - Latest result.
   - Recovery result when resolved.
-- [ ] Add timeline.
+- [x] Add timeline.
   - Incident opened.
   - Alert rule matched.
   - Notifications sent/failed/suppressed.
   - Status changes.
   - Monitor recovered.
   - Incident resolved.
-- [ ] Add linked data.
+- [x] Add linked data.
   - Related monitor reports.
   - Related server events.
   - Alert delivery attempts.
@@ -230,8 +230,8 @@ Goal: expose Core-owned settings without pretending Agent-local config is editab
 
 Goal: add operational history once the backend can serve it.
 
-- [ ] Add Logs route and placeholder.
-- [ ] Add Orion Event Log only after Core exposes events.
+- [x] Add Logs route and placeholder.
+- [x] Add Orion Event Log only after Core exposes events.
   - Server registered/reconnected.
   - Monitor registered/unregistered.
   - Report received.
@@ -247,9 +247,9 @@ Goal: add operational history once the backend can serve it.
 - [x] Add generated operation for server report history: `GET /v1/agents/{id}/reports`.
 - [x] Add generated operation for agent uptime: `GET /v1/agents/{id}/uptime`.
 - [x] Add generated operation for monitor uptime: `GET /v1/monitors/{id}/uptime`.
-- [ ] Add incident detail endpoint and generated operation.
-- [ ] Add incident event timeline endpoint and generated operation.
-- [ ] Add Orion event log endpoint and generated operation.
+- [x] Add incident detail endpoint and generated operation.
+- [x] Add incident event timeline endpoint and generated operation.
+- [x] Add Orion event log endpoint and generated operation.
 - [x] Add alert delivery listing endpoint and generated operation.
 - [x] Add alert channel listing endpoint and generated operation.
 - [x] Add alert rule listing endpoint and generated operation.
@@ -264,11 +264,10 @@ Goal: add operational history once the backend can serve it.
   - Generated SDK operation and rendered on Monitor detail.
 3. [x] Ignore API health as a UI priority for now.
   - If Core health is unavailable, Console cannot meaningfully render a remediation view.
-4. [ ] Add incident detail contract.
-  - Current Console detail can only resolve from `getIncidents`.
-  - Add `GET /v1/incidents/{id}` before treating this as complete.
-5. [ ] Add incident event timeline contract.
-  - Needed for incident opened, alert matched, delivery attempts, recovery, and resolution events.
+4. [x] Add incident detail contract.
+  - Console detail uses `GET /v1/incidents/{id}`.
+5. [x] Add incident event timeline contract.
+  - Timeline includes incident events and alert delivery attempts.
 6. [x] Add alert delivery listing contract.
   - Backend stores `alert_deliveries`; Console shows the notification log with infinite scroll.
 7. [x] Add alert channel listing contract.

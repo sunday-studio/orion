@@ -131,6 +131,21 @@ definitions:
         example: "2026-05-12"
         type: string
     type: object
+  api.IncidentEventResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      incident_id:
+        type: string
+      message:
+        type: string
+      monitor_report_id:
+        type: string
+      type:
+        type: string
+    type: object
   api.IncidentResponse:
     properties:
       agent_id:
@@ -164,6 +179,27 @@ definitions:
       title:
         type: string
       updated_at:
+        type: string
+    type: object
+  api.IncidentTimelineItemResponse:
+    properties:
+      alert_delivery_id:
+        type: string
+      channel:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      message:
+        type: string
+      monitor_report_id:
+        type: string
+      source:
+        type: string
+      status:
+        type: string
+      type:
         type: string
     type: object
   api.LoginRequest:
@@ -225,6 +261,25 @@ definitions:
       type:
         type: string
       updated_at:
+        type: string
+    type: object
+  api.OrionEventResponse:
+    properties:
+      agent_id:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      incident_id:
+        type: string
+      message:
+        type: string
+      monitor_id:
+        type: string
+      source:
+        type: string
+      type:
         type: string
     type: object
   api.ReportResponse:
@@ -1241,6 +1296,54 @@ paths:
       summary: Log in to Console
       tags:
       - auth
+  /v1/events:
+    get:
+      consumes:
+      - application/json
+      description: Get a paginated operational event log for Core, agents, monitors,
+        incidents, alerts, and lifecycle actions
+      operationId: getOrionEvents
+      parameters:
+      - default: 50
+        description: Maximum number of events to return
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of events to skip
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    events:
+                      items:
+                        $ref: '#/definitions/api.OrionEventResponse'
+                      type: array
+                    limit:
+                      type: integer
+                    offset:
+                      type: integer
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: List Orion events
+      tags:
+      - events
   /v1/health/issues:
     get:
       consumes:
@@ -1376,6 +1479,104 @@ paths:
           schema:
             $ref: '#/definitions/utils.APIResponse'
       summary: List incidents
+      tags:
+      - incidents
+  /v1/incidents/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get one incident with related timeline events, alert deliveries,
+        and monitor reports
+      operationId: getIncident
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    alert_deliveries:
+                      items:
+                        $ref: '#/definitions/api.AlertDeliveryResponse'
+                      type: array
+                    events:
+                      items:
+                        $ref: '#/definitions/api.IncidentEventResponse'
+                      type: array
+                    incident:
+                      $ref: '#/definitions/api.IncidentResponse'
+                    monitor_reports:
+                      items:
+                        $ref: '#/definitions/api.MonitorReportResponse'
+                      type: array
+                    timeline:
+                      items:
+                        $ref: '#/definitions/api.IncidentTimelineItemResponse'
+                      type: array
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get incident detail
+      tags:
+      - incidents
+  /v1/incidents/{id}/timeline:
+    get:
+      consumes:
+      - application/json
+      description: Get normalized incident timeline events including alert delivery
+        attempts
+      operationId: getIncidentTimeline
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    timeline:
+                      items:
+                        $ref: '#/definitions/api.IncidentTimelineItemResponse'
+                      type: array
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get incident timeline
       tags:
       - incidents
   /v1/incidents/candidates:

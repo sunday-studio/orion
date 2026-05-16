@@ -1,12 +1,15 @@
 package api
 
 import (
+	"net/http"
 	"orion/core/internal/db"
 	"orion/core/internal/utils"
+	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // listIncidents retrieves persisted incidents.
@@ -65,6 +68,186 @@ func (s *Server) listIncidents(c *gin.Context) {
 		"offset":    offset,
 		"status":    statuses,
 	})
+}
+
+// getIncidentDetail retrieves one incident with linked operational data.
+// @Summary      Get incident detail
+// @Description  Get one incident with related timeline events, alert deliveries, and monitor reports
+// @Tags         incidents
+// @Accept       json
+// @Produce      json
+// @ID           getIncident
+// @Param        id   path      string  true  "Incident ID"
+// @Success      200  {object}  utils.APIResponse{data=object{incident=IncidentResponse,timeline=[]IncidentTimelineItemResponse,events=[]IncidentEventResponse,alert_deliveries=[]AlertDeliveryResponse,monitor_reports=[]MonitorReportResponse}}
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/incidents/{id} [get]
+func (s *Server) getIncidentDetail(c *gin.Context) {
+	incident, agent, monitor, ok := s.loadIncidentContext(c)
+	if !ok {
+		return
+	}
+
+	events, err := s.incidentEvents(incident.ID)
+	if err != nil {
+		s.logger.Error("Failed to load incident events", "incident_id", incident.ID, "error", err)
+		utils.InternalError(c, "Failed to get incident detail", err)
+		return
+	}
+
+	deliveries, err := s.incidentAlertDeliveries(incident.ID)
+	if err != nil {
+		s.logger.Error("Failed to load incident alert deliveries", "incident_id", incident.ID, "error", err)
+		utils.InternalError(c, "Failed to get incident detail", err)
+		return
+	}
+
+	reports, err := s.incidentMonitorReports(incident.MonitorID, events)
+	if err != nil {
+		s.logger.Error("Failed to load incident monitor reports", "incident_id", incident.ID, "error", err)
+		utils.InternalError(c, "Failed to get incident detail", err)
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, "Incident retrieved successfully", gin.H{
+		"incident":         incidentResponse(incident, agent, monitor),
+		"timeline":         incidentTimeline(events, deliveries),
+		"events":           incidentEventResponses(events),
+		"alert_deliveries": alertDeliveryResponses(deliveries),
+		"monitor_reports":  monitorReportResponses(reports),
+	})
+}
+
+// getIncidentTimeline retrieves one incident timeline.
+// @Summary      Get incident timeline
+// @Description  Get normalized incident timeline events including alert delivery attempts
+// @Tags         incidents
+// @Accept       json
+// @Produce      json
+// @ID           getIncidentTimeline
+// @Param        id   path      string  true  "Incident ID"
+// @Success      200  {object}  utils.APIResponse{data=object{timeline=[]IncidentTimelineItemResponse,count=int}}
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/incidents/{id}/timeline [get]
+func (s *Server) getIncidentTimeline(c *gin.Context) {
+	incident, _, _, ok := s.loadIncidentContext(c)
+	if !ok {
+		return
+	}
+
+	events, err := s.incidentEvents(incident.ID)
+	if err != nil {
+		s.logger.Error("Failed to load incident events", "incident_id", incident.ID, "error", err)
+		utils.InternalError(c, "Failed to get incident timeline", err)
+		return
+	}
+	deliveries, err := s.incidentAlertDeliveries(incident.ID)
+	if err != nil {
+		s.logger.Error("Failed to load incident alert deliveries", "incident_id", incident.ID, "error", err)
+		utils.InternalError(c, "Failed to get incident timeline", err)
+		return
+	}
+
+	timeline := incidentTimeline(events, deliveries)
+	utils.SuccessResponse(c, http.StatusOK, "Incident timeline retrieved successfully", gin.H{
+		"timeline": timeline,
+		"count":    len(timeline),
+	})
+}
+
+func (s *Server) loadIncidentContext(c *gin.Context) (db.Incident, db.Agent, db.Monitor, bool) {
+	incidentID := c.Param("id")
+
+	var incident db.Incident
+	if err := s.db.Where("id = ?", incidentID).First(&incident).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			utils.NotFound(c, "Incident not found")
+			return db.Incident{}, db.Agent{}, db.Monitor{}, false
+		}
+		s.logger.Error("Failed to get incident", "incident_id", incidentID, "error", err)
+		utils.InternalError(c, "Failed to get incident", err)
+		return db.Incident{}, db.Agent{}, db.Monitor{}, false
+	}
+
+	var agent db.Agent
+	if err := s.db.Where("id = ?", incident.AgentID).First(&agent).Error; err != nil {
+		agent = db.Agent{ID: incident.AgentID, Name: incident.AgentID}
+	}
+
+	var monitor db.Monitor
+	if err := s.db.Where("id = ?", incident.MonitorID).First(&monitor).Error; err != nil {
+		monitor = db.Monitor{ID: incident.MonitorID, Name: incident.MonitorID}
+	}
+
+	return incident, agent, monitor, true
+}
+
+func (s *Server) incidentEvents(incidentID string) ([]db.IncidentEvent, error) {
+	var events []db.IncidentEvent
+	err := s.db.Where("incident_id = ?", incidentID).Order("created_at ASC").Find(&events).Error
+	return events, err
+}
+
+func (s *Server) incidentAlertDeliveries(incidentID string) ([]db.AlertDelivery, error) {
+	var deliveries []db.AlertDelivery
+	err := s.db.Where("incident_id = ?", incidentID).Order("created_at ASC").Find(&deliveries).Error
+	return deliveries, err
+}
+
+func (s *Server) incidentMonitorReports(monitorID string, events []db.IncidentEvent) ([]db.MonitorReport, error) {
+	reportIDs := make([]string, 0, len(events))
+	for _, event := range events {
+		if event.MonitorReportID != "" {
+			reportIDs = append(reportIDs, event.MonitorReportID)
+		}
+	}
+
+	var reports []db.MonitorReport
+	if len(reportIDs) > 0 {
+		if err := s.db.Where("id IN ?", reportIDs).Order("created_at ASC").Find(&reports).Error; err != nil {
+			return nil, err
+		}
+		return reports, nil
+	}
+
+	err := s.db.Where("monitor_id = ?", monitorID).Order("created_at DESC").Limit(10).Find(&reports).Error
+	return reports, err
+}
+
+func incidentTimeline(events []db.IncidentEvent, deliveries []db.AlertDelivery) []IncidentTimelineItemResponse {
+	timeline := make([]IncidentTimelineItemResponse, 0, len(events)+len(deliveries))
+	for _, event := range events {
+		timeline = append(timeline, IncidentTimelineItemResponse{
+			ID:              event.ID,
+			Type:            event.Type,
+			Source:          "incident_event",
+			Message:         event.Message,
+			MonitorReportID: event.MonitorReportID,
+			CreatedAt:       event.CreatedAt,
+		})
+	}
+	for _, delivery := range deliveries {
+		message := delivery.Channel + " notification " + delivery.Status
+		if delivery.Error != "" {
+			message += ": " + safeAlertDeliveryError(delivery.Error)
+		}
+		timeline = append(timeline, IncidentTimelineItemResponse{
+			ID:              delivery.ID,
+			Type:            "alert_delivery",
+			Source:          "alert_delivery",
+			Message:         message,
+			AlertDeliveryID: delivery.ID,
+			Channel:         delivery.Channel,
+			Status:          delivery.Status,
+			CreatedAt:       delivery.CreatedAt,
+		})
+	}
+
+	sort.SliceStable(timeline, func(i, j int) bool {
+		return timeline[i].CreatedAt.Before(timeline[j].CreatedAt)
+	})
+	return timeline
 }
 
 func queryInt(c *gin.Context, key string, fallback int) int {

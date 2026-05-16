@@ -329,6 +329,125 @@ func TestListIncidentsReturnsPersistedActiveIncidents(t *testing.T) {
 	}
 }
 
+func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
+	server := setupTestServer(t)
+	registered := registerTestAgent(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+
+	reportPath := "/v1/agents/" + registered.Data.AgentID + "/" + registeredMonitor.Data.MonitorID + "/report"
+	downResp := performJSONRequest(t, server, http.MethodPost, reportPath, map[string]interface{}{
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"health":    "down",
+		"metrics":   map[string]interface{}{"status_code": 500},
+	}, registered.Data.Token)
+	if downResp.Code != http.StatusOK {
+		t.Fatalf("down report status = %d, body = %s", downResp.Code, downResp.Body.String())
+	}
+
+	var incident db.Incident
+	if err := server.db.Where("monitor_id = ?", registeredMonitor.Data.MonitorID).First(&incident).Error; err != nil {
+		t.Fatalf("find incident: %v", err)
+	}
+
+	detailResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents/"+incident.ID, nil, "")
+	if detailResp.Code != http.StatusOK {
+		t.Fatalf("incident detail status = %d, body = %s", detailResp.Code, detailResp.Body.String())
+	}
+	var detail struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Incident struct {
+				ID          string `json:"id"`
+				AgentName   string `json:"agent_name"`
+				MonitorName string `json:"monitor_name"`
+			} `json:"incident"`
+			Timeline []struct {
+				Type   string `json:"type"`
+				Source string `json:"source"`
+			} `json:"timeline"`
+			AlertDeliveries []struct {
+				Status string `json:"status"`
+			} `json:"alert_deliveries"`
+			MonitorReports []struct {
+				Health string `json:"health"`
+			} `json:"monitor_reports"`
+		} `json:"data"`
+	}
+	decodeResponse(t, detailResp, &detail)
+	if !detail.Success || detail.Data.Incident.ID != incident.ID {
+		t.Fatalf("incident detail response = %+v, want incident %s", detail, incident.ID)
+	}
+	if detail.Data.Incident.AgentName != "test-server" || detail.Data.Incident.MonitorName != "homepage" {
+		t.Fatalf("incident names = %+v, want agent and monitor names", detail.Data.Incident)
+	}
+	if len(detail.Data.Timeline) < 2 || len(detail.Data.AlertDeliveries) == 0 || len(detail.Data.MonitorReports) == 0 {
+		t.Fatalf("incident detail linked data missing: %+v", detail.Data)
+	}
+
+	timelineResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents/"+incident.ID+"/timeline", nil, "")
+	if timelineResp.Code != http.StatusOK {
+		t.Fatalf("incident timeline status = %d, body = %s", timelineResp.Code, timelineResp.Body.String())
+	}
+	var timeline struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Timeline []struct {
+				Source string `json:"source"`
+			} `json:"timeline"`
+			Count int `json:"count"`
+		} `json:"data"`
+	}
+	decodeResponse(t, timelineResp, &timeline)
+	if !timeline.Success || timeline.Data.Count < 2 {
+		t.Fatalf("timeline response = %+v, want incident and alert events", timeline)
+	}
+}
+
+func TestListOrionEvents(t *testing.T) {
+	server := setupTestServer(t)
+	registered := registerTestAgent(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+
+	reportPath := "/v1/agents/" + registered.Data.AgentID + "/" + registeredMonitor.Data.MonitorID + "/report"
+	reportResp := performJSONRequest(t, server, http.MethodPost, reportPath, map[string]interface{}{
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"health":    "down",
+		"metrics":   map[string]interface{}{},
+	}, registered.Data.Token)
+	if reportResp.Code != http.StatusOK {
+		t.Fatalf("monitor report status = %d, body = %s", reportResp.Code, reportResp.Body.String())
+	}
+
+	eventsResp := performJSONRequest(t, server, http.MethodGet, "/v1/events?limit=20", nil, "")
+	if eventsResp.Code != http.StatusOK {
+		t.Fatalf("events status = %d, body = %s", eventsResp.Code, eventsResp.Body.String())
+	}
+	var listed struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Events []struct {
+				Type   string `json:"type"`
+				Source string `json:"source"`
+			} `json:"events"`
+			Count int `json:"count"`
+		} `json:"data"`
+	}
+	decodeResponse(t, eventsResp, &listed)
+	if !listed.Success || listed.Data.Count == 0 || len(listed.Data.Events) == 0 {
+		t.Fatalf("events response = %+v, want events", listed)
+	}
+	foundIncidentEvent := false
+	for _, event := range listed.Data.Events {
+		if event.Source == "incident_event" {
+			foundIncidentEvent = true
+			break
+		}
+	}
+	if !foundIncidentEvent {
+		t.Fatalf("events response = %+v, want incident event", listed.Data.Events)
+	}
+}
+
 func TestMaintenanceSuppressesAutomaticIncidentOpen(t *testing.T) {
 	server := setupTestServer(t)
 	registered := registerTestAgent(t, server)
