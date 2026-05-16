@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "oxlint . --react-plugin --deny-warnings",
+    "lint": "oxlint . --deny-warnings",
     "lint:eslint": "eslint .",
     "format": "oxfmt . --write",
     "format:check": "oxfmt . --check",

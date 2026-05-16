@@ -1,9 +1,9 @@
 import {
+  type ColumnDef,
+  type Row,
   flexRender,
   getCoreRowModel,
   useReactTable,
-  type ColumnDef,
-  type Row,
 } from "@tanstack/react-table";
 import {
   Table,

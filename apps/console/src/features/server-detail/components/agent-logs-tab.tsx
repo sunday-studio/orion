@@ -7,7 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getAgentReports, type GetAgentReports200 } from "@/orion-sdk";
+import { type GetAgentReports200, getAgentReports } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useCallback } from "react";

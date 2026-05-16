@@ -1,4 +1,4 @@
-import { Navigate, Routes, Route } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { LoginPage } from "@/features/auth/login-page";
 import { Layout } from "@/components/layout";
 import { AgentDetailPage } from "@/features/server-detail/server-detail.view";

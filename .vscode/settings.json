@@ -3,6 +3,11 @@
     "source.fixAll.oxc": "always"
   },
   "oxc.fmt.configPath": "apps/console/.oxfmtrc.json",
+  "tailwindCSS.experimental.classRegex": [
+    ["(?:cn|clsx|twMerge)\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
+    ["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
+    "(?:const|let|var)\\s+[\\w$]*(?:Class|Classes|ClassName|ClassNames)\\s*=\\s*[\"'`]([^\"'`]*)[\"'`]"
+  ],
   "[javascript]": {
     "editor.defaultFormatter": "oxc.oxc-vscode",
     "editor.formatOnSave": true,

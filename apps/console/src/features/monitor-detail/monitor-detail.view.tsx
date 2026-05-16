@@ -10,8 +10,8 @@ import {
 } from "@/components/ui/table";
 import {
   type ApiMonitorReportResponse,
-  getMonitorHistory,
   type GetMonitorHistory200,
+  getMonitorHistory,
   useGetAgent,
   useGetIncidents,
   useGetMonitor,

@@ -1,3 +1,6 @@
 {
-  "recommendations": ["oxc.oxc-vscode"]
+  "recommendations": [
+    "bradlc.vscode-tailwindcss",
+    "oxc.oxc-vscode"
+  ]
 }

@@ -1,5 +1,13 @@
 import { PageBreadcrumbs } from "@/components/page-breadcrumbs";
 import {
+  NotificationBadge,
+  SeverityBadge,
+  StatusBadge,
+  toNotificationStatus,
+  toSeverity,
+  toStatus,
+} from "@/components/status-badges";
+import {
   Table,
   TableBody,
   TableCell,
@@ -63,21 +71,29 @@ export const IncidentDetailPage = () => {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-base font-medium">{incident.title ?? "Untitled incident"}</h1>
-            <p className="text-sm text-neutral-600">
-              {incident.status ?? "unknown"} · {incident.severity ?? "unknown"}
-            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <StatusBadge value={toStatus(incident.status)} />
+              <SeverityBadge value={toSeverity(incident.severity)} />
+            </div>
           </div>
-          <div className="text-sm font-medium">
-            {incident.notification_status ?? "no notification status"}
-          </div>
+          <NotificationBadge
+            value={toNotificationStatus(incident.notification_status)}
+            fallback="no notification status"
+          />
         </div>
       </div>
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium">Summary</h2>
         <div className="grid gap-3 sm:grid-cols-3">
-          <DetailItem label="status" value={incident.status ?? "unknown"} />
-          <DetailItem label="severity" value={incident.severity ?? "unknown"} />
+          <div>
+            <div className="text-sm text-neutral-600">status</div>
+            <StatusBadge value={toStatus(incident.status)} />
+          </div>
+          <div>
+            <div className="text-sm text-neutral-600">severity</div>
+            <SeverityBadge value={toSeverity(incident.severity)} />
+          </div>
           <DetailItem label="duration" value={durationLabel(incident)} />
           <DetailItem label="opened" value={formatDate(incident.opened_at, DATE_TIME_FORMAT)} />
           <DetailItem label="resolved" value={formatDate(incident.resolved_at, DATE_TIME_FORMAT)} />
@@ -175,7 +191,9 @@ export const IncidentDetailPage = () => {
                   </TableCell>
                   <TableCell>{delivery.channel ?? "none"}</TableCell>
                   <TableCell>{delivery.event_type ?? "unknown"}</TableCell>
-                  <TableCell>{delivery.status ?? "unknown"}</TableCell>
+                  <TableCell>
+                    <NotificationBadge value={toNotificationStatus(delivery.status)} />
+                  </TableCell>
                   <TableCell className="max-w-[24rem] truncate text-neutral-600">
                     {delivery.error ?? "—"}
                   </TableCell>

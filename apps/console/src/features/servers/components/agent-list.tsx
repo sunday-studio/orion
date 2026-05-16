@@ -1,4 +1,4 @@
-import { useGetAgents, type GetAgentsParams } from "@/orion-sdk";
+import { type GetAgentsParams, useGetAgents } from "@/orion-sdk";
 import { AgentFilters, type AttentionFilterValue } from "./agent-filters";
 import { AgentRow } from "./agent-row";
 import { Separator } from "@/components/ui/separator";

@@ -1,5 +1,13 @@
 import { IncidentSummary } from "./incident-summary";
 import { DataTable } from "@/components/data-table";
+import {
+  NotificationBadge,
+  SeverityBadge,
+  StatusBadge,
+  toNotificationStatus,
+  toSeverity,
+  toStatus,
+} from "@/components/status-badges";
 import { type ApiIncidentResponse, useGetIncidents } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import { ListPagination } from "@/components/list-pagination";
@@ -38,12 +46,12 @@ const columns: ColumnDef<ApiIncidentResponse>[] = [
   {
     accessorKey: "severity",
     header: "Severity",
-    cell: ({ row }) => row.original.severity ?? "unknown",
+    cell: ({ row }) => <SeverityBadge value={toSeverity(row.original.severity)} />,
   },
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => row.original.status ?? "unknown",
+    cell: ({ row }) => <StatusBadge value={toStatus(row.original.status)} />,
   },
   {
     accessorKey: "agent_name",
@@ -59,7 +67,12 @@ const columns: ColumnDef<ApiIncidentResponse>[] = [
   {
     accessorKey: "notification_status",
     header: "Notification",
-    cell: ({ row }) => row.original.notification_status ?? "—",
+    cell: ({ row }) => (
+      <NotificationBadge
+        value={toNotificationStatus(row.original.notification_status)}
+        fallback="—"
+      />
+    ),
   },
   {
     accessorKey: "opened_at",

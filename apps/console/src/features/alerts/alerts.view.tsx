@@ -1,5 +1,11 @@
 import { InfiniteScrollSentinel } from "@/components/infinite-scroll-sentinel";
 import {
+  NotificationBadge,
+  SeverityBadge,
+  toNotificationStatus,
+  toSeverity,
+} from "@/components/status-badges";
+import {
   Table,
   TableBody,
   TableCell,
@@ -8,8 +14,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  getAlertDeliveries,
   type GetAlertDeliveries200,
+  getAlertDeliveries,
   useGetAlertChannels,
   useGetAlertRules,
 } from "@/orion-sdk";
@@ -150,7 +156,9 @@ export const AlertsPage = () => {
                   <TableCell className="max-w-[22rem] truncate text-neutral-600">
                     {rule.trigger_condition ?? "—"}
                   </TableCell>
-                  <TableCell>{rule.severity ?? "unknown"}</TableCell>
+                  <TableCell>
+                    <SeverityBadge value={toSeverity(rule.severity)} />
+                  </TableCell>
                   <TableCell>{rule.cooldown_seconds ?? 0}s</TableCell>
                   <TableCell>{boolLabel(rule.recovery_notification_enabled)}</TableCell>
                   <TableCell>{(rule.target_channels ?? []).join(", ") || "none"}</TableCell>
@@ -194,7 +202,9 @@ export const AlertsPage = () => {
                   </TableCell>
                   <TableCell>{delivery.channel ?? "none"}</TableCell>
                   <TableCell>{delivery.event_type ?? "unknown"}</TableCell>
-                  <TableCell>{delivery.status ?? "unknown"}</TableCell>
+                  <TableCell>
+                    <NotificationBadge value={toNotificationStatus(delivery.status)} />
+                  </TableCell>
                   <TableCell className="max-w-[24rem] truncate text-neutral-600">
                     {delivery.error ?? "—"}
                   </TableCell>
