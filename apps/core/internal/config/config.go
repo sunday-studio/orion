@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"strconv"
@@ -62,6 +63,70 @@ func Load() *Config {
 		AlertRecoveryNotifications: getEnvBool("ORION_ALERT_RECOVERY_NOTIFICATIONS", true),
 		AlertTLSExpiryDays:         getEnvInt("ORION_ALERT_TLS_EXPIRY_DAYS", 14),
 	}
+}
+
+// LoadDotEnv loads KEY=VALUE pairs from a dotenv file without overriding existing
+// process environment variables.
+func LoadDotEnv(path string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	lineNumber := 0
+	for scanner.Scan() {
+		lineNumber++
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if strings.HasPrefix(line, "export ") {
+			line = strings.TrimSpace(strings.TrimPrefix(line, "export "))
+		}
+
+		key, value, ok := strings.Cut(line, "=")
+		if !ok {
+			return fmt.Errorf("invalid dotenv line %d: missing '='", lineNumber)
+		}
+		key = strings.TrimSpace(key)
+		if key == "" {
+			return fmt.Errorf("invalid dotenv line %d: empty key", lineNumber)
+		}
+		value = parseDotEnvValue(strings.TrimSpace(value))
+
+		if _, exists := os.LookupEnv(key); exists {
+			continue
+		}
+		if err := os.Setenv(key, value); err != nil {
+			return fmt.Errorf("set %s from dotenv: %w", key, err)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func parseDotEnvValue(value string) string {
+	if value == "" {
+		return ""
+	}
+	if strings.HasPrefix(value, `"`) && strings.HasSuffix(value, `"`) && len(value) >= 2 {
+		if unquoted, err := strconv.Unquote(value); err == nil {
+			return unquoted
+		}
+	}
+	if strings.HasPrefix(value, "'") && strings.HasSuffix(value, "'") && len(value) >= 2 {
+		return value[1 : len(value)-1]
+	}
+
+	if hashIndex := strings.Index(value, " #"); hashIndex >= 0 {
+		value = value[:hashIndex]
+	}
+	return strings.TrimSpace(value)
 }
 
 // Validate returns an error if config is invalid (e.g. frontend auth on but JWT_SECRET empty).

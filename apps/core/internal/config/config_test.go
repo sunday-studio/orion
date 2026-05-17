@@ -1,6 +1,10 @@
 package config
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestLoadAlertChannelsFromEnvironment(t *testing.T) {
 	t.Setenv("ORION_ALERT_WEBHOOK_URL", "https://example.com/hook")
@@ -92,4 +96,58 @@ func TestValidateRejectsIncompleteEmailAlertChannel(t *testing.T) {
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("Validate() error = nil, want incomplete email channel error")
 	}
+}
+
+func TestLoadDotEnvLoadsValuesWithoutOverridingExistingEnvironment(t *testing.T) {
+	t.Setenv("ORION_PORT", "9999")
+	t.Setenv("ORION_DATA_DIR", "")
+	restoreEnv(t, "ORION_ADMIN_USERNAME")
+	restoreEnv(t, "ORION_ADMIN_PASSWORD")
+	if err := os.Unsetenv("ORION_ADMIN_USERNAME"); err != nil {
+		t.Fatalf("Unsetenv() error = %v", err)
+	}
+	if err := os.Unsetenv("ORION_ADMIN_PASSWORD"); err != nil {
+		t.Fatalf("Unsetenv() error = %v", err)
+	}
+
+	path := filepath.Join(t.TempDir(), ".env")
+	content := `
+# local core config
+ORION_PORT=8999
+ORION_DATA_DIR="./tmp data"
+ORION_ADMIN_USERNAME=admin # inline comment
+export ORION_ADMIN_PASSWORD='secret value'
+`
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	if err := LoadDotEnv(path); err != nil {
+		t.Fatalf("LoadDotEnv() error = %v", err)
+	}
+
+	if got := os.Getenv("ORION_PORT"); got != "9999" {
+		t.Fatalf("ORION_PORT = %q, want existing value", got)
+	}
+	if got := os.Getenv("ORION_DATA_DIR"); got != "" {
+		t.Fatalf("ORION_DATA_DIR = %q, want existing empty value", got)
+	}
+	if got := os.Getenv("ORION_ADMIN_USERNAME"); got != "admin" {
+		t.Fatalf("ORION_ADMIN_USERNAME = %q, want admin", got)
+	}
+	if got := os.Getenv("ORION_ADMIN_PASSWORD"); got != "secret value" {
+		t.Fatalf("ORION_ADMIN_PASSWORD = %q, want secret value", got)
+	}
+}
+
+func restoreEnv(t *testing.T, key string) {
+	t.Helper()
+	value, existed := os.LookupEnv(key)
+	t.Cleanup(func() {
+		if existed {
+			_ = os.Setenv(key, value)
+			return
+		}
+		_ = os.Unsetenv(key)
+	})
 }

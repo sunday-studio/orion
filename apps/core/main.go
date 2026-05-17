@@ -7,6 +7,7 @@ import (
 	"orion/core/internal/config"
 	"orion/core/internal/db"
 	"orion/core/internal/logging"
+	"os"
 	"os/signal"
 	"syscall"
 )
@@ -34,6 +35,10 @@ import (
 func main() {
 	logger := logging.NewLogger()
 	logger.Info("Starting Orion Core Server")
+
+	if err := config.LoadDotEnv(".env"); err != nil && !os.IsNotExist(err) {
+		logger.Fatal("Failed to load .env", "error", err)
+	}
 
 	cfg := config.Load()
 	if err := cfg.Validate(); err != nil {
