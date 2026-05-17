@@ -305,9 +305,15 @@ func (s *Server) getMonitorDetail(c *gin.Context) {
 		}
 	}
 	monitor.ComputedHealth = computedHealth
+	response := monitorResponse(*monitor)
+	if agent, err := s.agentService.GetAgent(monitor.AgentID); err == nil {
+		response.AgentName = agent.Name
+	} else {
+		s.logger.Error("Failed to load monitor agent", "error", err, "monitor_id", monitorID, "agent_id", monitor.AgentID)
+	}
 
 	utils.SuccessResponse(c, 200, "Monitor retrieved successfully", gin.H{
-		"monitor":         monitorResponse(*monitor),
+		"monitor":         response,
 		"recent_reports":  monitorReportResponses(reports),
 		"computed_health": computedHealth,
 	})

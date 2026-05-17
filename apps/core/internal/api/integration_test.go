@@ -491,12 +491,16 @@ func TestMonitorDetailReturnsConsistentComputedHealth(t *testing.T) {
 			ComputedHealth string `json:"computed_health"`
 			Monitor        struct {
 				ComputedHealth string `json:"computed_health"`
+				AgentName      string `json:"agent_name"`
 			} `json:"monitor"`
 		} `json:"data"`
 	}
 	decodeResponse(t, detailResp, &detail)
 	if !detail.Success || detail.Data.ComputedHealth != "down" || detail.Data.Monitor.ComputedHealth != "down" {
 		t.Fatalf("monitor detail health = %+v, want both computed health fields down", detail)
+	}
+	if detail.Data.Monitor.AgentName != "test-server" {
+		t.Fatalf("monitor detail agent_name = %q, want test-server", detail.Data.Monitor.AgentName)
 	}
 }
 
