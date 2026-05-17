@@ -143,6 +143,7 @@ Agent behavior:
 - Log invalid responses and continue where possible.
 - Stop reporting on authentication failure until re-registration or user action fixes credentials.
 - Continue other checks when one monitor collection fails.
+- Keep the first deploy retry queue in memory only. A restart during a Core outage can lose queued historical reports, but the next scheduled reports refresh current state. Durable offline spooling belongs after first deploy if real usage shows unacceptable report gaps.
 
 Core behavior:
 

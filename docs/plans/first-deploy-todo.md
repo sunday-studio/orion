@@ -54,7 +54,7 @@ This checklist tracks the work needed before Orion is ready for a first self-hos
 
 - [x] Make maintenance mode fail clearly or retry when Core cannot be updated.
 - [x] Add timeout to external geolocation lookup.
-- [ ] Decide whether retry queue persistence is needed for first deploy.
+- [x] Decide whether retry queue persistence is needed for first deploy.
 - [x] Document Docker monitor permissions for the systemd `orion` user.
 - [x] Fix macOS uninstall paths for config/state cleanup.
 
@@ -92,3 +92,4 @@ This checklist tracks the work needed before Orion is ready for a first self-hos
 - [ ] Add Core runtime metrics for report write rate, ingestion latency, DB size, and slow requests.
 - [ ] Add automated archive/rollup scheduling.
 - [ ] Add Agent update bookkeeping in local state.
+- [ ] Add durable Agent report spool if first deploy usage shows report gaps during restarts or long Core outages.
