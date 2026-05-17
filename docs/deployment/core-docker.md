@@ -10,19 +10,35 @@ It builds:
 
 The final runtime image contains one process: `orion-core`. It serves both the backend API and the Console UI from the runtime `web/` directory.
 
-## Build
+## Image
 
-```sh
-make docker-build
+Core and Console are shipped together as one Docker image:
+
+```txt
+ghcr.io/sunday-studio/orion-core:<version>
 ```
 
-Equivalent command:
+The image contains one runtime process, `orion-core`, which serves both the backend API and the
+Console UI.
+
+## Run
 
 ```sh
-docker build -f apps/core/Dockerfile -t orion-core:latest .
+docker run -d \
+  --name orion-core \
+  --restart unless-stopped \
+  -p 8999:8999 \
+  -v orion-data:/data \
+  -e ORION_DATA_DIR=/data \
+  -e ORION_ADMIN_USERNAME=admin \
+  -e ORION_ADMIN_PASSWORD='change-me' \
+  -e ORION_JWT_SECRET='change-me-to-a-long-random-value' \
+  ghcr.io/sunday-studio/orion-core:<version>
 ```
 
-Build a versioned image by setting `VERSION`:
+## Build From Source
+
+For development or local release testing:
 
 ```sh
 VERSION=v0.1.0 make docker-build
@@ -42,6 +58,13 @@ Start Core:
 
 ```sh
 make docker-up
+```
+
+`make docker-up` sets `ORION_CORE_IMAGE=$(CORE_IMAGE):$(VERSION)` for Compose. Override
+`CORE_IMAGE` and `VERSION` when you want a specific image:
+
+```sh
+CORE_IMAGE=ghcr.io/sunday-studio/orion-core VERSION=v0.1.0 make docker-up
 ```
 
 Core listens on `http://localhost:8999`.
@@ -69,12 +92,9 @@ Common examples:
 - `http://100.x.y.z:8999` for Tailscale;
 - `https://orion.example.com` if placed behind a reverse proxy.
 
-## Published Versions
+## Publishing
 
-The expected image shape is:
-
-```txt
-orion-core:<version>
-```
+Image publishing is manually triggered from GitHub Actions. Run the `Docker Images` workflow and
+provide the version tag to publish.
 
 Agents should be installed separately on each monitored machine. They do not run inside this Core container.

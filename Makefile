@@ -1,7 +1,7 @@
 .PHONY: generate-openapi generate-sdk build-static docker-build docker-up docker-down agent-build seed-demo-data
 
 VERSION ?= latest
-CORE_IMAGE ?= orion-core
+CORE_IMAGE ?= ghcr.io/sunday-studio/orion-core
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 AGENT_OUTPUT ?= orion-agent
@@ -28,7 +28,7 @@ agent-build:
 
 # Run orion-core via docker compose (set ORION_ADMIN_* and ORION_JWT_SECRET for frontend auth)
 docker-up:
-	docker compose -f deploy/docker-compose.yml up -d
+	ORION_CORE_IMAGE=$(CORE_IMAGE):$(VERSION) docker compose -f deploy/docker-compose.yml up -d
 
 docker-down:
 	docker compose -f deploy/docker-compose.yml down

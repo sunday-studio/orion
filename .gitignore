@@ -13,9 +13,11 @@ apps/*/node_modules/
 apps/console/dist/
 apps/console/src/orion-sdk/
 
-
 # agent
 apps/agent/orion-agent
 apps/agent/state.yaml
 apps/agent/config.yaml
 apps/agent/tmp/
+
+# core
+apps/core/.env

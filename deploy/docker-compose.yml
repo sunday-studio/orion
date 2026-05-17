@@ -1,8 +1,6 @@
 services:
   orion-core:
-    build:
-      context: ..
-      dockerfile: apps/core/Dockerfile
+    image: ${ORION_CORE_IMAGE:-ghcr.io/sunday-studio/orion-core:latest}
     restart: unless-stopped
     ports:
       - "8999:8999"
