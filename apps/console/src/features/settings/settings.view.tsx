@@ -10,7 +10,6 @@ import {
   useRunDataLifecycleRollup,
   useUpdateDataLifecycleSettings,
 } from "@/orion-sdk";
-import { DATE_TIME_FORMAT, ISO_DATE_FORMAT, formatDate } from "@/lib/date-utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useState } from "react";
 
@@ -20,7 +19,6 @@ type SettingsFormState = {
   archiveDir: string;
   rollupsEnabled: boolean;
   rollupRetentionDays: string;
-  archiveSchedule: string;
 };
 
 const defaultFormState: SettingsFormState = {
@@ -29,7 +27,6 @@ const defaultFormState: SettingsFormState = {
   archiveDir: "",
   rollupsEnabled: false,
   rollupRetentionDays: "",
-  archiveSchedule: "",
 };
 
 const asNumber = (value: string) => {
@@ -38,13 +35,6 @@ const asNumber = (value: string) => {
   const parsed = Number(trimmed);
   return Number.isFinite(parsed) ? parsed : undefined;
 };
-
-const DetailItem = ({ label, value }: { label: string; value: string | number }) => (
-  <div>
-    <div className="text-sm text-neutral-600">{label}</div>
-    <div className="text-sm font-medium">{value}</div>
-  </div>
-);
 
 const Field = ({
   label,
@@ -77,7 +67,6 @@ export const SettingsPage = () => {
 
   const settings = settingsResponse.data?.settings;
   const [formState, setFormState] = useState(defaultFormState);
-  const [rollupDate, setRollupDate] = useState("");
 
   useEffect(() => {
     if (!settings) return;
@@ -87,7 +76,6 @@ export const SettingsPage = () => {
       archiveDir: settings.archive_dir ?? "",
       rollupsEnabled: Boolean(settings.rollups_enabled),
       rollupRetentionDays: String(settings.rollup_retention_days ?? ""),
-      archiveSchedule: settings.archive_schedule ?? "",
     });
   }, [settings]);
 
@@ -102,7 +90,6 @@ export const SettingsPage = () => {
     const payload: ServiceDataLifecycleSettingsPayload = {
       archive_dir: formState.archiveDir.trim() || undefined,
       archive_raw_reports: formState.archiveRawReports,
-      archive_schedule: formState.archiveSchedule.trim() || undefined,
       raw_report_hot_days: asNumber(formState.rawReportHotDays),
       rollup_retention_days: asNumber(formState.rollupRetentionDays),
       rollups_enabled: formState.rollupsEnabled,
@@ -111,9 +98,7 @@ export const SettingsPage = () => {
   };
 
   const runRollup = () => {
-    rollupRun.mutate({
-      data: rollupDate.trim() === "" ? undefined : { date: rollupDate.trim() },
-    });
+    rollupRun.mutate({ data: undefined });
   };
 
   const runArchive = () => {
@@ -122,16 +107,10 @@ export const SettingsPage = () => {
 
   return (
     <div className="space-y-7">
-      <PageHeader title="Settings" description="Control how Core keeps and archives report data." />
+      <PageHeader title="Settings" description="Data retention and manual maintenance." />
 
       <section className="space-y-3">
-        <div>
-          <h2 className="text-sm font-medium">Data Retention</h2>
-          <p className="text-sm text-neutral-600">
-            Keep recent reports fast in Core, then move older report history into local archives and
-            daily rollups.
-          </p>
-        </div>
+        <h2 className="text-sm font-medium">Retention</h2>
 
         {settingsResponse.isLoading && (
           <div className="text-sm text-neutral-600">Loading data lifecycle settings...</div>
@@ -140,10 +119,10 @@ export const SettingsPage = () => {
           <div className="text-sm">Unable to load data lifecycle settings.</div>
         )}
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
           <Field
-            label="Keep raw reports in Core"
-            description="Older raw reports can be archived so the Core database stays quick."
+            label="Raw report days"
+            description="Recent report history kept in Core."
           >
             <Input
               type="number"
@@ -153,8 +132,8 @@ export const SettingsPage = () => {
             />
           </Field>
           <Field
-            label="Keep daily rollups"
-            description="Rollups preserve long-term uptime history without keeping every raw check."
+            label="Rollup days"
+            description="Daily uptime history to retain."
           >
             <Input
               type="number"
@@ -165,19 +144,12 @@ export const SettingsPage = () => {
           </Field>
           <Field
             label="Archive directory"
-            description="Local path where archived reports are stored."
+            description="Local path for archived reports."
           >
             <Input
               value={formState.archiveDir}
               onChange={(event) => updateField("archiveDir", event.target.value)}
               placeholder="./data/archive"
-            />
-          </Field>
-          <Field label="Archive schedule" description="How often Core should archive old reports.">
-            <Input
-              value={formState.archiveSchedule}
-              onChange={(event) => updateField("archiveSchedule", event.target.value)}
-              placeholder="daily"
             />
           </Field>
         </div>
@@ -188,7 +160,7 @@ export const SettingsPage = () => {
               checked={formState.archiveRawReports}
               onCheckedChange={(checked) => updateField("archiveRawReports", checked === true)}
             />
-            Archive raw reports
+            Archive raw reports automatically
           </label>
           <label className="flex items-center gap-2 text-sm">
             <Checkbox
@@ -208,78 +180,35 @@ export const SettingsPage = () => {
             <span className="text-sm text-neutral-600">Settings saved.</span>
           )}
         </div>
-
-        {(settings?.last_archive_run_at ||
-          settings?.last_rollup_run_at ||
-          settings?.last_archive_status ||
-          settings?.last_archive_error) && (
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium">Last Run</h3>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <DetailItem
-                label="archive"
-                value={formatDate(settings?.last_archive_run_at, DATE_TIME_FORMAT)}
-              />
-              <DetailItem
-                label="rollup"
-                value={formatDate(settings?.last_rollup_run_at, DATE_TIME_FORMAT)}
-              />
-              <DetailItem label="archive status" value={settings?.last_archive_status ?? "—"} />
-            </div>
-            {settings?.last_archive_error && (
-              <div className="text-sm text-red-700">{settings.last_archive_error}</div>
-            )}
-          </div>
-        )}
       </section>
 
       <section className="space-y-3">
-        <div>
-          <h2 className="text-sm font-medium">Run Now</h2>
-          <p className="text-sm text-neutral-600">Run archive or rollup maintenance immediately.</p>
-        </div>
+        <h2 className="text-sm font-medium">Manual Maintenance</h2>
 
-        <div className="flex flex-wrap items-end gap-3">
-          <Field label="Rollup date" description="Leave empty to roll up the default eligible day.">
-            <Input
-              type="date"
-              value={rollupDate}
-              onChange={(event) => setRollupDate(event.target.value)}
-              max={formatDate(new Date(), ISO_DATE_FORMAT, "")}
-              className="w-48"
-            />
-          </Field>
+        <div className="flex flex-wrap items-center gap-3">
           <Button onClick={runRollup} disabled={rollupRun.isPending}>
             {rollupRun.isPending ? "Running..." : "Run rollup"}
           </Button>
           <Button variant="outline" onClick={runArchive} disabled={archiveRun.isPending}>
             {archiveRun.isPending ? "Running..." : "Run archive"}
           </Button>
+          {rollupRun.data?.result && (
+            <span className="text-sm text-neutral-600">
+              Rolled up {rollupRun.data.result.report_count ?? 0} reports.
+            </span>
+          )}
+          {archiveRun.data?.result && (
+            <span className="text-sm text-neutral-600">
+              Archived{" "}
+              {(archiveRun.data.result.agent_reports_archived ?? 0) +
+                (archiveRun.data.result.monitor_reports_archived ?? 0)}{" "}
+              reports.
+            </span>
+          )}
+          {(rollupRun.isError || archiveRun.isError) && (
+            <span className="text-sm">Unable to run maintenance.</span>
+          )}
         </div>
-
-        {rollupRun.data?.result && (
-          <div className="grid gap-3 sm:grid-cols-3">
-            <DetailItem label="rollup date" value={rollupRun.data.result.date ?? "—"} />
-            <DetailItem label="monitor days" value={rollupRun.data.result.monitor_days ?? 0} />
-            <DetailItem label="reports read" value={rollupRun.data.result.report_count ?? 0} />
-          </div>
-        )}
-        {archiveRun.data?.result && (
-          <div className="grid gap-3 sm:grid-cols-3">
-            <DetailItem
-              label="agent reports"
-              value={archiveRun.data.result.agent_reports_archived ?? 0}
-            />
-            <DetailItem
-              label="monitor reports"
-              value={archiveRun.data.result.monitor_reports_archived ?? 0}
-            />
-            <DetailItem label="archive path" value={archiveRun.data.result.archive_path ?? "—"} />
-          </div>
-        )}
-        {(rollupRun.isError || archiveRun.isError) && (
-          <div className="text-sm">Unable to run one of the data actions.</div>
-        )}
       </section>
     </div>
   );

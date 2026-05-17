@@ -75,7 +75,7 @@ export const MonitorList = ({ agentId }: { agentId: string }) => {
         limit={MONITOR_LIMIT}
         offset={offset}
         onOffsetChange={setOffset}
-        className="rounded-b-lg! bg-neutral-100/80 border-t border-neutral-300/60 py-1"
+        className=" bg-neutral-100/80 border-t border-neutral-300/60 py-1"
       />
     </div>
   );

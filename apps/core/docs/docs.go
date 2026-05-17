@@ -1277,6 +1277,24 @@ const docTemplate = `{
                         "description": "Number of events to skip",
                         "name": "offset",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by event source",
+                        "name": "source",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by event type",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search event type, source, message, and related IDs",
+                        "name": "q",
+                        "in": "query"
                     }
                 ],
                 "responses": {

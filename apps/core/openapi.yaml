@@ -1438,6 +1438,18 @@ paths:
         in: query
         name: offset
         type: integer
+      - description: Filter by event source
+        in: query
+        name: source
+        type: string
+      - description: Filter by event type
+        in: query
+        name: type
+        type: string
+      - description: Search event type, source, message, and related IDs
+        in: query
+        name: q
+        type: string
       produces:
       - application/json
       responses:

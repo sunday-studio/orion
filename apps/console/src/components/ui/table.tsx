@@ -21,7 +21,7 @@ const tableVariantClasses = {
     cell: "text-start py-2 px-3 text-sm whitespace-nowrap [&:has([role=checkbox])]:pr-0 *:[[role=checkbox]]:translate-y-[2px] border-neutral-200/70 border-l first:border-l-0",
   },
   contained: {
-    container: "rounded-t-lg bg-neutral-100/70",
+    container: " bg-neutral-100/70",
     table: "bg-transparent",
     header: "[&_tr]:border-b border-neutral-300/60",
     body: "[&>tr:has(+_tr:hover)]:border-emerald-200 [&>tr:hover]:border-emerald-200 [&>tr:hover]:bg-emerald-50 [&>tr:hover>td]:border-emerald-200",

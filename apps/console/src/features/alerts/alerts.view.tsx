@@ -72,9 +72,7 @@ const channelColumns: ColumnDef<ApiAlertChannelResponse>[] = [
     id: "configured",
     header: "Configured",
     cell: ({ row }) => (
-      <div className="max-w-[22rem] truncate text-neutral-600">
-        {configuredParts(row.original)}
-      </div>
+      <div className="max-w-[22rem] truncate text-neutral-600">{configuredParts(row.original)}</div>
     ),
   },
   {

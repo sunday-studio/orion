@@ -5,9 +5,16 @@ import (
 	"orion/core/internal/db"
 	"orion/core/internal/utils"
 	"sort"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
+
+type orionEventFilters struct {
+	Source string
+	Type   string
+	Search string
+}
 
 // listOrionEvents retrieves Orion operational events derived from stored records.
 // @Summary      List Orion events
@@ -18,25 +25,28 @@ import (
 // @ID           getOrionEvents
 // @Param        limit   query     int  false  "Maximum number of events to return" default(50)
 // @Param        offset  query     int  false  "Number of events to skip" default(0)
+// @Param        source  query     string  false  "Filter by event source"
+// @Param        type    query     string  false  "Filter by event type"
+// @Param        q       query     string  false  "Search event type, source, message, and related IDs"
 // @Success      200     {object}  utils.APIResponse{data=object{events=[]OrionEventResponse,count=int,limit=int,offset=int,pagination=utils.PaginationMeta}}
 // @Failure      500     {object}  utils.APIResponse
 // @Router       /v1/events [get]
 func (s *Server) listOrionEvents(c *gin.Context) {
 	limit := queryInt(c, "limit", 50)
 	offset := queryInt(c, "offset", 0)
+	filters := orionEventFilters{
+		Source: strings.TrimSpace(c.Query("source")),
+		Type:   strings.TrimSpace(c.Query("type")),
+		Search: strings.TrimSpace(c.Query("q")),
+	}
 
-	events, err := s.orionEvents(limit + offset + 1)
+	events, err := s.orionEvents(0, filters)
 	if err != nil {
 		s.logger.Error("Failed to list Orion events", "error", err)
 		utils.InternalError(c, "Failed to list Orion events", err)
 		return
 	}
-	count, err := s.orionEventCount()
-	if err != nil {
-		s.logger.Error("Failed to count Orion events", "error", err)
-		utils.InternalError(c, "Failed to list Orion events", err)
-		return
-	}
+	count := len(events)
 
 	start := offset
 	if start > len(events) {
@@ -57,43 +67,12 @@ func (s *Server) listOrionEvents(c *gin.Context) {
 	})
 }
 
-func (s *Server) orionEventCount() (int, error) {
-	total := int64(0)
-	for _, model := range []interface{}{
-		&db.Agent{},
-		&db.Monitor{},
-		&db.AgentReport{},
-		&db.MonitorReport{},
-		&db.IncidentEvent{},
-		&db.AlertDelivery{},
-	} {
-		var count int64
-		if err := s.db.Model(model).Count(&count).Error; err != nil {
-			return 0, err
-		}
-		total += count
-	}
-
-	var settings db.DataLifecycleSettings
-	result := s.db.First(&settings, 1)
-	if result.Error == nil {
-		if settings.LastRollupRunAt != nil {
-			total++
-		}
-		if settings.LastArchiveRunAt != nil {
-			total++
-		}
-	}
-
-	return int(total), nil
-}
-
-func (s *Server) orionEvents(fetchLimit int) ([]OrionEventResponse, error) {
+func (s *Server) orionEvents(fetchLimit int, filters orionEventFilters) ([]OrionEventResponse, error) {
 	if fetchLimit <= 0 {
-		fetchLimit = 50
+		fetchLimit = -1
 	}
 
-	events := make([]OrionEventResponse, 0, fetchLimit*4)
+	events := make([]OrionEventResponse, 0)
 	var agents []db.Agent
 	if err := s.db.Order("created_at DESC").Limit(fetchLimit).Find(&agents).Error; err != nil {
 		return nil, err
@@ -215,8 +194,51 @@ func (s *Server) orionEvents(fetchLimit int) ([]OrionEventResponse, error) {
 	sort.SliceStable(events, func(i, j int) bool {
 		return events[i].CreatedAt.After(events[j].CreatedAt)
 	})
-	if len(events) > fetchLimit {
+	events = filterOrionEvents(events, filters)
+	if fetchLimit > 0 && len(events) > fetchLimit {
 		return events[:fetchLimit], nil
 	}
 	return events, nil
+}
+
+func filterOrionEvents(events []OrionEventResponse, filters orionEventFilters) []OrionEventResponse {
+	source := strings.ToLower(filters.Source)
+	eventType := strings.ToLower(filters.Type)
+	search := strings.ToLower(filters.Search)
+	if source == "" && eventType == "" && search == "" {
+		return events
+	}
+
+	filtered := make([]OrionEventResponse, 0, len(events))
+	for _, event := range events {
+		if source != "" && strings.ToLower(event.Source) != source {
+			continue
+		}
+		if eventType != "" && strings.ToLower(event.Type) != eventType {
+			continue
+		}
+		if search != "" && !orionEventMatchesSearch(event, search) {
+			continue
+		}
+		filtered = append(filtered, event)
+	}
+	return filtered
+}
+
+func orionEventMatchesSearch(event OrionEventResponse, search string) bool {
+	values := []string{
+		event.ID,
+		event.Type,
+		event.Source,
+		event.Message,
+		event.AgentID,
+		event.MonitorID,
+		event.IncidentID,
+	}
+	for _, value := range values {
+		if strings.Contains(strings.ToLower(value), search) {
+			return true
+		}
+	}
+	return false
 }

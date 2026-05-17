@@ -1,34 +1,154 @@
+import { DataTable } from "@/components/data-table";
 import { DataTableLink } from "@/components/data-table-link";
 import { ListPagination } from "@/components/list-pagination";
 import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { useGetOrionEvents } from "@/orion-sdk";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
-import { parseAsInteger, useQueryState } from "nuqs";
+import {
+  type ApiOrionEventResponse,
+  type GetOrionEventsParams,
+  useGetOrionEvents,
+} from "@/orion-sdk";
+import { type ColumnDef } from "@tanstack/react-table";
+import { Search } from "lucide-react";
+import { parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 
 const EVENT_LIMIT = 40;
 
-const hasRelatedData = (event: { incident_id?: string; agent_id?: string; monitor_id?: string }) =>
+const sourceOptions = [
+  { value: "all", label: "All sources" },
+  { value: "agent", label: "Agents" },
+  { value: "monitor", label: "Monitors" },
+  { value: "agent_report", label: "Agent reports" },
+  { value: "monitor_report", label: "Monitor reports" },
+  { value: "incident_event", label: "Incidents" },
+  { value: "alert_delivery", label: "Alerts" },
+  { value: "data_lifecycle", label: "Data lifecycle" },
+] as const;
+
+const typeOptions = [
+  { value: "all", label: "All types" },
+  { value: "agent_registered", label: "Agent registered" },
+  { value: "monitor_registered", label: "Monitor registered" },
+  { value: "agent_report_received", label: "Agent report received" },
+  { value: "monitor_report_received", label: "Monitor report received" },
+  { value: "incident_opened", label: "Incident opened" },
+  { value: "incident_resolved", label: "Incident resolved" },
+  { value: "monitor_failed", label: "Monitor failed" },
+  { value: "alert_pending", label: "Alert pending" },
+  { value: "alert_sent", label: "Alert sent" },
+  { value: "alert_failed", label: "Alert failed" },
+  { value: "alert_suppressed", label: "Alert suppressed" },
+  { value: "alert_cooldown", label: "Alert cooldown" },
+  { value: "retention_rollup_ran", label: "Retention rollup ran" },
+  { value: "retention_archive_ran", label: "Retention archive ran" },
+] as const;
+
+const hasRelatedData = (event: ApiOrionEventResponse) =>
   Boolean(event.incident_id || event.agent_id || event.monitor_id);
 
+const columns: ColumnDef<ApiOrionEventResponse>[] = [
+  {
+    accessorKey: "created_at",
+    header: "Time",
+    cell: ({ row }) => <span>{formatDate(row.original.created_at, DATE_TIME_FORMAT)}</span>,
+  },
+  {
+    accessorKey: "type",
+    header: "Type",
+    cell: ({ row }) => row.original.type ?? "unknown",
+  },
+  {
+    accessorKey: "source",
+    header: "Source",
+    cell: ({ row }) => row.original.source ?? "unknown",
+  },
+  {
+    accessorKey: "message",
+    header: "Message",
+    cell: ({ row }) => (
+      <div className="max-w-[28rem] truncate text-neutral-600">{row.original.message ?? "—"}</div>
+    ),
+  },
+  {
+    id: "related",
+    header: "Related",
+    cell: ({ row }) => {
+      const event = row.original;
+
+      return (
+        <div className="flex flex-wrap gap-3">
+          {event.incident_id && (
+            <DataTableLink to={`/incidents/${event.incident_id}`} className="font-medium">
+              incident
+            </DataTableLink>
+          )}
+          {event.agent_id && (
+            <DataTableLink to={`/agents/${event.agent_id}`} className="font-medium">
+              agent
+            </DataTableLink>
+          )}
+          {event.monitor_id && (
+            <DataTableLink to={`/monitors/${event.monitor_id}`} className="font-medium">
+              monitor
+            </DataTableLink>
+          )}
+          {!event.incident_id && !event.agent_id && !event.monitor_id && "—"}
+        </div>
+      );
+    },
+  },
+];
+
 export const LogsPage = () => {
-  const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
+  const [{ page, q, source, type }, setLogQuery] = useQueryStates({
+    page: parseAsInteger.withDefault(1),
+    q: parseAsString.withDefault(""),
+    source: parseAsString.withDefault("all"),
+    type: parseAsString.withDefault("all"),
+  });
   const currentPage = Math.max(page, 1);
   const offset = (currentPage - 1) * EVENT_LIMIT;
-  const eventsQuery = useGetOrionEvents({ limit: EVENT_LIMIT, offset });
+  const params: GetOrionEventsParams = {
+    limit: EVENT_LIMIT,
+    offset,
+    q: q.trim() || undefined,
+    source: source === "all" ? undefined : source,
+    type: type === "all" ? undefined : type,
+  };
+  const eventsQuery = useGetOrionEvents(params);
   const events = eventsQuery.data?.events ?? [];
   const count = eventsQuery.data?.count ?? events.length;
   const linkedEventCount = events.filter(hasRelatedData).length;
   const sourceCount = new Set(events.map((event) => event.source ?? "unknown")).size;
+  const hasFilters = Boolean(q.trim()) || source !== "all" || type !== "all";
+
   const setOffset = (nextOffset: number) => {
-    void setPage(Math.floor(nextOffset / EVENT_LIMIT) + 1);
+    void setLogQuery({ page: Math.floor(nextOffset / EVENT_LIMIT) + 1 });
+  };
+
+  const setSearch = (nextSearch: string) => {
+    void setLogQuery({ q: nextSearch, page: 1 });
+  };
+
+  const setSource = (nextSource: string) => {
+    void setLogQuery({ source: nextSource, page: 1 });
+  };
+
+  const setType = (nextType: string) => {
+    void setLogQuery({ type: nextType, page: 1 });
+  };
+
+  const clearFilters = () => {
+    void setLogQuery({ q: "", source: "all", type: "all", page: 1 });
   };
 
   return (
@@ -38,10 +158,10 @@ export const LogsPage = () => {
         description="Agent, monitor, report, incident, alert, and lifecycle activity."
       />
 
-      <section className="space-y-3">
+      <section className="space-y-4">
         <div className="grid gap-1 text-sm sm:grid-cols-4">
           <div className="bg-neutral-100 p-3">
-            <div className="text-neutral-600">total events</div>
+            <div className="text-neutral-600">matching events</div>
             <div className="font-medium">{count}</div>
           </div>
           <div className="bg-neutral-100 p-3">
@@ -58,62 +178,59 @@ export const LogsPage = () => {
           </div>
         </div>
 
-        {eventsQuery.isLoading && (
-          <div className="text-sm text-neutral-600">Loading event log...</div>
-        )}
-        {eventsQuery.error && <div className="text-sm">Unable to load event log.</div>}
-        {!eventsQuery.isLoading && !eventsQuery.error && events.length === 0 && (
-          <div className="text-sm text-neutral-600">No Orion events recorded.</div>
-        )}
-        {events.length > 0 && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Time</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead>Message</TableHead>
-                <TableHead>Related</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {events.map((event) => (
-                <TableRow key={event.id}>
-                  <TableCell className="font-medium">
-                    {formatDate(event.created_at, DATE_TIME_FORMAT)}
-                  </TableCell>
-                  <TableCell>{event.type ?? "unknown"}</TableCell>
-                  <TableCell>{event.source ?? "unknown"}</TableCell>
-                  <TableCell className="max-w-[28rem] truncate text-neutral-600">
-                    {event.message ?? "—"}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-3">
-                      {event.incident_id && (
-                        <DataTableLink
-                          to={`/incidents/${event.incident_id}`}
-                          className="font-medium"
-                        >
-                          incident
-                        </DataTableLink>
-                      )}
-                      {event.agent_id && (
-                        <DataTableLink to={`/agents/${event.agent_id}`} className="font-medium">
-                          agent
-                        </DataTableLink>
-                      )}
-                      {event.monitor_id && (
-                        <DataTableLink to={`/monitors/${event.monitor_id}`} className="font-medium">
-                          monitor
-                        </DataTableLink>
-                      )}
-                      {!event.incident_id && !event.agent_id && !event.monitor_id && "—"}
-                    </div>
-                  </TableCell>
-                </TableRow>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative w-full max-w-sm">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-400" />
+            <Input
+              value={q}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search events"
+              className="pl-9"
+            />
+          </div>
+          <Select value={source} onValueChange={setSource}>
+            <SelectTrigger className="min-w-30 text-xs">
+              <SelectValue placeholder="All sources" />
+            </SelectTrigger>
+            <SelectContent>
+              {sourceOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
               ))}
-            </TableBody>
-          </Table>
+            </SelectContent>
+          </Select>
+          <Select value={type} onValueChange={setType}>
+            <SelectTrigger className="min-w-30 text-xs">
+              <SelectValue placeholder="All types" />
+            </SelectTrigger>
+            <SelectContent>
+              {typeOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {hasFilters && (
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              Clear
+            </Button>
+          )}
+        </div>
+
+        {eventsQuery.error && <div className="text-sm">Unable to load event log.</div>}
+        {!eventsQuery.error && (
+          <DataTable
+            columns={columns}
+            data={events}
+            emptyMessage={
+              hasFilters ? "No events match the current filters." : "No Orion events recorded."
+            }
+            getRowId={(event) => event.id ?? ""}
+            isLoading={eventsQuery.isLoading}
+            loadingMessage="Loading event log..."
+          />
         )}
         <ListPagination
           count={count}
@@ -121,13 +238,6 @@ export const LogsPage = () => {
           offset={offset}
           onOffsetChange={setOffset}
         />
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="text-sm font-medium">Service Logs</h2>
-        <p className="text-sm text-neutral-600">
-          Service log collection is not implemented yet. This page only shows Orion events.
-        </p>
       </section>
     </div>
   );

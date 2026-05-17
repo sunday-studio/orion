@@ -1401,6 +1401,31 @@ func TestListOrionEvents(t *testing.T) {
 	if paged.Data.Count <= len(paged.Data.Events) || paged.Data.Pagination.TotalItems != int64(paged.Data.Count) {
 		t.Fatalf("paged event count = %+v, want total count larger than returned rows", paged.Data)
 	}
+
+	filteredResp := performJSONRequest(t, server, http.MethodGet, "/v1/events?source=incident_event&type=incident_opened&q=homepage&limit=20", nil, "")
+	if filteredResp.Code != http.StatusOK {
+		t.Fatalf("filtered events status = %d, body = %s", filteredResp.Code, filteredResp.Body.String())
+	}
+	var filtered struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Events []struct {
+				Type    string `json:"type"`
+				Source  string `json:"source"`
+				Message string `json:"message"`
+			} `json:"events"`
+			Count int `json:"count"`
+		} `json:"data"`
+	}
+	decodeResponse(t, filteredResp, &filtered)
+	if !filtered.Success || filtered.Data.Count == 0 || len(filtered.Data.Events) == 0 {
+		t.Fatalf("filtered events response = %+v, want filtered events", filtered)
+	}
+	for _, event := range filtered.Data.Events {
+		if event.Source != "incident_event" || event.Type != "incident_opened" || !strings.Contains(strings.ToLower(event.Message), "homepage") {
+			t.Fatalf("filtered event = %+v, want matching source, type, and search", event)
+		}
+	}
 }
 
 func TestMaintenanceSuppressesAutomaticIncidentOpen(t *testing.T) {
