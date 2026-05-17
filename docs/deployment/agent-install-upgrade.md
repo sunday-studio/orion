@@ -46,6 +46,18 @@ sudo ./deploy/scripts/agent-install.sh \
 
 Use `--no-start` to install files without starting the service. Use `--overwrite-config` to replace an installed config.
 
+## Post-Install Verification
+
+After the service starts, verify the install before leaving the host:
+
+- The service should be active with the Linux or macOS service command below.
+- `state.db` should exist in the platform state path. This file stores the local Agent identity, token, maintenance flag, and monitor ID mapping.
+- The Agent should appear once in the Console Agents view.
+- Configured monitors should appear after their first interval.
+- Restarting the Agent should reuse the same Agent and monitor records.
+
+If the service starts but nothing appears in Core, check that `core_url` is reachable from the monitored host and that the host clock is correct.
+
 ## Service Commands
 
 Linux:
@@ -98,6 +110,15 @@ sudo launchctl print system/com.orion.agent
 ```
 
 The Agent identity and monitor mapping live in `state.db`, so replacing the binary does not re-register the server unless that state file is removed.
+
+After an upgrade, confirm:
+
+- the service is active;
+- the Agent still appears as the same Agent in Console;
+- monitors were not duplicated;
+- new reports arrive after the configured Agent and monitor intervals.
+
+Do not remove `state.db` during a normal upgrade. Removing it intentionally makes the Agent register as a fresh local identity, although Core can reconcile duplicate monitor names during registration.
 
 ## Rollback
 
