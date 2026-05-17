@@ -1,7 +1,7 @@
 import { Server } from "lucide-react";
 import type { FormEvent } from "react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { authLogin } from "@/lib/custom-instance";
 import { Input } from "@/components/ui/input";
@@ -9,10 +9,12 @@ import { InputWithButton } from "@/components/ui/input-with-button";
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const sessionExpired = searchParams.get("session") === "expired";
 
   const submitLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -29,7 +31,7 @@ export function LoginPage() {
   };
 
   return (
-    <main className="">
+    <main className="max-w-sm mx-auto">
       <form
         onSubmit={submitLogin}
         className="flex h-screen flex-col items-center justify-center gap-4"
@@ -57,6 +59,9 @@ export function LoginPage() {
           disabled={isSubmitting}
           required
         />
+        {sessionExpired && !error && (
+          <p className="text-sm text-amber-700">Your session expired. Sign in again.</p>
+        )}
         {error && <p className="text-sm text-rose-700">{error}</p>}
       </form>
     </main>

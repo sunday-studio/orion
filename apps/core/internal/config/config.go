@@ -66,6 +66,20 @@ func Load() *Config {
 
 // Validate returns an error if config is invalid (e.g. frontend auth on but JWT_SECRET empty).
 func (c *Config) Validate() error {
+	authValues := []string{
+		strings.TrimSpace(c.AdminUsername),
+		strings.TrimSpace(c.AdminPassword),
+		strings.TrimSpace(c.JWTSecret),
+	}
+	authValueCount := 0
+	for _, value := range authValues {
+		if value != "" {
+			authValueCount++
+		}
+	}
+	if authValueCount > 0 && authValueCount < len(authValues) {
+		return &ValidationError{Msg: "ORION_ADMIN_USERNAME, ORION_ADMIN_PASSWORD, and ORION_JWT_SECRET must all be set together"}
+	}
 	if c.FrontendAuthOn && c.JWTSecret == "" {
 		return &ValidationError{Msg: "ORION_JWT_SECRET is required when ORION_ADMIN_USERNAME and ORION_ADMIN_PASSWORD are set"}
 	}

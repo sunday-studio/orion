@@ -44,11 +44,11 @@ This checklist tracks the work needed before Orion is ready for a first self-hos
 - [x] Wire Login page to Core auth.
 - [x] Add username input to Login page.
 - [x] Add sign-out action in the app header.
-- [ ] Confirm frontend auth is either fully enabled or clearly disabled.
-- [ ] Confirm partial frontend auth configuration fails loudly.
-- [ ] Confirm expired or invalid frontend tokens show a usable login/session state.
+- [x] Confirm frontend auth is either fully enabled or clearly disabled.
+- [x] Confirm partial frontend auth configuration fails loudly.
+- [x] Confirm expired or invalid frontend tokens show a usable login/session state.
 - [ ] Confirm sign out clears local auth state in a running browser.
-- [ ] Confirm frontend-facing Agent responses never include Agent tokens.
+- [x] Confirm frontend-facing Agent responses never include Agent tokens.
 
 ## Priority 3.5 - Agent Runtime Risks
 

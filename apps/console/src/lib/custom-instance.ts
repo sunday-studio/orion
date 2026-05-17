@@ -105,9 +105,9 @@ export const orvalFetchClient = async <T>(endpoint: string, options?: RequestIni
       signal: options?.signal,
     });
 
-    if (res.status === 401) {
+    if (res.status === 401 && !endpoint.includes("/v1/auth/login")) {
       clearToken();
-      window.location.href = "/login";
+      window.location.href = "/login?session=expired";
     }
 
     if (!res.ok) {

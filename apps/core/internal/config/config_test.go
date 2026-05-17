@@ -38,6 +38,50 @@ func TestLoadCORSOriginsFromEnvironment(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsPartialFrontendAuthConfig(t *testing.T) {
+	tests := []struct {
+		name     string
+		username string
+		password string
+		secret   string
+	}{
+		{name: "username only", username: "admin"},
+		{name: "password only", password: "secret"},
+		{name: "secret only", secret: "jwt-secret"},
+		{name: "missing secret", username: "admin", password: "secret"},
+		{name: "missing password", username: "admin", secret: "jwt-secret"},
+		{name: "missing username", password: "secret", secret: "jwt-secret"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &Config{
+				AdminUsername:  tt.username,
+				AdminPassword:  tt.password,
+				JWTSecret:      tt.secret,
+				FrontendAuthOn: tt.username != "" && tt.password != "",
+			}
+
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want partial frontend auth config error")
+			}
+		})
+	}
+}
+
+func TestValidateAcceptsCompleteFrontendAuthConfig(t *testing.T) {
+	cfg := &Config{
+		AdminUsername:  "admin",
+		AdminPassword:  "secret",
+		JWTSecret:      "jwt-secret",
+		FrontendAuthOn: true,
+	}
+
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+}
+
 func TestValidateRejectsIncompleteEmailAlertChannel(t *testing.T) {
 	cfg := &Config{
 		AlertChannels: []AlertChannelConfig{
