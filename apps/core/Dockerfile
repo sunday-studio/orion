@@ -7,9 +7,10 @@ RUN cd apps/console && pnpm install --frozen-lockfile
 COPY apps/console/ apps/console/
 RUN cd apps/console && pnpm run build
 
-# Build Go binary with embedded frontend dist
+# Build Go binary and carry frontend dist for runtime serving
 FROM golang:1.25-alpine AS core
 WORKDIR /app
+RUN apk add --no-cache build-base
 COPY apps/core/go.mod apps/core/go.sum apps/core/
 RUN cd apps/core && go mod download
 COPY apps/core/ apps/core/
@@ -21,6 +22,7 @@ FROM alpine:3.20
 RUN apk add --no-cache ca-certificates
 WORKDIR /app
 COPY --from=core /app/apps/core/orion-core .
+COPY --from=core /app/apps/core/web ./web
 RUN mkdir -p /data
 ENV ORION_DATA_DIR=/data
 ENV ORION_PORT=8999

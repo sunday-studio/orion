@@ -5,6 +5,12 @@ generate-openapi:
 generate-sdk: generate-openapi
 	cd apps/console && npm run generate:api
 
+build-static:
+	cd apps/console && npm run build
+	rm -rf apps/core/web
+	mkdir -p apps/core/web
+	cp -R apps/console/dist/. apps/core/web/
+
 # Build orion-core Docker image (context: repo root)
 docker-build:
 	docker build -f apps/core/Dockerfile -t orion-core:latest .

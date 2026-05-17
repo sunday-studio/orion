@@ -9,10 +9,16 @@ This checklist tracks the work needed before Orion is ready for a first self-hos
 - [x] Send monitor reporting interval during monitor registration.
 - [x] Regenerate OpenAPI and Console SDK from Core annotations.
 - [x] Update Agent/Core contract and architecture docs for interval-aware stale rules.
-- [ ] Commit interval-based stale detection changes.
+- [x] Commit interval-based stale detection changes.
 
 ## Priority 1 - Core Deploy Smoke
 
+- [x] Fix Docker Compose build context for `make docker-up`.
+- [x] Add Core runtime serving for Console static assets.
+- [x] Add build toolchain dependencies needed for SQLite CGO in Docker build.
+- [x] Add restart policy and `/health` container healthcheck to Docker Compose.
+- [x] Make Docker Compose require frontend auth environment variables.
+- [x] Implement `make build-static`.
 - [ ] Build the Core Docker image with `make docker-build`.
 - [ ] Start Core with Docker Compose using `make docker-up`.
 - [ ] Confirm `/health` returns healthy.
@@ -23,6 +29,7 @@ This checklist tracks the work needed before Orion is ready for a first self-hos
 
 ## Priority 2 - Agent Install Smoke
 
+- [x] Make duplicate monitor registration idempotent so Agent can recover from local state loss.
 - [ ] Run the Agent install script against a local Core URL.
 - [ ] Confirm Agent creates and reuses local SQLite state.
 - [ ] Confirm Agent registration creates one stable Core agent.
@@ -34,11 +41,22 @@ This checklist tracks the work needed before Orion is ready for a first self-hos
 
 ## Priority 3 - Auth And Sensitive Data
 
+- [x] Wire Login page to Core auth.
+- [x] Add username input to Login page.
+- [x] Add sign-out action in the app header.
 - [ ] Confirm frontend auth is either fully enabled or clearly disabled.
 - [ ] Confirm partial frontend auth configuration fails loudly.
 - [ ] Confirm expired or invalid frontend tokens show a usable login/session state.
-- [ ] Confirm sign out clears local auth state.
+- [ ] Confirm sign out clears local auth state in a running browser.
 - [ ] Confirm frontend-facing Agent responses never include Agent tokens.
+
+## Priority 3.5 - Agent Runtime Risks
+
+- [ ] Make maintenance mode fail clearly or retry when Core cannot be updated.
+- [x] Add timeout to external geolocation lookup.
+- [ ] Decide whether retry queue persistence is needed for first deploy.
+- [ ] Document Docker monitor permissions for the systemd `orion` user.
+- [ ] Fix macOS uninstall paths for config/state cleanup.
 
 ## Priority 4 - UI Release Pass
 
@@ -58,6 +76,7 @@ This checklist tracks the work needed before Orion is ready for a first self-hos
 - [ ] Update Agent install/upgrade instructions after smoke testing.
 - [ ] Add a short first-run checklist for Core plus one Agent.
 - [ ] Document backup/restore expectations for the Docker volume.
+- [x] Update `docs/plans/README.md` to include this first deploy checklist.
 
 ## Priority 6 - Release Packaging
 

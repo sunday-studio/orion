@@ -6,5 +6,6 @@ This directory stores product and engineering plans that are more detailed than 
 
 - [Product Hardening Plan](product-hardening.md)
 - [Home Server Monitoring Plan](home-server-monitoring.md)
+- [First Deploy Todo](first-deploy-todo.md)
 - [UI/UX Information Architecture](ui-information-architecture.md)
 - [UI Layout To-Do](ui-layout-todo.md)

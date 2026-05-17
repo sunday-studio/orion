@@ -338,6 +338,35 @@ func TestRegisterAndUnregisterMonitorUseRouteAgentID(t *testing.T) {
 		t.Fatalf("monitor agent id = %q, want route agent id %q", monitor.AgentID, registered.Data.AgentID)
 	}
 
+	registerMonitorBody["reporting_interval_seconds"] = 45
+	duplicateResp := performJSONRequest(
+		t,
+		server,
+		http.MethodPost,
+		"/v1/agents/"+registered.Data.AgentID+"/register-monitor",
+		registerMonitorBody,
+		registered.Data.Token,
+	)
+	if duplicateResp.Code != http.StatusOK {
+		t.Fatalf("duplicate register monitor status = %d, body = %s", duplicateResp.Code, duplicateResp.Body.String())
+	}
+	var duplicateMonitor struct {
+		Success bool `json:"success"`
+		Data    struct {
+			MonitorID string `json:"monitor_id"`
+		} `json:"data"`
+	}
+	decodeResponse(t, duplicateResp, &duplicateMonitor)
+	if duplicateMonitor.Data.MonitorID != registeredMonitor.Data.MonitorID {
+		t.Fatalf("duplicate monitor id = %q, want existing %q", duplicateMonitor.Data.MonitorID, registeredMonitor.Data.MonitorID)
+	}
+	if err := server.db.Where("id = ?", registeredMonitor.Data.MonitorID).First(&monitor).Error; err != nil {
+		t.Fatalf("reload monitor after duplicate register: %v", err)
+	}
+	if monitor.ReportingIntervalSeconds != 45 {
+		t.Fatalf("monitor interval = %d, want updated 45", monitor.ReportingIntervalSeconds)
+	}
+
 	unregisterResp := performJSONRequest(
 		t,
 		server,

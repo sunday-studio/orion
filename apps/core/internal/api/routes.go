@@ -7,6 +7,9 @@ import (
 	"orion/core/internal/config"
 	"orion/core/internal/logging"
 	"orion/core/internal/service"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -139,8 +142,39 @@ func (s *Server) setupRoutes() {
 	}
 
 	s.router.NoRoute(func(c *gin.Context) {
-		c.Status(http.StatusNotFound)
+		s.serveConsole(c)
 	})
+}
+
+func (s *Server) serveConsole(c *gin.Context) {
+	if c.Request.Method != http.MethodGet && c.Request.Method != http.MethodHead {
+		c.Status(http.StatusNotFound)
+		return
+	}
+
+	path := c.Request.URL.Path
+	if strings.HasPrefix(path, "/v1/") || path == "/v1" || strings.HasPrefix(path, "/swagger/") {
+		c.Status(http.StatusNotFound)
+		return
+	}
+
+	webDir := "web"
+	indexPath := filepath.Join(webDir, "index.html")
+	if _, err := os.Stat(indexPath); err != nil {
+		c.Status(http.StatusNotFound)
+		return
+	}
+
+	cleanPath := filepath.Clean(strings.TrimPrefix(path, "/"))
+	if cleanPath != "." && cleanPath != "" && !strings.HasPrefix(cleanPath, "..") {
+		filePath := filepath.Join(webDir, cleanPath)
+		if info, err := os.Stat(filePath); err == nil && !info.IsDir() {
+			c.File(filePath)
+			return
+		}
+	}
+
+	c.File(indexPath)
 }
 
 func (s *Server) Start(ctx context.Context, addr string) error {

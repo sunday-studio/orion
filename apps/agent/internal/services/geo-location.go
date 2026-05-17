@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 )
 
 type GeoLocation struct {
@@ -19,7 +20,8 @@ type GeoLocation struct {
 }
 
 func GetLocation() (*GeoLocation, error) {
-	resp, err := http.Get("https://ipinfo.io/json")
+	client := http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Get("https://ipinfo.io/json")
 	if err != nil {
 		return nil, fmt.Errorf("location lookup failed: %w", err)
 	}

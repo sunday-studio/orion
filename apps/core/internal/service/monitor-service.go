@@ -104,9 +104,23 @@ func (s *MonitorService) RegisterMonitor(req *RegisterMonitorRequest) (*Register
 			}, nil
 		}
 
-		// already exist
-		s.logger.Error("Monitor with this name already exists for agent", "agent_id", req.AgentID, "name", req.Name)
-		return nil, gorm.ErrRegistered
+		updates := map[string]interface{}{}
+		if req.ReportingIntervalSeconds > 0 && monitor.ReportingIntervalSeconds != req.ReportingIntervalSeconds {
+			updates["reporting_interval_seconds"] = req.ReportingIntervalSeconds
+		}
+		if req.Meta != "" && monitor.Meta != req.Meta {
+			updates["meta"] = req.Meta
+		}
+		if len(updates) > 0 {
+			updates["updated_at"] = time.Now()
+			if err := s.db.Model(&monitor).Updates(updates).Error; err != nil {
+				return nil, err
+			}
+		}
+
+		return &RegisterMonitorResponse{
+			MonitorID: monitor.ID,
+		}, nil
 
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		resp, err := s.createNewMonitor(req)

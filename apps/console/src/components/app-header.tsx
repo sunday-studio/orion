@@ -1,6 +1,9 @@
 import { RadialAvatar } from "@/components/radial-avatar";
+import { Button } from "@/components/ui/button";
+import { clearToken, getToken } from "@/lib/custom-instance";
 import { useGetHealthSummary } from "@/orion-sdk";
-import { NavLink } from "react-router-dom";
+import { LogOut } from "lucide-react";
+import { NavLink, useNavigate } from "react-router-dom";
 
 const navItems = [
   { label: "Incidents", to: "/incidents" },
@@ -21,9 +24,16 @@ const healthLabel = {
 } as const;
 
 export const AppHeader = () => {
+  const navigate = useNavigate();
   const summaryResponse = useGetHealthSummary();
   const overallHealth = summaryResponse.data?.overall_health ?? "unknown";
   const label = healthLabel[overallHealth as keyof typeof healthLabel] ?? "Unknown";
+  const hasSession = Boolean(getToken());
+
+  const signOut = () => {
+    clearToken();
+    navigate("/login", { replace: true });
+  };
 
   return (
     <header className="sticky inset-x-0 top-0 z-50 backdrop-blur h-14  flex items-center bg-neutral-100">
@@ -52,6 +62,17 @@ export const AppHeader = () => {
             {summaryResponse.isLoading ? "Checking..." : label}
           </span>
           <RadialAvatar seed="casprin-eSs" />
+          {hasSession && (
+            <Button
+              aria-label="Sign out"
+              className="size-8 rounded-full px-0"
+              onClick={signOut}
+              size="icon"
+              variant="ghost"
+            >
+              <LogOut className="size-4" />
+            </Button>
+          )}
         </div>
       </div>
     </header>

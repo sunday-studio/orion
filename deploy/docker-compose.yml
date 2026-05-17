@@ -1,8 +1,9 @@
 services:
   orion-core:
     build:
-      context: .
+      context: ..
       dockerfile: apps/core/Dockerfile
+    restart: unless-stopped
     ports:
       - "8999:8999"
     volumes:
@@ -10,9 +11,15 @@ services:
     environment:
       ORION_DATA_DIR: /data
       ORION_PORT: "8999"
-      ORION_ADMIN_USERNAME: ${ORION_ADMIN_USERNAME:-}
-      ORION_ADMIN_PASSWORD: ${ORION_ADMIN_PASSWORD:-}
-      ORION_JWT_SECRET: ${ORION_JWT_SECRET:-}
+      ORION_ADMIN_USERNAME: ${ORION_ADMIN_USERNAME:?set ORION_ADMIN_USERNAME}
+      ORION_ADMIN_PASSWORD: ${ORION_ADMIN_PASSWORD:?set ORION_ADMIN_PASSWORD}
+      ORION_JWT_SECRET: ${ORION_JWT_SECRET:?set ORION_JWT_SECRET}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8999/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 volumes:
   orion-data:
