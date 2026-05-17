@@ -101,12 +101,6 @@ sudo ./deploy/scripts/agent-install.sh \
   --binary ./orion-agent
 ```
 
-Orion also publishes an Agent image:
-
-```txt
-ghcr.io/sunday-studio/orion-agent:v0.1.0
-```
-
 The service install script is the recommended path for host monitoring because it gives the Agent
 normal access to the host system, service manager, and local state path.
 
@@ -179,9 +173,9 @@ make generate-sdk
 
 ## Docker Image
 
-Core and Console ship together as one image:
+Orion publishes one deployable Docker image:
 
-- `ghcr.io/sunday-studio/orion-core:<version>`: Core API, SQLite runtime, and Console.
+- `ghcr.io/sunday-studio/orion-core:<version>`: Core API, SQLite runtime, and Console in one image.
 
 Image publishing is manually triggered from GitHub Actions. The `Docker Images` workflow asks for a
 version tag, such as `v0.1.0`, and can optionally publish `latest`.
