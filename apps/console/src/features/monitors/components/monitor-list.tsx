@@ -5,7 +5,6 @@ import { ListPagination } from "@/components/list-pagination";
 import { StatusBadge, toStatus } from "@/components/status-badges";
 import { Input } from "@/components/ui/input";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
-import { cn } from "@/lib/utils";
 import {
   type ApiMonitorResponse,
   type GetMonitorsParams,
@@ -14,18 +13,17 @@ import {
 } from "@/orion-sdk";
 import { type ColumnDef } from "@tanstack/react-table";
 import { Search } from "lucide-react";
-import { parseAsBoolean, parseAsInteger, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
+import {
+  parseAsBoolean,
+  parseAsInteger,
+  parseAsString,
+  parseAsStringLiteral,
+  useQueryStates,
+} from "nuqs";
 import { MonitorSummary, type MonitorSummaryFilter } from "./monitor-summary";
 
 const MONITOR_LIMIT = 20;
-const monitorHealthFilters = [
-  "all",
-  "up",
-  "down",
-  "degraded",
-  "unknown",
-  "stale",
-] as const;
+const monitorHealthFilters = ["all", "up", "down", "degraded", "unknown", "stale"] as const;
 
 const isStaleMonitor = (monitor: ApiMonitorResponse) => {
   return monitor.health === "stale" || monitor.computed_health === "stale";
@@ -80,9 +78,10 @@ const columns: ColumnDef<ApiMonitorResponse>[] = [
     header: "Incident",
     cell: ({ row }) => {
       const incidentID = row.original.active_incident_id;
-      if (!incidentID) return row.original.incident_state && row.original.incident_state !== "unknown"
-        ? row.original.incident_state
-        : "—";
+      if (!incidentID)
+        return row.original.incident_state && row.original.incident_state !== "unknown"
+          ? row.original.incident_state
+          : "—";
 
       return <DataTableLink to={`/incidents/${incidentID}`}>active</DataTableLink>;
     },
@@ -148,9 +147,7 @@ export const MonitorList = () => {
         selectedFilter={selectedSummaryFilter}
         onFilterChange={setSummaryFilter}
       />
-      {summaryResponse.error && (
-        <div className="py-3 text-sm">Unable to load monitor summary.</div>
-      )}
+      {summaryResponse.error && <div className="py-3 text-sm">Unable to load monitor summary.</div>}
       <div className="relative my-4 max-w-sm">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-400" />
         <Input
@@ -165,7 +162,10 @@ export const MonitorList = () => {
       )}
       {monitorsResponse.error && <div className="py-3 text-sm">Unable to load monitors.</div>}
       {!monitorsResponse.isLoading && !monitorsResponse.error && monitors.length === 0 && (
-        <EmptyState title="No monitors found" description="No monitors match the current filters." />
+        <EmptyState
+          title="No monitors found"
+          description="No monitors match the current filters."
+        />
       )}
       {!monitorsResponse.isLoading && !monitorsResponse.error && monitors.length > 0 && (
         <div className="my-6">
@@ -174,7 +174,6 @@ export const MonitorList = () => {
             data={monitors}
             emptyMessage="No monitors registered."
             getRowId={(monitor) => monitor.id ?? ""}
-            rowClassName={(row) => cn(isStaleMonitor(row.original) && "bg-orange-50/50")}
           />
         </div>
       )}

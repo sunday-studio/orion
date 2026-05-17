@@ -4,11 +4,10 @@ import { ListPagination } from "@/components/list-pagination";
 import { PageBreadcrumbs } from "@/components/page-breadcrumbs";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge, toStatus } from "@/components/status-badges";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabCount, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   type ApiIncidentResponse,
   type ApiMonitorReportResponse,
-  useGetAgent,
   useGetIncident,
   useGetIncidents,
   useGetMonitor,
@@ -18,7 +17,7 @@ import {
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
 const HISTORY_LIMIT = 20;
@@ -79,14 +78,24 @@ const payloadSummary = (report: ApiMonitorReportResponse) => {
   );
 };
 
-const DetailItem = ({ label, value }: { label: string; value: string | number }) => (
+const DetailItem = ({ label, value }: { label: string; value: ReactNode }) => (
   <div>
     <div className="text-sm text-neutral-600">{label}</div>
     <div className="text-sm font-medium">{value}</div>
   </div>
 );
 
+const DetailGroup = ({ title, children }: { title: string; children: ReactNode }) => (
+  <div className="space-y-3 bg-neutral-50 px-3 py-3">
+    <h2 className="text-sm font-medium">{title}</h2>
+    <div className="space-y-3">{children}</div>
+  </div>
+);
+
 const formatUptime = (value?: number) => (typeof value === "number" ? `${value.toFixed(1)}%` : "—");
+
+const reportTimestamp = (report?: ApiMonitorReportResponse) =>
+  report?.created_at ?? report?.collected_at;
 
 const historyColumns: ColumnDef<ApiMonitorReportResponse>[] = [
   {
@@ -98,7 +107,7 @@ const historyColumns: ColumnDef<ApiMonitorReportResponse>[] = [
   {
     accessorKey: "health",
     header: "Status",
-    cell: ({ row }) => row.original.health ?? "unknown",
+    cell: ({ row }) => <StatusBadge value={toStatus(row.original.health)} />,
   },
   {
     id: "latency",
@@ -150,9 +159,8 @@ export const MonitorDetailPage = () => {
   const [historyPage, setHistoryPage] = useState(1);
   const historyOffset = (Math.max(historyPage, 1) - 1) * HISTORY_LIMIT;
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = isMonitorDetailTab(searchParams.get("tab"))
-    ? searchParams.get("tab")
-    : "history";
+  const selectedTab = searchParams.get("tab");
+  const activeTab: MonitorDetailTab = isMonitorDetailTab(selectedTab) ? selectedTab : "history";
   const highlightedIncidentId = searchParams.get("incident") ?? "";
   const monitorResponse = useGetMonitor(monitorId);
   const uptimeResponse = useGetMonitorUptime(monitorId, { period: "90d" });
@@ -164,7 +172,6 @@ export const MonitorDetailPage = () => {
   const highlightedIncidentResponse = useGetIncident(highlightedIncidentId);
 
   const monitor = monitorResponse.data?.monitor;
-  const parentAgentResponse = useGetAgent(monitor?.agent_id ?? "");
   const reports = historyQuery.data?.reports ?? [];
   const reportCount = historyQuery.data?.count ?? reports.length;
   const latestReport = monitorResponse.data?.recent_reports?.[0] ?? reports[0];
@@ -179,6 +186,9 @@ export const MonitorDetailPage = () => {
   const relatedIncidents = (incidentsResponse.data?.incidents ?? []).filter(
     (incident) => incident.monitor_id === monitorId,
   );
+  const activeIncidents = relatedIncidents.filter((incident) =>
+    ["open", "acknowledged"].includes(incident.status ?? ""),
+  );
   const highlightedIncidentFromList = relatedIncidents.find(
     (incident) => incident.id === highlightedIncidentId,
   );
@@ -186,7 +196,20 @@ export const MonitorDetailPage = () => {
     highlightedIncidentResponse.data?.incident?.monitor_id === monitorId
       ? highlightedIncidentResponse.data.incident
       : highlightedIncidentFromList;
-  const rawPayload = latestReport?.payload ?? "No payload recorded.";
+  const latestFailureReason = readString(latestPayload, [
+    "failure_reason",
+    "message",
+    "error",
+    "detail",
+    "summary",
+  ]);
+  const latestStatusCode = readString(latestPayload, ["status_code", "code"]);
+  const latestResolvedIp = readString(latestPayload, ["resolved_ip", "ip"]);
+  const latestTlsExpiry = readString(latestPayload, [
+    "tls_days_remaining",
+    "tls_expiry",
+    "certificate_expiry",
+  ]);
   const setHistoryOffset = (nextOffset: number) => {
     setHistoryPage(Math.floor(nextOffset / HISTORY_LIMIT) + 1);
   };
@@ -217,14 +240,7 @@ export const MonitorDetailPage = () => {
     <div className="space-y-7">
       <div className="space-y-2">
         <PageBreadcrumbs
-          items={[
-            { label: "Monitors", to: "/monitors" },
-            {
-              label: parentAgentResponse.data?.agent?.name ?? "Agent",
-              to: `/agents/${monitor.agent_id}`,
-            },
-            { label: monitor.name ?? "Monitor" },
-          ]}
+          items={[{ label: "Monitors", to: "/monitors" }, { label: monitor.name ?? "Monitor" }]}
         />
         <PageHeader
           title={monitor.name ?? monitor.id ?? "Unknown monitor"}
@@ -232,7 +248,7 @@ export const MonitorDetailPage = () => {
             <p className="text-sm text-neutral-600">
               <StatusBadge className="px-1.5 py-0.5 text-[13px]" value={toStatus(health)} /> ·{" "}
               {monitor.type ?? "unknown"} · last checked{" "}
-              {formatDate(latestReport?.created_at ?? latestReport?.collected_at, DATE_TIME_FORMAT)}
+              {formatDate(reportTimestamp(latestReport), DATE_TIME_FORMAT)}
             </p>
           }
         />
@@ -257,79 +273,92 @@ export const MonitorDetailPage = () => {
         </section>
       )}
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium">Summary</h2>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div>
-            <div className="text-sm text-neutral-600">health</div>
-            <StatusBadge value={toStatus(health)} />
-          </div>
-          <DetailItem label="latency" value={formatLatency(latestPayload)} />
-          <DetailItem
-            label="status code"
-            value={readString(latestPayload, ["status_code", "code"])}
-          />
-          <DetailItem
-            label="resolved ip"
-            value={readString(latestPayload, ["resolved_ip", "ip"])}
-          />
-          <DetailItem
-            label="tls expiry"
-            value={readString(latestPayload, [
-              "tls_days_remaining",
-              "tls_expiry",
-              "certificate_expiry",
-            ])}
-          />
-          <DetailItem
-            label="last success"
-            value={formatDate(monitor.last_successful_report_at, DATE_TIME_FORMAT)}
-          />
-          <DetailItem label="active incidents" value={relatedIncidents.length} />
-        </div>
-        <div className="space-y-1">
-          <div className="text-sm font-medium">Failure reason</div>
-          <p className="text-sm text-neutral-600">
-            {readString(latestPayload, ["failure_reason", "message", "error", "detail"])}
-          </p>
-        </div>
-        <pre className="overflow-auto whitespace-pre-wrap py-2 text-sm text-neutral-700">
-          {rawPayload}
-        </pre>
-      </section>
+      <section className="space-y-4">
+        <div className="grid gap-3 lg:grid-cols-4">
+          <DetailGroup title="Monitor">
+            <DetailItem label="health" value={<StatusBadge value={toStatus(health)} />} />
+            <DetailItem label="type" value={monitor.type ?? "unknown"} />
+            <DetailItem label="interval" value={`${monitor.reporting_interval_seconds ?? 0}s`} />
+            <DetailItem label="lifecycle" value={monitor.lifecycle ?? "unknown"} />
+          </DetailGroup>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium">Uptime</h2>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <DetailItem
-            label="90d uptime"
-            value={formatUptime(uptimeResponse.data?.uptime_percent)}
-          />
-          <DetailItem label="days sampled" value={uptimeBuckets.length} />
+          <DetailGroup title="Owner">
+            <DetailItem label="agent" value={monitor.agent_name ?? "Unknown agent"} />
+            <DetailItem
+              label="last success"
+              value={formatDate(monitor.last_successful_report_at, DATE_TIME_FORMAT)}
+            />
+            {monitor.agent_id && (
+              <Link
+                className="text-sm font-medium hover:text-neutral-600"
+                to={`/agents/${monitor.agent_id}?tab=monitors`}
+              >
+                View agent
+              </Link>
+            )}
+          </DetailGroup>
+
+          <DetailGroup title="Latest Result">
+            <DetailItem
+              label="checked"
+              value={formatDate(reportTimestamp(latestReport), DATE_TIME_FORMAT)}
+            />
+            <DetailItem label="latency" value={formatLatency(latestPayload)} />
+            <DetailItem label="status code" value={latestStatusCode} />
+            <DetailItem label="resolved ip" value={latestResolvedIp} />
+            <DetailItem label="tls expiry" value={latestTlsExpiry} />
+          </DetailGroup>
+
+          <DetailGroup title="Incidents">
+            <DetailItem label="active" value={activeIncidents.length} />
+            <DetailItem label="related" value={relatedIncidents.length} />
+            {relatedIncidents[0] && (
+              <Link
+                className="text-sm font-medium hover:text-neutral-600"
+                to={`/incidents/${relatedIncidents[0].id}`}
+              >
+                View latest incident
+              </Link>
+            )}
+          </DetailGroup>
         </div>
-        {recentUptimeBuckets.length > 0 && (
-          <div className="grid gap-2 sm:grid-cols-7">
-            {recentUptimeBuckets.map((bucket) => (
-              <div key={bucket.date} className="text-sm">
-                <div className="text-neutral-600">{bucket.date ?? "—"}</div>
-                <div className="font-medium">{formatUptime(bucket.uptime_percent)}</div>
-              </div>
-            ))}
+
+        <div className="space-y-1">
+          <h2 className="text-sm font-medium">Latest Failure Reason</h2>
+          <p className="max-w-3xl text-sm text-neutral-600">{latestFailureReason}</p>
+        </div>
+
+        <div className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <DetailItem
+              label="90d uptime"
+              value={formatUptime(uptimeResponse.data?.uptime_percent)}
+            />
+            <DetailItem label="days sampled" value={uptimeBuckets.length} />
           </div>
-        )}
+          {recentUptimeBuckets.length > 0 && (
+            <div className="grid gap-2 sm:grid-cols-7">
+              {recentUptimeBuckets.map((bucket) => (
+                <div key={bucket.date} className="text-sm">
+                  <div className="text-neutral-600">{bucket.date ?? "—"}</div>
+                  <div className="font-medium">{formatUptime(bucket.uptime_percent)}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
 
       <section className="space-y-4">
         <h2 className="text-sm font-medium">Operational Data</h2>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <DetailItem label="check reports" value={reportCount} />
-          <DetailItem label="related incidents" value={relatedIncidents.length} />
-          <DetailItem label="interval" value={`${monitor.reporting_interval_seconds ?? 0}s`} />
-        </div>
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-3">
           <TabsList>
-            <TabsTrigger value="history">Check history</TabsTrigger>
-            <TabsTrigger value="incidents">Incidents</TabsTrigger>
+            <TabsTrigger value="history">
+              Check history <TabCount>{reportCount}</TabCount>
+            </TabsTrigger>
+            <TabsTrigger value="incidents">
+              Incidents <TabCount>{relatedIncidents.length}</TabCount>
+            </TabsTrigger>
             <TabsTrigger value="config">Configuration</TabsTrigger>
           </TabsList>
           <TabsContent value="history">
@@ -369,7 +398,9 @@ export const MonitorDetailPage = () => {
                 getRowId={(incident, index) => incident.id ?? `incident-${index}`}
                 isLoading={incidentsResponse.isLoading}
                 loadingMessage="Loading related incidents..."
-                rowClassName={(row) => cn(row.original.id === highlightedIncidentId && "bg-amber-50")}
+                rowClassName={(row) =>
+                  cn(row.original.id === highlightedIncidentId && "bg-amber-50")
+                }
               />
             )}
           </TabsContent>
@@ -377,16 +408,15 @@ export const MonitorDetailPage = () => {
             <div className="space-y-3">
               <div className="grid gap-3 sm:grid-cols-3">
                 <DetailItem label="type" value={monitor.type ?? "unknown"} />
-                <DetailItem label="interval" value={`${monitor.reporting_interval_seconds ?? 0}s`} />
+                <DetailItem
+                  label="interval"
+                  value={`${monitor.reporting_interval_seconds ?? 0}s`}
+                />
                 <DetailItem label="lifecycle" value={monitor.lifecycle ?? "unknown"} />
                 <DetailItem label="expected status/body/regex" value="config-owned" />
                 <DetailItem label="thresholds" value="config-owned" />
                 <DetailItem label="alerts" value="config-owned" />
               </div>
-              <p className="text-sm text-neutral-600">
-                Monitor configuration remains read-only in Console and is sourced from the
-                Agent/Core configuration flow.
-              </p>
             </div>
           </TabsContent>
         </Tabs>

@@ -13,10 +13,10 @@ const navItems = [
 
 const healthLabel = {
   up: "All good",
-  down: "Issues",
-  degraded: "Issues",
-  maintenance: "Maintenance",
-  stale: "Issues",
+  down: "Has issues",
+  degraded: "Has issues",
+  maintenance: "In maintenance",
+  stale: "Has stale data",
   unknown: "Unknown",
 } as const;
 
@@ -40,7 +40,7 @@ export const AppHeader = () => {
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                isActive ? "text-lime-700" : "text-neutral-600 hover:text-neutral-950"
+                isActive ? "text-lime-700" : "text-neutral-700 hover:text-neutral-950"
               }
             >
               {item.label}
