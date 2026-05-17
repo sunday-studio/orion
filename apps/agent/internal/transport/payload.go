@@ -27,11 +27,12 @@ type MonitorReport struct {
 }
 
 type AgentRegistrationRequest struct {
-	MachineId string `json:"machine_id" binding:"required"`
-	Name      string `json:"name" binding:"required"`
-	OS        string `json:"os" binding:"required"`
-	Arch      string `json:"arch" binding:"required"`
-	Meta      string `json:"meta,omitempty"`
+	MachineId                string `json:"machine_id" binding:"required"`
+	Name                     string `json:"name" binding:"required"`
+	OS                       string `json:"os" binding:"required"`
+	Arch                     string `json:"arch" binding:"required"`
+	ReportingIntervalSeconds int    `json:"reporting_interval_seconds,omitempty"`
+	Meta                     string `json:"meta,omitempty"`
 }
 
 type AgentRegistrationResponse struct {
@@ -44,12 +45,13 @@ type AgentRegistrationResponse struct {
 }
 
 type MonitorRegistrationRequest struct {
-	AgentID     string    `json:"agent_id" binding:"required"`
-	Name        string    `json:"name" binding:"required"`
-	Description string    `json:"description" binding:"required"`
-	Type        string    `json:"type" binding:"required"`
-	LastChecked time.Time `json:"last_checked" binding:"required"`
-	Meta        string    `json:"meta,omitempty"`
+	AgentID                  string    `json:"agent_id" binding:"required"`
+	Name                     string    `json:"name" binding:"required"`
+	Description              string    `json:"description" binding:"required"`
+	Type                     string    `json:"type" binding:"required"`
+	LastChecked              time.Time `json:"last_checked" binding:"required"`
+	ReportingIntervalSeconds int       `json:"reporting_interval_seconds,omitempty"`
+	Meta                     string    `json:"meta,omitempty"`
 }
 
 type UnRegisterMonitorRequest struct {

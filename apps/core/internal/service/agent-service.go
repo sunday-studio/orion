@@ -81,11 +81,12 @@ func NewAgentService(database *gorm.DB, logger *logging.Logger) *AgentService {
 }
 
 type RegisterRequest struct {
-	MachineId string `json:"machine_id" binding:"required"`
-	Name      string `json:"name" binding:"required"`
-	OS        string `json:"os" binding:"required"`
-	Arch      string `json:"arch" binding:"required"`
-	Meta      string `json:"meta,omitempty"`
+	MachineId                string `json:"machine_id" binding:"required"`
+	Name                     string `json:"name" binding:"required"`
+	OS                       string `json:"os" binding:"required"`
+	Arch                     string `json:"arch" binding:"required"`
+	ReportingIntervalSeconds int    `json:"reporting_interval_seconds,omitempty"`
+	Meta                     string `json:"meta,omitempty"`
 }
 
 type RegisterResponse struct {
@@ -108,6 +109,9 @@ func (s *AgentService) RegisterAgent(req *RegisterRequest) (*RegisterResponse, e
 	// Update metadata if it has changed (OS, arch, name may change after system updates)
 	updates := make(map[string]interface{})
 	updates["last_seen"] = time.Now()
+	if req.ReportingIntervalSeconds > 0 && agent.ReportingIntervalSeconds != req.ReportingIntervalSeconds {
+		updates["reporting_interval_seconds"] = req.ReportingIntervalSeconds
+	}
 
 	if agent.Name != req.Name {
 		s.logger.Info("Agent name changed", "old_name", agent.Name, "new_name", req.Name, "agent_id", agent.ID)
@@ -156,15 +160,19 @@ func (s *AgentService) createNewAgent(req *RegisterRequest) (*RegisterResponse, 
 	}
 
 	agent := db.Agent{
-		ID:        agentID,
-		MachineId: req.MachineId,
-		Name:      req.Name,
-		OS:        req.OS,
-		Arch:      req.Arch,
-		Token:     token,
-		Meta:      req.Meta,
-		CreatedAt: time.Now(),
-		LastSeen:  time.Now(),
+		ID:                       agentID,
+		MachineId:                req.MachineId,
+		Name:                     req.Name,
+		OS:                       req.OS,
+		Arch:                     req.Arch,
+		Token:                    token,
+		ReportingIntervalSeconds: req.ReportingIntervalSeconds,
+		Meta:                     req.Meta,
+		CreatedAt:                time.Now(),
+		LastSeen:                 time.Now(),
+	}
+	if agent.ReportingIntervalSeconds <= 0 {
+		agent.ReportingIntervalSeconds = 60
 	}
 
 	if err := s.db.Create(&agent).Error; err != nil {
@@ -307,6 +315,9 @@ func (s *AgentService) ListAgents(opts ListAgentsOpts) ([]AgentListRow, int64, e
 		if h, _, _, _, err := healthSvc.ComputeAgentHealth(a.ID, cfg); err == nil {
 			health = h
 		}
+		if opts.StaleOnly && health != "stale" {
+			continue
+		}
 		if statusFilter != "" {
 			if health != statusFilter {
 				continue
@@ -357,11 +368,6 @@ func (s *AgentService) applyAgentListDatabaseFilters(query *gorm.DB, opts ListAg
 		query = query.Where("maintenance_mode = ?", true)
 	case "false":
 		query = query.Where("maintenance_mode = ?", false)
-	}
-
-	if opts.StaleOnly {
-		threshold := time.Now().Add(-time.Duration(DefaultHealthConfig().StaleDataThresholdMinutes) * time.Minute)
-		query = query.Where("last_seen = ? OR last_seen < ?", time.Time{}, threshold)
 	}
 
 	if opts.HasIncidents {

@@ -25,6 +25,8 @@ type HealthComputationConfig struct {
 	StaleDataThresholdMinutes int     // Minutes before data is considered stale
 	FlappingThreshold         int     // Number of transitions to consider flapping
 	DegradedFailureRate       float64 // Failure rate threshold for degraded (0.0-1.0)
+	StaleIntervalMultiplier   int     // Reporting intervals missed before data is stale
+	MinimumStaleWindow        time.Duration
 }
 
 // DefaultHealthConfig returns default configuration
@@ -33,7 +35,36 @@ func DefaultHealthConfig() HealthComputationConfig {
 		StaleDataThresholdMinutes: 15,  // 15 minutes
 		FlappingThreshold:         3,   // 3 transitions
 		DegradedFailureRate:       0.3, // 30% failure rate
+		StaleIntervalMultiplier:   5,
+		MinimumStaleWindow:        5 * time.Minute,
 	}
+}
+
+func staleWindow(intervalSeconds int, config HealthComputationConfig) time.Duration {
+	if intervalSeconds <= 0 {
+		intervalSeconds = 60
+	}
+
+	multiplier := config.StaleIntervalMultiplier
+	if multiplier <= 0 {
+		multiplier = 5
+	}
+
+	window := time.Duration(intervalSeconds*multiplier) * time.Second
+	if config.MinimumStaleWindow > 0 && window < config.MinimumStaleWindow {
+		return config.MinimumStaleWindow
+	}
+	if window <= 0 {
+		return time.Duration(config.StaleDataThresholdMinutes) * time.Minute
+	}
+	return window
+}
+
+func isStaleAt(timestamp time.Time, intervalSeconds int, config HealthComputationConfig) bool {
+	if timestamp.IsZero() {
+		return true
+	}
+	return time.Since(timestamp) > staleWindow(intervalSeconds, config)
 }
 
 // ComputeMonitorHealth computes the derived health state for a monitor with TTL caching
@@ -57,7 +88,7 @@ func (s *HealthService) ComputeMonitorHealth(monitorID string, config HealthComp
 	}
 
 	// Cache is stale or missing, recompute
-	computedHealth, err := s.computeMonitorHealthInternal(monitorID, config)
+	computedHealth, err := s.computeMonitorHealthInternal(monitorID, monitor.ReportingIntervalSeconds, config)
 	if err != nil {
 		return "unknown", err
 	}
@@ -76,7 +107,7 @@ func (s *HealthService) ComputeMonitorHealth(monitorID string, config HealthComp
 }
 
 // computeMonitorHealthInternal performs the actual health computation
-func (s *HealthService) computeMonitorHealthInternal(monitorID string, config HealthComputationConfig) (string, error) {
+func (s *HealthService) computeMonitorHealthInternal(monitorID string, reportingIntervalSeconds int, config HealthComputationConfig) (string, error) {
 	// Get recent reports for the monitor
 	var reports []db.MonitorReport
 	if err := s.db.Where("monitor_id = ?", monitorID).
@@ -103,8 +134,7 @@ func (s *HealthService) computeMonitorHealthInternal(monitorID string, config He
 		}
 	}
 
-	staleThreshold := time.Now().Add(-time.Duration(config.StaleDataThresholdMinutes) * time.Minute)
-	if latestTime.Before(staleThreshold) {
+	if isStaleAt(latestTime, reportingIntervalSeconds, config) {
 		return "unknown", nil // Stale data
 	}
 
@@ -179,7 +209,7 @@ func (s *HealthService) ComputeAgentHealth(agentID string, config HealthComputat
 		if agent.MaintenanceMode {
 			return "maintenance", 0, 0, 0, nil
 		}
-		if agent.LastSeen.IsZero() || agent.LastSeen.Before(time.Now().Add(-time.Duration(config.StaleDataThresholdMinutes)*time.Minute)) {
+		if isStaleAt(agent.LastSeen, agent.ReportingIntervalSeconds, config) {
 			return "stale", 0, 0, 0, nil
 		}
 		return "up", 0, 0, 0, nil
@@ -190,7 +220,7 @@ func (s *HealthService) ComputeAgentHealth(agentID string, config HealthComputat
 		return "maintenance", upCount, downCount, degradedCount, nil
 	}
 
-	if agent.LastSeen.IsZero() || agent.LastSeen.Before(time.Now().Add(-time.Duration(config.StaleDataThresholdMinutes)*time.Minute)) {
+	if isStaleAt(agent.LastSeen, agent.ReportingIntervalSeconds, config) {
 		upCount, downCount, degradedCount, _ := countStoredMonitorHealth(monitors)
 		return "stale", upCount, downCount, degradedCount, nil
 	}
@@ -265,7 +295,6 @@ func countStoredMonitorHealth(monitors []db.Monitor) (int, int, int, int) {
 // DetectStaleMonitors finds monitors with stale data
 func (s *HealthService) DetectStaleMonitors(config HealthComputationConfig) ([]db.Monitor, error) {
 	var monitors []db.Monitor
-	threshold := time.Now().Add(-time.Duration(config.StaleDataThresholdMinutes) * time.Minute)
 
 	// Get all active monitors
 	if err := s.db.Where("lifecycle = ?", "active").Find(&monitors).Error; err != nil {
@@ -294,7 +323,7 @@ func (s *HealthService) DetectStaleMonitors(config HealthComputationConfig) ([]d
 			}
 		}
 
-		if latestTime.Before(threshold) {
+		if isStaleAt(latestTime, monitor.ReportingIntervalSeconds, config) {
 			staleMonitors = append(staleMonitors, monitor)
 		}
 	}

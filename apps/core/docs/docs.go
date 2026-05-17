@@ -3296,6 +3296,9 @@ const docTemplate = `{
                 },
                 "os": {
                     "type": "string"
+                },
+                "reporting_interval_seconds": {
+                    "type": "integer"
                 }
             }
         },

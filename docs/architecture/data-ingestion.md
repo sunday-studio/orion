@@ -54,7 +54,7 @@ On reconnect:
 - Core looks up the existing `machine_id`.
 - Core returns the same token.
 - Core refreshes `last_seen`.
-- Core updates changed name, OS, arch, and meta.
+- Core updates changed name, OS, arch, reporting interval, and meta.
 
 ```mermaid
 flowchart TD
@@ -80,6 +80,7 @@ Core monitor registration behavior:
 - Previously deleted monitor with the same server/name is revived.
 - Active duplicate monitor names for a server are rejected.
 - Removed monitors are soft-deleted by setting `lifecycle = deleted`, `health = unknown`, and `deleted_at`.
+- Core stores each monitor reporting interval and uses it to derive stale state.
 
 ```mermaid
 flowchart TD
@@ -115,6 +116,7 @@ Agent collects:
 - config summary with reporting interval, monitor count, and monitor type counts.
 
 Core stores system reports in `agent_reports`.
+Core may also refresh the stored Agent reporting interval from `config_summary.reporting_interval`.
 
 ```mermaid
 flowchart TD

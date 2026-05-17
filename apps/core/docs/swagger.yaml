@@ -548,6 +548,8 @@ definitions:
         type: string
       os:
         type: string
+      reporting_interval_seconds:
+        type: integer
     required:
     - arch
     - machine_id

@@ -44,6 +44,20 @@ func TestComputeAgentHealthWithoutMonitors(t *testing.T) {
 			expect: "stale",
 		},
 		{
+			name: "agent stale window follows reporting interval",
+			agent: db.Agent{
+				ID:                       "agent-slow",
+				MachineId:                "slow-machine",
+				Name:                     "slow",
+				OS:                       "linux",
+				Arch:                     "arm64",
+				Token:                    "slow-token",
+				LastSeen:                 time.Now().Add(-20 * time.Minute),
+				ReportingIntervalSeconds: 600,
+			},
+			expect: "up",
+		},
+		{
 			name: "maintenance agent reports maintenance",
 			agent: db.Agent{
 				ID:              "agent-maintenance",
@@ -138,6 +152,79 @@ func TestComputeAgentHealthCountsStoredMonitorHealthForStaleAgent(t *testing.T) 
 	}
 	if upCount != 1 || downCount != 1 || degradedCount != 1 {
 		t.Fatalf("counts = up:%d down:%d degraded:%d, want 1/1/1", upCount, downCount, degradedCount)
+	}
+}
+
+func TestDetectStaleMonitorsUsesReportingInterval(t *testing.T) {
+	database := setupHealthTestDB(t)
+	agent := db.Agent{
+		ID:        "agent-monitor-stale-window",
+		MachineId: "monitor-stale-window-machine",
+		Name:      "monitor stale window",
+		OS:        "linux",
+		Arch:      "arm64",
+		Token:     "monitor-stale-window-token",
+		LastSeen:  time.Now(),
+	}
+	if err := database.Create(&agent).Error; err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+
+	monitors := []db.Monitor{
+		{
+			ID:                       "monitor-fast",
+			AgentID:                  agent.ID,
+			Name:                     "fast",
+			Type:                     "http",
+			Lifecycle:                "active",
+			Health:                   "up",
+			ReportingIntervalSeconds: 60,
+		},
+		{
+			ID:                       "monitor-slow",
+			AgentID:                  agent.ID,
+			Name:                     "slow",
+			Type:                     "http",
+			Lifecycle:                "active",
+			Health:                   "up",
+			ReportingIntervalSeconds: 600,
+		},
+	}
+	if err := database.Create(&monitors).Error; err != nil {
+		t.Fatalf("create monitors: %v", err)
+	}
+
+	reportTime := time.Now().Add(-20 * time.Minute).UTC().Format(time.RFC3339)
+	reports := []db.MonitorReport{
+		{
+			ID:          "report-fast",
+			MonitorID:   "monitor-fast",
+			Payload:     "{}",
+			CollectedAt: reportTime,
+			Health:      "up",
+			CreatedAt:   time.Now().Add(-20 * time.Minute),
+		},
+		{
+			ID:          "report-slow",
+			MonitorID:   "monitor-slow",
+			Payload:     "{}",
+			CollectedAt: reportTime,
+			Health:      "up",
+			CreatedAt:   time.Now().Add(-20 * time.Minute),
+		},
+	}
+	if err := database.Create(&reports).Error; err != nil {
+		t.Fatalf("create reports: %v", err)
+	}
+
+	service := NewHealthService(database, logging.NewLogger())
+	staleMonitors, err := service.DetectStaleMonitors(DefaultHealthConfig())
+	if err != nil {
+		t.Fatalf("DetectStaleMonitors() error = %v", err)
+	}
+
+	if len(staleMonitors) != 1 || staleMonitors[0].ID != "monitor-fast" {
+		t.Fatalf("stale monitors = %+v, want only fast monitor stale", staleMonitors)
 	}
 }
 

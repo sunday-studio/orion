@@ -69,7 +69,7 @@ Monitor health is derived from recent reports and cached on the monitor row.
 
 Defaults:
 
-- stale threshold: 15 minutes;
+- stale threshold: five missed reporting intervals, with a five-minute minimum window;
 - flapping threshold: 3 transitions;
 - degraded failure rate: 30%;
 - last 20 reports are used for monitor health.
@@ -96,7 +96,7 @@ flowchart TD
 Server health is derived from Agent and monitor state:
 
 - maintenance server returns `maintenance`;
-- stale `last_seen` returns `stale`;
+- stale `last_seen` returns `stale` based on the Agent reporting interval;
 - server with no active monitors returns `up`;
 - otherwise health priority is `down`, then `degraded`, then `unknown`, then `up`.
 

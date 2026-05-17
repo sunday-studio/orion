@@ -159,16 +159,12 @@ func (s *Server) getAgentSummary(c *gin.Context) {
 	}
 
 	summary := AgentSummaryResponse{Total: int64(len(agents))}
-	staleThreshold := time.Now().Add(-time.Duration(config.StaleDataThresholdMinutes) * time.Minute)
 	agentIDs := make([]string, 0, len(agents))
 
 	for _, agent := range agents {
 		agentIDs = append(agentIDs, agent.ID)
 		if agent.MaintenanceMode {
 			summary.Maintenance++
-		}
-		if agent.LastSeen.IsZero() || agent.LastSeen.Before(staleThreshold) {
-			summary.Stale++
 		}
 
 		health := "unknown"
@@ -186,7 +182,7 @@ func (s *Server) getAgentSummary(c *gin.Context) {
 		case "maintenance":
 			// Maintenance is counted from agent state above and is not an unknown health state.
 		case "stale":
-			// Stale is counted from last_seen above and is not an unknown health state.
+			summary.Stale++
 		default:
 			summary.Unknown++
 		}

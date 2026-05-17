@@ -51,10 +51,11 @@ func (s *RegistrationService) RegisterAgentIfNeeded() error {
 	}
 
 	req := transport.AgentRegistrationRequest{
-		MachineId: uuid,
-		Name:      name,
-		OS:        os,
-		Arch:      arch,
+		MachineId:                uuid,
+		Name:                     name,
+		OS:                       os,
+		Arch:                     arch,
+		ReportingIntervalSeconds: intervalSeconds(s.userConfig.Interval),
 	}
 	if s.userConfig.Meta != nil && len(s.userConfig.Meta) > 0 {
 		if b, err := json.Marshal(s.userConfig.Meta); err == nil {
@@ -108,11 +109,12 @@ func (s *RegistrationService) RegisterAgentMonitorsIfNeeded() error {
 		logging.Infof("Registering monitor %q", name)
 
 		req := transport.MonitorRegistrationRequest{
-			AgentID:     internalState.AgentID,
-			Name:        monitor.Name,
-			Description: monitor.Description,
-			Type:        string(monitor.Type),
-			LastChecked: time.Now(),
+			AgentID:                  internalState.AgentID,
+			Name:                     monitor.Name,
+			Description:              monitor.Description,
+			Type:                     string(monitor.Type),
+			LastChecked:              time.Now(),
+			ReportingIntervalSeconds: intervalSeconds(monitor.Interval),
 		}
 		if monitor.Meta != nil && len(monitor.Meta) > 0 {
 			if b, err := json.Marshal(monitor.Meta); err == nil {
@@ -157,6 +159,14 @@ func (s *RegistrationService) RegisterAgentMonitorsIfNeeded() error {
 	}
 
 	return nil
+}
+
+func intervalSeconds(value string) int {
+	duration, err := time.ParseDuration(value)
+	if err != nil || duration <= 0 {
+		return 60
+	}
+	return int(duration.Seconds())
 }
 
 func buildStateMonitorMap(monitors []config.InternalStateMonitor) map[string]config.InternalStateMonitor {

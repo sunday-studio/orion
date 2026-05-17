@@ -150,6 +150,7 @@ sequenceDiagram
 ## Derived Monitor Health
 
 Incident reconciliation uses the reported health and TLS checks directly. Core also computes a derived monitor health for broader health views.
+Stale checks use the stored reporting interval for the Agent or monitor, not a single global timeout.
 
 ```mermaid
 flowchart TD

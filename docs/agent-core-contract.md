@@ -70,6 +70,8 @@ The Agent should not:
 - `machine_id` is the stable identity key.
 - Existing `machine_id` returns the existing `agent_id` and token.
 - New `machine_id` creates an agent and token.
+- Agent sends `reporting_interval_seconds` from its global config interval.
+- Core stores the reporting interval on create and updates it on re-registration.
 - Agent metadata from config may be stored as stringified JSON.
 
 ### Monitor Registration
@@ -77,6 +79,8 @@ The Agent should not:
 - Monitor names are unique per agent.
 - Active duplicate names return a conflict.
 - Deleted monitors with the same name are revived.
+- Agent sends `reporting_interval_seconds` from each monitor config interval.
+- Core stores the monitor reporting interval and uses it for stale detection.
 - Monitor metadata from config may be stored as stringified JSON.
 
 ### Monitor Unregistration
@@ -91,6 +95,7 @@ The Agent should not:
 - Core stores metrics and location metadata when present.
 - Agent reports may include `agent_version`.
 - Agent reports may include a compact `config_summary` with reporting interval, monitor count, and monitor type counts.
+- Core may refresh the stored agent reporting interval from `config_summary.reporting_interval`.
 - Core owns retention and rollups.
 
 ### Monitor Reports
@@ -116,6 +121,13 @@ Server health rules:
 - A stale server reports `stale`.
 - A fresh server with no active monitors reports `up`.
 - Maintenance suppresses incident candidates and should suppress future alert delivery.
+
+Stale rules:
+
+- Agent stale state is based on `agent.last_seen` and `agent.reporting_interval_seconds`.
+- Monitor stale state is based on the latest monitor report time and `monitor.reporting_interval_seconds`.
+- Core treats data as stale after five missed reporting intervals, with a minimum stale window of five minutes.
+- If an interval is missing or invalid, Core falls back to 60 seconds.
 
 Lifecycle states:
 

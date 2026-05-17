@@ -139,6 +139,14 @@ func (s *ReportService) StoreAgentReport(agentID string, payload AgentReportPayl
 		return nil, err
 	}
 
+	if intervalSeconds := reportingIntervalSeconds(payload.ConfigSummary); intervalSeconds > 0 {
+		if err := s.db.Model(&db.Agent{}).
+			Where("id = ?", agentID).
+			Update("reporting_interval_seconds", intervalSeconds).Error; err != nil {
+			s.logger.Error("Failed to update agent reporting interval", "agent_id", agentID, "error", err)
+		}
+	}
+
 	s.logger.Info("Agent report stored successfully", "agent_report_id", agentReport.ID)
 	incidentService := NewIncidentService(s.db, s.logger, s.cfg)
 	if err := incidentService.ReconcileStaleMonitors(agentID); err != nil {
@@ -146,6 +154,30 @@ func (s *ReportService) StoreAgentReport(agentID string, payload AgentReportPayl
 		return nil, err
 	}
 	return &agentReportID, nil
+}
+
+func reportingIntervalSeconds(configSummary interface{}) int {
+	summary, ok := configSummary.(map[string]interface{})
+	if !ok {
+		return 0
+	}
+
+	value, ok := summary["reporting_interval"]
+	if !ok {
+		return 0
+	}
+
+	interval, ok := value.(string)
+	if !ok || interval == "" {
+		return 0
+	}
+
+	duration, err := time.ParseDuration(interval)
+	if err != nil || duration <= 0 {
+		return 0
+	}
+
+	return int(duration.Seconds())
 }
 
 func (s *ReportService) GetAgentReportsById(agentID string, limit int, offset int) ([]db.AgentReport, error) {

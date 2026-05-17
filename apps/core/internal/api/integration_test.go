@@ -133,6 +133,13 @@ func TestRegisterReportListFlow(t *testing.T) {
 	if !strings.Contains(storedReport.ConfigSummary, `"monitor_count":1`) {
 		t.Fatalf("config_summary = %q, want monitor_count", storedReport.ConfigSummary)
 	}
+	var storedAgent db.Agent
+	if err := server.db.Where("id = ?", registered.Data.AgentID).First(&storedAgent).Error; err != nil {
+		t.Fatalf("find stored agent: %v", err)
+	}
+	if storedAgent.ReportingIntervalSeconds != 60 {
+		t.Fatalf("agent reporting interval = %d, want 60", storedAgent.ReportingIntervalSeconds)
+	}
 }
 
 func TestHealthCheckResponse(t *testing.T) {
@@ -1823,11 +1830,12 @@ func registerTestAgent(t *testing.T, server *Server) struct {
 } {
 	t.Helper()
 
-	registerBody := map[string]string{
-		"machine_id": "test-machine-" + t.Name(),
-		"name":       "test-server",
-		"os":         "linux",
-		"arch":       "arm64",
+	registerBody := map[string]interface{}{
+		"machine_id":                 "test-machine-" + t.Name(),
+		"name":                       "test-server",
+		"os":                         "linux",
+		"arch":                       "arm64",
+		"reporting_interval_seconds": 60,
 	}
 	registerResp := performJSONRequest(t, server, http.MethodPost, "/v1/register", registerBody, "")
 	if registerResp.Code != http.StatusOK {
