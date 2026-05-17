@@ -18,12 +18,20 @@ import {
   useGetIncident,
 } from "@/orion-sdk";
 import type { ColumnDef } from "@tanstack/react-table";
+import type { ReactNode } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
-const DetailItem = ({ label, value }: { label: string; value: string | number }) => (
+const DetailItem = ({ label, value }: { label: string; value: ReactNode }) => (
   <div>
     <div className="text-sm text-neutral-600">{label}</div>
     <div className="text-sm font-medium">{value}</div>
+  </div>
+);
+
+const DetailGroup = ({ title, children }: { title: string; children: ReactNode }) => (
+  <div className="space-y-3 bg-neutral-50 px-3 py-3">
+    <h2 className="text-sm font-medium">{title}</h2>
+    <div className="space-y-3">{children}</div>
   </div>
 );
 
@@ -165,82 +173,84 @@ export const IncidentDetailPage = () => {
             { label: incident.title ?? "Incident" },
           ]}
         />
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-base font-medium">{incident.title ?? "Untitled incident"}</h1>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <StatusBadge value={toStatus(incident.status)} />
-              <SeverityBadge value={toSeverity(incident.severity)} />
-            </div>
-          </div>
-          <NotificationBadge
-            value={toNotificationStatus(incident.notification_status)}
-            fallback="no notification status"
-          />
-        </div>
       </div>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium">Summary</h2>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div>
-            <div className="text-sm text-neutral-600">status</div>
-            <StatusBadge value={toStatus(incident.status)} />
-          </div>
-          <div>
-            <div className="text-sm text-neutral-600">severity</div>
-            <SeverityBadge value={toSeverity(incident.severity)} />
-          </div>
-          <DetailItem label="duration" value={durationLabel(incident)} />
-          <DetailItem label="opened" value={formatDate(incident.opened_at, DATE_TIME_FORMAT)} />
-          <DetailItem label="resolved" value={formatDate(incident.resolved_at, DATE_TIME_FORMAT)} />
-          <DetailItem
-            label="latest event"
-            value={formatDate(incident.last_event_at, DATE_TIME_FORMAT)}
-          />
+      <section className="space-y-4">
+        <div className="space-y-2">
+          <h1 className="text-base font-medium">{incident.title ?? "Untitled incident"}</h1>
+          <p className="max-w-3xl text-sm text-neutral-600">
+            {incident.latest_event ?? "No latest event recorded."}
+          </p>
         </div>
-        <p className="text-sm text-neutral-600">{incident.latest_event ?? "No latest event."}</p>
-      </section>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium">Affected Data</h2>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <DetailItem label="agent" value={incident.agent_name ?? "Unknown agent"} />
-          <DetailItem label="monitor" value={incident.monitor_name ?? "Unknown monitor"} />
-          <DetailItem label="monitor type" value={incident.monitor_type ?? "unknown"} />
-        </div>
-        <div className="flex flex-wrap gap-4 text-sm">
-          {incident.agent_id && (
-            <Link
-              to={`/agents/${incident.agent_id}?tab=monitors&incident=${encodeURIComponent(incident.id ?? "")}`}
-              className="font-medium hover:text-neutral-600"
-            >
-              View agent
-            </Link>
-          )}
-          {incident.monitor_id && (
-            <Link
-              to={`/monitors/${incident.monitor_id}?incident=${encodeURIComponent(incident.id ?? "")}`}
-              className="font-medium hover:text-neutral-600"
-            >
-              View monitor
-            </Link>
-          )}
+        <div className="grid gap-3 lg:grid-cols-3">
+          <DetailGroup title="Incident">
+            <DetailItem label="status" value={<StatusBadge value={toStatus(incident.status)} />} />
+            <DetailItem
+              label="severity"
+              value={<SeverityBadge value={toSeverity(incident.severity)} />}
+            />
+            <DetailItem
+              label="notification"
+              value={
+                <NotificationBadge
+                  value={toNotificationStatus(incident.notification_status)}
+                  fallback="no notification status"
+                />
+              }
+            />
+            <DetailItem label="duration" value={durationLabel(incident)} />
+          </DetailGroup>
+
+          <DetailGroup title="Affected">
+            <DetailItem label="agent" value={incident.agent_name ?? "Unknown agent"} />
+            <DetailItem label="monitor" value={incident.monitor_name ?? "Unknown monitor"} />
+            <DetailItem label="monitor type" value={incident.monitor_type ?? "unknown"} />
+            <div className="flex flex-wrap gap-4 text-sm">
+              {incident.agent_id && (
+                <Link
+                  to={`/agents/${incident.agent_id}?tab=monitors&incident=${encodeURIComponent(incident.id ?? "")}`}
+                  className="font-medium hover:text-neutral-600"
+                >
+                  View agent
+                </Link>
+              )}
+              {incident.monitor_id && (
+                <Link
+                  to={`/monitors/${incident.monitor_id}?incident=${encodeURIComponent(incident.id ?? "")}`}
+                  className="font-medium hover:text-neutral-600"
+                >
+                  View monitor
+                </Link>
+              )}
+            </div>
+          </DetailGroup>
+
+          <DetailGroup title="Timing">
+            <DetailItem label="opened" value={formatDate(incident.opened_at, DATE_TIME_FORMAT)} />
+            <DetailItem
+              label="latest event"
+              value={formatDate(incident.last_event_at, DATE_TIME_FORMAT)}
+            />
+            <DetailItem
+              label="resolved"
+              value={formatDate(incident.resolved_at, DATE_TIME_FORMAT)}
+            />
+          </DetailGroup>
         </div>
       </section>
 
       <section className="space-y-4">
         <h2 className="text-sm font-medium">Operational Data</h2>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <DetailItem label="alert deliveries" value={alertDeliveries.length} />
-          <DetailItem label="monitor reports" value={monitorReports.length} />
-          <DetailItem label="timeline events" value={timeline.length} />
-        </div>
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-3">
           <TabsList>
-            <TabsTrigger value="timeline">Timeline</TabsTrigger>
-            <TabsTrigger value="notifications">Notifications</TabsTrigger>
-            <TabsTrigger value="monitor-reports">Monitor reports</TabsTrigger>
+            <TabsTrigger value="timeline">Timeline ({timeline.length})</TabsTrigger>
+            <TabsTrigger value="notifications">
+              Notifications ({alertDeliveries.length})
+            </TabsTrigger>
+            <TabsTrigger value="monitor-reports">
+              Monitor reports ({monitorReports.length})
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="timeline">
             <DataTable
@@ -267,15 +277,6 @@ export const IncidentDetailPage = () => {
             />
           </TabsContent>
         </Tabs>
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium">Record</h2>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <DetailItem label="created" value={formatDate(incident.created_at, DATE_TIME_FORMAT)} />
-          <DetailItem label="updated" value={formatDate(incident.updated_at, DATE_TIME_FORMAT)} />
-          <DetailItem label="incident id" value={incident.id ?? "—"} />
-        </div>
       </section>
     </div>
   );
