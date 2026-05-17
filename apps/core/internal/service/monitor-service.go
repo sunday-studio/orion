@@ -39,6 +39,7 @@ type ListAllMonitorsOpts struct {
 	Offset       int
 	Search       string
 	Health       string
+	Type         string
 	Lifecycle    string
 	StaleOnly    bool
 	HasIncidents bool
@@ -406,6 +407,10 @@ func (s *MonitorService) applyAllMonitorListFilters(query *gorm.DB, opts ListAll
 		query = query.Where("lifecycle = ?", opts.Lifecycle)
 	} else {
 		query = query.Where("lifecycle = ?", "active")
+	}
+
+	if opts.Type != "" {
+		query = query.Where("LOWER(type) = ?", strings.ToLower(strings.TrimSpace(opts.Type)))
 	}
 
 	if opts.StaleOnly {

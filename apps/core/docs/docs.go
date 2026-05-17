@@ -1824,6 +1824,12 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "Filter by monitor type",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "description": "Filter by lifecycle status (active|disabled|deleted)",
                         "name": "lifecycle",
                         "in": "query"

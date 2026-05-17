@@ -13,7 +13,7 @@ const tableVariantClasses = {
   default: {
     container: "",
     table: "",
-    header: "[&_tr]:border-b border-neutral-200/70",
+    header: "[&_tr]:border-y border-neutral-200/70",
     body: "[&>tr:has(+_tr:hover)]:border-emerald-100 [&>tr:hover]:border-emerald-100 [&>tr:hover]:bg-emerald-50 [&>tr:hover>td]:border-emerald-100",
     footer: "border-t bg-muted/50 font-medium [&>tr]:last:border-b-0 border-neutral-200",
     row: "border-b border-neutral-200/70 transition-colors group",
@@ -23,7 +23,7 @@ const tableVariantClasses = {
   contained: {
     container: " bg-neutral-100/70",
     table: "bg-transparent",
-    header: "[&_tr]:border-b border-neutral-300/60",
+    header: "[&_tr]:border-y border-neutral-300/60",
     body: "[&>tr:has(+_tr:hover)]:border-emerald-200 [&>tr:hover]:border-emerald-200 [&>tr:hover]:bg-emerald-50 [&>tr:hover>td]:border-emerald-200",
     footer: "border-t bg-neutral-100 font-medium [&>tr]:last:border-b-0 border-neutral-300/60",
     row: "border-b border-neutral-300/60 transition-colors group last:border-b-0",

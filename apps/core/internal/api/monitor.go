@@ -167,6 +167,7 @@ func (s *Server) listMonitors(c *gin.Context) {
 // @Param        offset         query     int     false  "Number of monitors to skip" default(0)
 // @Param        search         query     string  false  "Search by monitor, agent, or type"
 // @Param        health         query     string  false  "Filter by health status (up|down|degraded|unknown)"
+// @Param        type           query     string  false  "Filter by monitor type"
 // @Param        lifecycle      query     string  false  "Filter by lifecycle status (active|disabled|deleted)"
 // @Param        stale_only     query     bool    false  "Only return stale monitors"
 // @Param        has_incidents  query     bool    false  "Only return monitors with active incidents"
@@ -184,6 +185,7 @@ func (s *Server) listAllMonitors(c *gin.Context) {
 		Offset:       offset,
 		Search:       c.Query("search"),
 		Health:       c.Query("health"),
+		Type:         c.Query("type"),
 		Lifecycle:    c.Query("lifecycle"),
 		StaleOnly:    c.Query("stale_only") == "true",
 		HasIncidents: c.Query("has_incidents") == "true",

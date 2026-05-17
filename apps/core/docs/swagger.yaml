@@ -1785,6 +1785,10 @@ paths:
         in: query
         name: health
         type: string
+      - description: Filter by monitor type
+        in: query
+        name: type
+        type: string
       - description: Filter by lifecycle status (active|disabled|deleted)
         in: query
         name: lifecycle

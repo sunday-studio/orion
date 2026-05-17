@@ -3,7 +3,15 @@ import { DataTableLink } from "@/components/data-table-link";
 import { EmptyState } from "@/components/empty-state";
 import { ListPagination } from "@/components/list-pagination";
 import { StatusBadge, toStatus } from "@/components/status-badges";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import {
   type ApiMonitorResponse,
@@ -23,7 +31,34 @@ import {
 import { MonitorSummary, type MonitorSummaryFilter } from "./monitor-summary";
 
 const MONITOR_LIMIT = 20;
-const monitorHealthFilters = ["all", "up", "down", "degraded", "unknown", "stale"] as const;
+const monitorStatusFilters = ["all", "up", "down", "degraded", "unknown", "stale"] as const;
+const monitorTypeFilters = [
+  "all",
+  "http-healthcheck",
+  "website",
+  "tcp",
+  "command",
+  "pm2",
+  "resource-threshold",
+  "docker",
+  "systemd",
+  "internal-service",
+  "http",
+] as const;
+
+const monitorTypeOptions: Array<{ value: (typeof monitorTypeFilters)[number]; label: string }> = [
+  { value: "all", label: "All types" },
+  { value: "http-healthcheck", label: "HTTP healthcheck" },
+  { value: "website", label: "Website" },
+  { value: "tcp", label: "TCP" },
+  { value: "command", label: "Command" },
+  { value: "pm2", label: "PM2" },
+  { value: "resource-threshold", label: "Resource threshold" },
+  { value: "docker", label: "Docker" },
+  { value: "systemd", label: "Systemd" },
+  { value: "internal-service", label: "Internal service" },
+  { value: "http", label: "HTTP" },
+];
 
 const isStaleMonitor = (monitor: ApiMonitorResponse) => {
   return monitor.health === "stale" || monitor.computed_health === "stale";
@@ -99,9 +134,10 @@ const columns: ColumnDef<ApiMonitorResponse>[] = [
 ];
 
 export const MonitorList = () => {
-  const [{ search, health, incidents, page }, setMonitorQuery] = useQueryStates({
+  const [{ search, status, type, incidents, page }, setMonitorQuery] = useQueryStates({
     search: parseAsString.withDefault(""),
-    health: parseAsStringLiteral(monitorHealthFilters).withDefault("all"),
+    status: parseAsStringLiteral(monitorStatusFilters).withDefault("all"),
+    type: parseAsStringLiteral(monitorTypeFilters).withDefault("all"),
     incidents: parseAsBoolean.withDefault(false),
     page: parseAsInteger.withDefault(1),
   });
@@ -112,7 +148,8 @@ export const MonitorList = () => {
     limit: MONITOR_LIMIT,
     offset,
     search: search.trim() || undefined,
-    health: health === "all" ? undefined : health,
+    health: status === "all" ? undefined : status,
+    type: type === "all" ? undefined : type,
     has_incidents: incidents || undefined,
     sort: "updated_at",
     order: "desc",
@@ -122,7 +159,8 @@ export const MonitorList = () => {
   const summaryResponse = useGetMonitorSummary();
   const monitors = monitorsResponse.data?.monitors ?? [];
   const count = monitorsResponse.data?.count ?? monitors.length;
-  const selectedSummaryFilter: MonitorSummaryFilter = incidents ? "incidents" : health;
+  const selectedSummaryFilter: MonitorSummaryFilter = incidents ? "incidents" : status;
+  const hasFilters = Boolean(search.trim()) || status !== "all" || type !== "all" || incidents;
 
   const setOffset = (nextOffset: number) => {
     void setMonitorQuery({ page: Math.floor(nextOffset / MONITOR_LIMIT) + 1 });
@@ -130,7 +168,7 @@ export const MonitorList = () => {
 
   const setSummaryFilter = (filter: MonitorSummaryFilter) => {
     void setMonitorQuery({
-      health: filter === "incidents" ? "all" : filter,
+      status: filter === "incidents" ? "all" : filter,
       incidents: filter === "incidents",
       page: 1,
     });
@@ -138,6 +176,30 @@ export const MonitorList = () => {
 
   const setSearch = (nextSearch: string) => {
     void setMonitorQuery({ search: nextSearch, page: 1 });
+  };
+
+  const setStatus = (nextStatus: string) => {
+    if (!monitorStatusFilters.includes(nextStatus as (typeof monitorStatusFilters)[number])) return;
+    void setMonitorQuery({
+      status: nextStatus as (typeof monitorStatusFilters)[number],
+      incidents: false,
+      page: 1,
+    });
+  };
+
+  const setType = (nextType: string) => {
+    if (!monitorTypeFilters.includes(nextType as (typeof monitorTypeFilters)[number])) return;
+    void setMonitorQuery({ type: nextType as (typeof monitorTypeFilters)[number], page: 1 });
+  };
+
+  const clearFilters = () => {
+    void setMonitorQuery({
+      search: "",
+      status: "all",
+      type: "all",
+      incidents: false,
+      page: 1,
+    });
   };
 
   return (
@@ -148,14 +210,46 @@ export const MonitorList = () => {
         onFilterChange={setSummaryFilter}
       />
       {summaryResponse.error && <div className="py-3 text-sm">Unable to load monitor summary.</div>}
-      <div className="relative my-4 max-w-sm">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-400" />
-        <Input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search monitors or agents"
-          className="pl-9"
-        />
+      <div className="mt-6 flex flex-wrap items-center gap-2">
+        <Select value={status} onValueChange={setStatus}>
+          <SelectTrigger className="w-40 rounded-full text-xs">
+            <SelectValue placeholder="All statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            <SelectItem value="up">Up</SelectItem>
+            <SelectItem value="down">Down</SelectItem>
+            <SelectItem value="degraded">Degraded</SelectItem>
+            <SelectItem value="unknown">Unknown</SelectItem>
+            <SelectItem value="stale">Stale</SelectItem>
+          </SelectContent>
+        </Select>
+        <div className="relative w-full max-w-sm">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-400" />
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search monitors"
+            className="pl-9"
+          />
+        </div>
+        <Select value={type} onValueChange={setType}>
+          <SelectTrigger className="w-52 rounded-full text-xs">
+            <SelectValue placeholder="All types" />
+          </SelectTrigger>
+          <SelectContent>
+            {monitorTypeOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {hasFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters}>
+            Clear
+          </Button>
+        )}
       </div>
       {monitorsResponse.isLoading && (
         <div className="py-3 text-sm text-neutral-600">Loading monitors...</div>
@@ -168,7 +262,7 @@ export const MonitorList = () => {
         />
       )}
       {!monitorsResponse.isLoading && !monitorsResponse.error && monitors.length > 0 && (
-        <div className="my-6">
+        <div className="mt-2">
           <DataTable
             columns={columns}
             data={monitors}
