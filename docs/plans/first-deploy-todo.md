@@ -31,12 +31,12 @@ This checklist tracks the work needed before Orion is ready for a first self-hos
 
 - [x] Make duplicate monitor registration idempotent so Agent can recover from local state loss.
 - [ ] Run the Agent install script against a local Core URL.
-- [ ] Confirm Agent creates and reuses local SQLite state.
-- [ ] Confirm Agent registration creates one stable Core agent.
-- [ ] Confirm monitor registration creates expected Core monitors.
+- [x] Confirm Agent creates and reuses local SQLite state.
+- [x] Confirm Agent registration creates one stable Core agent.
+- [x] Confirm monitor registration creates expected Core monitors.
 - [ ] Confirm Agent sends system reports on its configured interval.
 - [ ] Confirm Agent sends monitor reports on each monitor interval.
-- [ ] Confirm Agent restart does not duplicate registration.
+- [x] Confirm Agent restart does not duplicate registration.
 - [x] Confirm uninstall removes service files cleanly and handles state intentionally.
 
 ## Priority 3 - Auth And Sensitive Data
