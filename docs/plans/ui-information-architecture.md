@@ -50,8 +50,18 @@ Available generated operations:
 - `getAgent`: server detail and latest report.
 - `getAgentHealth`: server aggregate health.
 - `getAgentMonitors`: monitors for a server.
+- `getAgentReports`: paginated server report history.
+- `getAgentUptime`: server uptime summary and daily buckets.
 - `getMonitor`: monitor detail with recent reports and computed health.
 - `getMonitorHistory`: paginated monitor report history.
+- `getMonitorUptime`: monitor uptime summary and daily buckets.
+- `getIncidents`: paginated incident list.
+- `getIncident`: incident detail.
+- `getIncidentTimeline`: incident timeline.
+- `getAlertChannels`: configured alert channels.
+- `getAlertRules`: configured alert rules.
+- `getAlertDeliveries`: alert delivery history.
+- `getOrionEvents`: Orion event log.
 - `getDataLifecycleSettings`: data lifecycle settings.
 - `updateDataLifecycleSettings`: update data lifecycle settings.
 - `runDataLifecycleRollup`: manually run a daily monitor uptime rollup.
@@ -68,12 +78,6 @@ Agent-to-Core generated operations exist for completeness but are not Console UI
 
 Current generated-contract gaps to resolve before building the matching UI sections:
 
-- Server report history route exists in Core, but no generated `operationId` is currently emitted for `GET /v1/agents/{id}/reports`.
-- Server uptime route exists in Core, but no generated `operationId` is currently emitted for `GET /v1/agents/{id}/uptime`.
-- Monitor uptime route exists in Core, but no generated `operationId` is currently emitted for `GET /v1/monitors/{id}/uptime`.
-- Incident list/detail routes are not implemented yet; current UI can only use `getIncidentsCandidates`.
-- Alert channel/rule listing routes are not implemented yet.
-- Orion event log/service log routes are not implemented yet.
 - Agent local `state.db` is not exposed through Core. The UI should only explain expected setup paths and runtime implications, not read Agent-local SQLite directly.
 
 ## Home Page
@@ -220,10 +224,10 @@ Purpose: explain one server's current health and history.
 - `getAgent`: header, latest report, Agent version, config summary, latest metrics.
 - `getAgentHealth`: aggregate health counts and server status.
 - `getAgentMonitors`: monitor inventory for the server.
+- `getAgentReports`: paginated server report history.
+- `getAgentUptime`: server uptime summary and daily buckets.
 - `getMonitor`: drill-in data when a monitor row needs recent reports/computed health.
 - `getIncidentsCandidates`: active incident-like conditions affecting this server.
-- Generated gap: server uptime should use a future generated operation for `GET /v1/agents/{id}/uptime`.
-- Generated gap: server report history should use a future generated operation for `GET /v1/agents/{id}/reports`.
 
 ### Header
 
@@ -297,8 +301,8 @@ Purpose: explain one check's behavior, reliability, and latest failure.
 
 - `getMonitor`: monitor header, current computed health, recent reports.
 - `getMonitorHistory`: paginated check history.
+- `getMonitorUptime`: uptime summary and daily buckets.
 - `getIncidentsCandidates`: current incident-like condition until monitor incident list exists.
-- Generated gap: monitor uptime should use a future generated operation for `GET /v1/monitors/{id}/uptime`.
 
 ### Header
 
@@ -326,7 +330,7 @@ Purpose: explain one check's behavior, reliability, and latest failure.
 - Uptime duration.
 - Daily uptime buckets.
 - Recent down/degraded windows.
-- Recent buckets should come from raw hot reports and older buckets from rollups once the monitor uptime route is exposed in the generated SDK.
+- Recent buckets should come from `getMonitorUptime`, with raw hot reports and older rollups combined by Core.
 
 ### Check History
 

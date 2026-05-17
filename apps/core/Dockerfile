@@ -19,7 +19,7 @@ RUN cd apps/core && go build -o orion-core .
 
 # Minimal runtime
 FROM alpine:3.20
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates sqlite
 WORKDIR /app
 COPY --from=core /app/apps/core/orion-core .
 COPY --from=core /app/apps/core/web ./web

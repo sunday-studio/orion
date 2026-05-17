@@ -71,11 +71,11 @@ This checklist tracks the work needed before Orion is ready for a first self-hos
 
 ## Priority 5 - Documentation Cleanup
 
-- [ ] Remove stale docs that claim implemented routes are missing.
-- [ ] Update first deploy instructions with exact environment variables.
+- [x] Remove stale docs that claim implemented routes are missing.
+- [x] Update first deploy instructions with exact environment variables.
 - [ ] Update Agent install/upgrade instructions after smoke testing.
-- [ ] Add a short first-run checklist for Core plus one Agent.
-- [ ] Document backup/restore expectations for the Docker volume.
+- [x] Add a short first-run checklist for Core plus one Agent.
+- [x] Document backup/restore expectations for the Docker volume.
 - [x] Update `docs/plans/README.md` to include this first deploy checklist.
 
 ## Priority 6 - Release Packaging
