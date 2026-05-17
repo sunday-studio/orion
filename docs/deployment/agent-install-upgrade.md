@@ -64,6 +64,19 @@ sudo launchctl kickstart -k system/com.orion.agent
 tail -f /usr/local/var/log/orion-agent.log
 ```
 
+## Docker Monitors On Linux
+
+Docker container monitors call the local `docker` CLI. When the Agent is installed as a systemd service, it runs as the `orion` user and cannot read `/var/run/docker.sock` unless that user has permission.
+
+If you use Docker monitors, add the service user to the Docker group and restart the Agent:
+
+```sh
+sudo usermod -aG docker orion
+sudo systemctl restart orion-agent
+```
+
+If your host uses a custom Docker socket path or rootless Docker, configure the environment and permissions so the `orion` user can run `docker inspect <container>` successfully. Without this, Docker monitors will report failures even when the containers are healthy.
+
 ## Upgrade
 
 Build or download the new Agent binary, then replace the installed binary and restart the service.
@@ -109,6 +122,7 @@ sudo ./deploy/scripts/agent-uninstall.sh
 ```
 
 The uninstall script stops the service and removes the binary. It asks before removing config and user/group records.
+It also asks before removing state because state contains the local Agent identity, token, maintenance flag, and monitor ID mapping.
 
 ## Tailscale And Local Networks
 

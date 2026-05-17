@@ -37,7 +37,7 @@ This checklist tracks the work needed before Orion is ready for a first self-hos
 - [ ] Confirm Agent sends system reports on its configured interval.
 - [ ] Confirm Agent sends monitor reports on each monitor interval.
 - [ ] Confirm Agent restart does not duplicate registration.
-- [ ] Confirm uninstall removes service files cleanly and handles state intentionally.
+- [x] Confirm uninstall removes service files cleanly and handles state intentionally.
 
 ## Priority 3 - Auth And Sensitive Data
 
@@ -55,8 +55,8 @@ This checklist tracks the work needed before Orion is ready for a first self-hos
 - [ ] Make maintenance mode fail clearly or retry when Core cannot be updated.
 - [x] Add timeout to external geolocation lookup.
 - [ ] Decide whether retry queue persistence is needed for first deploy.
-- [ ] Document Docker monitor permissions for the systemd `orion` user.
-- [ ] Fix macOS uninstall paths for config/state cleanup.
+- [x] Document Docker monitor permissions for the systemd `orion` user.
+- [x] Fix macOS uninstall paths for config/state cleanup.
 
 ## Priority 4 - UI Release Pass
 

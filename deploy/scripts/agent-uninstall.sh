@@ -1,15 +1,15 @@
 #!/bin/bash
 
 # Orion Agent Uninstall Script
-# Removes the agent installation and cleans up all files
+# Removes the agent installation and optionally cleans up config/state files.
 
-set -e
+set -euo pipefail
 
-ORION_USER="orion"
-ORION_GROUP="orion"
+LINUX_USER="orion"
+LINUX_GROUP="orion"
+MACOS_USER="_orion"
+MACOS_GROUP="_orion"
 INSTALL_DIR="/usr/local/bin"
-CONFIG_DIR="/etc/orion"
-STATE_DIR="/var/lib/orion"
 SERVICE_NAME="orion-agent"
 
 # Colors for output
@@ -24,8 +24,16 @@ echo "================================"
 # Detect OS
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
     OS="linux"
+    ORION_USER="$LINUX_USER"
+    ORION_GROUP="$LINUX_GROUP"
+    CONFIG_DIR="/etc/orion"
+    STATE_DIR="/var/lib/orion"
 elif [[ "$OSTYPE" == "darwin"* ]]; then
     OS="macos"
+    ORION_USER="$MACOS_USER"
+    ORION_GROUP="$MACOS_GROUP"
+    CONFIG_DIR="/usr/local/etc/orion"
+    STATE_DIR="/usr/local/var/lib/orion"
 else
     echo -e "${RED}Unsupported OS: $OSTYPE${NC}"
     exit 1
@@ -57,16 +65,12 @@ if [[ "$OS" == "linux" ]]; then
     fi
 elif [[ "$OS" == "macos" ]]; then
     # Stop launchd service
-    if launchctl list | grep -q "com.orion.agent"; then
+    if launchctl print system/com.orion.agent >/dev/null 2>&1; then
         echo -e "${YELLOW}Stopping launchd service...${NC}"
-        launchctl unload ~/Library/LaunchAgents/com.orion.agent.plist 2>/dev/null || true
-        sudo launchctl unload /Library/LaunchDaemons/com.orion.agent.plist 2>/dev/null || true
+        launchctl bootout system /Library/LaunchDaemons/com.orion.agent.plist 2>/dev/null || true
     fi
     
     # Remove launchd plist files
-    if [ -f ~/Library/LaunchAgents/com.orion.agent.plist ]; then
-        rm -f ~/Library/LaunchAgents/com.orion.agent.plist
-    fi
     if [ -f /Library/LaunchDaemons/com.orion.agent.plist ]; then
         rm -f /Library/LaunchDaemons/com.orion.agent.plist
     fi
@@ -93,7 +97,13 @@ fi
 # Remove state directory
 if [ -d "$STATE_DIR" ]; then
     echo -e "${YELLOW}Removing state directory...${NC}"
-    rm -rf "$STATE_DIR"
+    read -p "Remove state directory $STATE_DIR? This removes the local agent identity. (y/N): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        rm -rf "$STATE_DIR"
+    else
+        echo -e "${YELLOW}Keeping state directory $STATE_DIR${NC}"
+    fi
 fi
 
 # Remove user and group (if they exist and are not used by other services)
@@ -104,8 +114,13 @@ if id "$ORION_USER" &>/dev/null; then
         read -p "Remove $ORION_USER user and group? (y/N): " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            userdel "$ORION_USER" 2>/dev/null || true
-            groupdel "$ORION_GROUP" 2>/dev/null || true
+            if [[ "$OS" == "linux" ]]; then
+                userdel "$ORION_USER" 2>/dev/null || true
+                groupdel "$ORION_GROUP" 2>/dev/null || true
+            else
+                dscl . -delete "/Users/$ORION_USER" 2>/dev/null || true
+                dscl . -delete "/Groups/$ORION_GROUP" 2>/dev/null || true
+            fi
         fi
     else
         echo -e "${YELLOW}User $ORION_USER is still in use, skipping removal${NC}"
@@ -125,5 +140,4 @@ fi
 echo ""
 echo "The following may still exist (you chose to keep them):"
 echo "  - Config: $CONFIG_DIR (if you chose to keep it)"
-echo "  - State: $STATE_DIR"
-
+echo "  - State: $STATE_DIR (if you chose to keep it)"
