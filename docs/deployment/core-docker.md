@@ -6,9 +6,9 @@ It builds:
 
 - the Console with Vite;
 - the Core Go binary;
-- the Console static files embedded into the Core binary.
+- the Console static files copied into the Core runtime image.
 
-The final runtime image contains one process: `orion-core`. It serves both the backend API and the Console UI.
+The final runtime image contains one process: `orion-core`. It serves both the backend API and the Console UI from the runtime `web/` directory.
 
 ## Build
 
