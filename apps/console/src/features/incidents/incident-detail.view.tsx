@@ -8,7 +8,7 @@ import {
   toSeverity,
   toStatus,
 } from "@/components/status-badges";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabCount, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import {
   type ApiAlertDeliveryResponse,
@@ -46,6 +46,50 @@ const durationLabel = (incident: ApiIncidentResponse) => {
   if (days > 0) return `${days}d ${hours}h`;
   if (hours > 0) return `${hours}h ${minutes}m`;
   return `${minutes}m`;
+};
+
+type MonitorPayload = Record<string, unknown>;
+
+const parsePayload = (payload?: string): MonitorPayload => {
+  if (!payload) return {};
+  try {
+    const parsed = JSON.parse(payload);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const readPayloadValue = (payload: MonitorPayload, keys: string[]) => {
+  for (const key of keys) {
+    const value = payload[key];
+    if (typeof value === "string" && value.trim() !== "") return value;
+    if (typeof value === "number") return String(value);
+    if (typeof value === "boolean") return value ? "true" : "false";
+  }
+  return "—";
+};
+
+const reportTimestamp = (report?: ApiMonitorReportResponse) =>
+  report?.created_at ?? report?.collected_at;
+
+const reportReason = (report?: ApiMonitorReportResponse) => {
+  if (!report) return "No linked monitor report.";
+  const payload = parsePayload(report.payload);
+  return readPayloadValue(payload, [
+    "failure_reason",
+    "error",
+    "message",
+    "summary",
+    "status",
+    "status_code",
+  ]);
+};
+
+const reportSortTime = (report: ApiMonitorReportResponse) => {
+  const timestamp = reportTimestamp(report);
+  const value = timestamp ? new Date(timestamp).getTime() : 0;
+  return Number.isNaN(value) ? 0 : value;
 };
 
 const detailTabs = ["timeline", "notifications", "monitor-reports"] as const;
@@ -138,6 +182,14 @@ export const IncidentDetailPage = () => {
   const timeline = incidentResponse.data?.timeline ?? [];
   const alertDeliveries = incidentResponse.data?.alert_deliveries ?? [];
   const monitorReports = incidentResponse.data?.monitor_reports ?? [];
+  const sortedMonitorReports = [...monitorReports].sort(
+    (a, b) => reportSortTime(a) - reportSortTime(b),
+  );
+  const triggeringReport =
+    sortedMonitorReports.find((report) => report.health && report.health !== "up") ??
+    sortedMonitorReports[0];
+  const latestReport = sortedMonitorReports.at(-1);
+  const latestTimelineItem = timeline[0];
   const requestedTab = searchParams.get("tab");
   const activeTab: DetailTab = isDetailTab(requestedTab) ? requestedTab : "timeline";
 
@@ -240,16 +292,58 @@ export const IncidentDetailPage = () => {
         </div>
       </section>
 
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium">Cause / Evidence</h2>
+        <div className="grid gap-3 lg:grid-cols-3">
+          <DetailGroup title="Trigger">
+            <DetailItem
+              label="first failing result"
+              value={
+                <span className="inline-flex items-center gap-2">
+                  <StatusBadge value={toStatus(triggeringReport?.health)} />
+                  <span>{formatDate(reportTimestamp(triggeringReport), DATE_TIME_FORMAT)}</span>
+                </span>
+              }
+            />
+            <DetailItem label="reason" value={reportReason(triggeringReport)} />
+          </DetailGroup>
+
+          <DetailGroup title="Current Result">
+            <DetailItem
+              label="latest report"
+              value={
+                <span className="inline-flex items-center gap-2">
+                  <StatusBadge value={toStatus(latestReport?.health)} />
+                  <span>{formatDate(reportTimestamp(latestReport), DATE_TIME_FORMAT)}</span>
+                </span>
+              }
+            />
+            <DetailItem label="latest reason" value={reportReason(latestReport)} />
+          </DetailGroup>
+
+          <DetailGroup title="Latest Timeline Event">
+            <DetailItem label="type" value={latestTimelineItem?.type ?? "—"} />
+            <DetailItem
+              label="time"
+              value={formatDate(latestTimelineItem?.created_at, DATE_TIME_FORMAT)}
+            />
+            <DetailItem label="message" value={latestTimelineItem?.message ?? "—"} />
+          </DetailGroup>
+        </div>
+      </section>
+
       <section className="space-y-4">
         <h2 className="text-sm font-medium">Operational Data</h2>
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-3">
           <TabsList>
-            <TabsTrigger value="timeline">Timeline ({timeline.length})</TabsTrigger>
+            <TabsTrigger value="timeline">
+              Timeline <TabCount>{timeline.length}</TabCount>
+            </TabsTrigger>
             <TabsTrigger value="notifications">
-              Notifications ({alertDeliveries.length})
+              Notifications <TabCount>{alertDeliveries.length}</TabCount>
             </TabsTrigger>
             <TabsTrigger value="monitor-reports">
-              Monitor reports ({monitorReports.length})
+              Monitor reports <TabCount>{monitorReports.length}</TabCount>
             </TabsTrigger>
           </TabsList>
           <TabsContent value="timeline">

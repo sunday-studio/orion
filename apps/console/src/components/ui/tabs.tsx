@@ -26,6 +26,14 @@ function TabsList({ className, ...props }: React.ComponentProps<typeof TabsPrimi
   );
 }
 
+function TabCount({ className, ...props }: React.ComponentProps<"span">) {
+  return (
+    <span data-slot="tabs-count" className={cn("text-xs ml-2", className)} {...props}>
+      ({props.children})
+    </span>
+  );
+}
+
 function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.Tab>) {
   return (
     <TabsPrimitive.Tab
@@ -33,7 +41,7 @@ function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPr
       className={cn(
         "relative inline-flex h-full items-center justify-center text-sm whitespace-nowrap text-foreground/60 transition-colors hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 data-disabled:pointer-events-none data-disabled:opacity-50 data-active:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         "after:absolute after:inset-x-0 after:bottom-[-5px] after:h-0.5 after:bg-foreground after:opacity-0 after:transition-opacity data-active:after:opacity-100",
-        "border-r last:border-r-0 px-2 py-1 data-active:bg-neutral-800 data-active:text-white data-active:ring-neutral-800",
+        "border-r last:border-r-0 px-2 py-1 data-active:bg-neutral-800 data-active:text-white data-active:ring-neutral-800 group",
         className,
       )}
       {...props}
@@ -51,4 +59,4 @@ function TabsContent({ className, ...props }: React.ComponentProps<typeof TabsPr
   );
 }
 
-export { Tabs, TabsList, TabsTrigger, TabsContent };
+export { Tabs, TabsList, TabsTrigger, TabsContent, TabCount };
