@@ -177,7 +177,11 @@ export const MonitorDetailPage = () => {
     limit: HISTORY_LIMIT,
     offset: historyOffset,
   });
-  const incidentsResponse = useGetIncidents({ limit: 100 });
+  const incidentsResponse = useGetIncidents({
+    monitor_id: monitorId,
+    status: "open,acknowledged,resolved",
+    limit: 50,
+  });
   const highlightedIncidentResponse = useGetIncident(highlightedIncidentId);
 
   const monitor = monitorResponse.data?.monitor;
@@ -192,9 +196,7 @@ export const MonitorDetailPage = () => {
     monitor?.computed_health ??
     monitor?.health ??
     "unknown";
-  const relatedIncidents = (incidentsResponse.data?.incidents ?? []).filter(
-    (incident) => incident.monitor_id === monitorId,
-  );
+  const relatedIncidents = incidentsResponse.data?.incidents ?? [];
   const activeIncidents = relatedIncidents.filter((incident) =>
     ["open", "acknowledged"].includes(incident.status ?? ""),
   );

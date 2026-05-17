@@ -1582,6 +1582,10 @@ paths:
         in: query
         name: agent_id
         type: string
+      - description: Filter incidents by monitor ID
+        in: query
+        name: monitor_id
+        type: string
       - description: Filter to incidents with failed notifications or critical/error
           severity
         in: query

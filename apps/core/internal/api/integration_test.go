@@ -1305,6 +1305,23 @@ func TestListIncidentsReturnsPersistedActiveIncidents(t *testing.T) {
 		t.Fatalf("filtered incidents response = %+v, want one incident for agent %s", filtered, registered.Data.AgentID)
 	}
 
+	monitorFilteredResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents?monitor_id="+registeredMonitor.Data.MonitorID, nil, "")
+	if monitorFilteredResp.Code != http.StatusOK {
+		t.Fatalf("monitor filtered incidents status = %d, body = %s", monitorFilteredResp.Code, monitorFilteredResp.Body.String())
+	}
+	var monitorFiltered struct {
+		Data struct {
+			Incidents []struct {
+				MonitorName string `json:"monitor_name"`
+			} `json:"incidents"`
+			Count int64 `json:"count"`
+		} `json:"data"`
+	}
+	decodeResponse(t, monitorFilteredResp, &monitorFiltered)
+	if monitorFiltered.Data.Count != 1 || monitorFiltered.Data.Incidents[0].MonitorName != "homepage" {
+		t.Fatalf("monitor filtered incidents = %+v, want homepage incident", monitorFiltered)
+	}
+
 	noMatchResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents?agent_id=agent-no-match", nil, "")
 	if noMatchResp.Code != http.StatusOK {
 		t.Fatalf("no match incidents status = %d, body = %s", noMatchResp.Code, noMatchResp.Body.String())

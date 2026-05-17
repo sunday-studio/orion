@@ -21,6 +21,7 @@ import (
 // @ID           getIncidents
 // @Param        status  query     string  false  "Comma-separated incident statuses" default(open,acknowledged)
 // @Param        agent_id  query   string  false  "Filter incidents by agent ID"
+// @Param        monitor_id  query  string  false  "Filter incidents by monitor ID"
 // @Param        needs_review  query  bool  false  "Filter to incidents with failed notifications or critical/error severity"
 // @Param        limit   query     int     false  "Maximum number of incidents to return" default(50)
 // @Param        offset  query     int     false  "Number of incidents to skip" default(0)
@@ -32,11 +33,15 @@ func (s *Server) listIncidents(c *gin.Context) {
 	offset := queryInt(c, "offset", 0)
 	statuses := queryStatuses(c.DefaultQuery("status", "open,acknowledged"))
 	agentID := strings.TrimSpace(c.Query("agent_id"))
+	monitorID := strings.TrimSpace(c.Query("monitor_id"))
 	needsReview := queryBool(c, "needs_review", false)
 
 	query := s.db.Model(&db.Incident{}).Where("status IN ?", statuses)
 	if agentID != "" {
 		query = query.Where("agent_id = ?", agentID)
+	}
+	if monitorID != "" {
+		query = query.Where("monitor_id = ?", monitorID)
 	}
 	if needsReview {
 		query = query.Where("notification_status = ? OR severity IN ?", "failed", []string{"critical", "error"})

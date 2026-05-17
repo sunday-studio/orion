@@ -1505,6 +1505,12 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "string",
+                        "description": "Filter incidents by monitor ID",
+                        "name": "monitor_id",
+                        "in": "query"
+                    },
+                    {
                         "type": "boolean",
                         "description": "Filter to incidents with failed notifications or critical/error severity",
                         "name": "needs_review",
