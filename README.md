@@ -1,12 +1,15 @@
 # Orion
 
-Orion is a lightweight, self-hosted monitoring system: agents on your servers collect system metrics and health checks, and a central Core server stores and serves them through a web UI.
+Orion is a local-first monitoring app for your own servers.
 
-## Components
+It runs on infrastructure you control: a small Agent collects system metrics and check results, a
+Core server stores everything in SQLite, and the Console gives you a clean operational view of
+agents, monitors, incidents, alerts, logs, and data retention.
 
-- **Agent** (`apps/agent`, Go): Runs on Linux/macOS. Auto-registers with Core. Collects CPU, memory, and disk; runs monitors (HTTP, website, PM2, internal-service, command).
-- **Core** (`apps/core`, Go + SQLite): Receives reports, manages agents and monitors, serves a REST API and embedded Console SPA.
-- **Console** (`apps/console`, React/Vite): Editable UI source; production builds are copied into `apps/core/web/`.
+Orion is built for home labs, small fleets, private networks, and anyone who wants observability
+without sending server telemetry to a third-party service.
+
+## How It Works
 
 ```mermaid
 flowchart LR
@@ -14,136 +17,216 @@ flowchart LR
         A1[Orion Agent]
         A2[Orion Agent]
     end
-    subgraph central [Orion Core]
-        API[REST API]
+    subgraph local [Your Network]
+        C[Orion Core]
         DB[(SQLite)]
-        UI[Console UI]
+        UI[Console]
     end
-    A1 -->|HTTPS + token| API
-    A2 -->|HTTPS + token| API
-    API --> DB
-    UI --> API
+    A1 -->|HTTP/S + token| C
+    A2 -->|HTTP/S + token| C
+    C --> DB
+    UI --> C
 ```
 
-## Prerequisites
+- **Agent** runs on each server and reports system metrics plus configured monitor checks.
+- **Core** receives reports, computes health, stores data locally, and exposes the API.
+- **Console** is the web UI for incidents, agents, monitors, alerts, logs, and settings.
 
-- **Go 1.25+**
-- **Node 18+** and **npm** — for frontend development or rebuilding the UI
-- **SQLite** — embedded in Core; nothing to install
+## Local-First
+
+Orion is designed around local ownership:
+
+- Data is stored in a local SQLite database.
+- Agents can report over your LAN, Tailscale, or another private network.
+- Alert and retention settings are controlled by your Core instance.
+- The app can run without a hosted SaaS backend.
 
 ## Quick Start
 
-1. **Build Core**
-   ```bash
-   cd apps/core && go build -o orion-core . && cd ../..
-   ```
+### 1. Run Core and Console
 
-2. **Build Agent**
-   ```bash
-   cd apps/agent && go build -o orion-agent . && cd ../..
-   ```
+Core and Console are deployed together. Core serves the API, stores data in SQLite, and serves the
+Console web app from the same process.
 
-3. **Run Core** — creates `apps/core/data/orion.db`, serves on `:8999`
-   ```bash
-   cd apps/core && ./orion-core
-   ```
+Set local admin credentials:
 
-4. **Agent config** — create `apps/agent/config.yaml`:
-   ```yaml
-   core_url: http://localhost:8999
-   interval: 60s
-   monitors: [] # optional
-   ```
-
-5. **Run Agent**
-   ```bash
-   cd apps/agent && ./orion-agent run -config config.yaml -state state.db
-   ```
-
-6. **Open UI** — `http://localhost:8999` (from `apps/core/web/`). If the UI is empty, run `make build-static` and restart Core.
-
-## Configuration
-
-### Agent
-
-- **Required**: `core_url`, `interval` (e.g. `60s`)
-- **Optional**: `meta` (title, description), `monitors`
-
-### Monitor types
-
-| Type | Required config |
-|------|-----------------|
-| `http-healthcheck` | `http.url`, `http.timeout`, `http.expected_status`; optional `expected_body`, `expected_body_regex` |
-| `website` | `website.url`; optional `timeout`, `expected_status` |
-| `tcp` | `tcp.host`, `tcp.port`; optional `timeout` |
-| `resource-threshold` | At least one of `resource.max_cpu_percent`, `max_memory_percent`, `max_disk_percent`, `max_load_1` |
-| `docker-container` | `docker.name` |
-| `systemd-service` | `systemd.name` |
-| `internal-service` | `internal_service.ping.url`, `internal_service.ping.timeout`, `internal_service.process.port` |
-| `pm2` | `pm2.app_name` |
-| `command` | `command.command` |
-
-### Paths
-
-- **Linux**: `/etc/orion/config.yaml`, `/var/lib/orion/state.db` — see [deploy/systemd/orion-agent.service](deploy/systemd/orion-agent.service)
-- **macOS**: `/usr/local/etc/orion/config.yaml`, `/usr/local/var/lib/orion/state.db` — see [deploy/launchd/com.orion.agent.plist](deploy/launchd/com.orion.agent.plist)
-- **Dev**: `config.yaml` and `state.db` in the agent directory, with `-config` and `-state`
-
-### Core
-
-Port in [apps/core/main.go](apps/core/main.go) (`:8999`). Database in [apps/core/internal/db/db.go](apps/core/internal/db/db.go) (`data/orion.db`).
-
-## Running as a Service
-
-- **Linux (systemd)**: [deploy/systemd/orion-agent.service](deploy/systemd/orion-agent.service). Binary: `/usr/local/bin/orion-agent`; config: `/etc/orion/config.yaml`; state: `/var/lib/orion/state.db`. Create the `orion` user/group or adjust.
-- **macOS (launchd)**: [deploy/launchd/com.orion.agent.plist](deploy/launchd/com.orion.agent.plist) — paths are in the plist.
-- **Install**: [deploy/scripts/agent-install.sh](deploy/scripts/agent-install.sh) installs the binary, config, state directory, and system service.
-- **Uninstall**: [deploy/scripts/agent-uninstall.sh](deploy/scripts/agent-uninstall.sh) (run with `sudo`).
-
-See [docs/deployment/core-docker.md](docs/deployment/core-docker.md) for Core Docker deployment and [docs/deployment/agent-install-upgrade.md](docs/deployment/agent-install-upgrade.md) for Agent install, upgrade, rollback, and Tailscale/local network notes.
-
-## Project Layout
-
-```
-orion/
-├── apps/
-│   ├── agent/    # Orion Agent (Go)
-│   ├── core/     # Orion Core (Go), API + generated apps/core/web SPA
-│   └── console/  # React/Vite UI source
-├── deploy/       # Docker Compose, systemd, launchd, install/uninstall helpers
-├── docs/         # architecture, contracts, milestones, plans
-├── packages/
-│   └── sdk/      # OpenAPI types (make generate-sdk)
-└── Makefile      # generate-openapi, generate-sdk, build-static, docker-build, docker-up
+```sh
+export ORION_ADMIN_USERNAME=admin
+export ORION_ADMIN_PASSWORD='change-me'
+export ORION_JWT_SECRET='change-me-to-a-long-random-value'
 ```
 
-## Makefile
+Start Core and Console with the Docker image:
 
-- `make generate-openapi` — generate `apps/core/openapi.yaml` and Swagger docs from Core route annotations
-- `make generate-sdk` — regenerate OpenAPI first, then generate the console API client with Orval
-- `make build-static` — build console source and copy to `apps/core/web/`
-- `make docker-build` — build one `orion-core` Docker image with the Console embedded in the Core binary
-- `make docker-up` — run orion-core via `docker compose -f deploy/docker-compose.yml up -d` (set `ORION_ADMIN_*`, `ORION_JWT_SECRET` for frontend auth)
-- `make seed-demo-data` — seed Core SQLite with 90 days of local demo data
+```sh
+docker run -d \
+  --name orion-core \
+  --restart unless-stopped \
+  -p 8999:8999 \
+  -v orion-data:/data \
+  -e ORION_DATA_DIR=/data \
+  -e ORION_ADMIN_USERNAME="$ORION_ADMIN_USERNAME" \
+  -e ORION_ADMIN_PASSWORD="$ORION_ADMIN_PASSWORD" \
+  -e ORION_JWT_SECRET="$ORION_JWT_SECRET" \
+  ghcr.io/sunday-studio/orion-core:v0.1.0
+```
+
+Core listens on `http://localhost:8999` and stores data in the `orion-data` Docker volume.
+
+The main deployable image is the Core image. It includes both Core and Console.
+
+If you are working from source instead of a published image, use Docker Compose:
+
+```sh
+make docker-build
+make docker-up
+```
+
+See [Core Docker deployment](docs/deployment/core-docker.md) for image and volume details.
+
+### 2. Open Console
+
+Open `http://localhost:8999`.
+
+### 3. Install Agent on a Server
+
+Install the Agent on each machine you want to monitor. The install script writes the config, creates
+the service user and directories, installs the system service, and starts the Agent.
+
+Download the Agent binary for the host, then run:
+
+```sh
+sudo ./deploy/scripts/agent-install.sh \
+  --core-url http://orion-core.local:8999 \
+  --binary ./orion-agent
+```
+
+Orion also publishes an Agent image:
+
+```txt
+ghcr.io/sunday-studio/orion-agent:v0.1.0
+```
+
+The service install script is the recommended path for host monitoring because it gives the Agent
+normal access to the host system, service manager, and local state path.
+
+Use a Core URL that the monitored server can reach, for example:
+
+- `http://orion-core.local:8999`
+- `http://192.168.x.y:8999`
+- `http://100.x.y.z:8999` on Tailscale
+- `https://orion.example.com` behind a reverse proxy
+
+The Agent creates its local state database automatically the first time it runs. You do not need to
+create or pass a `state.db` path for normal service installs or CLI starts. The install paths are:
+
+- Linux: `/var/lib/orion/state.db`
+- macOS: `/usr/local/var/lib/orion/state.db`
+
+### 4. Verify
+
+In Console:
+
+- open **Agents** and confirm the server appears;
+- open the agent detail page and check that reports are arriving;
+- add monitor config on the Agent host when you want HTTP, TCP, Docker, systemd, PM2, command, or
+  resource checks.
+
+See [Agent install and upgrade](docs/deployment/agent-install-upgrade.md) for service commands,
+upgrades, rollback, Docker monitor permissions, and local network notes.
 
 ## Development
 
-- **Console**: `cd apps/console && npm install && npm run dev`. Set `VITE_API_BASE_URL=http://localhost:8999/v1` in `.env` (see [apps/console/.env.example](apps/console/.env.example)).
-- **API**: [apps/core/openapi.yaml](apps/core/openapi.yaml) is generated. Regenerate it with `make generate-openapi`; regenerate the console client with `make generate-sdk`.
-- **Agent CLI** ([apps/agent/main.go](apps/agent/main.go)): `start`, `stop`, `status`, `restart`, `run`, `maintenance` (`-up` / `-down`), `config` (`validate`, `diff`).
+For frontend development against a running Core:
+
+```sh
+cd apps/console
+npm install
+npm run dev
+```
+
+Set `VITE_API_BASE_URL=http://localhost:8999/v1` in `apps/console/.env`.
+
+For local source builds:
+
+```sh
+cd apps/core && go test ./...
+cd apps/agent && go test ./...
+cd apps/console && npm run build
+```
+
+## Seed Demo Data
+
+For a local UI/API dataset:
+
+```sh
+make seed-demo-data
+```
+
+This writes demo data to `apps/core/data/orion.db`.
+
+## Common Commands
+
+```sh
+cd apps/core && go test ./...
+cd apps/agent && go test ./...
+cd apps/console && npm run build
+make docker-build
+make docker-up
+make generate-openapi
+make generate-sdk
+```
+
+## Docker Image
+
+Core and Console ship together as one image:
+
+- `ghcr.io/sunday-studio/orion-core:<version>`: Core API, SQLite runtime, and Console.
+
+Image publishing is manually triggered from GitHub Actions. The `Docker Images` workflow asks for a
+version tag, such as `v0.1.0`, and can optionally publish `latest`.
+
+## Monitor Types
+
+Orion supports checks for:
+
+- HTTP health checks
+- Websites
+- TCP ports
+- Resource thresholds
+- Docker containers
+- systemd services
+- PM2 processes
+- Commands
+- Internal services
+
+See [Agent monitors](docs/architecture/agent-monitors.md) and
+[Agent-Core contract](docs/agent-core-contract.md) for details.
 
 ## Documentation
 
 - [System design](docs/system-design.md)
-- [Agent–Core contract](docs/agent-core-contract.md)
-- [Agent registration](apps/agent/docs/agent-registration.md)
-- [Core server](apps/core/README.md)
+- [Architecture overview](docs/architecture/system-overview.md)
+- [Core features](docs/architecture/core-features.md)
+- [Data ingestion](docs/architecture/data-ingestion.md)
+- [Persistence and lifecycle](docs/architecture/persistence-and-lifecycle.md)
+- [Incident reconciliation](docs/architecture/incident-reconciliation-flow.md)
+- [Deployment guide](docs/deployment/README.md)
+- [Core Docker deployment](docs/deployment/core-docker.md)
+- [Agent install and upgrade](docs/deployment/agent-install-upgrade.md)
 - [Seed demo data](docs/development/seed-demo-data.md)
+- [Milestones](docs/milestones/README.md)
 
-## Contributing
+## Project Layout
 
-Contributions are welcome. Open an issue or a pull request.
-
-## License
-
-See [LICENSE](LICENSE).
+```txt
+orion/
+├── apps/
+│   ├── agent/    # Go daemon and CLI
+│   ├── core/     # Go API server, SQLite, OpenAPI, embedded Console
+│   └── console/  # React/Vite UI source
+├── deploy/       # Docker Compose, systemd, launchd, install scripts
+├── docs/         # architecture, deployment, development, milestones
+├── packages/     # shared/generated package space
+└── Makefile
+```

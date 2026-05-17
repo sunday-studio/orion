@@ -38,7 +38,6 @@ flowchart LR
 
 ## Agent Responsibilities
 
-- Load user config from YAML.
 - Load user config from YAML and update internal Agent state in SQLite.
 - Register the server with Core on first run.
 - Register configured monitors and unregister removed monitors.

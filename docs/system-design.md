@@ -51,7 +51,7 @@ Core owns persistence, health decisions, and API behavior.
 
 The Console is an operations UI, not the configuration source of truth.
 
-- Use **Servers** as the user-facing name for agents.
+- Use **Agents** as the user-facing name for monitored hosts.
 - Show current issues before inventory.
 - Let users inspect server health, monitor results, incidents, logs, and read-only settings.
 - Keep monitor and alert configuration in YAML/env until the product explicitly adds editing.
@@ -69,5 +69,5 @@ The Console is an operations UI, not the configuration source of truth.
 - API behavior: `apps/core/openapi.yaml`.
 - Agent/Core responsibility split: `docs/agent-core-contract.md`.
 - Backend and Agent architecture: `docs/architecture/`.
-- Product priorities: `docs/plans/home-server-monitoring.md`.
-- UI direction: `docs/plans/ui-information-architecture.md`.
+- Current deployment docs: `docs/deployment/`.
+- Completed product history: `docs/milestones/`.

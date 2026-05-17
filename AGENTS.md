@@ -18,7 +18,7 @@ This file defines the working boundaries for humans and coding agents in this re
 - Core API, persistence, health computation, and auth work goes in `apps/core/`.
 - Main UI work goes in `apps/console/`.
 - Deployment/service integration work goes in `deploy/`.
-- Product plans and milestone records go in `docs/plans/` and `docs/milestones/`.
+- Product history, release notes, and completed planning records go in `docs/milestones/`.
 - Generated Core SPA assets live in `apps/core/web/`; edit `apps/console/` source and run `make build-static` instead of hand-editing `apps/core/web/`.
 - OpenAPI source of truth is Core route annotations; generate `apps/core/openapi.yaml` with `make generate-openapi`.
 - Frontend API client output is `apps/console/src/orion-sdk/index.ts`; regenerate it with `make generate-sdk` instead of hand-editing generated API code.

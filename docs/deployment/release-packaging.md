@@ -23,19 +23,19 @@ v0.1.0-rc.1
 Build a tagged Core image from the repository root:
 
 ```sh
-VERSION=v0.1.0 make docker-build
+CORE_IMAGE=ghcr.io/sunday-studio/orion-core VERSION=v0.1.0 make docker-build
 ```
 
 This produces:
 
 ```txt
-orion-core:v0.1.0
+ghcr.io/sunday-studio/orion-core:v0.1.0
 ```
 
-Use `CORE_IMAGE` when publishing under another image name:
+Use a local image name for local-only testing:
 
 ```sh
-CORE_IMAGE=ghcr.io/sunday-studio/orion-core VERSION=v0.1.0 make docker-build
+CORE_IMAGE=orion-core VERSION=v0.1.0 make docker-build
 ```
 
 ## Agent Binary

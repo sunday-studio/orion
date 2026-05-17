@@ -7,8 +7,8 @@ Bring the project roadmap back in sync with the current repository.
 ## Scope
 
 - Audit current repo structure, docs, API routes, agent CLI, frontend routes, and recent verification results.
-- Replace the stale `todo.md` with a current checklist.
-- Add milestone and plan directories under `docs/`.
+- Retire the stale root roadmap and move planning history into milestone records.
+- Add milestone records under `docs/`.
 - Create a product hardening plan for the next phase.
 
 ## Completed
@@ -16,7 +16,7 @@ Bring the project roadmap back in sync with the current repository.
 - Root roadmap now reflects implemented Core, Agent, Frontend, Docker, API, and health-computation work.
 - Remaining work is grouped by documentation, Core, Agent, Frontend, testing, CI/CD, and release.
 - `docs/milestones/` now exists for milestone records.
-- `docs/plans/` now exists for product and engineering plans.
+- Product and engineering planning history is now consolidated into milestone records.
 
 ## Verification
 
