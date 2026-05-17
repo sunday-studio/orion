@@ -61,7 +61,7 @@ This checklist tracks the work needed before Orion is ready for a first self-hos
 ## Priority 4 - UI Release Pass
 
 - [x] Verify incident list pagination, filters, summary cards, and detail tabs.
-- [ ] Verify agent list pagination, filters, summary cards, detail tabs, and monitor expansion.
+- [x] Verify agent list pagination, filters, summary cards, detail tabs, and monitor expansion.
 - [ ] Verify monitor list pagination, filters, summary cards, and detail tabs.
 - [ ] Verify alerts page channel, rule, and delivery filters.
 - [ ] Verify event log pagination and filters.

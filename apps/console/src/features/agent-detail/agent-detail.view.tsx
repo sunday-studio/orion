@@ -39,14 +39,16 @@ export const AgentDetailPage = () => {
   const agentResponse = useGetAgent(currentAgentId);
   const healthResponse = useGetAgentHealth(currentAgentId);
   const uptimeResponse = useGetAgentUptime(currentAgentId, { period: "90d" });
-  const incidentsResponse = useGetIncidents({ limit: 100 });
+  const incidentsResponse = useGetIncidents({
+    agent_id: currentAgentId,
+    status: "open,acknowledged",
+    limit: 20,
+  });
   const highlightedIncidentResponse = useGetIncident(highlightedIncidentId);
 
   const agent = agentResponse.data?.agent;
   const latestReport = asLatestReport(agentResponse.data?.latest_report);
-  const activeIncidents = (incidentsResponse.data?.incidents ?? []).filter(
-    (incident) => incident.agent_id === currentAgentId,
-  );
+  const activeIncidents = incidentsResponse.data?.incidents ?? [];
   const highlightedIncidentFromList = activeIncidents.find(
     (incident) => incident.id === highlightedIncidentId,
   );
