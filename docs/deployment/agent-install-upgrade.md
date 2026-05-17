@@ -44,6 +44,43 @@ sudo ./deploy/scripts/agent-install.sh \
 
 Use `--no-start` to install files without starting the service. Use `--overwrite-config` to replace an installed config.
 
+## Pre-Deploy Smoke Test
+
+Build a local binary without installing it:
+
+```sh
+cd apps/agent
+go build -o /tmp/orion-agent-test .
+cd ../..
+```
+
+Check the CLI and config commands:
+
+```sh
+/tmp/orion-agent-test
+/tmp/orion-agent-test config validate -config deploy/examples/home-server-config.yaml
+/tmp/orion-agent-test config diff -config deploy/examples/home-server-config.yaml
+/tmp/orion-agent-test status -state /tmp/orion-agent-test-state.db
+/tmp/orion-agent-test maintenance -down "pre-deploy test" -state /tmp/orion-agent-test-state.db
+/tmp/orion-agent-test maintenance -up -state /tmp/orion-agent-test-state.db
+```
+
+`status` exits non-zero when the service is not running, but it should still print the detected service manager and state database details.
+
+Check the install and uninstall flows without changing the host:
+
+```sh
+./deploy/scripts/agent-install.sh \
+  --dry-run \
+  --core-url http://orion-core.local:8999 \
+  --binary /tmp/orion-agent-test \
+  --no-start
+
+./deploy/scripts/agent-uninstall.sh --dry-run
+```
+
+The dry-run install prints the service account, directory, binary, config, and service manager actions it would perform. The dry-run uninstall skips prompts and prints destructive cleanup actions only when matching files, directories, or accounts exist on the host.
+
 ## Post-Install Verification
 
 After the service starts, verify the install before leaving the host:

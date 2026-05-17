@@ -39,7 +39,7 @@ func GetServiceStatus() (bool, string, error) {
 		cmd := exec.Command("launchctl", "list")
 		output, err := cmd.Output()
 		if err != nil {
-			return false, "unknown", err
+			return false, "unknown", nil
 		}
 		if strings.Contains(string(output), "com.orion.agent") {
 			return true, "running", nil
