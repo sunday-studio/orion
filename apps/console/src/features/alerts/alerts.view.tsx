@@ -30,6 +30,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { parseAsInteger, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 
 const DELIVERY_LIMIT = 30;
+const alertTabs = ["logs", "channels", "rules"] as const;
 const deliveryStatuses = ["all", "pending", "sent", "failed", "suppressed", "cooldown"] as const;
 
 const boolLabel = (value?: boolean) => (value ? "yes" : "no");
@@ -163,10 +164,11 @@ const deliveryColumns: ColumnDef<ApiAlertDeliveryResponse>[] = [
 ];
 
 export const AlertsPage = () => {
-  const [{ page, status, incident }, setDeliveryQuery] = useQueryStates({
+  const [{ page, status, incident, tab }, setDeliveryQuery] = useQueryStates({
     page: parseAsInteger.withDefault(1),
     status: parseAsStringLiteral(deliveryStatuses).withDefault("all"),
     incident: parseAsString.withDefault(""),
+    tab: parseAsStringLiteral(alertTabs).withDefault("logs"),
   });
   const currentPage = Math.max(page, 1);
   const offset = (currentPage - 1) * DELIVERY_LIMIT;
@@ -190,6 +192,10 @@ export const AlertsPage = () => {
   const setIncident = (nextIncident: string) => {
     void setDeliveryQuery({ incident: nextIncident, page: 1 });
   };
+  const setTab = (nextTab: string) => {
+    if (!alertTabs.includes(nextTab as (typeof alertTabs)[number])) return;
+    void setDeliveryQuery({ tab: nextTab as (typeof alertTabs)[number] });
+  };
 
   return (
     <div className="space-y-7">
@@ -198,7 +204,7 @@ export const AlertsPage = () => {
         description="Review notification channels, effective alert behavior, and delivery attempts."
       />
 
-      <Tabs defaultValue="logs" className="space-y-4">
+      <Tabs value={tab} onValueChange={setTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="logs">Notification Log</TabsTrigger>
           <TabsTrigger value="channels">Channels</TabsTrigger>
