@@ -3,6 +3,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/page-header";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
+import {
   type ServiceDataLifecycleSettingsPayload,
   getGetDataLifecycleSettingsQueryKey,
   useGetDataLifecycleSettings,
@@ -17,6 +25,7 @@ type SettingsFormState = {
   rawReportHotDays: string;
   archiveRawReports: boolean;
   archiveDir: string;
+  archiveSchedule: string;
   rollupsEnabled: boolean;
   rollupRetentionDays: string;
 };
@@ -25,6 +34,7 @@ const defaultFormState: SettingsFormState = {
   rawReportHotDays: "",
   archiveRawReports: false,
   archiveDir: "",
+  archiveSchedule: "daily",
   rollupsEnabled: false,
   rollupRetentionDays: "",
 };
@@ -54,16 +64,17 @@ const Field = ({
 
 export const SettingsPage = () => {
   const queryClient = useQueryClient();
+  const refreshSettings = () => {
+    void queryClient.invalidateQueries({ queryKey: getGetDataLifecycleSettingsQueryKey() });
+  };
   const settingsResponse = useGetDataLifecycleSettings();
   const updateSettings = useUpdateDataLifecycleSettings({
     mutation: {
-      onSuccess: () => {
-        void queryClient.invalidateQueries({ queryKey: getGetDataLifecycleSettingsQueryKey() });
-      },
+      onSuccess: refreshSettings,
     },
   });
-  const archiveRun = useRunDataLifecycleArchive();
-  const rollupRun = useRunDataLifecycleRollup();
+  const archiveRun = useRunDataLifecycleArchive({ mutation: { onSuccess: refreshSettings } });
+  const rollupRun = useRunDataLifecycleRollup({ mutation: { onSuccess: refreshSettings } });
 
   const settings = settingsResponse.data?.settings;
   const [formState, setFormState] = useState(defaultFormState);
@@ -74,6 +85,7 @@ export const SettingsPage = () => {
       rawReportHotDays: String(settings.raw_report_hot_days ?? ""),
       archiveRawReports: Boolean(settings.archive_raw_reports),
       archiveDir: settings.archive_dir ?? "",
+      archiveSchedule: settings.archive_schedule ?? "daily",
       rollupsEnabled: Boolean(settings.rollups_enabled),
       rollupRetentionDays: String(settings.rollup_retention_days ?? ""),
     });
@@ -90,7 +102,8 @@ export const SettingsPage = () => {
     const payload: ServiceDataLifecycleSettingsPayload = {
       archive_dir: formState.archiveDir.trim() || undefined,
       archive_raw_reports: formState.archiveRawReports,
-      raw_report_hot_days: asNumber(formState.rawReportHotDays),
+      archive_schedule: formState.archiveSchedule,
+      raw_report_hot_days: asNumber(formState.rawReportHotDays) ?? settings?.raw_report_hot_days ?? 90,
       rollup_retention_days: asNumber(formState.rollupRetentionDays),
       rollups_enabled: formState.rollupsEnabled,
     };
@@ -152,6 +165,20 @@ export const SettingsPage = () => {
               placeholder="./data/archive"
             />
           </Field>
+          <Field label="Archive schedule" description="Automatic archive cadence.">
+            <Select
+              value={formState.archiveSchedule}
+              onValueChange={(value) => updateField("archiveSchedule", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Archive schedule" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="daily">Daily</SelectItem>
+                <SelectItem value="manual">Manual only</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
         </div>
 
         <div className="flex flex-wrap gap-4">
@@ -172,7 +199,7 @@ export const SettingsPage = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={saveSettings} disabled={updateSettings.isPending}>
+          <Button onClick={saveSettings} disabled={updateSettings.isPending || !settings}>
             {updateSettings.isPending ? "Saving..." : "Save settings"}
           </Button>
           {updateSettings.isError && <span className="text-sm">Unable to save settings.</span>}
@@ -209,6 +236,26 @@ export const SettingsPage = () => {
             <span className="text-sm">Unable to run maintenance.</span>
           )}
         </div>
+        {settings && (
+          <div className="grid gap-3 text-sm sm:grid-cols-2">
+            <div className="bg-neutral-100 p-3">
+              <div className="text-neutral-600">Last rollup</div>
+              <div className="font-medium">
+                {formatDate(settings.last_rollup_run_at, DATE_TIME_FORMAT)}
+              </div>
+            </div>
+            <div className="bg-neutral-100 p-3">
+              <div className="text-neutral-600">Last archive</div>
+              <div className="font-medium">
+                {formatDate(settings.last_archive_run_at, DATE_TIME_FORMAT)}
+              </div>
+              {settings.last_archive_status && (
+                <div className="text-neutral-600">{settings.last_archive_status}</div>
+              )}
+              {settings.last_archive_error && <div>{settings.last_archive_error}</div>}
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );
