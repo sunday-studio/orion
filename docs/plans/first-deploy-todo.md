@@ -64,7 +64,7 @@ This checklist tracks the work needed before Orion is ready for a first self-hos
 - [x] Verify agent list pagination, filters, summary cards, detail tabs, and monitor expansion.
 - [x] Verify monitor list pagination, filters, summary cards, and detail tabs.
 - [x] Verify alerts page channel, rule, and delivery filters.
-- [ ] Verify event log pagination and filters.
+- [x] Verify event log pagination and filters.
 - [ ] Verify settings data lifecycle read/update/manual actions.
 - [ ] Verify empty, loading, and error states on every main page.
 - [ ] Verify URL query state for tabs, filters, and pagination.
