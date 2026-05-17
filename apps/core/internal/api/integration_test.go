@@ -1078,6 +1078,21 @@ func TestMaintenanceSuppressesIncidentCandidates(t *testing.T) {
 
 	afterMaintenance := performJSONRequest(t, server, http.MethodGet, "/v1/incidents/candidates", nil, "")
 	assertIncidentCandidateCount(t, afterMaintenance, 0)
+
+	disableMaintenanceResp := performJSONRequest(
+		t,
+		server,
+		http.MethodPut,
+		"/v1/agents/"+registered.Data.AgentID+"/maintenance",
+		map[string]bool{"maintenance_mode": false},
+		registered.Data.Token,
+	)
+	if disableMaintenanceResp.Code != http.StatusOK {
+		t.Fatalf("disable maintenance status = %d, body = %s", disableMaintenanceResp.Code, disableMaintenanceResp.Body.String())
+	}
+
+	afterMaintenanceDisabled := performJSONRequest(t, server, http.MethodGet, "/v1/incidents/candidates", nil, "")
+	assertIncidentCandidateCount(t, afterMaintenanceDisabled, 1)
 }
 
 func TestIncidentCandidatesIncludeStaleMonitors(t *testing.T) {

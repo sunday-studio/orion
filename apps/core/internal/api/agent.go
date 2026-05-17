@@ -72,16 +72,16 @@ func (s *Server) setMaintenanceMode(c *gin.Context) {
 		return
 	}
 
-	if err := s.agentService.SetMaintenanceMode(agentID, req.MaintenanceMode); err != nil {
+	if err := s.agentService.SetMaintenanceMode(agentID, *req.MaintenanceMode); err != nil {
 		s.logger.Error("Failed to set maintenance mode", "error", err, "agent_id", agentID)
 		utils.InternalError(c, "Failed to set maintenance mode", err)
 		return
 	}
 
-	s.logger.Info("Maintenance mode set", "agent_id", agentID, "maintenance_mode", req.MaintenanceMode)
+	s.logger.Info("Maintenance mode set", "agent_id", agentID, "maintenance_mode", *req.MaintenanceMode)
 	utils.SuccessResponse(c, 200, "Maintenance mode updated successfully", gin.H{
 		"agent_id":         agentID,
-		"maintenance_mode": req.MaintenanceMode,
+		"maintenance_mode": *req.MaintenanceMode,
 	})
 }
 

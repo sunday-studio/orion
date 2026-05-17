@@ -25,7 +25,7 @@ This checklist tracks the work needed before Orion is ready for a first self-hos
 - [ ] Confirm the Console loads from the Core container.
 - [ ] Confirm login works with `ORION_ADMIN_USERNAME`, `ORION_ADMIN_PASSWORD`, and `ORION_JWT_SECRET`.
 - [ ] Confirm the SQLite Docker volume persists after container restart.
-- [ ] Confirm generated OpenAPI and SDK are current after route/contract changes.
+- [x] Confirm generated OpenAPI and SDK are current after route/contract changes.
 
 ## Priority 2 - Agent Install Smoke
 
@@ -52,7 +52,7 @@ This checklist tracks the work needed before Orion is ready for a first self-hos
 
 ## Priority 3.5 - Agent Runtime Risks
 
-- [ ] Make maintenance mode fail clearly or retry when Core cannot be updated.
+- [x] Make maintenance mode fail clearly or retry when Core cannot be updated.
 - [x] Add timeout to external geolocation lookup.
 - [ ] Decide whether retry queue persistence is needed for first deploy.
 - [x] Document Docker monitor permissions for the systemd `orion` user.

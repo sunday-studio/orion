@@ -199,7 +199,7 @@ func (s *AgentService) UpdateLastSeen(agentID string) error {
 }
 
 type SetMaintenanceModeRequest struct {
-	MaintenanceMode bool `json:"maintenance_mode" binding:"required"`
+	MaintenanceMode *bool `json:"maintenance_mode" binding:"required"`
 }
 
 func (s *AgentService) SetMaintenanceMode(agentID string, maintenanceMode bool) error {

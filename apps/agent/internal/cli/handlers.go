@@ -38,26 +38,25 @@ func HandleMaintenance(userConfigPath, internalStatePath *string) {
 
 	switch action {
 	case "-up":
+		if err := updateCoreMaintenanceMode(internalState, false); err != nil {
+			logging.Fatalf("Failed to update core maintenance mode: %v", err)
+		}
+
 		if err := stateStore.SetMaintenanceMode(false, nil); err != nil {
 			logging.Fatalf("Failed to save state: %v", err)
 		}
 		fmt.Println("Maintenance mode disabled")
-
-		// Notify core via API
-		if internalState.AgentID != "" && internalState.Token != "" {
-			client := transport.NewClient(internalState.CoreURL, internalState.Token)
-			if err := client.SetMaintenanceMode(internalState.AgentID, false); err != nil {
-				logging.Warnf("Failed to update core maintenance mode: %v", err)
-			} else {
-				logging.Infof("Core maintenance mode updated")
-			}
-		}
 
 	case "-down":
 		var reasonPtr *string
 		if reason != "" {
 			reasonPtr = &reason
 		}
+
+		if err := updateCoreMaintenanceMode(internalState, true); err != nil {
+			logging.Fatalf("Failed to update core maintenance mode: %v", err)
+		}
+
 		if err := stateStore.SetMaintenanceMode(true, reasonPtr); err != nil {
 			logging.Fatalf("Failed to save state: %v", err)
 		}
@@ -67,21 +66,32 @@ func HandleMaintenance(userConfigPath, internalStatePath *string) {
 		}
 		fmt.Println()
 
-		// Notify core via API
-		if internalState.AgentID != "" && internalState.Token != "" {
-			client := transport.NewClient(internalState.CoreURL, internalState.Token)
-			if err := client.SetMaintenanceMode(internalState.AgentID, true); err != nil {
-				logging.Warnf("Failed to update core maintenance mode: %v", err)
-			} else {
-				logging.Infof("Core maintenance mode updated")
-			}
-		}
-
 	default:
 		fmt.Printf("Unknown maintenance action: %s\n", action)
 		fmt.Println("Usage: orion-agent maintenance <-up|-down> [reason] [-state path]")
 		os.Exit(1)
 	}
+}
+
+func updateCoreMaintenanceMode(internalState *config.InternalState, enabled bool) error {
+	if internalState.AgentID == "" && internalState.Token == "" {
+		logging.Warnf("Agent is not registered; updating local maintenance state only")
+		return nil
+	}
+	if internalState.AgentID == "" || internalState.Token == "" {
+		return fmt.Errorf("state is missing agent id or token")
+	}
+	if internalState.CoreURL == "" {
+		return fmt.Errorf("state is missing core URL")
+	}
+
+	client := transport.NewClient(internalState.CoreURL, internalState.Token)
+	if err := client.SetMaintenanceMode(internalState.AgentID, enabled); err != nil {
+		return err
+	}
+
+	logging.Infof("Core maintenance mode updated")
+	return nil
 }
 
 func parseMaintenanceCommand(args []string, defaultStatePath string) (string, string, string, error) {
