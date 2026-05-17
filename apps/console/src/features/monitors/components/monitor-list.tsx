@@ -211,8 +211,17 @@ export const MonitorList = () => {
       />
       {summaryResponse.error && <div className="py-3 text-sm">Unable to load monitor summary.</div>}
       <div className="mt-6 flex flex-wrap items-center gap-2">
+        <div className="relative w-full max-w-sm">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-400" />
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search monitors"
+            className="pl-9"
+          />
+        </div>
         <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="w-40 rounded-full text-xs">
+          <SelectTrigger className="min-w-30 text-xs">
             <SelectValue placeholder="All statuses" />
           </SelectTrigger>
           <SelectContent>
@@ -224,17 +233,9 @@ export const MonitorList = () => {
             <SelectItem value="stale">Stale</SelectItem>
           </SelectContent>
         </Select>
-        <div className="relative w-full max-w-sm">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-400" />
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search monitors"
-            className="pl-9"
-          />
-        </div>
+
         <Select value={type} onValueChange={setType}>
-          <SelectTrigger className="w-52 rounded-full text-xs">
+          <SelectTrigger className="min-w-30 text-xs">
             <SelectValue placeholder="All types" />
           </SelectTrigger>
           <SelectContent>

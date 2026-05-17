@@ -5,6 +5,7 @@ RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
 COPY apps/console/package.json apps/console/pnpm-lock.yaml apps/console/
 RUN cd apps/console && pnpm install --frozen-lockfile
 COPY apps/console/ apps/console/
+RUN cd apps/console && pnpm generate:api
 RUN cd apps/console && pnpm run build
 
 # Build Go binary and carry frontend dist for runtime serving

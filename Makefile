@@ -3,10 +3,10 @@ generate-openapi:
 	cd apps/core && ./scripts/generate-openapi.sh
 
 generate-sdk: generate-openapi
-	cd apps/console && npm run generate:api
+	cd apps/console && pnpm run generate:api
 
 build-static:
-	cd apps/console && npm run build
+	cd apps/console && pnpm run build
 	rm -rf apps/core/web
 	mkdir -p apps/core/web
 	cp -R apps/console/dist/. apps/core/web/

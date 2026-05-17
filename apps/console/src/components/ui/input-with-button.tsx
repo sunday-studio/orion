@@ -27,7 +27,7 @@ function InputWithButton({
   return (
     <div
       className={cn(
-        "p-1 ring-input ring-neutral-200 bg-white focus-within:border-ring focus-within:ring-ring/50 flex h-10 min-w-64 items-center overflow-hidden rounded-full border border-neutral-300 shadow-xs transition-[color,box-shadow] focus-within:ring-[3px]",
+        "w-full p-1 ring-input ring-neutral-200 bg-white focus-within:border-ring focus-within:ring-ring/50 flex h-10 items-center overflow-hidden border border-neutral-300 shadow-xs transition-[color,box-shadow] focus-within:ring-[3px]",
         className,
       )}
     >

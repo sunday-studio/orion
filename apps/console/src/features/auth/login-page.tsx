@@ -42,7 +42,7 @@ export function LoginPage() {
         <p>Monitor your own systems and agents</p>
 
         <Input
-          className="min-w-64 rounded-full bg-white"
+          className="w-full bg-white"
           placeholder="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
