@@ -10,7 +10,7 @@ import {
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useState } from "react";
+import { parseAsInteger, useQueryStates } from "nuqs";
 import { monitorHealth, monitorPriority } from "./agent-detail-utils";
 
 const AGENT_MONITOR_LIMIT = 20;
@@ -60,15 +60,17 @@ const monitorColumns = (
 ];
 
 export const AgentMonitorsTab = ({ agentId, highlightedIncident }: AgentMonitorsTabProps) => {
-  const [page, setPage] = useState(1);
-  const offset = (Math.max(page, 1) - 1) * AGENT_MONITOR_LIMIT;
+  const [{ monitorsPage }, setMonitorsQuery] = useQueryStates({
+    monitorsPage: parseAsInteger.withDefault(1),
+  });
+  const offset = (Math.max(monitorsPage, 1) - 1) * AGENT_MONITOR_LIMIT;
   const monitorsResponse = useGetAgentMonitors(agentId, { limit: AGENT_MONITOR_LIMIT, offset });
   const monitors = [...(monitorsResponse.data?.monitors ?? [])].sort(
     (left, right) => monitorPriority(left) - monitorPriority(right),
   );
   const count = monitorsResponse.data?.count ?? monitors.length;
   const setOffset = (nextOffset: number) => {
-    setPage(Math.floor(nextOffset / AGENT_MONITOR_LIMIT) + 1);
+    void setMonitorsQuery({ monitorsPage: Math.floor(nextOffset / AGENT_MONITOR_LIMIT) + 1 });
   };
 
   return (

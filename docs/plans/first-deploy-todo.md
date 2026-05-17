@@ -67,7 +67,7 @@ This checklist tracks the work needed before Orion is ready for a first self-hos
 - [x] Verify event log pagination and filters.
 - [x] Verify settings data lifecycle read/update/manual actions.
 - [x] Verify empty, loading, and error states on every main page.
-- [ ] Verify URL query state for tabs, filters, and pagination.
+- [x] Verify URL query state for tabs, filters, and pagination.
 
 ## Priority 5 - Documentation Cleanup
 

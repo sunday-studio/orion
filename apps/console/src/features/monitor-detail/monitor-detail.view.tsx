@@ -17,7 +17,8 @@ import {
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
-import { type ReactNode, useState } from "react";
+import { type ReactNode } from "react";
+import { parseAsInteger, useQueryStates } from "nuqs";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
 const HISTORY_LIMIT = 20;
@@ -165,7 +166,9 @@ const incidentColumns: ColumnDef<ApiIncidentResponse>[] = [
 
 export const MonitorDetailPage = () => {
   const { monitorId = "" } = useParams();
-  const [historyPage, setHistoryPage] = useState(1);
+  const [{ historyPage }, setHistoryQuery] = useQueryStates({
+    historyPage: parseAsInteger.withDefault(1),
+  });
   const historyOffset = (Math.max(historyPage, 1) - 1) * HISTORY_LIMIT;
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedTab = searchParams.get("tab");
@@ -222,7 +225,7 @@ export const MonitorDetailPage = () => {
     "certificate_expiry",
   ]);
   const setHistoryOffset = (nextOffset: number) => {
-    setHistoryPage(Math.floor(nextOffset / HISTORY_LIMIT) + 1);
+    void setHistoryQuery({ historyPage: Math.floor(nextOffset / HISTORY_LIMIT) + 1 });
   };
   const handleTabChange = (tab: string) => {
     if (!isMonitorDetailTab(tab)) return;

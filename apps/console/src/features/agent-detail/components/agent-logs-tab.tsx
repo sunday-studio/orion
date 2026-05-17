@@ -3,7 +3,7 @@ import { ListPagination } from "@/components/list-pagination";
 import { type ApiAgentReportResponse, useGetAgentReports } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useState } from "react";
+import { parseAsInteger, useQueryStates } from "nuqs";
 import { formatDuration, formatPercent } from "./agent-detail-utils";
 
 const AGENT_LOG_LIMIT = 20;
@@ -41,13 +41,15 @@ type AgentLogsTabProps = {
 };
 
 export const AgentLogsTab = ({ agentId }: AgentLogsTabProps) => {
-  const [page, setPage] = useState(1);
-  const offset = (Math.max(page, 1) - 1) * AGENT_LOG_LIMIT;
+  const [{ reportsPage }, setReportsQuery] = useQueryStates({
+    reportsPage: parseAsInteger.withDefault(1),
+  });
+  const offset = (Math.max(reportsPage, 1) - 1) * AGENT_LOG_LIMIT;
   const reportsQuery = useGetAgentReports(agentId, { limit: AGENT_LOG_LIMIT, offset });
   const reports = reportsQuery.data?.reports ?? [];
   const count = reportsQuery.data?.count ?? reports.length;
   const setOffset = (nextOffset: number) => {
-    setPage(Math.floor(nextOffset / AGENT_LOG_LIMIT) + 1);
+    void setReportsQuery({ reportsPage: Math.floor(nextOffset / AGENT_LOG_LIMIT) + 1 });
   };
 
   return (
