@@ -1582,6 +1582,11 @@ paths:
         in: query
         name: agent_id
         type: string
+      - description: Filter to incidents with failed notifications or critical/error
+          severity
+        in: query
+        name: needs_review
+        type: boolean
       - default: 50
         description: Maximum number of incidents to return
         in: query

@@ -21,6 +21,7 @@ import (
 // @ID           getIncidents
 // @Param        status  query     string  false  "Comma-separated incident statuses" default(open,acknowledged)
 // @Param        agent_id  query   string  false  "Filter incidents by agent ID"
+// @Param        needs_review  query  bool  false  "Filter to incidents with failed notifications or critical/error severity"
 // @Param        limit   query     int     false  "Maximum number of incidents to return" default(50)
 // @Param        offset  query     int     false  "Number of incidents to skip" default(0)
 // @Success      200     {object}  utils.APIResponse{data=object{incidents=[]IncidentResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta,status=[]string}}
@@ -31,10 +32,14 @@ func (s *Server) listIncidents(c *gin.Context) {
 	offset := queryInt(c, "offset", 0)
 	statuses := queryStatuses(c.DefaultQuery("status", "open,acknowledged"))
 	agentID := strings.TrimSpace(c.Query("agent_id"))
+	needsReview := queryBool(c, "needs_review", false)
 
 	query := s.db.Model(&db.Incident{}).Where("status IN ?", statuses)
 	if agentID != "" {
 		query = query.Where("agent_id = ?", agentID)
+	}
+	if needsReview {
+		query = query.Where("notification_status = ? OR severity IN ?", "failed", []string{"critical", "error"})
 	}
 
 	var count int64
@@ -262,6 +267,18 @@ func queryInt(c *gin.Context, key string, fallback int) int {
 		return fallback
 	}
 	return value
+}
+
+func queryBool(c *gin.Context, key string, fallback bool) bool {
+	value := strings.TrimSpace(c.Query(key))
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		return fallback
+	}
+	return parsed
 }
 
 func queryStatuses(value string) []string {

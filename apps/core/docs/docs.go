@@ -1505,6 +1505,12 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "boolean",
+                        "description": "Filter to incidents with failed notifications or critical/error severity",
+                        "name": "needs_review",
+                        "in": "query"
+                    },
+                    {
                         "type": "integer",
                         "default": 50,
                         "description": "Maximum number of incidents to return",

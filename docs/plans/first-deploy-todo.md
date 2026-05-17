@@ -30,12 +30,12 @@ This checklist tracks the work needed before Orion is ready for a first self-hos
 ## Priority 2 - Agent Install Smoke
 
 - [x] Make duplicate monitor registration idempotent so Agent can recover from local state loss.
-- [ ] Run the Agent install script against a local Core URL.
+- [x] Run the Agent install script against a local Core URL.
 - [x] Confirm Agent creates and reuses local SQLite state.
 - [x] Confirm Agent registration creates one stable Core agent.
 - [x] Confirm monitor registration creates expected Core monitors.
-- [ ] Confirm Agent sends system reports on its configured interval.
-- [ ] Confirm Agent sends monitor reports on each monitor interval.
+- [x] Confirm Agent sends system reports on its configured interval.
+- [x] Confirm Agent sends monitor reports on each monitor interval.
 - [x] Confirm Agent restart does not duplicate registration.
 - [x] Confirm uninstall removes service files cleanly and handles state intentionally.
 
@@ -47,7 +47,7 @@ This checklist tracks the work needed before Orion is ready for a first self-hos
 - [x] Confirm frontend auth is either fully enabled or clearly disabled.
 - [x] Confirm partial frontend auth configuration fails loudly.
 - [x] Confirm expired or invalid frontend tokens show a usable login/session state.
-- [ ] Confirm sign out clears local auth state in a running browser.
+- [x] Confirm sign out clears local auth state in a running browser.
 - [x] Confirm frontend-facing Agent responses never include Agent tokens.
 
 ## Priority 3.5 - Agent Runtime Risks
@@ -60,7 +60,7 @@ This checklist tracks the work needed before Orion is ready for a first self-hos
 
 ## Priority 4 - UI Release Pass
 
-- [ ] Verify incident list pagination, filters, summary cards, and detail tabs.
+- [x] Verify incident list pagination, filters, summary cards, and detail tabs.
 - [ ] Verify agent list pagination, filters, summary cards, detail tabs, and monitor expansion.
 - [ ] Verify monitor list pagination, filters, summary cards, and detail tabs.
 - [ ] Verify alerts page channel, rule, and delivery filters.

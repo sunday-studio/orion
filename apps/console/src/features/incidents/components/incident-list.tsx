@@ -29,12 +29,6 @@ const incidentMonitorPath = (incident: ApiIncidentResponse) =>
     ? `/monitors/${incident.monitor_id}?incident=${encodeURIComponent(incident.id ?? "")}`
     : undefined;
 
-const isErrorIncident = (incident: ApiIncidentResponse) => {
-  const notificationStatus = incident.notification_status?.toLowerCase();
-  const severity = incident.severity?.toLowerCase();
-  return notificationStatus === "failed" || severity === "error" || severity === "critical";
-};
-
 const statusParam = (status: IncidentSummaryStatus) => {
   if (status === "all" || status === "errors") return allIncidentStatuses;
   return status;
@@ -121,6 +115,7 @@ export const IncidentList = () => {
   });
   const filteredIncidentsResponse = useGetIncidents({
     agent_id: agent || undefined,
+    needs_review: status === "errors" ? true : undefined,
     status: statusParam(status),
     limit: INCIDENT_LIMIT,
     offset,
@@ -145,12 +140,8 @@ export const IncidentList = () => {
     offset: 0,
   });
   const responseIncidents = filteredIncidentsResponse.data?.incidents ?? [];
-  const incidents =
-    status === "errors" ? responseIncidents.filter(isErrorIncident) : responseIncidents;
-  const count =
-    status === "errors"
-      ? incidents.length
-      : (filteredIncidentsResponse.data?.count ?? incidents.length);
+  const incidents = responseIncidents;
+  const count = filteredIncidentsResponse.data?.count ?? incidents.length;
 
   const setStatus = (nextStatus: string) => {
     if (!incidentStatuses.includes(nextStatus as (typeof incidentStatuses)[number])) return;

@@ -1318,6 +1318,29 @@ func TestListIncidentsReturnsPersistedActiveIncidents(t *testing.T) {
 	if noMatch.Data.Count != 0 {
 		t.Fatalf("no match incident count = %d, want 0", noMatch.Data.Count)
 	}
+
+	if err := server.db.Model(&db.Incident{}).
+		Where("monitor_id = ?", registeredMonitor.Data.MonitorID).
+		Update("notification_status", "failed").Error; err != nil {
+		t.Fatalf("mark incident notification failed: %v", err)
+	}
+
+	needsReviewResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents?needs_review=true", nil, "")
+	if needsReviewResp.Code != http.StatusOK {
+		t.Fatalf("needs review incidents status = %d, body = %s", needsReviewResp.Code, needsReviewResp.Body.String())
+	}
+	var needsReview struct {
+		Data struct {
+			Count     int64 `json:"count"`
+			Incidents []struct {
+				NotificationStatus string `json:"notification_status"`
+			} `json:"incidents"`
+		} `json:"data"`
+	}
+	decodeResponse(t, needsReviewResp, &needsReview)
+	if needsReview.Data.Count != 1 || needsReview.Data.Incidents[0].NotificationStatus != "failed" {
+		t.Fatalf("needs review incidents = %+v, want failed notification incident", needsReview)
+	}
 }
 
 func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
