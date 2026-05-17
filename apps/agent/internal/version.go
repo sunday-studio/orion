@@ -1,3 +1,3 @@
 package agent
 
-const Version = "dev"
+var Version = "dev"

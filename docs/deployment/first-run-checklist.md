@@ -38,9 +38,7 @@ curl http://localhost:8999/health
 - [ ] Build the Agent binary:
 
 ```sh
-cd apps/agent
-go build -o orion-agent .
-cd ../..
+VERSION=v0.1.0 make agent-build
 ```
 
 - [ ] Install the Agent with a Core URL reachable from the monitored machine:

@@ -3,4 +3,5 @@
 - [First run checklist](first-run-checklist.md)
 - [Core Docker deployment](core-docker.md)
 - [Agent install and upgrade](agent-install-upgrade.md)
+- [Release packaging](release-packaging.md)
 - [SQLite backup and restore](../sqlite-backup-restore.md)

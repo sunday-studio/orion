@@ -22,6 +22,12 @@ Equivalent command:
 docker build -f apps/core/Dockerfile -t orion-core:latest .
 ```
 
+Build a versioned image by setting `VERSION`:
+
+```sh
+VERSION=v0.1.0 make docker-build
+```
+
 ## Run With Docker Compose
 
 Create an environment file or export the values in your shell:
@@ -65,7 +71,7 @@ Common examples:
 
 ## Published Versions
 
-The Dockerfile is ready for versioned image publishing later. The expected image shape is:
+The expected image shape is:
 
 ```txt
 orion-core:<version>

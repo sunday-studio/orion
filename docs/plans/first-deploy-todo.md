@@ -80,10 +80,10 @@ This checklist tracks the work needed before Orion is ready for a first self-hos
 
 ## Priority 6 - Release Packaging
 
-- [ ] Decide first deploy image tag format.
-- [ ] Add a reproducible Core Docker build command for tagged images.
-- [ ] Add a reproducible Agent binary build command.
-- [ ] Document version compatibility between Core and Agent.
+- [x] Decide first deploy image tag format.
+- [x] Add a reproducible Core Docker build command for tagged images.
+- [x] Add a reproducible Agent binary build command.
+- [x] Document version compatibility between Core and Agent.
 
 ## Nice To Have After First Deploy
 

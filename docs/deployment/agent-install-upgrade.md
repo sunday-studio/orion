@@ -23,9 +23,7 @@ macOS:
 Build the Agent from this checkout:
 
 ```sh
-cd apps/agent
-go build -o orion-agent .
-cd ../..
+VERSION=v0.1.0 make agent-build
 ```
 
 Install with a generated minimal config:
