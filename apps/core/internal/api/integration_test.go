@@ -339,6 +339,9 @@ func TestRegisterAndUnregisterMonitorUseRouteAgentID(t *testing.T) {
 	}
 
 	registerMonitorBody["reporting_interval_seconds"] = 45
+	updatedDescription := "updated route scoped monitor"
+	registerMonitorBody["description"] = updatedDescription
+	registerMonitorBody["type"] = "tcp"
 	duplicateResp := performJSONRequest(
 		t,
 		server,
@@ -365,6 +368,12 @@ func TestRegisterAndUnregisterMonitorUseRouteAgentID(t *testing.T) {
 	}
 	if monitor.ReportingIntervalSeconds != 45 {
 		t.Fatalf("monitor interval = %d, want updated 45", monitor.ReportingIntervalSeconds)
+	}
+	if monitor.Description == nil || *monitor.Description != updatedDescription {
+		t.Fatalf("monitor description = %v, want updated description", monitor.Description)
+	}
+	if monitor.Type != "tcp" {
+		t.Fatalf("monitor type = %q, want tcp", monitor.Type)
 	}
 
 	unregisterResp := performJSONRequest(

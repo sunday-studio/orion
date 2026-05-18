@@ -40,6 +40,10 @@ func NewWithStateStore(userConfig *config.UserConfig, stateStore *state.Store) (
 }
 
 func (a *Agent) Run(ctx context.Context) error {
+	runtimeCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	fatalErrs := make(chan error, 1)
+
 	// Check if agent is in maintenance mode
 	if a.isInMaintenanceMode() {
 		reason := "No reason provided"
@@ -55,12 +59,12 @@ func (a *Agent) Run(ctx context.Context) error {
 	workers.Add(1)
 	go func() {
 		defer workers.Done()
-		a.startSystemMetricsWorker(ctx)
+		a.startSystemMetricsWorker(runtimeCtx, fatalErrs)
 	}()
 	workers.Add(1)
 	go func() {
 		defer workers.Done()
-		a.startRetryQueueWorker(ctx)
+		a.startRetryQueueWorker(runtimeCtx, fatalErrs)
 	}()
 
 	// start one worker per monitor
@@ -68,15 +72,20 @@ func (a *Agent) Run(ctx context.Context) error {
 		workers.Add(1)
 		go func(monitor config.UserMonitor) {
 			defer workers.Done()
-			a.startMonitorWorker(ctx, monitor)
+			a.startMonitorWorker(runtimeCtx, monitor, fatalErrs)
 		}(monitor)
 	}
-	<-ctx.Done()
+	var runErr error
+	select {
+	case <-ctx.Done():
+	case runErr = <-fatalErrs:
+		cancel()
+	}
 	workers.Wait()
 	a.retryQueue.Flush(context.Background())
 
 	logging.Infof("Agent runtime stopped")
-	return nil
+	return runErr
 }
 
 // RunOnce runs the agent once (collects and sends all metrics, then exits)
@@ -109,7 +118,7 @@ func (a *Agent) RunOnce(ctx context.Context) error {
 }
 
 // System Metrics Worker
-func (a *Agent) startSystemMetricsWorker(ctx context.Context) {
+func (a *Agent) startSystemMetricsWorker(ctx context.Context, fatalErrs chan<- error) {
 	interval, err := time.ParseDuration(a.userConfig.Interval)
 	if err != nil {
 		logging.Errorf("Invalid system interval: %v", err)
@@ -118,6 +127,10 @@ func (a *Agent) startSystemMetricsWorker(ctx context.Context) {
 
 	if err := a.runSystemMetrics(); err != nil {
 		logging.Errorf("System metrics error: %v", err)
+		if transport.IsAuthError(err) {
+			reportFatalError(fatalErrs, err)
+			return
+		}
 	}
 
 	ticker := time.NewTicker(interval)
@@ -131,12 +144,16 @@ func (a *Agent) startSystemMetricsWorker(ctx context.Context) {
 		case <-ticker.C:
 			if err := a.runSystemMetrics(); err != nil {
 				logging.Errorf("System metrics error: %v", err)
+				if transport.IsAuthError(err) {
+					reportFatalError(fatalErrs, err)
+					return
+				}
 			}
 		}
 	}
 }
 
-func (a *Agent) startRetryQueueWorker(ctx context.Context) {
+func (a *Agent) startRetryQueueWorker(ctx context.Context, fatalErrs chan<- error) {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
@@ -148,14 +165,20 @@ func (a *Agent) startRetryQueueWorker(ctx context.Context) {
 		case <-ticker.C:
 			if a.retryQueue.Len() > 0 {
 				logging.Infof("Flushing retry queue (%d pending)", a.retryQueue.Len())
-				a.retryQueue.Flush(ctx)
+				if err := a.retryQueue.Flush(ctx); err != nil {
+					logging.Errorf("Retry queue flush failed: %v", err)
+					if transport.IsAuthError(err) {
+						reportFatalError(fatalErrs, err)
+						return
+					}
+				}
 			}
 		}
 	}
 }
 
 // Start Monitor Worker
-func (a *Agent) startMonitorWorker(ctx context.Context, monitor config.UserMonitor) {
+func (a *Agent) startMonitorWorker(ctx context.Context, monitor config.UserMonitor, fatalErrs chan<- error) {
 	logging.Infof("Starting monitor worker for %s...", monitor.Name)
 
 	internalMonitor, err := a.stateStore.GetMonitorByName(monitor.Name)
@@ -178,6 +201,10 @@ func (a *Agent) startMonitorWorker(ctx context.Context, monitor config.UserMonit
 
 	if err := a.runMonitorMetrics(*internalMonitor, monitor); err != nil {
 		logging.Errorf("Monitor metrics error: %v", err)
+		if transport.IsAuthError(err) {
+			reportFatalError(fatalErrs, err)
+			return
+		}
 	}
 
 	ticker := time.NewTicker(interval)
@@ -191,6 +218,10 @@ func (a *Agent) startMonitorWorker(ctx context.Context, monitor config.UserMonit
 		case <-ticker.C:
 			if err := a.runMonitorMetrics(*internalMonitor, monitor); err != nil {
 				logging.Errorf("Monitor metrics error: %v", err)
+				if transport.IsAuthError(err) {
+					reportFatalError(fatalErrs, err)
+					return
+				}
 			}
 
 		}
@@ -204,7 +235,7 @@ func (a *Agent) runSystemMetrics() error {
 		return nil
 	}
 
-	metrics, err := collector.Collect()
+	metrics, err := collector.CollectWithOptions(collector.CollectOptions{IncludeLocation: a.userConfig.GeoLocation})
 
 	if err != nil {
 		return err
@@ -227,6 +258,9 @@ func (a *Agent) runSystemMetrics() error {
 	}
 
 	if err := send(context.Background()); err != nil {
+		if transport.IsAuthError(err) {
+			return err
+		}
 		a.retryQueue.Push(RetryItem{Name: "system-report", Send: send})
 		return err
 	}
@@ -256,6 +290,8 @@ func (a *Agent) runMonitorMetrics(monitor config.InternalStateMonitor, userMonit
 	result, err := collector.CollectMonitorReport(monitor, userMonitor)
 	if err != nil {
 		logging.Errorf("Monitor check error: %v", err)
+	}
+	if result == nil {
 		return err
 	}
 
@@ -272,11 +308,21 @@ func (a *Agent) runMonitorMetrics(monitor config.InternalStateMonitor, userMonit
 	}
 
 	if err := send(context.Background()); err != nil {
+		if transport.IsAuthError(err) {
+			return err
+		}
 		a.retryQueue.Push(RetryItem{Name: "monitor-report:" + monitor.Name, Send: send})
 		return err
 	}
 
-	return nil
+	return err
+}
+
+func reportFatalError(fatalErrs chan<- error, err error) {
+	select {
+	case fatalErrs <- err:
+	default:
+	}
 }
 
 func (a *Agent) isInMaintenanceMode() bool {

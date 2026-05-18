@@ -88,6 +88,8 @@ func (s *MonitorService) RegisterMonitor(req *RegisterMonitorRequest) (*Register
 			updates := map[string]interface{}{
 				"lifecycle":                  "active",
 				"health":                     "up",
+				"description":                req.Description,
+				"type":                       req.Type,
 				"updated_at":                 time.Now(),
 				"reporting_interval_seconds": interval,
 			}
@@ -108,6 +110,12 @@ func (s *MonitorService) RegisterMonitor(req *RegisterMonitorRequest) (*Register
 		updates := map[string]interface{}{}
 		if req.ReportingIntervalSeconds > 0 && monitor.ReportingIntervalSeconds != req.ReportingIntervalSeconds {
 			updates["reporting_interval_seconds"] = req.ReportingIntervalSeconds
+		}
+		if req.Description != nil && (monitor.Description == nil || *monitor.Description != *req.Description) {
+			updates["description"] = req.Description
+		}
+		if req.Type != "" && monitor.Type != req.Type {
+			updates["type"] = req.Type
 		}
 		if req.Meta != "" && monitor.Meta != req.Meta {
 			updates["meta"] = req.Meta

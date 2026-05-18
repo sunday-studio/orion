@@ -47,10 +47,16 @@ func CollectMonitorReport(internalMonitor config.InternalStateMonitor, userMonit
 		}
 
 	case config.UserMonitorInternalService:
+		timeout := defaultTimeout
+		if userMonitorConfig.InternalService.Ping.Timeout != "" {
+			if d, err := time.ParseDuration(userMonitorConfig.InternalService.Ping.Timeout); err == nil {
+				timeout = d
+			}
+		}
 		result := RunInternalServiceMonitor(InternalServiceMonitorConfig{
 			Ping: PingConfig{
 				URL:     userMonitorConfig.InternalService.Ping.URL,
-				Timeout: defaultTimeout,
+				Timeout: timeout,
 			},
 			Process: PortProcessConfig{
 				Port: userMonitorConfig.InternalService.Process.Port,
@@ -79,6 +85,7 @@ func CollectMonitorReport(internalMonitor config.InternalStateMonitor, userMonit
 		}
 		result := RunCommandMonitor(CommandMonitorConfig{
 			Command: userMonitorConfig.Command.Command,
+			Args:    userMonitorConfig.Command.Args,
 			Timeout: timeout,
 		})
 		if result.Error != nil {

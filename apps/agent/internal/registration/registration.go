@@ -94,19 +94,12 @@ func (s *RegistrationService) RegisterAgentMonitorsIfNeeded() error {
 
 	stateMonitors := buildStateMonitorMap(internalState.Monitors)
 
-	logging.Infof("stateMonitors: %v", stateMonitors)
-
 	var updatedState []config.InternalStateMonitor
 
-	// register new monitors
+	// register or reconcile all configured monitors. Core updates interval/meta
+	// for already-active monitors and revives deleted monitors by name.
 	for name, monitor := range configMonitors {
-		if _, exists := stateMonitors[name]; exists {
-			// already registered — keep it
-			updatedState = append(updatedState, stateMonitors[name])
-			continue
-		}
-
-		logging.Infof("Registering monitor %q", name)
+		logging.Infof("Reconciling monitor %q", name)
 
 		req := transport.MonitorRegistrationRequest{
 			AgentID:                  internalState.AgentID,
@@ -124,14 +117,23 @@ func (s *RegistrationService) RegisterAgentMonitorsIfNeeded() error {
 
 		resp, err := s.client.RegisterMonitor(req)
 		if err != nil {
-			return fmt.Errorf("failed to register monitor %q: %w", name, err)
+			return fmt.Errorf("failed to reconcile monitor %q: %w", name, err)
+		}
+
+		lastChecked := time.Now()
+		status := "running"
+		if stateMonitor, exists := stateMonitors[name]; exists {
+			lastChecked = stateMonitor.LastChecked
+			if stateMonitor.Status != "" {
+				status = stateMonitor.Status
+			}
 		}
 
 		updatedState = append(updatedState, config.InternalStateMonitor{
 			ID:          resp.Data.MonitorID,
 			Name:        name,
-			Status:      "running",
-			LastChecked: time.Now(),
+			Status:      status,
+			LastChecked: lastChecked,
 		})
 	}
 

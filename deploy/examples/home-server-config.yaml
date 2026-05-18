@@ -5,6 +5,7 @@ meta:
 # Use a Core URL this Agent host can reach.
 core_url: http://orion-core.local:8999
 interval: 60s
+geo_location: false
 
 monitors:
   - name: orion-core

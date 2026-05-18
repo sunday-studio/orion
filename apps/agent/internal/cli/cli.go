@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"orion/agent/internal/logging"
@@ -36,13 +35,9 @@ func GetServiceStatus() (bool, string, error) {
 		return status == "active", status, nil
 
 	case "launchd":
-		cmd := exec.Command("launchctl", "list")
-		output, err := cmd.Output()
-		if err != nil {
-			return false, "unknown", nil
-		}
-		if strings.Contains(string(output), "com.orion.agent") {
-			return true, "running", nil
+		cmd := exec.Command("launchctl", "print", "system/com.orion.agent")
+		if err := cmd.Run(); err == nil {
+			return true, "loaded", nil
 		}
 		return false, "stopped", nil
 
@@ -69,17 +64,14 @@ func StartService() error {
 		return nil
 
 	case "launchd":
-		// Try user LaunchAgent first
-		plistPath := filepath.Join(os.Getenv("HOME"), "Library/LaunchAgents/com.orion.agent.plist")
+		plistPath := "/Library/LaunchDaemons/com.orion.agent.plist"
 		if _, err := os.Stat(plistPath); err == nil {
-			cmd := exec.Command("launchctl", "load", plistPath)
-			return cmd.Run()
-		}
-		// Try system LaunchDaemon
-		plistPath = "/Library/LaunchDaemons/com.orion.agent.plist"
-		if _, err := os.Stat(plistPath); err == nil {
-			cmd := exec.Command("sudo", "launchctl", "load", plistPath)
-			return cmd.Run()
+			cmd := exec.Command("sudo", "launchctl", "bootstrap", "system", plistPath)
+			if err := cmd.Run(); err != nil {
+				kickstart := exec.Command("sudo", "launchctl", "kickstart", "-k", "system/com.orion.agent")
+				return kickstart.Run()
+			}
+			return nil
 		}
 		return fmt.Errorf("service file not found")
 
@@ -103,16 +95,9 @@ func StopService() error {
 		return nil
 
 	case "launchd":
-		// Try user LaunchAgent first
-		plistPath := filepath.Join(os.Getenv("HOME"), "Library/LaunchAgents/com.orion.agent.plist")
+		plistPath := "/Library/LaunchDaemons/com.orion.agent.plist"
 		if _, err := os.Stat(plistPath); err == nil {
-			cmd := exec.Command("launchctl", "unload", plistPath)
-			return cmd.Run()
-		}
-		// Try system LaunchDaemon
-		plistPath = "/Library/LaunchDaemons/com.orion.agent.plist"
-		if _, err := os.Stat(plistPath); err == nil {
-			cmd := exec.Command("sudo", "launchctl", "unload", plistPath)
+			cmd := exec.Command("sudo", "launchctl", "bootout", "system", plistPath)
 			return cmd.Run()
 		}
 		return fmt.Errorf("service file not found")

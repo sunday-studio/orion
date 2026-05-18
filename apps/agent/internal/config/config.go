@@ -76,8 +76,9 @@ type ProcessConfig struct {
 }
 
 type CommandMonitorConfig struct {
-	Command string `yaml:"command"`
-	Timeout string `yaml:"timeout,omitempty"`
+	Command string   `yaml:"command"`
+	Args    []string `yaml:"args,omitempty"`
+	Timeout string   `yaml:"timeout,omitempty"`
 }
 
 type WebsiteMonitorConfig struct {
@@ -130,10 +131,11 @@ type UserMonitor struct {
 }
 
 type UserConfig struct {
-	Meta     map[string]interface{} `yaml:"meta,omitempty"`
-	CoreURL  string                 `yaml:"core_url"`
-	Interval string                 `yaml:"interval"`
-	Monitors []UserMonitor          `yaml:"monitors"`
+	Meta        map[string]interface{} `yaml:"meta,omitempty"`
+	CoreURL     string                 `yaml:"core_url"`
+	Interval    string                 `yaml:"interval"`
+	GeoLocation bool                   `yaml:"geo_location,omitempty"`
+	Monitors    []UserMonitor          `yaml:"monitors"`
 }
 
 func LoadUserConfig(path string) (*UserConfig, error) {

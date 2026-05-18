@@ -13,6 +13,11 @@ import (
 	"gorm.io/gorm"
 )
 
+const (
+	stateDirMode  = 0o700
+	stateFileMode = 0o600
+)
+
 type Store struct {
 	path string
 	db   *gorm.DB
@@ -63,8 +68,8 @@ func Open(path string) (*Store, error) {
 	if path == "" {
 		path = DefaultPath()
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return nil, fmt.Errorf("create state directory: %w", err)
+	if err := ensureStateDir(filepath.Dir(path)); err != nil {
+		return nil, err
 	}
 
 	database, err := gorm.Open(sqlite.Open(path), &gorm.Config{})
@@ -74,8 +79,29 @@ func Open(path string) (*Store, error) {
 	if err := database.AutoMigrate(&agentStateRecord{}, &monitorStateRecord{}); err != nil {
 		return nil, fmt.Errorf("migrate state database: %w", err)
 	}
+	if err := os.Chmod(path, stateFileMode); err != nil {
+		return nil, fmt.Errorf("secure state database permissions: %w", err)
+	}
 
 	return &Store{path: path, db: database}, nil
+}
+
+func ensureStateDir(dir string) error {
+	if dir == "" || dir == "." {
+		return nil
+	}
+	if _, err := os.Stat(dir); err == nil {
+		return nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("inspect state directory: %w", err)
+	}
+	if err := os.MkdirAll(dir, stateDirMode); err != nil {
+		return fmt.Errorf("create state directory: %w", err)
+	}
+	if err := os.Chmod(dir, stateDirMode); err != nil {
+		return fmt.Errorf("secure state directory permissions: %w", err)
+	}
+	return nil
 }
 
 func (s *Store) Close() error {

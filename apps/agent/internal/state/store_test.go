@@ -1,6 +1,7 @@
 package state
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -24,6 +25,27 @@ func TestStoreCreatesDefaultState(t *testing.T) {
 	}
 	if len(state.Monitors) != 0 {
 		t.Fatalf("monitors = %d, want 0", len(state.Monitors))
+	}
+}
+
+func TestStoreCreatesStateDatabaseWithPrivatePermissions(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "state.db")
+	store, err := Open(path)
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	t.Cleanup(func() {
+		if err := store.Close(); err != nil {
+			t.Fatalf("Close() error = %v", err)
+		}
+	})
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("Stat() error = %v", err)
+	}
+	if got := info.Mode().Perm(); got != stateFileMode {
+		t.Fatalf("state.db mode = %o, want %o", got, stateFileMode)
 	}
 }
 

@@ -205,6 +205,7 @@ func handleRun() {
 	cli.PrintStep("registering agent and monitors")
 	registrationService := registration.New(userConfig, *userConfigPath, stateStore)
 	if err := registrationService.RegisterAgentIfNeeded(); err != nil {
+		cli.PrintError("registration failed after retry attempts; agent cannot continue")
 		logging.Fatalf("Failed to register agent & monitors: %v", err)
 	}
 	cli.PrintOK("registration complete")

@@ -82,6 +82,7 @@ The Agent should not:
 - Agent sends `reporting_interval_seconds` from each monitor config interval.
 - Core stores the monitor reporting interval and uses it for stale detection.
 - Monitor metadata from config may be stored as stringified JSON.
+- Agent re-sends configured monitors on startup so Core can refresh monitor metadata and intervals.
 
 ### Monitor Unregistration
 
@@ -141,7 +142,7 @@ Agent behavior:
 
 - Retry temporary transport failures with backoff.
 - Log invalid responses and continue where possible.
-- Stop reporting on authentication failure until re-registration or user action fixes credentials.
+- Stop reporting and exit visibly on authentication failure until re-registration or user action fixes credentials.
 - Continue other checks when one monitor collection fails.
 - Keep the first deploy retry queue in memory only. A restart during a Core outage can lose queued historical reports, but the next scheduled reports refresh current state. Durable offline spooling belongs after first deploy if real usage shows unacceptable report gaps.
 
@@ -158,6 +159,8 @@ Core behavior:
 
 - Tokens are permanent until explicit rotation/revocation exists.
 - Agent stores token in local SQLite state; file permissions must protect it.
+- Agent location lookup is opt-in through `geo_location: true`.
+- Command monitors execute direct processes by default; shell behavior requires explicitly invoking a shell command.
 - Production deployments should use HTTPS or a trusted private network.
 - Secret values should not be returned to Console.
 

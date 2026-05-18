@@ -66,6 +66,27 @@ func TestClientDoesNotRetryClientError(t *testing.T) {
 	}
 }
 
+func TestClientReturnsAuthErrorForProtectedReport(t *testing.T) {
+	client := newRetryTestClient(func(req *http.Request) (*http.Response, error) {
+		if got, want := req.Header.Get("Authorization"), "Bearer token"; got != want {
+			t.Fatalf("Authorization = %q, want %q", got, want)
+		}
+		return &http.Response{
+			StatusCode: http.StatusUnauthorized,
+			Body:       io.NopCloser(strings.NewReader("bad token")),
+			Header:     make(http.Header),
+		}, nil
+	})
+
+	err := client.SendReport(SystemReport{}, "agent-1")
+	if err == nil {
+		t.Fatal("SendReport() error = nil, want auth error")
+	}
+	if !IsAuthError(err) {
+		t.Fatalf("SendReport() error = %T %[1]v, want AuthError", err)
+	}
+}
+
 func newRetryTestClient(roundTrip func(*http.Request) (*http.Response, error)) *Client {
 	client := NewClient("https://core.example.com", "token")
 	client.httpClient.Transport = roundTripFunc(roundTrip)

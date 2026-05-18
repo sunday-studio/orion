@@ -3,6 +3,7 @@ package transport
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -11,6 +12,23 @@ import (
 
 	"orion/agent/internal/logging"
 )
+
+type AuthError struct {
+	StatusCode int
+	Body       string
+}
+
+func (e *AuthError) Error() string {
+	if e.Body == "" {
+		return fmt.Sprintf("core authentication failed with status %d", e.StatusCode)
+	}
+	return fmt.Sprintf("core authentication failed with status %d: %s", e.StatusCode, e.Body)
+}
+
+func IsAuthError(err error) bool {
+	var authErr *AuthError
+	return errors.As(err, &authErr)
+}
 
 type Client struct {
 	coreURL    string
@@ -108,6 +126,10 @@ func shouldRetryStatus(statusCode int) bool {
 	return statusCode == http.StatusTooManyRequests || statusCode >= 500
 }
 
+func isAuthStatus(statusCode int) bool {
+	return statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden
+}
+
 func (c *Client) retryDelay(attempt int) time.Duration {
 	baseDelay := c.retry.BaseDelay
 	if baseDelay <= 0 {
@@ -158,6 +180,9 @@ func (c *Client) RegisterMonitor(req MonitorRegistrationRequest) (*MonitorRegist
 	}
 
 	if resp.StatusCode != http.StatusOK {
+		if isAuthStatus(resp.StatusCode) {
+			return nil, &AuthError{StatusCode: resp.StatusCode, Body: string(body)}
+		}
 		return nil, fmt.Errorf("core responded with %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -188,6 +213,13 @@ func (c *Client) UnregisterMonitor(req UnRegisterMonitorRequest) (*UnRegisterMon
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
+	if resp.StatusCode != http.StatusOK {
+		if isAuthStatus(resp.StatusCode) {
+			return nil, &AuthError{StatusCode: resp.StatusCode, Body: string(body)}
+		}
+		return nil, fmt.Errorf("core responded with %d: %s", resp.StatusCode, string(body))
+	}
+
 	var monResp UnRegisterMonitorResponse
 	if err := json.Unmarshal(body, &monResp); err != nil {
 		return nil, fmt.Errorf("failed to parse application registration response: %w", err)
@@ -211,6 +243,9 @@ func (c *Client) SendReport(report SystemReport, agentID string) error {
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
+		if isAuthStatus(resp.StatusCode) {
+			return &AuthError{StatusCode: resp.StatusCode, Body: string(body)}
+		}
 		logging.Warnf("unexpected status from core: %d — %s", resp.StatusCode, string(body))
 		return fmt.Errorf("core server returned status %d", resp.StatusCode)
 	}
@@ -229,6 +264,9 @@ func (c *Client) SendMonitorReport(report MonitorReport, agentID string, monitor
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
+		if isAuthStatus(resp.StatusCode) {
+			return &AuthError{StatusCode: resp.StatusCode, Body: string(body)}
+		}
 		logging.Warnf("unexpected status from core: %d — %s", resp.StatusCode, string(body))
 		return fmt.Errorf("core server returned status %d", resp.StatusCode)
 	}
@@ -282,6 +320,9 @@ func (c *Client) SetMaintenanceMode(agentID string, maintenanceMode bool) error 
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
+		if isAuthStatus(resp.StatusCode) {
+			return &AuthError{StatusCode: resp.StatusCode, Body: string(body)}
+		}
 		logging.Warnf("unexpected status from core: %d — %s", resp.StatusCode, string(body))
 		return fmt.Errorf("core server returned status %d", resp.StatusCode)
 	}

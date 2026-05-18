@@ -61,8 +61,16 @@ type GeoLocation struct {
 	Timezone string `json:"timezone"`
 }
 
+type CollectOptions struct {
+	IncludeLocation bool
+}
+
 // Collect gathers system statistics from the host machine.
 func Collect() (*SystemMetrics, error) {
+	return CollectWithOptions(CollectOptions{})
+}
+
+func CollectWithOptions(opts CollectOptions) (*SystemMetrics, error) {
 	hostname, _ := os.Hostname()
 
 	hostInfo, err := host.Info()
@@ -74,6 +82,9 @@ func Collect() (*SystemMetrics, error) {
 	cpuUsage, err := cpu.Percent(0, false)
 	if err != nil {
 		return nil, fmt.Errorf("cpu usage error: %w", err)
+	}
+	if len(cpuUsage) == 0 {
+		return nil, fmt.Errorf("cpu usage error: no cpu samples returned")
 	}
 
 	cpuInfo, _ := cpu.Info()
@@ -125,8 +136,10 @@ func Collect() (*SystemMetrics, error) {
 		},
 	}
 
-	if loc, err := services.GetLocation(); err == nil {
-		metrics.Location = loc
+	if opts.IncludeLocation {
+		if loc, err := services.GetLocation(); err == nil {
+			metrics.Location = loc
+		}
 	}
 
 	return metrics, nil

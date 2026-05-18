@@ -149,17 +149,20 @@ Behavior:
 
 ### `command`
 
-Purpose: run a local shell command and use the exit code as health.
+Purpose: run a local command and use the exit code as health.
 
 Config:
 
-- `command.command`: required shell command.
+- `command.command`: required executable path/name, or a command line that the Agent splits into executable and args.
+- `command.args`: optional explicit argument list. When present, `command.command` must be only the executable path/name.
 - `command.timeout`: optional positive duration.
 
 Behavior:
 
 - Runs the command with timeout.
 - Captures exit code, stdout, stderr, and timeout state.
+- Truncates stdout and stderr to 16 KiB each.
+- Does not run through a shell unless `command.command` explicitly invokes one, such as `sh` with `args: ["-c", "..."]`.
 - Returns `up` when exit code is `0`.
 - Returns `down` when exit code is non-zero, execution fails, or timeout is reached.
 

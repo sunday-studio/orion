@@ -57,6 +57,9 @@ func (c CommandMonitorConfig) Validate() error {
 	if strings.TrimSpace(c.Command) == "" {
 		return errors.New("command is required")
 	}
+	if len(c.Args) > 0 && strings.ContainsAny(c.Command, " \t\r\n") {
+		return errors.New("command must be an executable path/name without spaces when args are provided")
+	}
 
 	if c.Timeout != "" {
 		if _, err := parsePositiveDuration(c.Timeout, "timeout"); err != nil {

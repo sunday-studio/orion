@@ -5,6 +5,8 @@ import (
 	"errors"
 	"reflect"
 	"testing"
+
+	"orion/agent/internal/transport"
 )
 
 func TestRetryQueueDropsOldestWhenFull(t *testing.T) {
@@ -36,7 +38,9 @@ func TestRetryQueueFlushRequeuesFailures(t *testing.T) {
 		return errors.New("core unavailable")
 	}})
 
-	queue.Flush(context.Background())
+	if err := queue.Flush(context.Background()); err == nil {
+		t.Fatal("Flush() error = nil, want failed send error")
+	}
 
 	if attempts != 1 {
 		t.Fatalf("attempts = %d, want 1", attempts)
@@ -55,12 +59,38 @@ func TestRetryQueueFlushRemovesSuccesses(t *testing.T) {
 		return nil
 	}})
 
-	queue.Flush(context.Background())
+	if err := queue.Flush(context.Background()); err != nil {
+		t.Fatalf("Flush() error = %v", err)
+	}
 
 	if attempts != 1 {
 		t.Fatalf("attempts = %d, want 1", attempts)
 	}
 	if queue.Len() != 0 {
 		t.Fatalf("Len() = %d, want empty queue", queue.Len())
+	}
+}
+
+func TestRetryQueueFlushReturnsAuthErrorWithoutRequeue(t *testing.T) {
+	queue := NewRetryQueue(10)
+	attempts := 0
+
+	queue.Push(RetryItem{Name: "report", Send: func(context.Context) error {
+		attempts++
+		return &transport.AuthError{StatusCode: 401}
+	}})
+
+	err := queue.Flush(context.Background())
+	if err == nil {
+		t.Fatal("Flush() error = nil, want auth error")
+	}
+	if !transport.IsAuthError(err) {
+		t.Fatalf("Flush() error = %T %[1]v, want auth error", err)
+	}
+	if attempts != 1 {
+		t.Fatalf("attempts = %d, want 1", attempts)
+	}
+	if queue.Len() != 0 {
+		t.Fatalf("Len() = %d, want auth-failed item dropped", queue.Len())
 	}
 }

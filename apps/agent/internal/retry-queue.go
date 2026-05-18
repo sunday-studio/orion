@@ -3,6 +3,8 @@ package agent
 import (
 	"context"
 	"sync"
+
+	"orion/agent/internal/transport"
 )
 
 type RetryQueue struct {
@@ -45,22 +47,30 @@ func (q *RetryQueue) Len() int {
 	return len(q.items)
 }
 
-func (q *RetryQueue) Flush(ctx context.Context) {
+func (q *RetryQueue) Flush(ctx context.Context) error {
 	q.mu.Lock()
 	items := q.items
 	q.items = nil
 	q.mu.Unlock()
 
+	var firstErr error
 	for _, item := range items {
 		select {
 		case <-ctx.Done():
 			q.Push(item)
-			return
+			return ctx.Err()
 		default:
 		}
 
 		if err := item.Send(ctx); err != nil {
+			if transport.IsAuthError(err) {
+				return err
+			}
 			q.Push(item)
+			if firstErr == nil {
+				firstErr = err
+			}
 		}
 	}
+	return firstErr
 }

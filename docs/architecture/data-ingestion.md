@@ -70,8 +70,8 @@ flowchart TD
 
 After Agent registration, configured monitors are reconciled against internal state:
 
-- Configured monitor exists in state: keep it.
-- Configured monitor missing from state: register it with Core.
+- Configured monitors are sent to Core on startup so Core can refresh monitor metadata and reporting intervals.
+- Configured monitor missing from state: Core creates or revives it.
 - State monitor missing from config: unregister it from Core.
 
 Core monitor registration behavior:
@@ -79,6 +79,7 @@ Core monitor registration behavior:
 - New monitor creates a `monitors` row with `lifecycle = active`, `health = unknown`, and `computed_health = unknown`.
 - Previously deleted monitor with the same server/name is revived.
 - Active duplicate monitor names for a server are rejected.
+- Existing active monitors with the same name are reconciled and returned to the Agent.
 - Removed monitors are soft-deleted by setting `lifecycle = deleted`, `health = unknown`, and `deleted_at`.
 - Core stores each monitor reporting interval and uses it to derive stale state.
 
@@ -86,14 +87,12 @@ Core monitor registration behavior:
 flowchart TD
   ConfigMonitors["Config monitors"] --> Compare["Compare with state monitors"]
   StateMonitors["State monitors"] --> Compare
-  Compare --> New["In config, not in state"]
-  Compare --> Existing["In config and state"]
+  Compare --> Configured["Every configured monitor"]
   Compare --> Removed["In state, not in config"]
-  New --> RegisterCore["POST register-monitor"]
-  Existing --> Keep["Keep monitor id"]
+  Configured --> RegisterCore["POST register-monitor"]
+  RegisterCore --> Reconcile["Create, revive, or refresh Core monitor"]
   Removed --> UnregisterCore["POST unregister-monitor"]
-  RegisterCore --> SaveState["Save refreshed state.db"]
-  Keep --> SaveState
+  Reconcile --> SaveState["Save refreshed state.db"]
   UnregisterCore --> SaveState
 ```
 
@@ -177,6 +176,8 @@ If a system or monitor report still fails after transport retries:
 - If full, oldest item is dropped and replaced.
 - A retry worker flushes the queue every 30 seconds.
 - Shutdown flushes the queue once with a background context.
+
+Authentication failures are not queued as transient failures. The Agent stops reporting and exits with a visible error so the operator can fix credentials or registration state.
 
 ```mermaid
 flowchart TD

@@ -3,6 +3,7 @@ package collector
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 )
@@ -75,6 +76,41 @@ func TestRunCommandMonitorWithRunner(t *testing.T) {
 			t.Fatalf("error = %+v, want shell unavailable", result.Error)
 		}
 	})
+
+	t.Run("output is truncated", func(t *testing.T) {
+		result := runCommandMonitorWithRunner(
+			CommandMonitorConfig{Command: "noisy-check", Timeout: time.Second},
+			func(ctx context.Context, command string) commandExecution {
+				return commandExecution{
+					ExitCode: 0,
+					Stdout:   strings.Repeat("a", maxCommandOutputBytes+100),
+					Stderr:   strings.Repeat("b", maxCommandOutputBytes+100),
+				}
+			},
+		)
+
+		stdout, ok := result.Metrics["stdout"].(string)
+		if !ok {
+			t.Fatalf("stdout type = %T, want string", result.Metrics["stdout"])
+		}
+		if len(stdout) != maxCommandOutputBytes {
+			t.Fatalf("stdout length = %d, want %d", len(stdout), maxCommandOutputBytes)
+		}
+		if result.Metrics["stdout_truncated"] != true {
+			t.Fatalf("stdout_truncated = %v, want true", result.Metrics["stdout_truncated"])
+		}
+
+		stderr, ok := result.Metrics["stderr"].(string)
+		if !ok {
+			t.Fatalf("stderr type = %T, want string", result.Metrics["stderr"])
+		}
+		if len(stderr) != maxCommandOutputBytes {
+			t.Fatalf("stderr length = %d, want %d", len(stderr), maxCommandOutputBytes)
+		}
+		if result.Metrics["stderr_truncated"] != true {
+			t.Fatalf("stderr_truncated = %v, want true", result.Metrics["stderr_truncated"])
+		}
+	})
 }
 
 func assertCommandContext(t *testing.T, ctx context.Context, command string, wantCommand string) {
@@ -85,5 +121,22 @@ func assertCommandContext(t *testing.T, ctx context.Context, command string, wan
 	}
 	if _, ok := ctx.Deadline(); !ok {
 		t.Fatal("context has no deadline")
+	}
+}
+
+func TestParseCommandLine(t *testing.T) {
+	spec, err := parseCommandLine(`test -f "/tmp/backup ok"`)
+	if err != nil {
+		t.Fatalf("parseCommandLine() error = %v", err)
+	}
+	if spec.binary != "test" {
+		t.Fatalf("binary = %q, want test", spec.binary)
+	}
+	if len(spec.args) != 2 || spec.args[0] != "-f" || spec.args[1] != "/tmp/backup ok" {
+		t.Fatalf("args = %#v, want [-f /tmp/backup ok]", spec.args)
+	}
+
+	if _, err := parseCommandLine(`test -f "unterminated`); err == nil {
+		t.Fatal("parseCommandLine() error = nil, want unclosed quote error")
 	}
 }

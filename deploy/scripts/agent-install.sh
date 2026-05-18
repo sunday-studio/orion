@@ -144,6 +144,7 @@ write_minimal_config() {
   {
     printf 'core_url: %s\n' "$CORE_URL"
     printf 'interval: 60s\n'
+    printf 'geo_location: false\n'
     printf 'monitors: []\n'
   } > "$config_path"
 }
@@ -194,7 +195,6 @@ initialize_state() {
 
   "$INSTALL_DIR/orion-agent" state init -state "$state_path" >/dev/null
   run_cmd chown "$owner:$group" "$state_path"
-  run_cmd chmod 0640 "$state_path"
   ok "initialized state database at $state_path"
 }
 
