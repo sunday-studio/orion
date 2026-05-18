@@ -1,9 +1,9 @@
 # Copy this file and run it directly, or override values with a .env file.
-# Pin ORION_CORE_IMAGE to a released tag when deploying production Core.
+# Override ORION_CORE_IMAGE to deploy a newer released tag.
 # ORION_CORS_ORIGINS is only needed for separate Console/custom-origin API access.
 services:
   orion-core:
-    image: ${ORION_CORE_IMAGE:-ghcr.io/sunday-studio/orion-core:latest}
+    image: ${ORION_CORE_IMAGE:-ghcr.io/sunday-studio/orion-core:v0.1.0}
     container_name: orion-core
     restart: unless-stopped
     ports:

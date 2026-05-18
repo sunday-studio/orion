@@ -54,7 +54,7 @@ Optionally pin a release image and set stronger admin credentials:
 
 ```sh
 cat > .env <<'EOF'
-ORION_CORE_IMAGE=ghcr.io/sunday-studio/orion-core:latest
+ORION_CORE_IMAGE=ghcr.io/sunday-studio/orion-core:v0.1.0
 ORION_HTTP_PORT=8999
 ORION_ADMIN_USERNAME=admin
 ORION_ADMIN_PASSWORD=replace-with-a-strong-password
@@ -78,6 +78,10 @@ docker compose -f ./core-console-compose up -d
 When Core serves the bundled Console, browser API calls stay on the same origin and do not need
 CORS. Set `ORION_CORS_ORIGINS` only when a separately hosted Console or custom browser origin calls
 this Core API.
+
+If Docker reports `unauthorized` while pulling from `ghcr.io`, the Core image package is private or
+the requested tag was not published. Make the GHCR package public for copy/paste installs, or run
+`docker login ghcr.io` with a token that has package read access.
 
 Open `http://localhost:8999`.
 
