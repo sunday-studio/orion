@@ -1879,7 +1879,7 @@ func TestCORSPreflightAllowsConsoleFetchHeaders(t *testing.T) {
 	}
 }
 
-func TestAlertReadEndpointsRedactConfiguration(t *testing.T) {
+func TestAlertReadEndpointsShowWebhookURLAndRedactSecrets(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())
@@ -1948,7 +1948,6 @@ func TestAlertReadEndpointsRedactConfiguration(t *testing.T) {
 	if channelsResp.Code != http.StatusOK {
 		t.Fatalf("channels status = %d, body = %s", channelsResp.Code, channelsResp.Body.String())
 	}
-	assertNotContains(t, channelsResp.Body.String(), "secret.example.com")
 	assertNotContains(t, channelsResp.Body.String(), "secret-password")
 
 	var channels struct {
@@ -1957,6 +1956,7 @@ func TestAlertReadEndpointsRedactConfiguration(t *testing.T) {
 			Channels []struct {
 				Name               string `json:"name"`
 				Type               string `json:"type"`
+				WebhookURL         string `json:"webhook_url"`
 				WebhookConfigured  bool   `json:"webhook_configured"`
 				LastDeliveryStatus string `json:"last_delivery_status"`
 			} `json:"channels"`
@@ -1970,6 +1970,7 @@ func TestAlertReadEndpointsRedactConfiguration(t *testing.T) {
 	var webhookChannel struct {
 		Name               string `json:"name"`
 		Type               string `json:"type"`
+		WebhookURL         string `json:"webhook_url"`
 		WebhookConfigured  bool   `json:"webhook_configured"`
 		LastDeliveryStatus string `json:"last_delivery_status"`
 	}
@@ -1979,8 +1980,8 @@ func TestAlertReadEndpointsRedactConfiguration(t *testing.T) {
 			break
 		}
 	}
-	if !webhookChannel.WebhookConfigured || webhookChannel.LastDeliveryStatus != "failed" {
-		t.Fatalf("webhook channel response = %+v, want redacted webhook with last failed status", webhookChannel)
+	if webhookChannel.WebhookURL != "https://secret.example.com/hook" || !webhookChannel.WebhookConfigured || webhookChannel.LastDeliveryStatus != "failed" {
+		t.Fatalf("webhook channel response = %+v, want webhook URL with last failed status", webhookChannel)
 	}
 
 	deliveriesResp := performJSONRequest(t, server, http.MethodGet, "/v1/alerts/deliveries?limit=10", nil, "")
@@ -2047,21 +2048,20 @@ func TestAlertChannelWriteEndpointsPersistWebhookConfiguration(t *testing.T) {
 	if createResp.Code != http.StatusCreated {
 		t.Fatalf("create channel status = %d, body = %s", createResp.Code, createResp.Body.String())
 	}
-	assertNotContains(t, createResp.Body.String(), "secret.example.com")
-
 	var created struct {
 		Data struct {
 			Channel struct {
 				ID                string   `json:"id"`
 				Name              string   `json:"name"`
+				WebhookURL        string   `json:"webhook_url"`
 				WebhookConfigured bool     `json:"webhook_configured"`
 				SubscribedEvents  []string `json:"subscribed_events"`
 			} `json:"channel"`
 		} `json:"data"`
 	}
 	decodeResponse(t, createResp, &created)
-	if created.Data.Channel.ID == "" || created.Data.Channel.Name != "ops-webhook" || !created.Data.Channel.WebhookConfigured {
-		t.Fatalf("created channel = %+v, want redacted webhook channel", created.Data.Channel)
+	if created.Data.Channel.ID == "" || created.Data.Channel.Name != "ops-webhook" || created.Data.Channel.WebhookURL != "https://secret.example.com/hook" || !created.Data.Channel.WebhookConfigured {
+		t.Fatalf("created channel = %+v, want webhook channel", created.Data.Channel)
 	}
 	if got := created.Data.Channel.SubscribedEvents; len(got) != 1 || got[0] != db.AlertEventIncidentOpened {
 		t.Fatalf("created subscribed_events = %#v, want incident_opened", got)
@@ -2070,6 +2070,7 @@ func TestAlertChannelWriteEndpointsPersistWebhookConfiguration(t *testing.T) {
 	updateResp := performJSONRequest(t, server, http.MethodPatch, "/v1/alerts/channels/"+created.Data.Channel.ID, gin.H{
 		"name":              "critical-webhook",
 		"enabled":           false,
+		"webhook_url":       "https://alerts.example.com/critical",
 		"subscribed_events": []string{db.AlertEventIncidentOpened, db.AlertEventIncidentResolved},
 	}, "")
 	if updateResp.Code != http.StatusOK {
@@ -2082,6 +2083,9 @@ func TestAlertChannelWriteEndpointsPersistWebhookConfiguration(t *testing.T) {
 	}
 	if stored.Name != "critical-webhook" || stored.Enabled {
 		t.Fatalf("stored channel = %+v, want renamed disabled channel", stored)
+	}
+	if stored.WebhookURL != "https://alerts.example.com/critical" {
+		t.Fatalf("stored webhook url = %q, want updated webhook url", stored.WebhookURL)
 	}
 	if got := db.DecodeAlertEvents(stored.SubscribedEvents); len(got) != 2 || got[0] != db.AlertEventIncidentOpened || got[1] != db.AlertEventIncidentResolved {
 		t.Fatalf("stored subscribed_events = %#v, want opened and resolved", got)

@@ -1,15 +1,21 @@
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import type { ApiAlertChannelResponse } from "@/orion-sdk";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useMemo } from "react";
 import { boolLabel, eventLabel } from "./alert-constants";
 
-const configuredParts = (channel: { webhook_configured?: boolean }) => {
+const configuredParts = (channel: { webhook_configured?: boolean; webhook_url?: string }) => {
   const parts = [];
-  if (channel.webhook_configured) parts.push("webhook url");
+  if (channel.webhook_configured) parts.push(channel.webhook_url ?? "webhook url");
   return parts.length > 0 ? parts.join(", ") : "no endpoint configured";
 };
 
@@ -35,7 +41,6 @@ export const WebhookChannelsTab = ({
       {
         accessorKey: "name",
         header: "Name",
-        cell: ({ row }) => <span className="font-medium">{row.original.name ?? "unnamed"}</span>,
       },
       {
         accessorKey: "enabled",
@@ -46,16 +51,14 @@ export const WebhookChannelsTab = ({
         id: "configured",
         header: "Configured",
         cell: ({ row }) => (
-          <div className="max-w-[22rem] truncate text-neutral-600">
-            {configuredParts(row.original)}
-          </div>
+          <div className="max-w-88 truncate text-neutral-600">{configuredParts(row.original)}</div>
         ),
       },
       {
         accessorKey: "subscribed_events",
         header: "Events",
         cell: ({ row }) => (
-          <div className="max-w-[22rem] truncate text-neutral-600">
+          <div className="max-w-88 truncate text-neutral-600">
             {(row.original.subscribed_events ?? []).map(eventLabel).join(", ") || "none"}
           </div>
         ),
@@ -72,24 +75,24 @@ export const WebhookChannelsTab = ({
         id: "actions",
         header: "",
         cell: ({ row }) => (
-          <div className="flex justify-end gap-1">
-            <Button
-              aria-label={`Edit ${row.original.name ?? "channel"}`}
-              size="icon"
-              variant="ghost"
-              onClick={() => onEdit(row.original)}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label={`Open actions for ${row.original.name ?? "channel"}`}
+              className="ml-auto flex size-6 items-center justify-center hover:bg-accent focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             >
-              <Pencil />
-            </Button>
-            <Button
-              aria-label={`Delete ${row.original.name ?? "channel"}`}
-              size="icon"
-              variant="ghost"
-              onClick={() => onDelete(row.original)}
-            >
-              <Trash2 />
-            </Button>
-          </div>
+              <MoreHorizontal className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => onEdit(row.original)}>
+                <Pencil className="size-4" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onDelete(row.original)}>
+                <Trash2 className="size-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ),
       },
     ],
@@ -102,7 +105,7 @@ export const WebhookChannelsTab = ({
         <div>
           <h2 className="text-sm font-medium">Channels</h2>
           <p className="text-sm text-neutral-600">
-            Secrets are hidden. Add webhooks here and Core stores them for delivery.
+            Add webhooks here and Core stores them for delivery.
           </p>
         </div>
         <Button size="sm" onClick={onCreate}>

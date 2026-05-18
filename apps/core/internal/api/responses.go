@@ -148,12 +148,13 @@ type AlertDeliveryResponse struct {
 	UpdatedAt  time.Time `json:"updated_at"`
 }
 
-// AlertChannelResponse represents a redacted configured alert channel.
+// AlertChannelResponse represents a configured alert channel.
 type AlertChannelResponse struct {
 	ID                     string     `json:"id"`
 	Name                   string     `json:"name"`
 	Type                   string     `json:"type"`
 	Enabled                bool       `json:"enabled"`
+	WebhookURL             string     `json:"webhook_url,omitempty"`
 	WebhookConfigured      bool       `json:"webhook_configured,omitempty"`
 	EmailToConfigured      bool       `json:"email_to_configured,omitempty"`
 	EmailFromConfigured    bool       `json:"email_from_configured,omitempty"`

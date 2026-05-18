@@ -63,14 +63,14 @@ export const WebhookDialog = ({
           <DialogTitle>{isEditing ? "Edit webhook" : "New webhook"}</DialogTitle>
           <DialogDescription>
             {isEditing
-              ? "Update the webhook name, enabled state, or replace the stored URL."
+              ? "Update the webhook name, URL, enabled state, and event subscriptions."
               : "Add a webhook channel for incident and recovery notifications."}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
           <label className="block space-y-1.5 text-sm">
-            <span className="font-medium">Name</span>
+            <span>Name</span>
             <Input
               value={name}
               onChange={(event) => onNameChange(event.target.value)}
@@ -79,17 +79,20 @@ export const WebhookDialog = ({
             />
           </label>
           <label className="block space-y-1.5 text-sm">
-            <span className="font-medium">Webhook URL</span>
+            <span>Webhook URL</span>
             <Input
               value={url}
               onChange={(event) => onUrlChange(event.target.value)}
-              placeholder={isEditing ? "Leave blank to keep the current URL" : "https://example.com/webhook"}
-              required={!isEditing}
+              placeholder="https://example.com/webhook"
+              required
               type="url"
             />
           </label>
           <label className="flex items-center gap-2 text-sm">
-            <Checkbox checked={enabled} onCheckedChange={(value) => onEnabledChange(value === true)} />
+            <Checkbox
+              checked={enabled}
+              onCheckedChange={(value) => onEnabledChange(value === true)}
+            />
             <span>Enabled</span>
           </label>
           <div className="space-y-2 text-sm">
@@ -118,7 +121,7 @@ export const WebhookDialog = ({
           </Button>
           <Button
             type="submit"
-            disabled={isPending || !name.trim() || (!isEditing && !url.trim()) || events.length === 0}
+            disabled={isPending || !name.trim() || !url.trim() || events.length === 0}
           >
             {isPending
               ? isEditing

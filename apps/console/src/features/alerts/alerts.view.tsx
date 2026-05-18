@@ -142,7 +142,7 @@ export const AlertsPage = () => {
   const openEditWebhookDialog = (channel: ApiAlertChannelResponse) => {
     setEditingChannel(channel);
     setWebhookName(channel.name ?? "");
-    setWebhookUrl("");
+    setWebhookUrl(channel.webhook_url ?? "");
     setWebhookEnabled(channel.enabled ?? true);
     setWebhookEvents(
       channel.subscribed_events?.length ? channel.subscribed_events : defaultAlertEvents,
@@ -160,7 +160,7 @@ export const AlertsPage = () => {
     const name = webhookName.trim();
     const url = webhookUrl.trim();
     if (!name || isWebhookPending) return;
-    if (!isEditingWebhook && !url) return;
+    if (!url) return;
     if (webhookEvents.length === 0) return;
     if (editingChannel?.id) {
       updateWebhook.mutate({
@@ -170,7 +170,7 @@ export const AlertsPage = () => {
           type: "webhook",
           enabled: webhookEnabled,
           subscribed_events: webhookEvents,
-          ...(url ? { webhook_url: url } : {}),
+          webhook_url: url,
         },
       });
       return;

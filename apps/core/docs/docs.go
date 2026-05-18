@@ -995,7 +995,7 @@ const docTemplate = `{
         },
         "/v1/alerts/channels": {
             "get": {
-                "description": "Get redacted persisted alert channels and their last delivery status",
+                "description": "Get persisted alert channels and their last delivery status",
                 "consumes": [
                     "application/json"
                 ],
@@ -1159,7 +1159,7 @@ const docTemplate = `{
                 }
             },
             "patch": {
-                "description": "Update an alert channel. Omit secret values to keep existing stored values.",
+                "description": "Update an alert channel. Omit email secret values to keep existing stored values.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2856,6 +2856,9 @@ const docTemplate = `{
                 },
                 "webhook_configured": {
                     "type": "boolean"
+                },
+                "webhook_url": {
+                    "type": "string"
                 }
             }
         },

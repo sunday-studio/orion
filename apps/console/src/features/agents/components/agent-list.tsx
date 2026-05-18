@@ -86,7 +86,7 @@ export const AgentList = () => {
           description="No installed agents match the current filters."
         />
       )}
-      <div className="space-y-1 my-6">
+      <div className=" my-6">
         {agents.map((agent, index) => (
           <Fragment key={agent.id}>
             <AgentRow agent={agent} index={index} />

@@ -122,6 +122,8 @@ definitions:
         type: string
       webhook_configured:
         type: boolean
+      webhook_url:
+        type: string
     type: object
   api.AlertDeliveryResponse:
     properties:
@@ -1304,7 +1306,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get redacted persisted alert channels and their last delivery status
+      description: Get persisted alert channels and their last delivery status
       operationId: getAlertChannels
       produces:
       - application/json
@@ -1408,8 +1410,8 @@ paths:
     patch:
       consumes:
       - application/json
-      description: Update an alert channel. Omit secret values to keep existing stored
-        values.
+      description: Update an alert channel. Omit email secret values to keep existing
+        stored values.
       operationId: updateAlertChannel
       parameters:
       - description: Alert channel ID

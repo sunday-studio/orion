@@ -74,9 +74,9 @@ func (s *Server) listAlertDeliveries(c *gin.Context) {
 	})
 }
 
-// listAlertChannels retrieves redacted alert channel configuration.
+// listAlertChannels retrieves alert channel configuration.
 // @Summary      List alert channels
-// @Description  Get redacted persisted alert channels and their last delivery status
+// @Description  Get persisted alert channels and their last delivery status
 // @Tags         alerts
 // @Accept       json
 // @Produce      json
@@ -176,7 +176,7 @@ func (s *Server) createAlertChannel(c *gin.Context) {
 
 // updateAlertChannel updates a persisted alert channel.
 // @Summary      Update alert channel
-// @Description  Update an alert channel. Omit secret values to keep existing stored values.
+// @Description  Update an alert channel. Omit email secret values to keep existing stored values.
 // @Tags         alerts
 // @Accept       json
 // @Produce      json
@@ -346,6 +346,7 @@ func (s *Server) alertChannelResponse(channel db.AlertChannel) AlertChannelRespo
 		Name:                   channel.Name,
 		Type:                   channel.Type,
 		Enabled:                channel.Enabled,
+		WebhookURL:             channel.WebhookURL,
 		WebhookConfigured:      channel.WebhookURL != "",
 		EmailToConfigured:      channel.EmailTo != "",
 		EmailFromConfigured:    channel.EmailFrom != "",

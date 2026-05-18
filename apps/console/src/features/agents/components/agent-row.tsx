@@ -3,23 +3,36 @@ import { StatusBadge, toStatus } from "@/components/status-badges";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import { ArrowRightIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { MonitorList } from "./monitor-list";
 
 export const AgentRow = ({ agent }: { agent: ApiAgentResponse; index: number }) => {
   const [showMonitors, setShowMonitors] = useState(false);
+  const navigate = useNavigate();
 
   const handleShowMonitors = () => setShowMonitors((current) => !current);
   const platform = agent.platform ?? agent.os ?? "unknown";
   const monitorCount = agent.monitor_count ?? 0;
   const status = agent.status ?? (agent.maintenance_mode ? "maintenance" : "unknown");
 
+  const handleOnClick = () => {
+    void navigate(`/agents/${agent.id}`);
+  };
+
   return (
-    <div className="">
+    <div
+      className="border-b cursor-pointer border-neutral-200"
+      onClick={handleOnClick}
+      role="button"
+      tabIndex={0}
+    >
       <div className="group grid w-full grid-cols-[1.75rem_minmax(0,1fr)_5.5rem_1.75rem] items-center gap-3 px-1 py-1 text-left text-sm hover:bg-neutral-100 sm:grid-cols-[1.75rem_minmax(10rem,1fr)_7.25rem_8rem_7.5rem_12rem_1.75rem]">
         <button
           type="button"
-          onClick={handleShowMonitors}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleShowMonitors();
+          }}
           aria-expanded={showMonitors}
           aria-label={showMonitors ? "Hide monitors" : "Show monitors"}
           className="inline-flex size-6 cursor-pointer items-center justify-center text-neutral-600 hover:text-indigo-700"
