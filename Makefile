@@ -5,6 +5,7 @@ CORE_IMAGE ?= ghcr.io/sunday-studio/orion-core
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 AGENT_OUTPUT ?= orion-agent
+AGENT_CGO_ENABLED ?= 1
 
 generate-openapi:
 	cd apps/core && ./scripts/generate-openapi.sh
@@ -24,7 +25,7 @@ docker-build:
 
 # Build Orion Agent for the requested platform.
 agent-build:
-	cd apps/agent && CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -trimpath -ldflags "-s -w -X orion/agent/internal.Version=$(VERSION)" -o $(AGENT_OUTPUT) .
+	cd apps/agent && CGO_ENABLED=$(AGENT_CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) go build -trimpath -ldflags "-s -w -X orion/agent/internal.Version=$(VERSION)" -o $(AGENT_OUTPUT) .
 
 # Run orion-core via docker compose (set ORION_ADMIN_* and ORION_JWT_SECRET for frontend auth)
 docker-up:
