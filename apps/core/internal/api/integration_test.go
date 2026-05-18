@@ -1398,6 +1398,23 @@ func TestListIncidentsReturnsPersistedActiveIncidents(t *testing.T) {
 		t.Fatalf("no match incident count = %d, want 0", noMatch.Data.Count)
 	}
 
+	highSeverityReviewResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents?needs_review=true", nil, "")
+	if highSeverityReviewResp.Code != http.StatusOK {
+		t.Fatalf("high severity review incidents status = %d, body = %s", highSeverityReviewResp.Code, highSeverityReviewResp.Body.String())
+	}
+	var highSeverityReview struct {
+		Data struct {
+			Count     int64 `json:"count"`
+			Incidents []struct {
+				Severity string `json:"severity"`
+			} `json:"incidents"`
+		} `json:"data"`
+	}
+	decodeResponse(t, highSeverityReviewResp, &highSeverityReview)
+	if highSeverityReview.Data.Count != 1 || highSeverityReview.Data.Incidents[0].Severity != "high" {
+		t.Fatalf("high severity review incidents = %+v, want high severity incident", highSeverityReview)
+	}
+
 	if err := server.db.Model(&db.Incident{}).
 		Where("monitor_id = ?", registeredMonitor.Data.MonitorID).
 		Update("notification_status", "failed").Error; err != nil {

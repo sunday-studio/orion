@@ -22,7 +22,7 @@ import (
 // @Param        status  query     string  false  "Comma-separated incident statuses" default(open,acknowledged)
 // @Param        agent_id  query   string  false  "Filter incidents by agent ID"
 // @Param        monitor_id  query  string  false  "Filter incidents by monitor ID"
-// @Param        needs_review  query  bool  false  "Filter to incidents with failed notifications or critical/error severity"
+// @Param        needs_review  query  bool  false  "Filter to incidents with failed notifications or high/critical/error severity"
 // @Param        limit   query     int     false  "Maximum number of incidents to return" default(50)
 // @Param        offset  query     int     false  "Number of incidents to skip" default(0)
 // @Success      200     {object}  utils.APIResponse{data=object{incidents=[]IncidentResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta,status=[]string}}
@@ -44,7 +44,7 @@ func (s *Server) listIncidents(c *gin.Context) {
 		query = query.Where("monitor_id = ?", monitorID)
 	}
 	if needsReview {
-		query = query.Where("notification_status = ? OR severity IN ?", "failed", []string{"critical", "error"})
+		query = query.Where("notification_status = ? OR severity IN ?", "failed", []string{"high", "critical", "error"})
 	}
 
 	var count int64

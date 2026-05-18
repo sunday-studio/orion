@@ -1706,7 +1706,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
-                        "description": "Filter to incidents with failed notifications or critical/error severity",
+                        "description": "Filter to incidents with failed notifications or high/critical/error severity",
                         "name": "needs_review",
                         "in": "query"
                     },

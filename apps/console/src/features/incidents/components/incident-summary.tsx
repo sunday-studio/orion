@@ -16,7 +16,12 @@ type IncidentSummaryProps = {
 const isErrorIncident = (incident: ApiIncidentResponse) => {
   const notificationStatus = incident.notification_status?.toLowerCase();
   const severity = incident.severity?.toLowerCase();
-  return notificationStatus === "failed" || severity === "error" || severity === "critical";
+  return (
+    notificationStatus === "failed" ||
+    severity === "high" ||
+    severity === "error" ||
+    severity === "critical"
+  );
 };
 
 const ditherBackground =
