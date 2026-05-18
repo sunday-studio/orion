@@ -47,14 +47,19 @@ Publish Agent binaries from GitHub Actions:
 This creates or updates the GitHub release and uploads:
 
 ```txt
+orion-agent-installer.sh
+orion-agent-install.sh
+orion-agent-systemd.service
+orion-agent-config.yaml
+com.orion.agent.plist
 orion-agent-linux-amd64
 orion-agent-linux-arm64
 orion-agent-darwin-amd64
 orion-agent-darwin-arm64
 ```
 
-The installer detects the host OS and architecture and downloads the matching asset from the latest
-GitHub release unless `--version` is explicitly passed.
+The installer detects the host OS and architecture and downloads the matching Agent binary and
+service assets from the latest GitHub release unless `--version` is explicitly passed.
 
 The Agent reports its baked version in system reports, so Core and Console can show which version
 is installed.

@@ -24,11 +24,11 @@ macOS:
 Use this when you only want the Agent to register and report basic host metrics first:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/scripts/agent-bootstrap.sh | sudo bash -s -- \
-  --core-url http://orion-core.local:8999
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash
 ```
 
-Replace `http://orion-core.local:8999` with a Core URL the Agent host can reach.
+The installer prompts for the Core URL and uses `sudo` only when it needs to install the service.
+Enter a Core URL the Agent host can reach.
 
 Common examples:
 
@@ -43,7 +43,7 @@ Download the sample config:
 
 ```sh
 curl -fsSL -o orion-agent-config.yaml \
-  https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/examples/home-server-config.yaml
+  https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-config.yaml
 ```
 
 Edit:
@@ -56,7 +56,7 @@ Edit:
 Then install:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/scripts/agent-bootstrap.sh | sudo bash -s -- \
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash -s -- \
   --config ./orion-agent-config.yaml
 ```
 
@@ -139,7 +139,7 @@ Docker monitors will report failures even when the containers are healthy.
 Run the bootstrap installer again with the new release version:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/scripts/agent-bootstrap.sh | sudo bash -s -- \
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash -s -- \
   --config ./orion-agent-config.yaml \
   --version v0.1.1
 ```
@@ -163,7 +163,7 @@ registration.
 Run the bootstrap installer with the previous release version:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/scripts/agent-bootstrap.sh | sudo bash -s -- \
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash -s -- \
   --config ./orion-agent-config.yaml \
   --version v0.1.0
 ```

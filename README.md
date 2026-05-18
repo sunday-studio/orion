@@ -63,18 +63,19 @@ Open `http://localhost:8999`.
 Install the Agent on each machine you want to monitor. Use a Core URL the Agent host can reach:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/scripts/agent-bootstrap.sh | sudo bash -s -- \
-  --core-url http://orion-core.local:8999
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash
 ```
+
+The installer prompts for the Core URL and uses `sudo` only when it needs to install the service.
 
 Or start from the sample Agent config:
 
 ```sh
 curl -fsSL -o orion-agent-config.yaml \
-  https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/examples/home-server-config.yaml
+  https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-config.yaml
 
 # Edit core_url and monitor checks, then install:
-curl -fsSL https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/scripts/agent-bootstrap.sh | sudo bash -s -- \
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash -s -- \
   --config ./orion-agent-config.yaml
 ```
 
