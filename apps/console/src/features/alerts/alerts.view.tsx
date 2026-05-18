@@ -32,15 +32,17 @@ import {
   type ApiAlertDeliveryResponse,
   type ApiAlertRuleResponse,
   useCreateAlertChannel,
+  useDeleteAlertChannel,
   useGetAlertChannels,
   useGetAlertDeliveries,
   useGetAlertRules,
+  useUpdateAlertChannel,
 } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { parseAsInteger, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useMemo, useState } from "react";
 
 const DELIVERY_LIMIT = 30;
 const alertTabs = ["logs", "channels", "rules"] as const;
@@ -74,39 +76,6 @@ const configuredParts = (channel: {
   if (channel.smtp_username_configured) parts.push("smtp username");
   return parts.length > 0 ? parts.join(", ") : "no endpoint configured";
 };
-
-const channelColumns: ColumnDef<ApiAlertChannelResponse>[] = [
-  {
-    accessorKey: "name",
-    header: "Name",
-    cell: ({ row }) => <span className="font-medium">{row.original.name ?? "unnamed"}</span>,
-  },
-  {
-    accessorKey: "type",
-    header: "Type",
-    cell: ({ row }) => row.original.type ?? "unknown",
-  },
-  {
-    accessorKey: "enabled",
-    header: "Enabled",
-    cell: ({ row }) => boolLabel(row.original.enabled),
-  },
-  {
-    id: "configured",
-    header: "Configured",
-    cell: ({ row }) => (
-      <div className="max-w-[22rem] truncate text-neutral-600">{configuredParts(row.original)}</div>
-    ),
-  },
-  {
-    accessorKey: "last_delivery_at",
-    header: "Last delivery",
-    cell: ({ row }) =>
-      row.original.last_delivery_status
-        ? `${row.original.last_delivery_status} · ${formatDate(row.original.last_delivery_at, DATE_TIME_FORMAT)}`
-        : "—",
-  },
-];
 
 const ruleColumns: ColumnDef<ApiAlertRuleResponse>[] = [
   {
@@ -186,7 +155,9 @@ const deliveryColumns: ColumnDef<ApiAlertDeliveryResponse>[] = [
 ];
 
 export const AlertsPage = () => {
-  const [isCreateWebhookOpen, setIsCreateWebhookOpen] = useState(false);
+  const [isWebhookDialogOpen, setIsWebhookDialogOpen] = useState(false);
+  const [editingChannel, setEditingChannel] = useState<ApiAlertChannelResponse | null>(null);
+  const [deletingChannel, setDeletingChannel] = useState<ApiAlertChannelResponse | null>(null);
   const [webhookName, setWebhookName] = useState("");
   const [webhookUrl, setWebhookUrl] = useState("");
   const [webhookEnabled, setWebhookEnabled] = useState(true);
@@ -200,15 +171,38 @@ export const AlertsPage = () => {
   const offset = (currentPage - 1) * DELIVERY_LIMIT;
   const channelsResponse = useGetAlertChannels();
   const rulesResponse = useGetAlertRules();
+  const refreshAlertConfiguration = () => {
+    void channelsResponse.refetch();
+    void rulesResponse.refetch();
+  };
+  const closeWebhookDialog = () => {
+    setWebhookName("");
+    setWebhookUrl("");
+    setWebhookEnabled(true);
+    setEditingChannel(null);
+    setIsWebhookDialogOpen(false);
+  };
   const createWebhook = useCreateAlertChannel({
     mutation: {
       onSuccess: () => {
-        setWebhookName("");
-        setWebhookUrl("");
-        setWebhookEnabled(true);
-        setIsCreateWebhookOpen(false);
-        void channelsResponse.refetch();
-        void rulesResponse.refetch();
+        closeWebhookDialog();
+        refreshAlertConfiguration();
+      },
+    },
+  });
+  const updateWebhook = useUpdateAlertChannel({
+    mutation: {
+      onSuccess: () => {
+        closeWebhookDialog();
+        refreshAlertConfiguration();
+      },
+    },
+  });
+  const deleteWebhook = useDeleteAlertChannel({
+    mutation: {
+      onSuccess: () => {
+        setDeletingChannel(null);
+        refreshAlertConfiguration();
       },
     },
   });
@@ -234,12 +228,43 @@ export const AlertsPage = () => {
     if (!alertTabs.includes(nextTab as (typeof alertTabs)[number])) return;
     void setDeliveryQuery({ tab: nextTab as (typeof alertTabs)[number] });
   };
-  const createWebhookError = getMutationErrorMessage(createWebhook.error);
-  const handleCreateWebhook = (event: FormEvent<HTMLFormElement>) => {
+  const isEditingWebhook = Boolean(editingChannel);
+  const isWebhookPending = createWebhook.isPending || updateWebhook.isPending;
+  const webhookMutationError = getMutationErrorMessage(
+    createWebhook.error ?? updateWebhook.error ?? deleteWebhook.error,
+  );
+  const openCreateWebhookDialog = () => {
+    setEditingChannel(null);
+    setWebhookName("");
+    setWebhookUrl("");
+    setWebhookEnabled(true);
+    setIsWebhookDialogOpen(true);
+  };
+  const openEditWebhookDialog = (channel: ApiAlertChannelResponse) => {
+    setEditingChannel(channel);
+    setWebhookName(channel.name ?? "");
+    setWebhookUrl("");
+    setWebhookEnabled(channel.enabled ?? true);
+    setIsWebhookDialogOpen(true);
+  };
+  const handleWebhookSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const name = webhookName.trim();
     const url = webhookUrl.trim();
-    if (!name || !url || createWebhook.isPending) return;
+    if (!name || isWebhookPending) return;
+    if (!isEditingWebhook && !url) return;
+    if (editingChannel?.id) {
+      updateWebhook.mutate({
+        id: editingChannel.id,
+        data: {
+          name,
+          type: "webhook",
+          enabled: webhookEnabled,
+          ...(url ? { webhook_url: url } : {}),
+        },
+      });
+      return;
+    }
     createWebhook.mutate({
       data: {
         name,
@@ -249,6 +274,67 @@ export const AlertsPage = () => {
       },
     });
   };
+  const channelColumns = useMemo<ColumnDef<ApiAlertChannelResponse>[]>(
+    () => [
+      {
+        accessorKey: "name",
+        header: "Name",
+        cell: ({ row }) => <span className="font-medium">{row.original.name ?? "unnamed"}</span>,
+      },
+      {
+        accessorKey: "type",
+        header: "Type",
+        cell: ({ row }) => row.original.type ?? "unknown",
+      },
+      {
+        accessorKey: "enabled",
+        header: "Enabled",
+        cell: ({ row }) => boolLabel(row.original.enabled),
+      },
+      {
+        id: "configured",
+        header: "Configured",
+        cell: ({ row }) => (
+          <div className="max-w-[22rem] truncate text-neutral-600">
+            {configuredParts(row.original)}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "last_delivery_at",
+        header: "Last delivery",
+        cell: ({ row }) =>
+          row.original.last_delivery_status
+            ? `${row.original.last_delivery_status} · ${formatDate(row.original.last_delivery_at, DATE_TIME_FORMAT)}`
+            : "—",
+      },
+      {
+        id: "actions",
+        header: "",
+        cell: ({ row }) => (
+          <div className="flex justify-end gap-1">
+            <Button
+              aria-label={`Edit ${row.original.name ?? "channel"}`}
+              size="icon"
+              variant="ghost"
+              onClick={() => openEditWebhookDialog(row.original)}
+            >
+              <Pencil />
+            </Button>
+            <Button
+              aria-label={`Delete ${row.original.name ?? "channel"}`}
+              size="icon"
+              variant="ghost"
+              onClick={() => setDeletingChannel(row.original)}
+            >
+              <Trash2 />
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    [],
+  );
 
   return (
     <div className="space-y-7">
@@ -326,7 +412,7 @@ export const AlertsPage = () => {
                   Secrets are hidden. Add webhooks here and Core stores them for delivery.
                 </p>
               </div>
-              <Button size="sm" onClick={() => setIsCreateWebhookOpen(true)}>
+              <Button size="sm" onClick={openCreateWebhookDialog}>
                 <Plus />
                 New webhook
               </Button>
@@ -370,13 +456,15 @@ export const AlertsPage = () => {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={isCreateWebhookOpen} onOpenChange={setIsCreateWebhookOpen}>
+      <Dialog open={isWebhookDialogOpen} onOpenChange={setIsWebhookDialogOpen}>
         <DialogContent className="sm:max-w-md">
-          <form className="space-y-5" onSubmit={handleCreateWebhook}>
+          <form className="space-y-5" onSubmit={handleWebhookSubmit}>
             <DialogHeader>
-              <DialogTitle>New webhook</DialogTitle>
+              <DialogTitle>{isEditingWebhook ? "Edit webhook" : "New webhook"}</DialogTitle>
               <DialogDescription>
-                Add a webhook channel for incident and recovery notifications.
+                {isEditingWebhook
+                  ? "Update the webhook name, enabled state, or replace the stored URL."
+                  : "Add a webhook channel for incident and recovery notifications."}
               </DialogDescription>
             </DialogHeader>
 
@@ -395,8 +483,12 @@ export const AlertsPage = () => {
                 <Input
                   value={webhookUrl}
                   onChange={(event) => setWebhookUrl(event.target.value)}
-                  placeholder="https://example.com/webhook"
-                  required
+                  placeholder={
+                    isEditingWebhook
+                      ? "Leave blank to keep the current URL"
+                      : "https://example.com/webhook"
+                  }
+                  required={!isEditingWebhook}
                   type="url"
                 />
               </label>
@@ -407,27 +499,70 @@ export const AlertsPage = () => {
                 />
                 <span>Enabled</span>
               </label>
-              {createWebhookError && (
-                <div className="text-sm text-red-700">{createWebhookError}</div>
+              {webhookMutationError && (
+                <div className="text-sm text-red-700">{webhookMutationError}</div>
               )}
             </div>
 
             <DialogFooter>
-              <Button
-                variant="ghost"
-                onClick={() => setIsCreateWebhookOpen(false)}
-                disabled={createWebhook.isPending}
-              >
+              <Button variant="ghost" onClick={closeWebhookDialog} disabled={isWebhookPending}>
                 Cancel
               </Button>
               <Button
                 type="submit"
-                disabled={createWebhook.isPending || !webhookName.trim() || !webhookUrl.trim()}
+                disabled={
+                  isWebhookPending ||
+                  !webhookName.trim() ||
+                  (!isEditingWebhook && !webhookUrl.trim())
+                }
               >
-                {createWebhook.isPending ? "Creating..." : "Create webhook"}
+                {isWebhookPending
+                  ? isEditingWebhook
+                    ? "Saving..."
+                    : "Creating..."
+                  : isEditingWebhook
+                    ? "Save webhook"
+                    : "Create webhook"}
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(deletingChannel)}
+        onOpenChange={(open) => !open && setDeletingChannel(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete webhook</DialogTitle>
+            <DialogDescription>
+              Delete {deletingChannel?.name ?? "this webhook"} from future alert deliveries.
+              Existing notification history stays in the log.
+            </DialogDescription>
+          </DialogHeader>
+          {webhookMutationError && (
+            <div className="text-sm text-red-700">{webhookMutationError}</div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => setDeletingChannel(null)}
+              disabled={deleteWebhook.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!deletingChannel?.id || deleteWebhook.isPending}
+              onClick={() => {
+                if (!deletingChannel?.id) return;
+                deleteWebhook.mutate({ id: deletingChannel.id });
+              }}
+            >
+              {deleteWebhook.isPending ? "Deleting..." : "Delete webhook"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
