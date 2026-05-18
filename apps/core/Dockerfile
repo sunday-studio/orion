@@ -1,6 +1,8 @@
 # Build frontend (Vite + React)
 FROM --platform=$BUILDPLATFORM node:22-alpine AS frontend
 WORKDIR /app
+ARG VITE_API_BASE_URL=/v1
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
 COPY apps/console/package.json apps/console/pnpm-lock.yaml apps/console/
 RUN cd apps/console && pnpm install --frozen-lockfile

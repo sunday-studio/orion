@@ -30,19 +30,40 @@ curl -fsSL -o orion-compose.yaml \
   https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/examples/core-console-compose.yaml
 ```
 
-Edit these values before starting Core:
+Optionally pin a release image and set stronger admin credentials in the same directory:
 
-- `ORION_ADMIN_USERNAME`
-- `ORION_ADMIN_PASSWORD`
-- `ORION_JWT_SECRET`
+```sh
+cat > .env <<'EOF'
+ORION_CORE_IMAGE=ghcr.io/sunday-studio/orion-core:<version>
+ORION_HTTP_PORT=8999
+ORION_ADMIN_USERNAME=admin
+ORION_ADMIN_PASSWORD=replace-with-a-strong-password
+ORION_JWT_SECRET=replace-with-a-long-random-secret
+EOF
+```
 
-Start Core:
+Start Core. If you skip the `.env` file, Compose uses the defaults in `orion-compose.yaml`.
 
 ```sh
 docker compose -f orion-compose.yaml up -d
 ```
 
 Core listens on `http://localhost:8999`.
+
+From this repository, you can run the example directly:
+
+```sh
+cd deploy/examples
+docker compose -f ./core-console-compose up -d
+```
+
+When Core serves the bundled Console, browser API calls stay on the same origin and do not need
+CORS. Set `ORION_CORS_ORIGINS` only when a separately hosted Console or custom browser origin calls
+this Core API:
+
+```sh
+ORION_CORS_ORIGINS=https://console.example.com,https://orion-core.examples.orb.local
+```
 
 ## Run With Docker
 
@@ -63,18 +84,19 @@ docker run -d \
 
 The copyable sample Compose file lives at `deploy/examples/core-console-compose.yaml`.
 
-Check it before running:
-
-```sh
-docker compose -f orion-compose.yaml config
-```
-
 Start or update Core:
 
 ```sh
 docker compose -f orion-compose.yaml pull
 docker compose -f orion-compose.yaml up -d
 ```
+
+To inspect the resolved Compose file without starting Core:
+
+```sh
+docker compose -f orion-compose.yaml config
+```
+
 Stop Core:
 
 ```sh

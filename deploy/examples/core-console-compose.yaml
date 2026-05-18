@@ -1,18 +1,22 @@
+# Copy this file and run it directly, or override values with a .env file.
+# Pin ORION_CORE_IMAGE to a released tag when deploying production Core.
+# ORION_CORS_ORIGINS is only needed for separate Console/custom-origin API access.
 services:
   orion-core:
-    image: ghcr.io/sunday-studio/orion-core:v0.1.0
+    image: ${ORION_CORE_IMAGE:-ghcr.io/sunday-studio/orion-core:latest}
     container_name: orion-core
     restart: unless-stopped
     ports:
-      - "8999:8999"
+      - "${ORION_HTTP_PORT:-8999}:8999"
     volumes:
       - orion-data:/data
     environment:
       ORION_DATA_DIR: /data
       ORION_PORT: "8999"
-      ORION_ADMIN_USERNAME: admin
-      ORION_ADMIN_PASSWORD: change-me
-      ORION_JWT_SECRET: change-me-to-a-long-random-value
+      ORION_ADMIN_USERNAME: ${ORION_ADMIN_USERNAME:-admin}
+      ORION_ADMIN_PASSWORD: ${ORION_ADMIN_PASSWORD:-change-me}
+      ORION_JWT_SECRET: ${ORION_JWT_SECRET:-change-me-to-a-long-random-secret-before-deploying}
+      ORION_CORS_ORIGINS: ${ORION_CORS_ORIGINS:-http://localhost:8999,http://127.0.0.1:8999,https://orion-core.examples.orb.local}
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8999/health"]
       interval: 30s

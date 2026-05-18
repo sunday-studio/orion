@@ -50,11 +50,34 @@ curl -fsSL -o orion-compose.yaml \
   https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/examples/core-console-compose.yaml
 ```
 
-Edit `orion-compose.yaml` and change the admin password and JWT secret. Then start Core:
+Optionally pin a release image and set stronger admin credentials:
+
+```sh
+cat > .env <<'EOF'
+ORION_CORE_IMAGE=ghcr.io/sunday-studio/orion-core:latest
+ORION_HTTP_PORT=8999
+ORION_ADMIN_USERNAME=admin
+ORION_ADMIN_PASSWORD=replace-with-a-strong-password
+ORION_JWT_SECRET=replace-with-a-long-random-secret
+EOF
+```
+
+Then start Core. If you skip the `.env` file, Compose uses the defaults in `orion-compose.yaml`.
 
 ```sh
 docker compose -f orion-compose.yaml up -d
 ```
+
+From this repository, you can also run the example directly:
+
+```sh
+cd deploy/examples
+docker compose -f ./core-console-compose up -d
+```
+
+When Core serves the bundled Console, browser API calls stay on the same origin and do not need
+CORS. Set `ORION_CORS_ORIGINS` only when a separately hosted Console or custom browser origin calls
+this Core API.
 
 Open `http://localhost:8999`.
 
