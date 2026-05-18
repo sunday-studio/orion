@@ -93,12 +93,14 @@ export const AgentList = () => {
           </Fragment>
         ))}
       </div>
-      <ListPagination
-        count={count}
-        limit={AGENT_LIMIT}
-        offset={offset}
-        onOffsetChange={setOffset}
-      />
+      {count > 0 && (
+        <ListPagination
+          count={count}
+          limit={AGENT_LIMIT}
+          offset={offset}
+          onOffsetChange={setOffset}
+        />
+      )}
     </div>
   );
 };

@@ -272,12 +272,14 @@ export const MonitorList = () => {
           />
         </div>
       )}
-      <ListPagination
-        count={count}
-        limit={MONITOR_LIMIT}
-        offset={offset}
-        onOffsetChange={setOffset}
-      />
+      {count > 0 && (
+        <ListPagination
+          count={count}
+          limit={MONITOR_LIMIT}
+          offset={offset}
+          onOffsetChange={setOffset}
+        />
+      )}
     </div>
   );
 };

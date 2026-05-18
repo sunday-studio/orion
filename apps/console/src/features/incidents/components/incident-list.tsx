@@ -179,12 +179,14 @@ export const IncidentList = () => {
           getRowId={(incident) => incident.id ?? ""}
         />
       </div>
-      <ListPagination
-        count={count}
-        limit={INCIDENT_LIMIT}
-        offset={offset}
-        onOffsetChange={setOffset}
-      />
+      {count > 0 && (
+        <ListPagination
+          count={count}
+          limit={INCIDENT_LIMIT}
+          offset={offset}
+          onOffsetChange={setOffset}
+        />
+      )}
     </div>
   );
 };
