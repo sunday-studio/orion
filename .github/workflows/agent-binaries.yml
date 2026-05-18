@@ -19,19 +19,23 @@ permissions:
 jobs:
   build-agent:
     name: Build Agent ${{ matrix.goos }}/${{ matrix.goarch }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - goos: linux
             goarch: amd64
+            runner: ubuntu-24.04
           - goos: linux
             goarch: arm64
+            runner: ubuntu-24.04-arm
           - goos: darwin
             goarch: amd64
+            runner: macos-13
           - goos: darwin
             goarch: arm64
+            runner: macos-14
     steps:
       - name: Checkout
         uses: actions/checkout@v4
