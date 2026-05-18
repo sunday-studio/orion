@@ -1,0 +1,22 @@
+# Build Go binary with prebuilt Console assets already staged at apps/core/web.
+FROM golang:1.25-alpine AS core
+WORKDIR /app
+RUN apk add --no-cache build-base
+COPY apps/core/go.mod apps/core/go.sum apps/core/
+RUN cd apps/core && go mod download
+COPY apps/core/ apps/core/
+RUN test -f apps/core/web/index.html
+RUN cd apps/core && go build -o orion-core .
+
+# Minimal runtime
+FROM alpine:3.20
+RUN apk add --no-cache ca-certificates sqlite
+WORKDIR /app
+COPY --from=core /app/apps/core/orion-core .
+COPY --from=core /app/apps/core/web ./web
+RUN mkdir -p /data
+ENV ORION_DATA_DIR=/data
+ENV ORION_PORT=8999
+EXPOSE 8999
+VOLUME /data
+CMD ["./orion-core"]

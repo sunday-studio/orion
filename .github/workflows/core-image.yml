@@ -22,9 +22,47 @@ env:
   CORE_IMAGE: ${{ github.repository_owner }}/orion-core
 
 jobs:
+  build-web:
+    name: Build Console assets
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.23.0 --activate
+
+      - name: Build Console assets
+        run: |
+          cd apps/console
+          pnpm install --frozen-lockfile
+          pnpm generate:api
+          pnpm run build
+
+      - name: Stage Core web assets
+        run: |
+          rm -rf apps/core/web
+          mkdir -p apps/core/web
+          cp -R apps/console/dist/. apps/core/web/
+
+      - name: Upload Core web assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-web
+          path: apps/core/web
+          if-no-files-found: error
+
   build-core:
     name: Build Core image (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
+    needs: build-web
     strategy:
       fail-fast: false
       matrix:
@@ -41,6 +79,12 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
+      - name: Download Core web assets
+        uses: actions/download-artifact@v4
+        with:
+          name: core-web
+          path: apps/core/web
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -61,7 +105,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: apps/core/Dockerfile
+          file: apps/core/dockerfile.prebuilt-web
           platforms: ${{ matrix.platform }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
