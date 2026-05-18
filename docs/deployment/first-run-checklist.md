@@ -4,24 +4,25 @@ Use this checklist for a first self-hosted Orion run with one Core and one Agent
 
 ## Core
 
-- [ ] Export the required Console auth environment variables:
+- [ ] Download the Docker Compose sample:
 
 ```sh
-export ORION_ADMIN_USERNAME=admin
-export ORION_ADMIN_PASSWORD='change-me'
-export ORION_JWT_SECRET='change-me-to-a-long-random-value'
+curl -fsSL -o orion-compose.yaml \
+  https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/examples/core-console-compose.yaml
 ```
 
-- [ ] Build the Core image:
+- [ ] Edit `orion-compose.yaml` and set real values for:
 
-```sh
-make docker-build
+```txt
+ORION_ADMIN_USERNAME
+ORION_ADMIN_PASSWORD
+ORION_JWT_SECRET
 ```
 
 - [ ] Start Core:
 
 ```sh
-make docker-up
+docker compose -f orion-compose.yaml up -d
 ```
 
 - [ ] Check health:
@@ -31,22 +32,35 @@ curl http://localhost:8999/health
 ```
 
 - [ ] Open `http://localhost:8999` and sign in with the configured admin credentials.
-- [ ] Confirm the `orion-data` Docker volume exists and is backed up.
+- [ ] Confirm the `orion-data` Docker volume exists and is included in backups.
 
 ## Agent
 
-- [ ] Build the Agent binary:
+- [ ] Pick a Core URL the Agent machine can reach, such as:
 
-```sh
-VERSION=v0.1.0 make agent-build
+```txt
+http://orion-core.local:8999
+http://192.168.x.y:8999
+http://100.x.y.z:8999
 ```
 
-- [ ] Install the Agent with a Core URL reachable from the monitored machine:
+- [ ] Install with a minimal config:
 
 ```sh
-sudo ./deploy/scripts/agent-install.sh \
+curl -fsSL https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/scripts/agent-bootstrap.sh | sudo bash -s -- \
   --core-url http://orion-core.local:8999 \
-  --binary ./apps/agent/orion-agent
+  --version v0.1.0
+```
+
+- [ ] Or install with the sample config:
+
+```sh
+curl -fsSL -o orion-agent-config.yaml \
+  https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/examples/home-server-config.yaml
+
+curl -fsSL https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/scripts/agent-bootstrap.sh | sudo bash -s -- \
+  --config ./orion-agent-config.yaml \
+  --version v0.1.0
 ```
 
 - [ ] Confirm the Agent service is running.
@@ -73,8 +87,8 @@ sudo test -f /usr/local/var/lib/orion/state.db
 - [ ] Run a SQLite backup after the first successful report:
 
 ```sh
-docker compose -f deploy/docker-compose.yml exec orion-core sqlite3 /data/orion.db ".backup '/data/orion-backup.db'"
-docker cp "$(docker compose -f deploy/docker-compose.yml ps -q orion-core):/data/orion-backup.db" ./orion-backup.db
+docker compose -f orion-compose.yaml exec orion-core sqlite3 /data/orion.db ".backup '/data/orion-backup.db'"
+docker cp "$(docker compose -f orion-compose.yaml ps -q orion-core):/data/orion-backup.db" ./orion-backup.db
 ```
 
 - [ ] Store the backup somewhere outside the Docker volume.

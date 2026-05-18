@@ -41,56 +41,44 @@ flowchart LR
 
 ## Quick Start
 
-### 1. Run Core
+### 1. Deploy Core
 
-Core and Console run together. Set the admin credentials first:
+Core and Console are shipped together in one Docker image. The quickest setup is the sample Compose file:
 
 ```sh
-export ORION_ADMIN_USERNAME=admin
-export ORION_ADMIN_PASSWORD='change-me'
-export ORION_JWT_SECRET='change-me-to-a-long-random-value'
+curl -fsSL -o orion-compose.yaml \
+  https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/examples/core-console-compose.yaml
 ```
 
-Run the published image:
+Edit `orion-compose.yaml` and change the admin password and JWT secret. Then start Core:
 
 ```sh
-docker run -d \
-  --name orion-core \
-  --restart unless-stopped \
-  -p 8999:8999 \
-  -v orion-data:/data \
-  -e ORION_DATA_DIR=/data \
-  -e ORION_ADMIN_USERNAME="$ORION_ADMIN_USERNAME" \
-  -e ORION_ADMIN_PASSWORD="$ORION_ADMIN_PASSWORD" \
-  -e ORION_JWT_SECRET="$ORION_JWT_SECRET" \
-  ghcr.io/sunday-studio/orion-core:v0.1.0
+docker compose -f orion-compose.yaml up -d
 ```
 
 Open `http://localhost:8999`.
 
-To build and run from source:
-
-```sh
-make docker-build
-make docker-up
-```
-
 ### 2. Install an Agent
 
-Build or download an Agent binary, then install it on the machine you want to monitor:
+Install the Agent on each machine you want to monitor. Use a Core URL the Agent host can reach:
 
 ```sh
-sudo ./deploy/scripts/agent-install.sh \
+curl -fsSL https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/scripts/agent-bootstrap.sh | sudo bash -s -- \
   --core-url http://orion-core.local:8999 \
-  --binary ./orion-agent
+  --version v0.1.0
 ```
 
-Use a Core URL the Agent host can reach:
+Or start from the sample Agent config:
 
-- `http://orion-core.local:8999`
-- `http://192.168.x.y:8999`
-- `http://100.x.y.z:8999` on Tailscale
-- `https://orion.example.com` behind a reverse proxy
+```sh
+curl -fsSL -o orion-agent-config.yaml \
+  https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/examples/home-server-config.yaml
+
+# Edit core_url and monitor checks, then install:
+curl -fsSL https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/scripts/agent-bootstrap.sh | sudo bash -s -- \
+  --config ./orion-agent-config.yaml \
+  --version v0.1.0
+```
 
 The Agent keeps local runtime state in SQLite:
 
@@ -129,7 +117,7 @@ See [Agent monitors](docs/architecture/agent-monitors.md) for config details.
 
 ## Development
 
-Run tests and builds:
+Run local tests and builds:
 
 ```sh
 cd apps/core && go test ./...
@@ -158,8 +146,6 @@ This writes to `apps/core/data/orion.db`.
 ## Common Commands
 
 ```sh
-make docker-build
-make docker-up
 make generate-openapi
 make generate-sdk
 make agent-build VERSION=v0.1.0

@@ -21,7 +21,30 @@ ghcr.io/sunday-studio/orion-core:<version>
 The image contains one runtime process, `orion-core`, which serves both the backend API and the
 Console UI.
 
-## Run
+## Run With Docker Compose
+
+Download the sample Compose file:
+
+```sh
+curl -fsSL -o orion-compose.yaml \
+  https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/examples/core-console-compose.yaml
+```
+
+Edit these values before starting Core:
+
+- `ORION_ADMIN_USERNAME`
+- `ORION_ADMIN_PASSWORD`
+- `ORION_JWT_SECRET`
+
+Start Core:
+
+```sh
+docker compose -f orion-compose.yaml up -d
+```
+
+Core listens on `http://localhost:8999`.
+
+## Run With Docker
 
 ```sh
 docker run -d \
@@ -36,46 +59,27 @@ docker run -d \
   ghcr.io/sunday-studio/orion-core:<version>
 ```
 
-## Build From Source
+## Runtime Example
 
-For development or local release testing:
+The copyable sample Compose file lives at `deploy/examples/core-console-compose.yaml`.
 
-```sh
-VERSION=v0.1.0 make docker-build
-```
-
-## Run With Docker Compose
-
-Create an environment file or export the values in your shell:
+Check it before running:
 
 ```sh
-export ORION_ADMIN_USERNAME=admin
-export ORION_ADMIN_PASSWORD='change-me'
-export ORION_JWT_SECRET='change-me-to-a-long-random-value'
+docker compose -f orion-compose.yaml config
 ```
 
-Start Core:
+Start or update Core:
 
 ```sh
-make docker-up
+docker compose -f orion-compose.yaml pull
+docker compose -f orion-compose.yaml up -d
 ```
-
-`make docker-up` sets `ORION_CORE_IMAGE=$(CORE_IMAGE):$(VERSION)` for Compose. Override
-`CORE_IMAGE` and `VERSION` when you want a specific image:
+Stop Core:
 
 ```sh
-CORE_IMAGE=ghcr.io/sunday-studio/orion-core VERSION=v0.1.0 make docker-up
+docker compose -f orion-compose.yaml down
 ```
-
-There is also a copyable sample Compose file at
-`deploy/examples/core-console-compose.yaml`. It runs the combined Core and Console image with a
-named SQLite data volume:
-
-```sh
-docker compose -f deploy/examples/core-console-compose.yaml up -d
-```
-
-Core listens on `http://localhost:8999`.
 
 ## Data
 
