@@ -97,42 +97,6 @@
   font-display: swap;
 }
 
-/* GT Ultra */
-@font-face {
-  font-family: "GT Ultra";
-  src: url("/fonts/GT-Utra/GT-Ultra-Standard-Thin.woff2") format("woff2");
-  font-weight: 100;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: "GT Ultra";
-  src: url("/fonts/GT-Utra/GT-Ultra-Standard-Light.woff2") format("woff2");
-  font-weight: 300;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: "GT Ultra";
-  src: url("/fonts/GT-Utra/GT-Ultra-Standard-Regular.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: "GT Ultra";
-  src: url("/fonts/GT-Utra/GT-Ultra-Standard-Bold.woff2") format("woff2");
-  font-weight: 700;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: "GT Ultra";
-  src: url("/fonts/GT-Utra/GT-Ultra-Standard-Black.woff2") format("woff2");
-  font-weight: 900;
-  font-style: normal;
-}
-
 :root {
   font-synthesis: none;
   text-rendering: optimizeLegibility;
