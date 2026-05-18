@@ -4,7 +4,7 @@ set -euo pipefail
 
 REPO="sunday-studio/orion"
 BRANCH="main"
-VERSION="v0.1.0"
+VERSION="latest"
 CORE_URL=""
 CONFIG_SOURCE=""
 START_SERVICE="true"
@@ -18,7 +18,7 @@ usage() {
   printf '%s\n' "  --core-url URL       Core URL written to config when --config is not provided."
   printf '%s\n' "  --config PATH        Existing local config file to install."
   printf '%s\n' "  --config-url URL     Download a config file and install it."
-  printf '%s\n' "  --version VERSION    Orion release version. Defaults to v0.1.0."
+  printf '%s\n' "  --version VERSION    Orion release version to pin. Defaults to latest."
   printf '%s\n' "  --repo OWNER/REPO    GitHub repository. Defaults to sunday-studio/orion."
   printf '%s\n' "  --branch BRANCH      Raw GitHub branch for installer files. Defaults to main."
   printf '%s\n' "  --no-start           Install files without starting the service."
@@ -139,6 +139,9 @@ ARCH="$(detect_arch)"
 ASSET="orion-agent-${OS}-${ARCH}"
 RAW_BASE="https://raw.githubusercontent.com/${REPO}/${BRANCH}"
 RELEASE_BASE="https://github.com/${REPO}/releases/download/${VERSION}"
+if [ "$VERSION" = "latest" ]; then
+  RELEASE_BASE="https://github.com/${REPO}/releases/latest/download"
+fi
 WORK_DIR="$(mktemp -d)"
 
 cleanup() {

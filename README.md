@@ -64,8 +64,7 @@ Install the Agent on each machine you want to monitor. Use a Core URL the Agent 
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/scripts/agent-bootstrap.sh | sudo bash -s -- \
-  --core-url http://orion-core.local:8999 \
-  --version v0.1.0
+  --core-url http://orion-core.local:8999
 ```
 
 Or start from the sample Agent config:
@@ -76,8 +75,7 @@ curl -fsSL -o orion-agent-config.yaml \
 
 # Edit core_url and monitor checks, then install:
 curl -fsSL https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/scripts/agent-bootstrap.sh | sudo bash -s -- \
-  --config ./orion-agent-config.yaml \
-  --version v0.1.0
+  --config ./orion-agent-config.yaml
 ```
 
 The Agent keeps local runtime state in SQLite:

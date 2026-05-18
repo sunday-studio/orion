@@ -25,8 +25,7 @@ Use this when you only want the Agent to register and report basic host metrics 
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/scripts/agent-bootstrap.sh | sudo bash -s -- \
-  --core-url http://orion-core.local:8999 \
-  --version v0.1.0
+  --core-url http://orion-core.local:8999
 ```
 
 Replace `http://orion-core.local:8999` with a Core URL the Agent host can reach.
@@ -58,8 +57,7 @@ Then install:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/scripts/agent-bootstrap.sh | sudo bash -s -- \
-  --config ./orion-agent-config.yaml \
-  --version v0.1.0
+  --config ./orion-agent-config.yaml
 ```
 
 Use `--overwrite-config` when replacing an already installed config. Use `--no-start` to install
@@ -75,7 +73,14 @@ The bootstrap script:
 - installs the Agent binary, config, state directory, and service;
 - starts the Agent service unless `--no-start` is passed.
 
-The release binary is downloaded from:
+By default, the release binary is downloaded from the latest GitHub release:
+
+```txt
+https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-<os>-<arch>
+```
+
+The Agent binary reports its own baked version to Core. Pass `--version` only when you want to pin
+a specific release for upgrade or rollback:
 
 ```txt
 https://github.com/sunday-studio/orion/releases/download/<version>/orion-agent-<os>-<arch>

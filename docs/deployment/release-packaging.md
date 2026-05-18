@@ -20,40 +20,44 @@ v0.1.0-rc.1
 
 ## Core Image
 
-Build a tagged Core image from the repository root:
+Publish the Core and Console image from GitHub Actions:
 
-```sh
-CORE_IMAGE=ghcr.io/sunday-studio/orion-core VERSION=v0.1.0 make docker-build
-```
+- workflow: `Core Image`;
+- trigger: manual `workflow_dispatch`;
+- required input: `version`, for example `v0.1.0`;
+- optional input: `publish_latest`.
 
 This produces:
 
 ```txt
-ghcr.io/sunday-studio/orion-core:v0.1.0
+ghcr.io/sunday-studio/orion-core:<version>
 ```
 
-Use a local image name for local-only testing:
-
-```sh
-CORE_IMAGE=orion-core VERSION=v0.1.0 make docker-build
-```
+Use the same version tag in the sample Docker Compose file.
 
 ## Agent Binary
 
-Build an Agent binary from the repository root:
+Publish Agent binaries from GitHub Actions:
 
-```sh
-VERSION=v0.1.0 make agent-build
+- workflow: `Agent Binaries`;
+- trigger: manual `workflow_dispatch`;
+- required input: `version`, for example `v0.1.0`;
+- optional input: `prerelease`.
+
+This creates or updates the GitHub release and uploads:
+
+```txt
+orion-agent-linux-amd64
+orion-agent-linux-arm64
+orion-agent-darwin-amd64
+orion-agent-darwin-arm64
 ```
 
-Cross-build by setting `GOOS` and `GOARCH`:
+The installer detects the host OS and architecture and downloads the matching asset from the latest
+GitHub release unless `--version` is explicitly passed.
 
-```sh
-VERSION=v0.1.0 GOOS=linux GOARCH=amd64 AGENT_OUTPUT=orion-agent-linux-amd64 make agent-build
-VERSION=v0.1.0 GOOS=darwin GOARCH=arm64 AGENT_OUTPUT=orion-agent-darwin-arm64 make agent-build
-```
-
-The Agent reports this version in its system reports, so Core and Console can show which version is installed.
+The Agent reports its baked version in system reports, so Core and Console can show which version
+is installed.
 
 ## Compatibility
 

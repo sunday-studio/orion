@@ -48,8 +48,7 @@ http://100.x.y.z:8999
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/scripts/agent-bootstrap.sh | sudo bash -s -- \
-  --core-url http://orion-core.local:8999 \
-  --version v0.1.0
+  --core-url http://orion-core.local:8999
 ```
 
 - [ ] Or install with the sample config:
@@ -59,8 +58,7 @@ curl -fsSL -o orion-agent-config.yaml \
   https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/examples/home-server-config.yaml
 
 curl -fsSL https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/scripts/agent-bootstrap.sh | sudo bash -s -- \
-  --config ./orion-agent-config.yaml \
-  --version v0.1.0
+  --config ./orion-agent-config.yaml
 ```
 
 - [ ] Confirm the Agent service is running.
