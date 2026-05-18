@@ -1,5 +1,5 @@
 # Build frontend (Vite + React)
-FROM node:22-alpine AS frontend
+FROM --platform=$BUILDPLATFORM node:22-alpine AS frontend
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
 COPY apps/console/package.json apps/console/pnpm-lock.yaml apps/console/
