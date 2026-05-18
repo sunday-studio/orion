@@ -10,7 +10,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import {
@@ -58,6 +57,18 @@ const monitorTypeOptions: Array<{ value: (typeof monitorTypeFilters)[number]; la
   { value: "systemd", label: "Systemd" },
   { value: "internal-service", label: "Internal service" },
   { value: "http", label: "HTTP" },
+];
+
+const monitorStatusOptions: Array<{
+  value: (typeof monitorStatusFilters)[number];
+  label: string;
+}> = [
+  { value: "all", label: "All statuses" },
+  { value: "up", label: "Up" },
+  { value: "down", label: "Down" },
+  { value: "degraded", label: "Degraded" },
+  { value: "unknown", label: "Unknown" },
+  { value: "stale", label: "Stale" },
 ];
 
 const isStaleMonitor = (monitor: ApiMonitorResponse) => {
@@ -161,6 +172,9 @@ export const MonitorList = () => {
   const count = monitorsResponse.data?.count ?? monitors.length;
   const selectedSummaryFilter: MonitorSummaryFilter = incidents ? "incidents" : status;
   const hasFilters = Boolean(search.trim()) || status !== "all" || type !== "all" || incidents;
+  const statusLabel =
+    monitorStatusOptions.find((option) => option.value === status)?.label ?? status;
+  const typeLabel = monitorTypeOptions.find((option) => option.value === type)?.label ?? type;
 
   const setOffset = (nextOffset: number) => {
     void setMonitorQuery({ page: Math.floor(nextOffset / MONITOR_LIMIT) + 1 });
@@ -221,22 +235,21 @@ export const MonitorList = () => {
           />
         </div>
         <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="min-w-30 text-xs">
-            <SelectValue placeholder="All statuses" />
+          <SelectTrigger className="min-w-44 text-xs">
+            <span data-slot="select-value">Status: {statusLabel}</span>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="up">Up</SelectItem>
-            <SelectItem value="down">Down</SelectItem>
-            <SelectItem value="degraded">Degraded</SelectItem>
-            <SelectItem value="unknown">Unknown</SelectItem>
-            <SelectItem value="stale">Stale</SelectItem>
+            {monitorStatusOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
         <Select value={type} onValueChange={setType}>
-          <SelectTrigger className="min-w-30 text-xs">
-            <SelectValue placeholder="All types" />
+          <SelectTrigger className="min-w-48 text-xs">
+            <span data-slot="select-value">Type: {typeLabel}</span>
           </SelectTrigger>
           <SelectContent>
             {monitorTypeOptions.map((option) => (

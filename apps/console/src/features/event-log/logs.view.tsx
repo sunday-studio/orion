@@ -9,7 +9,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import {
@@ -130,6 +129,8 @@ export const LogsPage = () => {
   const linkedEventCount = events.filter(hasRelatedData).length;
   const sourceCount = new Set(events.map((event) => event.source ?? "unknown")).size;
   const hasFilters = Boolean(q.trim()) || source !== "all" || type !== "all";
+  const sourceLabel = sourceOptions.find((option) => option.value === source)?.label ?? source;
+  const typeLabel = typeOptions.find((option) => option.value === type)?.label ?? type;
 
   const setOffset = (nextOffset: number) => {
     void setLogQuery({ page: Math.floor(nextOffset / EVENT_LIMIT) + 1 });
@@ -189,8 +190,8 @@ export const LogsPage = () => {
             />
           </div>
           <Select value={source} onValueChange={setSource}>
-            <SelectTrigger className="min-w-30 text-xs">
-              <SelectValue placeholder="All sources" />
+            <SelectTrigger className="min-w-48 text-xs">
+              <span data-slot="select-value">Source: {sourceLabel}</span>
             </SelectTrigger>
             <SelectContent>
               {sourceOptions.map((option) => (
@@ -201,8 +202,8 @@ export const LogsPage = () => {
             </SelectContent>
           </Select>
           <Select value={type} onValueChange={setType}>
-            <SelectTrigger className="min-w-30 text-xs">
-              <SelectValue placeholder="All types" />
+            <SelectTrigger className="min-w-56 text-xs">
+              <span data-slot="select-value">Type: {typeLabel}</span>
             </SelectTrigger>
             <SelectContent>
               {typeOptions.map((option) => (

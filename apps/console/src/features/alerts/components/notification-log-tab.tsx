@@ -8,7 +8,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import type { ApiAlertDeliveryResponse } from "@/orion-sdk";
@@ -55,6 +54,15 @@ const deliveryColumns: ColumnDef<ApiAlertDeliveryResponse>[] = [
   },
 ];
 
+const statusOptions = [
+  { value: "all", label: "All statuses" },
+  { value: "pending", label: "Pending" },
+  { value: "sent", label: "Sent" },
+  { value: "failed", label: "Failed" },
+  { value: "suppressed", label: "Suppressed" },
+  { value: "cooldown", label: "Cooldown" },
+] as const;
+
 type NotificationLogTabProps = {
   count: number;
   deliveries: ApiAlertDeliveryResponse[];
@@ -79,53 +87,56 @@ export const NotificationLogTab = ({
   onOffsetChange,
   onStatusChange,
   status,
-}: NotificationLogTabProps) => (
-  <section className="space-y-3">
-    <div>
-      <h2 className="text-sm font-medium">Notification Log</h2>
-      <p className="text-sm text-neutral-600">
-        Delivery attempts generated when incidents open or recover.
-      </p>
-    </div>
-    <div className="flex flex-wrap items-center gap-2">
-      <Select value={status} onValueChange={onStatusChange}>
-        <SelectTrigger className="w-44">
-          <SelectValue placeholder="All statuses" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All statuses</SelectItem>
-          <SelectItem value="pending">Pending</SelectItem>
-          <SelectItem value="sent">Sent</SelectItem>
-          <SelectItem value="failed">Failed</SelectItem>
-          <SelectItem value="suppressed">Suppressed</SelectItem>
-          <SelectItem value="cooldown">Cooldown</SelectItem>
-        </SelectContent>
-      </Select>
-      <Input
-        value={incident}
-        onChange={(event) => onIncidentChange(event.target.value)}
-        placeholder="Filter by incident ID"
-        className="w-full max-w-sm sm:w-72"
-      />
-    </div>
-    {Boolean(error) && <div className="text-sm">Unable to load notification log.</div>}
-    {!error && (
-      <DataTable
-        columns={deliveryColumns}
-        data={deliveries}
-        emptyMessage="No notification deliveries recorded."
-        getRowId={(delivery, index) => delivery.id ?? `delivery-${index}`}
-        isLoading={isLoading}
-        loadingMessage="Loading notification log..."
-      />
-    )}
-    {count > 0 && (
-      <ListPagination
-        count={count}
-        limit={DELIVERY_LIMIT}
-        offset={offset}
-        onOffsetChange={onOffsetChange}
-      />
-    )}
-  </section>
-);
+}: NotificationLogTabProps) => {
+  const statusLabel = statusOptions.find((option) => option.value === status)?.label ?? status;
+
+  return (
+    <section className="space-y-3">
+      <div>
+        <h2 className="text-sm font-medium">Notification Log</h2>
+        <p className="text-sm text-neutral-600">
+          Delivery attempts generated when incidents open or recover.
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Select value={status} onValueChange={onStatusChange}>
+          <SelectTrigger className="w-52">
+            <span data-slot="select-value">Status: {statusLabel}</span>
+          </SelectTrigger>
+          <SelectContent>
+            {statusOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Input
+          value={incident}
+          onChange={(event) => onIncidentChange(event.target.value)}
+          placeholder="Filter by incident ID"
+          className="w-full max-w-sm sm:w-72"
+        />
+      </div>
+      {Boolean(error) && <div className="text-sm">Unable to load notification log.</div>}
+      {!error && (
+        <DataTable
+          columns={deliveryColumns}
+          data={deliveries}
+          emptyMessage="No notification deliveries recorded."
+          getRowId={(delivery, index) => delivery.id ?? `delivery-${index}`}
+          isLoading={isLoading}
+          loadingMessage="Loading notification log..."
+        />
+      )}
+      {count > 0 && (
+        <ListPagination
+          count={count}
+          limit={DELIVERY_LIMIT}
+          offset={offset}
+          onOffsetChange={onOffsetChange}
+        />
+      )}
+    </section>
+  );
+};
