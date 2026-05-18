@@ -59,25 +59,13 @@ const getMutationErrorMessage = (error: unknown) => {
   return "Unable to create webhook.";
 };
 
-const configuredParts = (channel: {
-  webhook_configured?: boolean;
-  email_to_configured?: boolean;
-  email_from_configured?: boolean;
-  smtp_host_configured?: boolean;
-  smtp_port_configured?: boolean;
-  smtp_username_configured?: boolean;
-}) => {
+const configuredParts = (channel: { webhook_configured?: boolean }) => {
   const parts = [];
   if (channel.webhook_configured) parts.push("webhook url");
-  if (channel.email_to_configured) parts.push("email to");
-  if (channel.email_from_configured) parts.push("email from");
-  if (channel.smtp_host_configured) parts.push("smtp host");
-  if (channel.smtp_port_configured) parts.push("smtp port");
-  if (channel.smtp_username_configured) parts.push("smtp username");
   return parts.length > 0 ? parts.join(", ") : "no endpoint configured";
 };
 
-const ruleColumns: ColumnDef<ApiAlertRuleResponse>[] = [
+const getRuleColumns = (webhookChannelNames: Set<string>): ColumnDef<ApiAlertRuleResponse>[] => [
   {
     accessorKey: "name",
     header: "Name",
@@ -110,7 +98,10 @@ const ruleColumns: ColumnDef<ApiAlertRuleResponse>[] = [
   {
     accessorKey: "target_channels",
     header: "Channels",
-    cell: ({ row }) => (row.original.target_channels ?? []).join(", ") || "none",
+    cell: ({ row }) =>
+      (row.original.target_channels ?? [])
+        .filter((channel) => webhookChannelNames.has(channel))
+        .join(", ") || "none",
   },
 ];
 
@@ -212,7 +203,27 @@ export const AlertsPage = () => {
     status: status === "all" ? undefined : status,
     incident_id: incident.trim() || undefined,
   });
-  const deliveries = deliveriesQuery.data?.deliveries ?? [];
+  const webhookChannels = useMemo(
+    () => (channelsResponse.data?.channels ?? []).filter((channel) => channel.type === "webhook"),
+    [channelsResponse.data?.channels],
+  );
+  const webhookChannelNames = useMemo(
+    () => new Set(webhookChannels.flatMap((channel) => (channel.name ? [channel.name] : []))),
+    [webhookChannels],
+  );
+  const displayedRules = useMemo(
+    () =>
+      (rulesResponse.data?.rules ?? []).map((rule) => ({
+        ...rule,
+        target_channels: (rule.target_channels ?? []).filter((channel) =>
+          webhookChannelNames.has(channel),
+        ),
+      })),
+    [rulesResponse.data?.rules, webhookChannelNames],
+  );
+  const deliveries = (deliveriesQuery.data?.deliveries ?? []).filter(
+    (delivery) => delivery.type !== "email",
+  );
   const deliveryCount = deliveriesQuery.data?.count ?? deliveries.length;
   const setOffset = (nextOffset: number) => {
     void setDeliveryQuery({ page: Math.floor(nextOffset / DELIVERY_LIMIT) + 1 });
@@ -282,11 +293,6 @@ export const AlertsPage = () => {
         cell: ({ row }) => <span className="font-medium">{row.original.name ?? "unnamed"}</span>,
       },
       {
-        accessorKey: "type",
-        header: "Type",
-        cell: ({ row }) => row.original.type ?? "unknown",
-      },
-      {
         accessorKey: "enabled",
         header: "Enabled",
         cell: ({ row }) => boolLabel(row.original.enabled),
@@ -335,6 +341,7 @@ export const AlertsPage = () => {
     ],
     [],
   );
+  const ruleColumns = useMemo(() => getRuleColumns(webhookChannelNames), [webhookChannelNames]);
 
   return (
     <div className="space-y-7">
@@ -423,11 +430,11 @@ export const AlertsPage = () => {
             {!channelsResponse.error && (
               <DataTable
                 columns={channelColumns}
-                data={channelsResponse.data?.channels ?? []}
-                emptyMessage="No alert channels configured."
+                data={webhookChannels}
+                emptyMessage="No webhooks configured."
                 getRowId={(channel, index) => channel.name ?? channel.type ?? `channel-${index}`}
                 isLoading={channelsResponse.isLoading}
-                loadingMessage="Loading alert channels..."
+                loadingMessage="Loading webhooks..."
               />
             )}
           </section>
@@ -445,7 +452,7 @@ export const AlertsPage = () => {
             {!rulesResponse.error && (
               <DataTable
                 columns={ruleColumns}
-                data={rulesResponse.data?.rules ?? []}
+                data={displayedRules}
                 emptyMessage="No alert rules configured."
                 getRowId={(rule, index) => rule.name ?? `rule-${index}`}
                 isLoading={rulesResponse.isLoading}
