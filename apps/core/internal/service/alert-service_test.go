@@ -15,6 +15,8 @@ import (
 func TestAlertServiceQueuesConfiguredChannels(t *testing.T) {
 	database := setupAlertServiceDatabase(t)
 	createTestIncident(t, database, "incident-1")
+	createTestAlertChannel(t, database, db.AlertChannel{Name: "ops-webhook", Type: "webhook", Enabled: true, WebhookURL: "https://alerts.example.com/hook"})
+	createTestAlertChannel(t, database, db.AlertChannel{Name: "ops-email", Type: "email", Enabled: false, EmailTo: "ops@example.com"})
 	var webhookRequests int
 	transport := roundTripFunc(func(r *http.Request) (*http.Response, error) {
 		webhookRequests++
@@ -28,12 +30,7 @@ func TestAlertServiceQueuesConfiguredChannels(t *testing.T) {
 		}, nil
 	})
 
-	service := NewAlertService(database, logging.NewLogger(), &config.Config{
-		AlertChannels: []config.AlertChannelConfig{
-			{Name: "ops-webhook", Type: "webhook", Enabled: true, WebhookURL: "https://alerts.example.com/hook"},
-			{Name: "ops-email", Type: "email", Enabled: false, EmailTo: "ops@example.com"},
-		},
-	})
+	service := NewAlertService(database, logging.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
 	if err := service.QueueIncidentNotifications("incident-1", "incident_opened"); err != nil {
@@ -61,6 +58,7 @@ func TestAlertServiceQueuesConfiguredChannels(t *testing.T) {
 func TestAlertServiceCooldownSuppressesRecentDuplicate(t *testing.T) {
 	database := setupAlertServiceDatabase(t)
 	createTestIncident(t, database, "incident-1")
+	createTestAlertChannel(t, database, db.AlertChannel{Name: "ops-webhook", Type: "webhook", Enabled: true, WebhookURL: "https://alerts.example.com/hook"})
 	transport := roundTripFunc(func(r *http.Request) (*http.Response, error) {
 		return &http.Response{
 			StatusCode: http.StatusNoContent,
@@ -71,9 +69,6 @@ func TestAlertServiceCooldownSuppressesRecentDuplicate(t *testing.T) {
 
 	service := NewAlertService(database, logging.NewLogger(), &config.Config{
 		AlertCooldownSeconds: 300,
-		AlertChannels: []config.AlertChannelConfig{
-			{Name: "ops-webhook", Type: "webhook", Enabled: true, WebhookURL: "https://alerts.example.com/hook"},
-		},
 	})
 	service.httpClient.Transport = transport
 
@@ -124,6 +119,15 @@ func createTestIncident(t *testing.T, database *gorm.DB, incidentID string) {
 	}
 	if err := database.Create(&incident).Error; err != nil {
 		t.Fatalf("create incident: %v", err)
+	}
+}
+
+func createTestAlertChannel(t *testing.T, database *gorm.DB, channel db.AlertChannel) {
+	t.Helper()
+
+	channel.ID = "channel-" + channel.Name
+	if err := database.Create(&channel).Error; err != nil {
+		t.Fatalf("create alert channel: %v", err)
 	}
 }
 

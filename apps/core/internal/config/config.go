@@ -19,23 +19,9 @@ type Config struct {
 	FrontendAuthOn             bool
 	LoginRateLimitAttempts     int
 	LoginRateLimitWindowSecs   int
-	AlertChannels              []AlertChannelConfig
 	AlertCooldownSeconds       int
 	AlertRecoveryNotifications bool
 	AlertTLSExpiryDays         int
-}
-
-type AlertChannelConfig struct {
-	Name         string
-	Type         string
-	Enabled      bool
-	WebhookURL   string
-	EmailTo      string
-	EmailFrom    string
-	SMTPHost     string
-	SMTPPort     int
-	SMTPUsername string
-	SMTPPassword string
 }
 
 // Load reads configuration from environment variables.
@@ -58,7 +44,6 @@ func Load() *Config {
 		FrontendAuthOn:             frontendAuthOn,
 		LoginRateLimitAttempts:     getEnvInt("ORION_LOGIN_RATE_LIMIT_ATTEMPTS", 5),
 		LoginRateLimitWindowSecs:   getEnvInt("ORION_LOGIN_RATE_LIMIT_WINDOW_SECONDS", 60),
-		AlertChannels:              loadAlertChannels(),
 		AlertCooldownSeconds:       getEnvInt("ORION_ALERT_COOLDOWN_SECONDS", 300),
 		AlertRecoveryNotifications: getEnvBool("ORION_ALERT_RECOVERY_NOTIFICATIONS", true),
 		AlertTLSExpiryDays:         getEnvInt("ORION_ALERT_TLS_EXPIRY_DAYS", 14),
@@ -160,30 +145,6 @@ func (c *Config) Validate() error {
 	if c.AlertTLSExpiryDays < 0 {
 		return &ValidationError{Msg: "ORION_ALERT_TLS_EXPIRY_DAYS must be >= 0"}
 	}
-	for _, channel := range c.AlertChannels {
-		if err := channel.Validate(); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (c AlertChannelConfig) Validate() error {
-	if strings.TrimSpace(c.Name) == "" {
-		return &ValidationError{Msg: "alert channel name is required"}
-	}
-	switch c.Type {
-	case "webhook":
-		if strings.TrimSpace(c.WebhookURL) == "" {
-			return &ValidationError{Msg: "webhook alert channel requires ORION_ALERT_WEBHOOK_URL"}
-		}
-	case "email":
-		if strings.TrimSpace(c.EmailTo) == "" || strings.TrimSpace(c.EmailFrom) == "" || strings.TrimSpace(c.SMTPHost) == "" || c.SMTPPort <= 0 {
-			return &ValidationError{Msg: "email alert channel requires ORION_ALERT_EMAIL_TO, ORION_ALERT_EMAIL_FROM, ORION_ALERT_SMTP_HOST, and ORION_ALERT_SMTP_PORT"}
-		}
-	default:
-		return &ValidationError{Msg: fmt.Sprintf("unsupported alert channel type: %s", c.Type)}
-	}
 	return nil
 }
 
@@ -243,33 +204,4 @@ func getEnvList(key string, fallback []string) []string {
 		return fallback
 	}
 	return items
-}
-
-func loadAlertChannels() []AlertChannelConfig {
-	var channels []AlertChannelConfig
-
-	if webhookURL := strings.TrimSpace(os.Getenv("ORION_ALERT_WEBHOOK_URL")); webhookURL != "" {
-		channels = append(channels, AlertChannelConfig{
-			Name:       getEnv("ORION_ALERT_WEBHOOK_NAME", "default-webhook"),
-			Type:       "webhook",
-			Enabled:    getEnvBool("ORION_ALERT_WEBHOOK_ENABLED", true),
-			WebhookURL: webhookURL,
-		})
-	}
-
-	if emailTo := strings.TrimSpace(os.Getenv("ORION_ALERT_EMAIL_TO")); emailTo != "" {
-		channels = append(channels, AlertChannelConfig{
-			Name:         getEnv("ORION_ALERT_EMAIL_NAME", "default-email"),
-			Type:         "email",
-			Enabled:      getEnvBool("ORION_ALERT_EMAIL_ENABLED", true),
-			EmailTo:      emailTo,
-			EmailFrom:    os.Getenv("ORION_ALERT_EMAIL_FROM"),
-			SMTPHost:     os.Getenv("ORION_ALERT_SMTP_HOST"),
-			SMTPPort:     getEnvInt("ORION_ALERT_SMTP_PORT", 587),
-			SMTPUsername: os.Getenv("ORION_ALERT_SMTP_USERNAME"),
-			SMTPPassword: os.Getenv("ORION_ALERT_SMTP_PASSWORD"),
-		})
-	}
-
-	return channels
 }

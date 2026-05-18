@@ -113,6 +113,17 @@ Stores notification attempts:
 - error details;
 - timestamps.
 
+### `alert_channels`
+
+Stores API-managed notification targets:
+
+- channel name and type;
+- enabled state;
+- webhook URL or email transport fields;
+- timestamps.
+
+Secret fields are stored for delivery but redacted from API responses.
+
 ### `data_lifecycle_settings`
 
 Stores singleton lifecycle settings:

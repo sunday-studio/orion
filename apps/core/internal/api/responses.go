@@ -150,6 +150,7 @@ type AlertDeliveryResponse struct {
 
 // AlertChannelResponse represents a redacted configured alert channel.
 type AlertChannelResponse struct {
+	ID                     string     `json:"id"`
 	Name                   string     `json:"name"`
 	Type                   string     `json:"type"`
 	Enabled                bool       `json:"enabled"`
@@ -161,6 +162,8 @@ type AlertChannelResponse struct {
 	SMTPUsernameConfigured bool       `json:"smtp_username_configured,omitempty"`
 	LastDeliveryStatus     string     `json:"last_delivery_status,omitempty"`
 	LastDeliveryAt         *time.Time `json:"last_delivery_at,omitempty"`
+	CreatedAt              time.Time  `json:"created_at"`
+	UpdatedAt              time.Time  `json:"updated_at"`
 }
 
 // AlertRuleResponse represents an effective Core alert rule.

@@ -19,26 +19,24 @@ type AlertService struct {
 	db         *gorm.DB
 	logger     *logging.Logger
 	cfg        *config.Config
-	channels   []config.AlertChannelConfig
 	httpClient *http.Client
 }
 
 func NewAlertService(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *AlertService {
-	var channels []config.AlertChannelConfig
-	if cfg != nil {
-		channels = cfg.AlertChannels
-	}
 	return &AlertService{
 		db:         database,
 		logger:     logger,
 		cfg:        cfg,
-		channels:   channels,
 		httpClient: &http.Client{Timeout: 10 * time.Second},
 	}
 }
 
 func (s *AlertService) QueueIncidentNotifications(incidentID string, eventType string) error {
-	if len(s.channels) == 0 {
+	channels, err := s.deliveryChannels()
+	if err != nil {
+		return err
+	}
+	if len(channels) == 0 {
 		_, err := s.createDelivery(db.AlertDelivery{
 			IncidentID: incidentID,
 			EventType:  eventType,
@@ -50,7 +48,7 @@ func (s *AlertService) QueueIncidentNotifications(incidentID string, eventType s
 		return err
 	}
 
-	for _, channel := range s.channels {
+	for _, channel := range channels {
 		delivery := db.AlertDelivery{
 			IncidentID: incidentID,
 			EventType:  eventType,
@@ -90,6 +88,15 @@ func (s *AlertService) QueueIncidentNotifications(incidentID string, eventType s
 	return nil
 }
 
+func (s *AlertService) deliveryChannels() ([]db.AlertChannel, error) {
+	var channels []db.AlertChannel
+	if err := s.db.Order("name ASC").Find(&channels).Error; err != nil {
+		s.logger.Error("Failed to load alert channels", "error", err)
+		return nil, err
+	}
+	return channels, nil
+}
+
 func (s *AlertService) createDelivery(delivery db.AlertDelivery) (*db.AlertDelivery, error) {
 	delivery.ID = utils.GenerateID("alert_delivery")
 	if err := s.db.Create(&delivery).Error; err != nil {
@@ -122,7 +129,7 @@ func (s *AlertService) inCooldown(incidentID string, channelName string, eventTy
 	return count > 0
 }
 
-func (s *AlertService) deliver(channel config.AlertChannelConfig, incidentID string, eventType string) error {
+func (s *AlertService) deliver(channel db.AlertChannel, incidentID string, eventType string) error {
 	var incident db.Incident
 	if err := s.db.Where("id = ?", incidentID).First(&incident).Error; err != nil {
 		return err
@@ -138,7 +145,10 @@ func (s *AlertService) deliver(channel config.AlertChannelConfig, incidentID str
 	}
 }
 
-func (s *AlertService) deliverWebhook(channel config.AlertChannelConfig, incident db.Incident, eventType string) error {
+func (s *AlertService) deliverWebhook(channel db.AlertChannel, incident db.Incident, eventType string) error {
+	if channel.WebhookURL == "" {
+		return fmt.Errorf("webhook URL is not configured")
+	}
 	body, err := json.Marshal(map[string]interface{}{
 		"event_type": eventType,
 		"incident":   incident,
@@ -159,7 +169,7 @@ func (s *AlertService) deliverWebhook(channel config.AlertChannelConfig, inciden
 	return nil
 }
 
-func (s *AlertService) deliverEmail(channel config.AlertChannelConfig, incident db.Incident, eventType string) error {
+func (s *AlertService) deliverEmail(channel db.AlertChannel, incident db.Incident, eventType string) error {
 	address := fmt.Sprintf("%s:%d", channel.SMTPHost, channel.SMTPPort)
 	subject := fmt.Sprintf("Orion alert: %s", incident.Title)
 	body := fmt.Sprintf("Event: %s\nIncident: %s\nStatus: %s\nSeverity: %s\nLatest event: %s\n", eventType, incident.ID, incident.Status, incident.Severity, incident.LatestEvent)

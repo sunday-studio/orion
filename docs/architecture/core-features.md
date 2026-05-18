@@ -141,7 +141,8 @@ Alert deliveries are created for incident opened/resolved events.
 
 ```mermaid
 flowchart TD
-  Queue["Queue incident notifications"] --> Channels{"Configured channels?"}
+  Queue["Queue incident notifications"] --> LoadChannels["Load alert channels from SQLite"]
+  LoadChannels --> Channels{"Configured channels?"}
   Channels -- "no" --> Suppressed["Create suppressed delivery: no channels"]
   Channels -- "yes" --> Enabled{"Channel enabled?"}
   Enabled -- "no" --> Disabled["Create suppressed delivery"]
@@ -158,12 +159,13 @@ flowchart TD
 
 Implemented alert channels:
 
-- webhook;
+- API-managed webhooks;
 - email;
 - none/suppressed when no channels exist.
 
 Configured behavior:
 
+- multiple channels can be created and toggled independently;
 - disabled channels create suppressed delivery rows;
 - cooldown can prevent repeated sent alerts;
 - recovery notifications can be disabled;

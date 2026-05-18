@@ -54,7 +54,7 @@ The Console is an operations UI, not the configuration source of truth.
 - Use **Agents** as the user-facing name for monitored hosts.
 - Show current issues before inventory.
 - Let users inspect server health, monitor results, incidents, logs, and read-only settings.
-- Keep monitor and alert configuration in YAML/env until the product explicitly adds editing.
+- Keep monitor configuration on the Agent; manage alert channels through the Core API.
 
 ## Data Flow
 

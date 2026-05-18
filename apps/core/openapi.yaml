@@ -90,12 +90,16 @@ definitions:
     type: object
   api.AlertChannelResponse:
     properties:
+      created_at:
+        type: string
       email_from_configured:
         type: boolean
       email_to_configured:
         type: boolean
       enabled:
         type: boolean
+      id:
+        type: string
       last_delivery_at:
         type: string
       last_delivery_status:
@@ -109,6 +113,8 @@ definitions:
       smtp_username_configured:
         type: boolean
       type:
+        type: string
+      updated_at:
         type: string
       webhook_configured:
         type: boolean
@@ -339,6 +345,29 @@ definitions:
         type: integer
       uptime_percent:
         type: number
+    type: object
+  api.alertChannelRequest:
+    properties:
+      email_from:
+        type: string
+      email_to:
+        type: string
+      enabled:
+        type: boolean
+      name:
+        type: string
+      smtp_host:
+        type: string
+      smtp_password:
+        type: string
+      smtp_port:
+        type: integer
+      smtp_username:
+        type: string
+      type:
+        type: string
+      webhook_url:
+        type: string
     type: object
   db.CPUStats:
     properties:
@@ -1267,8 +1296,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get redacted configured alert channels and their last delivery
-        status
+      description: Get redacted persisted alert channels and their last delivery status
       operationId: getAlertChannels
       produces:
       - application/json
@@ -1294,6 +1322,131 @@ paths:
           schema:
             $ref: '#/definitions/utils.APIResponse'
       summary: List alert channels
+      tags:
+      - alerts
+    post:
+      consumes:
+      - application/json
+      description: Create a webhook or email alert channel. Secret values are stored
+        but never returned by the API.
+      operationId: createAlertChannel
+      parameters:
+      - description: Alert channel payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.alertChannelRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    channel:
+                      $ref: '#/definitions/api.AlertChannelResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Create alert channel
+      tags:
+      - alerts
+  /v1/alerts/channels/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an alert channel. Existing delivery history is preserved.
+      operationId: deleteAlertChannel
+      parameters:
+      - description: Alert channel ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Delete alert channel
+      tags:
+      - alerts
+    patch:
+      consumes:
+      - application/json
+      description: Update an alert channel. Omit secret values to keep existing stored
+        values.
+      operationId: updateAlertChannel
+      parameters:
+      - description: Alert channel ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Alert channel payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.alertChannelRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    channel:
+                      $ref: '#/definitions/api.AlertChannelResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Update alert channel
       tags:
       - alerts
   /v1/alerts/deliveries:

@@ -1801,26 +1801,30 @@ func TestAlertReadEndpointsRedactConfiguration(t *testing.T) {
 		AlertRecoveryNotifications: true,
 		AlertTLSExpiryDays:         14,
 		AlertCooldownSeconds:       300,
-		AlertChannels: []config.AlertChannelConfig{
-			{
-				Name:       "ops-webhook",
-				Type:       "webhook",
-				Enabled:    true,
-				WebhookURL: "https://secret.example.com/hook",
-			},
-			{
-				Name:         "ops-email",
-				Type:         "email",
-				Enabled:      false,
-				EmailTo:      "ops@example.com",
-				EmailFrom:    "orion@example.com",
-				SMTPHost:     "smtp.example.com",
-				SMTPPort:     587,
-				SMTPUsername: "mailer",
-				SMTPPassword: "secret-password",
-			},
-		},
 	})
+	if err := server.db.Create(&db.AlertChannel{
+		ID:         "alert-channel-webhook",
+		Name:       "ops-webhook",
+		Type:       "webhook",
+		Enabled:    true,
+		WebhookURL: "https://secret.example.com/hook",
+	}).Error; err != nil {
+		t.Fatalf("create webhook channel: %v", err)
+	}
+	if err := server.db.Create(&db.AlertChannel{
+		ID:           "alert-channel-email",
+		Name:         "ops-email",
+		Type:         "email",
+		Enabled:      false,
+		EmailTo:      "ops@example.com",
+		EmailFrom:    "orion@example.com",
+		SMTPHost:     "smtp.example.com",
+		SMTPPort:     587,
+		SMTPUsername: "mailer",
+		SMTPPassword: "secret-password",
+	}).Error; err != nil {
+		t.Fatalf("create email channel: %v", err)
+	}
 
 	delivery := db.AlertDelivery{
 		ID:         "alert-delivery-test",
@@ -1869,8 +1873,20 @@ func TestAlertReadEndpointsRedactConfiguration(t *testing.T) {
 	if !channels.Success || channels.Data.Count != 2 || len(channels.Data.Channels) != 2 {
 		t.Fatalf("channels response = %+v, want two channels", channels)
 	}
-	if !channels.Data.Channels[0].WebhookConfigured || channels.Data.Channels[0].LastDeliveryStatus != "failed" {
-		t.Fatalf("webhook channel response = %+v, want redacted webhook with last failed status", channels.Data.Channels[0])
+	var webhookChannel struct {
+		Name               string `json:"name"`
+		Type               string `json:"type"`
+		WebhookConfigured  bool   `json:"webhook_configured"`
+		LastDeliveryStatus string `json:"last_delivery_status"`
+	}
+	for _, channel := range channels.Data.Channels {
+		if channel.Name == "ops-webhook" {
+			webhookChannel = channel
+			break
+		}
+	}
+	if !webhookChannel.WebhookConfigured || webhookChannel.LastDeliveryStatus != "failed" {
+		t.Fatalf("webhook channel response = %+v, want redacted webhook with last failed status", webhookChannel)
 	}
 
 	deliveriesResp := performJSONRequest(t, server, http.MethodGet, "/v1/alerts/deliveries?limit=10", nil, "")
@@ -1912,6 +1928,73 @@ func TestAlertReadEndpointsRedactConfiguration(t *testing.T) {
 	}
 	assertNotContains(t, rulesResp.Body.String(), "secret.example.com")
 	assertNotContains(t, rulesResp.Body.String(), "secret-password")
+}
+
+func TestAlertChannelWriteEndpointsPersistWebhookConfiguration(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())
+	database, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	if err := db.Migrate(database); err != nil {
+		t.Fatalf("migrate database: %v", err)
+	}
+
+	server := NewServer(database, logging.NewLogger(), &config.Config{})
+	createResp := performJSONRequest(t, server, http.MethodPost, "/v1/alerts/channels", gin.H{
+		"name":        "ops-webhook",
+		"type":        "webhook",
+		"enabled":     true,
+		"webhook_url": "https://secret.example.com/hook",
+	}, "")
+	if createResp.Code != http.StatusCreated {
+		t.Fatalf("create channel status = %d, body = %s", createResp.Code, createResp.Body.String())
+	}
+	assertNotContains(t, createResp.Body.String(), "secret.example.com")
+
+	var created struct {
+		Data struct {
+			Channel struct {
+				ID                string `json:"id"`
+				Name              string `json:"name"`
+				WebhookConfigured bool   `json:"webhook_configured"`
+			} `json:"channel"`
+		} `json:"data"`
+	}
+	decodeResponse(t, createResp, &created)
+	if created.Data.Channel.ID == "" || created.Data.Channel.Name != "ops-webhook" || !created.Data.Channel.WebhookConfigured {
+		t.Fatalf("created channel = %+v, want redacted webhook channel", created.Data.Channel)
+	}
+
+	updateResp := performJSONRequest(t, server, http.MethodPatch, "/v1/alerts/channels/"+created.Data.Channel.ID, gin.H{
+		"name":    "critical-webhook",
+		"enabled": false,
+	}, "")
+	if updateResp.Code != http.StatusOK {
+		t.Fatalf("update channel status = %d, body = %s", updateResp.Code, updateResp.Body.String())
+	}
+
+	var stored db.AlertChannel
+	if err := server.db.Where("id = ?", created.Data.Channel.ID).First(&stored).Error; err != nil {
+		t.Fatalf("find updated channel: %v", err)
+	}
+	if stored.Name != "critical-webhook" || stored.Enabled {
+		t.Fatalf("stored channel = %+v, want renamed disabled channel", stored)
+	}
+
+	deleteResp := performJSONRequest(t, server, http.MethodDelete, "/v1/alerts/channels/"+created.Data.Channel.ID, nil, "")
+	if deleteResp.Code != http.StatusOK {
+		t.Fatalf("delete channel status = %d, body = %s", deleteResp.Code, deleteResp.Body.String())
+	}
+	var count int64
+	if err := server.db.Model(&db.AlertChannel{}).Count(&count).Error; err != nil {
+		t.Fatalf("count alert channels: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("alert channel count = %d, want 0", count)
+	}
 }
 
 func registerTestAgent(t *testing.T, server *Server) struct {

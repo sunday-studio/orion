@@ -20,6 +20,9 @@ func TestMigrateAppliesEmbeddedMigrations(t *testing.T) {
 	if !database.Migrator().HasTable(&AlertDelivery{}) {
 		t.Fatal("alert_deliveries table was not created")
 	}
+	if !database.Migrator().HasTable(&AlertChannel{}) {
+		t.Fatal("alert_channels table was not created")
+	}
 
 	var count int64
 	if err := database.Table("schema_migrations").Where("version = ?", 1).Count(&count).Error; err != nil {
@@ -44,8 +47,8 @@ func TestMigrateIsIdempotent(t *testing.T) {
 	if err := database.Table("schema_migrations").Count(&count).Error; err != nil {
 		t.Fatalf("count schema_migrations: %v", err)
 	}
-	if count != 4 {
-		t.Fatalf("migration count = %d, want 4", count)
+	if count != 5 {
+		t.Fatalf("migration count = %d, want 5", count)
 	}
 }
 

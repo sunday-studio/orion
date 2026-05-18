@@ -156,6 +156,22 @@ type AlertDelivery struct {
 	UpdatedAt  time.Time `json:"updated_at"`
 }
 
+type AlertChannel struct {
+	ID           string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	Name         string    `json:"name" gorm:"uniqueIndex;not null"`
+	Type         string    `json:"type" gorm:"not null"` // webhook | email
+	Enabled      bool      `json:"enabled" gorm:"not null"`
+	WebhookURL   string    `json:"webhook_url" gorm:"type:text"`
+	EmailTo      string    `json:"email_to"`
+	EmailFrom    string    `json:"email_from"`
+	SMTPHost     string    `json:"smtp_host"`
+	SMTPPort     int       `json:"smtp_port"`
+	SMTPUsername string    `json:"smtp_username"`
+	SMTPPassword string    `json:"smtp_password"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
 type DataLifecycleSettings struct {
 	ID                  int        `json:"id" gorm:"primaryKey"`
 	RawReportHotDays    int        `json:"raw_report_hot_days" gorm:"not null"`
