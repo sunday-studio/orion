@@ -1,5 +1,7 @@
-FROM alpine:3.20
-RUN apk add --no-cache ca-certificates sqlite
+FROM debian:bookworm-slim
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates sqlite3 \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY apps/core/orion-core .
 COPY apps/core/web ./web
