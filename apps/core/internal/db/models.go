@@ -1,10 +1,67 @@
 package db
 
 import (
+	"encoding/json"
 	"time"
 
 	"gorm.io/datatypes"
 )
+
+const (
+	AlertEventIncidentOpened   = "incident_opened"
+	AlertEventIncidentResolved = "incident_resolved"
+)
+
+func SupportedAlertEvents() []string {
+	return []string{AlertEventIncidentOpened, AlertEventIncidentResolved}
+}
+
+func DefaultAlertEvents() []string {
+	return SupportedAlertEvents()
+}
+
+func ValidAlertEvent(event string) bool {
+	for _, supported := range SupportedAlertEvents() {
+		if event == supported {
+			return true
+		}
+	}
+	return false
+}
+
+func EncodeAlertEvents(events []string) string {
+	if len(events) == 0 {
+		events = DefaultAlertEvents()
+	}
+	body, err := json.Marshal(events)
+	if err != nil {
+		return `["incident_opened","incident_resolved"]`
+	}
+	return string(body)
+}
+
+func DecodeAlertEvents(value string) []string {
+	if value == "" {
+		return DefaultAlertEvents()
+	}
+	var events []string
+	if err := json.Unmarshal([]byte(value), &events); err != nil || len(events) == 0 {
+		return DefaultAlertEvents()
+	}
+	filtered := make([]string, 0, len(events))
+	seen := map[string]bool{}
+	for _, event := range events {
+		if !ValidAlertEvent(event) || seen[event] {
+			continue
+		}
+		seen[event] = true
+		filtered = append(filtered, event)
+	}
+	if len(filtered) == 0 {
+		return DefaultAlertEvents()
+	}
+	return filtered
+}
 
 type GeoLocation struct {
 	IP       string `json:"ip"`
@@ -157,19 +214,20 @@ type AlertDelivery struct {
 }
 
 type AlertChannel struct {
-	ID           string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
-	Name         string    `json:"name" gorm:"uniqueIndex;not null"`
-	Type         string    `json:"type" gorm:"not null"` // webhook | email
-	Enabled      bool      `json:"enabled" gorm:"not null"`
-	WebhookURL   string    `json:"webhook_url" gorm:"type:text"`
-	EmailTo      string    `json:"email_to"`
-	EmailFrom    string    `json:"email_from"`
-	SMTPHost     string    `json:"smtp_host"`
-	SMTPPort     int       `json:"smtp_port"`
-	SMTPUsername string    `json:"smtp_username"`
-	SMTPPassword string    `json:"smtp_password"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID               string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	Name             string    `json:"name" gorm:"uniqueIndex;not null"`
+	Type             string    `json:"type" gorm:"not null"` // webhook | email
+	Enabled          bool      `json:"enabled" gorm:"not null"`
+	WebhookURL       string    `json:"webhook_url" gorm:"type:text"`
+	EmailTo          string    `json:"email_to"`
+	EmailFrom        string    `json:"email_from"`
+	SMTPHost         string    `json:"smtp_host"`
+	SMTPPort         int       `json:"smtp_port"`
+	SMTPUsername     string    `json:"smtp_username"`
+	SMTPPassword     string    `json:"smtp_password"`
+	SubscribedEvents string    `json:"subscribed_events" gorm:"type:text"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 type DataLifecycleSettings struct {

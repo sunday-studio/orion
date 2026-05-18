@@ -112,6 +112,10 @@ definitions:
         type: boolean
       smtp_username_configured:
         type: boolean
+      subscribed_events:
+        items:
+          type: string
+        type: array
       type:
         type: string
       updated_at:
@@ -364,6 +368,10 @@ definitions:
         type: integer
       smtp_username:
         type: string
+      subscribed_events:
+        items:
+          type: string
+        type: array
       type:
         type: string
       webhook_url:

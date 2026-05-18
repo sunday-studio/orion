@@ -160,6 +160,7 @@ type AlertChannelResponse struct {
 	SMTPHostConfigured     bool       `json:"smtp_host_configured,omitempty"`
 	SMTPPortConfigured     bool       `json:"smtp_port_configured,omitempty"`
 	SMTPUsernameConfigured bool       `json:"smtp_username_configured,omitempty"`
+	SubscribedEvents       []string   `json:"subscribed_events"`
 	LastDeliveryStatus     string     `json:"last_delivery_status,omitempty"`
 	LastDeliveryAt         *time.Time `json:"last_delivery_at,omitempty"`
 	CreatedAt              time.Time  `json:"created_at"`

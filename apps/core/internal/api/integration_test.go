@@ -1944,10 +1944,11 @@ func TestAlertChannelWriteEndpointsPersistWebhookConfiguration(t *testing.T) {
 
 	server := NewServer(database, logging.NewLogger(), &config.Config{})
 	createResp := performJSONRequest(t, server, http.MethodPost, "/v1/alerts/channels", gin.H{
-		"name":        "ops-webhook",
-		"type":        "webhook",
-		"enabled":     true,
-		"webhook_url": "https://secret.example.com/hook",
+		"name":              "ops-webhook",
+		"type":              "webhook",
+		"enabled":           true,
+		"webhook_url":       "https://secret.example.com/hook",
+		"subscribed_events": []string{db.AlertEventIncidentOpened},
 	}, "")
 	if createResp.Code != http.StatusCreated {
 		t.Fatalf("create channel status = %d, body = %s", createResp.Code, createResp.Body.String())
@@ -1957,9 +1958,10 @@ func TestAlertChannelWriteEndpointsPersistWebhookConfiguration(t *testing.T) {
 	var created struct {
 		Data struct {
 			Channel struct {
-				ID                string `json:"id"`
-				Name              string `json:"name"`
-				WebhookConfigured bool   `json:"webhook_configured"`
+				ID                string   `json:"id"`
+				Name              string   `json:"name"`
+				WebhookConfigured bool     `json:"webhook_configured"`
+				SubscribedEvents  []string `json:"subscribed_events"`
 			} `json:"channel"`
 		} `json:"data"`
 	}
@@ -1967,10 +1969,14 @@ func TestAlertChannelWriteEndpointsPersistWebhookConfiguration(t *testing.T) {
 	if created.Data.Channel.ID == "" || created.Data.Channel.Name != "ops-webhook" || !created.Data.Channel.WebhookConfigured {
 		t.Fatalf("created channel = %+v, want redacted webhook channel", created.Data.Channel)
 	}
+	if got := created.Data.Channel.SubscribedEvents; len(got) != 1 || got[0] != db.AlertEventIncidentOpened {
+		t.Fatalf("created subscribed_events = %#v, want incident_opened", got)
+	}
 
 	updateResp := performJSONRequest(t, server, http.MethodPatch, "/v1/alerts/channels/"+created.Data.Channel.ID, gin.H{
-		"name":    "critical-webhook",
-		"enabled": false,
+		"name":              "critical-webhook",
+		"enabled":           false,
+		"subscribed_events": []string{db.AlertEventIncidentOpened, db.AlertEventIncidentResolved},
 	}, "")
 	if updateResp.Code != http.StatusOK {
 		t.Fatalf("update channel status = %d, body = %s", updateResp.Code, updateResp.Body.String())
@@ -1982,6 +1988,9 @@ func TestAlertChannelWriteEndpointsPersistWebhookConfiguration(t *testing.T) {
 	}
 	if stored.Name != "critical-webhook" || stored.Enabled {
 		t.Fatalf("stored channel = %+v, want renamed disabled channel", stored)
+	}
+	if got := db.DecodeAlertEvents(stored.SubscribedEvents); len(got) != 2 || got[0] != db.AlertEventIncidentOpened || got[1] != db.AlertEventIncidentResolved {
+		t.Fatalf("stored subscribed_events = %#v, want opened and resolved", got)
 	}
 
 	deleteResp := performJSONRequest(t, server, http.MethodDelete, "/v1/alerts/channels/"+created.Data.Channel.ID, nil, "")

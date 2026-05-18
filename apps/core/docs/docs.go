@@ -2842,6 +2842,12 @@ const docTemplate = `{
                 "smtp_username_configured": {
                     "type": "boolean"
                 },
+                "subscribed_events": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "type": {
                     "type": "string"
                 },
@@ -3225,6 +3231,12 @@ const docTemplate = `{
                 },
                 "smtp_username": {
                     "type": "string"
+                },
+                "subscribed_events": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "type": {
                     "type": "string"

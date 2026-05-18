@@ -122,6 +122,41 @@ func createTestIncident(t *testing.T, database *gorm.DB, incidentID string) {
 	}
 }
 
+func TestAlertServiceSkipsUnsubscribedEvents(t *testing.T) {
+	database := setupAlertServiceDatabase(t)
+	createTestIncident(t, database, "incident-1")
+	createTestAlertChannel(t, database, db.AlertChannel{
+		Name:             "opened-only",
+		Type:             "webhook",
+		Enabled:          true,
+		WebhookURL:       "https://alerts.example.com/hook",
+		SubscribedEvents: db.EncodeAlertEvents([]string{db.AlertEventIncidentOpened}),
+	})
+	var webhookRequests int
+	transport := roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		webhookRequests++
+		return &http.Response{
+			StatusCode: http.StatusNoContent,
+			Body:       http.NoBody,
+			Header:     make(http.Header),
+		}, nil
+	})
+	service := NewAlertService(database, logging.NewLogger(), &config.Config{})
+	service.httpClient.Transport = transport
+
+	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentResolved); err != nil {
+		t.Fatalf("QueueIncidentNotifications() error = %v", err)
+	}
+
+	var count int64
+	if err := database.Model(&db.AlertDelivery{}).Count(&count).Error; err != nil {
+		t.Fatalf("count deliveries: %v", err)
+	}
+	if count != 0 || webhookRequests != 0 {
+		t.Fatalf("deliveries = %d requests = %d, want no delivery for unsubscribed event", count, webhookRequests)
+	}
+}
+
 func createTestAlertChannel(t *testing.T, database *gorm.DB, channel db.AlertChannel) {
 	t.Helper()
 

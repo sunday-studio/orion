@@ -120,6 +120,7 @@ Stores API-managed notification targets:
 - channel name and type;
 - enabled state;
 - webhook URL or email transport fields;
+- subscribed incident event types;
 - timestamps.
 
 Secret fields are stored for delivery but redacted from API responses.

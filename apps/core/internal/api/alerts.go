@@ -11,16 +11,17 @@ import (
 )
 
 type alertChannelRequest struct {
-	Name         string `json:"name"`
-	Type         string `json:"type"`
-	Enabled      *bool  `json:"enabled"`
-	WebhookURL   string `json:"webhook_url"`
-	EmailTo      string `json:"email_to"`
-	EmailFrom    string `json:"email_from"`
-	SMTPHost     string `json:"smtp_host"`
-	SMTPPort     int    `json:"smtp_port"`
-	SMTPUsername string `json:"smtp_username"`
-	SMTPPassword string `json:"smtp_password"`
+	Name             string   `json:"name"`
+	Type             string   `json:"type"`
+	Enabled          *bool    `json:"enabled"`
+	WebhookURL       string   `json:"webhook_url"`
+	EmailTo          string   `json:"email_to"`
+	EmailFrom        string   `json:"email_from"`
+	SMTPHost         string   `json:"smtp_host"`
+	SMTPPort         int      `json:"smtp_port"`
+	SMTPUsername     string   `json:"smtp_username"`
+	SMTPPassword     string   `json:"smtp_password"`
+	SubscribedEvents []string `json:"subscribed_events"`
 }
 
 // listAlertDeliveries retrieves alert delivery attempts.
@@ -123,23 +124,28 @@ func (s *Server) createAlertChannel(c *gin.Context) {
 	}
 
 	channel := db.AlertChannel{
-		ID:           utils.GenerateID("alert_channel"),
-		Name:         strings.TrimSpace(request.Name),
-		Type:         strings.TrimSpace(request.Type),
-		Enabled:      true,
-		WebhookURL:   strings.TrimSpace(request.WebhookURL),
-		EmailTo:      strings.TrimSpace(request.EmailTo),
-		EmailFrom:    strings.TrimSpace(request.EmailFrom),
-		SMTPHost:     strings.TrimSpace(request.SMTPHost),
-		SMTPPort:     request.SMTPPort,
-		SMTPUsername: strings.TrimSpace(request.SMTPUsername),
-		SMTPPassword: request.SMTPPassword,
+		ID:               utils.GenerateID("alert_channel"),
+		Name:             strings.TrimSpace(request.Name),
+		Type:             strings.TrimSpace(request.Type),
+		Enabled:          true,
+		WebhookURL:       strings.TrimSpace(request.WebhookURL),
+		EmailTo:          strings.TrimSpace(request.EmailTo),
+		EmailFrom:        strings.TrimSpace(request.EmailFrom),
+		SMTPHost:         strings.TrimSpace(request.SMTPHost),
+		SMTPPort:         request.SMTPPort,
+		SMTPUsername:     strings.TrimSpace(request.SMTPUsername),
+		SMTPPassword:     request.SMTPPassword,
+		SubscribedEvents: db.EncodeAlertEvents(normalizeAlertEvents(request.SubscribedEvents)),
 	}
 	if request.Enabled != nil {
 		channel.Enabled = *request.Enabled
 	}
 	if channel.Type == "" {
 		channel.Type = "webhook"
+	}
+	if err := validateAlertEvents(request.SubscribedEvents); err != nil {
+		utils.BadRequest(c, err.Error())
+		return
 	}
 	if err := validateAlertChannel(channel); err != nil {
 		utils.BadRequest(c, err.Error())
@@ -230,6 +236,13 @@ func (s *Server) updateAlertChannel(c *gin.Context) {
 	}
 	if request.SMTPPassword != "" {
 		channel.SMTPPassword = request.SMTPPassword
+	}
+	if request.SubscribedEvents != nil {
+		if err := validateAlertEvents(request.SubscribedEvents); err != nil {
+			utils.BadRequest(c, err.Error())
+			return
+		}
+		channel.SubscribedEvents = db.EncodeAlertEvents(normalizeAlertEvents(request.SubscribedEvents))
 	}
 	if err := validateAlertChannel(channel); err != nil {
 		utils.BadRequest(c, err.Error())
@@ -339,6 +352,7 @@ func (s *Server) alertChannelResponse(channel db.AlertChannel) AlertChannelRespo
 		SMTPHostConfigured:     channel.SMTPHost != "",
 		SMTPPortConfigured:     channel.SMTPPort > 0,
 		SMTPUsernameConfigured: channel.SMTPUsername != "",
+		SubscribedEvents:       db.DecodeAlertEvents(channel.SubscribedEvents),
 		CreatedAt:              channel.CreatedAt,
 		UpdatedAt:              channel.UpdatedAt,
 	}
@@ -368,6 +382,43 @@ func validateAlertChannel(channel db.AlertChannel) error {
 		}
 	default:
 		return &requestValidationError{message: "unsupported alert channel type"}
+	}
+	for _, event := range db.DecodeAlertEvents(channel.SubscribedEvents) {
+		if !db.ValidAlertEvent(event) {
+			return &requestValidationError{message: "unsupported alert channel event"}
+		}
+	}
+	return nil
+}
+
+func normalizeAlertEvents(events []string) []string {
+	if len(events) == 0 {
+		return db.DefaultAlertEvents()
+	}
+	normalized := make([]string, 0, len(events))
+	seen := map[string]bool{}
+	for _, event := range events {
+		event = strings.TrimSpace(event)
+		if event == "" || seen[event] {
+			continue
+		}
+		if !db.ValidAlertEvent(event) {
+			continue
+		}
+		seen[event] = true
+		normalized = append(normalized, event)
+	}
+	if len(normalized) == 0 {
+		return db.DefaultAlertEvents()
+	}
+	return normalized
+}
+
+func validateAlertEvents(events []string) error {
+	for _, event := range events {
+		if event = strings.TrimSpace(event); event != "" && !db.ValidAlertEvent(event) {
+			return &requestValidationError{message: "unsupported alert channel event"}
+		}
 	}
 	return nil
 }

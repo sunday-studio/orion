@@ -49,6 +49,9 @@ func (s *AlertService) QueueIncidentNotifications(incidentID string, eventType s
 	}
 
 	for _, channel := range channels {
+		if !subscribesToAlertEvent(channel, eventType) {
+			continue
+		}
 		delivery := db.AlertDelivery{
 			IncidentID: incidentID,
 			EventType:  eventType,
@@ -86,6 +89,15 @@ func (s *AlertService) QueueIncidentNotifications(incidentID string, eventType s
 	}
 
 	return nil
+}
+
+func subscribesToAlertEvent(channel db.AlertChannel, eventType string) bool {
+	for _, event := range db.DecodeAlertEvents(channel.SubscribedEvents) {
+		if event == eventType {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *AlertService) deliveryChannels() ([]db.AlertChannel, error) {

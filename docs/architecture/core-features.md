@@ -144,7 +144,9 @@ flowchart TD
   Queue["Queue incident notifications"] --> LoadChannels["Load alert channels from SQLite"]
   LoadChannels --> Channels{"Configured channels?"}
   Channels -- "no" --> Suppressed["Create suppressed delivery: no channels"]
-  Channels -- "yes" --> Enabled{"Channel enabled?"}
+  Channels -- "yes" --> Subscribed{"Subscribed to event?"}
+  Subscribed -- "no" --> Skip["Skip channel"]
+  Subscribed -- "yes" --> Enabled{"Channel enabled?"}
   Enabled -- "no" --> Disabled["Create suppressed delivery"]
   Enabled -- "yes" --> Cooldown{"Cooldown active?"}
   Cooldown -- "yes" --> CooldownDelivery["Mark cooldown"]
@@ -160,13 +162,15 @@ flowchart TD
 Implemented alert channels:
 
 - API-managed webhooks;
-- email;
+- webhook event subscriptions for incident opened and incident resolved events;
 - none/suppressed when no channels exist.
 
 Configured behavior:
 
 - multiple channels can be created and toggled independently;
+- each webhook can subscribe to incident opened, incident resolved, or both;
 - disabled channels create suppressed delivery rows;
+- unsubscribed event/channel pairs are skipped and do not create delivery rows;
 - cooldown can prevent repeated sent alerts;
 - recovery notifications can be disabled;
 - TLS expiry threshold defaults to 14 days.

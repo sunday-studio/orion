@@ -47,8 +47,15 @@ import { type FormEvent, useMemo, useState } from "react";
 const DELIVERY_LIMIT = 30;
 const alertTabs = ["logs", "channels", "rules"] as const;
 const deliveryStatuses = ["all", "pending", "sent", "failed", "suppressed", "cooldown"] as const;
+const alertEventOptions = [
+  { value: "incident_opened", label: "Incident opened" },
+  { value: "incident_resolved", label: "Incident resolved" },
+] as const;
+const defaultAlertEvents = alertEventOptions.map((event) => event.value);
 
 const boolLabel = (value?: boolean) => (value ? "yes" : "no");
+const eventLabel = (value?: string) =>
+  alertEventOptions.find((event) => event.value === value)?.label ?? value ?? "unknown";
 
 const getMutationErrorMessage = (error: unknown) => {
   if (!error) return "";
@@ -152,6 +159,7 @@ export const AlertsPage = () => {
   const [webhookName, setWebhookName] = useState("");
   const [webhookUrl, setWebhookUrl] = useState("");
   const [webhookEnabled, setWebhookEnabled] = useState(true);
+  const [webhookEvents, setWebhookEvents] = useState<string[]>(defaultAlertEvents);
   const [{ page, status, incident, tab }, setDeliveryQuery] = useQueryStates({
     page: parseAsInteger.withDefault(1),
     status: parseAsStringLiteral(deliveryStatuses).withDefault("all"),
@@ -170,6 +178,7 @@ export const AlertsPage = () => {
     setWebhookName("");
     setWebhookUrl("");
     setWebhookEnabled(true);
+    setWebhookEvents(defaultAlertEvents);
     setEditingChannel(null);
     setIsWebhookDialogOpen(false);
   };
@@ -249,6 +258,7 @@ export const AlertsPage = () => {
     setWebhookName("");
     setWebhookUrl("");
     setWebhookEnabled(true);
+    setWebhookEvents(defaultAlertEvents);
     setIsWebhookDialogOpen(true);
   };
   const openEditWebhookDialog = (channel: ApiAlertChannelResponse) => {
@@ -256,7 +266,16 @@ export const AlertsPage = () => {
     setWebhookName(channel.name ?? "");
     setWebhookUrl("");
     setWebhookEnabled(channel.enabled ?? true);
+    setWebhookEvents(
+      channel.subscribed_events?.length ? channel.subscribed_events : defaultAlertEvents,
+    );
     setIsWebhookDialogOpen(true);
+  };
+  const toggleWebhookEvent = (event: string, enabled: boolean) => {
+    setWebhookEvents((current) => {
+      if (enabled) return Array.from(new Set([...current, event]));
+      return current.filter((item) => item !== event);
+    });
   };
   const handleWebhookSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -264,6 +283,7 @@ export const AlertsPage = () => {
     const url = webhookUrl.trim();
     if (!name || isWebhookPending) return;
     if (!isEditingWebhook && !url) return;
+    if (webhookEvents.length === 0) return;
     if (editingChannel?.id) {
       updateWebhook.mutate({
         id: editingChannel.id,
@@ -271,6 +291,7 @@ export const AlertsPage = () => {
           name,
           type: "webhook",
           enabled: webhookEnabled,
+          subscribed_events: webhookEvents,
           ...(url ? { webhook_url: url } : {}),
         },
       });
@@ -282,6 +303,7 @@ export const AlertsPage = () => {
         type: "webhook",
         enabled: webhookEnabled,
         webhook_url: url,
+        subscribed_events: webhookEvents,
       },
     });
   };
@@ -303,6 +325,15 @@ export const AlertsPage = () => {
         cell: ({ row }) => (
           <div className="max-w-[22rem] truncate text-neutral-600">
             {configuredParts(row.original)}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "subscribed_events",
+        header: "Events",
+        cell: ({ row }) => (
+          <div className="max-w-[22rem] truncate text-neutral-600">
+            {(row.original.subscribed_events ?? []).map(eventLabel).join(", ") || "none"}
           </div>
         ),
       },
@@ -463,7 +494,16 @@ export const AlertsPage = () => {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={isWebhookDialogOpen} onOpenChange={setIsWebhookDialogOpen}>
+      <Dialog
+        open={isWebhookDialogOpen}
+        onOpenChange={(open) => {
+          if (open) {
+            setIsWebhookDialogOpen(true);
+            return;
+          }
+          closeWebhookDialog();
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <form className="space-y-5" onSubmit={handleWebhookSubmit}>
             <DialogHeader>
@@ -506,6 +546,23 @@ export const AlertsPage = () => {
                 />
                 <span>Enabled</span>
               </label>
+              <div className="space-y-2 text-sm">
+                <div className="font-medium">Events</div>
+                <div className="space-y-2">
+                  {alertEventOptions.map((event) => (
+                    <label key={event.value} className="flex items-center gap-2">
+                      <Checkbox
+                        checked={webhookEvents.includes(event.value)}
+                        onCheckedChange={(value) => toggleWebhookEvent(event.value, value === true)}
+                      />
+                      <span>{event.label}</span>
+                    </label>
+                  ))}
+                </div>
+                {webhookEvents.length === 0 && (
+                  <div className="text-xs text-red-700">Select at least one event.</div>
+                )}
+              </div>
               {webhookMutationError && (
                 <div className="text-sm text-red-700">{webhookMutationError}</div>
               )}
@@ -520,7 +577,8 @@ export const AlertsPage = () => {
                 disabled={
                   isWebhookPending ||
                   !webhookName.trim() ||
-                  (!isEditingWebhook && !webhookUrl.trim())
+                  (!isEditingWebhook && !webhookUrl.trim()) ||
+                  webhookEvents.length === 0
                 }
               >
                 {isWebhookPending
