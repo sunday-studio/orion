@@ -10,6 +10,7 @@ CONFIG_URL="${ORION_AGENT_CONFIG_URL:-}"
 START_SERVICE="true"
 OVERWRITE_CONFIG="false"
 DRY_RUN="false"
+BOOTSTRAP_STEP=0
 
 usage() {
   printf '%s\n' "Usage: curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash"
@@ -24,6 +25,19 @@ usage() {
   printf '%s\n' "  --overwrite-config   Replace an existing installed config."
   printf '%s\n' "  --dry-run            Print install actions without changing the system."
   printf '%s\n' "  -h, --help           Show this help."
+}
+
+step() {
+  BOOTSTRAP_STEP=$((BOOTSTRAP_STEP + 1))
+  printf '\n[%02d] %s\n' "$BOOTSTRAP_STEP" "$1"
+}
+
+ok() {
+  printf '     ok: %s\n' "$1"
+}
+
+info() {
+  printf '     %s\n' "$1"
 }
 
 require_cmd() {
@@ -58,8 +72,9 @@ detect_arch() {
 download() {
   url="$1"
   output="$2"
-  printf 'Downloading %s\n' "$url"
+  info "download: $url"
   curl -fsSL "$url" -o "$output"
+  ok "saved $(basename "$output")"
 }
 
 prompt_core_url() {
@@ -137,20 +152,32 @@ fi
 require_cmd curl
 require_cmd mktemp
 
-SUDO=()
-if [ "$DRY_RUN" != "true" ] && [ "$(id -u)" -ne 0 ]; then
-  require_cmd sudo
-  SUDO=(sudo)
+printf '%s\n' "Orion Agent bootstrap installer"
+if [ "$DRY_RUN" = "true" ]; then
+  info "mode: dry run"
 fi
 
+SUDO=()
+if [ "$DRY_RUN" != "true" ] && [ "$(id -u)" -ne 0 ]; then
+  step "Privilege"
+  require_cmd sudo
+  SUDO=(sudo)
+  ok "sudo available"
+fi
+
+step "Platform"
 OS="$(detect_os)"
 ARCH="$(detect_arch)"
 ASSET="orion-agent-${OS}-${ARCH}"
+ok "detected $OS/$ARCH"
+
 RELEASE_BASE="https://github.com/${REPO}/releases/download/${VERSION}"
 if [ "$VERSION" = "latest" ]; then
   RELEASE_BASE="https://github.com/${REPO}/releases/latest/download"
 fi
+info "release: $REPO@$VERSION"
 WORK_DIR="$(mktemp -d)"
+info "workspace: $WORK_DIR"
 
 cleanup() {
   rm -rf "$WORK_DIR"
@@ -161,32 +188,45 @@ mkdir -p "$WORK_DIR/deploy/scripts" "$WORK_DIR/deploy/systemd" "$WORK_DIR/deploy
 
 INSTALLER="$WORK_DIR/deploy/scripts/agent-install.sh"
 BINARY="$WORK_DIR/$ASSET"
+step "Download release assets"
 download "$RELEASE_BASE/orion-agent-install.sh" "$INSTALLER"
 download "$RELEASE_BASE/orion-agent-systemd.service" "$WORK_DIR/deploy/systemd/orion-agent.service"
 download "$RELEASE_BASE/com.orion.agent.plist" "$WORK_DIR/deploy/launchd/com.orion.agent.plist"
 download "$RELEASE_BASE/$ASSET" "$BINARY"
 chmod +x "$INSTALLER" "$BINARY"
+ok "assets are executable"
 
 if [ -n "${CONFIG_URL:-}" ]; then
+  step "Download config"
   CONFIG_SOURCE="$WORK_DIR/config.yaml"
   download "$CONFIG_URL" "$CONFIG_SOURCE"
 fi
 
+step "Prepare install arguments"
 ARGS=("--binary" "$BINARY")
 if [ -n "$CONFIG_SOURCE" ]; then
   ARGS+=("--config" "$CONFIG_SOURCE")
+  info "config: $CONFIG_SOURCE"
 else
   ARGS+=("--core-url" "$CORE_URL")
+  info "core_url: $CORE_URL"
 fi
 if [ "$START_SERVICE" = "false" ]; then
   ARGS+=("--no-start")
+  info "service start: disabled"
+else
+  info "service start: enabled"
 fi
 if [ "$OVERWRITE_CONFIG" = "true" ]; then
   ARGS+=("--overwrite-config")
+  info "config replacement: enabled"
 fi
 if [ "$DRY_RUN" = "true" ]; then
   ARGS+=("--dry-run")
 fi
+ok "install arguments ready"
 
 cd "$WORK_DIR"
+step "Run service installer"
 "${SUDO[@]}" "$INSTALLER" "${ARGS[@]}"
+ok "installer finished"

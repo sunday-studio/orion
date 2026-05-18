@@ -32,6 +32,8 @@ func main() {
 	os.Args = os.Args[1:] // Remove command from args for flag parsing
 
 	switch command {
+	case "help", "-h", "--help":
+		printUsage()
 	case "start":
 		handleStart()
 	case "stop":
@@ -46,6 +48,8 @@ func main() {
 		cli.HandleMaintenance(userConfigPath, internalStatePath)
 	case "config":
 		cli.HandleConfig(userConfigPath)
+	case "state":
+		cli.HandleState(internalStatePath)
 	default:
 		fmt.Printf("Unknown command: %s\n\n", command)
 		printUsage()
@@ -69,97 +73,147 @@ func printUsage() {
 	fmt.Println("  config        Manage configuration")
 	fmt.Println("                validate  Validate config file")
 	fmt.Println("                diff     Show config diff")
+	fmt.Println("  state         Manage local state")
+	fmt.Println("                init     Initialize state database")
 	fmt.Println("")
 	fmt.Println("Options:")
 	fmt.Println("  -config   Path to config file (default: config.yaml)")
 	fmt.Println("  -state    Path to SQLite state database (default: state.db)")
 	fmt.Println("  -once     Run once and exit (for debugging)")
+	fmt.Println("")
+	fmt.Println("Common checks:")
+	fmt.Println("  orion-agent config validate -config /etc/orion/config.yaml")
+	fmt.Println("  orion-agent state init -state /var/lib/orion/state.db")
+	fmt.Println("  orion-agent status -state /var/lib/orion/state.db")
+	fmt.Println("  orion-agent run -config /etc/orion/config.yaml -state /var/lib/orion/state.db -once")
 }
 
 func handleStart() {
+	manager := cli.DetectServiceManager()
+	cli.PrintHeader("start")
+	cli.PrintInfo("service_manager", manager)
+	cli.PrintStep("starting service")
 	if err := cli.StartService(); err != nil {
 		logging.Fatalf("Failed to start service: %v", err)
 	}
-	fmt.Println("Agent service started")
+	cli.PrintOK("agent service started")
+	printServiceStatus()
 }
 
 func handleStop() {
+	manager := cli.DetectServiceManager()
+	cli.PrintHeader("stop")
+	cli.PrintInfo("service_manager", manager)
+	cli.PrintStep("stopping service")
 	if err := cli.StopService(); err != nil {
 		logging.Fatalf("Failed to stop service: %v", err)
 	}
-	fmt.Println("Agent service stopped")
+	cli.PrintOK("agent service stopped")
+	printServiceStatus()
 }
 
 func handleStatus() {
 	flag.Parse()
+	cli.PrintHeader("status")
+	cli.PrintInfo("state", *internalStatePath)
+	cli.PrintStep("checking service")
 	running, status, err := cli.GetServiceStatus()
 	if err != nil {
 		logging.Fatalf("Failed to get service status: %v", err)
 	}
 
-	fmt.Printf("Service manager: %s\n", cli.DetectServiceManager())
+	fmt.Printf("  service_manager: %s\n", cli.DetectServiceManager())
 	if running {
-		fmt.Printf("Agent service: %s\n", status)
+		fmt.Printf("  agent_service: %s\n", status)
 	} else {
-		fmt.Printf("Agent service: %s\n", status)
+		fmt.Printf("  agent_service: %s\n", status)
 	}
 
+	cli.PrintStep("opening state database")
 	stateStore, err := agentstate.Open(*internalStatePath)
 	if err != nil {
-		fmt.Printf("State database: %s\n", *internalStatePath)
-		fmt.Printf("State: unavailable (%v)\n", err)
+		fmt.Printf("  state_database: %s\n", *internalStatePath)
+		fmt.Printf("  state: unavailable (%v)\n", err)
 	} else {
 		defer stateStore.Close()
 		internalState, err := stateStore.Get()
 		if err != nil {
-			fmt.Printf("State database: %s\n", *internalStatePath)
-			fmt.Printf("State: unavailable (%v)\n", err)
+			fmt.Printf("  state_database: %s\n", *internalStatePath)
+			fmt.Printf("  state: unavailable (%v)\n", err)
 		} else {
-			fmt.Printf("State database: %s\n", stateStore.Path())
-			fmt.Printf("Registered: %t\n", internalState.IsRegistered())
+			fmt.Printf("  state_database: %s\n", stateStore.Path())
+			fmt.Printf("  registered: %t\n", internalState.IsRegistered())
 			if internalState.AgentID != "" {
-				fmt.Printf("Agent ID: %s\n", internalState.AgentID)
+				fmt.Printf("  agent_id: %s\n", internalState.AgentID)
 			}
 			if internalState.CoreURL != "" {
-				fmt.Printf("Core URL: %s\n", internalState.CoreURL)
+				fmt.Printf("  core_url: %s\n", internalState.CoreURL)
 			}
-			fmt.Printf("Maintenance: %t\n", internalState.MaintenanceMode)
+			fmt.Printf("  maintenance: %t\n", internalState.MaintenanceMode)
 			if internalState.MaintenanceReason != nil {
-				fmt.Printf("Maintenance reason: %s\n", *internalState.MaintenanceReason)
+				fmt.Printf("  maintenance_reason: %s\n", *internalState.MaintenanceReason)
 			}
 		}
 	}
 
 	if !running {
+		cli.PrintSkip("service is not running")
 		os.Exit(1)
 	}
+	cli.PrintOK("service is running")
 }
 
 func handleRestart() {
+	manager := cli.DetectServiceManager()
+	cli.PrintHeader("restart")
+	cli.PrintInfo("service_manager", manager)
+	cli.PrintStep("restarting service")
 	if err := cli.RestartService(); err != nil {
 		logging.Fatalf("Failed to restart service: %v", err)
 	}
-	fmt.Println("Agent service restarted")
+	cli.PrintOK("agent service restarted")
+	printServiceStatus()
 }
 
 func handleRun() {
 	flag.Parse()
-	logging.Infof("Starting Orion Agent...")
+	cli.PrintHeader("run")
+	cli.PrintInfo("config", *userConfigPath)
+	cli.PrintInfo("state", *internalStatePath)
+	cli.PrintInfo("once", *once)
 
+	cli.PrintStep("loading config")
 	userConfig, err := config.LoadUserConfig(*userConfigPath)
 	if err != nil {
 		logging.Fatalf("Failed to load user config: %v", err)
 	}
+	cli.PrintOK(fmt.Sprintf("config loaded with %d monitor(s)", len(userConfig.Monitors)))
+	cli.PrintInfo("core_url", userConfig.CoreURL)
+	cli.PrintInfo("interval", userConfig.Interval)
+	if len(userConfig.Monitors) == 0 {
+		cli.PrintSkip("no monitor checks configured; host metrics will still report")
+	}
 
+	cli.PrintStep("opening state database")
 	stateStore, err := agentstate.Open(*internalStatePath)
 	if err != nil {
 		logging.Fatalf("Failed to open state database: %v", err)
 	}
 	defer stateStore.Close()
+	cli.PrintOK("state database ready")
 
+	cli.PrintStep("registering agent and monitors")
 	registrationService := registration.New(userConfig, *userConfigPath, stateStore)
 	if err := registrationService.RegisterAgentIfNeeded(); err != nil {
 		logging.Fatalf("Failed to register agent & monitors: %v", err)
+	}
+	cli.PrintOK("registration complete")
+	if internalState, err := stateStore.Get(); err == nil {
+		cli.PrintInfo("registered", internalState.IsRegistered())
+		if internalState.AgentID != "" {
+			cli.PrintInfo("agent_id", internalState.AgentID)
+		}
+		cli.PrintInfo("monitor_mappings", len(internalState.Monitors))
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -171,26 +225,43 @@ func handleRun() {
 	if err != nil {
 		logging.Fatalf("Failed to initialize agent: %v", err)
 	}
+	cli.PrintOK("agent initialized")
 
 	go func() {
 		<-sigs
-		logging.Infof("Received shutdown signal, stopping agent...")
+		cli.PrintStep("received shutdown signal")
 		cancel()
 	}()
 
 	if *once {
-		// Run once for testing
+		cli.PrintStep("running one collection cycle")
 		if err := agentInstance.RunOnce(ctx); err != nil {
 			logging.Errorf("Agent run failed: %v", err)
 			os.Exit(1)
 		}
+		cli.PrintOK("one collection cycle complete")
 		return
 	}
 
+	cli.PrintStep("starting continuous collection loop")
 	if err := agentInstance.Run(ctx); err != nil {
 		logging.Errorf("Agent stopped with error: %v", err)
 		os.Exit(1)
 	}
 
-	logging.Infof("Orion Agent exited cleanly")
+	cli.PrintOK("agent exited cleanly")
+}
+
+func printServiceStatus() {
+	running, status, err := cli.GetServiceStatus()
+	if err != nil {
+		cli.PrintError(fmt.Sprintf("could not read service state: %v", err))
+		return
+	}
+	cli.PrintInfo("service_state", status)
+	if running {
+		cli.PrintOK("service is running")
+	} else {
+		cli.PrintSkip("service is not running")
+	}
 }

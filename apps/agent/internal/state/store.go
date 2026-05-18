@@ -188,12 +188,12 @@ func (s *Store) SetMaintenanceMode(enabled bool, reason *string) error {
 
 func (s *Store) getOrCreateAgentState() (*agentStateRecord, error) {
 	var record agentStateRecord
-	err := s.db.Where("id = ?", 1).First(&record).Error
-	if err == nil {
-		return &record, nil
+	result := s.db.Where("id = ?", 1).Find(&record)
+	if result.Error != nil {
+		return nil, fmt.Errorf("load agent state: %w", result.Error)
 	}
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, fmt.Errorf("load agent state: %w", err)
+	if result.RowsAffected > 0 {
+		return &record, nil
 	}
 
 	record = agentStateRecord{

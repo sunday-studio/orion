@@ -70,8 +70,12 @@ The bootstrap script:
 - detects Linux or macOS and CPU architecture;
 - downloads the matching Agent release binary;
 - downloads the platform service files;
-- installs the Agent binary, config, state directory, and service;
+- installs the Agent binary, config, initialized state database, and service;
 - starts the Agent service unless `--no-start` is passed.
+
+Existing config and state files are kept during normal installs so the Agent keeps the same local
+identity and monitor mappings. Pass `--overwrite-config` only when you intentionally want to replace
+the installed config.
 
 By default, the release binary is downloaded from the latest GitHub release:
 

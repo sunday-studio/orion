@@ -15,6 +15,7 @@ CONFIG_SOURCE=""
 START_SERVICE="true"
 OVERWRITE_CONFIG="false"
 DRY_RUN="false"
+INSTALL_STEP=0
 
 usage() {
   printf '%s\n' "Usage: sudo ./deploy/scripts/agent-install.sh --core-url http://core:8999 [options]"
@@ -40,6 +41,27 @@ run_cmd() {
     return 0
   fi
   "$@"
+}
+
+step() {
+  INSTALL_STEP=$((INSTALL_STEP + 1))
+  printf '\n[%02d] %s\n' "$INSTALL_STEP" "$1"
+}
+
+ok() {
+  if [ "$DRY_RUN" = "true" ]; then
+    printf '     plan: %s\n' "$1"
+    return
+  fi
+  printf '     ok: %s\n' "$1"
+}
+
+skip() {
+  printf '     skip: %s\n' "$1"
+}
+
+info() {
+  printf '     %s\n' "$1"
 }
 
 while [ "$#" -gt 0 ]; do
@@ -131,8 +153,9 @@ install_config() {
   owner="$2"
   group="$3"
 
+  step "Config"
   if [ -f "$config_path" ] && [ "$OVERWRITE_CONFIG" != "true" ]; then
-    printf 'Keeping existing config: %s\n' "$config_path"
+    skip "keeping existing config at $config_path"
     return
   fi
 
@@ -142,40 +165,94 @@ install_config() {
       exit 1
     fi
     run_cmd install -m 0640 -o "$owner" -g "$group" "$CONFIG_SOURCE" "$config_path"
+    ok "installed config from $CONFIG_SOURCE to $config_path"
   else
     if [ "$DRY_RUN" = "true" ]; then
       printf '+ generate minimal config at %q for core %q\n' "$config_path" "$CORE_URL"
+      ok "would generate default config at $config_path"
       return
     fi
     tmp_config="$(mktemp)"
     write_minimal_config "$tmp_config"
     run_cmd install -m 0640 -o "$owner" -g "$group" "$tmp_config" "$config_path"
     rm -f "$tmp_config"
+    ok "generated default config at $config_path"
   fi
+}
+
+initialize_state() {
+  state_path="$1"
+  owner="$2"
+  group="$3"
+
+  step "State database"
+  if [ "$DRY_RUN" = "true" ]; then
+    printf '+ initialize state database at %q\n' "$state_path"
+    ok "would initialize state database at $state_path"
+    return
+  fi
+
+  "$INSTALL_DIR/orion-agent" state init -state "$state_path" >/dev/null
+  run_cmd chown "$owner:$group" "$state_path"
+  run_cmd chmod 0640 "$state_path"
+  ok "initialized state database at $state_path"
 }
 
 install_linux() {
   binary="$1"
   config_dir="/etc/orion"
   state_dir="/var/lib/orion"
+  state_path="$state_dir/state.db"
 
+  step "Service account"
   if ! getent group "$LINUX_GROUP" >/dev/null; then
     run_cmd groupadd --system "$LINUX_GROUP"
+    ok "created group $LINUX_GROUP"
+  else
+    skip "group $LINUX_GROUP already exists"
   fi
   if ! id "$LINUX_USER" >/dev/null 2>&1; then
     run_cmd useradd --system --gid "$LINUX_GROUP" --home-dir "$state_dir" --shell /usr/sbin/nologin "$LINUX_USER"
+    ok "created user $LINUX_USER"
+  else
+    skip "user $LINUX_USER already exists"
   fi
 
+  step "Directories"
   run_cmd install -d -m 0750 -o "$LINUX_USER" -g "$LINUX_GROUP" "$config_dir"
   run_cmd install -d -m 0750 -o "$LINUX_USER" -g "$LINUX_GROUP" "$state_dir"
+  ok "prepared $config_dir and $state_dir"
+
+  step "Binary"
   run_cmd install -m 0755 "$binary" "$INSTALL_DIR/orion-agent"
+  ok "install binary to $INSTALL_DIR/orion-agent"
+
   install_config "$config_dir/config.yaml" "$LINUX_USER" "$LINUX_GROUP"
+  initialize_state "$state_path" "$LINUX_USER" "$LINUX_GROUP"
+
+  step "Systemd service"
   run_cmd install -m 0644 "deploy/systemd/orion-agent.service" "/etc/systemd/system/$SERVICE_NAME.service"
+  ok "install service file"
 
   run_cmd systemctl daemon-reload
+  ok "reload systemd"
   run_cmd systemctl enable "$SERVICE_NAME"
+  ok "enable $SERVICE_NAME"
   if [ "$START_SERVICE" = "true" ]; then
     run_cmd systemctl restart "$SERVICE_NAME"
+    ok "start $SERVICE_NAME"
+
+    step "Service state"
+    if [ "$DRY_RUN" = "true" ]; then
+      ok "would verify $SERVICE_NAME is active"
+    elif systemctl is-active --quiet "$SERVICE_NAME"; then
+      ok "$SERVICE_NAME is active"
+    else
+      printf '     error: %s did not become active\n' "$SERVICE_NAME" >&2
+      exit 1
+    fi
+  else
+    skip "service start disabled by --no-start"
   fi
 }
 
@@ -198,6 +275,7 @@ ensure_macos_account() {
     run_cmd dscl . -create "/Users/$MACOS_USER" UserShell /usr/bin/false
     run_cmd dscl . -create "/Users/$MACOS_USER" RealName "Orion Agent"
     run_cmd dscl . -create "/Users/$MACOS_USER" Password '*'
+    ok "would ensure user and group $MACOS_USER"
     return
   fi
 
@@ -210,6 +288,9 @@ ensure_macos_account() {
     run_cmd dscl . -create "/Groups/$MACOS_GROUP"
     run_cmd dscl . -create "/Groups/$MACOS_GROUP" PrimaryGroupID "$account_id"
     run_cmd dscl . -create "/Groups/$MACOS_GROUP" Password '*'
+    ok "created group $MACOS_GROUP"
+  else
+    skip "group $MACOS_GROUP already exists"
   fi
   if ! dscl . -read "/Users/$MACOS_USER" >/dev/null 2>&1; then
     if [ -z "$account_id" ]; then
@@ -222,6 +303,9 @@ ensure_macos_account() {
     run_cmd dscl . -create "/Users/$MACOS_USER" UserShell /usr/bin/false
     run_cmd dscl . -create "/Users/$MACOS_USER" RealName "Orion Agent"
     run_cmd dscl . -create "/Users/$MACOS_USER" Password '*'
+    ok "created user $MACOS_USER"
+  else
+    skip "user $MACOS_USER already exists"
   fi
 }
 
@@ -229,16 +313,29 @@ install_macos() {
   binary="$1"
   config_dir="/usr/local/etc/orion"
   state_dir="/usr/local/var/lib/orion"
+  state_path="$state_dir/state.db"
   log_dir="/usr/local/var/log"
   plist_path="/Library/LaunchDaemons/com.orion.agent.plist"
 
+  step "Service account"
   ensure_macos_account
+
+  step "Directories"
   run_cmd install -d -m 0750 -o "$MACOS_USER" -g "$MACOS_GROUP" "$config_dir"
   run_cmd install -d -m 0750 -o "$MACOS_USER" -g "$MACOS_GROUP" "$state_dir"
   run_cmd install -d -m 0755 "$log_dir"
+  ok "prepared $config_dir, $state_dir, and $log_dir"
+
+  step "Binary"
   run_cmd install -m 0755 "$binary" "$INSTALL_DIR/orion-agent"
+  ok "install binary to $INSTALL_DIR/orion-agent"
+
   install_config "$config_dir/config.yaml" "$MACOS_USER" "$MACOS_GROUP"
+  initialize_state "$state_path" "$MACOS_USER" "$MACOS_GROUP"
+
+  step "Launchd service"
   run_cmd install -m 0644 "deploy/launchd/com.orion.agent.plist" "$plist_path"
+  ok "install launchd plist"
 
   if [ "$DRY_RUN" = "true" ]; then
     run_cmd launchctl bootout system "$plist_path"
@@ -247,11 +344,31 @@ install_macos() {
   fi
   if [ "$START_SERVICE" = "true" ]; then
     run_cmd launchctl bootstrap system "$plist_path"
+    ok "start $SERVICE_NAME"
+
+    step "Service state"
+    if [ "$DRY_RUN" = "true" ]; then
+      ok "would verify $SERVICE_NAME is loaded"
+    elif launchctl print system/com.orion.agent >/dev/null 2>&1; then
+      ok "$SERVICE_NAME is loaded"
+    else
+      printf '     error: %s did not load\n' "$SERVICE_NAME" >&2
+      exit 1
+    fi
+  else
+    skip "service start disabled by --no-start"
   fi
 }
 
+printf '%s\n' "Orion Agent installer"
+if [ "$DRY_RUN" = "true" ]; then
+  info "mode: dry run"
+fi
+
 OS="$(detect_os)"
+info "platform: $OS"
 BINARY="$(resolve_binary)"
+info "binary: $BINARY"
 
 if [ ! -x "$BINARY" ]; then
   printf 'Agent binary is not executable: %s\n' "$BINARY" >&2
