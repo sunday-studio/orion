@@ -1692,6 +1692,12 @@ func TestAgentReportOpensStaleMonitorIncident(t *testing.T) {
 	registered := registerTestAgent(t, server)
 	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
 
+	if err := server.db.Model(&db.Monitor{}).
+		Where("id = ?", registeredMonitor.Data.MonitorID).
+		Update("created_at", time.Now().Add(-20*time.Minute)).Error; err != nil {
+		t.Fatalf("age monitor: %v", err)
+	}
+
 	reportBody := map[string]interface{}{
 		"uptime_seconds": 120,
 		"timestamp":      time.Now().UTC().Format(time.RFC3339),
