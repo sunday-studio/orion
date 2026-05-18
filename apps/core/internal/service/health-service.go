@@ -88,7 +88,7 @@ func (s *HealthService) ComputeMonitorHealth(monitorID string, config HealthComp
 	}
 
 	// Cache is stale or missing, recompute
-	computedHealth, err := s.computeMonitorHealthInternal(monitorID, monitor.ReportingIntervalSeconds, config)
+	computedHealth, err := s.computeMonitorHealthInternal(monitorID, monitor.ReportingIntervalSeconds, monitor.CreatedAt, config)
 	if err != nil {
 		return "unknown", err
 	}
@@ -107,7 +107,7 @@ func (s *HealthService) ComputeMonitorHealth(monitorID string, config HealthComp
 }
 
 // computeMonitorHealthInternal performs the actual health computation
-func (s *HealthService) computeMonitorHealthInternal(monitorID string, reportingIntervalSeconds int, config HealthComputationConfig) (string, error) {
+func (s *HealthService) computeMonitorHealthInternal(monitorID string, reportingIntervalSeconds int, monitorCreatedAt time.Time, config HealthComputationConfig) (string, error) {
 	// Get recent reports for the monitor
 	var reports []db.MonitorReport
 	if err := s.db.Where("monitor_id = ?", monitorID).
@@ -119,6 +119,9 @@ func (s *HealthService) computeMonitorHealthInternal(monitorID string, reporting
 	}
 
 	if len(reports) == 0 {
+		if isStaleAt(monitorCreatedAt, reportingIntervalSeconds, config) {
+			return "stale", nil
+		}
 		return "unknown", nil
 	}
 
@@ -308,8 +311,9 @@ func (s *HealthService) DetectStaleMonitors(config HealthComputationConfig) ([]d
 			Order("created_at DESC").
 			First(&latestReport).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
-				// No reports yet
-				staleMonitors = append(staleMonitors, monitor)
+				if isStaleAt(monitor.CreatedAt, monitor.ReportingIntervalSeconds, config) {
+					staleMonitors = append(staleMonitors, monitor)
+				}
 			}
 			continue
 		}

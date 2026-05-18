@@ -275,24 +275,21 @@ func (s *MonitorService) GetMonitorSummary() (MonitorSummary, error) {
 
 	summary := MonitorSummary{Total: int64(len(monitors))}
 	monitorIDs := make([]string, 0, len(monitors))
-	staleMonitorIDs, err := s.staleMonitorIDs()
-	if err != nil {
-		s.logger.Error("Failed to load stale monitor summary", "error", err)
-		return MonitorSummary{}, err
-	}
-	staleMonitorIDSet := make(map[string]struct{}, len(staleMonitorIDs))
-	for _, monitorID := range staleMonitorIDs {
-		staleMonitorIDSet[monitorID] = struct{}{}
-	}
+	healthService := NewHealthService(s.db, s.logger)
+	config := DefaultHealthConfig()
 
 	for _, monitor := range monitors {
 		monitorIDs = append(monitorIDs, monitor.ID)
-		if _, stale := staleMonitorIDSet[monitor.ID]; stale {
-			summary.Stale++
+
+		health, err := healthService.ComputeMonitorHealth(monitor.ID, config)
+		if err != nil {
+			summary.Unknown++
 			continue
 		}
 
-		switch strings.ToLower(monitor.Health) {
+		switch strings.ToLower(health) {
+		case "stale":
+			summary.Stale++
 		case "up":
 			summary.Up++
 		case "down":
