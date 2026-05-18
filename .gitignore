@@ -1,9 +1,11 @@
 todo.md
+.DS_Store
 
 # Local databases and runtime state
 app/core/data
 apps/core/data
 apps/core/tmp/
+tmp/
 
 # Dependency directories
 node_modules/

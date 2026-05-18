@@ -1,23 +1,30 @@
 # Orion
 
-Orion is a local-first monitoring app for your own servers.
+Orion is a self-hosted monitoring app for small server setups.
 
-It runs on infrastructure you control: a small Agent collects system metrics and check results, a
-Core server stores everything in SQLite, and the Console gives you a clean operational view of
-agents, monitors, incidents, alerts, logs, and data retention.
+An Agent runs on each machine, collects system metrics and monitor results, and sends them to Core.
+Core stores the data in SQLite, computes health, opens incidents, sends alerts, and serves the
+Console UI.
 
-Orion is built for home labs, small fleets, private networks, and anyone who wants observability
-without sending server telemetry to a third-party service.
+## Preview
+
+| Incidents | Agents |
+|---|---|
+| ![Incidents list](assets/incidents-list.png) | ![Agents list](assets/agents-list.png) |
+
+| Monitors | Monitor detail |
+|---|---|
+| ![Monitors list](assets/monitors-list.png) | ![Monitor detail](assets/monitor-detail.png) |
 
 ## How It Works
 
 ```mermaid
 flowchart LR
-    subgraph servers [Your Servers]
+    subgraph servers [Servers]
         A1[Orion Agent]
         A2[Orion Agent]
     end
-    subgraph local [Your Network]
+    subgraph core [Core host]
         C[Orion Core]
         DB[(SQLite)]
         UI[Console]
@@ -28,27 +35,15 @@ flowchart LR
     UI --> C
 ```
 
-- **Agent** runs on each server and reports system metrics plus configured monitor checks.
-- **Core** receives reports, computes health, stores data locally, and exposes the API.
+- **Agent** runs on Linux/macOS hosts and reports system metrics plus monitor checks.
+- **Core** receives reports, stores data, derives health, manages incidents, and serves the API.
 - **Console** is the web UI for incidents, agents, monitors, alerts, logs, and settings.
-
-## Local-First
-
-Orion is designed around local ownership:
-
-- Data is stored in a local SQLite database.
-- Agents can report over your LAN, Tailscale, or another private network.
-- Alert and retention settings are controlled by your Core instance.
-- The app can run without a hosted SaaS backend.
 
 ## Quick Start
 
-### 1. Run Core and Console
+### 1. Run Core
 
-Core and Console are deployed together. Core serves the API, stores data in SQLite, and serves the
-Console web app from the same process.
-
-Set local admin credentials:
+Core and Console run together. Set the admin credentials first:
 
 ```sh
 export ORION_ADMIN_USERNAME=admin
@@ -56,7 +51,7 @@ export ORION_ADMIN_PASSWORD='change-me'
 export ORION_JWT_SECRET='change-me-to-a-long-random-value'
 ```
 
-Start Core and Console with the Docker image:
+Run the published image:
 
 ```sh
 docker run -d \
@@ -71,29 +66,18 @@ docker run -d \
   ghcr.io/sunday-studio/orion-core:v0.1.0
 ```
 
-Core listens on `http://localhost:8999` and stores data in the `orion-data` Docker volume.
+Open `http://localhost:8999`.
 
-The main deployable image is the Core image. It includes both Core and Console.
-
-If you are working from source instead of a published image, use Docker Compose:
+To build and run from source:
 
 ```sh
 make docker-build
 make docker-up
 ```
 
-See [Core Docker deployment](docs/deployment/core-docker.md) for image and volume details.
+### 2. Install an Agent
 
-### 2. Open Console
-
-Open `http://localhost:8999`.
-
-### 3. Install Agent on a Server
-
-Install the Agent on each machine you want to monitor. The install script writes the config, creates
-the service user and directories, installs the system service, and starts the Agent.
-
-Download the Agent binary for the host, then run:
+Build or download an Agent binary, then install it on the machine you want to monitor:
 
 ```sh
 sudo ./deploy/scripts/agent-install.sh \
@@ -101,88 +85,35 @@ sudo ./deploy/scripts/agent-install.sh \
   --binary ./orion-agent
 ```
 
-The service install script is the recommended path for host monitoring because it gives the Agent
-normal access to the host system, service manager, and local state path.
-
-Use a Core URL that the monitored server can reach, for example:
+Use a Core URL the Agent host can reach:
 
 - `http://orion-core.local:8999`
 - `http://192.168.x.y:8999`
 - `http://100.x.y.z:8999` on Tailscale
 - `https://orion.example.com` behind a reverse proxy
 
-The Agent creates its local state database automatically the first time it runs. You do not need to
-create or pass a `state.db` path for normal service installs or CLI starts. The install paths are:
+The Agent keeps local runtime state in SQLite:
 
 - Linux: `/var/lib/orion/state.db`
 - macOS: `/usr/local/var/lib/orion/state.db`
 
-### 4. Verify
+Do not delete `state.db` during a normal upgrade. It contains the Agent identity, token,
+maintenance state, and monitor mapping.
+
+### 3. Check the Install
 
 In Console:
 
-- open **Agents** and confirm the server appears;
-- open the agent detail page and check that reports are arriving;
-- add monitor config on the Agent host when you want HTTP, TCP, Docker, systemd, PM2, command, or
-  resource checks.
+- open **Agents** and confirm the host appears;
+- open the Agent detail page and confirm reports are arriving;
+- add monitor config on the Agent host when you are ready to track services.
 
 See [Agent install and upgrade](docs/deployment/agent-install-upgrade.md) for service commands,
-upgrades, rollback, Docker monitor permissions, and local network notes.
-
-## Development
-
-For frontend development against a running Core:
-
-```sh
-cd apps/console
-npm install
-npm run dev
-```
-
-Set `VITE_API_BASE_URL=http://localhost:8999/v1` in `apps/console/.env`.
-
-For local source builds:
-
-```sh
-cd apps/core && go test ./...
-cd apps/agent && go test ./...
-cd apps/console && npm run build
-```
-
-## Seed Demo Data
-
-For a local UI/API dataset:
-
-```sh
-make seed-demo-data
-```
-
-This writes demo data to `apps/core/data/orion.db`.
-
-## Common Commands
-
-```sh
-cd apps/core && go test ./...
-cd apps/agent && go test ./...
-cd apps/console && npm run build
-make docker-build
-make docker-up
-make generate-openapi
-make generate-sdk
-```
-
-## Docker Image
-
-Orion publishes one deployable Docker image:
-
-- `ghcr.io/sunday-studio/orion-core:<version>`: Core API, SQLite runtime, and Console in one image.
-
-Image publishing is manually triggered from GitHub Actions. The `Docker Images` workflow asks for a
-version tag, such as `v0.1.0`, and can optionally publish `latest`.
+rollback, Docker monitor permissions, and local network notes.
 
 ## Monitor Types
 
-Orion supports checks for:
+Supported checks:
 
 - HTTP health checks
 - Websites
@@ -194,8 +125,48 @@ Orion supports checks for:
 - Commands
 - Internal services
 
-See [Agent monitors](docs/architecture/agent-monitors.md) and
-[Agent-Core contract](docs/agent-core-contract.md) for details.
+See [Agent monitors](docs/architecture/agent-monitors.md) for config details.
+
+## Development
+
+Run tests and builds:
+
+```sh
+cd apps/core && go test ./...
+cd apps/agent && go test ./...
+cd apps/console && npm run build
+```
+
+Run the Console dev server against a local Core:
+
+```sh
+cd apps/console
+npm install
+npm run dev
+```
+
+Set `VITE_API_BASE_URL=http://localhost:8999/v1` in `apps/console/.env`.
+
+Seed local demo data:
+
+```sh
+make seed-demo-data
+```
+
+This writes to `apps/core/data/orion.db`.
+
+## Common Commands
+
+```sh
+make docker-build
+make docker-up
+make generate-openapi
+make generate-sdk
+make agent-build VERSION=v0.1.0
+```
+
+OpenAPI is generated from Core route annotations. Do not edit `apps/core/openapi.yaml` or the
+generated Console SDK by hand.
 
 ## Documentation
 
