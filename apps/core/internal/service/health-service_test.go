@@ -228,6 +228,57 @@ func TestDetectStaleMonitorsUsesReportingInterval(t *testing.T) {
 	}
 }
 
+func TestComputeMonitorHealthReturnsStaleForExpiredReport(t *testing.T) {
+	database := setupHealthTestDB(t)
+	agent := db.Agent{
+		ID:        "agent-computed-stale",
+		MachineId: "computed-stale-machine",
+		Name:      "computed stale",
+		OS:        "linux",
+		Arch:      "arm64",
+		Token:     "computed-stale-token",
+		LastSeen:  time.Now(),
+	}
+	if err := database.Create(&agent).Error; err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+
+	monitor := db.Monitor{
+		ID:                       "monitor-computed-stale",
+		AgentID:                  agent.ID,
+		Name:                     "computed stale",
+		Type:                     "http",
+		Lifecycle:                "active",
+		Health:                   "up",
+		ReportingIntervalSeconds: 60,
+	}
+	if err := database.Create(&monitor).Error; err != nil {
+		t.Fatalf("create monitor: %v", err)
+	}
+
+	reportTime := time.Now().Add(-20 * time.Minute).UTC()
+	report := db.MonitorReport{
+		ID:          "report-computed-stale",
+		MonitorID:   monitor.ID,
+		Payload:     "{}",
+		CollectedAt: reportTime.Format(time.RFC3339),
+		Health:      "up",
+		CreatedAt:   reportTime,
+	}
+	if err := database.Create(&report).Error; err != nil {
+		t.Fatalf("create report: %v", err)
+	}
+
+	service := NewHealthService(database, logging.NewLogger())
+	health, err := service.ComputeMonitorHealth(monitor.ID, DefaultHealthConfig())
+	if err != nil {
+		t.Fatalf("ComputeMonitorHealth() error = %v", err)
+	}
+	if health != "stale" {
+		t.Fatalf("ComputeMonitorHealth() = %q, want stale", health)
+	}
+}
+
 func setupHealthTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 

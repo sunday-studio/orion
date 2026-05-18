@@ -135,7 +135,7 @@ func (s *HealthService) computeMonitorHealthInternal(monitorID string, reporting
 	}
 
 	if isStaleAt(latestTime, reportingIntervalSeconds, config) {
-		return "unknown", nil // Stale data
+		return "stale", nil
 	}
 
 	// Check current health
