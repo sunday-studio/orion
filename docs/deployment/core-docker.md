@@ -67,6 +67,14 @@ make docker-up
 CORE_IMAGE=ghcr.io/sunday-studio/orion-core VERSION=v0.1.0 make docker-up
 ```
 
+There is also a copyable sample Compose file at
+`deploy/examples/core-console-compose.yaml`. It runs the combined Core and Console image with a
+named SQLite data volume:
+
+```sh
+docker compose -f deploy/examples/core-console-compose.yaml up -d
+```
+
 Core listens on `http://localhost:8999`.
 
 ## Data

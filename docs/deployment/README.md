@@ -5,3 +5,5 @@
 - [Agent install and upgrade](agent-install-upgrade.md)
 - [Release packaging](release-packaging.md)
 - [SQLite backup and restore](../sqlite-backup-restore.md)
+
+Runtime examples live under `deploy/examples/`.
