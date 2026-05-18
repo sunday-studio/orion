@@ -103,7 +103,8 @@ export const SettingsPage = () => {
       archive_dir: formState.archiveDir.trim() || undefined,
       archive_raw_reports: formState.archiveRawReports,
       archive_schedule: formState.archiveSchedule,
-      raw_report_hot_days: asNumber(formState.rawReportHotDays) ?? settings?.raw_report_hot_days ?? 90,
+      raw_report_hot_days:
+        asNumber(formState.rawReportHotDays) ?? settings?.raw_report_hot_days ?? 90,
       rollup_retention_days: asNumber(formState.rollupRetentionDays),
       rollups_enabled: formState.rollupsEnabled,
     };
@@ -133,10 +134,7 @@ export const SettingsPage = () => {
         )}
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <Field
-            label="Raw report days"
-            description="Recent report history kept in Core."
-          >
+          <Field label="Raw report days" description="Recent report history kept in Core.">
             <Input
               type="number"
               min="1"
@@ -144,10 +142,7 @@ export const SettingsPage = () => {
               onChange={(event) => updateField("rawReportHotDays", event.target.value)}
             />
           </Field>
-          <Field
-            label="Rollup days"
-            description="Daily uptime history to retain."
-          >
+          <Field label="Rollup days" description="Daily uptime history to retain.">
             <Input
               type="number"
               min="1"
@@ -155,10 +150,7 @@ export const SettingsPage = () => {
               onChange={(event) => updateField("rollupRetentionDays", event.target.value)}
             />
           </Field>
-          <Field
-            label="Archive directory"
-            description="Local path for archived reports."
-          >
+          <Field label="Archive directory" description="Local path for archived reports.">
             <Input
               value={formState.archiveDir}
               onChange={(event) => updateField("archiveDir", event.target.value)}

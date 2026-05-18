@@ -50,7 +50,7 @@ export const AppHeader = () => {
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                isActive ? "text-lime-700" : "text-neutral-700 hover:text-neutral-950"
+                isActive ? "text-indigo-700" : "text-neutral-700 hover:text-neutral-950"
               }
             >
               {item.label}

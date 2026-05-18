@@ -48,7 +48,7 @@ export const AgentHealthSummary = ({
         {hasActiveIncidents && (
           <Link
             to={`/incidents?agent=${encodeURIComponent(agentId)}`}
-            className="text-neutral-600 hover:text-lime-700 hover:underline"
+            className="text-neutral-600 hover:text-indigo-700 hover:underline"
           >
             <p>
               {activeIncidentCount} active incident{activeIncidentCount === 1 ? "" : "s"} on this

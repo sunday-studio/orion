@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import type { ApiAlertChannelResponse } from "@/orion-sdk";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { useMemo } from "react";
 import { boolLabel, eventLabel } from "./alert-constants";
 
@@ -106,7 +106,6 @@ export const WebhookChannelsTab = ({
           </p>
         </div>
         <Button size="sm" onClick={onCreate}>
-          <Plus />
           New webhook
         </Button>
       </div>

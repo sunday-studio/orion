@@ -12,7 +12,8 @@ const agentLogColumns: ColumnDef<ApiAgentReportResponse>[] = [
   {
     accessorKey: "created_at",
     header: "Time",
-    cell: ({ row }) => formatDate(row.original.created_at ?? row.original.timestamp, DATE_TIME_FORMAT),
+    cell: ({ row }) =>
+      formatDate(row.original.created_at ?? row.original.timestamp, DATE_TIME_FORMAT),
   },
   {
     accessorKey: "cpu",

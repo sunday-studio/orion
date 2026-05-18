@@ -22,7 +22,7 @@ export const AgentRow = ({ agent }: { agent: ApiAgentResponse; index: number }) 
           onClick={handleShowMonitors}
           aria-expanded={showMonitors}
           aria-label={showMonitors ? "Hide monitors" : "Show monitors"}
-          className="inline-flex size-6 cursor-pointer items-center justify-center text-neutral-600 hover:text-lime-700"
+          className="inline-flex size-6 cursor-pointer items-center justify-center text-neutral-600 hover:text-indigo-700"
         >
           {showMonitors ? (
             <ChevronDownIcon className="size-4" />
