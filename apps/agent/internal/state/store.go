@@ -200,6 +200,39 @@ func (s *Store) ReplaceMonitors(monitors []config.InternalStateMonitor) error {
 	})
 }
 
+func (s *Store) ResetRegistration() error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		var record agentStateRecord
+		result := tx.Where("id = ?", 1).Find(&record)
+		if result.Error != nil {
+			return fmt.Errorf("load agent state: %w", result.Error)
+		}
+		if result.RowsAffected == 0 {
+			record = agentStateRecord{ID: 1}
+			if err := tx.Create(&record).Error; err != nil {
+				return fmt.Errorf("create agent state: %w", err)
+			}
+		}
+
+		if err := tx.Model(&record).Updates(map[string]interface{}{
+			"agent_id":   "",
+			"token":      "",
+			"registered": false,
+			"core_url":   "",
+			"last_sync":  time.Time{},
+			"updated_at": time.Now(),
+		}).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&monitorStateRecord{}).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
 func (s *Store) SetMaintenanceMode(enabled bool, reason *string) error {
 	record, err := s.getOrCreateAgentState()
 	if err != nil {

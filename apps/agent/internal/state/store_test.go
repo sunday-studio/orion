@@ -86,6 +86,41 @@ func TestStorePersistsRegistrationMaintenanceAndMonitors(t *testing.T) {
 	}
 }
 
+func TestStoreResetRegistrationKeepsMaintenance(t *testing.T) {
+	store := openTestStore(t)
+
+	if err := store.UpdateRegistration("agent-1", "token-1", "http://old-core"); err != nil {
+		t.Fatalf("UpdateRegistration() error = %v", err)
+	}
+	reason := "planned work"
+	if err := store.SetMaintenanceMode(true, &reason); err != nil {
+		t.Fatalf("SetMaintenanceMode() error = %v", err)
+	}
+	if err := store.ReplaceMonitors([]config.InternalStateMonitor{
+		{Name: "homepage", ID: "monitor-1", Status: "running", LastChecked: time.Now().UTC()},
+	}); err != nil {
+		t.Fatalf("ReplaceMonitors() error = %v", err)
+	}
+
+	if err := store.ResetRegistration(); err != nil {
+		t.Fatalf("ResetRegistration() error = %v", err)
+	}
+
+	state, err := store.Get()
+	if err != nil {
+		t.Fatalf("Get() error = %v", err)
+	}
+	if state.IsRegistered() || state.AgentID != "" || state.Token != "" || state.CoreURL != "" {
+		t.Fatalf("registration = %+v, want cleared", state)
+	}
+	if !state.MaintenanceMode || state.MaintenanceReason == nil || *state.MaintenanceReason != reason {
+		t.Fatalf("maintenance = %+v, want preserved", state)
+	}
+	if len(state.Monitors) != 0 {
+		t.Fatalf("monitors = %d, want reset", len(state.Monitors))
+	}
+}
+
 func openTestStore(t *testing.T) *Store {
 	t.Helper()
 

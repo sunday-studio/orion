@@ -50,6 +50,8 @@ func main() {
 		cli.HandleConfig(userConfigPath)
 	case "state":
 		cli.HandleState(internalStatePath)
+	case "reconfigure":
+		handleReconfigure()
 	default:
 		fmt.Printf("Unknown command: %s\n\n", command)
 		printUsage()
@@ -70,6 +72,7 @@ func printUsage() {
 	fmt.Println("  maintenance   Manage maintenance mode")
 	fmt.Println("                -up      Exit maintenance mode")
 	fmt.Println("                -down    Enter maintenance mode [reason]")
+	fmt.Println("  reconfigure   Reset local registration and reconnect using installed config")
 	fmt.Println("  config        Manage configuration")
 	fmt.Println("                validate  Validate config file")
 	fmt.Println("                diff     Show config diff")
@@ -86,6 +89,7 @@ func printUsage() {
 	fmt.Println("  orion-agent state init -state /var/lib/orion/state.db")
 	fmt.Println("  orion-agent status -state /var/lib/orion/state.db")
 	fmt.Println("  orion-agent run -config /etc/orion/config.yaml -state /var/lib/orion/state.db -once")
+	fmt.Println("  sudo orion-agent reconfigure")
 }
 
 func handleStart() {
@@ -251,6 +255,80 @@ func handleRun() {
 	}
 
 	cli.PrintOK("agent exited cleanly")
+}
+
+func handleReconfigure() {
+	if len(os.Args) > 1 {
+		fmt.Println("Usage: orion-agent reconfigure")
+		fmt.Println("Uses the installed/default config and state paths.")
+		os.Exit(1)
+	}
+
+	cli.PrintHeader("reconfigure")
+	cli.PrintInfo("config", *userConfigPath)
+	cli.PrintInfo("state", *internalStatePath)
+
+	cli.PrintStep("checking service")
+	wasRunning, status, err := cli.GetServiceStatus()
+	if err != nil {
+		logging.Fatalf("Failed to get service status: %v", err)
+	}
+	cli.PrintInfo("service_manager", cli.DetectServiceManager())
+	cli.PrintInfo("agent_service", status)
+
+	if wasRunning {
+		cli.PrintStep("stopping service")
+		if err := cli.StopService(); err != nil {
+			logging.Fatalf("Failed to stop service: %v", err)
+		}
+		cli.PrintOK("agent service stopped")
+	}
+
+	cli.PrintStep("loading config")
+	userConfig, err := config.LoadUserConfig(*userConfigPath)
+	if err != nil {
+		logging.Fatalf("Failed to load user config: %v", err)
+	}
+	cli.PrintOK(fmt.Sprintf("config loaded with %d monitor(s)", len(userConfig.Monitors)))
+	cli.PrintInfo("core_url", userConfig.CoreURL)
+
+	cli.PrintStep("opening state database")
+	stateStore, err := agentstate.Open(*internalStatePath)
+	if err != nil {
+		logging.Fatalf("Failed to open state database: %v", err)
+	}
+	defer stateStore.Close()
+	cli.PrintOK("state database ready")
+
+	cli.PrintStep("resetting local registration")
+	if err := stateStore.ResetRegistration(); err != nil {
+		logging.Fatalf("Failed to reset registration state: %v", err)
+	}
+	cli.PrintOK("local registration reset")
+
+	cli.PrintStep("registering agent and monitors")
+	registrationService := registration.New(userConfig, *userConfigPath, stateStore)
+	if err := registrationService.RegisterAgentIfNeeded(); err != nil {
+		logging.Fatalf("Failed to register agent & monitors: %v", err)
+	}
+	cli.PrintOK("registration complete")
+	if internalState, err := stateStore.Get(); err == nil {
+		cli.PrintInfo("registered", internalState.IsRegistered())
+		if internalState.AgentID != "" {
+			cli.PrintInfo("agent_id", internalState.AgentID)
+		}
+		cli.PrintInfo("monitor_mappings", len(internalState.Monitors))
+	}
+
+	if wasRunning {
+		cli.PrintStep("starting service")
+		if err := cli.StartService(); err != nil {
+			logging.Fatalf("Failed to start service: %v", err)
+		}
+		cli.PrintOK("agent service started")
+	} else {
+		cli.PrintSkip("service was not running before reconfigure")
+	}
 }
 
 func printServiceStatus() {
