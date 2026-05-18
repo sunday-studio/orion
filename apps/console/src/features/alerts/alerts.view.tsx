@@ -8,6 +8,16 @@ import {
   toNotificationStatus,
   toSeverity,
 } from "@/components/status-badges";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -21,19 +31,31 @@ import {
   type ApiAlertChannelResponse,
   type ApiAlertDeliveryResponse,
   type ApiAlertRuleResponse,
+  useCreateAlertChannel,
   useGetAlertChannels,
   useGetAlertDeliveries,
   useGetAlertRules,
 } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import type { ColumnDef } from "@tanstack/react-table";
+import { Plus } from "lucide-react";
 import { parseAsInteger, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
+import { type FormEvent, useState } from "react";
 
 const DELIVERY_LIMIT = 30;
 const alertTabs = ["logs", "channels", "rules"] as const;
 const deliveryStatuses = ["all", "pending", "sent", "failed", "suppressed", "cooldown"] as const;
 
 const boolLabel = (value?: boolean) => (value ? "yes" : "no");
+
+const getMutationErrorMessage = (error: unknown) => {
+  if (!error) return "";
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && "message" in error) {
+    return String((error as { message?: unknown }).message ?? "Unable to create webhook.");
+  }
+  return "Unable to create webhook.";
+};
 
 const configuredParts = (channel: {
   webhook_configured?: boolean;
@@ -164,6 +186,10 @@ const deliveryColumns: ColumnDef<ApiAlertDeliveryResponse>[] = [
 ];
 
 export const AlertsPage = () => {
+  const [isCreateWebhookOpen, setIsCreateWebhookOpen] = useState(false);
+  const [webhookName, setWebhookName] = useState("");
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [webhookEnabled, setWebhookEnabled] = useState(true);
   const [{ page, status, incident, tab }, setDeliveryQuery] = useQueryStates({
     page: parseAsInteger.withDefault(1),
     status: parseAsStringLiteral(deliveryStatuses).withDefault("all"),
@@ -174,6 +200,18 @@ export const AlertsPage = () => {
   const offset = (currentPage - 1) * DELIVERY_LIMIT;
   const channelsResponse = useGetAlertChannels();
   const rulesResponse = useGetAlertRules();
+  const createWebhook = useCreateAlertChannel({
+    mutation: {
+      onSuccess: () => {
+        setWebhookName("");
+        setWebhookUrl("");
+        setWebhookEnabled(true);
+        setIsCreateWebhookOpen(false);
+        void channelsResponse.refetch();
+        void rulesResponse.refetch();
+      },
+    },
+  });
   const deliveriesQuery = useGetAlertDeliveries({
     limit: DELIVERY_LIMIT,
     offset,
@@ -195,6 +233,21 @@ export const AlertsPage = () => {
   const setTab = (nextTab: string) => {
     if (!alertTabs.includes(nextTab as (typeof alertTabs)[number])) return;
     void setDeliveryQuery({ tab: nextTab as (typeof alertTabs)[number] });
+  };
+  const createWebhookError = getMutationErrorMessage(createWebhook.error);
+  const handleCreateWebhook = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const name = webhookName.trim();
+    const url = webhookUrl.trim();
+    if (!name || !url || createWebhook.isPending) return;
+    createWebhook.mutate({
+      data: {
+        name,
+        type: "webhook",
+        enabled: webhookEnabled,
+        webhook_url: url,
+      },
+    });
   };
 
   return (
@@ -266,11 +319,17 @@ export const AlertsPage = () => {
 
         <TabsContent value="channels">
           <section className="space-y-3">
-            <div>
-              <h2 className="text-sm font-medium">Channels</h2>
-              <p className="text-sm text-neutral-600">
-                Secrets are hidden. Configure channel values through Core environment variables.
-              </p>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-medium">Channels</h2>
+                <p className="text-sm text-neutral-600">
+                  Secrets are hidden. Add webhooks here and Core stores them for delivery.
+                </p>
+              </div>
+              <Button size="sm" onClick={() => setIsCreateWebhookOpen(true)}>
+                <Plus />
+                New webhook
+              </Button>
             </div>
             {channelsResponse.error && (
               <div className="text-sm">Unable to load alert channels.</div>
@@ -310,6 +369,67 @@ export const AlertsPage = () => {
           </section>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={isCreateWebhookOpen} onOpenChange={setIsCreateWebhookOpen}>
+        <DialogContent className="sm:max-w-md">
+          <form className="space-y-5" onSubmit={handleCreateWebhook}>
+            <DialogHeader>
+              <DialogTitle>New webhook</DialogTitle>
+              <DialogDescription>
+                Add a webhook channel for incident and recovery notifications.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3">
+              <label className="block space-y-1.5 text-sm">
+                <span className="font-medium">Name</span>
+                <Input
+                  value={webhookName}
+                  onChange={(event) => setWebhookName(event.target.value)}
+                  placeholder="ops-webhook"
+                  required
+                />
+              </label>
+              <label className="block space-y-1.5 text-sm">
+                <span className="font-medium">Webhook URL</span>
+                <Input
+                  value={webhookUrl}
+                  onChange={(event) => setWebhookUrl(event.target.value)}
+                  placeholder="https://example.com/webhook"
+                  required
+                  type="url"
+                />
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={webhookEnabled}
+                  onCheckedChange={(value) => setWebhookEnabled(value === true)}
+                />
+                <span>Enabled</span>
+              </label>
+              {createWebhookError && (
+                <div className="text-sm text-red-700">{createWebhookError}</div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="ghost"
+                onClick={() => setIsCreateWebhookOpen(false)}
+                disabled={createWebhook.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={createWebhook.isPending || !webhookName.trim() || !webhookUrl.trim()}
+              >
+                {createWebhook.isPending ? "Creating..." : "Create webhook"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
