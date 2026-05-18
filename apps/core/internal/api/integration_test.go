@@ -1051,6 +1051,68 @@ func TestListAllMonitorsAndSummaryUseDerivedStaleState(t *testing.T) {
 	}
 }
 
+func TestListAllMonitorsFiltersByComputedHealth(t *testing.T) {
+	server := setupTestServer(t)
+	agent := db.Agent{
+		ID:        "agent-computed-monitor-filter",
+		MachineId: "machine-computed-monitor-filter",
+		Name:      "computed monitor filter",
+		OS:        "linux",
+		Arch:      "arm64",
+		Token:     "token-computed-monitor-filter",
+		LastSeen:  time.Now(),
+	}
+	if err := server.db.Create(&agent).Error; err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+
+	monitor := db.Monitor{
+		ID:                       "monitor-computed-degraded-filter",
+		AgentID:                  agent.ID,
+		Name:                     "computed degraded filter",
+		Type:                     "http",
+		Lifecycle:                "active",
+		Health:                   "up",
+		ReportingIntervalSeconds: 60,
+		CreatedAt:                time.Now(),
+	}
+	if err := server.db.Create(&monitor).Error; err != nil {
+		t.Fatalf("create monitor: %v", err)
+	}
+
+	now := time.Now().UTC()
+	reports := []db.MonitorReport{
+		{ID: "report-computed-filter-1", MonitorID: monitor.ID, Payload: "{}", CollectedAt: now.Format(time.RFC3339), Health: "up", CreatedAt: now},
+		{ID: "report-computed-filter-2", MonitorID: monitor.ID, Payload: "{}", CollectedAt: now.Add(-1 * time.Minute).Format(time.RFC3339), Health: "up", CreatedAt: now.Add(-1 * time.Minute)},
+		{ID: "report-computed-filter-3", MonitorID: monitor.ID, Payload: "{}", CollectedAt: now.Add(-2 * time.Minute).Format(time.RFC3339), Health: "down", CreatedAt: now.Add(-2 * time.Minute)},
+		{ID: "report-computed-filter-4", MonitorID: monitor.ID, Payload: "{}", CollectedAt: now.Add(-3 * time.Minute).Format(time.RFC3339), Health: "down", CreatedAt: now.Add(-3 * time.Minute)},
+		{ID: "report-computed-filter-5", MonitorID: monitor.ID, Payload: "{}", CollectedAt: now.Add(-4 * time.Minute).Format(time.RFC3339), Health: "up", CreatedAt: now.Add(-4 * time.Minute)},
+	}
+	if err := server.db.Create(&reports).Error; err != nil {
+		t.Fatalf("create reports: %v", err)
+	}
+
+	resp := performJSONRequest(t, server, http.MethodGet, "/v1/monitors?health=degraded", nil, "")
+	if resp.Code != http.StatusOK {
+		t.Fatalf("computed degraded monitor list status = %d, body = %s", resp.Code, resp.Body.String())
+	}
+	var listed struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Monitors []struct {
+				ID             string `json:"id"`
+				Health         string `json:"health"`
+				ComputedHealth string `json:"computed_health"`
+			} `json:"monitors"`
+			Count int64 `json:"count"`
+		} `json:"data"`
+	}
+	decodeResponse(t, resp, &listed)
+	if !listed.Success || listed.Data.Count != 1 || listed.Data.Monitors[0].ID != monitor.ID || listed.Data.Monitors[0].Health != "degraded" || listed.Data.Monitors[0].ComputedHealth != "degraded" {
+		t.Fatalf("computed degraded monitor list = %+v, want computed degraded monitor", listed)
+	}
+}
+
 func TestMaintenanceSuppressesIncidentCandidates(t *testing.T) {
 	server := setupTestServer(t)
 	registered := registerTestAgent(t, server)

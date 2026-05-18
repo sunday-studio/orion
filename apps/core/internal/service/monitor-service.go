@@ -195,48 +195,16 @@ func (s *MonitorService) createNewMonitor(req *RegisterMonitorRequest) (*Registe
 }
 
 func (s *MonitorService) ListMonitors(agentID string, healthFilter string, lifecycleFilter string, limit int, offset int) ([]db.Monitor, error) {
-	var monitors []db.Monitor
-
-	staleMonitorIDs, err := s.staleMonitorIDs()
+	monitors, _, err := s.listAgentMonitors(agentID, healthFilter, lifecycleFilter)
 	if err != nil {
-		s.logger.Error("Failed to load stale monitor IDs", "error", err)
 		return nil, err
 	}
-	query := s.applyMonitorListFilters(s.db, agentID, healthFilter, lifecycleFilter, staleMonitorIDs)
-
-	query = query.Order("created_at DESC")
-
-	if limit > 0 {
-		query = query.Limit(limit)
-	}
-
-	if offset > 0 {
-		query = query.Offset(offset)
-	}
-
-	if err := query.Find(&monitors).Error; err != nil {
-		s.logger.Error("Failed to list monitors", "agent_id", agentID, "error", err)
-		return nil, err
-	}
-
-	s.logger.Debug("Retrieved monitors", "agent_id", agentID, "count", len(monitors))
-	return monitorsWithDerivedStaleHealth(monitors, staleMonitorIDs), nil
+	return paginateMonitors(monitors, limit, offset), nil
 }
 
 func (s *MonitorService) ListAllMonitors(opts ListAllMonitorsOpts) ([]db.Monitor, int64, error) {
 	var monitors []db.Monitor
-	staleMonitorIDs, err := s.staleMonitorIDs()
-	if err != nil {
-		s.logger.Error("Failed to load stale monitor IDs", "error", err)
-		return nil, 0, err
-	}
-	query := s.applyAllMonitorListFilters(s.db.Model(&db.Monitor{}), opts, staleMonitorIDs)
-
-	var count int64
-	if err := query.Count(&count).Error; err != nil {
-		s.logger.Error("Failed to count all monitors", "error", err)
-		return nil, 0, err
-	}
+	query := s.applyAllMonitorListFilters(s.db.Model(&db.Monitor{}), opts)
 
 	sortColumn := "updated_at"
 	switch strings.ToLower(strings.TrimSpace(opts.Sort)) {
@@ -251,19 +219,22 @@ func (s *MonitorService) ListAllMonitors(opts ListAllMonitorsOpts) ([]db.Monitor
 
 	query = query.Order(sortColumn + " " + order)
 
-	if opts.Limit > 0 {
-		query = query.Limit(opts.Limit)
-	}
-	if opts.Offset > 0 {
-		query = query.Offset(opts.Offset)
-	}
-
 	if err := query.Find(&monitors).Error; err != nil {
 		s.logger.Error("Failed to list all monitors", "error", err)
 		return nil, 0, err
 	}
 
-	return monitorsWithDerivedStaleHealth(monitors, staleMonitorIDs), count, nil
+	monitors, err := s.monitorsWithComputedHealth(monitors)
+	if err != nil {
+		return nil, 0, err
+	}
+	monitors = filterMonitorsByComputedHealth(monitors, opts.Health)
+	if opts.StaleOnly {
+		monitors = filterMonitorsByComputedHealth(monitors, "stale")
+	}
+
+	count := int64(len(monitors))
+	return paginateMonitors(monitors, opts.Limit, opts.Offset), count, nil
 }
 
 func (s *MonitorService) GetMonitorSummary() (MonitorSummary, error) {
@@ -325,7 +296,7 @@ func (s *MonitorService) GetMonitor(monitorID string) (*db.Monitor, error) {
 		s.logger.Error("Failed to get monitor", "monitor_id", monitorID, "error", err)
 		return nil, err
 	}
-	monitors, err := s.monitorsWithDerivedHealth([]db.Monitor{monitor})
+	monitors, err := s.monitorsWithComputedHealth([]db.Monitor{monitor})
 	if err != nil {
 		return nil, err
 	}
@@ -333,37 +304,30 @@ func (s *MonitorService) GetMonitor(monitorID string) (*db.Monitor, error) {
 }
 
 func (s *MonitorService) GetMonitorCount(agentID string, healthFilter string, lifecycleFilter string) (int64, error) {
-	var count int64
-	staleMonitorIDs, err := s.staleMonitorIDs()
-	if err != nil {
-		s.logger.Error("Failed to load stale monitor IDs", "error", err)
-		return 0, err
-	}
-	if err := s.applyMonitorListFilters(s.db.Model(&db.Monitor{}), agentID, healthFilter, lifecycleFilter, staleMonitorIDs).Count(&count).Error; err != nil {
-		s.logger.Error("Failed to count monitors", "agent_id", agentID, "error", err)
-		return 0, err
-	}
-	return count, nil
+	_, count, err := s.listAgentMonitors(agentID, healthFilter, lifecycleFilter)
+	return count, err
 }
 
-func (s *MonitorService) applyMonitorListFilters(query *gorm.DB, agentID string, healthFilter string, lifecycleFilter string, staleMonitorIDs []string) *gorm.DB {
-	query = query.Where("agent_id = ?", agentID)
-
-	if healthFilter != "" {
-		health := strings.ToLower(strings.TrimSpace(healthFilter))
-		if health == "stale" {
-			if len(staleMonitorIDs) == 0 {
-				query = query.Where("1 = 0")
-			} else {
-				query = query.Where("id IN ?", staleMonitorIDs)
-			}
-		} else {
-			query = query.Where("health = ?", healthFilter)
-			if len(staleMonitorIDs) > 0 {
-				query = query.Where("id NOT IN ?", staleMonitorIDs)
-			}
-		}
+func (s *MonitorService) listAgentMonitors(agentID string, healthFilter string, lifecycleFilter string) ([]db.Monitor, int64, error) {
+	var monitors []db.Monitor
+	query := s.applyMonitorListFilters(s.db, agentID, lifecycleFilter).Order("created_at DESC")
+	if err := query.Find(&monitors).Error; err != nil {
+		s.logger.Error("Failed to list monitors", "agent_id", agentID, "error", err)
+		return nil, 0, err
 	}
+
+	monitors, err := s.monitorsWithComputedHealth(monitors)
+	if err != nil {
+		return nil, 0, err
+	}
+	monitors = filterMonitorsByComputedHealth(monitors, healthFilter)
+
+	s.logger.Debug("Retrieved monitors", "agent_id", agentID, "count", len(monitors))
+	return monitors, int64(len(monitors)), nil
+}
+
+func (s *MonitorService) applyMonitorListFilters(query *gorm.DB, agentID string, lifecycleFilter string) *gorm.DB {
+	query = query.Where("agent_id = ?", agentID)
 
 	if lifecycleFilter != "" {
 		return query.Where("lifecycle = ?", lifecycleFilter)
@@ -372,7 +336,7 @@ func (s *MonitorService) applyMonitorListFilters(query *gorm.DB, agentID string,
 	return query.Where("lifecycle = ?", "active")
 }
 
-func (s *MonitorService) applyAllMonitorListFilters(query *gorm.DB, opts ListAllMonitorsOpts, staleMonitorIDs []string) *gorm.DB {
+func (s *MonitorService) applyAllMonitorListFilters(query *gorm.DB, opts ListAllMonitorsOpts) *gorm.DB {
 	if opts.Search != "" {
 		like := "%" + opts.Search + "%"
 		query = query.Where(
@@ -382,22 +346,6 @@ func (s *MonitorService) applyAllMonitorListFilters(query *gorm.DB, opts ListAll
 			like,
 			s.db.Model(&db.Agent{}).Select("id").Where("name LIKE ? OR machine_id LIKE ?", like, like),
 		)
-	}
-
-	health := strings.ToLower(strings.TrimSpace(opts.Health))
-	if opts.Health != "" {
-		if health == "stale" {
-			if len(staleMonitorIDs) == 0 {
-				query = query.Where("1 = 0")
-			} else {
-				query = query.Where("id IN ?", staleMonitorIDs)
-			}
-		} else {
-			query = query.Where("health = ?", opts.Health)
-			if len(staleMonitorIDs) > 0 {
-				query = query.Where("id NOT IN ?", staleMonitorIDs)
-			}
-		}
 	}
 
 	if opts.Lifecycle != "" {
@@ -410,14 +358,6 @@ func (s *MonitorService) applyAllMonitorListFilters(query *gorm.DB, opts ListAll
 		query = query.Where("LOWER(type) = ?", strings.ToLower(strings.TrimSpace(opts.Type)))
 	}
 
-	if opts.StaleOnly {
-		if len(staleMonitorIDs) == 0 {
-			query = query.Where("1 = 0")
-		} else {
-			query = query.Where("id IN ?", staleMonitorIDs)
-		}
-	}
-
 	if opts.HasIncidents {
 		query = query.Where(
 			"id IN (?)",
@@ -428,46 +368,51 @@ func (s *MonitorService) applyAllMonitorListFilters(query *gorm.DB, opts ListAll
 	return query
 }
 
-func (s *MonitorService) staleMonitorIDs() ([]string, error) {
-	healthService := NewHealthService(s.db, s.logger)
-	staleMonitors, err := healthService.DetectStaleMonitors(DefaultHealthConfig())
-	if err != nil {
-		return nil, err
-	}
-
-	monitorIDs := make([]string, 0, len(staleMonitors))
-	for _, monitor := range staleMonitors {
-		monitorIDs = append(monitorIDs, monitor.ID)
-	}
-	return monitorIDs, nil
-}
-
-func monitorsWithDerivedStaleHealth(monitors []db.Monitor, staleMonitorIDs []string) []db.Monitor {
-	if len(staleMonitorIDs) == 0 {
+func filterMonitorsByComputedHealth(monitors []db.Monitor, healthFilter string) []db.Monitor {
+	health := strings.ToLower(strings.TrimSpace(healthFilter))
+	if health == "" {
 		return monitors
 	}
 
-	staleMonitorIDSet := make(map[string]struct{}, len(staleMonitorIDs))
-	for _, monitorID := range staleMonitorIDs {
-		staleMonitorIDSet[monitorID] = struct{}{}
-	}
-
-	for index := range monitors {
-		if _, stale := staleMonitorIDSet[monitors[index].ID]; !stale {
-			continue
+	filtered := make([]db.Monitor, 0, len(monitors))
+	for _, monitor := range monitors {
+		if strings.ToLower(monitor.ComputedHealth) == health {
+			filtered = append(filtered, monitor)
 		}
-		monitors[index].Health = "stale"
-		monitors[index].ComputedHealth = "stale"
 	}
-
-	return monitors
+	return filtered
 }
 
-func (s *MonitorService) monitorsWithDerivedHealth(monitors []db.Monitor) ([]db.Monitor, error) {
-	staleMonitorIDs, err := s.staleMonitorIDs()
-	if err != nil {
-		s.logger.Error("Failed to derive monitor health", "error", err)
-		return nil, err
+func paginateMonitors(monitors []db.Monitor, limit int, offset int) []db.Monitor {
+	if limit <= 0 {
+		limit = 50
 	}
-	return monitorsWithDerivedStaleHealth(monitors, staleMonitorIDs), nil
+	if offset < 0 {
+		offset = 0
+	}
+	if offset >= len(monitors) {
+		return []db.Monitor{}
+	}
+
+	end := offset + limit
+	if end > len(monitors) {
+		end = len(monitors)
+	}
+	return monitors[offset:end]
+}
+
+func (s *MonitorService) monitorsWithComputedHealth(monitors []db.Monitor) ([]db.Monitor, error) {
+	healthService := NewHealthService(s.db, s.logger)
+	config := DefaultHealthConfig()
+
+	for index := range monitors {
+		health, err := healthService.ComputeMonitorHealth(monitors[index].ID, config)
+		if err != nil {
+			return nil, err
+		}
+		monitors[index].Health = health
+		monitors[index].ComputedHealth = health
+	}
+
+	return monitors, nil
 }
