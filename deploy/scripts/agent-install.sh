@@ -421,5 +421,5 @@ fi
 
 if [ -n "$INSTALLED_CONFIG_PATH" ]; then
   printf '%s\n' "Edit the Agent config at: $INSTALLED_CONFIG_PATH"
-  printf '%s\n' "This file is owned by the Agent service account; use sudo to update it."
+  printf '%s\n' "Agent commands prompt for privileges automatically when needed."
 fi

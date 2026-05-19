@@ -109,20 +109,23 @@ monitored host and that the host clock is correct.
 Linux:
 
 ```sh
-sudo orion-agent status
-sudo orion-agent restart
-sudo orion-agent logs
-sudo orion-agent logs -lines 200
+orion-agent status
+orion-agent restart
+orion-agent logs
+orion-agent logs -lines 200
 ```
 
 macOS:
 
 ```sh
-sudo orion-agent status
-sudo orion-agent restart
-sudo orion-agent logs
-sudo orion-agent logs -lines 200
+orion-agent status
+orion-agent restart
+orion-agent logs
+orion-agent logs -lines 200
 ```
+
+Installed Agent commands prompt for privileges when the operating system requires service,
+state database, or binary access. You do not need to prefix `orion-agent` commands with `sudo`.
 
 ## Docker Monitors On Linux
 
@@ -145,13 +148,13 @@ Docker monitors will report failures even when the containers are healthy.
 Use the installed Agent to update itself:
 
 ```sh
-sudo orion-agent update
+orion-agent update
 ```
 
 Pin a target release when needed:
 
 ```sh
-sudo orion-agent update -version 0.1.2
+orion-agent update -version 0.1.2
 ```
 
 The update command:
@@ -192,7 +195,7 @@ registration.
 Use the update command with the previous release version:
 
 ```sh
-sudo orion-agent update -version 0.1.1
+orion-agent update -version 0.1.1
 ```
 
 The command restarts the service and prints status/logs after the rollback.

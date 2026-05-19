@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestServiceRootErrorMentionsSudo(t *testing.T) {
+func TestServiceRootErrorMentionsPrivilegePrompt(t *testing.T) {
 	t.Parallel()
 
 	err := serviceRootError("start")
@@ -13,9 +13,12 @@ func TestServiceRootErrorMentionsSudo(t *testing.T) {
 		t.Fatal("serviceRootError() returned nil")
 	}
 
-	want := "sudo orion-agent start"
+	want := "orion-agent start"
 	if !strings.Contains(err.Error(), want) {
 		t.Fatalf("serviceRootError() = %q, want it to contain %q", err.Error(), want)
+	}
+	if strings.Contains(err.Error(), "sudo orion-agent") {
+		t.Fatalf("serviceRootError() = %q, should not ask users to type sudo", err.Error())
 	}
 }
 

@@ -136,20 +136,20 @@ Check the installed Agent:
 
 ```sh
 orion-agent version
-sudo orion-agent status
-sudo orion-agent logs
+orion-agent status
+orion-agent logs
 ```
 
 Run one collection cycle with the installed config and state:
 
 ```sh
-sudo orion-agent run -once
+orion-agent run -once
 ```
 
 Use verbose output when diagnosing registration, monitor collection, transport, or retry behavior:
 
 ```sh
-sudo orion-agent run -once -verbose
+orion-agent run -once -verbose
 ```
 
 Normal monitor config changes do not need a new install. Edit the installed config, then restart the
@@ -158,20 +158,20 @@ service so the Agent reconciles monitors by name.
 Linux:
 
 ```sh
-sudo orion-agent restart
+orion-agent restart
 ```
 
 macOS:
 
 ```sh
-sudo orion-agent restart
+orion-agent restart
 ```
 
 If you change `core_url`, point the Agent at a fresh Core database, or otherwise need a new Agent
 identity, use reconfigure:
 
 ```sh
-sudo orion-agent reconfigure
+orion-agent reconfigure
 ```
 
 Update the installed Agent binary while preserving config and state. The update command also resets
@@ -179,8 +179,8 @@ service failure throttles, starts the service again, prints service status, and 
 logs:
 
 ```sh
-sudo orion-agent update
-sudo orion-agent update -version 0.1.2
+orion-agent update
+orion-agent update -version 0.1.2
 ```
 
 See [Agent install and upgrade](docs/deployment/agent-install-upgrade.md) for service logs,

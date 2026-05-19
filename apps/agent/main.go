@@ -33,6 +33,9 @@ func main() {
 	}
 
 	command := os.Args[1]
+	if err := cli.EnsureCommandPrivilege(command, os.Args[2:]); err != nil {
+		logging.Fatalf("Failed to elevate privileges: %v", err)
+	}
 	os.Args = os.Args[1:] // Remove command from args for flag parsing
 
 	switch command {
@@ -103,14 +106,14 @@ func printUsage() {
 	fmt.Println("Common checks:")
 	fmt.Println("  orion-agent config validate")
 	fmt.Println("  orion-agent version")
-	fmt.Println("  sudo orion-agent update -version 0.1.2")
+	fmt.Println("  orion-agent update -version 0.1.2")
 	fmt.Println("  orion-agent state init")
 	fmt.Println("  orion-agent status")
-	fmt.Println("  sudo orion-agent logs")
-	fmt.Println("  sudo orion-agent run -once")
-	fmt.Println("  sudo orion-agent maintenance down \"updating configs\"")
-	fmt.Println("  sudo orion-agent maintenance up")
-	fmt.Println("  sudo orion-agent reconfigure")
+	fmt.Println("  orion-agent logs")
+	fmt.Println("  orion-agent run -once")
+	fmt.Println("  orion-agent maintenance down \"updating configs\"")
+	fmt.Println("  orion-agent maintenance up")
+	fmt.Println("  orion-agent reconfigure")
 }
 
 func printVersion() {

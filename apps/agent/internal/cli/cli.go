@@ -168,7 +168,7 @@ func PrintServiceDiagnostics(lines int) {
 }
 
 func serviceRootError(action string) error {
-	return fmt.Errorf("systemd service control requires root; rerun with sudo: sudo orion-agent %s", action)
+	return fmt.Errorf("systemd service control requires root; run orion-agent %s from an interactive shell so it can prompt for privileges", action)
 }
 
 func serviceCommandError(action string, output string) error {
