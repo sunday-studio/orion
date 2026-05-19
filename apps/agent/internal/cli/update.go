@@ -18,6 +18,7 @@ type UpdateOptions struct {
 	Repo           string
 	Version        string
 	CurrentVersion string
+	LogLines       int
 }
 
 func UpdateAgent(opts UpdateOptions) error {
@@ -28,6 +29,10 @@ func UpdateAgent(opts UpdateOptions) error {
 	version := strings.TrimSpace(opts.Version)
 	if version == "" {
 		version = "latest"
+	}
+	logLines := opts.LogLines
+	if logLines <= 0 {
+		logLines = 80
 	}
 
 	PrintHeader("update")
@@ -128,11 +133,11 @@ func UpdateAgent(opts UpdateOptions) error {
 
 	PrintStep("starting service")
 	if err := StartService(); err != nil {
-		PrintServiceDiagnostics(80)
+		PrintServiceDiagnostics(logLines)
 		return fmt.Errorf("start service after update: %w", err)
 	}
 	PrintOK("agent service started")
-	PrintServiceDiagnostics(80)
+	PrintServiceDiagnostics(logLines)
 
 	running, status, err := GetServiceStatus()
 	if err != nil {

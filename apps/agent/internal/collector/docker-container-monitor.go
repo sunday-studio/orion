@@ -3,6 +3,7 @@ package collector
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os/exec"
 	"strings"
 	"time"
@@ -35,13 +36,16 @@ type dockerInspectState struct {
 
 func RunDockerContainerMonitor(cfg DockerContainerConfig) *DockerContainerResult {
 	return runDockerContainerMonitorWithRunner(cfg, func(name string, args ...string) ([]byte, error) {
-		return exec.Command(name, args...).Output()
+		return exec.Command(name, args...).CombinedOutput()
 	})
 }
 
 func runDockerContainerMonitorWithRunner(cfg DockerContainerConfig, runner commandRunner) *DockerContainerResult {
 	output, err := runner("docker", "inspect", cfg.Name)
 	if err != nil {
+		if details := strings.TrimSpace(string(output)); details != "" {
+			err = fmt.Errorf("%w: %s", err, details)
+		}
 		return dockerContainerFailure("docker inspect failed", err)
 	}
 

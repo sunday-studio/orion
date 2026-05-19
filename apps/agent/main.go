@@ -23,6 +23,7 @@ var (
 	verbose           = flag.Bool("verbose", false, "Enable debug logging")
 	updateVersion     = flag.String("version", "latest", "Release version to install with update")
 	updateRepo        = flag.String("repo", "sunday-studio/orion", "GitHub repository to use with update")
+	logLines          = flag.Int("lines", 80, "Number of service log lines to show")
 )
 
 func main() {
@@ -47,6 +48,8 @@ func main() {
 		handleStatus()
 	case "restart":
 		handleRestart()
+	case "logs":
+		handleLogs()
 	case "update":
 		handleUpdate()
 	case "run":
@@ -76,6 +79,7 @@ func printUsage() {
 	fmt.Println("  stop          Stop the agent service")
 	fmt.Println("  status        Show agent service status")
 	fmt.Println("  restart       Restart the agent service")
+	fmt.Println("  logs          Show service status and recent logs")
 	fmt.Println("  update        Download and install a release binary")
 	fmt.Println("  run           Run the agent (for systemd/launchd)")
 	fmt.Println("  maintenance   Manage maintenance mode")
@@ -94,6 +98,7 @@ func printUsage() {
 	fmt.Println("  -once     Run once and exit (for debugging)")
 	fmt.Println("  -verbose  Enable debug logging")
 	fmt.Println("  -version  Release version for update (default: latest)")
+	fmt.Println("  -lines    Number of service log lines for logs/update diagnostics (default: 80)")
 	fmt.Println("")
 	fmt.Println("Common checks:")
 	fmt.Println("  orion-agent config validate")
@@ -101,6 +106,7 @@ func printUsage() {
 	fmt.Println("  sudo orion-agent update -version 0.1.2")
 	fmt.Println("  orion-agent state init")
 	fmt.Println("  orion-agent status")
+	fmt.Println("  sudo orion-agent logs")
 	fmt.Println("  sudo orion-agent run -once")
 	fmt.Println("  sudo orion-agent reconfigure")
 }
@@ -115,8 +121,15 @@ func handleStart() {
 	manager := cli.DetectServiceManager()
 	cli.PrintHeader("start")
 	cli.PrintInfo("service_manager", manager)
+	cli.PrintStep("resetting service failure state")
+	if err := cli.ResetServiceFailures(); err != nil {
+		cli.PrintSkip(fmt.Sprintf("could not reset service failure state: %v", err))
+	} else {
+		cli.PrintOK("service failure state reset")
+	}
 	cli.PrintStep("starting service")
 	if err := cli.StartService(); err != nil {
+		cli.PrintServiceDiagnostics(*logLines)
 		logging.Fatalf("Failed to start service: %v", err)
 	}
 	cli.PrintOK("agent service started")
@@ -195,19 +208,41 @@ func handleRestart() {
 	manager := cli.DetectServiceManager()
 	cli.PrintHeader("restart")
 	cli.PrintInfo("service_manager", manager)
+	cli.PrintStep("resetting service failure state")
+	if err := cli.ResetServiceFailures(); err != nil {
+		cli.PrintSkip(fmt.Sprintf("could not reset service failure state: %v", err))
+	} else {
+		cli.PrintOK("service failure state reset")
+	}
 	cli.PrintStep("restarting service")
 	if err := cli.RestartService(); err != nil {
+		cli.PrintServiceDiagnostics(*logLines)
 		logging.Fatalf("Failed to restart service: %v", err)
 	}
 	cli.PrintOK("agent service restarted")
+	cli.PrintServiceDiagnostics(*logLines)
 	printServiceStatus()
+}
+
+func handleLogs() {
+	flag.Parse()
+	configureLogging()
+	if flag.NArg() > 0 {
+		fmt.Println("Usage: orion-agent logs [-lines N]")
+		os.Exit(1)
+	}
+
+	cli.PrintHeader("logs")
+	cli.PrintInfo("service_manager", cli.DetectServiceManager())
+	cli.PrintInfo("lines", *logLines)
+	cli.PrintServiceDiagnostics(*logLines)
 }
 
 func handleUpdate() {
 	flag.Parse()
 	configureLogging()
 	if flag.NArg() > 0 {
-		fmt.Println("Usage: orion-agent update [-version VERSION]")
+		fmt.Println("Usage: orion-agent update [-version VERSION] [-lines N]")
 		os.Exit(1)
 	}
 
@@ -215,6 +250,7 @@ func handleUpdate() {
 		Repo:           *updateRepo,
 		Version:        *updateVersion,
 		CurrentVersion: agent.Version,
+		LogLines:       *logLines,
 	}); err != nil {
 		logging.Fatalf("Failed to update agent: %v", err)
 	}

@@ -109,17 +109,19 @@ monitored host and that the host clock is correct.
 Linux:
 
 ```sh
-sudo systemctl status orion-agent
-sudo systemctl restart orion-agent
-sudo journalctl -u orion-agent -f
+sudo orion-agent status
+sudo orion-agent restart
+sudo orion-agent logs
+sudo orion-agent logs -lines 200
 ```
 
 macOS:
 
 ```sh
-sudo launchctl print system/com.orion.agent
-sudo launchctl kickstart -k system/com.orion.agent
-tail -f /usr/local/var/log/orion-agent.log
+sudo orion-agent status
+sudo orion-agent restart
+sudo orion-agent logs
+sudo orion-agent logs -lines 200
 ```
 
 ## Docker Monitors On Linux

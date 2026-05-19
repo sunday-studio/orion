@@ -2,6 +2,7 @@ package collector
 
 import (
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -53,6 +54,23 @@ func TestRunDockerContainerMonitorWithRunner(t *testing.T) {
 		}
 		if result.Error == nil || result.Error.Message != "docker unavailable" {
 			t.Fatalf("error = %+v, want docker unavailable", result.Error)
+		}
+	})
+
+	t.Run("inspect failure includes docker stderr", func(t *testing.T) {
+		result := runDockerContainerMonitorWithRunner(
+			DockerContainerConfig{Name: "home-cms-1"},
+			func(name string, args ...string) ([]byte, error) {
+				assertDockerInspectCommand(t, name, args, "home-cms-1")
+				return []byte("Error: No such object: home-cms-1\n"), errors.New("exit status 1")
+			},
+		)
+
+		if result.Status != "down" {
+			t.Fatalf("status = %q, want down", result.Status)
+		}
+		if result.Error == nil || !strings.Contains(result.Error.Message, "No such object: home-cms-1") {
+			t.Fatalf("error = %+v, want docker stderr", result.Error)
 		}
 	})
 }

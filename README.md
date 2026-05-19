@@ -137,6 +137,7 @@ Check the installed Agent:
 ```sh
 orion-agent version
 sudo orion-agent status
+sudo orion-agent logs
 ```
 
 Run one collection cycle with the installed config and state:
@@ -157,13 +158,13 @@ service so the Agent reconciles monitors by name.
 Linux:
 
 ```sh
-sudo systemctl restart orion-agent
+sudo orion-agent restart
 ```
 
 macOS:
 
 ```sh
-sudo launchctl kickstart -k system/com.orion.agent
+sudo orion-agent restart
 ```
 
 If you change `core_url`, point the Agent at a fresh Core database, or otherwise need a new Agent
