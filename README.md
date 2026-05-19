@@ -173,7 +173,9 @@ identity, use reconfigure:
 sudo orion-agent reconfigure
 ```
 
-Update the installed Agent binary while preserving config and state:
+Update the installed Agent binary while preserving config and state. The update command also resets
+service failure throttles, starts the service again, prints service status, and shows recent service
+logs:
 
 ```sh
 sudo orion-agent update

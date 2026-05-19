@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"orion/agent/internal/logging"
@@ -123,6 +124,49 @@ func RestartService() error {
 	return StartService()
 }
 
+// ResetServiceFailures clears service-manager failure throttles after repeated crashes.
+func ResetServiceFailures() error {
+	manager := DetectServiceManager()
+
+	switch manager {
+	case "systemd":
+		if os.Geteuid() != 0 {
+			return serviceRootError("reset-failed")
+		}
+		cmd := exec.Command("systemctl", "reset-failed", "orion-agent")
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			return serviceCommandError("reset-failed", string(output))
+		}
+		return nil
+	case "launchd":
+		return nil
+	default:
+		return nil
+	}
+}
+
+// PrintServiceDiagnostics prints the same post-start details an operator would usually check.
+func PrintServiceDiagnostics(lines int) {
+	manager := DetectServiceManager()
+
+	switch manager {
+	case "systemd":
+		PrintStep("checking service status")
+		printCommandOutput("systemctl", "status", "orion-agent", "--no-pager")
+		PrintStep("showing recent service logs")
+		printCommandOutput("journalctl", "-u", "orion-agent", "-n", strconv.Itoa(lines), "--no-pager")
+	case "launchd":
+		PrintStep("checking service status")
+		printCommandOutput("launchctl", "print", "system/com.orion.agent")
+		PrintStep("showing recent service logs")
+		printCommandOutput("tail", "-n", strconv.Itoa(lines), "/usr/local/var/log/orion-agent.log")
+		printCommandOutput("tail", "-n", strconv.Itoa(lines), "/usr/local/var/log/orion-agent.error.log")
+	default:
+		PrintSkip("no service diagnostics available without a service manager")
+	}
+}
+
 func serviceRootError(action string) error {
 	return fmt.Errorf("systemd service control requires root; rerun with sudo: sudo orion-agent %s", action)
 }
@@ -136,4 +180,18 @@ func serviceCommandError(action string, output string) error {
 		return fmt.Errorf("failed to %s service", action)
 	}
 	return fmt.Errorf("failed to %s service: %s", action, message)
+}
+
+func printCommandOutput(name string, args ...string) {
+	cmd := exec.Command(name, args...)
+	output, err := cmd.CombinedOutput()
+	if len(output) > 0 {
+		fmt.Print(string(output))
+		if !strings.HasSuffix(string(output), "\n") {
+			fmt.Println()
+		}
+	}
+	if err != nil {
+		PrintSkip(fmt.Sprintf("%s %s failed: %v", name, strings.Join(args, " "), err))
+	}
 }

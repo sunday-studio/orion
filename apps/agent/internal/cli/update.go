@@ -119,14 +119,29 @@ func UpdateAgent(opts UpdateOptions) error {
 	}
 	PrintInfo("installed_version", installedVersion)
 
-	if wasRunning {
-		PrintStep("starting service")
-		if err := StartService(); err != nil {
-			return fmt.Errorf("start service after update: %w", err)
-		}
-		PrintOK("agent service started")
+	PrintStep("resetting service failure state")
+	if err := ResetServiceFailures(); err != nil {
+		PrintSkip(fmt.Sprintf("could not reset service failure state: %v", err))
 	} else {
-		PrintSkip("service was not running before update")
+		PrintOK("service failure state reset")
+	}
+
+	PrintStep("starting service")
+	if err := StartService(); err != nil {
+		PrintServiceDiagnostics(80)
+		return fmt.Errorf("start service after update: %w", err)
+	}
+	PrintOK("agent service started")
+	PrintServiceDiagnostics(80)
+
+	running, status, err := GetServiceStatus()
+	if err != nil {
+		return fmt.Errorf("read service status after update: %w", err)
+	}
+	if !running {
+		return fmt.Errorf("service is not running after update: %s", status)
+	} else {
+		PrintInfo("agent_service", status)
 	}
 
 	PrintOK("update complete")
