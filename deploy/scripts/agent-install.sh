@@ -214,6 +214,15 @@ initialize_state() {
   ok "initialized state database at $state_path"
 }
 
+install_binary() {
+  local binary="$1"
+
+  step "Binary"
+  run_cmd install -d -m 0755 "$INSTALL_DIR"
+  run_cmd install -m 0755 "$binary" "$INSTALL_DIR/orion-agent"
+  ok "install binary to $INSTALL_DIR/orion-agent"
+}
+
 configure_linux_docker_access() {
   step "Docker access"
   if getent group docker >/dev/null; then
@@ -250,9 +259,7 @@ install_linux() {
   run_cmd install -d -m 0750 -o "$LINUX_USER" -g "$LINUX_GROUP" "$state_dir"
   ok "prepared $config_dir and $state_dir"
 
-  step "Binary"
-  run_cmd install -m 0755 "$binary" "$INSTALL_DIR/orion-agent"
-  ok "install binary to $INSTALL_DIR/orion-agent"
+  install_binary "$binary"
 
   install_config "$INSTALLED_CONFIG_PATH" "$LINUX_USER" "$LINUX_GROUP"
   initialize_state "$state_path" "$LINUX_USER" "$LINUX_GROUP"
@@ -355,9 +362,7 @@ install_macos() {
   run_cmd install -d -m 0755 "$log_dir"
   ok "prepared $config_dir, $state_dir, and $log_dir"
 
-  step "Binary"
-  run_cmd install -m 0755 "$binary" "$INSTALL_DIR/orion-agent"
-  ok "install binary to $INSTALL_DIR/orion-agent"
+  install_binary "$binary"
 
   install_config "$INSTALLED_CONFIG_PATH" "$MACOS_USER" "$MACOS_GROUP"
   initialize_state "$state_path" "$MACOS_USER" "$MACOS_GROUP"
