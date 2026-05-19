@@ -363,7 +363,7 @@ func (s *MonitorService) applyAllMonitorListFilters(query *gorm.DB, opts ListAll
 	}
 
 	if opts.Type != "" {
-		query = query.Where("LOWER(type) = ?", strings.ToLower(strings.TrimSpace(opts.Type)))
+		query = query.Where("LOWER(type) = ?", normalizeMonitorTypeFilter(opts.Type))
 	}
 
 	if opts.HasIncidents {
@@ -374,6 +374,17 @@ func (s *MonitorService) applyAllMonitorListFilters(query *gorm.DB, opts ListAll
 	}
 
 	return query
+}
+
+func normalizeMonitorTypeFilter(monitorType string) string {
+	switch strings.ToLower(strings.TrimSpace(monitorType)) {
+	case "docker":
+		return "docker-container"
+	case "systemd":
+		return "systemd-service"
+	default:
+		return strings.ToLower(strings.TrimSpace(monitorType))
+	}
 }
 
 func filterMonitorsByComputedHealth(monitors []db.Monitor, healthFilter string) []db.Monitor {

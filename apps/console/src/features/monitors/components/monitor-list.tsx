@@ -39,8 +39,8 @@ const monitorTypeFilters = [
   "command",
   "pm2",
   "resource-threshold",
-  "docker",
-  "systemd",
+  "docker-container",
+  "systemd-service",
   "internal-service",
   "http",
 ] as const;
@@ -53,8 +53,8 @@ const monitorTypeOptions: Array<{ value: (typeof monitorTypeFilters)[number]; la
   { value: "command", label: "Command" },
   { value: "pm2", label: "PM2" },
   { value: "resource-threshold", label: "Resource threshold" },
-  { value: "docker", label: "Docker" },
-  { value: "systemd", label: "Systemd" },
+  { value: "docker-container", label: "Docker" },
+  { value: "systemd-service", label: "Systemd" },
   { value: "internal-service", label: "Internal service" },
   { value: "http", label: "HTTP" },
 ];

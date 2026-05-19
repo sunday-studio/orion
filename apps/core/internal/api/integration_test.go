@@ -1060,6 +1060,73 @@ func TestListAllMonitorsAndSummaryUseDerivedStaleState(t *testing.T) {
 	}
 }
 
+func TestListAllMonitorsFiltersCanonicalMonitorTypeAliases(t *testing.T) {
+	server := setupTestServer(t)
+	agent := db.Agent{
+		ID:        "agent-monitor-type-aliases",
+		MachineId: "machine-monitor-type-aliases",
+		Name:      "monitor type aliases",
+		OS:        "linux",
+		Arch:      "arm64",
+		Token:     "token-monitor-type-aliases",
+		LastSeen:  time.Now(),
+	}
+	if err := server.db.Create(&agent).Error; err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+
+	monitors := []db.Monitor{
+		{
+			ID:        "monitor-docker-container-type",
+			AgentID:   agent.ID,
+			Name:      "docker container type",
+			Type:      "docker-container",
+			Lifecycle: "active",
+			Health:    "up",
+		},
+		{
+			ID:        "monitor-systemd-service-type",
+			AgentID:   agent.ID,
+			Name:      "systemd service type",
+			Type:      "systemd-service",
+			Lifecycle: "active",
+			Health:    "up",
+		},
+	}
+	if err := server.db.Create(&monitors).Error; err != nil {
+		t.Fatalf("create monitors: %v", err)
+	}
+
+	for _, tc := range []struct {
+		query string
+		want  string
+	}{
+		{query: "docker-container", want: "monitor-docker-container-type"},
+		{query: "docker", want: "monitor-docker-container-type"},
+		{query: "systemd-service", want: "monitor-systemd-service-type"},
+		{query: "systemd", want: "monitor-systemd-service-type"},
+	} {
+		resp := performJSONRequest(t, server, http.MethodGet, "/v1/monitors?type="+tc.query, nil, "")
+		if resp.Code != http.StatusOK {
+			t.Fatalf("type %q monitor list status = %d, body = %s", tc.query, resp.Code, resp.Body.String())
+		}
+		var listed struct {
+			Success bool `json:"success"`
+			Data    struct {
+				Monitors []struct {
+					ID   string `json:"id"`
+					Type string `json:"type"`
+				} `json:"monitors"`
+				Count int64 `json:"count"`
+			} `json:"data"`
+		}
+		decodeResponse(t, resp, &listed)
+		if !listed.Success || listed.Data.Count != 1 || listed.Data.Monitors[0].ID != tc.want {
+			t.Fatalf("type %q monitor list = %+v, want %s", tc.query, listed, tc.want)
+		}
+	}
+}
+
 func TestListAllMonitorsFiltersByComputedHealth(t *testing.T) {
 	server := setupTestServer(t)
 	agent := db.Agent{
