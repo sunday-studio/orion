@@ -137,7 +137,7 @@ resolve_binary() {
 }
 
 write_minimal_config() {
-  config_path="$1"
+  local config_path="$1"
   if [ -z "$CORE_URL" ]; then
     printf '%s\n' "--core-url is required when --config is not provided." >&2
     exit 1
@@ -151,9 +151,10 @@ write_minimal_config() {
 }
 
 install_config() {
-  config_path="$1"
-  owner="$2"
-  group="$3"
+  local config_path="$1"
+  local owner="$2"
+  local group="$3"
+  local tmp_config=""
 
   step "Config"
   if [ -f "$config_path" ] && [ "$OVERWRITE_CONFIG" != "true" ]; then
@@ -183,9 +184,9 @@ install_config() {
 }
 
 initialize_state() {
-  state_path="$1"
-  owner="$2"
-  group="$3"
+  local state_path="$1"
+  local owner="$2"
+  local group="$3"
 
   step "State database"
   if [ "$DRY_RUN" = "true" ]; then
