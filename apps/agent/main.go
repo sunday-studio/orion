@@ -35,6 +35,8 @@ func main() {
 	switch command {
 	case "help", "-h", "--help":
 		printUsage()
+	case "version", "-v", "--version":
+		printVersion()
 	case "start":
 		handleStart()
 	case "stop":
@@ -66,6 +68,7 @@ func printUsage() {
 	fmt.Println("")
 	fmt.Println("Commands:")
 	fmt.Println("  start         Start the agent service")
+	fmt.Println("  version       Print agent version")
 	fmt.Println("  stop          Stop the agent service")
 	fmt.Println("  status        Show agent service status")
 	fmt.Println("  restart       Restart the agent service")
@@ -88,10 +91,15 @@ func printUsage() {
 	fmt.Println("")
 	fmt.Println("Common checks:")
 	fmt.Println("  orion-agent config validate -config /etc/orion/config.yaml")
+	fmt.Println("  orion-agent version")
 	fmt.Println("  orion-agent state init -state /var/lib/orion/state.db")
 	fmt.Println("  orion-agent status -state /var/lib/orion/state.db")
 	fmt.Println("  orion-agent run -config /etc/orion/config.yaml -state /var/lib/orion/state.db -once")
 	fmt.Println("  sudo orion-agent reconfigure")
+}
+
+func printVersion() {
+	fmt.Printf("orion-agent %s\n", agent.Version)
 }
 
 func handleStart() {
