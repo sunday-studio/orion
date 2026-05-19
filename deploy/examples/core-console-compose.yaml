@@ -3,7 +3,7 @@
 # ORION_CORS_ORIGINS is only needed for separate Console/custom-origin API access.
 services:
   orion-core:
-    image: ${ORION_CORE_IMAGE:-ghcr.io/sunday-studio/orion-core:v0.1.0}
+    image: ${ORION_CORE_IMAGE:-ghcr.io/sunday-studio/orion-core:latest}
     container_name: orion-core
     restart: unless-stopped
     ports:
