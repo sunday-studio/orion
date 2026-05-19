@@ -39,22 +39,25 @@ flowchart LR
 - **Core** receives reports, stores data, derives health, manages incidents, and serves the API.
 - **Console** is the web UI for incidents, agents, monitors, alerts, logs, and settings.
 
-## Quick Start
+## Deploy
 
-### 1. Deploy Core
+### Core
 
-Core and Console are shipped together in one Docker image. The quickest setup is the sample Compose file:
+Deploy Core and Console together from the published Docker image. Core stores data in `/data`, so
+mount that path to persistent storage.
+
+With Docker Compose:
 
 ```sh
-curl -fsSL -o orion-compose.yaml \
-  https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/examples/core-console-compose.yaml
+curl -fsSL -o orion-compose.yml \
+  https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/docker-compose.yml
 ```
 
-Optionally pin a release image and set stronger admin credentials:
+Create a `.env` file next to `orion-compose.yml`:
 
 ```sh
 cat > .env <<'EOF'
-ORION_CORE_IMAGE=ghcr.io/sunday-studio/orion-core:v0.1.0
+ORION_CORE_IMAGE=ghcr.io/sunday-studio/orion-core:<version>
 ORION_HTTP_PORT=8999
 ORION_ADMIN_USERNAME=admin
 ORION_ADMIN_PASSWORD=replace-with-a-strong-password
@@ -62,67 +65,122 @@ ORION_JWT_SECRET=replace-with-a-long-random-secret
 EOF
 ```
 
-Then start Core. If you skip the `.env` file, Compose uses the defaults in `orion-compose.yaml`.
+Start it:
 
 ```sh
-docker compose -f orion-compose.yaml up -d
+docker compose -f orion-compose.yml up -d
 ```
 
-From this repository, you can also run the example directly:
+With plain Docker:
 
 ```sh
-cd deploy/examples
-docker compose -f ./core-console-compose up -d
+docker run -d \
+  --name orion-core \
+  --restart unless-stopped \
+  -p 8999:8999 \
+  -v orion-data:/data \
+  -e ORION_DATA_DIR=/data \
+  -e ORION_PORT=8999 \
+  -e ORION_ADMIN_USERNAME=admin \
+  -e ORION_ADMIN_PASSWORD='replace-with-a-strong-password' \
+  -e ORION_JWT_SECRET='replace-with-a-long-random-secret' \
+  ghcr.io/sunday-studio/orion-core:<version>
 ```
 
-When Core serves the bundled Console, browser API calls stay on the same origin and do not need
-CORS. Set `ORION_CORS_ORIGINS` only when a separately hosted Console or custom browser origin calls
-this Core API.
+Expose Core through a stable URL that Agents can reach, then open that URL in the browser. See
+[Core Docker deployment](docs/deployment/core-docker.md) for backup, CORS, and upgrade details.
 
-If Docker reports `unauthorized` while pulling from `ghcr.io`, the Core image package is private or
-the requested tag was not published. Make the GHCR package public for copy/paste installs, or run
-`docker login ghcr.io` with a token that has package read access.
+### Agent
 
-Open `http://localhost:8999`.
-
-### 2. Install an Agent
-
-Install the Agent on each machine you want to monitor. Use a Core URL the Agent host can reach:
+Install the Agent on each Linux or macOS host you want to monitor. Use the Core URL that host can
+reach:
 
 ```sh
-curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash
-```
-
-The installer prompts for the Core URL and uses `sudo` only when it needs to install the service.
-
-Or start from the sample Agent config:
-
-```sh
-curl -fsSL -o orion-agent-config.yaml \
-  https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-config.yaml
-
-# Edit core_url and monitor checks, then install:
 curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash -s -- \
-  --config ./orion-agent-config.yaml
+  --core-url https://core.your-domain.tld
 ```
+
+Pin a release when you want reproducible installs:
+
+```sh
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash -s -- \
+  --version v0.1.0 \
+  --core-url https://core.your-domain.tld
+```
+
+The installer creates an editable config with the Core URL, a default reporting interval, location
+collection disabled, and no monitor checks:
+
+```yaml
+core_url: https://core.your-domain.tld
+interval: 60s
+geo_location: false
+monitors: []
+```
+
+Add monitor checks to the installed config when you are ready to track services.
 
 The Agent keeps local runtime state in SQLite:
 
-- Linux: `/var/lib/orion/state.db`
-- macOS: `/usr/local/var/lib/orion/state.db`
+- Linux config: `/etc/orion/config.yaml`
+- Linux state: `/var/lib/orion/state.db`
+- macOS config: `/usr/local/etc/orion/config.yaml`
+- macOS state: `/usr/local/var/lib/orion/state.db`
 
 Do not delete `state.db` during a normal upgrade. It contains the Agent identity, token,
 maintenance state, and monitor mapping.
 
-### 3. Check the Install
+## Operate
 
-In Console:
+Check the installed Agent:
 
-- open **Agents** and confirm the host appears;
-- open the Agent detail page and confirm reports are arriving;
-- add monitor config on the Agent host when you are ready to track services.
+```sh
+orion-agent version
+sudo orion-agent status
+```
 
-See [Agent install and upgrade](docs/deployment/agent-install-upgrade.md) for service commands,
+Run one collection cycle with the installed config and state:
+
+```sh
+sudo orion-agent run -once
+```
+
+Use verbose output when diagnosing registration, monitor collection, transport, or retry behavior:
+
+```sh
+sudo orion-agent run -once -verbose
+```
+
+Normal monitor config changes do not need a new install. Edit the installed config, then restart the
+service so the Agent reconciles monitors by name.
+
+Linux:
+
+```sh
+sudo systemctl restart orion-agent
+```
+
+macOS:
+
+```sh
+sudo launchctl kickstart -k system/com.orion.agent
+```
+
+If you change `core_url`, point the Agent at a fresh Core database, or otherwise need a new Agent
+identity, use reconfigure:
+
+```sh
+sudo orion-agent reconfigure
+```
+
+Update the installed Agent binary while preserving config and state:
+
+```sh
+sudo orion-agent update
+sudo orion-agent update -version v0.1.1
+```
+
+See [Agent install and upgrade](docs/deployment/agent-install-upgrade.md) for service logs,
 rollback, Docker monitor permissions, and local network notes.
 
 ## Monitor Types
@@ -141,17 +199,20 @@ Supported checks:
 
 See [Agent monitors](docs/architecture/agent-monitors.md) for config details.
 
-## Development
+## Running Locally
 
-Run local tests and builds:
+Runtime examples live under `deploy/examples/`. Use them for local smoke tests or as a starting
+point for your own Compose file.
+
+Run the bundled Core and Console example from this repository:
 
 ```sh
-cd apps/core && go test ./...
-cd apps/agent && go test ./...
-cd apps/console && npm run build
+cd deploy/examples
+docker compose -f ./core-console-compose up -d
+curl http://localhost:8999/health
 ```
 
-Run the Console dev server against a local Core:
+Run the Console dev server against local Core:
 
 ```sh
 cd apps/console
@@ -169,7 +230,17 @@ make seed-demo-data
 
 This writes to `apps/core/data/orion.db`.
 
-## Common Commands
+## Development
+
+Run tests and builds:
+
+```sh
+cd apps/core && go test ./...
+cd apps/agent && go test ./...
+cd apps/console && npm run build
+```
+
+Common maintainer commands:
 
 ```sh
 make generate-openapi

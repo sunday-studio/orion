@@ -21,6 +21,8 @@ var (
 	internalStatePath = flag.String("state", agentstate.DefaultPath(), "Path to SQLite state database")
 	once              = flag.Bool("once", false, "Run once and exit (for debugging)")
 	verbose           = flag.Bool("verbose", false, "Enable debug logging")
+	updateVersion     = flag.String("version", "latest", "Release version to install with update")
+	updateRepo        = flag.String("repo", "sunday-studio/orion", "GitHub repository to use with update")
 )
 
 func main() {
@@ -45,6 +47,8 @@ func main() {
 		handleStatus()
 	case "restart":
 		handleRestart()
+	case "update":
+		handleUpdate()
 	case "run":
 		handleRun()
 	case "maintenance":
@@ -72,6 +76,7 @@ func printUsage() {
 	fmt.Println("  stop          Stop the agent service")
 	fmt.Println("  status        Show agent service status")
 	fmt.Println("  restart       Restart the agent service")
+	fmt.Println("  update        Download and install a release binary")
 	fmt.Println("  run           Run the agent (for systemd/launchd)")
 	fmt.Println("  maintenance   Manage maintenance mode")
 	fmt.Println("                -up      Exit maintenance mode")
@@ -88,10 +93,12 @@ func printUsage() {
 	fmt.Println("  -state    Path to SQLite state database (default: state.db)")
 	fmt.Println("  -once     Run once and exit (for debugging)")
 	fmt.Println("  -verbose  Enable debug logging")
+	fmt.Println("  -version  Release version for update (default: latest)")
 	fmt.Println("")
 	fmt.Println("Common checks:")
 	fmt.Println("  orion-agent config validate -config /etc/orion/config.yaml")
 	fmt.Println("  orion-agent version")
+	fmt.Println("  sudo orion-agent update -version v0.1.1")
 	fmt.Println("  orion-agent state init -state /var/lib/orion/state.db")
 	fmt.Println("  orion-agent status -state /var/lib/orion/state.db")
 	fmt.Println("  orion-agent run -config /etc/orion/config.yaml -state /var/lib/orion/state.db -once")
@@ -188,6 +195,23 @@ func handleRestart() {
 	}
 	cli.PrintOK("agent service restarted")
 	printServiceStatus()
+}
+
+func handleUpdate() {
+	flag.Parse()
+	configureLogging()
+	if flag.NArg() > 0 {
+		fmt.Println("Usage: orion-agent update [-version VERSION]")
+		os.Exit(1)
+	}
+
+	if err := cli.UpdateAgent(cli.UpdateOptions{
+		Repo:           *updateRepo,
+		Version:        *updateVersion,
+		CurrentVersion: agent.Version,
+	}); err != nil {
+		logging.Fatalf("Failed to update agent: %v", err)
+	}
 }
 
 func handleRun() {
