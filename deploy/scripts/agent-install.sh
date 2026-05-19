@@ -16,6 +16,7 @@ START_SERVICE="true"
 OVERWRITE_CONFIG="false"
 DRY_RUN="false"
 INSTALL_STEP=0
+INSTALLED_CONFIG_PATH=""
 
 usage() {
   printf '%s\n' "Usage: sudo ./deploy/scripts/agent-install.sh --core-url http://core:8999 [options]"
@@ -201,6 +202,7 @@ initialize_state() {
 install_linux() {
   binary="$1"
   config_dir="/etc/orion"
+  INSTALLED_CONFIG_PATH="$config_dir/config.yaml"
   state_dir="/var/lib/orion"
   state_path="$state_dir/state.db"
 
@@ -227,7 +229,7 @@ install_linux() {
   run_cmd install -m 0755 "$binary" "$INSTALL_DIR/orion-agent"
   ok "install binary to $INSTALL_DIR/orion-agent"
 
-  install_config "$config_dir/config.yaml" "$LINUX_USER" "$LINUX_GROUP"
+  install_config "$INSTALLED_CONFIG_PATH" "$LINUX_USER" "$LINUX_GROUP"
   initialize_state "$state_path" "$LINUX_USER" "$LINUX_GROUP"
 
   step "Systemd service"
@@ -312,6 +314,7 @@ ensure_macos_account() {
 install_macos() {
   binary="$1"
   config_dir="/usr/local/etc/orion"
+  INSTALLED_CONFIG_PATH="$config_dir/config.yaml"
   state_dir="/usr/local/var/lib/orion"
   state_path="$state_dir/state.db"
   log_dir="/usr/local/var/log"
@@ -330,7 +333,7 @@ install_macos() {
   run_cmd install -m 0755 "$binary" "$INSTALL_DIR/orion-agent"
   ok "install binary to $INSTALL_DIR/orion-agent"
 
-  install_config "$config_dir/config.yaml" "$MACOS_USER" "$MACOS_GROUP"
+  install_config "$INSTALLED_CONFIG_PATH" "$MACOS_USER" "$MACOS_GROUP"
   initialize_state "$state_path" "$MACOS_USER" "$MACOS_GROUP"
 
   step "Launchd service"
@@ -388,4 +391,9 @@ elif [ "$START_SERVICE" = "true" ]; then
 else
   printf '%s\n' "Orion Agent installed."
   printf '%s\n' "Service installed but not started."
+fi
+
+if [ -n "$INSTALLED_CONFIG_PATH" ]; then
+  printf '%s\n' "Edit the Agent config at: $INSTALLED_CONFIG_PATH"
+  printf '%s\n' "This file is owned by the Agent service account; use sudo to update it."
 fi

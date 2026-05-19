@@ -55,10 +55,13 @@ func StartService() error {
 
 	switch manager {
 	case "systemd":
+		if os.Geteuid() != 0 {
+			return serviceRootError("start")
+		}
 		cmd := exec.Command("systemctl", "start", "orion-agent")
 		output, err := cmd.CombinedOutput()
 		if err != nil {
-			return fmt.Errorf("failed to start service: %s", string(output))
+			return serviceCommandError("start", string(output))
 		}
 		logging.Infof("Service started successfully")
 		return nil
@@ -86,10 +89,13 @@ func StopService() error {
 
 	switch manager {
 	case "systemd":
+		if os.Geteuid() != 0 {
+			return serviceRootError("stop")
+		}
 		cmd := exec.Command("systemctl", "stop", "orion-agent")
 		output, err := cmd.CombinedOutput()
 		if err != nil {
-			return fmt.Errorf("failed to stop service: %s", string(output))
+			return serviceCommandError("stop", string(output))
 		}
 		logging.Infof("Service stopped successfully")
 		return nil
@@ -115,4 +121,19 @@ func RestartService() error {
 		logging.Warnf("Error stopping service (may not be running): %v", err)
 	}
 	return StartService()
+}
+
+func serviceRootError(action string) error {
+	return fmt.Errorf("systemd service control requires root; rerun with sudo: sudo orion-agent %s", action)
+}
+
+func serviceCommandError(action string, output string) error {
+	message := strings.TrimSpace(output)
+	if strings.Contains(message, "Unit orion-agent.service not found") {
+		return fmt.Errorf("orion-agent systemd service is not installed; run the Agent installer to create /etc/systemd/system/orion-agent.service, or use orion-agent run -once for a one-shot check")
+	}
+	if message == "" {
+		return fmt.Errorf("failed to %s service", action)
+	}
+	return fmt.Errorf("failed to %s service: %s", action, message)
 }

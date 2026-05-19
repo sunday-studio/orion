@@ -110,6 +110,8 @@ func printVersion() {
 }
 
 func handleStart() {
+	flag.Parse()
+	configureLogging()
 	manager := cli.DetectServiceManager()
 	cli.PrintHeader("start")
 	cli.PrintInfo("service_manager", manager)
@@ -122,6 +124,8 @@ func handleStart() {
 }
 
 func handleStop() {
+	flag.Parse()
+	configureLogging()
 	manager := cli.DetectServiceManager()
 	cli.PrintHeader("stop")
 	cli.PrintInfo("service_manager", manager)
@@ -186,6 +190,8 @@ func handleStatus() {
 }
 
 func handleRestart() {
+	flag.Parse()
+	configureLogging()
 	manager := cli.DetectServiceManager()
 	cli.PrintHeader("restart")
 	cli.PrintInfo("service_manager", manager)

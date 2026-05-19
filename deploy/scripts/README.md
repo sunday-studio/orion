@@ -22,6 +22,9 @@ All scripts should be run with appropriate permissions (often requires root/sudo
 # Install from a published release
 curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash
 
-# Run uninstall script
+# Uninstall from a published release
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-uninstall.sh | sudo bash
+
+# Run uninstall script from a local checkout
 sudo ./deploy/scripts/agent-uninstall.sh
 ```

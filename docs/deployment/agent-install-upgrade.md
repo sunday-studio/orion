@@ -176,7 +176,13 @@ Then verify the service is active and reports are arriving.
 
 ## Uninstall
 
-The uninstall helper is intended for local checkouts or downloaded release bundles:
+Uninstall from the published release:
+
+```sh
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-uninstall.sh | sudo bash
+```
+
+Or run the helper from a local checkout:
 
 ```sh
 sudo ./deploy/scripts/agent-uninstall.sh

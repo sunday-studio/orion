@@ -80,10 +80,11 @@ jobs:
         run: |
           cp deploy/scripts/agent-bootstrap.sh dist/orion-agent-installer.sh
           cp deploy/scripts/agent-install.sh dist/orion-agent-install.sh
+          cp deploy/scripts/agent-uninstall.sh dist/orion-agent-uninstall.sh
           cp deploy/systemd/orion-agent.service dist/orion-agent-systemd.service
           cp deploy/launchd/com.orion.agent.plist dist/com.orion.agent.plist
           cp deploy/examples/home-server-config.yaml dist/orion-agent-config.yaml
-          chmod 0755 dist/orion-agent-installer.sh dist/orion-agent-install.sh
+          chmod 0755 dist/orion-agent-installer.sh dist/orion-agent-install.sh dist/orion-agent-uninstall.sh
 
       - name: Publish release
         uses: softprops/action-gh-release@v2

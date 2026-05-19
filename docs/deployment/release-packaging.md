@@ -49,6 +49,7 @@ This creates or updates the GitHub release and uploads:
 ```txt
 orion-agent-installer.sh
 orion-agent-install.sh
+orion-agent-uninstall.sh
 orion-agent-systemd.service
 orion-agent-config.yaml
 com.orion.agent.plist
