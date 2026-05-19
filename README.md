@@ -104,7 +104,7 @@ Pin a release when you want reproducible installs:
 
 ```sh
 curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash -s -- \
-  --version v0.1.0 \
+  --version 0.1.2 \
   --core-url https://core.your-domain.tld
 ```
 
@@ -179,7 +179,7 @@ logs:
 
 ```sh
 sudo orion-agent update
-sudo orion-agent update -version v0.1.1
+sudo orion-agent update -version 0.1.2
 ```
 
 See [Agent install and upgrade](docs/deployment/agent-install-upgrade.md) for service logs,
@@ -247,7 +247,7 @@ Common maintainer commands:
 ```sh
 make generate-openapi
 make generate-sdk
-make agent-build VERSION=v0.1.0
+make agent-build VERSION=0.1.2
 ```
 
 OpenAPI is generated from Core route annotations. Do not edit `apps/core/openapi.yaml` or the

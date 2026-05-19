@@ -24,11 +24,12 @@ macOS:
 Use this when you only want the Agent to register and report basic host metrics first:
 
 ```sh
-curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash -s -- \
+  --core-url https://core.your-domain.tld
 ```
 
-The installer prompts for the Core URL and uses `sudo` only when it needs to install the service.
-Enter a Core URL the Agent host can reach.
+The installer uses `sudo` only when it needs to install the service. Use a Core URL the Agent host
+can reach.
 
 Common examples:
 
@@ -83,8 +84,8 @@ By default, the release binary is downloaded from the latest GitHub release:
 https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-<os>-<arch>
 ```
 
-The Agent binary reports its own baked version to Core. Pass `--version` only when you want to pin
-a specific release for upgrade or rollback:
+The Agent binary reports its own baked version to Core. Pass `--version` when you want to pin the
+initial install to a specific release:
 
 ```txt
 https://github.com/sunday-studio/orion/releases/download/<version>/orion-agent-<os>-<arch>
@@ -138,17 +139,40 @@ If your host uses a custom Docker socket path or rootless Docker, configure the 
 permissions so the `orion` user can run `docker inspect <container>` successfully. Without this,
 Docker monitors will report failures even when the containers are healthy.
 
-## Upgrade
+## Update
 
-Run the bootstrap installer again with the new release version:
+Use the installed Agent to update itself:
 
 ```sh
-curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash -s -- \
-  --config ./orion-agent-config.yaml \
-  --version v0.1.1
+sudo orion-agent update
 ```
 
-The Agent identity and monitor mapping live in `state.db`, so replacing the binary does not
+Pin a target release when needed:
+
+```sh
+sudo orion-agent update -version 0.1.2
+```
+
+The update command:
+
+- downloads the matching release binary for the host OS and CPU architecture;
+- backs up the current binary next to `/usr/local/bin/orion-agent`;
+- replaces only the binary;
+- keeps the installed config and `state.db`;
+- resets service failure throttles;
+- starts the Agent service;
+- prints service status and recent service logs.
+
+On Linux this includes the equivalent of:
+
+```sh
+sudo systemctl reset-failed orion-agent
+sudo systemctl start orion-agent
+sudo systemctl status orion-agent --no-pager
+sudo journalctl -u orion-agent -n 80 --no-pager
+```
+
+The Agent identity and monitor mapping live in `state.db`, so updating the binary does not
 re-register the server unless that state file is removed.
 
 After an upgrade, confirm:
@@ -164,15 +188,21 @@ registration.
 
 ## Rollback
 
-Run the bootstrap installer with the previous release version:
+Use the update command with the previous release version:
+
+```sh
+sudo orion-agent update -version 0.1.1
+```
+
+The command restarts the service and prints status/logs after the rollback.
+
+If the installed binary is missing or cannot run, use the bootstrap installer again as a repair
+install. It keeps existing config and state by default:
 
 ```sh
 curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash -s -- \
-  --config ./orion-agent-config.yaml \
-  --version v0.1.0
+  --core-url https://core.your-domain.tld
 ```
-
-Then verify the service is active and reports are arriving.
 
 ## Uninstall
 

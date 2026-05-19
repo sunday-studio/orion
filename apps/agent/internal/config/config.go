@@ -3,7 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
-	"path/filepath"
+	"runtime"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -164,17 +164,12 @@ func (c *InternalState) IsRegistered() bool {
 // On Linux: /etc/orion/config.yaml
 // On macOS: /usr/local/etc/orion/config.yaml
 func DefaultPath() string {
-	// Try Linux-style first
-	if _, err := os.Stat("/etc/orion/config.yaml"); err == nil {
+	switch runtime.GOOS {
+	case "linux":
 		return "/etc/orion/config.yaml"
-	}
-
-	// Fallback for macOS
-	if _, err := os.Stat("/usr/local/etc/orion/config.yaml"); err == nil {
+	case "darwin":
 		return "/usr/local/etc/orion/config.yaml"
+	default:
+		return "config.yaml"
 	}
-
-	// Fallback to current working directory
-	cwd, _ := os.Getwd()
-	return filepath.Join(cwd, "config.yaml")
 }

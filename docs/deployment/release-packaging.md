@@ -7,15 +7,15 @@ Use one version for the Core image, Agent binary, API contract, and Console buil
 First deploy releases should use semantic version tags:
 
 ```txt
-v0.1.0
-v0.1.1
-v0.2.0
+0.1.0
+0.1.1
+0.2.0
 ```
 
 Pre-release builds can use a suffix:
 
 ```txt
-v0.1.0-rc.1
+0.1.0-rc.1
 ```
 
 ## Core Image
@@ -24,7 +24,7 @@ Publish the Core and Console image from GitHub Actions:
 
 - workflow: `Core Image`;
 - trigger: manual `workflow_dispatch`;
-- required input: `version`, for example `v0.1.0`;
+- required input: `version`, for example `0.1.0`;
 - optional input: `publish_latest`.
 
 This produces:
@@ -41,7 +41,7 @@ Publish Agent binaries from GitHub Actions:
 
 - workflow: `Agent Binaries`;
 - trigger: manual `workflow_dispatch`;
-- required input: `version`, for example `v0.1.0`;
+- required input: `version`, for example `0.1.0`;
 - optional input: `prerelease`.
 
 This creates or updates the GitHub release and uploads:
@@ -69,6 +69,7 @@ is installed.
 
 For the first deploy, Core and Agent should run the same release tag.
 
-Patch releases in the same minor line are expected to stay wire-compatible. For example, `v0.1.1` Agent should work with `v0.1.0` Core unless release notes say otherwise.
+Patch releases in the same minor line are expected to stay wire-compatible. For example, `0.1.1`
+Agent should work with `0.1.0` Core unless release notes say otherwise.
 
 Minor releases may add fields or behavior. Upgrade Core before Agents when moving across minor versions.

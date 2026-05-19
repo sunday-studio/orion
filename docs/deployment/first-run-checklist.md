@@ -47,10 +47,11 @@ http://100.x.y.z:8999
 - [ ] Install with a minimal config:
 
 ```sh
-curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash -s -- \
+  --core-url http://orion-core.local:8999
 ```
 
-Enter the Core URL when prompted.
+Use the Core URL this Agent host can reach.
 
 - [ ] Or install with the sample config:
 

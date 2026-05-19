@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"orion/agent/internal/config"
@@ -55,14 +56,14 @@ func (monitorStateRecord) TableName() string {
 }
 
 func DefaultPath() string {
-	if _, err := os.Stat("/var/lib/orion"); err == nil {
+	switch runtime.GOOS {
+	case "linux":
 		return "/var/lib/orion/state.db"
-	}
-	if _, err := os.Stat("/usr/local/var/lib/orion"); err == nil {
+	case "darwin":
 		return "/usr/local/var/lib/orion/state.db"
+	default:
+		return "state.db"
 	}
-	cwd, _ := os.Getwd()
-	return filepath.Join(cwd, "state.db")
 }
 
 func Open(path string) (*Store, error) {
