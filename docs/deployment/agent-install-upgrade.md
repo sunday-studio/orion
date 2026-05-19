@@ -125,14 +125,13 @@ tail -f /usr/local/var/log/orion-agent.log
 ## Docker Monitors On Linux
 
 Docker container monitors call the local `docker` CLI. When the Agent is installed as a systemd
-service, it runs as the `orion` user and cannot read `/var/run/docker.sock` unless that user has
-permission.
+service, it runs as the `orion` user and needs permission to read `/var/run/docker.sock`.
 
-If you use Docker monitors, add the service user to the Docker group and restart the Agent:
+On Linux, the installer adds `orion` to the `docker` group when that group exists before the Agent
+service starts. To verify Docker monitor access:
 
 ```sh
-sudo usermod -aG docker orion
-sudo systemctl restart orion-agent
+sudo -u orion docker inspect <container>
 ```
 
 If your host uses a custom Docker socket path or rootless Docker, configure the environment and

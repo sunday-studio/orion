@@ -214,6 +214,16 @@ initialize_state() {
   ok "initialized state database at $state_path"
 }
 
+configure_linux_docker_access() {
+  step "Docker access"
+  if getent group docker >/dev/null; then
+    run_cmd usermod -aG docker "$LINUX_USER"
+    ok "added $LINUX_USER to docker group"
+  else
+    skip "docker group not found; Docker monitors may need manual socket permissions"
+  fi
+}
+
 install_linux() {
   binary="$1"
   config_dir="/etc/orion"
@@ -246,6 +256,7 @@ install_linux() {
 
   install_config "$INSTALLED_CONFIG_PATH" "$LINUX_USER" "$LINUX_GROUP"
   initialize_state "$state_path" "$LINUX_USER" "$LINUX_GROUP"
+  configure_linux_docker_access
 
   step "Systemd service"
   run_cmd install -m 0644 "deploy/systemd/orion-agent.service" "/etc/systemd/system/$SERVICE_NAME.service"
