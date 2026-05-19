@@ -83,8 +83,8 @@ func printUsage() {
 	fmt.Println("  update        Download and install a release binary")
 	fmt.Println("  run           Run the agent (for systemd/launchd)")
 	fmt.Println("  maintenance   Manage maintenance mode")
-	fmt.Println("                -up      Exit maintenance mode")
-	fmt.Println("                -down    Enter maintenance mode [reason]")
+	fmt.Println("                up       Exit maintenance mode")
+	fmt.Println("                down     Enter maintenance mode [reason]")
 	fmt.Println("  reconfigure   Reset local registration and reconnect using installed config")
 	fmt.Println("  config        Manage configuration")
 	fmt.Println("                validate  Validate config file")
@@ -108,6 +108,8 @@ func printUsage() {
 	fmt.Println("  orion-agent status")
 	fmt.Println("  sudo orion-agent logs")
 	fmt.Println("  sudo orion-agent run -once")
+	fmt.Println("  sudo orion-agent maintenance down \"updating configs\"")
+	fmt.Println("  sudo orion-agent maintenance up")
 	fmt.Println("  sudo orion-agent reconfigure")
 }
 

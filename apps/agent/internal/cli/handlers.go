@@ -13,14 +13,14 @@ import (
 
 func HandleMaintenance(userConfigPath, internalStatePath *string) {
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: orion-agent maintenance <-up|-down> [reason] [-state path]")
+		fmt.Println("Usage: orion-agent maintenance <up|down> [reason] [-state path]")
 		os.Exit(1)
 	}
 
 	action, reason, statePath, err := parseMaintenanceCommand(os.Args[1:], *internalStatePath)
 	if err != nil {
 		fmt.Println(err)
-		fmt.Println("Usage: orion-agent maintenance <-up|-down> [reason] [-state path]")
+		fmt.Println("Usage: orion-agent maintenance <up|down> [reason] [-state path]")
 		os.Exit(1)
 	}
 	*internalStatePath = statePath
@@ -80,7 +80,7 @@ func HandleMaintenance(userConfigPath, internalStatePath *string) {
 
 	default:
 		fmt.Printf("Unknown maintenance action: %s\n", action)
-		fmt.Println("Usage: orion-agent maintenance <-up|-down> [reason] [-state path]")
+		fmt.Println("Usage: orion-agent maintenance <up|down> [reason] [-state path]")
 		os.Exit(1)
 	}
 }
@@ -128,7 +128,7 @@ func parseMaintenanceCommand(args []string, defaultStatePath string) (string, st
 		case strings.HasPrefix(arg, "-") && arg != "-up" && arg != "-down":
 			return "", "", "", fmt.Errorf("unknown maintenance option: %s", arg)
 		case action == "":
-			action = arg
+			action = normalizeMaintenanceAction(arg)
 		default:
 			reasonParts = append(reasonParts, arg)
 		}
@@ -138,6 +138,17 @@ func parseMaintenanceCommand(args []string, defaultStatePath string) (string, st
 		return "", "", "", fmt.Errorf("missing maintenance action")
 	}
 	return action, strings.Join(reasonParts, " "), statePath, nil
+}
+
+func normalizeMaintenanceAction(action string) string {
+	switch strings.ToLower(action) {
+	case "up", "-up":
+		return "-up"
+	case "down", "-down":
+		return "-down"
+	default:
+		return action
+	}
 }
 
 func HandleConfig(userConfigPath *string) {
