@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"orion/agent/internal/config"
+	"orion/agent/internal/logging"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -201,6 +202,7 @@ func (s *Store) ReplaceMonitors(monitors []config.InternalStateMonitor) error {
 }
 
 func (s *Store) ResetRegistration() error {
+	logging.Debugf("resetting registration state in %s", s.path)
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		var record agentStateRecord
 		result := tx.Where("id = ?", 1).Find(&record)
@@ -228,6 +230,7 @@ func (s *Store) ResetRegistration() error {
 		if err := tx.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&monitorStateRecord{}).Error; err != nil {
 			return err
 		}
+		logging.Debugf("registration state reset: monitor mappings cleared")
 
 		return nil
 	})

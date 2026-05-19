@@ -20,6 +20,7 @@ var (
 	userConfigPath    = flag.String("config", "config.yaml", config.DefaultPath())
 	internalStatePath = flag.String("state", agentstate.DefaultPath(), "Path to SQLite state database")
 	once              = flag.Bool("once", false, "Run once and exit (for debugging)")
+	verbose           = flag.Bool("verbose", false, "Enable debug logging")
 )
 
 func main() {
@@ -83,6 +84,7 @@ func printUsage() {
 	fmt.Println("  -config   Path to config file (default: config.yaml)")
 	fmt.Println("  -state    Path to SQLite state database (default: state.db)")
 	fmt.Println("  -once     Run once and exit (for debugging)")
+	fmt.Println("  -verbose  Enable debug logging")
 	fmt.Println("")
 	fmt.Println("Common checks:")
 	fmt.Println("  orion-agent config validate -config /etc/orion/config.yaml")
@@ -118,6 +120,7 @@ func handleStop() {
 
 func handleStatus() {
 	flag.Parse()
+	configureLogging()
 	cli.PrintHeader("status")
 	cli.PrintInfo("state", *internalStatePath)
 	cli.PrintStep("checking service")
@@ -181,10 +184,12 @@ func handleRestart() {
 
 func handleRun() {
 	flag.Parse()
+	configureLogging()
 	cli.PrintHeader("run")
 	cli.PrintInfo("config", *userConfigPath)
 	cli.PrintInfo("state", *internalStatePath)
 	cli.PrintInfo("once", *once)
+	cli.PrintInfo("verbose", *verbose)
 
 	cli.PrintStep("loading config")
 	userConfig, err := config.LoadUserConfig(*userConfigPath)
@@ -258,7 +263,9 @@ func handleRun() {
 }
 
 func handleReconfigure() {
-	if len(os.Args) > 1 {
+	flag.Parse()
+	configureLogging()
+	if flag.NArg() > 0 {
 		fmt.Println("Usage: orion-agent reconfigure")
 		fmt.Println("Uses the installed/default config and state paths.")
 		os.Exit(1)
@@ -328,6 +335,13 @@ func handleReconfigure() {
 		cli.PrintOK("agent service started")
 	} else {
 		cli.PrintSkip("service was not running before reconfigure")
+	}
+}
+
+func configureLogging() {
+	if *verbose {
+		logging.SetLevel(logging.LevelDebug)
+		logging.Debugf("verbose logging enabled")
 	}
 }
 

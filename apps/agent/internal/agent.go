@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"reflect"
 	"sync"
 	"time"
 
@@ -36,10 +37,12 @@ func NewWithStateStore(userConfig *config.UserConfig, stateStore *state.Store) (
 	if err != nil {
 		return nil, err
 	}
+	logging.Debugf("agent state loaded: agent_id=%s registered=%t monitors=%d maintenance=%t", internalState.AgentID, internalState.IsRegistered(), len(internalState.Monitors), internalState.MaintenanceMode)
 	return New(userConfig, stateStore, internalState), nil
 }
 
 func (a *Agent) Run(ctx context.Context) error {
+	logging.Debugf("starting agent runtime: interval=%s monitors=%d geo_location=%t", a.userConfig.Interval, len(a.userConfig.Monitors), a.userConfig.GeoLocation)
 	runtimeCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	fatalErrs := make(chan error, 1)
@@ -69,6 +72,7 @@ func (a *Agent) Run(ctx context.Context) error {
 
 	// start one worker per monitor
 	for _, monitor := range a.userConfig.Monitors {
+		logging.Debugf("starting worker goroutine: monitor=%s type=%s interval=%s", monitor.Name, monitor.Type, monitor.Interval)
 		workers.Add(1)
 		go func(monitor config.UserMonitor) {
 			defer workers.Done()
@@ -91,6 +95,7 @@ func (a *Agent) Run(ctx context.Context) error {
 // RunOnce runs the agent once (collects and sends all metrics, then exits)
 func (a *Agent) RunOnce(ctx context.Context) error {
 	logging.Infof("Running agent once (single collection cycle)")
+	logging.Debugf("run once started: monitors=%d", len(a.userConfig.Monitors))
 
 	// Run system metrics once
 	if err := a.runSystemMetrics(); err != nil {
@@ -99,6 +104,7 @@ func (a *Agent) RunOnce(ctx context.Context) error {
 
 	// Run all monitors once
 	for _, monitor := range a.userConfig.Monitors {
+		logging.Debugf("run once collecting monitor: name=%s type=%s", monitor.Name, monitor.Type)
 		internalMonitor, err := a.stateStore.GetMonitorByName(monitor.Name)
 		if err != nil {
 			return err
@@ -135,6 +141,7 @@ func (a *Agent) startSystemMetricsWorker(ctx context.Context, fatalErrs chan<- e
 
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
+	logging.Debugf("system metrics worker interval set: interval=%s", interval)
 
 	for {
 		select {
@@ -156,6 +163,7 @@ func (a *Agent) startSystemMetricsWorker(ctx context.Context, fatalErrs chan<- e
 func (a *Agent) startRetryQueueWorker(ctx context.Context, fatalErrs chan<- error) {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
+	logging.Debugf("retry queue worker started: interval=30s")
 
 	for {
 		select {
@@ -209,6 +217,7 @@ func (a *Agent) startMonitorWorker(ctx context.Context, monitor config.UserMonit
 
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
+	logging.Debugf("monitor worker interval set: monitor=%s interval=%s", monitor.Name, interval)
 
 	for {
 		select {
@@ -240,6 +249,7 @@ func (a *Agent) runSystemMetrics() error {
 	if err != nil {
 		return err
 	}
+	logging.Debugf("system metrics collected: uptime_seconds=%d cpu_percent=%.2f memory_percent=%.2f disk_percent=%.2f", metrics.UptimeSeconds, metrics.CPU.UsagePercent, metrics.Memory.UsedPercent, metrics.Disk.UsedPercent)
 
 	report := &transport.SystemReport{
 		KernelVersion: metrics.Kernel,
@@ -262,8 +272,10 @@ func (a *Agent) runSystemMetrics() error {
 			return err
 		}
 		a.retryQueue.Push(RetryItem{Name: "system-report", Send: send})
+		logging.Debugf("system report queued for retry: queue_len=%d", a.retryQueue.Len())
 		return err
 	}
+	logging.Debugf("system report sent: agent_id=%s", a.internalState.AgentID)
 
 	return nil
 }
@@ -294,6 +306,7 @@ func (a *Agent) runMonitorMetrics(monitor config.InternalStateMonitor, userMonit
 	if result == nil {
 		return err
 	}
+	logging.Debugf("monitor metrics collected: name=%s type=%s health=%s metrics=%d has_error=%t", monitor.Name, userMonitor.Type, result.Status, metricCount(result.Metrics), result.Error != nil)
 
 	logging.Infof("Monitor result -> %v", monitor.Name)
 	report := &transport.MonitorReport{
@@ -312,10 +325,29 @@ func (a *Agent) runMonitorMetrics(monitor config.InternalStateMonitor, userMonit
 			return err
 		}
 		a.retryQueue.Push(RetryItem{Name: "monitor-report:" + monitor.Name, Send: send})
+		logging.Debugf("monitor report queued for retry: monitor=%s queue_len=%d", monitor.Name, a.retryQueue.Len())
 		return err
 	}
+	logging.Debugf("monitor report sent: monitor=%s monitor_id=%s", monitor.Name, monitor.ID)
 
 	return err
+}
+
+func metricCount(metrics any) int {
+	if metrics == nil {
+		return 0
+	}
+	value := reflect.ValueOf(metrics)
+	if value.Kind() == reflect.Pointer {
+		if value.IsNil() {
+			return 0
+		}
+		value = value.Elem()
+	}
+	if value.Kind() == reflect.Map {
+		return value.Len()
+	}
+	return 0
 }
 
 func reportFatalError(fatalErrs chan<- error, err error) {
@@ -344,4 +376,5 @@ func (a *Agent) refreshInternalState() {
 	defer a.stateMu.Unlock()
 	a.internalState = latestState
 	a.transport.SetAuthToken(latestState.Token)
+	logging.Debugf("internal state refreshed: registered=%t agent_id=%s monitors=%d maintenance=%t", latestState.IsRegistered(), latestState.AgentID, len(latestState.Monitors), latestState.MaintenanceMode)
 }

@@ -33,7 +33,9 @@ func (s *RegistrationService) RegisterAgentIfNeeded() error {
 	if err != nil {
 		return fmt.Errorf("failed to load state: %w", err)
 	}
+	logging.Debugf("registration state loaded: registered=%t agent_id=%s core_url=%s monitors=%d", internalState.IsRegistered(), internalState.AgentID, internalState.CoreURL, len(internalState.Monitors))
 	if internalState.IsRegistered() {
+		logging.Debugf("existing agent registration found; reconciling monitors")
 		if err := s.RegisterAgentMonitorsIfNeeded(); err != nil {
 			return fmt.Errorf("failed to register monitors: %w", err)
 		}
@@ -49,6 +51,7 @@ func (s *RegistrationService) RegisterAgentIfNeeded() error {
 	if err != nil {
 		return fmt.Errorf("failed to get system info: %w", err)
 	}
+	logging.Debugf("registering agent: machine_id=%s name=%s os=%s arch=%s interval=%s", uuid, name, os, arch, s.userConfig.Interval)
 
 	req := transport.AgentRegistrationRequest{
 		MachineId:                uuid,
@@ -93,6 +96,7 @@ func (s *RegistrationService) RegisterAgentMonitorsIfNeeded() error {
 	}
 
 	stateMonitors := buildStateMonitorMap(internalState.Monitors)
+	logging.Debugf("monitor reconciliation started: configured=%d state=%d", len(configMonitors), len(stateMonitors))
 
 	var updatedState []config.InternalStateMonitor
 
@@ -119,6 +123,7 @@ func (s *RegistrationService) RegisterAgentMonitorsIfNeeded() error {
 		if err != nil {
 			return fmt.Errorf("failed to reconcile monitor %q: %w", name, err)
 		}
+		logging.Debugf("monitor reconciled: name=%s id=%s type=%s interval_seconds=%d", name, resp.Data.MonitorID, monitor.Type, req.ReportingIntervalSeconds)
 
 		lastChecked := time.Now()
 		status := "running"
@@ -154,11 +159,13 @@ func (s *RegistrationService) RegisterAgentMonitorsIfNeeded() error {
 		if err != nil {
 			return fmt.Errorf("failed to unregister monitor %q: %w", name, err)
 		}
+		logging.Debugf("monitor unregistered: name=%s id=%s", name, stateMonitor.ID)
 	}
 
 	if err := s.stateStore.ReplaceMonitors(updatedState); err != nil {
 		return fmt.Errorf("failed to save monitor state: %w", err)
 	}
+	logging.Debugf("monitor reconciliation complete: saved_mappings=%d", len(updatedState))
 
 	return nil
 }

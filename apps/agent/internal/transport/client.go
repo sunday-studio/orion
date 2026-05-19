@@ -76,6 +76,7 @@ func (c *Client) makeRequest(method, endpoint string, body interface{}, headers 
 		}
 	}
 
+	logging.Debugf("core request prepared: method=%s endpoint=%s body_bytes=%d", method, endpoint, len(payload))
 	return c.sendWithRetry(method, fmt.Sprintf("%s%s", c.coreURL, endpoint), payload, headers)
 }
 
@@ -87,6 +88,7 @@ func (c *Client) sendWithRetry(method string, url string, payload []byte, header
 
 	var lastErr error
 	for attempt := 1; attempt <= attempts; attempt++ {
+		logging.Debugf("core request attempt: method=%s url=%s attempt=%d/%d", method, url, attempt, attempts)
 		req, err := http.NewRequest(method, url, bytes.NewReader(payload))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create request: %w", err)
@@ -99,6 +101,7 @@ func (c *Client) sendWithRetry(method string, url string, payload []byte, header
 
 		resp, err := c.httpClient.Do(req)
 		if err == nil && !shouldRetryStatus(resp.StatusCode) {
+			logging.Debugf("core request completed: method=%s url=%s status=%d attempt=%d", method, url, resp.StatusCode, attempt)
 			return resp, nil
 		}
 
