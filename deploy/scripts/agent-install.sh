@@ -150,6 +150,15 @@ write_minimal_config() {
   } > "$config_path"
 }
 
+config_has_core_url() {
+  local config_path="$1"
+  awk '
+    /^[[:space:]]*#/ { next }
+    /^[[:space:]]*core_url[[:space:]]*:[[:space:]]*[^[:space:]]/ { found = 1 }
+    END { exit found ? 0 : 1 }
+  ' "$config_path"
+}
+
 install_config() {
   local config_path="$1"
   local owner="$2"
@@ -158,6 +167,11 @@ install_config() {
 
   step "Config"
   if [ -f "$config_path" ] && [ "$OVERWRITE_CONFIG" != "true" ]; then
+    if ! config_has_core_url "$config_path"; then
+      printf '     error: existing config is missing core_url: %s\n' "$config_path" >&2
+      printf '     rerun with --overwrite-config to regenerate it from --core-url, or edit the file manually.\n' >&2
+      exit 1
+    fi
     skip "keeping existing config at $config_path"
     return
   fi
