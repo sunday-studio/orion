@@ -159,7 +159,7 @@ func ensurePrivilegeFor(opts *Options, command string) error {
 func NormalizeLegacyArgs(args []string) []string {
 	normalized := make([]string, 0, len(args))
 	for i, arg := range args {
-		if i == 0 && (arg == "-v" || arg == "--version") {
+		if i == 0 && (arg == "-v" || arg == "-version" || arg == "--version") {
 			normalized = append(normalized, "version")
 			continue
 		}

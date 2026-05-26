@@ -22,6 +22,21 @@ func TestServiceRootErrorMentionsPrivilegePrompt(t *testing.T) {
 	}
 }
 
+func TestServiceRootErrorForResetFailedDoesNotMentionMissingCommand(t *testing.T) {
+	t.Parallel()
+
+	err := serviceRootError("reset-failed")
+	if err == nil {
+		t.Fatal("serviceRootError() returned nil")
+	}
+	if strings.Contains(err.Error(), "orion-agent reset-failed") {
+		t.Fatalf("serviceRootError() = %q, should not mention a missing reset-failed command", err.Error())
+	}
+	if !strings.Contains(err.Error(), "reset service failure state") {
+		t.Fatalf("serviceRootError() = %q, want reset failure context", err.Error())
+	}
+}
+
 func TestServiceCommandErrorExplainsMissingSystemdUnit(t *testing.T) {
 	t.Parallel()
 

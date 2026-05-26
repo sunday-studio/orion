@@ -167,15 +167,22 @@ func newConfigCommand(ctx context.Context, opts *Options) *cobra.Command {
 		},
 	}
 	diff := &cobra.Command{
-		Use:     "diff",
-		Aliases: []string{"show"},
-		Short:   "Show config summary",
-		Args:    cobra.NoArgs,
+		Use:   "diff",
+		Short: "Show config summary",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runConfigDiff(ctx, opts, cmd.CalledAs())
 		},
 	}
-	cmd.AddCommand(validate, diff)
+	show := &cobra.Command{
+		Use:   "show",
+		Short: "Show config summary",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runConfigDiff(ctx, opts, cmd.CalledAs())
+		},
+	}
+	cmd.AddCommand(validate, diff, show)
 	return cmd
 }
 
@@ -216,9 +223,10 @@ func newReconfigureCommand(ctx context.Context, opts *Options) *cobra.Command {
 }
 
 func configureLogging(opts *Options) {
+	logging.ConfigureText(outputWriter)
+	logging.SetTextColorEnabled(!opts.NoColor && writerSupportsColor(outputWriter))
 	if opts.Verbose {
 		logging.SetLevel(logging.LevelDebug)
-		logging.Debugf("verbose logging enabled")
 	}
 }
 
@@ -247,7 +255,7 @@ func runStart(_ context.Context, opts *Options) error {
 	PrintPreflightReport(preflight)
 	if preflight.HasErrors() {
 		PrintServiceDiagnostics(opts.LogLines)
-		return NewCommandError("start preflight failed", fmt.Errorf("one or more required checks failed"), "run: orion-agent doctor", "run: orion-agent logs")
+		return NewCommandError("start preflight failed", fmt.Errorf("one or more required checks failed"), "run: orion-agent status", "run: orion-agent logs")
 	}
 	PrintStep("resetting service failure state")
 	if err := ResetServiceFailures(); err != nil {
@@ -330,7 +338,7 @@ func runRestart(_ context.Context, opts *Options) error {
 	PrintPreflightReport(preflight)
 	if preflight.HasErrors() {
 		PrintServiceDiagnostics(opts.LogLines)
-		return NewCommandError("restart preflight failed", fmt.Errorf("one or more required checks failed"), "run: orion-agent doctor", "run: orion-agent logs")
+		return NewCommandError("restart preflight failed", fmt.Errorf("one or more required checks failed"), "run: orion-agent status", "run: orion-agent logs")
 	}
 	PrintStep("resetting service failure state")
 	if err := ResetServiceFailures(); err != nil {

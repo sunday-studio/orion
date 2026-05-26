@@ -52,6 +52,7 @@ var (
 	levelVar     slog.LevelVar
 	fileCloser   io.Closer
 	fileMode     bool
+	textColor    = true
 )
 
 func init() {
@@ -91,6 +92,13 @@ func ConfigureText(out io.Writer) {
 	fileMode = false
 	log.SetOutput(out)
 	log.SetFlags(0)
+}
+
+func SetTextColorEnabled(enabled bool) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	textColor = enabled
 }
 
 func ConfigureFile(cfg FileConfig) error {
@@ -168,9 +176,14 @@ func logf(level Level, label string, msg string, args ...any) {
 	}
 
 	timestamp := time.Now().Format("2006-01-02 15:04:05")
-	color := levelColors[level]
-	coloredLabel := fmt.Sprintf("%s%s%s", color, label, colorReset)
-	coloredMessage := fmt.Sprintf("%s%s%s", color, formatted, colorReset)
+	levelColor := ""
+	reset := ""
+	if textColor {
+		levelColor = levelColors[level]
+		reset = colorReset
+	}
+	coloredLabel := fmt.Sprintf("%s%s%s", levelColor, label, reset)
+	coloredMessage := fmt.Sprintf("%s%s%s", levelColor, formatted, reset)
 	textLogger.Printf("[%s] [%s] %s", timestamp, coloredLabel, coloredMessage)
 }
 

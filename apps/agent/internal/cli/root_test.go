@@ -21,7 +21,7 @@ func TestNormalizeLegacyArgsRewritesSingleDashLongFlags(t *testing.T) {
 func TestNormalizeLegacyArgsRewritesVersionShortcut(t *testing.T) {
 	t.Parallel()
 
-	for _, args := range [][]string{{"-v"}, {"--version"}} {
+	for _, args := range [][]string{{"-v"}, {"-version"}, {"--version"}} {
 		got := NormalizeLegacyArgs(args)
 		want := []string{"version"}
 		if !reflect.DeepEqual(got, want) {

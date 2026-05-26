@@ -95,6 +95,28 @@ func TestConfigureFileHonorsLevel(t *testing.T) {
 	}
 }
 
+func TestConfigureTextCanDisableColor(t *testing.T) {
+	t.Cleanup(func() {
+		_ = Close()
+		ConfigureText(io.Discard)
+		SetTextColorEnabled(true)
+		SetLevel(LevelInfo)
+	})
+
+	var output strings.Builder
+	ConfigureText(&output)
+	SetTextColorEnabled(false)
+
+	Warnf("visible")
+
+	if strings.Contains(output.String(), "\x1b[") {
+		t.Fatalf("text log contains ANSI escapes with color disabled: %q", output.String())
+	}
+	if !strings.Contains(output.String(), "[WARN] visible") {
+		t.Fatalf("text log = %q, want plain warning", output.String())
+	}
+}
+
 func TestParseLevel(t *testing.T) {
 	tests := map[string]Level{
 		"debug":   LevelDebug,

@@ -6,8 +6,6 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-
-	"orion/agent/internal/logging"
 )
 
 type ServiceManager string
@@ -151,7 +149,6 @@ func StartServiceResult() ServiceControlResult {
 			result.Error = serviceCommandError("start", string(output))
 			return result
 		}
-		logging.Infof("Service started successfully")
 		result.OK = true
 		return result
 
@@ -202,7 +199,6 @@ func StopServiceResult() ServiceControlResult {
 			result.Error = serviceCommandError("stop", string(output))
 			return result
 		}
-		logging.Infof("Service stopped successfully")
 		result.OK = true
 		return result
 
@@ -239,9 +235,6 @@ func RestartService() error {
 
 func RestartServiceResult() ServiceControlResult {
 	stopResult := StopServiceResult()
-	if stopResult.Error != nil {
-		logging.Warnf("Error stopping service (may not be running): %v", stopResult.Error)
-	}
 	startResult := StartServiceResult()
 	startResult.Action = "restart"
 	if stopResult.Output != "" && startResult.Output != "" {
@@ -303,6 +296,9 @@ func PrintServiceDiagnostics(lines int) {
 }
 
 func serviceRootError(action string) error {
+	if action == "reset-failed" {
+		return fmt.Errorf("systemd service control requires root to reset service failure state; rerun this command from an interactive shell so it can prompt for privileges")
+	}
 	return fmt.Errorf("systemd service control requires root; run orion-agent %s from an interactive shell so it can prompt for privileges", action)
 }
 
