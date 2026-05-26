@@ -71,6 +71,17 @@ info() {
   printf '     %s\n' "$1"
 }
 
+require_value() {
+  local flag="$1"
+  local value="${2:-}"
+
+  if [ -z "$value" ]; then
+    printf '%s requires a value.\n' "$flag" >&2
+    usage >&2
+    exit 1
+  fi
+}
+
 supports_color() {
   [ "$COLOR_ENABLED" = "true" ]
 }
@@ -103,34 +114,33 @@ print_orion_banner() {
 
 detect_install_kind() {
   local os_name="$1"
-  local path=""
-  local paths=()
+  local binary_path="$INSTALL_DIR/orion-agent"
+  local config_path=""
+  local state_path=""
+  local service_path=""
 
   case "$os_name" in
     linux)
-      paths=(
-        "$INSTALL_DIR/orion-agent"
-        "/etc/orion/config.yaml"
-        "/var/lib/orion/state.db"
-        "/etc/systemd/system/$SERVICE_NAME.service"
-      )
+      config_path="/etc/orion/config.yaml"
+      state_path="/var/lib/orion/state.db"
+      service_path="/etc/systemd/system/$SERVICE_NAME.service"
       ;;
     macos)
-      paths=(
-        "$INSTALL_DIR/orion-agent"
-        "/usr/local/etc/orion/config.yaml"
-        "/usr/local/var/lib/orion/state.db"
-        "/Library/LaunchDaemons/com.orion.agent.plist"
-      )
+      config_path="/usr/local/etc/orion/config.yaml"
+      state_path="/usr/local/var/lib/orion/state.db"
+      service_path="/Library/LaunchDaemons/com.orion.agent.plist"
       ;;
   esac
 
-  for path in "${paths[@]}"; do
-    if [ -e "$path" ]; then
-      printf '%s\n' "repair/upgrade"
-      return
-    fi
-  done
+  if [ -e "$binary_path" ] || [ -e "$service_path" ]; then
+    printf '%s\n' "repair/upgrade"
+    return
+  fi
+
+  if [ -e "$config_path" ] || [ -e "$state_path" ]; then
+    printf '%s\n' "reinstall"
+    return
+  fi
 
   printf '%s\n' "first install"
 }
@@ -149,6 +159,19 @@ print_command_hint() {
 
 print_next_steps() {
   local mode="$1"
+  local service_note=""
+
+  if [ "$DRY_RUN" = "true" ]; then
+    if [ "$START_SERVICE" = "true" ]; then
+      service_note="the service would start at the end of install"
+    else
+      service_note="the service would be left stopped because --no-start was used"
+    fi
+  elif [ "$START_SERVICE" = "true" ]; then
+    service_note="the service starts at the end of install"
+  else
+    service_note="the service is left stopped because --no-start was used"
+  fi
 
   printf '\n%s\n' "Next commands"
   if [ "$START_SERVICE" = "true" ]; then
@@ -166,24 +189,31 @@ print_next_steps() {
     printf '  %s\n' "The installer created the service account, config, state database, log file, and service."
     printf '  %s\n' "Keep state.db during upgrades; it holds this machine's Agent identity."
     printf '  %s\n' "Add monitors in the config when host metrics are reporting cleanly."
+  elif [ "$mode" = "reinstall" ]; then
+    printf '\n%s\n' "Reinstall notes"
+    printf '  %s\n' "Existing config or state was found, so this host keeps its Agent identity."
+    printf '  %s\n' "The binary and service file are installed again; $service_note."
   else
     printf '\n%s\n' "Upgrade notes"
     printf '  %s\n' "Existing config and state were kept unless --overwrite-config was used."
-    printf '  %s\n' "The service file and binary were refreshed, then the service was restarted when enabled."
+    printf '  %s\n' "The binary and service file are refreshed; $service_note."
   fi
 }
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --core-url)
+      require_value "$1" "${2:-}"
       CORE_URL="${2:-}"
       shift 2
       ;;
     --binary)
+      require_value "$1" "${2:-}"
       BINARY_PATH="${2:-}"
       shift 2
       ;;
     --config)
+      require_value "$1" "${2:-}"
       CONFIG_SOURCE="${2:-}"
       shift 2
       ;;

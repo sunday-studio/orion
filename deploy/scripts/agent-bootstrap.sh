@@ -40,6 +40,17 @@ info() {
   printf '     %s\n' "$1"
 }
 
+require_value() {
+  local flag="$1"
+  local value="${2:-}"
+
+  if [ -z "$value" ]; then
+    printf '%s requires a value.\n' "$flag" >&2
+    usage >&2
+    exit 1
+  fi
+}
+
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
     printf 'Missing required command: %s\n' "$1" >&2
@@ -91,22 +102,27 @@ prompt_core_url() {
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --core-url)
+      require_value "$1" "${2:-}"
       CORE_URL="${2:-}"
       shift 2
       ;;
     --config)
+      require_value "$1" "${2:-}"
       CONFIG_SOURCE="${2:-}"
       shift 2
       ;;
     --config-url)
+      require_value "$1" "${2:-}"
       CONFIG_URL="${2:-}"
       shift 2
       ;;
     --version)
+      require_value "$1" "${2:-}"
       VERSION="${2:-}"
       shift 2
       ;;
     --repo)
+      require_value "$1" "${2:-}"
       REPO="${2:-}"
       shift 2
       ;;

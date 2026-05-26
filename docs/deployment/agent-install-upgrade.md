@@ -81,10 +81,11 @@ identity and monitor mappings. Pass `--overwrite-config` only when you intention
 the installed config.
 
 Re-running the installer on a host that already has Orion installed is treated as a repair or
-upgrade install. It refreshes the binary and service files, preserves config and `state.db` by
-default, normalizes log file permissions, and starts or restarts the service unless `--no-start` is
-passed. A host that was installed and then stopped will come back with the same Agent identity when
-the installer starts it again.
+upgrade install. If only config or `state.db` remain from a previous uninstall, the installer treats
+the run as a reinstall. Both paths refresh the binary and service files, preserve config and
+`state.db` by default, normalize log file permissions, and start or restart the service unless
+`--no-start` is passed. A host that was installed and then stopped will come back with the same
+Agent identity when the installer starts it again.
 
 By default, the release binary is downloaded from the latest GitHub release:
 
