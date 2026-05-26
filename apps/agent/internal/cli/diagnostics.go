@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,6 +32,14 @@ type DiagnosticCheck struct {
 }
 
 type PreflightReport struct {
+	ConfigPath string
+	StatePath  string
+	LogPath    string
+	Service    ServiceStatus
+	Checks     []DiagnosticCheck
+}
+
+type DoctorReport struct {
 	ConfigPath string
 	StatePath  string
 	LogPath    string
@@ -125,6 +135,15 @@ func (r PreflightReport) HasErrors() bool {
 	return false
 }
 
+func (r DoctorReport) HasErrors() bool {
+	for _, check := range r.Checks {
+		if check.Status == CheckError {
+			return true
+		}
+	}
+	return false
+}
+
 func InspectAgentStatus(statePath string) AgentStatusReport {
 	internalState, stateCheck := inspectStateReadOnly(statePath)
 	return AgentStatusReport{
@@ -133,6 +152,26 @@ func InspectAgentStatus(statePath string) AgentStatusReport {
 		StateCheck:    stateCheck,
 		InternalState: internalState,
 	}
+}
+
+func BuildDoctorReport(ctx context.Context, configPath string, statePath string) DoctorReport {
+	service := GetServiceStatusResult()
+	report := DoctorReport{
+		ConfigPath: configPath,
+		StatePath:  statePath,
+		LogPath:    DefaultAgentLogPath(),
+		Service:    service,
+	}
+
+	configCheck, userConfig := inspectConfig(configPath)
+	report.Checks = append(report.Checks, checkServiceInstall(service))
+	report.Checks = append(report.Checks, configCheck)
+	report.Checks = append(report.Checks, checkStateFile(statePath))
+	report.Checks = append(report.Checks, checkLogDirectory(report.LogPath))
+	report.Checks = append(report.Checks, checkCoreReachability(ctx, userConfig))
+	report.Checks = append(report.Checks, checkDockerAccess())
+
+	return report
 }
 
 func PrintPreflightReport(report PreflightReport) {
@@ -223,26 +262,31 @@ func checkServiceInstall(status ServiceStatus) DiagnosticCheck {
 }
 
 func checkConfig(path string) DiagnosticCheck {
+	check, _ := inspectConfig(path)
+	return check
+}
+
+func inspectConfig(path string) (DiagnosticCheck, *config.UserConfig) {
 	check := DiagnosticCheck{Name: "config", Path: path}
 	if path == "" {
 		check.Status = CheckError
 		check.Detail = "config path is empty"
-		return check
+		return check, nil
 	}
 	if _, err := os.Stat(path); err != nil {
 		check.Status = CheckError
 		check.Error = err
-		return check
+		return check, nil
 	}
 	userConfig, err := config.LoadUserConfig(path)
 	if err != nil {
 		check.Status = CheckError
 		check.Error = err
-		return check
+		return check, nil
 	}
 	check.Status = CheckOK
 	check.Detail = fmt.Sprintf("valid with %d monitor(s)", len(userConfig.Monitors))
-	return check
+	return check, userConfig
 }
 
 func checkStateFile(path string) DiagnosticCheck {
@@ -301,6 +345,58 @@ func checkLogDirectory(logPath string) DiagnosticCheck {
 	}
 	check.Status = CheckOK
 	check.Detail = "directory exists"
+	return check
+}
+
+func checkCoreReachability(ctx context.Context, userConfig *config.UserConfig) DiagnosticCheck {
+	check := DiagnosticCheck{Name: "core"}
+	if userConfig == nil {
+		check.Status = CheckSkip
+		check.Detail = "skipped because config is unavailable"
+		return check
+	}
+	check.Path = userConfig.CoreURL
+	coreCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(coreCtx, http.MethodGet, strings.TrimRight(userConfig.CoreURL, "/")+"/health", nil)
+	if err != nil {
+		check.Status = CheckError
+		check.Error = err
+		return check
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		check.Status = CheckWarn
+		check.Error = err
+		return check
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 200 && resp.StatusCode < 500 {
+		check.Status = CheckOK
+		check.Detail = fmt.Sprintf("reachable, status=%d", resp.StatusCode)
+		return check
+	}
+	check.Status = CheckWarn
+	check.Detail = fmt.Sprintf("unexpected status=%d", resp.StatusCode)
+	return check
+}
+
+func checkDockerAccess() DiagnosticCheck {
+	check := DiagnosticCheck{Name: "docker"}
+	if _, err := os.Stat("/var/run/docker.sock"); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			check.Status = CheckSkip
+			check.Detail = "docker socket not found"
+			return check
+		}
+		check.Status = CheckWarn
+		check.Error = err
+		return check
+	}
+	check.Status = CheckOK
+	check.Detail = "docker socket exists"
 	return check
 }
 

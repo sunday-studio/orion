@@ -119,6 +119,7 @@ Linux:
 
 ```sh
 orion-agent status
+orion-agent doctor
 orion-agent restart
 orion-agent logs
 orion-agent logs --lines 200
@@ -130,6 +131,7 @@ macOS:
 
 ```sh
 orion-agent status
+orion-agent doctor
 orion-agent restart
 orion-agent logs
 orion-agent logs --lines 200
@@ -141,6 +143,11 @@ Installed Agent commands prompt for privileges when the operating system require
 state database, or binary access. Read-only commands such as `status`, `logs`, and
 `config validate` avoid privilege prompts where possible. You do not need to prefix
 `orion-agent` commands with `sudo`.
+
+Use `orion-agent doctor` when the service does not start cleanly or the Agent does not appear in
+Core. It checks service installation, config validity, state readability, log directory presence,
+Core reachability, and Docker socket presence. `status`, `doctor`, and `config show` support
+`--json` for automation.
 
 The service writes structured JSON Lines logs to the platform log path above. The
 `orion-agent logs` command pretty-prints those entries and falls back to systemd or launchd

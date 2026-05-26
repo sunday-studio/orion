@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -22,10 +23,13 @@ type Options struct {
 	NoColor    bool
 	JSON       bool
 
-	Once          bool
-	UpdateVersion string
-	UpdateRepo    string
-	LogLines      int
+	Once           bool
+	SetupCoreURL   string
+	SetupForce     bool
+	SetupInitState bool
+	UpdateVersion  string
+	UpdateRepo     string
+	LogLines       int
 
 	normalizedArgs []string
 }
@@ -120,6 +124,8 @@ func NewRootCommand(ctx context.Context, opts *Options, out, errOut io.Writer) *
 		newLogsCommand(ctx, opts),
 		newUpdateCommand(ctx, opts),
 		newRunCommand(ctx, opts),
+		newDoctorCommand(ctx, opts),
+		newSetupCommand(ctx, opts),
 		newMaintenanceCommand(ctx, opts),
 		newConfigCommand(ctx, opts),
 		newStateCommand(ctx, opts),
@@ -127,6 +133,15 @@ func NewRootCommand(ctx context.Context, opts *Options, out, errOut io.Writer) *
 	)
 
 	return root
+}
+
+func renderJSON(w io.Writer, value any) error {
+	if w == nil {
+		w = os.Stdout
+	}
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(value)
 }
 
 func newVersionCommand() *cobra.Command {

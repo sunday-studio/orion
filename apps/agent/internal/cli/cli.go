@@ -106,8 +106,7 @@ func GetServiceStatusResult() ServiceStatus {
 		status.Output = strings.TrimSpace(string(output))
 		if err == nil {
 			status.Installed = true
-			status.Running = true
-			status.State = "loaded"
+			status.Running, status.State = parseLaunchdStatus(status.Output)
 			return status
 		}
 		status.State = "stopped"
@@ -125,6 +124,36 @@ func GetServiceStatusResult() ServiceStatus {
 		}
 		return status
 	}
+}
+
+func parseLaunchdStatus(output string) (bool, string) {
+	normalized := strings.ToLower(output)
+	for _, line := range strings.Split(normalized, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "state =") {
+			state := strings.TrimSpace(strings.TrimPrefix(line, "state ="))
+			state = strings.Trim(state, "\"")
+			switch state {
+			case "running":
+				return true, "running"
+			case "waiting":
+				return false, "waiting"
+			case "not running":
+				return false, "stopped"
+			default:
+				if state != "" {
+					return false, state
+				}
+			}
+		}
+	}
+	if strings.Contains(normalized, "pid =") {
+		return true, "running"
+	}
+	if strings.Contains(normalized, "spawn scheduled") {
+		return false, "waiting"
+	}
+	return false, "loaded"
 }
 
 // StartService starts the agent service

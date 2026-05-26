@@ -55,3 +55,50 @@ func TestServiceCommandErrorExplainsMissingSystemdUnit(t *testing.T) {
 		}
 	}
 }
+
+func TestParseLaunchdStatus(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		output      string
+		wantRunning bool
+		wantState   string
+	}{
+		{
+			name:        "running state",
+			output:      "state = running\npid = 123",
+			wantRunning: true,
+			wantState:   "running",
+		},
+		{
+			name:        "waiting state",
+			output:      "state = waiting\nspawn scheduled",
+			wantRunning: false,
+			wantState:   "waiting",
+		},
+		{
+			name:        "pid fallback",
+			output:      "pid = 123",
+			wantRunning: true,
+			wantState:   "running",
+		},
+		{
+			name:        "loaded fallback",
+			output:      "active count = 0",
+			wantRunning: false,
+			wantState:   "loaded",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			running, state := parseLaunchdStatus(tt.output)
+			if running != tt.wantRunning || state != tt.wantState {
+				t.Fatalf("parseLaunchdStatus() = (%t, %q), want (%t, %q)", running, state, tt.wantRunning, tt.wantState)
+			}
+		})
+	}
+}

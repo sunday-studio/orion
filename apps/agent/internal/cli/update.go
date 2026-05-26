@@ -151,6 +151,7 @@ func UpdateAgent(opts UpdateOptions) error {
 	}
 
 	PrintOK("update complete")
+	PrintPostUpdateGuide()
 	return nil
 }
 

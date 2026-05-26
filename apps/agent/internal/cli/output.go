@@ -73,6 +73,17 @@ func PrintInfo(label string, value interface{}) {
 	fmt.Fprintf(outputWriter, "  %s%s:%s %v\n", color(colorDim), label, color(colorReset), value)
 }
 
+func PrintCommandHint(command string, description string) {
+	fmt.Fprintf(outputWriter, "  %s%-36s%s %s\n", color(colorCyan), command, color(colorReset), description)
+}
+
+func PrintPostUpdateGuide() {
+	fmt.Fprintln(outputWriter, "\nNext commands")
+	PrintCommandHint("orion-agent status", "confirm the service and local state")
+	PrintCommandHint("orion-agent logs --lines 80", "review recent Agent logs")
+	PrintCommandHint("orion-agent config show", "confirm the installed configuration")
+}
+
 func PrintStep(message string) {
 	fmt.Fprintf(outputWriter, "  %s->%s %s\n", color(colorCyan), color(colorReset), message)
 }

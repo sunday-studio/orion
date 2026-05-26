@@ -139,8 +139,15 @@ Check the installed Agent:
 ```sh
 orion-agent version
 orion-agent status
+orion-agent doctor
 orion-agent logs
 orion-agent logs --level error
+```
+
+Create a starter config without the release installer:
+
+```sh
+orion-agent setup --core-url https://core.your-domain.tld --init-state
 ```
 
 Run one collection cycle with the installed config and state:
@@ -153,6 +160,14 @@ Use verbose output when diagnosing registration, monitor collection, transport, 
 
 ```sh
 orion-agent run -once -verbose
+```
+
+Use JSON output for command surfaces that support automation:
+
+```sh
+orion-agent status --json
+orion-agent config show --json
+orion-agent doctor --json
 ```
 
 Normal monitor config changes do not need a new install. Edit the installed config, then restart the
