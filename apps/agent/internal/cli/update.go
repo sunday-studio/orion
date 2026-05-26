@@ -35,6 +35,7 @@ func UpdateAgent(opts UpdateOptions) error {
 		logLines = 80
 	}
 
+	PrintOrionBanner("Agent update")
 	PrintHeader("update")
 	PrintInfo("current_version", opts.CurrentVersion)
 	PrintInfo("target_version", version)

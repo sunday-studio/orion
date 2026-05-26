@@ -15,8 +15,14 @@ CONFIG_SOURCE=""
 START_SERVICE="true"
 OVERWRITE_CONFIG="false"
 DRY_RUN="false"
+INSTALL_KIND="first-install"
 INSTALL_STEP=0
 INSTALLED_CONFIG_PATH=""
+COLOR_ENABLED="false"
+
+if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
+  COLOR_ENABLED="true"
+fi
 
 usage() {
   printf '%s\n' "Usage: sudo ./deploy/scripts/agent-install.sh --core-url http://core:8999 [options]"
@@ -63,6 +69,108 @@ skip() {
 
 info() {
   printf '     %s\n' "$1"
+}
+
+supports_color() {
+  [ "$COLOR_ENABLED" = "true" ]
+}
+
+ansi() {
+  if supports_color; then
+    printf '\033[%sm' "$1"
+  fi
+}
+
+print_orion_banner() {
+  local mode="$1"
+  local accent=""
+  local reset=""
+  local dim=""
+
+  accent="$(ansi '36;1')"
+  dim="$(ansi '2')"
+  reset="$(ansi '0')"
+
+  printf '%s' "$accent"
+  printf '%s\n' "   ____       _             "
+  printf '%s\n' "  / __ \\_____(_)___  ____   "
+  printf '%s\n' " / / / / ___/ / __ \\/ __ \\  "
+  printf '%s\n' "/ /_/ / /  / / /_/ / / / /  "
+  printf '%s\n' "\\____/_/  /_/\\____/_/ /_/   "
+  printf '%s' "$reset"
+  printf '%sAgent installer%s - %s\n' "$dim" "$reset" "$mode"
+}
+
+detect_install_kind() {
+  local os_name="$1"
+  local path=""
+  local paths=()
+
+  case "$os_name" in
+    linux)
+      paths=(
+        "$INSTALL_DIR/orion-agent"
+        "/etc/orion/config.yaml"
+        "/var/lib/orion/state.db"
+        "/etc/systemd/system/$SERVICE_NAME.service"
+      )
+      ;;
+    macos)
+      paths=(
+        "$INSTALL_DIR/orion-agent"
+        "/usr/local/etc/orion/config.yaml"
+        "/usr/local/var/lib/orion/state.db"
+        "/Library/LaunchDaemons/com.orion.agent.plist"
+      )
+      ;;
+  esac
+
+  for path in "${paths[@]}"; do
+    if [ -e "$path" ]; then
+      printf '%s\n' "repair/upgrade"
+      return
+    fi
+  done
+
+  printf '%s\n' "first install"
+}
+
+print_command_hint() {
+  local command="$1"
+  local description="$2"
+  local accent=""
+  local reset=""
+
+  accent="$(ansi '36')"
+  reset="$(ansi '0')"
+
+  printf '  %s%-44s%s %s\n' "$accent" "$command" "$reset" "$description"
+}
+
+print_next_steps() {
+  local mode="$1"
+
+  printf '\n%s\n' "Next commands"
+  if [ "$START_SERVICE" = "true" ]; then
+    print_command_hint "orion-agent status" "confirm the service, state database, and local identity"
+    print_command_hint "orion-agent logs --lines 80" "read the structured Agent log and service diagnostics"
+  else
+    print_command_hint "orion-agent start" "start the installed service when you are ready"
+    print_command_hint "orion-agent status" "confirm the installed service and local state"
+  fi
+  print_command_hint "orion-agent config show" "review Core URL, interval, and configured monitors"
+  print_command_hint "orion-agent run --once" "run one foreground collection cycle for debugging"
+
+  if [ "$mode" = "first install" ]; then
+    printf '\n%s\n' "First-run notes"
+    printf '  %s\n' "The installer created the service account, config, state database, log file, and service."
+    printf '  %s\n' "Keep state.db during upgrades; it holds this machine's Agent identity."
+    printf '  %s\n' "Add monitors in the config when host metrics are reporting cleanly."
+  else
+    printf '\n%s\n' "Upgrade notes"
+    printf '  %s\n' "Existing config and state were kept unless --overwrite-config was used."
+    printf '  %s\n' "The service file and binary were refreshed, then the service was restarted when enabled."
+  fi
 }
 
 while [ "$#" -gt 0 ]; do
@@ -421,12 +529,12 @@ install_macos() {
   fi
 }
 
-printf '%s\n' "Orion Agent installer"
+OS="$(detect_os)"
+INSTALL_KIND="$(detect_install_kind "$OS")"
+print_orion_banner "$INSTALL_KIND"
 if [ "$DRY_RUN" = "true" ]; then
   info "mode: dry run"
 fi
-
-OS="$(detect_os)"
 info "platform: $OS"
 BINARY="$(resolve_binary)"
 info "binary: $BINARY"
@@ -455,3 +563,5 @@ if [ -n "$INSTALLED_CONFIG_PATH" ]; then
   printf '%s\n' "Edit the Agent config at: $INSTALLED_CONFIG_PATH"
   printf '%s\n' "Agent commands prompt for privileges automatically when needed."
 fi
+
+print_next_steps "$INSTALL_KIND"

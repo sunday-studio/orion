@@ -56,6 +56,19 @@ func PrintHeader(title string) {
 	fmt.Fprintf(outputWriter, "%sOrion Agent:%s %s%s%s\n", color(colorBold), color(colorReset), color(colorCyan), title, color(colorReset))
 }
 
+func PrintOrionBanner(subtitle string) {
+	fmt.Fprintf(outputWriter, "%s", color(colorBold)+color(colorCyan))
+	fmt.Fprintln(outputWriter, "   ____       _             ")
+	fmt.Fprintln(outputWriter, "  / __ \\_____(_)___  ____   ")
+	fmt.Fprintln(outputWriter, " / / / / ___/ / __ \\/ __ \\  ")
+	fmt.Fprintln(outputWriter, "/ /_/ / /  / / /_/ / / / /  ")
+	fmt.Fprintln(outputWriter, "\\____/_/  /_/\\____/_/ /_/   ")
+	fmt.Fprintf(outputWriter, "%s", color(colorReset))
+	if subtitle != "" {
+		fmt.Fprintf(outputWriter, "%s%s%s\n", color(colorDim), subtitle, color(colorReset))
+	}
+}
+
 func PrintInfo(label string, value interface{}) {
 	fmt.Fprintf(outputWriter, "  %s%s:%s %v\n", color(colorDim), label, color(colorReset), value)
 }
