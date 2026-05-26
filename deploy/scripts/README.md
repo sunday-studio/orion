@@ -26,6 +26,9 @@ curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion
 # Uninstall from a published release
 curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-uninstall.sh | sudo bash
 
-# Run uninstall script from a local checkout
-sudo ./deploy/scripts/agent-uninstall.sh
+# Run uninstall script from a local checkout and keep reinstall data
+sudo ./deploy/scripts/agent-uninstall.sh --keep-config --keep-state --keep-user
+
+# Fully remove config, state, and unused service account too
+sudo ./deploy/scripts/agent-uninstall.sh --purge
 ```

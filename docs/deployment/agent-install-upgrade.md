@@ -81,9 +81,9 @@ identity and monitor mappings. Pass `--overwrite-config` only when you intention
 the installed config.
 
 Re-running the installer on a host that already has Orion installed is treated as a repair or
-upgrade install. If only config or `state.db` remain from a previous uninstall, the installer treats
-the run as a reinstall. Both paths refresh the binary and service files, preserve config and
-`state.db` by default, normalize log file permissions, and start or restart the service unless
+upgrade install. If only config or state paths remain from a previous uninstall, the installer
+treats the run as a reinstall. Both paths refresh the binary and service files, preserve config and
+`state.db` when present, normalize log file permissions, and start or restart the service unless
 `--no-start` is passed. A host that was installed and then stopped will come back with the same
 Agent identity when the installer starts it again.
 
@@ -241,8 +241,16 @@ Or run the helper from a local checkout:
 sudo ./deploy/scripts/agent-uninstall.sh
 ```
 
-It stops the service and removes the binary. It asks before removing config, state, and
-user/group records.
+It stops the service and removes the binary and service files. Config, state, and the service
+account are kept by default unless you approve the prompts or pass explicit flags:
+
+```sh
+sudo ./deploy/scripts/agent-uninstall.sh --keep-config --keep-state --keep-user
+sudo ./deploy/scripts/agent-uninstall.sh --purge
+```
+
+Use the keep flags for a clean reinstall that preserves the Agent identity. Use `--purge` only when
+you intentionally want to remove config, state, and the unused service account.
 
 ## Tailscale And Local Networks
 

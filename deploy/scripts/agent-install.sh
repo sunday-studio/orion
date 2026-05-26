@@ -115,18 +115,24 @@ print_orion_banner() {
 detect_install_kind() {
   local os_name="$1"
   local binary_path="$INSTALL_DIR/orion-agent"
+  local config_dir=""
   local config_path=""
+  local state_dir=""
   local state_path=""
   local service_path=""
 
   case "$os_name" in
     linux)
+      config_dir="/etc/orion"
       config_path="/etc/orion/config.yaml"
+      state_dir="/var/lib/orion"
       state_path="/var/lib/orion/state.db"
       service_path="/etc/systemd/system/$SERVICE_NAME.service"
       ;;
     macos)
+      config_dir="/usr/local/etc/orion"
       config_path="/usr/local/etc/orion/config.yaml"
+      state_dir="/usr/local/var/lib/orion"
       state_path="/usr/local/var/lib/orion/state.db"
       service_path="/Library/LaunchDaemons/com.orion.agent.plist"
       ;;
@@ -137,7 +143,7 @@ detect_install_kind() {
     return
   fi
 
-  if [ -e "$config_path" ] || [ -e "$state_path" ]; then
+  if [ -d "$config_dir" ] || [ -e "$config_path" ] || [ -d "$state_dir" ] || [ -e "$state_path" ]; then
     printf '%s\n' "reinstall"
     return
   fi
@@ -191,7 +197,7 @@ print_next_steps() {
     printf '  %s\n' "Add monitors in the config when host metrics are reporting cleanly."
   elif [ "$mode" = "reinstall" ]; then
     printf '\n%s\n' "Reinstall notes"
-    printf '  %s\n' "Existing config or state was found, so this host keeps its Agent identity."
+    printf '  %s\n' "Existing config or state paths were found; reinstall data is preserved when present."
     printf '  %s\n' "The binary and service file are installed again; $service_note."
   else
     printf '\n%s\n' "Upgrade notes"
