@@ -98,7 +98,7 @@ func NewRootCommand(ctx context.Context, opts *Options, out, errOut io.Writer) *
 		SilenceErrors: true,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			SetOutput(out)
-			SetColorEnabled(!opts.NoColor)
+			SetColorEnabled(!opts.NoColor && writerSupportsColor(out))
 			configureLogging(opts)
 		},
 	}

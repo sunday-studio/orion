@@ -33,6 +33,18 @@ func SetColorEnabled(enabled bool) {
 	colorEnabled = enabled
 }
 
+func writerSupportsColor(w io.Writer) bool {
+	file, ok := w.(*os.File)
+	if !ok {
+		return false
+	}
+	info, err := file.Stat()
+	if err != nil {
+		return false
+	}
+	return info.Mode()&os.ModeCharDevice != 0
+}
+
 func color(code string) string {
 	if !colorEnabled {
 		return ""

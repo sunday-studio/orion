@@ -295,6 +295,8 @@ func runStatus(_ context.Context, opts *Options) error {
 		fmt.Fprintf(outputWriter, "  state_database: %s\n", opts.StatePath)
 		if report.StateCheck.Error != nil {
 			fmt.Fprintf(outputWriter, "  state: unavailable (%v)\n", report.StateCheck.Error)
+		} else if report.StateCheck.Status == CheckWarn {
+			fmt.Fprintf(outputWriter, "  state: %s\n", report.StateCheck.Detail)
 		} else {
 			fmt.Fprintf(outputWriter, "  state: unavailable (%s)\n", report.StateCheck.Detail)
 		}
@@ -498,9 +500,6 @@ func runConfigValidate(_ context.Context, opts *Options) error {
 	PrintStep("loading config")
 	userConfig, err := config.LoadUserConfig(opts.ConfigPath)
 	if err != nil {
-		PrintError("config validation failed")
-		PrintInfo("file", opts.ConfigPath)
-		PrintInfo("reason", err)
 		return NewCommandError("config validation failed", err)
 	}
 	PrintOK("config file is valid")

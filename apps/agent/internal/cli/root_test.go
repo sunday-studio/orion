@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -64,5 +66,21 @@ func TestNewRootCommandParsesGlobalFlagsBeforeCommand(t *testing.T) {
 	}
 	if opts.StatePath != "/tmp/state.db" {
 		t.Fatalf("StatePath = %q, want /tmp/state.db", opts.StatePath)
+	}
+}
+
+func TestExecuteDisablesColorForNonFileWriters(t *testing.T) {
+	t.Parallel()
+
+	var out bytes.Buffer
+	var errOut bytes.Buffer
+
+	code := Execute(context.Background(), []string{"config", "validate", "--config", "/tmp/missing-orion-config.yaml"}, &out, &errOut)
+	if code == 0 {
+		t.Fatal("Execute() code = 0, want failure for missing config")
+	}
+	combined := out.String() + errOut.String()
+	if strings.Contains(combined, "\x1b[") {
+		t.Fatalf("Execute() output contains ANSI escapes for buffer writer: %q", combined)
 	}
 }
