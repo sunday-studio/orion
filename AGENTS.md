@@ -4,7 +4,52 @@ This file defines the working boundaries for humans and coding agents in this re
 
 ## Project Memory
 
-Use Maat as the canonical project memory for this repo. Before material work, run `maat sync` if available, then inspect state with `maat status`, `maat project show <project>`, or `maat search <query>`. Create or claim a ticket before working. Record meaningful progress with ticket comments or events. When finished, complete the ticket with evidence, validate Maat, and sync. Do not mark work done without evidence.
+Use Maat as the canonical project memory for this repo. Markdown plus Git is the source of truth;
+SQLite is only a local search cache.
+
+This repo is registered as Maat project `orion`. Use this storage path:
+
+```sh
+/Users/casprine/Desktop/vendor/personal/maat-storage
+```
+
+Before material work, run the current Maat daily loop commands exactly as needed:
+
+```sh
+maat sync --storage /Users/casprine/Desktop/vendor/personal/maat-storage --status
+maat status --storage /Users/casprine/Desktop/vendor/personal/maat-storage
+maat project show orion --storage /Users/casprine/Desktop/vendor/personal/maat-storage
+maat search "<query>" --storage /Users/casprine/Desktop/vendor/personal/maat-storage
+```
+
+Create new goals and tickets with the exact Maat forms that include outcome, description, and
+acceptance criteria:
+
+```sh
+maat goal create orion "<goal title>" --outcome "the concrete outcome this goal should achieve" --storage /Users/casprine/Desktop/vendor/personal/maat-storage
+maat ticket create orion "<ticket title>" --goal <goal-id> --description "the concrete work another agent should do" --acceptance "clear completion condition" --storage /Users/casprine/Desktop/vendor/personal/maat-storage
+```
+
+Claim, comment, and complete tickets with the exact Maat forms:
+
+```sh
+maat ticket claim <ticket-id> --project orion --agent "<agent-id>" --ttl 2h --storage /Users/casprine/Desktop/vendor/personal/maat-storage
+maat ticket comment <ticket-id> "short factual progress note" --project orion --storage /Users/casprine/Desktop/vendor/personal/maat-storage
+maat ticket complete <ticket-id> --project orion --evidence "tests, commit, PR, or exact verification" --storage /Users/casprine/Desktop/vendor/personal/maat-storage
+```
+
+When finished, validate and sync with the current Maat commands:
+
+```sh
+maat validate --storage /Users/casprine/Desktop/vendor/personal/maat-storage
+maat sync --storage /Users/casprine/Desktop/vendor/personal/maat-storage --message "status(orion): update maat" --push
+```
+
+Create or claim a ticket before working. Never create title-only goals or tickets. Add comments for
+meaningful progress, blockers, handoffs, and decisions. Complete tickets only with evidence.
+Commit finished product changes in this repository before ending the task unless the user explicitly
+asks not to commit or committing would capture unrelated or unsafe changes. Commit and push Maat
+storage changes when allowed; if remote push is blocked, say so explicitly.
 
 ## Repository Map
 
