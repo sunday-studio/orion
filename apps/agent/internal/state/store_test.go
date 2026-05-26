@@ -86,6 +86,50 @@ func TestStorePersistsRegistrationMaintenanceAndMonitors(t *testing.T) {
 	}
 }
 
+func TestInspectReadOnlyLoadsStateWithoutChangingPermissions(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "state.db")
+	store, err := Open(path)
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	if err := store.UpdateRegistration("agent-1", "token-1", "http://core"); err != nil {
+		t.Fatalf("UpdateRegistration() error = %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+	if err := os.Chmod(path, 0o640); err != nil {
+		t.Fatalf("Chmod() error = %v", err)
+	}
+
+	state, err := InspectReadOnly(path)
+	if err != nil {
+		t.Fatalf("InspectReadOnly() error = %v", err)
+	}
+	if !state.IsRegistered() || state.AgentID != "agent-1" || state.Token != "token-1" {
+		t.Fatalf("state = %+v, want persisted registration", state)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("Stat() error = %v", err)
+	}
+	if got := info.Mode().Perm(); got != 0o640 {
+		t.Fatalf("state.db mode = %o, want unchanged 640", got)
+	}
+}
+
+func TestInspectReadOnlyDoesNotCreateMissingStateDatabase(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "missing-state.db")
+
+	if _, err := InspectReadOnly(path); err == nil {
+		t.Fatal("InspectReadOnly() error = nil, want missing database error")
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("Stat() error = %v, want not exist", err)
+	}
+}
+
 func TestStoreResetRegistrationKeepsMaintenance(t *testing.T) {
 	store := openTestStore(t)
 

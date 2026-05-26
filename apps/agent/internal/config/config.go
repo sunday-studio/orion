@@ -135,7 +135,18 @@ type UserConfig struct {
 	CoreURL     string                 `yaml:"core_url"`
 	Interval    string                 `yaml:"interval"`
 	GeoLocation bool                   `yaml:"geo_location,omitempty"`
+	Logging     LoggingConfig          `yaml:"logging,omitempty"`
 	Monitors    []UserMonitor          `yaml:"monitors"`
+}
+
+type LoggingConfig struct {
+	Level      string `yaml:"level,omitempty"`
+	Path       string `yaml:"path,omitempty"`
+	Format     string `yaml:"format,omitempty"`
+	MaxSizeMB  int    `yaml:"max_size_mb,omitempty"`
+	MaxBackups int    `yaml:"max_backups,omitempty"`
+	MaxAgeDays int    `yaml:"max_age_days,omitempty"`
+	Compress   *bool  `yaml:"compress,omitempty"`
 }
 
 func LoadUserConfig(path string) (*UserConfig, error) {
@@ -149,11 +160,63 @@ func LoadUserConfig(path string) (*UserConfig, error) {
 		return nil, fmt.Errorf("failed to parse config: %w", err)
 	}
 
+	cfg.ApplyDefaults()
+
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config: %w", err)
 	}
 
 	return &cfg, nil
+}
+
+func (c *UserConfig) ApplyDefaults() {
+	c.Logging = c.Logging.WithDefaults()
+}
+
+func DefaultLoggingConfig() LoggingConfig {
+	compress := true
+	return LoggingConfig{
+		Level:      "info",
+		Path:       DefaultLogPath(),
+		Format:     "json",
+		MaxSizeMB:  25,
+		MaxBackups: 5,
+		MaxAgeDays: 14,
+		Compress:   &compress,
+	}
+}
+
+func (l LoggingConfig) WithDefaults() LoggingConfig {
+	defaults := DefaultLoggingConfig()
+	if l.Level == "" {
+		l.Level = defaults.Level
+	}
+	if l.Path == "" {
+		l.Path = defaults.Path
+	}
+	if l.Format == "" {
+		l.Format = defaults.Format
+	}
+	if l.MaxSizeMB == 0 {
+		l.MaxSizeMB = defaults.MaxSizeMB
+	}
+	if l.MaxBackups == 0 {
+		l.MaxBackups = defaults.MaxBackups
+	}
+	if l.MaxAgeDays == 0 {
+		l.MaxAgeDays = defaults.MaxAgeDays
+	}
+	if l.Compress == nil {
+		l.Compress = defaults.Compress
+	}
+	return l
+}
+
+func (l LoggingConfig) CompressEnabled() bool {
+	if l.Compress == nil {
+		return true
+	}
+	return *l.Compress
 }
 
 func (c *InternalState) IsRegistered() bool {
@@ -171,5 +234,19 @@ func DefaultPath() string {
 		return "/usr/local/etc/orion/config.yaml"
 	default:
 		return "config.yaml"
+	}
+}
+
+// DefaultLogPath returns the default structured runtime log path.
+// On Linux: /var/log/orion/agent.log
+// On macOS: /usr/local/var/log/orion/agent.log
+func DefaultLogPath() string {
+	switch runtime.GOOS {
+	case "linux":
+		return "/var/log/orion/agent.log"
+	case "darwin":
+		return "/usr/local/var/log/orion/agent.log"
+	default:
+		return "agent.log"
 	}
 }

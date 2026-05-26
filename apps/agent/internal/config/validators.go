@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -144,6 +146,41 @@ func (s SystemdServiceConfig) Validate() error {
 	return nil
 }
 
+func (l LoggingConfig) Validate() error {
+	normalized := l.WithDefaults()
+
+	switch strings.ToLower(normalized.Level) {
+	case "debug", "info", "warn", "error":
+	default:
+		return errors.New("logging.level must be one of debug, info, warn, error")
+	}
+
+	if strings.TrimSpace(normalized.Path) == "" {
+		return errors.New("logging.path is required")
+	}
+	if (runtime.GOOS == "linux" || runtime.GOOS == "darwin") && !filepath.IsAbs(normalized.Path) {
+		return errors.New("logging.path must be absolute")
+	}
+
+	switch strings.ToLower(normalized.Format) {
+	case "json":
+	default:
+		return errors.New("logging.format must be json")
+	}
+
+	if normalized.MaxSizeMB < 0 {
+		return errors.New("logging.max_size_mb must be >= 0")
+	}
+	if normalized.MaxBackups < 0 {
+		return errors.New("logging.max_backups must be >= 0")
+	}
+	if normalized.MaxAgeDays < 0 {
+		return errors.New("logging.max_age_days must be >= 0")
+	}
+
+	return nil
+}
+
 func (m UserMonitor) Validate() error {
 	if strings.TrimSpace(m.Name) == "" {
 		return errors.New("name is required")
@@ -222,6 +259,10 @@ func (m UserMonitor) Validate() error {
 
 func (c *UserConfig) Validate() error {
 	if err := validateHTTPURL(c.CoreURL, "core_url"); err != nil {
+		return err
+	}
+
+	if err := c.Logging.Validate(); err != nil {
 		return err
 	}
 

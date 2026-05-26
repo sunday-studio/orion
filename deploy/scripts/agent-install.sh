@@ -214,6 +214,28 @@ initialize_state() {
   ok "initialized state database at $state_path"
 }
 
+prepare_log_file() {
+  local log_dir="$1"
+  local log_path="$2"
+  local owner="$3"
+  local group="$4"
+
+  step "Logs"
+  run_cmd install -d -m 0750 -o "$owner" -g "$group" "$log_dir"
+  if [ "$DRY_RUN" = "true" ]; then
+    printf '+ ensure log file %q with owner %q and mode 0640\n' "$log_path" "$owner:$group"
+    ok "would prepare log file at $log_path"
+    return
+  fi
+  if [ ! -f "$log_path" ]; then
+    run_cmd install -m 0640 -o "$owner" -g "$group" /dev/null "$log_path"
+  else
+    run_cmd chown "$owner:$group" "$log_path"
+    run_cmd chmod 0640 "$log_path"
+  fi
+  ok "prepared log file at $log_path"
+}
+
 install_binary() {
   local binary="$1"
 
@@ -239,6 +261,8 @@ install_linux() {
   INSTALLED_CONFIG_PATH="$config_dir/config.yaml"
   state_dir="/var/lib/orion"
   state_path="$state_dir/state.db"
+  log_dir="/var/log/orion"
+  log_path="$log_dir/agent.log"
 
   step "Service account"
   if ! getent group "$LINUX_GROUP" >/dev/null; then
@@ -263,6 +287,7 @@ install_linux() {
 
   install_config "$INSTALLED_CONFIG_PATH" "$LINUX_USER" "$LINUX_GROUP"
   initialize_state "$state_path" "$LINUX_USER" "$LINUX_GROUP"
+  prepare_log_file "$log_dir" "$log_path" "$LINUX_USER" "$LINUX_GROUP"
   configure_linux_docker_access
 
   step "Systemd service"
@@ -350,7 +375,8 @@ install_macos() {
   INSTALLED_CONFIG_PATH="$config_dir/config.yaml"
   state_dir="/usr/local/var/lib/orion"
   state_path="$state_dir/state.db"
-  log_dir="/usr/local/var/log"
+  log_dir="/usr/local/var/log/orion"
+  log_path="$log_dir/agent.log"
   plist_path="/Library/LaunchDaemons/com.orion.agent.plist"
 
   step "Service account"
@@ -359,13 +385,14 @@ install_macos() {
   step "Directories"
   run_cmd install -d -m 0750 -o "$MACOS_USER" -g "$MACOS_GROUP" "$config_dir"
   run_cmd install -d -m 0750 -o "$MACOS_USER" -g "$MACOS_GROUP" "$state_dir"
-  run_cmd install -d -m 0755 "$log_dir"
+  run_cmd install -d -m 0750 -o "$MACOS_USER" -g "$MACOS_GROUP" "$log_dir"
   ok "prepared $config_dir, $state_dir, and $log_dir"
 
   install_binary "$binary"
 
   install_config "$INSTALLED_CONFIG_PATH" "$MACOS_USER" "$MACOS_GROUP"
   initialize_state "$state_path" "$MACOS_USER" "$MACOS_GROUP"
+  prepare_log_file "$log_dir" "$log_path" "$MACOS_USER" "$MACOS_GROUP"
 
   step "Launchd service"
   run_cmd install -m 0644 "deploy/launchd/com.orion.agent.plist" "$plist_path"

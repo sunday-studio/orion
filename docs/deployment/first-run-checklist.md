@@ -78,6 +78,22 @@ macOS:
 sudo test -f /usr/local/var/lib/orion/state.db
 ```
 
+- [ ] Confirm local Agent logs exist:
+
+Linux:
+
+```sh
+sudo test -f /var/log/orion/agent.log
+orion-agent logs --lines 20
+```
+
+macOS:
+
+```sh
+sudo test -f /usr/local/var/log/orion/agent.log
+orion-agent logs --lines 20
+```
+
 - [ ] Confirm the Agent appears in the Console Agents view.
 - [ ] Confirm monitor rows appear after the first monitor interval.
 - [ ] Restart the Agent and confirm it does not create duplicate agents or monitors.

@@ -24,3 +24,23 @@ func TestDefaultPathUsesPlatformInstallPath(t *testing.T) {
 		}
 	}
 }
+
+func TestDefaultLogPathUsesPlatformInstallPath(t *testing.T) {
+	t.Parallel()
+
+	got := DefaultLogPath()
+	switch runtime.GOOS {
+	case "linux":
+		if got != "/var/log/orion/agent.log" {
+			t.Fatalf("DefaultLogPath() = %q, want Linux install path", got)
+		}
+	case "darwin":
+		if got != "/usr/local/var/log/orion/agent.log" {
+			t.Fatalf("DefaultLogPath() = %q, want macOS install path", got)
+		}
+	default:
+		if got != "agent.log" {
+			t.Fatalf("DefaultLogPath() = %q, want local fallback", got)
+		}
+	}
+}

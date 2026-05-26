@@ -1,6 +1,9 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -223,6 +226,103 @@ func TestUserConfigValidateRejectsInvalidMonitorConfig(t *testing.T) {
 			tt.mutate(&cfg)
 
 			err := cfg.Validate()
+			if err == nil {
+				t.Fatalf("Validate() error = nil, want %q", tt.wantErr)
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Fatalf("Validate() error = %q, want substring %q", err.Error(), tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestLoadUserConfigAppliesLoggingDefaults(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte(`core_url: http://localhost:8999
+interval: 60s
+monitors: []
+`), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	cfg, err := LoadUserConfig(configPath)
+	if err != nil {
+		t.Fatalf("LoadUserConfig() error = %v", err)
+	}
+
+	if cfg.Logging.Level != "info" {
+		t.Fatalf("Logging.Level = %q, want info", cfg.Logging.Level)
+	}
+	if cfg.Logging.Path != DefaultLogPath() {
+		t.Fatalf("Logging.Path = %q, want %q", cfg.Logging.Path, DefaultLogPath())
+	}
+	if cfg.Logging.Format != "json" {
+		t.Fatalf("Logging.Format = %q, want json", cfg.Logging.Format)
+	}
+	if cfg.Logging.MaxSizeMB != 25 {
+		t.Fatalf("Logging.MaxSizeMB = %d, want 25", cfg.Logging.MaxSizeMB)
+	}
+	if !cfg.Logging.CompressEnabled() {
+		t.Fatal("Logging.CompressEnabled() = false, want true")
+	}
+}
+
+func TestLoggingConfigValidate(t *testing.T) {
+	absolutePath := filepath.Join(t.TempDir(), "agent.log")
+	tests := []struct {
+		name    string
+		logging LoggingConfig
+		wantErr string
+	}{
+		{
+			name: "valid explicit config",
+			logging: LoggingConfig{
+				Level:      "debug",
+				Path:       absolutePath,
+				Format:     "json",
+				MaxSizeMB:  50,
+				MaxBackups: 2,
+				MaxAgeDays: 7,
+			},
+		},
+		{
+			name:    "bad level",
+			logging: LoggingConfig{Level: "trace", Path: absolutePath, Format: "json"},
+			wantErr: "logging.level",
+		},
+		{
+			name:    "bad format",
+			logging: LoggingConfig{Level: "info", Path: absolutePath, Format: "text"},
+			wantErr: "logging.format",
+		},
+		{
+			name:    "negative max size",
+			logging: LoggingConfig{Level: "info", Path: absolutePath, Format: "json", MaxSizeMB: -1},
+			wantErr: "logging.max_size_mb",
+		},
+	}
+
+	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
+		tests = append(tests, struct {
+			name    string
+			logging LoggingConfig
+			wantErr string
+		}{
+			name:    "relative path",
+			logging: LoggingConfig{Level: "info", Path: "agent.log", Format: "json"},
+			wantErr: "logging.path must be absolute",
+		})
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.logging.Validate()
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Fatalf("Validate() error = %v", err)
+				}
+				return
+			}
 			if err == nil {
 				t.Fatalf("Validate() error = nil, want %q", tt.wantErr)
 			}

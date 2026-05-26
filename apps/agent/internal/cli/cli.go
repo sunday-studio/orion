@@ -10,136 +10,264 @@ import (
 	"orion/agent/internal/logging"
 )
 
+type ServiceManager string
+
+const (
+	ServiceManagerSystemd ServiceManager = "systemd"
+	ServiceManagerLaunchd ServiceManager = "launchd"
+	ServiceManagerNone    ServiceManager = "none"
+)
+
+type ServiceStatus struct {
+	Manager     ServiceManager
+	Installed   bool
+	Running     bool
+	State       string
+	Unit        string
+	ServiceFile string
+	Output      string
+	Error       error
+}
+
+type ServiceControlResult struct {
+	Action  string
+	Manager ServiceManager
+	OK      bool
+	Output  string
+	Error   error
+}
+
+const (
+	systemdUnitName = "orion-agent"
+	launchdLabel    = "system/com.orion.agent"
+)
+
 // DetectServiceManager detects which service manager is available
 func DetectServiceManager() string {
+	return string(DetectServiceManagerType())
+}
+
+func DetectServiceManagerType() ServiceManager {
 	if _, err := exec.LookPath("systemctl"); err == nil {
-		return "systemd"
+		return ServiceManagerSystemd
 	}
 	if _, err := exec.LookPath("launchctl"); err == nil {
-		return "launchd"
+		return ServiceManagerLaunchd
 	}
-	return "none"
+	return ServiceManagerNone
 }
 
 // GetServiceStatus checks if the agent service is running
 func GetServiceStatus() (bool, string, error) {
-	manager := DetectServiceManager()
+	status := GetServiceStatusResult()
+	return status.Running, status.State, status.Error
+}
+
+func GetServiceStatusResult() ServiceStatus {
+	manager := DetectServiceManagerType()
+	status := ServiceStatus{
+		Manager: manager,
+		Unit:    systemdUnitName,
+		State:   "unknown",
+	}
 
 	switch manager {
-	case "systemd":
-		cmd := exec.Command("systemctl", "is-active", "orion-agent")
-		output, err := cmd.Output()
-		if err != nil {
-			return false, "inactive", nil
+	case ServiceManagerSystemd:
+		status.ServiceFile = "/etc/systemd/system/orion-agent.service"
+		if _, err := os.Stat(status.ServiceFile); err == nil {
+			status.Installed = true
 		}
-		status := strings.TrimSpace(string(output))
-		return status == "active", status, nil
 
-	case "launchd":
-		cmd := exec.Command("launchctl", "print", "system/com.orion.agent")
-		if err := cmd.Run(); err == nil {
-			return true, "loaded", nil
+		cmd := exec.Command("systemctl", "is-active", systemdUnitName)
+		output, err := cmd.CombinedOutput()
+		status.Output = strings.TrimSpace(string(output))
+		if status.Output != "" {
+			status.State = status.Output
 		}
-		return false, "stopped", nil
+		if err != nil {
+			if strings.Contains(status.Output, "could not be found") || strings.Contains(status.Output, "not-found") {
+				status.Installed = false
+				status.State = "not-found"
+			} else if status.State == "unknown" {
+				status.State = "inactive"
+			}
+			return status
+		}
+		status.Installed = true
+		status.Running = status.State == "active"
+		return status
+
+	case ServiceManagerLaunchd:
+		status.Unit = launchdLabel
+		status.ServiceFile = "/Library/LaunchDaemons/com.orion.agent.plist"
+		if _, err := os.Stat(status.ServiceFile); err == nil {
+			status.Installed = true
+		}
+		cmd := exec.Command("launchctl", "print", launchdLabel)
+		output, err := cmd.CombinedOutput()
+		status.Output = strings.TrimSpace(string(output))
+		if err == nil {
+			status.Installed = true
+			status.Running = true
+			status.State = "loaded"
+			return status
+		}
+		status.State = "stopped"
+		return status
 
 	default:
 		// Check if process is running by looking for the binary
 		cmd := exec.Command("pgrep", "-f", "orion-agent")
 		err := cmd.Run()
-		return err == nil, "unknown", nil
+		status.Running = err == nil
+		if status.Running {
+			status.State = "process-running"
+		} else {
+			status.State = "not-running"
+		}
+		return status
 	}
 }
 
 // StartService starts the agent service
 func StartService() error {
-	manager := DetectServiceManager()
+	return StartServiceResult().Error
+}
+
+func StartServiceResult() ServiceControlResult {
+	manager := DetectServiceManagerType()
+	result := ServiceControlResult{Action: "start", Manager: manager}
 
 	switch manager {
-	case "systemd":
+	case ServiceManagerSystemd:
 		if os.Geteuid() != 0 {
-			return serviceRootError("start")
+			result.Error = serviceRootError("start")
+			return result
 		}
-		cmd := exec.Command("systemctl", "start", "orion-agent")
+		cmd := exec.Command("systemctl", "start", systemdUnitName)
 		output, err := cmd.CombinedOutput()
+		result.Output = strings.TrimSpace(string(output))
 		if err != nil {
-			return serviceCommandError("start", string(output))
+			result.Error = serviceCommandError("start", string(output))
+			return result
 		}
 		logging.Infof("Service started successfully")
-		return nil
+		result.OK = true
+		return result
 
-	case "launchd":
+	case ServiceManagerLaunchd:
 		plistPath := "/Library/LaunchDaemons/com.orion.agent.plist"
 		if _, err := os.Stat(plistPath); err == nil {
 			cmd := exec.Command("sudo", "launchctl", "bootstrap", "system", plistPath)
 			if err := cmd.Run(); err != nil {
-				kickstart := exec.Command("sudo", "launchctl", "kickstart", "-k", "system/com.orion.agent")
-				return kickstart.Run()
+				kickstart := exec.Command("sudo", "launchctl", "kickstart", "-k", launchdLabel)
+				if err := kickstart.Run(); err != nil {
+					result.Error = err
+					return result
+				}
+				result.OK = true
+				return result
 			}
-			return nil
+			result.OK = true
+			return result
 		}
-		return fmt.Errorf("service file not found")
+		result.Error = fmt.Errorf("service file not found")
+		return result
 
 	default:
-		return fmt.Errorf("no service manager detected. Please run the agent manually or install as a service")
+		result.Error = fmt.Errorf("no service manager detected. Please run the agent manually or install as a service")
+		return result
 	}
 }
 
 // StopService stops the agent service
 func StopService() error {
-	manager := DetectServiceManager()
+	return StopServiceResult().Error
+}
+
+func StopServiceResult() ServiceControlResult {
+	manager := DetectServiceManagerType()
+	result := ServiceControlResult{Action: "stop", Manager: manager}
 
 	switch manager {
-	case "systemd":
+	case ServiceManagerSystemd:
 		if os.Geteuid() != 0 {
-			return serviceRootError("stop")
+			result.Error = serviceRootError("stop")
+			return result
 		}
-		cmd := exec.Command("systemctl", "stop", "orion-agent")
+		cmd := exec.Command("systemctl", "stop", systemdUnitName)
 		output, err := cmd.CombinedOutput()
+		result.Output = strings.TrimSpace(string(output))
 		if err != nil {
-			return serviceCommandError("stop", string(output))
+			result.Error = serviceCommandError("stop", string(output))
+			return result
 		}
 		logging.Infof("Service stopped successfully")
-		return nil
+		result.OK = true
+		return result
 
-	case "launchd":
+	case ServiceManagerLaunchd:
 		plistPath := "/Library/LaunchDaemons/com.orion.agent.plist"
 		if _, err := os.Stat(plistPath); err == nil {
 			cmd := exec.Command("sudo", "launchctl", "bootout", "system", plistPath)
-			return cmd.Run()
+			if err := cmd.Run(); err != nil {
+				result.Error = err
+				return result
+			}
+			result.OK = true
+			return result
 		}
-		return fmt.Errorf("service file not found")
+		result.Error = fmt.Errorf("service file not found")
+		return result
 
 	default:
 		// Try to kill the process
 		cmd := exec.Command("pkill", "-f", "orion-agent")
-		return cmd.Run()
+		if err := cmd.Run(); err != nil {
+			result.Error = err
+			return result
+		}
+		result.OK = true
+		return result
 	}
 }
 
 // RestartService restarts the agent service
 func RestartService() error {
-	if err := StopService(); err != nil {
-		logging.Warnf("Error stopping service (may not be running): %v", err)
+	return RestartServiceResult().Error
+}
+
+func RestartServiceResult() ServiceControlResult {
+	stopResult := StopServiceResult()
+	if stopResult.Error != nil {
+		logging.Warnf("Error stopping service (may not be running): %v", stopResult.Error)
 	}
-	return StartService()
+	startResult := StartServiceResult()
+	startResult.Action = "restart"
+	if stopResult.Output != "" && startResult.Output != "" {
+		startResult.Output = stopResult.Output + "\n" + startResult.Output
+	} else if stopResult.Output != "" {
+		startResult.Output = stopResult.Output
+	}
+	return startResult
 }
 
 // ResetServiceFailures clears service-manager failure throttles after repeated crashes.
 func ResetServiceFailures() error {
-	manager := DetectServiceManager()
+	manager := DetectServiceManagerType()
 
 	switch manager {
-	case "systemd":
+	case ServiceManagerSystemd:
 		if os.Geteuid() != 0 {
 			return serviceRootError("reset-failed")
 		}
-		cmd := exec.Command("systemctl", "reset-failed", "orion-agent")
+		cmd := exec.Command("systemctl", "reset-failed", systemdUnitName)
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			return serviceCommandError("reset-failed", string(output))
 		}
 		return nil
-	case "launchd":
+	case ServiceManagerLaunchd:
 		return nil
 	default:
 		return nil
@@ -148,17 +276,24 @@ func ResetServiceFailures() error {
 
 // PrintServiceDiagnostics prints the same post-start details an operator would usually check.
 func PrintServiceDiagnostics(lines int) {
-	manager := DetectServiceManager()
+	status := GetServiceStatusResult()
+	PrintInfo("service_manager", status.Manager)
+	PrintInfo("service_state", status.State)
+	if status.ServiceFile != "" {
+		PrintInfo("service_file", status.ServiceFile)
+	}
 
-	switch manager {
-	case "systemd":
+	PrintRecentLogDiagnostics(JSONLRecentLogReader{Path: DefaultAgentLogPath()}, lines)
+
+	switch status.Manager {
+	case ServiceManagerSystemd:
 		PrintStep("checking service status")
-		printCommandOutput("systemctl", "status", "orion-agent", "--no-pager")
+		printCommandOutput("systemctl", "status", systemdUnitName, "--no-pager")
 		PrintStep("showing recent service logs")
-		printCommandOutput("journalctl", "-u", "orion-agent", "-n", strconv.Itoa(lines), "--no-pager")
-	case "launchd":
+		printCommandOutput("journalctl", "-u", systemdUnitName, "-n", strconv.Itoa(lines), "--no-pager")
+	case ServiceManagerLaunchd:
 		PrintStep("checking service status")
-		printCommandOutput("launchctl", "print", "system/com.orion.agent")
+		printCommandOutput("launchctl", "print", launchdLabel)
 		PrintStep("showing recent service logs")
 		printCommandOutput("tail", "-n", strconv.Itoa(lines), "/usr/local/var/log/orion-agent.log")
 		printCommandOutput("tail", "-n", strconv.Itoa(lines), "/usr/local/var/log/orion-agent.error.log")
@@ -186,9 +321,9 @@ func printCommandOutput(name string, args ...string) {
 	cmd := exec.Command(name, args...)
 	output, err := cmd.CombinedOutput()
 	if len(output) > 0 {
-		fmt.Print(string(output))
+		fmt.Fprint(outputWriter, string(output))
 		if !strings.HasSuffix(string(output), "\n") {
-			fmt.Println()
+			fmt.Fprintln(outputWriter)
 		}
 	}
 	if err != nil {

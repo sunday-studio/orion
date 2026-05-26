@@ -27,10 +27,10 @@
     </dict>
     
     <key>StandardOutPath</key>
-    <string>/usr/local/var/log/orion-agent.log</string>
+    <string>/usr/local/var/log/orion/agent.stdout.log</string>
     
     <key>StandardErrorPath</key>
-    <string>/usr/local/var/log/orion-agent.error.log</string>
+    <string>/usr/local/var/log/orion/agent.stderr.log</string>
     
     <key>WorkingDirectory</key>
     <string>/usr/local/var/lib/orion</string>

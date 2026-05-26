@@ -124,8 +124,10 @@ The Agent keeps local runtime state in SQLite:
 
 - Linux config: `/etc/orion/config.yaml`
 - Linux state: `/var/lib/orion/state.db`
+- Linux log: `/var/log/orion/agent.log`
 - macOS config: `/usr/local/etc/orion/config.yaml`
 - macOS state: `/usr/local/var/lib/orion/state.db`
+- macOS log: `/usr/local/var/log/orion/agent.log`
 
 Do not delete `state.db` during a normal upgrade. It contains the Agent identity, token,
 maintenance state, and monitor mapping.
@@ -138,6 +140,7 @@ Check the installed Agent:
 orion-agent version
 orion-agent status
 orion-agent logs
+orion-agent logs --level error
 ```
 
 Run one collection cycle with the installed config and state:

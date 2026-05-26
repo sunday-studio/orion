@@ -1,6 +1,10 @@
 package cli
 
-import "fmt"
+import (
+	"fmt"
+	"io"
+	"os"
+)
 
 const (
 	colorReset  = "\033[0m"
@@ -12,26 +16,50 @@ const (
 	colorYellow = "\033[33m"
 )
 
+var (
+	outputWriter io.Writer = os.Stdout
+	colorEnabled           = true
+)
+
+func SetOutput(w io.Writer) {
+	if w == nil {
+		outputWriter = os.Stdout
+		return
+	}
+	outputWriter = w
+}
+
+func SetColorEnabled(enabled bool) {
+	colorEnabled = enabled
+}
+
+func color(code string) string {
+	if !colorEnabled {
+		return ""
+	}
+	return code
+}
+
 func PrintHeader(title string) {
-	fmt.Printf("%sOrion Agent:%s %s%s%s\n", colorBold, colorReset, colorCyan, title, colorReset)
+	fmt.Fprintf(outputWriter, "%sOrion Agent:%s %s%s%s\n", color(colorBold), color(colorReset), color(colorCyan), title, color(colorReset))
 }
 
 func PrintInfo(label string, value interface{}) {
-	fmt.Printf("  %s%s:%s %v\n", colorDim, label, colorReset, value)
+	fmt.Fprintf(outputWriter, "  %s%s:%s %v\n", color(colorDim), label, color(colorReset), value)
 }
 
 func PrintStep(message string) {
-	fmt.Printf("  %s->%s %s\n", colorCyan, colorReset, message)
+	fmt.Fprintf(outputWriter, "  %s->%s %s\n", color(colorCyan), color(colorReset), message)
 }
 
 func PrintOK(message string) {
-	fmt.Printf("  %sok:%s %s\n", colorGreen, colorReset, message)
+	fmt.Fprintf(outputWriter, "  %sok:%s %s\n", color(colorGreen), color(colorReset), message)
 }
 
 func PrintSkip(message string) {
-	fmt.Printf("  %sskip:%s %s\n", colorYellow, colorReset, message)
+	fmt.Fprintf(outputWriter, "  %sskip:%s %s\n", color(colorYellow), color(colorReset), message)
 }
 
 func PrintError(message string) {
-	fmt.Printf("  %serror:%s %s\n", colorRed, colorReset, message)
+	fmt.Fprintf(outputWriter, "  %serror:%s %s\n", color(colorRed), color(colorReset), message)
 }

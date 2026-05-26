@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"orion/agent/internal/config"
@@ -86,6 +87,66 @@ func Open(path string) (*Store, error) {
 	}
 
 	return &Store{path: path, db: database}, nil
+}
+
+// InspectReadOnly loads the current agent state without creating, migrating, or
+// chmodding the database. It is intended for read-only operator commands.
+func InspectReadOnly(path string) (*config.InternalState, error) {
+	if path == "" {
+		path = DefaultPath()
+	}
+	if _, err := os.Stat(path); err != nil {
+		return nil, fmt.Errorf("inspect state database: %w", err)
+	}
+
+	database, err := gorm.Open(sqlite.Open(readOnlySQLiteDSN(path)), &gorm.Config{})
+	if err != nil {
+		return nil, fmt.Errorf("open state database read-only: %w", err)
+	}
+	sqlDB, err := database.DB()
+	if err != nil {
+		return nil, fmt.Errorf("open state database handle: %w", err)
+	}
+	defer sqlDB.Close()
+
+	record := agentStateRecord{ID: 1}
+	if err := database.First(&record).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			record = agentStateRecord{ID: 1}
+		} else {
+			return nil, fmt.Errorf("load agent state: %w", err)
+		}
+	}
+
+	var monitorRecords []monitorStateRecord
+	if err := database.Order("name ASC").Find(&monitorRecords).Error; err != nil {
+		return nil, fmt.Errorf("load monitor state: %w", err)
+	}
+
+	monitors := make([]config.InternalStateMonitor, 0, len(monitorRecords))
+	for _, monitor := range monitorRecords {
+		monitors = append(monitors, config.InternalStateMonitor{
+			Name:        monitor.Name,
+			ID:          monitor.MonitorID,
+			Status:      monitor.Status,
+			LastChecked: monitor.LastChecked,
+		})
+	}
+
+	return &config.InternalState{
+		AgentID:           record.AgentID,
+		Token:             record.Token,
+		Registered:        record.Registered,
+		CoreURL:           record.CoreURL,
+		LastSync:          record.LastSync,
+		MaintenanceMode:   record.MaintenanceMode,
+		MaintenanceReason: record.MaintenanceReason,
+		Monitors:          monitors,
+	}, nil
+}
+
+func readOnlySQLiteDSN(path string) string {
+	return "file:" + strings.ReplaceAll(path, "?", "%3f") + "?mode=ro"
 }
 
 func ensureStateDir(dir string) error {

@@ -10,6 +10,7 @@ Linux:
 - binary: `/usr/local/bin/orion-agent`;
 - config: `/etc/orion/config.yaml`;
 - state: `/var/lib/orion/state.db`;
+- log: `/var/log/orion/agent.log`;
 - service: `/etc/systemd/system/orion-agent.service`.
 
 macOS:
@@ -17,6 +18,7 @@ macOS:
 - binary: `/usr/local/bin/orion-agent`;
 - config: `/usr/local/etc/orion/config.yaml`;
 - state: `/usr/local/var/lib/orion/state.db`;
+- log: `/usr/local/var/log/orion/agent.log`;
 - service: `/Library/LaunchDaemons/com.orion.agent.plist`.
 
 ## Install With Minimal Config
@@ -71,7 +73,7 @@ The bootstrap script:
 - detects Linux or macOS and CPU architecture;
 - downloads the matching Agent release binary;
 - downloads the platform service files;
-- installs the Agent binary, config, initialized state database, and service;
+- installs the Agent binary, config, initialized state database, structured log file, and service;
 - starts the Agent service unless `--no-start` is passed.
 
 Existing config and state files are kept during normal installs so the Agent keeps the same local
@@ -112,7 +114,9 @@ Linux:
 orion-agent status
 orion-agent restart
 orion-agent logs
-orion-agent logs -lines 200
+orion-agent logs --lines 200
+orion-agent logs --level error
+orion-agent logs --since 1h
 ```
 
 macOS:
@@ -121,11 +125,19 @@ macOS:
 orion-agent status
 orion-agent restart
 orion-agent logs
-orion-agent logs -lines 200
+orion-agent logs --lines 200
+orion-agent logs --level error
+orion-agent logs --since 1h
 ```
 
 Installed Agent commands prompt for privileges when the operating system requires service,
-state database, or binary access. You do not need to prefix `orion-agent` commands with `sudo`.
+state database, or binary access. Read-only commands such as `status`, `logs`, and
+`config validate` avoid privilege prompts where possible. You do not need to prefix
+`orion-agent` commands with `sudo`.
+
+The service writes structured JSON Lines logs to the platform log path above. The
+`orion-agent logs` command pretty-prints those entries and falls back to systemd or launchd
+diagnostics when the structured log file is not available yet.
 
 ## Docker Monitors On Linux
 
