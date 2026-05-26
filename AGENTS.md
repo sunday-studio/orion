@@ -2,6 +2,10 @@
 
 This file defines the working boundaries for humans and coding agents in this repository. Follow these rules before editing files.
 
+## Project Memory
+
+Use Maat as the canonical project memory for this repo. Before material work, run `maat sync` if available, then inspect state with `maat status`, `maat project show <project>`, or `maat search <query>`. Create or claim a ticket before working. Record meaningful progress with ticket comments or events. When finished, complete the ticket with evidence, validate Maat, and sync. Do not mark work done without evidence.
+
 ## Repository Map
 
 - `apps/agent/`: Orion Agent. Go daemon, CLI, config/state handling, collectors, registration, and transport to Core.
