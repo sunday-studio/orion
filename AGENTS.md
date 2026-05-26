@@ -109,6 +109,10 @@ make docker-up
 
 ## Commit Message Format
 
+Commit your completed changes before ending the task unless the user explicitly asks you not to
+commit, the work is intentionally left incomplete, or the repository is in a state where committing
+would capture unrelated or unsafe changes. If you cannot commit, explain why in the final response.
+
 Use this format for commits:
 
 ```txt
