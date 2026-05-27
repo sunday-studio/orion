@@ -1160,6 +1160,9 @@ func (s *Server) createStatusPageIncidentUpdate(c *gin.Context) {
 		}); err != nil {
 			return err
 		}
+		if err := s.enqueueStatusPageSubscriberIncidentUpdateDeliveries(tx, incident, update); err != nil {
+			return err
+		}
 		if !wasResolved && (incident.PublicStatus == "resolved" || incident.ResolvedAt != nil) {
 			return s.recordStatusPageAuditEvent(tx, c, service.StatusPageAuditEventInput{
 				Action:             service.StatusPageAuditActionPublicIncidentResolved,
