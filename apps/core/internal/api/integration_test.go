@@ -2163,6 +2163,53 @@ func TestCoreMonitorConfirmationCheckCountOpensAfterConsecutiveFailures(t *testi
 	assertMonitorIncidentState(t, server, monitor.ID, incident.ID, "down")
 }
 
+func TestCoreMonitorRecoveryPeriodDefersBlipsAndResolvesSustainedRecovery(t *testing.T) {
+	server := setupTestServer(t)
+	monitor := seedCoreNoiseMonitor(t, server, "monitor-core-recovery-period", 0, 0, 60)
+	startedAt := time.Date(2026, 5, 28, 1, 30, 0, 0, time.UTC)
+
+	storeCoreConfirmationReport(t, server, monitor.ID, "down", startedAt)
+	var incident db.Incident
+	if err := server.db.Where("monitor_id = ?", monitor.ID).First(&incident).Error; err != nil {
+		t.Fatalf("find recovery incident: %v", err)
+	}
+	if incident.Status != "open" {
+		t.Fatalf("recovery incident = %+v, want open", incident)
+	}
+	assertMonitorIncidentState(t, server, monitor.ID, incident.ID, "down")
+
+	storeCoreConfirmationReport(t, server, monitor.ID, "up", startedAt.Add(30*time.Second))
+	if err := server.db.Where("id = ?", incident.ID).First(&incident).Error; err != nil {
+		t.Fatalf("reload recovering incident: %v", err)
+	}
+	if incident.Status != "open" || incident.ResolvedAt != nil {
+		t.Fatalf("short recovery incident = %+v, want still open", incident)
+	}
+	assertMonitorIncidentState(t, server, monitor.ID, incident.ID, "recovering")
+	assertIncidentEventCount(t, server, incident.ID, "incident_resolved", 0)
+
+	storeCoreConfirmationReport(t, server, monitor.ID, "down", startedAt.Add(40*time.Second))
+	if err := server.db.Where("id = ?", incident.ID).First(&incident).Error; err != nil {
+		t.Fatalf("reload relapse incident: %v", err)
+	}
+	if incident.Status != "open" || incident.ResolvedAt != nil {
+		t.Fatalf("relapse incident = %+v, want still open", incident)
+	}
+	assertMonitorIncidentState(t, server, monitor.ID, incident.ID, "down")
+
+	storeCoreConfirmationReport(t, server, monitor.ID, "up", startedAt.Add(50*time.Second))
+	assertMonitorIncidentState(t, server, monitor.ID, incident.ID, "recovering")
+
+	storeCoreConfirmationReport(t, server, monitor.ID, "up", startedAt.Add(111*time.Second))
+	if err := server.db.Where("id = ?", incident.ID).First(&incident).Error; err != nil {
+		t.Fatalf("reload resolved recovery incident: %v", err)
+	}
+	if incident.Status != "resolved" || incident.ResolvedAt == nil {
+		t.Fatalf("sustained recovery incident = %+v, want resolved", incident)
+	}
+	assertMonitorIncidentState(t, server, monitor.ID, "", "up")
+}
+
 func TestCoreMonitorManagementLifecycle(t *testing.T) {
 	server := setupTestServer(t)
 	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2183,6 +2230,7 @@ func TestCoreMonitorManagementLifecycle(t *testing.T) {
 		"timeout_seconds":             2,
 		"confirmation_period_seconds": 60,
 		"confirmation_check_count":    3,
+		"recovery_period_seconds":     45,
 		"config": map[string]interface{}{
 			"url":               target.URL + "/health",
 			"expected_status":   http.StatusAccepted,
@@ -2211,6 +2259,7 @@ func TestCoreMonitorManagementLifecycle(t *testing.T) {
 				Kind                      string                 `json:"kind"`
 				ConfirmationPeriodSeconds int                    `json:"confirmation_period_seconds"`
 				ConfirmationCheckCount    int                    `json:"confirmation_check_count"`
+				RecoveryPeriodSeconds     int                    `json:"recovery_period_seconds"`
 				Config                    map[string]interface{} `json:"config"`
 				SecretRefs                map[string]interface{} `json:"secret_refs"`
 			} `json:"config"`
@@ -2227,8 +2276,8 @@ func TestCoreMonitorManagementLifecycle(t *testing.T) {
 	if created.Data.Config.Kind != "http" || created.Data.Config.Config["authorization"] != "[redacted]" || created.Data.Config.SecretRefs["header"] != "[redacted]" {
 		t.Fatalf("redacted config = %+v, secret refs = %+v", created.Data.Config.Config, created.Data.Config.SecretRefs)
 	}
-	if created.Data.Config.ConfirmationPeriodSeconds != 60 || created.Data.Config.ConfirmationCheckCount != 3 {
-		t.Fatalf("confirmation config = %+v, want 60s and 3 checks", created.Data.Config)
+	if created.Data.Config.ConfirmationPeriodSeconds != 60 || created.Data.Config.ConfirmationCheckCount != 3 || created.Data.Config.RecoveryPeriodSeconds != 45 {
+		t.Fatalf("noise config = %+v, want 60s confirmation, 3 checks, and 45s recovery", created.Data.Config)
 	}
 
 	configResp := performJSONRequest(t, server, http.MethodGet, "/v1/monitors/"+monitorID+"/config", nil, "")
@@ -2242,6 +2291,7 @@ func TestCoreMonitorManagementLifecycle(t *testing.T) {
 		"interval_seconds":            45,
 		"confirmation_period_seconds": 30,
 		"confirmation_check_count":    2,
+		"recovery_period_seconds":     20,
 		"config": map[string]interface{}{
 			"url":             target.URL + "/health",
 			"expected_status": http.StatusAccepted,
@@ -2263,8 +2313,8 @@ func TestCoreMonitorManagementLifecycle(t *testing.T) {
 	if err := server.db.Where("monitor_id = ?", monitorID).First(&updatedConfig).Error; err != nil {
 		t.Fatalf("find updated core monitor config: %v", err)
 	}
-	if updatedConfig.ConfirmationPeriodSeconds != 30 || updatedConfig.ConfirmationCheckCount != 2 {
-		t.Fatalf("updated confirmation config = %+v, want 30s and 2 checks", updatedConfig)
+	if updatedConfig.ConfirmationPeriodSeconds != 30 || updatedConfig.ConfirmationCheckCount != 2 || updatedConfig.RecoveryPeriodSeconds != 20 {
+		t.Fatalf("updated noise config = %+v, want 30s confirmation, 2 checks, and 20s recovery", updatedConfig)
 	}
 
 	pauseResp := performJSONRequest(t, server, http.MethodPost, "/v1/monitors/"+monitorID+"/pause", nil, "")
@@ -4220,6 +4270,12 @@ func assertMonitorIncidentState(t *testing.T, server *Server, monitorID string, 
 func seedCoreConfirmationMonitor(t *testing.T, server *Server, monitorID string, confirmationPeriodSeconds int, confirmationCheckCount int) db.Monitor {
 	t.Helper()
 
+	return seedCoreNoiseMonitor(t, server, monitorID, confirmationPeriodSeconds, confirmationCheckCount, 0)
+}
+
+func seedCoreNoiseMonitor(t *testing.T, server *Server, monitorID string, confirmationPeriodSeconds int, confirmationCheckCount int, recoveryPeriodSeconds int) db.Monitor {
+	t.Helper()
+
 	now := time.Now().UTC()
 	monitor := db.Monitor{
 		ID:                       monitorID,
@@ -4245,6 +4301,7 @@ func seedCoreConfirmationMonitor(t *testing.T, server *Server, monitorID string,
 		TimeoutSeconds:            10,
 		ConfirmationPeriodSeconds: confirmationPeriodSeconds,
 		ConfirmationCheckCount:    confirmationCheckCount,
+		RecoveryPeriodSeconds:     recoveryPeriodSeconds,
 		NextRunAt:                 now,
 		CreatedAt:                 now,
 		UpdatedAt:                 now,
@@ -4287,6 +4344,18 @@ func assertCoreIncidentCount(t *testing.T, server *Server, monitorID string, wan
 	}
 	if count != want {
 		t.Fatalf("core confirmation incident count = %d, want %d", count, want)
+	}
+}
+
+func assertIncidentEventCount(t *testing.T, server *Server, incidentID string, eventType string, want int64) {
+	t.Helper()
+
+	var count int64
+	if err := server.db.Model(&db.IncidentEvent{}).Where("incident_id = ? AND type = ?", incidentID, eventType).Count(&count).Error; err != nil {
+		t.Fatalf("count incident events: %v", err)
+	}
+	if count != want {
+		t.Fatalf("incident event count for %s = %d, want %d", eventType, count, want)
 	}
 }
 

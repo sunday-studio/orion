@@ -79,7 +79,7 @@ func (s *IncidentService) ReconcileMonitorReport(monitorID string, monitorReport
 	}
 
 	if reportedHealth == "up" && !tlsExpiring {
-		reconcileErr = s.resolveActiveIncident(monitor, monitorReportID, nextIncidentState)
+		reconcileErr = s.resolveActiveIncidentIfRecovered(monitor, monitorReportID, nextIncidentState)
 		return reconcileErr
 	}
 
@@ -122,6 +122,56 @@ func (s *IncidentService) ReconcileMonitorReport(monitorID string, monitorReport
 	}
 
 	return nil
+}
+
+func (s *IncidentService) resolveActiveIncidentIfRecovered(monitor db.Monitor, monitorReportID string, incidentState string) error {
+	activeIncidentID := monitor.ActiveIncidentID
+	if activeIncidentID == "" {
+		activeIncident, found, err := s.findActiveIncident(monitor.ID)
+		if err != nil {
+			return err
+		}
+		if found {
+			activeIncidentID = activeIncident.ID
+			monitor.ActiveIncidentID = activeIncident.ID
+		}
+	}
+	if activeIncidentID == "" {
+		return s.resolveActiveIncident(monitor, monitorReportID, incidentState)
+	}
+
+	confirmed, err := s.coreMonitorRecoveryConfirmed(monitor.ID)
+	if err != nil {
+		return err
+	}
+	if !confirmed {
+		s.logger.Info("Core monitor incident kept open during recovery period", "monitor_id", monitor.ID)
+		return s.updateMonitorIncidentState(monitor.ID, activeIncidentID, "recovering")
+	}
+	return s.resolveActiveIncident(monitor, monitorReportID, incidentState)
+}
+
+func (s *IncidentService) coreMonitorRecoveryConfirmed(monitorID string) (bool, error) {
+	var config db.CoreMonitorConfig
+	err := s.db.Where("monitor_id = ?", monitorID).First(&config).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return true, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if config.RecoveryPeriodSeconds <= 0 {
+		return true, nil
+	}
+
+	streak, firstSuccessAt, latestSuccessAt, err := s.currentSuccessStreak(monitorID)
+	if err != nil {
+		return false, err
+	}
+	if streak == 0 || firstSuccessAt == nil || latestSuccessAt == nil {
+		return false, nil
+	}
+	return latestSuccessAt.Sub(*firstSuccessAt) >= time.Duration(config.RecoveryPeriodSeconds)*time.Second, nil
 }
 
 func (s *IncidentService) coreMonitorFailureConfirmed(monitorID string, incidentState string) (bool, error) {
@@ -191,6 +241,32 @@ func monitorReportConfirmationTime(report db.MonitorReport) time.Time {
 		return reportedAt
 	}
 	return report.CreatedAt
+}
+
+func (s *IncidentService) currentSuccessStreak(monitorID string) (int, *time.Time, *time.Time, error) {
+	var reports []db.MonitorReport
+	if err := s.db.Where("monitor_id = ?", monitorID).Order("created_at DESC").Limit(100).Find(&reports).Error; err != nil {
+		return 0, nil, nil, err
+	}
+
+	streak := 0
+	var firstSuccessAt *time.Time
+	var latestSuccessAt *time.Time
+	for _, report := range reports {
+		if report.Health == "down" || report.Health == "degraded" || report.Health == "stale" {
+			break
+		}
+		if report.Health != "up" {
+			continue
+		}
+		streak++
+		reportedAt := monitorReportConfirmationTime(report)
+		if latestSuccessAt == nil {
+			latestSuccessAt = &reportedAt
+		}
+		firstSuccessAt = &reportedAt
+	}
+	return streak, firstSuccessAt, latestSuccessAt, nil
 }
 
 func (s *IncidentService) ReconcileStaleMonitors(agentID string) error {

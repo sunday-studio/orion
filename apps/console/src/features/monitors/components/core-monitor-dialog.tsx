@@ -47,6 +47,7 @@ type FormState = {
   name: string;
   paused: boolean;
   requiredContains: string;
+  recoveryPeriodSeconds: string;
   timeoutSeconds: string;
   url: string;
 };
@@ -62,6 +63,7 @@ const defaultForm: FormState = {
   name: "",
   paused: false,
   requiredContains: "",
+  recoveryPeriodSeconds: "0",
   timeoutSeconds: "10",
   url: "",
 };
@@ -143,6 +145,7 @@ export const CoreMonitorDialog = ({
       name: monitor?.name ?? "",
       paused: config?.paused ?? false,
       requiredContains: readConfigStringList(config, "required_contains"),
+      recoveryPeriodSeconds: String(config?.recovery_period_seconds ?? 0),
       timeoutSeconds: String(config?.timeout_seconds ?? 10),
       url: readConfigString(config, "url"),
     });
@@ -178,6 +181,7 @@ export const CoreMonitorDialog = ({
       kind: form.kind,
       name: form.name.trim(),
       paused: form.paused,
+      recovery_period_seconds: toNonNegativeInt(form.recoveryPeriodSeconds, 0),
       ...(isHeartbeat ? {} : { timeout_seconds: toPositiveInt(form.timeoutSeconds, 10) }),
       type: form.kind,
     };
@@ -328,6 +332,16 @@ export const CoreMonitorDialog = ({
                 type="number"
                 value={form.confirmationCheckCount}
                 onChange={(event) => updateForm({ confirmationCheckCount: event.target.value })}
+              />
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="font-medium">Recovery seconds</span>
+              <Input
+                inputMode="numeric"
+                min={0}
+                type="number"
+                value={form.recoveryPeriodSeconds}
+                onChange={(event) => updateForm({ recoveryPeriodSeconds: event.target.value })}
               />
             </label>
             <label className="flex items-center gap-2 pt-7 text-sm">
