@@ -30,6 +30,7 @@ const (
 	tlsRunnerName           = "tls_certificate"
 	udpRunnerKind           = "udp"
 	apiRequestRunnerKind    = "api_request"
+	domainExpirationKind    = "domain_expiration"
 	maxHTTPResponseDrainLen = 512
 	maxHTTPBodyCaptureLen   = 4096
 )
@@ -244,6 +245,11 @@ func (a *App) runClaimedCheck(ctx context.Context, monitorConfig db.CoreMonitorC
 		finishedAt = result.FinishedAt
 		success = result.Health == "up"
 		reportErr = a.storeAPIRequestReport(monitorConfig.MonitorID, result)
+	case domainExpirationKind:
+		result := a.runDomainExpirationCheck(ctx, monitorConfig)
+		finishedAt = result.FinishedAt
+		success = result.Health == "up"
+		reportErr = a.storeDomainExpirationReport(monitorConfig.MonitorID, result)
 	default:
 		complete = false
 		a.logger.Warn("Skipping unsupported Core monitor kind", "monitor_id", monitorConfig.MonitorID, "kind", monitorConfig.Kind)

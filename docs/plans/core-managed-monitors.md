@@ -153,8 +153,15 @@ Minimum options:
 
 - domain;
 - expiration threshold;
-- RDAP first, WHOIS fallback later;
+- RDAP first;
+- WHOIS fallback later;
 - interval.
+
+First release behavior: Core queries RDAP for the domain expiration event and reports `expires_at`,
+`days_remaining`, `lookup_strategy: rdap`, and `fallback_strategy: none`. If RDAP does not expose
+usable expiration data, the monitor fails clearly with an unavailable-data payload instead of
+guessing from WHOIS text. WHOIS fallback stays deferred because registry formats, throttling, and
+privacy redaction make it a separate reliability problem.
 
 9. Expected status code monitor
 
