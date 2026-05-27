@@ -118,6 +118,97 @@ const docTemplate = `{
                 }
             }
         },
+        "/status/{slug}/badge.svg": {
+            "get": {
+                "description": "Get an embeddable SVG badge for the current public-safe status page state",
+                "produces": [
+                    "image/svg+xml"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Get public status page badge",
+                "operationId": "getPublicStatusPageBadge",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SVG badge",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/status/{slug}/components/{component_id}/badge.svg": {
+            "get": {
+                "description": "Get an embeddable SVG badge for a visible public component state",
+                "produces": [
+                    "image/svg+xml"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Get public status page component badge",
+                "operationId": "getPublicStatusPageComponentBadge",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Public component ID",
+                        "name": "component_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SVG badge",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/status/{slug}/components/{component_id}/history": {
             "get": {
                 "description": "Get sanitized public uptime history for one visible component",

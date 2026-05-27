@@ -1508,6 +1508,68 @@ paths:
       summary: Get public status page
       tags:
       - public-status
+  /status/{slug}/badge.svg:
+    get:
+      description: Get an embeddable SVG badge for the current public-safe status
+        page state
+      operationId: getPublicStatusPageBadge
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - image/svg+xml
+      responses:
+        "200":
+          description: SVG badge
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get public status page badge
+      tags:
+      - public-status
+  /status/{slug}/components/{component_id}/badge.svg:
+    get:
+      description: Get an embeddable SVG badge for a visible public component state
+      operationId: getPublicStatusPageComponentBadge
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Public component ID
+        in: path
+        name: component_id
+        required: true
+        type: string
+      produces:
+      - image/svg+xml
+      responses:
+        "200":
+          description: SVG badge
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get public status page component badge
+      tags:
+      - public-status
   /status/{slug}/components/{component_id}/history:
     get:
       consumes:
