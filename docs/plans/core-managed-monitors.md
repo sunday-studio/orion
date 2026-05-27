@@ -269,6 +269,21 @@ Agent-only monitors should remain Agent-owned:
 
 Current Orion tables require `monitors.agent_id` and `incidents.agent_id`. That means the lowest-risk path is to introduce Core as a first-class monitor owner while preserving existing monitor and incident tables.
 
+### M1 Ownership Decision
+
+M1 should represent Core as a first-class owner without making `monitors.agent_id` or `incidents.agent_id` nullable. Core-managed monitors get a synthetic Core owner row in `agents`, and every monitor also gets explicit owner metadata so API and Console code do not have to infer ownership from the Agent join forever.
+
+Decision:
+
+- create or migrate one system owner row in `agents` with stable identity such as `id = core`, `machine_id = core`, `name = Orion Core`, and a new `kind` or `role` value of `core`;
+- add explicit monitor ownership fields, at minimum `monitors.owner_kind`, `monitors.owner_id`, and `monitors.runner`, where Agent-created monitors use `owner_kind = agent`, `owner_id = agent_id`, `runner = agent`, and Core-created monitors use `owner_kind = core`, `owner_id = core`, `runner = core`;
+- keep `monitors.agent_id` populated for all rows during M1, using the real Agent ID for Agent monitors and the Core owner row ID for Core monitors;
+- keep `incidents.agent_id` populated from `monitors.agent_id` so existing incident queries, alert payloads, uptime rollups, and Console incident links keep working;
+- add Core monitor configuration in a separate table keyed by `monitor_id`; do not overload `monitors.meta` with executable Core monitor config;
+- continue storing all check results in `monitor_reports`, regardless of whether the producer is an Agent or the Core monitor worker.
+
+This gives M1 a compatible migration path while making the public model honest. The long-term cleanup can later make incident and monitor ownership fully owner-based, but M1 should not require changing every existing Agent-scoped query at once.
+
 Recommended approach:
 
 1. Add an owner concept without breaking existing Agent monitors.
@@ -281,6 +296,28 @@ Options:
 The first option is easier for existing list, detail, incident, uptime, and rollup paths. The second is cleaner long-term, but touches more query and response code.
 
 Recommendation: start with a Core owner row plus an explicit owner/source field on monitors. This keeps compatibility while making the UI honest.
+
+### M1 Migration Sequence
+
+The ownership migration should be separate from the worker implementation so existing Agent monitors continue to work before any Core polling code ships.
+
+1. Add `agents.kind` or `agents.role`, defaulting existing rows to `agent`.
+2. Upsert the Core owner row with a stable ID and token placeholder that is never accepted as an Agent bearer token.
+3. Add `monitors.owner_kind`, `monitors.owner_id`, `monitors.runner`, `monitors.target_summary`, `monitors.next_run_at`, `monitors.last_checked_at`, and `monitors.paused`.
+4. Backfill existing monitor rows with `owner_kind = agent`, `owner_id = agent_id`, `runner = agent`, `target_summary` from existing name/type metadata when possible, `last_checked_at` from latest report or `last_successful_report_at`, and `paused = false`.
+5. Keep the existing Agent registration and unregistration routes writing `agent_id` exactly as they do now, plus the new owner fields for Agent monitors.
+6. Add `core_monitor_configs` and create Core monitors by inserting both a `monitors` row with `agent_id = core` and a matching config row.
+7. Update monitor list/detail responses to include the owner and schedule fields while preserving `agent_id` and `agent_name` for current Console code.
+8. Add owner filters after the response fields exist; until then all existing list, detail, health, uptime, and incident routes should return Agent monitors unchanged.
+
+Compatibility rules:
+
+- Existing Agent monitors must not require re-registration after the migration.
+- Agent monitor uniqueness remains scoped to the real Agent ID and monitor name.
+- Core monitor uniqueness is scoped to the Core owner row for M1, then can move to workspace/project ownership later.
+- Agent-authenticated routes must reject attempts to register monitors against the Core owner row.
+- The Core owner row must not appear as a normal server in the primary Agents list unless the UI explicitly opts into runtime/system owners.
+- Agent health must not aggregate Core monitors just because Core monitors use a synthetic `agent_id`; health queries should exclude `owner_kind = core` from server health counts once owner fields exist.
 
 2. Add Core monitor configuration.
 
@@ -302,6 +339,8 @@ Use a separate table instead of stuffing runtime config into `monitors.meta`:
 - `lease_owner`;
 - `lease_expires_at`;
 - `created_at`, `updated_at`.
+
+M1 should add enough columns for HTTP status checks and leasing, but the table shape should leave room for later monitor kinds without changing `monitors` again. The first migration can use JSON for type-specific config as long as API responses expose only redacted, typed summaries.
 
 3. Continue using `monitor_reports`.
 
@@ -331,6 +370,17 @@ Console needs to distinguish monitor owners:
 - `paused`.
 
 Existing `agent_id` and `agent_name` can remain for compatibility, but the new owner fields should become the UI language.
+
+Future Core/API/Console response changes required:
+
+- `MonitorResponse`: add `owner_kind`, `owner_id`, `owner_name`, `runner`, `target_summary`, `next_run_at`, `last_checked_at`, `paused`, and optional `worker_status`.
+- `MonitorReportResponse`: either keep `payload` as the raw redacted payload or add parsed summary fields such as `runner`, `duration_ms`, `failure_stage`, `status_code`, `target`, and `message` so Console does not parse every report shape itself.
+- `IncidentResponse`: add `owner_kind`, `owner_id`, `owner_name`, and preserve `agent_id`/`agent_name` during M1 so current incident filtering keeps working.
+- `MonitorSummary`: add owner buckets such as `agent_total`, `core_total`, and `heartbeat_total` once owner filters land.
+- `GET /v1/monitors`: add `owner_kind`, `runner`, and eventually `paused` query filters.
+- Console monitor list: replace the current Agent column with Owner, show Agent/Core/Heartbeat badges, and keep Agent links only for `owner_kind = agent`.
+- Console monitor detail: change the Owner panel to read owner fields, show schedule fields for Core monitors, and keep the Agent tab/detail links only for Agent-owned monitors.
+- Console agent detail monitor tabs: continue using `/v1/agents/{id}/monitors`, which should only return Agent-owned monitors for that Agent.
 
 ## Core Monitor Worker Architecture
 
@@ -534,7 +584,7 @@ Loaded into Maat on 2026-05-27. Each milestone row is a Maat goal. Each ticket r
 
 ## Review Questions
 
-- Should Core monitors be represented as a special Core Agent row for the first implementation, or should we pay the cost now for an `owner_kind` abstraction?
+- Resolved for M1: Core monitors should use a synthetic Core owner row plus explicit `owner_kind`/`owner_id`/`runner` fields; do not make `agent_id` nullable in the first migration.
 - Should the worker write directly to the shared SQLite database through Core services, or report back through internal Core API routes?
 - Should the first worker live under `apps/core/cmd/worker`, or should it be a separate `apps/core-worker` app from day one?
 - How should Docker Compose and local development start the API and worker together?

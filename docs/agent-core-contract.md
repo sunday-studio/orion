@@ -9,6 +9,8 @@ The exact HTTP schema lives in `apps/core/openapi.yaml`.
 - Core stores data, computes health, and owns product decisions.
 - Registration is reconciliation: Agent declares what exists; Core persists and revives state as needed.
 - Frontend needs must not complicate or delay Agent reporting.
+- Monitor ownership is explicit: Agent monitors are owned and executed by an Agent, while Core monitors are owned by Core and executed by the Core monitor worker.
+- Report ingestion should converge on the same storage and incident reconciliation path regardless of whether the producer is an Agent or the Core monitor worker.
 
 ## Agent Responsibilities
 
@@ -28,6 +30,8 @@ The Agent should not:
 - Store historical report data.
 - Resolve incidents or alerts.
 - Depend on Console behavior.
+- Create, edit, pause, resume, or delete Core-managed monitors.
+- Execute Core monitor checks from Core-owned Console configuration.
 
 ## Core Responsibilities
 
@@ -40,6 +44,25 @@ The Agent should not:
 - Compute server, monitor, stale, degraded, and aggregate health states.
 - Own incidents, alerts, retention, migrations, and API behavior.
 - Serve the Console and public API.
+- Own Core-managed monitor definitions, redaction, schedule state, and lifecycle actions.
+- Maintain a stable Core owner identity for Core-managed monitors while existing monitor and incident rows still require `agent_id`.
+- Expose monitor owner fields so Console and API clients do not infer ownership from Agent IDs.
+
+## Core Monitor Worker Responsibilities
+
+- Run as a separate process from the Core API.
+- Claim due Core monitor checks using Core-owned schedule and lease state.
+- Execute checks with bounded concurrency and per-check timeouts.
+- Store Core monitor reports through the same service path used by Agent monitor reports, or through an internal Core API that reaches the same service path.
+- Update Core monitor schedule fields such as `next_run_at`, `last_run_at`, `last_checked_at`, and success/failure timestamps.
+- Trigger the same incident reconciliation path after reports are stored.
+- Expose worker health and diagnostics for Core/Console to display.
+
+The Core monitor worker should not:
+
+- Serve normal Console or public API traffic.
+- Accept direct Console calls for create, edit, pause, resume, delete, or normal test flows.
+- Execute local command monitors from Console configuration in the M1 HTTP monitor scope.
 
 ## Core Monitor Worker Responsibilities
 
@@ -61,6 +84,9 @@ availability only; Core worker state is exposed through `/v1/diagnostics/core-wo
 - Core validates that the token belongs to the `agent_id` in the path.
 - `X-Request-ID` may be supplied by callers; Core echoes or generates one.
 - Path IDs and body IDs must agree on agent-scoped routes.
+- Agent-scoped monitor registration routes are only for Agent-owned monitors.
+- Core monitor management routes must live outside `/v1/agents/:agent_id/*`.
+- API responses must keep `agent_id` and `agent_name` during M1 compatibility, but new Console work should prefer owner fields when present.
 
 ## Endpoints
 
@@ -76,6 +102,23 @@ availability only; Core worker state is exposed through `/v1/diagnostics/core-wo
   Stores check result and updates monitor state. Requires auth.
 - `GET /v1/diagnostics/core-worker`
   Returns Core monitor worker heartbeat status. Requires frontend/admin auth when configured.
+
+Planned Core monitor admin endpoints:
+
+- `POST /v1/monitors`
+  Creates a Core-managed monitor. Frontend/admin auth.
+- `PATCH /v1/monitors/:id`
+  Edits a Core-managed monitor config or lifecycle field. Frontend/admin auth.
+- `DELETE /v1/monitors/:id`
+  Soft-deletes a Core-managed monitor. Frontend/admin auth.
+- `POST /v1/monitors/:id/pause`
+  Pauses a Core-managed monitor without deleting history. Frontend/admin auth.
+- `POST /v1/monitors/:id/resume`
+  Resumes a paused Core-managed monitor. Frontend/admin auth.
+- `POST /v1/monitors/:id/test`
+  Requests one immediate Core-managed check. Frontend/admin auth.
+- `GET /v1/monitors/:id/config`
+  Returns redacted Core monitor configuration for editing. Frontend/admin auth.
 
 ## Endpoint Behavior
 
@@ -97,6 +140,18 @@ availability only; Core worker state is exposed through `/v1/diagnostics/core-wo
 - Core stores the monitor reporting interval and uses it for stale detection.
 - Monitor metadata from config may be stored as stringified JSON.
 - Agent re-sends configured monitors on startup so Core can refresh monitor metadata and intervals.
+- Agent monitor registration writes `owner_kind = agent`, `owner_id = agent_id`, and `runner = agent` after owner fields exist.
+- Agent monitor registration must reject the synthetic Core owner ID.
+
+### Core Monitor Ownership
+
+- M1 keeps `monitors.agent_id` and `incidents.agent_id` non-null by creating one synthetic Core owner row.
+- Core-managed monitors use the synthetic Core owner row for compatibility, but expose `owner_kind = core`, `owner_id = core`, `owner_name = Orion Core`, and `runner = core`.
+- Existing Agent monitors are backfilled as `owner_kind = agent`, `owner_id = agent_id`, and `runner = agent`.
+- Core-managed monitor executable config lives in `core_monitor_configs`, keyed by `monitor_id`.
+- Core-managed monitor secrets are write-only from Console and must be redacted in API responses, reports, logs, and event payloads.
+- Core monitor schedule state belongs to Core, not the Agent.
+- Agent health and Agent detail monitor lists should include only Agent-owned monitors, even while Core monitors have a compatibility `agent_id`.
 
 ### Monitor Unregistration
 
@@ -118,6 +173,26 @@ availability only; Core worker state is exposed through `/v1/diagnostics/core-wo
 - Core verifies the monitor belongs to the authenticated agent.
 - Reports store health, metrics, error payload, and collection time.
 - Successful reports update last-success timestamps.
+- Agent-authenticated report routes are for Agent-owned monitors.
+- Core monitor worker reports use the same `monitor_reports` table and incident reconciliation service, but are authorized through an internal worker path or direct shared service access, not through an Agent token.
+- Core-executed report payloads should identify `runner = core`, target summary, duration, result status, failure stage, redacted request metadata, and truncated response/error details.
+
+## API Response Ownership Fields
+
+Monitor responses should add:
+
+- `owner_kind`: `agent`, `core`, or future `heartbeat`.
+- `owner_id`: stable owner identifier.
+- `owner_name`: display name such as an Agent name or `Orion Core`.
+- `runner`: `agent` or `core`.
+- `target_summary`: redacted human-readable target.
+- `next_run_at`: next scheduled Core worker run when applicable.
+- `last_checked_at`: latest completed check regardless of success.
+- `paused`: whether Core scheduling is paused.
+
+Incident responses should add `owner_kind`, `owner_id`, and `owner_name` so Console can filter and label Core monitor incidents without treating the synthetic Core owner as a normal server.
+
+Existing `agent_id`, `agent_name`, and Agent-scoped list routes remain during M1 for compatibility.
 
 ## Status Vocabulary
 
@@ -143,6 +218,8 @@ Stale rules:
 - Monitor stale state is based on the latest monitor report time and `monitor.reporting_interval_seconds`.
 - Core treats data as stale after five missed reporting intervals, with a minimum stale window of five minutes.
 - If an interval is missing or invalid, Core falls back to 60 seconds.
+- Core monitor stale state is based on worker-produced monitor reports and the Core monitor interval, not on the synthetic Core owner row `last_seen`.
+- The Core API should not report the whole Core owner row stale merely because a Core-managed monitor is stale.
 
 Lifecycle states:
 
@@ -177,8 +254,13 @@ Core behavior:
 - Command monitors execute direct processes by default; shell behavior requires explicitly invoking a shell command.
 - Production deployments should use HTTPS or a trusted private network.
 - Secret values should not be returned to Console.
+- The synthetic Core owner token, if stored for schema compatibility, must not authenticate Agent-scoped routes.
+- Core monitor URL, header, and future body configuration must be validated and redacted before persistence or response.
+- Core monitor execution should deny or explicitly gate sensitive network targets according to deployment policy.
 
 ## Open Contract Decisions
 
 - Whether Agent should send all monitor reports individually or support batch reporting.
 - Token rotation and revocation flow.
+- Whether the Core monitor worker writes reports through direct shared services and SQLite access, or through an internal Core API.
+- Whether Core monitor private network targets are allowed by default or require an explicit setting.
