@@ -20,8 +20,13 @@ type atomFeed struct {
 	Title   string      `xml:"title"`
 	ID      string      `xml:"id"`
 	Updated string      `xml:"updated"`
+	Author  atomAuthor  `xml:"author"`
 	Links   []atomLink  `xml:"link"`
 	Entries []atomEntry `xml:"entry"`
+}
+
+type atomAuthor struct {
+	Name string `xml:"name"`
 }
 
 type atomLink struct {
@@ -106,6 +111,7 @@ func (s *Server) writeStatusPageAtomFeed(c *gin.Context, page db.StatusPage) {
 		Title:   page.Title,
 		ID:      alternateURL,
 		Updated: atomTime(statusPageFeedUpdatedAt(page, incidents, updatesByIncident)),
+		Author:  atomAuthor{Name: statusPageFeedAuthorName(page)},
 		Links: []atomLink{
 			{Rel: "self", Type: "application/atom+xml", Href: selfURL},
 			{Rel: "alternate", Type: "text/html", Href: alternateURL},
@@ -243,6 +249,13 @@ func publicIncidentFeedContent(incident db.StatusPageIncident, updates []db.Stat
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+func statusPageFeedAuthorName(page db.StatusPage) string {
+	if title := strings.TrimSpace(page.Title); title != "" {
+		return title
+	}
+	return "Orion Status"
 }
 
 func atomTime(value time.Time) string {

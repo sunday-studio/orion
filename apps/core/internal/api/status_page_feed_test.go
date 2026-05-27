@@ -13,7 +13,12 @@ import (
 type testAtomFeed struct {
 	XMLName xml.Name        `xml:"feed"`
 	Title   string          `xml:"title"`
+	Author  testAtomAuthor  `xml:"author"`
 	Entries []testAtomEntry `xml:"entry"`
+}
+
+type testAtomAuthor struct {
+	Name string `xml:"name"`
 }
 
 type testAtomEntry struct {
@@ -140,6 +145,9 @@ func TestStatusPageAtomFeedIncludesOnlyPublishedPublicIncidents(t *testing.T) {
 	}
 	if feed.Title != "Public Status" {
 		t.Fatalf("feed title = %q, want Public Status", feed.Title)
+	}
+	if feed.Author.Name != "Public Status" {
+		t.Fatalf("feed author = %q, want Public Status", feed.Author.Name)
 	}
 	if len(feed.Entries) != 1 {
 		t.Fatalf("feed entries = %d, want 1: %s", len(feed.Entries), resp.Body.String())
