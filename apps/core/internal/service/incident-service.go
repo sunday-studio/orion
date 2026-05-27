@@ -78,6 +78,28 @@ func (s *IncidentService) ReconcileMonitorReport(monitorID string, monitorReport
 		return err
 	}
 
+	maintenanceActive, err := s.coreMonitorMaintenanceActive(monitor.ID, monitorReportTime(payload))
+	if err != nil {
+		reconcileErr = err
+		return err
+	}
+	if maintenanceActive {
+		s.logger.Info("Core monitor incident suppressed during maintenance window", "monitor_id", monitorID)
+		activeIncidentID := monitor.ActiveIncidentID
+		if activeIncidentID == "" {
+			activeIncident, found, err := s.findActiveIncident(monitor.ID)
+			if err != nil {
+				reconcileErr = err
+				return err
+			}
+			if found {
+				activeIncidentID = activeIncident.ID
+			}
+		}
+		reconcileErr = s.updateMonitorIncidentState(monitor.ID, activeIncidentID, "maintenance")
+		return reconcileErr
+	}
+
 	if reportedHealth == "up" && !tlsExpiring {
 		reconcileErr = s.resolveActiveIncidentIfRecovered(monitor, monitorReportID, nextIncidentState)
 		return reconcileErr
@@ -726,8 +748,16 @@ func isCoreOwnerAgent(agent db.Agent) bool {
 }
 
 type coreMonitorIncidentConfig struct {
-	IncidentSeverity string `json:"incident_severity"`
-	Severity         string `json:"severity"`
+	IncidentSeverity   string                         `json:"incident_severity"`
+	MaintenanceWindows []coreMonitorMaintenanceWindow `json:"maintenance_windows"`
+	Severity           string                         `json:"severity"`
+}
+
+type coreMonitorMaintenanceWindow struct {
+	End     string `json:"end"`
+	EndAt   string `json:"end_at"`
+	Start   string `json:"start"`
+	StartAt string `json:"start_at"`
 }
 
 func (s *IncidentService) monitorIncidentSeverity(agent db.Agent, monitor db.Monitor, health string) string {
@@ -758,6 +788,64 @@ func coreMonitorIncidentSeverityOverride(configJSON string) (string, bool) {
 		return "", false
 	}
 	return severity, true
+}
+
+func (s *IncidentService) coreMonitorMaintenanceActive(monitorID string, at time.Time) (bool, error) {
+	var monitorConfig db.CoreMonitorConfig
+	err := s.db.Where("monitor_id = ?", monitorID).First(&monitorConfig).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+
+	var config coreMonitorIncidentConfig
+	if err := json.Unmarshal([]byte(monitorConfig.ConfigJSON), &config); err != nil {
+		return false, nil
+	}
+	for _, window := range config.MaintenanceWindows {
+		if window.contains(at) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (w coreMonitorMaintenanceWindow) contains(at time.Time) bool {
+	start, ok := parseCoreMonitorMaintenanceTime(firstNonEmpty(w.StartAt, w.Start))
+	if !ok {
+		return false
+	}
+	end, ok := parseCoreMonitorMaintenanceTime(firstNonEmpty(w.EndAt, w.End))
+	if !ok {
+		return false
+	}
+	return !at.Before(start) && at.Before(end)
+}
+
+func parseCoreMonitorMaintenanceTime(value string) (time.Time, bool) {
+	parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(value))
+	if err == nil {
+		return parsed, true
+	}
+	return time.Time{}, false
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func monitorReportTime(payload MonitorReportPayload) time.Time {
+	if reportedAt, err := time.Parse(time.RFC3339, payload.Timestamp); err == nil {
+		return reportedAt
+	}
+	return time.Now().UTC()
 }
 
 func coreMonitorIncidentSeverityDefault(kind string, health string) string {

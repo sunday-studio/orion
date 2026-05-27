@@ -2210,6 +2210,67 @@ func TestCoreMonitorRecoveryPeriodDefersBlipsAndResolvesSustainedRecovery(t *tes
 	assertMonitorIncidentState(t, server, monitor.ID, "", "up")
 }
 
+func TestCoreMonitorMaintenanceWindowsSuppressIncidents(t *testing.T) {
+	server := setupTestServer(t)
+	windowStart := time.Date(2026, 5, 28, 2, 0, 0, 0, time.UTC)
+	windowEnd := windowStart.Add(30 * time.Minute)
+
+	monitor := seedCoreMaintenanceMonitor(t, server, "monitor-core-maintenance-window", windowStart, windowEnd)
+	storeCoreConfirmationReport(t, server, monitor.ID, "down", windowStart.Add(-time.Minute))
+	assertCoreIncidentCount(t, server, monitor.ID, 1)
+
+	var incident db.Incident
+	if err := server.db.Where("monitor_id = ?", monitor.ID).First(&incident).Error; err != nil {
+		t.Fatalf("find maintenance incident: %v", err)
+	}
+	assertMonitorIncidentState(t, server, monitor.ID, incident.ID, "down")
+	var deliveryCountBeforeMaintenance int64
+	if err := server.db.Model(&db.AlertDelivery{}).Joins("JOIN incidents ON incidents.id = alert_deliveries.incident_id").Where("incidents.monitor_id = ?", monitor.ID).Count(&deliveryCountBeforeMaintenance).Error; err != nil {
+		t.Fatalf("count pre-maintenance alert deliveries: %v", err)
+	}
+
+	storeCoreConfirmationReport(t, server, monitor.ID, "up", windowStart.Add(time.Minute))
+	assertCoreIncidentCount(t, server, monitor.ID, 1)
+	if err := server.db.Where("id = ?", incident.ID).First(&incident).Error; err != nil {
+		t.Fatalf("reload maintenance incident: %v", err)
+	}
+	if incident.Status != "open" || incident.ResolvedAt != nil {
+		t.Fatalf("maintenance recovery incident = %+v, want still open", incident)
+	}
+	assertMonitorIncidentState(t, server, monitor.ID, incident.ID, "maintenance")
+	assertIncidentEventCount(t, server, incident.ID, "incident_resolved", 0)
+
+	storeCoreConfirmationReport(t, server, monitor.ID, "down", windowStart.Add(2*time.Minute))
+	assertCoreIncidentCount(t, server, monitor.ID, 1)
+	assertMonitorIncidentState(t, server, monitor.ID, incident.ID, "maintenance")
+	var activeReportCount int64
+	if err := server.db.Model(&db.MonitorReport{}).Where("monitor_id = ?", monitor.ID).Count(&activeReportCount).Error; err != nil {
+		t.Fatalf("count maintenance reports: %v", err)
+	}
+	if activeReportCount != 3 {
+		t.Fatalf("maintenance report count = %d, want preserved report", activeReportCount)
+	}
+	var activeDeliveryCount int64
+	if err := server.db.Model(&db.AlertDelivery{}).Joins("JOIN incidents ON incidents.id = alert_deliveries.incident_id").Where("incidents.monitor_id = ?", monitor.ID).Count(&activeDeliveryCount).Error; err != nil {
+		t.Fatalf("count maintenance alert deliveries: %v", err)
+	}
+	if activeDeliveryCount != deliveryCountBeforeMaintenance {
+		t.Fatalf("maintenance alert delivery count = %d, want unchanged %d", activeDeliveryCount, deliveryCountBeforeMaintenance)
+	}
+
+	storeCoreConfirmationReport(t, server, monitor.ID, "up", windowEnd.Add(time.Second))
+	if err := server.db.Where("id = ?", incident.ID).First(&incident).Error; err != nil {
+		t.Fatalf("reload resolved maintenance incident: %v", err)
+	}
+	if incident.Status != "resolved" || incident.ResolvedAt == nil {
+		t.Fatalf("exited maintenance incident = %+v, want resolved", incident)
+	}
+	assertMonitorIncidentState(t, server, monitor.ID, "", "up")
+
+	storeCoreConfirmationReport(t, server, monitor.ID, "down", windowEnd.Add(2*time.Second))
+	assertCoreIncidentCount(t, server, monitor.ID, 2)
+}
+
 func TestCoreMonitorManagementLifecycle(t *testing.T) {
 	server := setupTestServer(t)
 	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -4308,6 +4369,21 @@ func seedCoreNoiseMonitor(t *testing.T, server *Server, monitorID string, confir
 	}
 	if err := server.db.Create(&config).Error; err != nil {
 		t.Fatalf("create core confirmation config: %v", err)
+	}
+	return monitor
+}
+
+func seedCoreMaintenanceMonitor(t *testing.T, server *Server, monitorID string, startAt time.Time, endAt time.Time) db.Monitor {
+	t.Helper()
+
+	monitor := seedCoreNoiseMonitor(t, server, monitorID, 0, 0, 0)
+	configJSON := fmt.Sprintf(
+		`{"url":"https://api.example.com/health","maintenance_windows":[{"start_at":%q,"end_at":%q}]}`,
+		startAt.Format(time.RFC3339),
+		endAt.Format(time.RFC3339),
+	)
+	if err := server.db.Model(&db.CoreMonitorConfig{}).Where("monitor_id = ?", monitor.ID).Update("config_json", configJSON).Error; err != nil {
+		t.Fatalf("set core maintenance config: %v", err)
 	}
 	return monitor
 }

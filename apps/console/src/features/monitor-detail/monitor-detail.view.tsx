@@ -152,6 +152,14 @@ const coreConfigValue = (config: { config?: Record<string, unknown> } | undefine
   return "—";
 };
 
+const coreConfigArrayCount = (
+  config: { config?: Record<string, unknown> } | undefined,
+  key: string,
+) => {
+  const value = config?.config?.[key];
+  return Array.isArray(value) ? value.length : 0;
+};
+
 const reportTimestamp = (report?: ApiMonitorReportResponse) =>
   report?.created_at ?? report?.collected_at;
 
@@ -702,6 +710,10 @@ export const MonitorDetailPage = () => {
                     <DetailItem
                       label="recovery"
                       value={`${coreConfig.recovery_period_seconds ?? 0}s`}
+                    />
+                    <DetailItem
+                      label="maintenance"
+                      value={`${coreConfigArrayCount(coreConfig, "maintenance_windows")} windows`}
                     />
                     <DetailItem label="paused" value={coreConfig.paused ? "yes" : "no"} />
                     {coreConfig.kind === "heartbeat" && (
