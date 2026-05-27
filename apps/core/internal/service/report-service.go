@@ -31,9 +31,10 @@ type MonitorReportPayload struct {
 }
 
 type ReportService struct {
-	db     *gorm.DB
-	logger *logging.Logger
-	cfg    *config.Config
+	db          *gorm.DB
+	logger      *logging.Logger
+	cfg         *config.Config
+	diagnostics *RuntimeDiagnosticsService
 }
 
 func NewReportService(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *ReportService {
@@ -42,6 +43,10 @@ func NewReportService(database *gorm.DB, logger *logging.Logger, cfg *config.Con
 		logger: logger,
 		cfg:    cfg,
 	}
+}
+
+func (s *ReportService) SetDiagnostics(diagnostics *RuntimeDiagnosticsService) {
+	s.diagnostics = diagnostics
 }
 
 func (s *ReportService) StoreMonitorReport(monitorID string, payload MonitorReportPayload) (*string, error) {
@@ -70,10 +75,13 @@ func (s *ReportService) StoreMonitorReport(monitorID string, payload MonitorRepo
 		Payload:     payloadData,
 	}
 
+	writeStarted := time.Now()
 	if err := s.db.Create(&monitorReport).Error; err != nil {
+		s.diagnostics.RecordReportWrite("monitor", time.Since(writeStarted), err)
 		s.logger.Error("Failed to store monitor report", "error", err)
 		return nil, err
 	}
+	s.diagnostics.RecordReportWrite("monitor", time.Since(writeStarted), nil)
 
 	// Update monitor health and last successful report timestamp
 	now := time.Now()
@@ -94,6 +102,7 @@ func (s *ReportService) StoreMonitorReport(monitorID string, payload MonitorRepo
 	}
 
 	incidentService := NewIncidentService(s.db, s.logger, s.cfg)
+	incidentService.SetDiagnostics(s.diagnostics)
 	if err := incidentService.ReconcileMonitorReport(monitorID, monitorReportID, payload); err != nil {
 		s.logger.Error("Failed to reconcile incident after monitor report", "monitor_id", monitorID, "monitor_report_id", monitorReportID, "error", err)
 		return nil, err
@@ -134,10 +143,13 @@ func (s *ReportService) StoreAgentReport(agentID string, payload AgentReportPayl
 		Location: datatypes.NewJSONType(payload.Location),
 	}
 
+	writeStarted := time.Now()
 	if err := s.db.Create(&agentReport).Omit("Agent").Error; err != nil {
+		s.diagnostics.RecordReportWrite("agent", time.Since(writeStarted), err)
 		s.logger.Error("Failed to store agent report", "error", err)
 		return nil, err
 	}
+	s.diagnostics.RecordReportWrite("agent", time.Since(writeStarted), nil)
 
 	if intervalSeconds := reportingIntervalSeconds(payload.ConfigSummary); intervalSeconds > 0 {
 		if err := s.db.Model(&db.Agent{}).
@@ -149,6 +161,7 @@ func (s *ReportService) StoreAgentReport(agentID string, payload AgentReportPayl
 
 	s.logger.Info("Agent report stored successfully", "agent_report_id", agentReport.ID)
 	incidentService := NewIncidentService(s.db, s.logger, s.cfg)
+	incidentService.SetDiagnostics(s.diagnostics)
 	if err := incidentService.ReconcileStaleMonitors(agentID); err != nil {
 		s.logger.Error("Failed to reconcile stale monitor incidents after agent report", "agent_id", agentID, "error", err)
 		return nil, err

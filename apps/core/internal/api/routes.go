@@ -21,21 +21,22 @@ import (
 )
 
 type Server struct {
-	db                       *gorm.DB
-	logger                   *logging.Logger
-	cfg                      *config.Config
-	agentService             *service.AgentService
-	authService              *service.AuthService
-	reportService            *service.ReportService
-	monitorService           *service.MonitorService
-	settingsService          *service.SettingsService
-	rollupService            *service.RollupService
-	archiveService           *service.ArchiveService
-	workerDiagnosticsService *service.WorkerDiagnosticsService
-	loginLimiter             *RateLimiter
-	publicSubscriberLimiter  *RateLimiter
-	publicStatusMailSend     func(publicStatusMailMessage) error
-	router                   *gin.Engine
+	db                        *gorm.DB
+	logger                    *logging.Logger
+	cfg                       *config.Config
+	agentService              *service.AgentService
+	authService               *service.AuthService
+	reportService             *service.ReportService
+	monitorService            *service.MonitorService
+	settingsService           *service.SettingsService
+	rollupService             *service.RollupService
+	archiveService            *service.ArchiveService
+	workerDiagnosticsService  *service.WorkerDiagnosticsService
+	runtimeDiagnosticsService *service.RuntimeDiagnosticsService
+	loginLimiter              *RateLimiter
+	publicSubscriberLimiter   *RateLimiter
+	publicStatusMailSend      func(publicStatusMailMessage) error
+	router                    *gin.Engine
 }
 
 func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *Server {
@@ -47,6 +48,8 @@ func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *S
 	rollupService := service.NewRollupService(database, logger)
 	archiveService := service.NewArchiveService(database, logger, cfg.DataDir)
 	workerDiagnosticsService := service.NewWorkerDiagnosticsService(database, logger)
+	runtimeDiagnosticsService := service.NewRuntimeDiagnosticsService(database, logger)
+	reportService.SetDiagnostics(runtimeDiagnosticsService)
 	router := gin.Default()
 	corsOrigins := cfg.CORSOrigins
 	if len(corsOrigins) == 0 {
@@ -62,22 +65,24 @@ func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *S
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 	router.Use(RequestIDMiddleware(logger))
+	router.Use(RuntimeDiagnosticsMiddleware(runtimeDiagnosticsService))
 
 	server := &Server{
-		db:                       database,
-		logger:                   logger,
-		cfg:                      cfg,
-		agentService:             agentService,
-		authService:              authService,
-		reportService:            reportService,
-		monitorService:           monitorService,
-		settingsService:          settingsService,
-		rollupService:            rollupService,
-		archiveService:           archiveService,
-		workerDiagnosticsService: workerDiagnosticsService,
-		loginLimiter:             NewRateLimiter(cfg.LoginRateLimitAttempts, time.Duration(cfg.LoginRateLimitWindowSecs)*time.Second),
-		publicSubscriberLimiter:  NewRateLimiter(10, time.Minute),
-		router:                   router,
+		db:                        database,
+		logger:                    logger,
+		cfg:                       cfg,
+		agentService:              agentService,
+		authService:               authService,
+		reportService:             reportService,
+		monitorService:            monitorService,
+		settingsService:           settingsService,
+		rollupService:             rollupService,
+		archiveService:            archiveService,
+		workerDiagnosticsService:  workerDiagnosticsService,
+		runtimeDiagnosticsService: runtimeDiagnosticsService,
+		loginLimiter:              NewRateLimiter(cfg.LoginRateLimitAttempts, time.Duration(cfg.LoginRateLimitWindowSecs)*time.Second),
+		publicSubscriberLimiter:   NewRateLimiter(10, time.Minute),
+		router:                    router,
 	}
 	server.publicStatusMailSend = server.deliverPublicStatusMail
 
@@ -141,6 +146,7 @@ func (s *Server) setupRoutes() {
 			frontend.GET("/monitors/:id/history", s.getMonitorHistory)
 			frontend.GET("/health/summary", s.getSystemHealth)
 			frontend.GET("/health/issues", s.getHealthIssues)
+			frontend.GET("/diagnostics/core", s.getCoreDiagnostics)
 			frontend.GET("/diagnostics/core-worker", s.getCoreWorkerDiagnostics)
 			frontend.GET("/incidents", s.listIncidents)
 			frontend.GET("/incidents/:id", s.getIncidentDetail)
@@ -276,6 +282,19 @@ func RequestIDMiddleware(logger *logging.Logger) gin.HandlerFunc {
 		logger.Debug("Request received", "request_id", requestID, "method", c.Request.Method, "path", c.Request.URL.Path)
 
 		c.Next()
+	}
+}
+
+func RuntimeDiagnosticsMiddleware(diagnostics *service.RuntimeDiagnosticsService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		startedAt := time.Now()
+		c.Next()
+
+		route := c.FullPath()
+		if route == "" {
+			route = c.Request.URL.Path
+		}
+		diagnostics.RecordRequest(route, c.Writer.Status(), time.Since(startedAt))
 	}
 }
 

@@ -141,6 +141,32 @@ func (s *Server) getCoreWorkerDiagnostics(c *gin.Context) {
 	})
 }
 
+// getCoreDiagnostics retrieves Core runtime ingestion and SQLite diagnostics.
+// @Summary      Get Core diagnostics
+// @Description  Get Core runtime request, ingestion, report write, incident reconciliation, SQLite, and slow-operation diagnostics
+// @Tags         health
+// @Accept       json
+// @Produce      json
+// @ID           getCoreDiagnostics
+// @Success      200  {object}  utils.APIResponse{data=object{api=object,metrics=service.RuntimeDiagnosticsSnapshot}}
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/diagnostics/core [get]
+func (s *Server) getCoreDiagnostics(c *gin.Context) {
+	metrics, err := s.runtimeDiagnosticsService.Snapshot(c.Request.Context())
+	if err != nil {
+		utils.InternalError(c, "Failed to get Core diagnostics", err)
+		return
+	}
+
+	utils.SuccessResponse(c, 200, "Core diagnostics retrieved successfully", gin.H{
+		"api": gin.H{
+			"status":  "healthy",
+			"service": "orion-core",
+		},
+		"metrics": metrics,
+	})
+}
+
 // getHealthIssues retrieves all health issues in the system
 // @Summary      Get health issues
 // @Description  Get a list of all monitors with health issues (down, degraded, or stale)

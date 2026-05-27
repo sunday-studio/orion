@@ -1457,6 +1457,126 @@ definitions:
       skipped_today:
         type: boolean
     type: object
+  service.RuntimeDiagnosticsSnapshot:
+    properties:
+      active_incident_lookup:
+        $ref: '#/definitions/service.RuntimeLookupStats'
+      incident_reconciliation:
+        $ref: '#/definitions/service.RuntimeOperationStats'
+      ingestion_latency_ms:
+        additionalProperties:
+          $ref: '#/definitions/service.RuntimeLatencyPercentiles'
+        type: object
+      report_writes:
+        additionalProperties:
+          $ref: '#/definitions/service.RuntimeReportWriteStats'
+        type: object
+      request_latency_ms:
+        additionalProperties:
+          $ref: '#/definitions/service.RuntimeLatencyPercentiles'
+        type: object
+      requests:
+        additionalProperties:
+          additionalProperties:
+            format: int64
+            type: integer
+          type: object
+        type: object
+      slow_operations:
+        items:
+          $ref: '#/definitions/service.RuntimeSlowOperation'
+        type: array
+      sqlite:
+        $ref: '#/definitions/service.RuntimeSQLiteStats'
+      started_at:
+        type: string
+      status:
+        type: string
+      uptime_seconds:
+        type: integer
+    type: object
+  service.RuntimeLatencyPercentiles:
+    properties:
+      count:
+        type: integer
+      max:
+        type: integer
+      p50:
+        type: integer
+      p95:
+        type: integer
+      p99:
+        type: integer
+    type: object
+  service.RuntimeLookupStats:
+    properties:
+      count:
+        type: integer
+      max:
+        type: integer
+      miss_count:
+        type: integer
+      p50:
+        type: integer
+      p95:
+        type: integer
+      p99:
+        type: integer
+    type: object
+  service.RuntimeOperationStats:
+    properties:
+      count:
+        type: integer
+      error_count:
+        type: integer
+      max:
+        type: integer
+      p50:
+        type: integer
+      p95:
+        type: integer
+      p99:
+        type: integer
+    type: object
+  service.RuntimeReportWriteStats:
+    properties:
+      count:
+        type: integer
+      error_count:
+        type: integer
+      max:
+        type: integer
+      p50:
+        type: integer
+      p95:
+        type: integer
+      p99:
+        type: integer
+    type: object
+  service.RuntimeSQLiteStats:
+    properties:
+      busy_total:
+        type: integer
+      database_bytes:
+        type: integer
+      freelist_count:
+        type: integer
+      page_count:
+        type: integer
+      page_size_bytes:
+        type: integer
+    type: object
+  service.RuntimeSlowOperation:
+    properties:
+      created_at:
+        type: string
+      duration_ms:
+        type: integer
+      kind:
+        type: string
+      operation:
+        type: string
+    type: object
   service.SetMaintenanceModeRequest:
     properties:
       maintenance_mode:
@@ -3708,6 +3828,37 @@ paths:
       summary: Log in to Console
       tags:
       - auth
+  /v1/diagnostics/core:
+    get:
+      consumes:
+      - application/json
+      description: Get Core runtime request, ingestion, report write, incident reconciliation,
+        SQLite, and slow-operation diagnostics
+      operationId: getCoreDiagnostics
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    api:
+                      type: object
+                    metrics:
+                      $ref: '#/definitions/service.RuntimeDiagnosticsSnapshot'
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get Core diagnostics
+      tags:
+      - health
   /v1/diagnostics/core-worker:
     get:
       consumes:

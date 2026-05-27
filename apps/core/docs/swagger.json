@@ -3450,6 +3450,56 @@
                 }
             }
         },
+        "/v1/diagnostics/core": {
+            "get": {
+                "description": "Get Core runtime request, ingestion, report write, incident reconciliation, SQLite, and slow-operation diagnostics",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "health"
+                ],
+                "summary": "Get Core diagnostics",
+                "operationId": "getCoreDiagnostics",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "api": {
+                                                    "type": "object"
+                                                },
+                                                "metrics": {
+                                                    "$ref": "#/definitions/service.RuntimeDiagnosticsSnapshot"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/diagnostics/core-worker": {
             "get": {
                 "description": "Get Core monitor worker heartbeat state without affecting Core API health",
@@ -8732,6 +8782,189 @@
                 },
                 "skipped_today": {
                     "type": "boolean"
+                }
+            }
+        },
+        "service.RuntimeDiagnosticsSnapshot": {
+            "type": "object",
+            "properties": {
+                "active_incident_lookup": {
+                    "$ref": "#/definitions/service.RuntimeLookupStats"
+                },
+                "incident_reconciliation": {
+                    "$ref": "#/definitions/service.RuntimeOperationStats"
+                },
+                "ingestion_latency_ms": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/service.RuntimeLatencyPercentiles"
+                    }
+                },
+                "report_writes": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/service.RuntimeReportWriteStats"
+                    }
+                },
+                "request_latency_ms": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/service.RuntimeLatencyPercentiles"
+                    }
+                },
+                "requests": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                },
+                "slow_operations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.RuntimeSlowOperation"
+                    }
+                },
+                "sqlite": {
+                    "$ref": "#/definitions/service.RuntimeSQLiteStats"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "uptime_seconds": {
+                    "type": "integer"
+                }
+            }
+        },
+        "service.RuntimeLatencyPercentiles": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "max": {
+                    "type": "integer"
+                },
+                "p50": {
+                    "type": "integer"
+                },
+                "p95": {
+                    "type": "integer"
+                },
+                "p99": {
+                    "type": "integer"
+                }
+            }
+        },
+        "service.RuntimeLookupStats": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "max": {
+                    "type": "integer"
+                },
+                "miss_count": {
+                    "type": "integer"
+                },
+                "p50": {
+                    "type": "integer"
+                },
+                "p95": {
+                    "type": "integer"
+                },
+                "p99": {
+                    "type": "integer"
+                }
+            }
+        },
+        "service.RuntimeOperationStats": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "error_count": {
+                    "type": "integer"
+                },
+                "max": {
+                    "type": "integer"
+                },
+                "p50": {
+                    "type": "integer"
+                },
+                "p95": {
+                    "type": "integer"
+                },
+                "p99": {
+                    "type": "integer"
+                }
+            }
+        },
+        "service.RuntimeReportWriteStats": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "error_count": {
+                    "type": "integer"
+                },
+                "max": {
+                    "type": "integer"
+                },
+                "p50": {
+                    "type": "integer"
+                },
+                "p95": {
+                    "type": "integer"
+                },
+                "p99": {
+                    "type": "integer"
+                }
+            }
+        },
+        "service.RuntimeSQLiteStats": {
+            "type": "object",
+            "properties": {
+                "busy_total": {
+                    "type": "integer"
+                },
+                "database_bytes": {
+                    "type": "integer"
+                },
+                "freelist_count": {
+                    "type": "integer"
+                },
+                "page_count": {
+                    "type": "integer"
+                },
+                "page_size_bytes": {
+                    "type": "integer"
+                }
+            }
+        },
+        "service.RuntimeSlowOperation": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "duration_ms": {
+                    "type": "integer"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "operation": {
+                    "type": "string"
                 }
             }
         },

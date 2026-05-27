@@ -29,9 +29,10 @@ var (
 )
 
 type IncidentService struct {
-	db     *gorm.DB
-	logger *logging.Logger
-	cfg    *config.Config
+	db          *gorm.DB
+	logger      *logging.Logger
+	cfg         *config.Config
+	diagnostics *RuntimeDiagnosticsService
 }
 
 func NewIncidentService(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *IncidentService {
@@ -42,17 +43,25 @@ func NewIncidentService(database *gorm.DB, logger *logging.Logger, cfg *config.C
 	}
 }
 
+func (s *IncidentService) SetDiagnostics(diagnostics *RuntimeDiagnosticsService) {
+	s.diagnostics = diagnostics
+}
+
 func (s *IncidentService) ReconcileMonitorReport(monitorID string, monitorReportID string, payload MonitorReportPayload) error {
 	startedAt := time.Now()
+	var reconcileErr error
 	defer func() {
 		duration := time.Since(startedAt)
+		s.diagnostics.RecordIncidentReconciliation(duration, reconcileErr)
 		if duration > incidentReconcileSlowThreshold {
+			s.diagnostics.RecordSlowOperation("incident_reconciliation", monitorID, duration)
 			s.logger.Warn("Slow incident reconciliation", "monitor_id", monitorID, "monitor_report_id", monitorReportID, "duration_ms", duration.Milliseconds())
 		}
 	}()
 
 	var monitor db.Monitor
 	if err := s.db.Where("id = ?", monitorID).First(&monitor).Error; err != nil {
+		reconcileErr = err
 		return err
 	}
 
@@ -65,32 +74,49 @@ func (s *IncidentService) ReconcileMonitorReport(monitorID string, monitorReport
 
 	agent, monitor, err := s.reportOwner(monitor, payload)
 	if err != nil {
+		reconcileErr = err
 		return err
 	}
 
 	if reportedHealth == "up" && !tlsExpiring {
-		return s.resolveActiveIncident(monitor, monitorReportID, nextIncidentState)
+		reconcileErr = s.resolveActiveIncident(monitor, monitorReportID, nextIncidentState)
+		return reconcileErr
 	}
 
 	if agent.MaintenanceMode {
 		s.logger.Info("Incident suppressed during maintenance", "monitor_id", monitorID, "agent_id", agent.ID)
-		return s.updateMonitorIncidentState(monitor.ID, monitor.ActiveIncidentID, nextIncidentState)
+		reconcileErr = s.updateMonitorIncidentState(monitor.ID, monitor.ActiveIncidentID, nextIncidentState)
+		return reconcileErr
 	}
 
 	if tlsExpiring {
-		return s.openOrUpdateIncident(agent, monitor, monitorReportID, "degraded", nextIncidentState)
+		reconcileErr = s.openOrUpdateIncident(agent, monitor, monitorReportID, "degraded", nextIncidentState)
+		return reconcileErr
 	}
 
 	if reportedHealth == "down" || reportedHealth == "degraded" || reportedHealth == "stale" {
-		return s.openOrUpdateIncident(agent, monitor, monitorReportID, reportedHealth, nextIncidentState)
+		reconcileErr = s.openOrUpdateIncident(agent, monitor, monitorReportID, reportedHealth, nextIncidentState)
+		return reconcileErr
 	}
 
 	return nil
 }
 
 func (s *IncidentService) ReconcileStaleMonitors(agentID string) error {
+	startedAt := time.Now()
+	var reconcileErr error
+	defer func() {
+		duration := time.Since(startedAt)
+		s.diagnostics.RecordIncidentReconciliation(duration, reconcileErr)
+		if duration > incidentReconcileSlowThreshold {
+			s.diagnostics.RecordSlowOperation("incident_reconciliation", "stale_monitors:"+agentID, duration)
+			s.logger.Warn("Slow stale monitor reconciliation", "agent_id", agentID, "duration_ms", duration.Milliseconds())
+		}
+	}()
+
 	var agent db.Agent
 	if err := s.db.Where("id = ?", agentID).First(&agent).Error; err != nil {
+		reconcileErr = err
 		return err
 	}
 	if agent.MaintenanceMode {
@@ -100,6 +126,7 @@ func (s *IncidentService) ReconcileStaleMonitors(agentID string) error {
 	healthService := NewHealthService(s.db, s.logger)
 	staleMonitors, err := healthService.DetectStaleMonitors(DefaultHealthConfig())
 	if err != nil {
+		reconcileErr = err
 		return err
 	}
 
@@ -108,6 +135,7 @@ func (s *IncidentService) ReconcileStaleMonitors(agentID string) error {
 			continue
 		}
 		if err := s.openOrUpdateIncident(agent, monitor, "", "stale", "stale"); err != nil {
+			reconcileErr = err
 			return err
 		}
 	}
@@ -314,13 +342,16 @@ func (s *IncidentService) findActiveIncident(monitorID string) (*db.Incident, bo
 		Limit(1).
 		Find(&incident)
 	duration := time.Since(startedAt)
+	found := result.RowsAffected > 0
+	s.diagnostics.RecordActiveIncidentLookup(duration, found, result.Error)
 	if duration > activeIncidentLookupSlowThreshold {
+		s.diagnostics.RecordSlowOperation("active_incident_lookup", monitorID, duration)
 		s.logger.Warn("Slow active incident lookup", "monitor_id", monitorID, "duration_ms", duration.Milliseconds())
 	}
 	if result.Error != nil {
 		return nil, false, result.Error
 	}
-	if result.RowsAffected == 0 {
+	if !found {
 		return nil, false, nil
 	}
 	return &incident, true, nil
