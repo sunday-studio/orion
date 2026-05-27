@@ -39,8 +39,9 @@ type CoreMonitorDialogProps = {
 type FormState = {
   description: string;
   expectedStatus: string;
+  graceSeconds: string;
   intervalSeconds: string;
-  kind: "http" | "http_keyword";
+  kind: "heartbeat" | "http" | "http_keyword";
   name: string;
   paused: boolean;
   requiredContains: string;
@@ -51,6 +52,7 @@ type FormState = {
 const defaultForm: FormState = {
   description: "",
   expectedStatus: "200",
+  graceSeconds: "60",
   intervalSeconds: "60",
   kind: "http",
   name: "",
@@ -63,6 +65,7 @@ const defaultForm: FormState = {
 const coreMonitorKindOptions = [
   { value: "http", label: "HTTP status" },
   { value: "http_keyword", label: "HTTP keyword" },
+  { value: "heartbeat", label: "Heartbeat" },
 ] as const;
 
 const readConfigString = (config: ApiCoreMonitorConfigResponse | undefined, key: string) => {
@@ -116,8 +119,10 @@ export const CoreMonitorDialog = ({
     setForm({
       description: monitor?.description ?? "",
       expectedStatus: readConfigNumber(config, "expected_status") || "200",
+      graceSeconds: readConfigNumber(config, "grace_seconds") || "60",
       intervalSeconds: String(config?.interval_seconds ?? monitor?.reporting_interval_seconds ?? 60),
-      kind: config?.kind === "http_keyword" ? "http_keyword" : "http",
+      kind:
+        config?.kind === "heartbeat" ? "heartbeat" : config?.kind === "http_keyword" ? "http_keyword" : "http",
       name: monitor?.name ?? "",
       paused: config?.paused ?? false,
       requiredContains: readConfigStringList(config, "required_contains"),
@@ -131,24 +136,29 @@ export const CoreMonitorDialog = ({
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const expectedStatus = toPositiveInt(form.expectedStatus, 200);
+    const isHeartbeat = form.kind === "heartbeat";
     const requiredContains = form.requiredContains
       .split(/\n|,/)
       .map((value) => value.trim())
       .filter(Boolean);
     const payload = {
-      config: {
-        expected_status: expectedStatus,
-        ...(form.kind === "http_keyword" && requiredContains.length > 0
-          ? { required_contains: requiredContains }
-          : {}),
-        url: form.url.trim(),
-      },
+      config: isHeartbeat
+        ? {
+            grace_seconds: toPositiveInt(form.graceSeconds, 60),
+          }
+        : {
+            expected_status: expectedStatus,
+            ...(form.kind === "http_keyword" && requiredContains.length > 0
+              ? { required_contains: requiredContains }
+              : {}),
+            url: form.url.trim(),
+          },
       description: form.description.trim() || undefined,
       interval_seconds: toPositiveInt(form.intervalSeconds, 60),
       kind: form.kind,
       name: form.name.trim(),
       paused: form.paused,
-      timeout_seconds: toPositiveInt(form.timeoutSeconds, 10),
+      ...(isHeartbeat ? {} : { timeout_seconds: toPositiveInt(form.timeoutSeconds, 10) }),
       type: form.kind,
     };
     onSubmit(payload, submitAction);
@@ -157,8 +167,10 @@ export const CoreMonitorDialog = ({
   const title = mode === "create" ? "Create Core Monitor" : "Edit Core Monitor";
   const description =
     mode === "create"
-      ? "Add an HTTP check that runs from Orion Core."
-      : "Update the Core-owned HTTP check configuration.";
+      ? "Add a check that runs from Orion Core."
+      : "Update the Core-owned check configuration.";
+  const isHeartbeat = form.kind === "heartbeat";
+  const canSubmit = form.name.trim() && (isHeartbeat || form.url.trim());
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -184,7 +196,9 @@ export const CoreMonitorDialog = ({
               <Select
                 value={form.kind}
                 onValueChange={(value) => {
-                  if (value === "http" || value === "http_keyword") updateForm({ kind: value });
+                  if (value === "http" || value === "http_keyword" || value === "heartbeat") {
+                    updateForm({ kind: value });
+                  }
                 }}
               >
                 <SelectTrigger className="w-full">
@@ -200,28 +214,49 @@ export const CoreMonitorDialog = ({
                   ))}
                 </SelectContent>
               </Select>
+              <select
+                className="sr-only"
+                aria-label="Core monitor type"
+                value={form.kind}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (value === "http" || value === "http_keyword" || value === "heartbeat") {
+                    updateForm({ kind: value });
+                  }
+                }}
+              >
+                {coreMonitorKindOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </label>
-            <label className="space-y-1 text-sm">
-              <span className="font-medium">URL</span>
-              <Input
-                required
-                type="url"
-                value={form.url}
-                onChange={(event) => updateForm({ url: event.target.value })}
-                placeholder="https://example.com/health"
-              />
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="font-medium">Expected status</span>
-              <Input
-                inputMode="numeric"
-                min={100}
-                max={599}
-                type="number"
-                value={form.expectedStatus}
-                onChange={(event) => updateForm({ expectedStatus: event.target.value })}
-              />
-            </label>
+            {!isHeartbeat && (
+              <>
+                <label className="space-y-1 text-sm">
+                  <span className="font-medium">URL</span>
+                  <Input
+                    required
+                    type="url"
+                    value={form.url}
+                    onChange={(event) => updateForm({ url: event.target.value })}
+                    placeholder="https://example.com/health"
+                  />
+                </label>
+                <label className="space-y-1 text-sm">
+                  <span className="font-medium">Expected status</span>
+                  <Input
+                    inputMode="numeric"
+                    min={100}
+                    max={599}
+                    type="number"
+                    value={form.expectedStatus}
+                    onChange={(event) => updateForm({ expectedStatus: event.target.value })}
+                  />
+                </label>
+              </>
+            )}
             <label className="space-y-1 text-sm">
               <span className="font-medium">Interval seconds</span>
               <Input
@@ -232,16 +267,29 @@ export const CoreMonitorDialog = ({
                 onChange={(event) => updateForm({ intervalSeconds: event.target.value })}
               />
             </label>
-            <label className="space-y-1 text-sm">
-              <span className="font-medium">Timeout seconds</span>
-              <Input
-                inputMode="numeric"
-                min={1}
-                type="number"
-                value={form.timeoutSeconds}
-                onChange={(event) => updateForm({ timeoutSeconds: event.target.value })}
-              />
-            </label>
+            {isHeartbeat ? (
+              <label className="space-y-1 text-sm">
+                <span className="font-medium">Grace seconds</span>
+                <Input
+                  inputMode="numeric"
+                  min={0}
+                  type="number"
+                  value={form.graceSeconds}
+                  onChange={(event) => updateForm({ graceSeconds: event.target.value })}
+                />
+              </label>
+            ) : (
+              <label className="space-y-1 text-sm">
+                <span className="font-medium">Timeout seconds</span>
+                <Input
+                  inputMode="numeric"
+                  min={1}
+                  type="number"
+                  value={form.timeoutSeconds}
+                  onChange={(event) => updateForm({ timeoutSeconds: event.target.value })}
+                />
+              </label>
+            )}
             <label className="flex items-center gap-2 pt-7 text-sm">
               <Checkbox
                 checked={form.paused}
@@ -276,16 +324,16 @@ export const CoreMonitorDialog = ({
               Cancel
             </Button>
             <Button
-              disabled={isSubmitting || !form.name.trim() || !form.url.trim()}
+              disabled={isSubmitting || !canSubmit}
               type="submit"
               onClick={() => setSubmitAction("save")}
             >
               <Save />
               {mode === "create" ? "Create" : "Save"}
             </Button>
-            {mode === "create" && (
+            {mode === "create" && !isHeartbeat && (
               <Button
-                disabled={isSubmitting || !form.name.trim() || !form.url.trim()}
+                disabled={isSubmitting || !canSubmit}
                 type="submit"
                 onClick={() => setSubmitAction("save_test")}
               >

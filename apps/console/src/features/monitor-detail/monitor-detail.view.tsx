@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { TabCount, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { HeartbeatSetupPanel } from "@/features/monitors/components/heartbeat-setup-panel";
 import { CoreMonitorDialog } from "@/features/monitors/components/core-monitor-dialog";
 import { ReportInspectionDrawer } from "@/features/report-inspection/report-inspection-drawer";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
@@ -131,6 +132,16 @@ const isCoreOwnedMonitor = (monitor?: { owner_kind?: string; source?: string }) 
   monitor?.owner_kind === "core" || monitor?.source === "core";
 
 const formatJSON = (value?: Record<string, unknown>) => JSON.stringify(value ?? {}, null, 2);
+
+const coreConfigValue = (
+  config: { config?: Record<string, unknown> } | undefined,
+  key: string,
+) => {
+  const value = config?.config?.[key];
+  if (typeof value === "number") return String(value);
+  if (typeof value === "string" && value.trim() !== "") return value;
+  return "—";
+};
 
 const reportTimestamp = (report?: ApiMonitorReportResponse) =>
   report?.created_at ?? report?.collected_at;
@@ -625,8 +636,18 @@ export const MonitorDetailPage = () => {
                   <div className="grid gap-3 sm:grid-cols-3">
                     <DetailItem label="kind" value={coreConfig.kind ?? monitor.type ?? "unknown"} />
                     <DetailItem label="interval" value={`${coreConfig.interval_seconds ?? 0}s`} />
-                    <DetailItem label="timeout" value={`${coreConfig.timeout_seconds ?? 0}s`} />
+                    {coreConfig.kind === "heartbeat" ? (
+                      <DetailItem label="grace" value={`${coreConfigValue(coreConfig, "grace_seconds")}s`} />
+                    ) : (
+                      <DetailItem label="timeout" value={`${coreConfig.timeout_seconds ?? 0}s`} />
+                    )}
                     <DetailItem label="paused" value={coreConfig.paused ? "yes" : "no"} />
+                    {coreConfig.kind === "heartbeat" && (
+                      <DetailItem
+                        label="last signal"
+                        value={formatDate(coreConfig.last_signal_at, DATE_TIME_FORMAT)}
+                      />
+                    )}
                     <DetailItem
                       label="last run"
                       value={formatDate(coreConfig.last_run_at, DATE_TIME_FORMAT)}
@@ -636,6 +657,9 @@ export const MonitorDetailPage = () => {
                       value={formatDate(coreConfig.next_run_at, DATE_TIME_FORMAT)}
                     />
                   </div>
+                  {coreConfig.kind === "heartbeat" && (
+                    <HeartbeatSetupPanel config={coreConfig} monitor={monitor} />
+                  )}
                   <div className="grid gap-3 lg:grid-cols-2">
                     <div className="space-y-2">
                       <h3 className="text-sm font-medium">Redacted config</h3>

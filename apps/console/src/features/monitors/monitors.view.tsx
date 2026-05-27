@@ -4,9 +4,12 @@ import {
   CoreMonitorDialog,
   type CoreMonitorSubmitAction,
 } from "@/features/monitors/components/core-monitor-dialog";
+import { HeartbeatSetupPanel } from "@/features/monitors/components/heartbeat-setup-panel";
 import { MonitorList } from "@/features/monitors/components/monitor-list";
 import {
+  type ApiCoreMonitorConfigResponse,
   type ApiMonitorReportResponse,
+  type ApiMonitorResponse,
   type ServiceCoreManagedMonitorCreateRequest,
   getMonitorHistory,
   testCoreMonitor,
@@ -56,6 +59,11 @@ export const MonitorsPage = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [createFeedback, setCreateFeedback] = useState("");
   const [createFeedbackTone, setCreateFeedbackTone] = useState<"neutral" | "error">("neutral");
+  const [heartbeatSetup, setHeartbeatSetup] = useState<{
+    config: ApiCoreMonitorConfigResponse;
+    monitor: ApiMonitorResponse;
+    token: string;
+  }>();
   const [isTestingCreatedMonitor, setIsTestingCreatedMonitor] = useState(false);
   const queryClient = useQueryClient();
   const refreshMonitors = () => {
@@ -73,6 +81,18 @@ export const MonitorsPage = () => {
     setCreateFeedback("");
     setCreateFeedbackTone("neutral");
     const created = await createMonitor.mutateAsync({ data });
+    if (created.config?.kind === "heartbeat" && created.config.heartbeat_token && created.monitor) {
+      setHeartbeatSetup({
+        config: created.config,
+        monitor: created.monitor,
+        token: created.config.heartbeat_token,
+      });
+      setCreateFeedback("Heartbeat monitor created.");
+      refreshMonitors();
+      setCreateOpen(false);
+      return;
+    }
+    setHeartbeatSetup(undefined);
     refreshMonitors();
     if (action === "save_test" && created.monitor?.id) {
       setIsTestingCreatedMonitor(true);
@@ -106,6 +126,13 @@ export const MonitorsPage = () => {
         <p className={createFeedbackTone === "error" ? "text-sm text-rose-700" : "text-sm text-neutral-600"}>
           {createFeedback}
         </p>
+      )}
+      {heartbeatSetup && (
+        <HeartbeatSetupPanel
+          config={heartbeatSetup.config}
+          monitor={heartbeatSetup.monitor}
+          token={heartbeatSetup.token}
+        />
       )}
       <MonitorList />
       <CoreMonitorDialog

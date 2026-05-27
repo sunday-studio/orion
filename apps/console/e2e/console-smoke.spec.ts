@@ -113,6 +113,41 @@ test("creates and manages a Core HTTP monitor", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Monitors" })).toBeVisible();
 });
 
+test("creates a Core heartbeat monitor and shows setup affordances", async ({ page }) => {
+  const monitorName = `Core E2E Heartbeat ${Date.now()}`;
+
+  await signIn(page);
+
+  await page.getByRole("link", { name: "Monitors" }).click();
+  await page.getByRole("button", { name: "Core monitor" }).click();
+  await page.getByLabel("Name").fill(monitorName);
+  await page.getByLabel("Core monitor type").selectOption("heartbeat");
+  await expect(page.getByLabel("URL")).toBeHidden();
+  await page.getByLabel("Interval seconds").fill("90");
+  await page.getByLabel("Grace seconds").fill("30");
+  await page.getByRole("button", { name: "Create" }).click();
+
+  await expect(page.getByText("Heartbeat monitor created.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Heartbeat Setup" })).toBeVisible();
+  await expect(page.getByText("Waiting for the first signal.")).toBeVisible();
+  await expect(page.getByText("/v1/heartbeats/").first()).toBeVisible();
+  await expect(page.getByText("/success").first()).toBeVisible();
+  await expect(page.getByText("/failure").first()).toBeVisible();
+  await expect(page.getByText("curl -fsS -X POST").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Copy" }).first()).toBeVisible();
+
+  await page.getByRole("link", { name: "Open monitor" }).click();
+  await expect(page.getByRole("heading", { name: monitorName })).toBeVisible();
+  await expect(page.getByText("Core · heartbeat")).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Configuration" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Heartbeat Setup" })).toBeVisible();
+  await expect(page.getByText("The token is shown after heartbeat monitor creation.")).toBeVisible();
+
+  await page.getByRole("button", { name: "Delete" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByRole("heading", { name: "Monitors" })).toBeVisible();
+});
+
 test("exercises incident detail tabs and lifecycle actions", async ({ page }) => {
   await signIn(page);
 
