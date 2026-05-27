@@ -98,7 +98,10 @@ Server health is derived from Agent and monitor state:
 - maintenance server returns `maintenance`;
 - stale `last_seen` returns `stale` based on the Agent reporting interval;
 - server with no active monitors returns `up`;
-- otherwise health priority is `down`, then `degraded`, then `unknown`, then `up`.
+- fresh server availability stays `up` while monitor failures are rolled up separately;
+- mixed monitor failures return `overall_health = degraded`, so one failing monitor does not make a live Agent look down;
+- `overall_health = down` is reserved for a fresh server whose active monitors are all failing;
+- stale monitor reports affect monitor rollup health and explanations, not Agent availability.
 
 ## Incident Management
 

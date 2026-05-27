@@ -14,6 +14,9 @@ export const AgentRow = ({ agent }: { agent: ApiAgentResponse; index: number }) 
   const platform = agent.platform ?? agent.os ?? "unknown";
   const monitorCount = agent.monitor_count ?? 0;
   const status = agent.status ?? (agent.maintenance_mode ? "maintenance" : "unknown");
+  const availability = agent.availability_health ?? status;
+  const monitorHealth = agent.monitor_health ?? "unknown";
+  const statusReason = agent.status_reason;
 
   const handleOnClick = () => {
     void navigate(`/agents/${agent.id}`);
@@ -43,9 +46,17 @@ export const AgentRow = ({ agent }: { agent: ApiAgentResponse; index: number }) 
             <ChevronRightIcon className="size-4" />
           )}
         </button>
-        <span className="min-w-0 truncate">{agent.name ?? agent.id ?? "Unknown agent"}</span>
-        <span className="hidden min-w-0 sm:inline-flex">
+        <span className="min-w-0">
+          <span className="block truncate">{agent.name ?? agent.id ?? "Unknown agent"}</span>
+          {statusReason && (
+            <span className="block truncate text-xs text-neutral-500">{statusReason}</span>
+          )}
+        </span>
+        <span className="hidden min-w-0 flex-col gap-1 sm:inline-flex">
           <StatusBadge value={toStatus(status)} />
+          <span className="truncate text-xs text-neutral-500">
+            agent {availability} / monitors {monitorHealth}
+          </span>
         </span>
         <span className="hidden min-w-0 truncate text-neutral-600 sm:inline">{platform}</span>
         <span className="whitespace-nowrap text-right text-neutral-600 sm:text-left">

@@ -132,9 +132,15 @@ export const AgentDetailPage = () => {
       <AgentHealthSummary
         agentId={currentAgentId}
         activeIncidentCount={activeIncidents.length}
+        availabilityHealth={healthResponse.data?.availability_health ?? agent?.availability_health}
         degradedCount={healthResponse.data?.degraded_count ?? 0}
         downCount={healthResponse.data?.down_count ?? 0}
+        monitorHealth={healthResponse.data?.monitor_health ?? agent?.monitor_health}
+        staleCount={healthResponse.data?.stale_count ?? 0}
         status={status}
+        statusReason={healthResponse.data?.status_reason ?? agent?.status_reason}
+        totalCount={healthResponse.data?.total_count ?? agent?.monitor_count ?? 0}
+        unknownCount={healthResponse.data?.unknown_count ?? 0}
         upCount={healthResponse.data?.up_count ?? 0}
         uptimePercent={uptimeResponse.data?.uptime_percent}
         uptimeBuckets={uptimeResponse.data?.daily_buckets ?? []}

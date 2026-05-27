@@ -18,6 +18,9 @@ type AgentResponse struct {
 	Arch                     string         `json:"arch"`
 	MaintenanceMode          bool           `json:"maintenance_mode"`
 	Status                   string         `json:"status,omitempty"`
+	AvailabilityHealth       string         `json:"availability_health,omitempty"`
+	MonitorHealth            string         `json:"monitor_health,omitempty"`
+	StatusReason             string         `json:"status_reason,omitempty"`
 	ReportingIntervalSeconds int            `json:"reporting_interval_seconds"`
 	CreatedAt                time.Time      `json:"created_at"`
 	LastSeen                 time.Time      `json:"last_seen"`
@@ -37,6 +40,21 @@ type AgentSummaryResponse struct {
 	Maintenance  int64 `json:"maintenance"`
 	Stale        int64 `json:"stale"`
 	HasIncidents int64 `json:"has_incidents"`
+}
+
+// AgentHealthResponse represents split agent availability and monitor health.
+type AgentHealthResponse struct {
+	AgentID            string `json:"agent_id"`
+	OverallHealth      string `json:"overall_health"`
+	AvailabilityHealth string `json:"availability_health"`
+	MonitorHealth      string `json:"monitor_health"`
+	StatusReason       string `json:"status_reason"`
+	UpCount            int    `json:"up_count"`
+	DownCount          int    `json:"down_count"`
+	DegradedCount      int    `json:"degraded_count"`
+	StaleCount         int    `json:"stale_count"`
+	UnknownCount       int    `json:"unknown_count"`
+	TotalCount         int    `json:"total_count"`
 }
 
 // MonitorResponse represents a monitor in API responses
@@ -315,6 +333,9 @@ func agentListResponse(row service.AgentListRow) AgentResponse {
 	response.MonitorCount = row.MonitorCount
 	response.IP = row.IP
 	response.Status = row.Status
+	response.AvailabilityHealth = row.AvailabilityHealth
+	response.MonitorHealth = row.MonitorHealth
+	response.StatusReason = row.StatusReason
 	response.UptimeSeconds = row.UptimeSeconds
 	return response
 }

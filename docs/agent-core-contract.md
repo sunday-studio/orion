@@ -210,6 +210,9 @@ Server health rules:
 - A server in maintenance reports `maintenance`.
 - A stale server reports `stale`.
 - A fresh server with no active monitors reports `up`.
+- A fresh server keeps `availability_health = up` even when one or more monitors fail.
+- Monitor failures roll up separately as `monitor_health`; mixed monitor failures make the server `overall_health = degraded`, not `down`.
+- A fresh server reports `overall_health = down` only when all active monitors are failing.
 - Maintenance suppresses incident candidates and should suppress future alert delivery.
 
 Stale rules:
@@ -218,6 +221,7 @@ Stale rules:
 - Monitor stale state is based on the latest monitor report time and `monitor.reporting_interval_seconds`.
 - Core treats data as stale after five missed reporting intervals, with a minimum stale window of five minutes.
 - If an interval is missing or invalid, Core falls back to 60 seconds.
+- A stale monitor report does not make a fresh Agent stale; it contributes to monitor rollup health and status explanations.
 - Core monitor stale state is based on worker-produced monitor reports and the Core monitor interval, not on the synthetic Core owner row `last_seen`.
 - The Core API should not report the whole Core owner row stale merely because a Core-managed monitor is stale.
 

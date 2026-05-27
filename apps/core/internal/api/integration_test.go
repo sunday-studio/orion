@@ -752,6 +752,70 @@ func TestAgentHealthReturnsStoredMonitorCountsForStaleAgent(t *testing.T) {
 	}
 }
 
+func TestAgentHealthSplitsAvailabilityFromMonitorRollup(t *testing.T) {
+	server := setupTestServer(t)
+	agent := db.Agent{
+		ID:        "agent-split-health",
+		MachineId: "machine-split-health",
+		Name:      "split health",
+		OS:        "linux",
+		Arch:      "arm64",
+		Token:     "token-split-health",
+		LastSeen:  time.Now(),
+	}
+	if err := server.db.Create(&agent).Error; err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+
+	monitors := []db.Monitor{
+		{ID: "monitor-split-up", AgentID: agent.ID, Name: "split up", Type: "http", Lifecycle: "active", Health: "up", ReportingIntervalSeconds: 60},
+		{ID: "monitor-split-down", AgentID: agent.ID, Name: "split down", Type: "http", Lifecycle: "active", Health: "down", ReportingIntervalSeconds: 60},
+	}
+	if err := server.db.Create(&monitors).Error; err != nil {
+		t.Fatalf("create monitors: %v", err)
+	}
+
+	now := time.Now().UTC()
+	reports := []db.MonitorReport{
+		{ID: "report-split-up", MonitorID: "monitor-split-up", Payload: "{}", CollectedAt: now.Format(time.RFC3339), Health: "up", CreatedAt: now},
+		{ID: "report-split-down", MonitorID: "monitor-split-down", Payload: "{}", CollectedAt: now.Format(time.RFC3339), Health: "down", CreatedAt: now},
+	}
+	if err := server.db.Create(&reports).Error; err != nil {
+		t.Fatalf("create reports: %v", err)
+	}
+
+	resp := performJSONRequest(t, server, http.MethodGet, "/v1/agents/"+agent.ID+"/health", nil, "")
+	if resp.Code != http.StatusOK {
+		t.Fatalf("health status = %d, body = %s", resp.Code, resp.Body.String())
+	}
+
+	var health struct {
+		Success bool `json:"success"`
+		Data    struct {
+			OverallHealth      string `json:"overall_health"`
+			AvailabilityHealth string `json:"availability_health"`
+			MonitorHealth      string `json:"monitor_health"`
+			StatusReason       string `json:"status_reason"`
+			UpCount            int    `json:"up_count"`
+			DownCount          int    `json:"down_count"`
+			TotalCount         int    `json:"total_count"`
+		} `json:"data"`
+	}
+	decodeResponse(t, resp, &health)
+	if !health.Success {
+		t.Fatalf("health response = %+v, want success", health)
+	}
+	if health.Data.AvailabilityHealth != "up" || health.Data.MonitorHealth != "degraded" || health.Data.OverallHealth != "degraded" {
+		t.Fatalf("health response = %+v, want live degraded agent", health.Data)
+	}
+	if health.Data.UpCount != 1 || health.Data.DownCount != 1 || health.Data.TotalCount != 2 {
+		t.Fatalf("health counts = %+v, want 1 up, 1 down, 2 total", health.Data)
+	}
+	if health.Data.StatusReason == "" {
+		t.Fatalf("status reason is empty")
+	}
+}
+
 func TestSystemHealthSeparatesStaleMonitorCounts(t *testing.T) {
 	server := setupTestServer(t)
 	agent := db.Agent{

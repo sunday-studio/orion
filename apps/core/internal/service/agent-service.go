@@ -15,10 +15,13 @@ import (
 // AgentListRow extends Agent with list-only fields from joins/subqueries.
 type AgentListRow struct {
 	db.Agent
-	MonitorCount  int64   `json:"monitor_count"`
-	IP            *string `json:"ip,omitempty"`
-	Status        string  `json:"status"`
-	UptimeSeconds *uint64 `json:"uptime_seconds,omitempty"`
+	MonitorCount       int64   `json:"monitor_count"`
+	IP                 *string `json:"ip,omitempty"`
+	Status             string  `json:"status"`
+	AvailabilityHealth string  `json:"availability_health,omitempty"`
+	MonitorHealth      string  `json:"monitor_health,omitempty"`
+	StatusReason       string  `json:"status_reason,omitempty"`
+	UptimeSeconds      *uint64 `json:"uptime_seconds,omitempty"`
 }
 
 // parseListDuration parses "24h", "7d" into a duration. last_seen filter: agents with last_seen >= now-duration.
@@ -311,15 +314,20 @@ func (s *AgentService) ListAgents(opts ListAgentsOpts) ([]AgentListRow, int64, e
 
 	rows := make([]AgentListRow, 0, len(agents))
 	for _, a := range agents {
-		health := "unknown"
-		if h, _, _, _, err := healthSvc.ComputeAgentHealth(a.ID, cfg); err == nil {
-			health = h
+		snapshot := AgentHealthSnapshot{
+			OverallHealth: "unknown",
+			AgentHealth:   "unknown",
+			MonitorHealth: "unknown",
+			Reason:        "health has not been computed yet",
 		}
-		if opts.StaleOnly && health != "stale" {
+		if computed, err := healthSvc.ComputeAgentHealthSnapshot(a.ID, cfg); err == nil {
+			snapshot = computed
+		}
+		if opts.StaleOnly && snapshot.OverallHealth != "stale" {
 			continue
 		}
 		if statusFilter != "" {
-			if health != statusFilter {
+			if snapshot.OverallHealth != statusFilter {
 				continue
 			}
 		}
@@ -328,7 +336,14 @@ func (s *AgentService) ListAgents(opts ListAgentsOpts) ([]AgentListRow, int64, e
 			continue
 		}
 
-		row := AgentListRow{Agent: a, MonitorCount: monitorCounts[a.ID], Status: health}
+		row := AgentListRow{
+			Agent:              a,
+			MonitorCount:       monitorCounts[a.ID],
+			Status:             snapshot.OverallHealth,
+			AvailabilityHealth: snapshot.AgentHealth,
+			MonitorHealth:      snapshot.MonitorHealth,
+			StatusReason:       snapshot.Reason,
+		}
 		if v, ok := uptimeMap[a.ID]; ok {
 			row.UptimeSeconds = &v
 		}

@@ -253,13 +253,13 @@ func (s *Server) getAgentDetail(c *gin.Context) {
 
 // getAgentHealth retrieves health status for a specific agent
 // @Summary      Get agent health
-// @Description  Get computed health status for a specific agent and its monitors
+// @Description  Get split agent availability and monitor rollup health for a specific agent
 // @Tags         agents
 // @Accept       json
 // @Produce      json
 // @ID           getAgentHealth
 // @Param        id   path      string  true  "Agent ID"
-// @Success      200  {object}  utils.APIResponse{data=object{agent_id=string,overall_health=string,up_count=int,down_count=int,degraded_count=int}}
+// @Success      200  {object}  utils.APIResponse{data=api.AgentHealthResponse}
 // @Failure      400  {object}  utils.APIResponse
 // @Failure      404  {object}  utils.APIResponse
 // @Failure      500  {object}  utils.APIResponse
@@ -279,19 +279,25 @@ func (s *Server) getAgentHealth(c *gin.Context) {
 	healthService := service.NewHealthService(s.db, s.logger)
 	config := service.DefaultHealthConfig()
 
-	overallHealth, upCount, downCount, degradedCount, err := healthService.ComputeAgentHealth(agentID, config)
+	snapshot, err := healthService.ComputeAgentHealthSnapshot(agentID, config)
 	if err != nil {
 		s.logger.Error("Failed to compute agent health", "error", err, "agent_id", agentID)
 		utils.InternalError(c, "Failed to compute agent health", err)
 		return
 	}
 
-	utils.SuccessResponse(c, 200, "Agent health retrieved successfully", gin.H{
-		"agent_id":       agentID,
-		"overall_health": overallHealth,
-		"up_count":       upCount,
-		"down_count":     downCount,
-		"degraded_count": degradedCount,
+	utils.SuccessResponse(c, 200, "Agent health retrieved successfully", AgentHealthResponse{
+		AgentID:            agentID,
+		OverallHealth:      snapshot.OverallHealth,
+		AvailabilityHealth: snapshot.AgentHealth,
+		MonitorHealth:      snapshot.MonitorHealth,
+		StatusReason:       snapshot.Reason,
+		UpCount:            snapshot.UpCount,
+		DownCount:          snapshot.DownCount,
+		DegradedCount:      snapshot.DegradedCount,
+		StaleCount:         snapshot.StaleCount,
+		UnknownCount:       snapshot.UnknownCount,
+		TotalCount:         snapshot.TotalCount,
 	})
 }
 

@@ -1645,7 +1645,7 @@ const docTemplate = `{
         },
         "/v1/agents/{id}/health": {
             "get": {
-                "description": "Get computed health status for a specific agent and its monitors",
+                "description": "Get split agent availability and monitor rollup health for a specific agent",
                 "consumes": [
                     "application/json"
                 ],
@@ -1678,24 +1678,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "agent_id": {
-                                                    "type": "string"
-                                                },
-                                                "degraded_count": {
-                                                    "type": "integer"
-                                                },
-                                                "down_count": {
-                                                    "type": "integer"
-                                                },
-                                                "overall_health": {
-                                                    "type": "string"
-                                                },
-                                                "up_count": {
-                                                    "type": "integer"
-                                                }
-                                            }
+                                            "$ref": "#/definitions/api.AgentHealthResponse"
                                         }
                                     }
                                 }
@@ -6428,6 +6411,44 @@ const docTemplate = `{
                 }
             }
         },
+        "api.AgentHealthResponse": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "availability_health": {
+                    "type": "string"
+                },
+                "degraded_count": {
+                    "type": "integer"
+                },
+                "down_count": {
+                    "type": "integer"
+                },
+                "monitor_health": {
+                    "type": "string"
+                },
+                "overall_health": {
+                    "type": "string"
+                },
+                "stale_count": {
+                    "type": "integer"
+                },
+                "status_reason": {
+                    "type": "string"
+                },
+                "total_count": {
+                    "type": "integer"
+                },
+                "unknown_count": {
+                    "type": "integer"
+                },
+                "up_count": {
+                    "type": "integer"
+                }
+            }
+        },
         "api.AgentReportResponse": {
             "type": "object",
             "properties": {
@@ -6472,6 +6493,9 @@ const docTemplate = `{
                 "arch": {
                     "type": "string"
                 },
+                "availability_health": {
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
                 },
@@ -6496,6 +6520,9 @@ const docTemplate = `{
                 "monitor_count": {
                     "type": "integer"
                 },
+                "monitor_health": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -6509,6 +6536,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "status": {
+                    "type": "string"
+                },
+                "status_reason": {
                     "type": "string"
                 },
                 "uptime_seconds": {
