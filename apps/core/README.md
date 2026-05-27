@@ -10,6 +10,14 @@ go run .
 
 Core listens on `:8999` by default and stores data under `data/orion.db`.
 
+Run the separate Core monitor worker foundation with:
+
+```sh
+go run ./cmd/worker
+```
+
+The worker opens and migrates the same Core database, logs periodic database health, and exits on `SIGINT` or `SIGTERM`. Monitor scheduling, leases, and check runners are separate milestones.
+
 Useful environment variables:
 
 - `ORION_DATA_DIR`: SQLite data directory.
