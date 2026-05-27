@@ -145,6 +145,11 @@ Minimum options:
 - packet count later;
 - fallback TCP probe if ICMP is unavailable.
 
+First release behavior: Core treats ping as a reachability check with `method: tcp` by default,
+probing a configured port and reporting `reachable`, `latency_ms`, and
+`fallback_strategy: tcp_connect`. `method: icmp` is accepted as an explicit unsupported path that
+fails with `failure_stage: permission` until the Core worker has a privileged ICMP implementation.
+
 8. Domain expiration monitor
 
 Checks RDAP/WHOIS domain expiration where provider data is available.
