@@ -498,6 +498,8 @@ definitions:
         type: string
       created_at:
         type: string
+      evidence:
+        type: string
       id:
         type: string
       message:

@@ -8170,6 +8170,9 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "evidence": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"orion/core/internal/db"
@@ -129,7 +130,7 @@ func (s *Server) getIncidentDetail(c *gin.Context) {
 
 	utils.SuccessResponse(c, http.StatusOK, "Incident retrieved successfully", gin.H{
 		"incident":         incidentResponse(incident, agent, monitor),
-		"timeline":         incidentTimeline(events, deliveries),
+		"timeline":         incidentTimeline(events, deliveries, reports),
 		"events":           incidentEventResponses(events),
 		"alert_deliveries": alertDeliveryResponses(deliveries),
 		"monitor_reports":  monitorReportResponses(reports),
@@ -166,8 +167,14 @@ func (s *Server) getIncidentTimeline(c *gin.Context) {
 		utils.InternalError(c, "Failed to get incident timeline", err)
 		return
 	}
+	reports, err := s.incidentMonitorReports(incident.MonitorID, events)
+	if err != nil {
+		s.logger.Error("Failed to load incident monitor reports", "incident_id", incident.ID, "error", err)
+		utils.InternalError(c, "Failed to get incident timeline", err)
+		return
+	}
 
-	timeline := incidentTimeline(events, deliveries)
+	timeline := incidentTimeline(events, deliveries, reports)
 	utils.SuccessResponse(c, http.StatusOK, "Incident timeline retrieved successfully", gin.H{
 		"timeline": timeline,
 		"count":    len(timeline),
@@ -308,14 +315,16 @@ func (s *Server) incidentMonitorReports(monitorID string, events []db.IncidentEv
 	return reports, err
 }
 
-func incidentTimeline(events []db.IncidentEvent, deliveries []db.AlertDelivery) []IncidentTimelineItemResponse {
+func incidentTimeline(events []db.IncidentEvent, deliveries []db.AlertDelivery, reports []db.MonitorReport) []IncidentTimelineItemResponse {
 	timeline := make([]IncidentTimelineItemResponse, 0, len(events)+len(deliveries))
+	evidenceByReportID := incidentTimelineEvidenceByReportID(reports)
 	for _, event := range events {
 		timeline = append(timeline, IncidentTimelineItemResponse{
 			ID:              event.ID,
 			Type:            event.Type,
 			Source:          "incident_event",
 			Message:         event.Message,
+			Evidence:        evidenceByReportID[event.MonitorReportID],
 			MonitorReportID: event.MonitorReportID,
 			CreatedAt:       event.CreatedAt,
 		})
@@ -341,6 +350,49 @@ func incidentTimeline(events []db.IncidentEvent, deliveries []db.AlertDelivery) 
 		return timeline[i].CreatedAt.Before(timeline[j].CreatedAt)
 	})
 	return timeline
+}
+
+func incidentTimelineEvidenceByReportID(reports []db.MonitorReport) map[string]string {
+	evidenceByReportID := make(map[string]string, len(reports))
+	for _, report := range reports {
+		evidence := monitorReportEvidence(report)
+		if evidence != "" {
+			evidenceByReportID[report.ID] = evidence
+		}
+	}
+	return evidenceByReportID
+}
+
+func monitorReportEvidence(report db.MonitorReport) string {
+	var fields map[string]interface{}
+	if err := json.Unmarshal([]byte(safeMonitorReportPayload(report.Payload)), &fields); err != nil {
+		return ""
+	}
+	for _, key := range []string{"payload", "failure_stage", "failure_reason", "message", "error", "summary", "status", "status_code"} {
+		if evidence := monitorReportEvidenceValue(fields[key]); evidence != "" {
+			return evidence
+		}
+	}
+	return ""
+}
+
+func monitorReportEvidenceValue(value interface{}) string {
+	switch typed := value.(type) {
+	case string:
+		return strings.TrimSpace(typed)
+	case float64:
+		return strconv.FormatFloat(typed, 'f', -1, 64)
+	case bool:
+		return strconv.FormatBool(typed)
+	case map[string]interface{}, []interface{}:
+		body, err := json.Marshal(typed)
+		if err != nil {
+			return ""
+		}
+		return string(body)
+	default:
+		return ""
+	}
 }
 
 func queryInt(c *gin.Context, key string, fallback int) int {

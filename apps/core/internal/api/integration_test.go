@@ -2418,7 +2418,7 @@ func TestHeartbeatMonitorTokenAndIngestRoutes(t *testing.T) {
 		t.Fatalf("heartbeat config after success = %+v, want token hash and signal/success timestamps", config)
 	}
 
-	failurePayload := strings.Repeat("x", heartbeatPayloadMaxBytes+200)
+	failurePayload := "password=super-secret token=raw-token-value " + strings.Repeat("x", heartbeatPayloadMaxBytes+200)
 	failureResp := performRawRequest(t, server, http.MethodPost, "/v1/heartbeats/"+token+"/failure", strings.NewReader(failurePayload), "")
 	if failureResp.Code != http.StatusOK {
 		t.Fatalf("heartbeat failure status = %d, body = %s", failureResp.Code, failureResp.Body.String())
@@ -2441,6 +2441,16 @@ func TestHeartbeatMonitorTokenAndIngestRoutes(t *testing.T) {
 	if strings.Contains(failureReport.Payload, strings.Repeat("x", heartbeatPayloadMaxBytes+1)) || !strings.Contains(failureReport.Payload, `"payload_truncated":true`) {
 		t.Fatalf("failure payload length = %d body = %.80s, want truncated payload marker", len(failureReport.Payload), failureReport.Payload)
 	}
+	assertNotContains(t, failureReport.Payload, "super-secret")
+	assertNotContains(t, failureReport.Payload, "raw-token-value")
+	assertContains(t, failureReport.Payload, "[redacted]")
+	historyResp := performJSONRequest(t, server, http.MethodGet, "/v1/monitors/"+created.Data.Monitor.ID+"/history", nil, "")
+	if historyResp.Code != http.StatusOK {
+		t.Fatalf("heartbeat history status = %d, body = %s", historyResp.Code, historyResp.Body.String())
+	}
+	assertNotContains(t, historyResp.Body.String(), "super-secret")
+	assertNotContains(t, historyResp.Body.String(), "raw-token-value")
+	assertContains(t, historyResp.Body.String(), "[redacted]")
 	if err := server.db.Where("monitor_id = ?", created.Data.Monitor.ID).First(&config).Error; err != nil {
 		t.Fatalf("reload heartbeat config: %v", err)
 	}
@@ -2454,6 +2464,22 @@ func TestHeartbeatMonitorTokenAndIngestRoutes(t *testing.T) {
 	if incident.Status != "open" {
 		t.Fatalf("heartbeat incident = %+v, want open incident from failure report", incident)
 	}
+	incidentResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents/"+incident.ID, nil, "")
+	if incidentResp.Code != http.StatusOK {
+		t.Fatalf("heartbeat incident detail status = %d, body = %s", incidentResp.Code, incidentResp.Body.String())
+	}
+	assertNotContains(t, incidentResp.Body.String(), "super-secret")
+	assertNotContains(t, incidentResp.Body.String(), "raw-token-value")
+	assertContains(t, incidentResp.Body.String(), "[redacted]")
+	assertContains(t, incidentResp.Body.String(), failureReport.ID)
+	timelineResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents/"+incident.ID+"/timeline", nil, "")
+	if timelineResp.Code != http.StatusOK {
+		t.Fatalf("heartbeat incident timeline status = %d, body = %s", timelineResp.Code, timelineResp.Body.String())
+	}
+	assertNotContains(t, timelineResp.Body.String(), "super-secret")
+	assertNotContains(t, timelineResp.Body.String(), "raw-token-value")
+	assertContains(t, timelineResp.Body.String(), "[redacted]")
+	assertContains(t, timelineResp.Body.String(), failureReport.ID)
 
 	invalidResp := performRawRequest(t, server, http.MethodPost, "/v1/heartbeats/not-"+token+"/success", strings.NewReader("ok"), "")
 	if invalidResp.Code != http.StatusUnauthorized {

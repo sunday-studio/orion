@@ -97,10 +97,22 @@ const payloadSummary = (report: ApiMonitorReportResponse) => {
       "message",
       "error",
       "summary",
+      "payload",
+      "failure_stage",
       "status",
       "status_code",
     ]) ?? "—"
   );
+};
+
+const isHeartbeatPayload = (payload: MonitorPayload) =>
+  payload.type === "heartbeat" || payload.runner === "heartbeat";
+
+const heartbeatPayloadContext = (report?: ApiMonitorReportResponse) => {
+  if (!report) return "—";
+  const payload = parsePayload(report.payload);
+  if (!isHeartbeatPayload(payload)) return "—";
+  return readString(payload, ["payload", "failure_stage", "status", "message", "error"]);
 };
 
 const DetailItem = ({ label, value }: { label: string; value: ReactNode }) => (
@@ -133,10 +145,7 @@ const isCoreOwnedMonitor = (monitor?: { owner_kind?: string; source?: string }) 
 
 const formatJSON = (value?: Record<string, unknown>) => JSON.stringify(value ?? {}, null, 2);
 
-const coreConfigValue = (
-  config: { config?: Record<string, unknown> } | undefined,
-  key: string,
-) => {
+const coreConfigValue = (config: { config?: Record<string, unknown> } | undefined, key: string) => {
   const value = config?.config?.[key];
   if (typeof value === "number") return String(value);
   if (typeof value === "string" && value.trim() !== "") return value;
@@ -248,6 +257,13 @@ export const MonitorDetailPage = () => {
   const latestReport = monitorResponse.data?.recent_reports?.[0] ?? reports[0];
   const [selectedReport, setSelectedReport] = useState<ApiMonitorReportResponse>();
   const latestPayload = parsePayload(latestReport?.payload);
+  const heartbeatReports = reports.filter((report) =>
+    isHeartbeatPayload(parsePayload(report.payload)),
+  );
+  const latestHeartbeatReport = heartbeatReports[0];
+  const latestHeartbeatFailure = heartbeatReports.find(
+    (report) => report.health && report.health !== "up",
+  );
   const uptimeBuckets = uptimeResponse.data?.daily_buckets ?? [];
   const recentUptimeBuckets = uptimeBuckets.slice(-7);
   const health =
@@ -289,7 +305,10 @@ export const MonitorDetailPage = () => {
     mutation: {
       onSuccess: (result) => {
         const testHealth =
-          result.monitor?.computed_health ?? result.monitor?.health ?? result.result?.status ?? "unknown";
+          result.monitor?.computed_health ??
+          result.monitor?.health ??
+          result.result?.status ??
+          "unknown";
         setActionFeedback(
           testHealth === "up"
             ? "Core monitor test reported up."
@@ -483,7 +502,10 @@ export const MonitorDetailPage = () => {
           </DetailGroup>
 
           <DetailGroup title="Owner">
-            <DetailItem label="owner" value={monitor.owner_name ?? monitor.agent_name ?? "Unknown owner"} />
+            <DetailItem
+              label="owner"
+              value={monitor.owner_name ?? monitor.agent_name ?? "Unknown owner"}
+            />
             <DetailItem label="source" value={isCoreMonitor ? "Core" : "Agent"} />
             <DetailItem
               label="last success"
@@ -528,6 +550,33 @@ export const MonitorDetailPage = () => {
           <h2 className="text-sm font-medium">Latest Failure Reason</h2>
           <p className="max-w-3xl text-sm text-neutral-600">{latestFailureReason}</p>
         </div>
+
+        {coreConfig?.kind === "heartbeat" && (
+          <div className="grid gap-3 lg:grid-cols-2">
+            <DetailGroup title="Latest Heartbeat">
+              <DetailItem
+                label="status"
+                value={<StatusBadge value={toStatus(latestHeartbeatReport?.health)} />}
+              />
+              <DetailItem
+                label="time"
+                value={formatDate(reportTimestamp(latestHeartbeatReport), DATE_TIME_FORMAT)}
+              />
+              <DetailItem label="payload" value={heartbeatPayloadContext(latestHeartbeatReport)} />
+            </DetailGroup>
+            <DetailGroup title="Latest Heartbeat Failure">
+              <DetailItem
+                label="status"
+                value={<StatusBadge value={toStatus(latestHeartbeatFailure?.health)} />}
+              />
+              <DetailItem
+                label="time"
+                value={formatDate(reportTimestamp(latestHeartbeatFailure), DATE_TIME_FORMAT)}
+              />
+              <DetailItem label="payload" value={heartbeatPayloadContext(latestHeartbeatFailure)} />
+            </DetailGroup>
+          </div>
+        )}
 
         <div className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-3">
@@ -626,7 +675,9 @@ export const MonitorDetailPage = () => {
                 </div>
               )}
               {isCoreMonitor && coreConfigResponse.isLoading && (
-                <div className="text-sm text-neutral-600">Loading Core monitor configuration...</div>
+                <div className="text-sm text-neutral-600">
+                  Loading Core monitor configuration...
+                </div>
               )}
               {isCoreMonitor && coreConfigResponse.error && (
                 <div className="text-sm">Unable to load Core monitor configuration.</div>
@@ -637,7 +688,10 @@ export const MonitorDetailPage = () => {
                     <DetailItem label="kind" value={coreConfig.kind ?? monitor.type ?? "unknown"} />
                     <DetailItem label="interval" value={`${coreConfig.interval_seconds ?? 0}s`} />
                     {coreConfig.kind === "heartbeat" ? (
-                      <DetailItem label="grace" value={`${coreConfigValue(coreConfig, "grace_seconds")}s`} />
+                      <DetailItem
+                        label="grace"
+                        value={`${coreConfigValue(coreConfig, "grace_seconds")}s`}
+                      />
                     ) : (
                       <DetailItem label="timeout" value={`${coreConfig.timeout_seconds ?? 0}s`} />
                     )}

@@ -103,6 +103,9 @@ const metadataEntries = (payload: Payload) =>
       ].includes(key),
   );
 
+const isHeartbeatPayload = (payload: Payload) =>
+  payload.type === "heartbeat" || payload.runner === "heartbeat";
+
 const DetailGrid = ({ items }: { items: DetailItem[] }) => (
   <div className="grid gap-3 sm:grid-cols-2">
     {items.map((item) => (
@@ -184,6 +187,7 @@ const AgentReportInspection = ({ report }: { report: ApiAgentReportResponse }) =
 const MonitorReportInspection = ({ report }: { report: ApiMonitorReportResponse }) => {
   const payload = parsePayload(report.payload);
   const metadata = metadataEntries(payload);
+  const isHeartbeat = isHeartbeatPayload(payload);
 
   return (
     <>
@@ -226,6 +230,20 @@ const MonitorReportInspection = ({ report }: { report: ApiMonitorReportResponse 
           ]}
         />
       </Section>
+
+      {isHeartbeat && (
+        <Section title="Heartbeat">
+          <DetailGrid
+            items={[
+              { label: "payload", value: readPayloadValue(payload, ["payload"]) },
+              { label: "failure stage", value: readPayloadValue(payload, ["failure_stage"]) },
+              { label: "truncated", value: readPayloadValue(payload, ["payload_truncated"]) },
+              { label: "last signal", value: readPayloadValue(payload, ["last_signal_at"]) },
+              { label: "missed after", value: readPayloadValue(payload, ["missed_after"]) },
+            ]}
+          />
+        </Section>
+      )}
 
       <Section title="Metadata">
         {metadata.length > 0 ? (

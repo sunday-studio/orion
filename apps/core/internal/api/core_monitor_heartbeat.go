@@ -125,7 +125,7 @@ func readHeartbeatPayload(c *gin.Context) (map[string]interface{}, bool, error) 
 		"payload_truncated": truncated,
 	}
 	if len(body) > 0 {
-		payload["payload"] = string(body)
+		payload["payload"] = redactHeartbeatText(string(body))
 	}
 	return payload, truncated, nil
 }

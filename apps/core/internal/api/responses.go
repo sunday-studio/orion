@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"orion/core/internal/db"
 	"orion/core/internal/service"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -314,6 +315,7 @@ type IncidentTimelineItemResponse struct {
 	Type            string    `json:"type"`
 	Source          string    `json:"source"`
 	Message         string    `json:"message"`
+	Evidence        string    `json:"evidence,omitempty"`
 	MonitorReportID string    `json:"monitor_report_id,omitempty"`
 	AlertDeliveryID string    `json:"alert_delivery_id,omitempty"`
 	Channel         string    `json:"channel,omitempty"`
@@ -422,11 +424,95 @@ func monitorReportResponse(report db.MonitorReport) MonitorReportResponse {
 	return MonitorReportResponse{
 		ID:          report.ID,
 		MonitorID:   report.MonitorID,
-		Payload:     report.Payload,
+		Payload:     safeMonitorReportPayload(report.Payload),
 		CollectedAt: report.CollectedAt,
 		Health:      report.Health,
 		CreatedAt:   report.CreatedAt,
 	}
+}
+
+type heartbeatSensitivePattern struct {
+	pattern     *regexp.Regexp
+	replacement string
+}
+
+var heartbeatSensitivePatterns = []heartbeatSensitivePattern{
+	{
+		pattern:     regexp.MustCompile(`(?i)(token|password|secret|api[_-]?key|authorization)(["']?\s*[:=]\s*["']?)[^"',\s}]+`),
+		replacement: "${1}${2}[redacted]",
+	},
+	{
+		pattern:     regexp.MustCompile(`(?i)(bearer\s+)[a-z0-9._~+/-]+`),
+		replacement: "${1}[redacted]",
+	},
+}
+
+func safeMonitorReportPayload(payload string) string {
+	var fields map[string]interface{}
+	if err := json.Unmarshal([]byte(payload), &fields); err != nil {
+		return payload
+	}
+	if !isHeartbeatReportPayload(fields) {
+		return payload
+	}
+	redacted := redactHeartbeatPayloadValue(fields)
+	body, err := json.Marshal(redacted)
+	if err != nil {
+		return payload
+	}
+	return string(body)
+}
+
+func isHeartbeatReportPayload(fields map[string]interface{}) bool {
+	return stringFieldEquals(fields, "type", "heartbeat") || stringFieldEquals(fields, "runner", "heartbeat")
+}
+
+func stringFieldEquals(fields map[string]interface{}, key string, expected string) bool {
+	value, ok := fields[key].(string)
+	return ok && strings.EqualFold(strings.TrimSpace(value), expected)
+}
+
+func redactHeartbeatPayloadValue(value interface{}) interface{} {
+	switch typed := value.(type) {
+	case map[string]interface{}:
+		result := make(map[string]interface{}, len(typed))
+		for key, field := range typed {
+			if heartbeatSensitiveKey(key) {
+				result[key] = "[redacted]"
+				continue
+			}
+			result[key] = redactHeartbeatPayloadValue(field)
+		}
+		return result
+	case []interface{}:
+		result := make([]interface{}, 0, len(typed))
+		for _, item := range typed {
+			result = append(result, redactHeartbeatPayloadValue(item))
+		}
+		return result
+	case string:
+		return redactHeartbeatText(typed)
+	default:
+		return typed
+	}
+}
+
+func heartbeatSensitiveKey(key string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(key))
+	return strings.Contains(normalized, "token") ||
+		strings.Contains(normalized, "password") ||
+		strings.Contains(normalized, "secret") ||
+		strings.Contains(normalized, "api_key") ||
+		strings.Contains(normalized, "apikey") ||
+		strings.Contains(normalized, "authorization")
+}
+
+func redactHeartbeatText(value string) string {
+	redacted := value
+	for _, pattern := range heartbeatSensitivePatterns {
+		redacted = pattern.pattern.ReplaceAllString(redacted, pattern.replacement)
+	}
+	return redacted
 }
 
 func monitorReportResponses(reports []db.MonitorReport) []MonitorReportResponse {

@@ -106,7 +106,9 @@ type DetailTab = (typeof detailTabs)[number];
 const isDetailTab = (value: string | null): value is DetailTab =>
   detailTabs.includes(value as DetailTab);
 
-const timelineColumns: ColumnDef<ApiIncidentTimelineItemResponse>[] = [
+const timelineColumns = (
+  reportsByID: Map<string, ApiMonitorReportResponse>,
+): ColumnDef<ApiIncidentTimelineItemResponse>[] => [
   {
     accessorKey: "created_at",
     header: "Time",
@@ -126,8 +128,22 @@ const timelineColumns: ColumnDef<ApiIncidentTimelineItemResponse>[] = [
     accessorKey: "message",
     header: "Message",
     cell: ({ row }) => (
-      <div className="max-w-[28rem] truncate text-neutral-600">{row.original.message ?? "—"}</div>
+      <div className="max-w-[22rem] truncate text-neutral-600">{row.original.message ?? "—"}</div>
     ),
+  },
+  {
+    id: "evidence",
+    header: "Evidence",
+    cell: ({ row }) => {
+      const report = row.original.monitor_report_id
+        ? reportsByID.get(row.original.monitor_report_id)
+        : undefined;
+      return (
+        <div className="max-w-[22rem] truncate text-neutral-600">
+          {row.original.evidence ?? reportReason(report)}
+        </div>
+      );
+    },
   },
 ];
 
@@ -201,6 +217,9 @@ export const IncidentDetailPage = () => {
   const [selectedMonitorReport, setSelectedMonitorReport] = useState<ApiMonitorReportResponse>();
   const sortedMonitorReports = [...monitorReports].sort(
     (a, b) => reportSortTime(a) - reportSortTime(b),
+  );
+  const reportsByID = new Map(
+    monitorReports.flatMap((report) => (report.id ? [[report.id, report] as const] : [])),
   );
   const triggeringReport =
     sortedMonitorReports.find((report) => report.health && report.health !== "up") ??
@@ -394,10 +413,14 @@ export const IncidentDetailPage = () => {
           </TabsList>
           <TabsContent value="timeline">
             <DataTable
-              columns={timelineColumns}
+              columns={timelineColumns(reportsByID)}
               data={timeline}
               emptyMessage="No timeline events recorded."
               getRowId={(item, index) => item.id ?? `timeline-${index}`}
+              onRowClick={(item) => {
+                if (item.monitor_report_id)
+                  setSelectedMonitorReport(reportsByID.get(item.monitor_report_id));
+              }}
             />
           </TabsContent>
           <TabsContent value="notifications">
