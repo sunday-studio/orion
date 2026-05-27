@@ -23,6 +23,7 @@ import {
   usePreviewStatusPage,
   usePublishStatusPage,
   useUnpublishStatusPage,
+  useUpdateStatusPage,
   useUpdateStatusPageIncident,
 } from "@/orion-sdk";
 import { CheckCircle2, ExternalLink, Eye, Globe2, Link2, Plus, RadioTower } from "lucide-react";
@@ -33,6 +34,22 @@ type PageFormState = {
   slug: string;
   title: string;
   description: string;
+};
+
+type PageSettingsFormState = {
+  description: string;
+  seoTitle: string;
+  seoDescription: string;
+  canonicalUrl: string;
+  openGraphImageUrl: string;
+  accentColor: string;
+  logoUrl: string;
+  logoAlt: string;
+  headerStyle: string;
+  componentDensity: string;
+  showUptimeSummary: boolean;
+  showIncidentHistory: boolean;
+  defaultIncidentVisibility: string;
 };
 
 type SectionFormState = {
@@ -75,6 +92,22 @@ const emptyPageForm: PageFormState = {
   slug: "",
   title: "",
   description: "",
+};
+
+const emptyPageSettingsForm: PageSettingsFormState = {
+  description: "",
+  seoTitle: "",
+  seoDescription: "",
+  canonicalUrl: "",
+  openGraphImageUrl: "",
+  accentColor: "#0f766e",
+  logoUrl: "",
+  logoAlt: "",
+  headerStyle: "standard",
+  componentDensity: "comfortable",
+  showUptimeSummary: true,
+  showIncidentHistory: true,
+  defaultIncidentVisibility: "draft",
 };
 
 const emptySectionForm: SectionFormState = {
@@ -144,6 +177,17 @@ const incidentVisibilities = [
   { label: "Private", value: "private" },
 ];
 
+const headerStyleOptions = [
+  { label: "Standard", value: "standard" },
+  { label: "Compact", value: "compact" },
+  { label: "Centered", value: "centered" },
+];
+
+const componentDensityOptions = [
+  { label: "Comfortable", value: "comfortable" },
+  { label: "Compact", value: "compact" },
+];
+
 const statusBadgeStatus = (status?: string) => {
   switch (status) {
     case "operational":
@@ -200,6 +244,65 @@ const formatDateTime = (value?: string) => {
   return date.toLocaleString();
 };
 
+const themeString = (settings: Record<string, unknown> | undefined, key: string, fallback = "") => {
+  const value = settings?.[key];
+  return typeof value === "string" ? value : fallback;
+};
+
+const themeBoolean = (
+  settings: Record<string, unknown> | undefined,
+  key: string,
+  fallback: boolean,
+) => {
+  const value = settings?.[key];
+  return typeof value === "boolean" ? value : fallback;
+};
+
+const validAccentColor = (value: string) =>
+  /^#[0-9a-f]{6}$/i.test(value) ? value : emptyPageSettingsForm.accentColor;
+
+const pageSettingsFormFromPage = (
+  page?: ApiStatusPageResponse,
+): PageSettingsFormState => {
+  const themeSettings = page?.theme_settings;
+  return {
+    accentColor: validAccentColor(
+      themeString(themeSettings, "accent_color", emptyPageSettingsForm.accentColor),
+    ),
+    canonicalUrl: page?.canonical_url ?? "",
+    componentDensity: themeString(
+      themeSettings,
+      "component_density",
+      emptyPageSettingsForm.componentDensity,
+    ),
+    defaultIncidentVisibility:
+      page?.default_incident_visibility ?? emptyPageSettingsForm.defaultIncidentVisibility,
+    description: page?.description ?? "",
+    headerStyle: themeString(themeSettings, "header_style", emptyPageSettingsForm.headerStyle),
+    logoAlt: themeString(themeSettings, "logo_alt"),
+    logoUrl: themeString(themeSettings, "logo_url"),
+    openGraphImageUrl: page?.open_graph_image_url ?? "",
+    seoDescription: page?.seo_description ?? "",
+    seoTitle: page?.seo_title ?? "",
+    showIncidentHistory: themeBoolean(themeSettings, "show_incident_history", true),
+    showUptimeSummary: themeBoolean(themeSettings, "show_uptime_summary", true),
+  };
+};
+
+const pageThemeSettings = (
+  currentSettings: Record<string, unknown> | undefined,
+  form: PageSettingsFormState,
+) => ({
+  ...currentSettings,
+  accent_color: form.accentColor,
+  component_density: form.componentDensity,
+  header_style: form.headerStyle,
+  logo_alt: form.logoAlt.trim() || undefined,
+  logo_url: form.logoUrl.trim() || undefined,
+  show_incident_history: form.showIncidentHistory,
+  show_uptime_summary: form.showUptimeSummary,
+});
+
 const incidentFormFromIncident = (incident?: ApiStatusPageIncidentResponse): IncidentFormState => ({
   internalIncidentId: incident?.internal_incident_id ?? "",
   title: incident?.title ?? "",
@@ -239,6 +342,8 @@ export const StatusPagesPage = () => {
     status: "open,acknowledged,resolved",
   });
   const [pageForm, setPageForm] = useState<PageFormState>(emptyPageForm);
+  const [pageSettingsForm, setPageSettingsForm] =
+    useState<PageSettingsFormState>(emptyPageSettingsForm);
   const [sectionForm, setSectionForm] = useState<SectionFormState>(emptySectionForm);
   const [componentForm, setComponentForm] = useState<ComponentFormState>(emptyComponentForm);
   const [mappingForm, setMappingForm] = useState<MappingFormState>(emptyMappingForm);
@@ -276,12 +381,17 @@ export const StatusPagesPage = () => {
   }, [detailResponse.data, selectedIncidentId]);
 
   const detail = detailResponse.data;
+  const detailPage = detail?.page ?? selectedPage;
   const incidents = detail?.incidents ?? [];
   const selectedIncident = incidents.find((incident) => incident.id === selectedIncidentId);
 
   useEffect(() => {
     setEditIncidentForm(incidentFormFromIncident(selectedIncident));
   }, [selectedIncident]);
+
+  useEffect(() => {
+    setPageSettingsForm(pageSettingsFormFromPage(detailPage));
+  }, [detailPage]);
 
   const refreshStatusPages = () => {
     void pagesResponse.refetch();
@@ -347,6 +457,7 @@ export const StatusPagesPage = () => {
       },
     },
   });
+  const updatePage = useUpdateStatusPage({ mutation: { onSuccess: refreshStatusPages } });
   const publishPage = usePublishStatusPage({ mutation: { onSuccess: refreshStatusPages } });
   const unpublishPage = useUnpublishStatusPage({ mutation: { onSuccess: refreshStatusPages } });
 
@@ -373,6 +484,23 @@ export const StatusPagesPage = () => {
         description: pageForm.description.trim() || undefined,
         slug: pageForm.slug.trim(),
         title: pageForm.title.trim(),
+      },
+    });
+  };
+
+  const submitPageSettings = (event: FormEvent) => {
+    event.preventDefault();
+    if (!pageId || !detailPage) return;
+    updatePage.mutate({
+      id: pageId,
+      data: {
+        canonical_url: pageSettingsForm.canonicalUrl.trim(),
+        default_incident_visibility: pageSettingsForm.defaultIncidentVisibility,
+        description: pageSettingsForm.description.trim(),
+        open_graph_image_url: pageSettingsForm.openGraphImageUrl.trim(),
+        seo_description: pageSettingsForm.seoDescription.trim(),
+        seo_title: pageSettingsForm.seoTitle.trim(),
+        theme_settings: pageThemeSettings(detailPage.theme_settings, pageSettingsForm),
       },
     });
   };
@@ -626,6 +754,210 @@ export const StatusPagesPage = () => {
                 </div>
               )}
             </section>
+
+            <form className="space-y-4" onSubmit={submitPageSettings}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3 className="text-sm font-medium">Page Settings</h3>
+                <Button disabled={!pageId || updatePage.isPending} variant="outline">
+                  <CheckCircle2 className="size-4" />
+                  {updatePage.isPending ? "Saving..." : "Save settings"}
+                </Button>
+              </div>
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_320px]">
+                <div className="space-y-3">
+                  <Field label="Public description">
+                    <Textarea
+                      value={pageSettingsForm.description}
+                      onChange={(event) =>
+                        setPageSettingsForm((current) => ({
+                          ...current,
+                          description: event.target.value,
+                        }))
+                      }
+                      rows={4}
+                    />
+                  </Field>
+                  <Field label="Default incident visibility">
+                    <select
+                      className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                      value={pageSettingsForm.defaultIncidentVisibility}
+                      onChange={(event) =>
+                        setPageSettingsForm((current) => ({
+                          ...current,
+                          defaultIncidentVisibility: event.target.value,
+                        }))
+                      }
+                    >
+                      {incidentVisibilities.map((visibility) => (
+                        <option key={visibility.value} value={visibility.value}>
+                          {visibility.label}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Canonical URL">
+                    <Input
+                      placeholder="https://status.example.com"
+                      type="url"
+                      value={pageSettingsForm.canonicalUrl}
+                      onChange={(event) =>
+                        setPageSettingsForm((current) => ({
+                          ...current,
+                          canonicalUrl: event.target.value,
+                        }))
+                      }
+                    />
+                  </Field>
+                </div>
+
+                <div className="space-y-3">
+                  <Field label="SEO title">
+                    <Input
+                      value={pageSettingsForm.seoTitle}
+                      onChange={(event) =>
+                        setPageSettingsForm((current) => ({
+                          ...current,
+                          seoTitle: event.target.value,
+                        }))
+                      }
+                    />
+                  </Field>
+                  <Field label="SEO description">
+                    <Textarea
+                      value={pageSettingsForm.seoDescription}
+                      onChange={(event) =>
+                        setPageSettingsForm((current) => ({
+                          ...current,
+                          seoDescription: event.target.value,
+                        }))
+                      }
+                      rows={3}
+                    />
+                  </Field>
+                  <Field label="Open Graph image URL">
+                    <Input
+                      placeholder="https://status.example.com/og.png"
+                      type="url"
+                      value={pageSettingsForm.openGraphImageUrl}
+                      onChange={(event) =>
+                        setPageSettingsForm((current) => ({
+                          ...current,
+                          openGraphImageUrl: event.target.value,
+                        }))
+                      }
+                    />
+                  </Field>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="grid gap-3 sm:grid-cols-[96px_minmax(0,1fr)] xl:grid-cols-1">
+                    <Field label="Accent color">
+                      <Input
+                        type="color"
+                        value={pageSettingsForm.accentColor}
+                        onChange={(event) =>
+                          setPageSettingsForm((current) => ({
+                            ...current,
+                            accentColor: event.target.value,
+                          }))
+                        }
+                      />
+                    </Field>
+                    <Field label="Logo URL">
+                      <Input
+                        placeholder="https://status.example.com/logo.svg"
+                        type="url"
+                        value={pageSettingsForm.logoUrl}
+                        onChange={(event) =>
+                          setPageSettingsForm((current) => ({
+                            ...current,
+                            logoUrl: event.target.value,
+                          }))
+                        }
+                      />
+                    </Field>
+                  </div>
+                  <Field label="Logo alt text">
+                    <Input
+                      value={pageSettingsForm.logoAlt}
+                      onChange={(event) =>
+                        setPageSettingsForm((current) => ({
+                          ...current,
+                          logoAlt: event.target.value,
+                        }))
+                      }
+                    />
+                  </Field>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label="Header style">
+                      <select
+                        className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                        value={pageSettingsForm.headerStyle}
+                        onChange={(event) =>
+                          setPageSettingsForm((current) => ({
+                            ...current,
+                            headerStyle: event.target.value,
+                          }))
+                        }
+                      >
+                        {headerStyleOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Component density">
+                      <select
+                        className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                        value={pageSettingsForm.componentDensity}
+                        onChange={(event) =>
+                          setPageSettingsForm((current) => ({
+                            ...current,
+                            componentDensity: event.target.value,
+                          }))
+                        }
+                      >
+                        {componentDensityOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                  </div>
+                  <div className="grid gap-2 text-sm sm:grid-cols-2 xl:grid-cols-1">
+                    <label className="flex items-center gap-2">
+                      <input
+                        checked={pageSettingsForm.showUptimeSummary}
+                        onChange={(event) =>
+                          setPageSettingsForm((current) => ({
+                            ...current,
+                            showUptimeSummary: event.target.checked,
+                          }))
+                        }
+                        type="checkbox"
+                      />
+                      <span>Show uptime summary</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        checked={pageSettingsForm.showIncidentHistory}
+                        onChange={(event) =>
+                          setPageSettingsForm((current) => ({
+                            ...current,
+                            showIncidentHistory: event.target.checked,
+                          }))
+                        }
+                        type="checkbox"
+                      />
+                      <span>Show incident history</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+              {updatePage.isError && <p className="text-sm">Unable to save page settings.</p>}
+            </form>
 
             <section className="grid gap-4 xl:grid-cols-3">
               <form className="space-y-3" onSubmit={submitSection}>
