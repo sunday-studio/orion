@@ -122,7 +122,7 @@ func (s *Server) getStatusPageAtomFeed(c *gin.Context) {
 		return
 	}
 
-	c.Data(http.StatusOK, "application/atom+xml; charset=utf-8", append([]byte(xml.Header), payload...))
+	writePublicStatusPagePayload(c, http.StatusOK, "application/atom+xml; charset=utf-8", append([]byte(xml.Header), payload...))
 }
 
 func (s *Server) publishedStatusPageIncidentUpdates(incidents []db.StatusPageIncident) (map[string][]db.StatusPageIncidentUpdate, error) {

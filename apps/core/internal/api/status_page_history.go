@@ -86,7 +86,7 @@ func (s *Server) getPublicStatusPageHistory(c *gin.Context) {
 		return
 	}
 	preview := s.statusPagePreview(detail, false)
-	utils.SuccessResponse(c, http.StatusOK, "Status page history retrieved successfully", gin.H{
+	s.writePublicStatusPageJSON(c, http.StatusOK, "Status page history retrieved successfully", gin.H{
 		"history": StatusPagePublicHistoryResponse{
 			Page:        preview.Page,
 			Components:  s.publicStatusPageComponentHistories(detail, window, false),
@@ -121,7 +121,7 @@ func (s *Server) getPublicStatusPageComponentUptime(c *gin.Context) {
 		return
 	}
 	uptime, _ := s.publicStatusPageComponentUptime(component, window)
-	utils.SuccessResponse(c, http.StatusOK, "Status page component uptime retrieved successfully", gin.H{
+	s.writePublicStatusPageJSON(c, http.StatusOK, "Status page component uptime retrieved successfully", gin.H{
 		"component": s.statusPagePublicComponentResponse(component, s.statusPageComponentStatus(component)),
 		"uptime":    uptime,
 	})
@@ -152,7 +152,7 @@ func (s *Server) getPublicStatusPageComponentHistory(c *gin.Context) {
 		return
 	}
 	uptime, history := s.publicStatusPageComponentUptime(component, window)
-	utils.SuccessResponse(c, http.StatusOK, "Status page component history retrieved successfully", gin.H{
+	s.writePublicStatusPageJSON(c, http.StatusOK, "Status page component history retrieved successfully", gin.H{
 		"component": s.statusPagePublicComponentResponse(component, s.statusPageComponentStatus(component)),
 		"uptime":    uptime,
 		"history":   history,
@@ -196,7 +196,7 @@ func (s *Server) getPublicStatusPageIncidentHistory(c *gin.Context) {
 		return
 	}
 
-	utils.SuccessResponse(c, http.StatusOK, "Status page incident history retrieved successfully", gin.H{
+	s.writePublicStatusPageJSON(c, http.StatusOK, "Status page incident history retrieved successfully", gin.H{
 		"history": StatusPagePublicIncidentHistoryResponse{
 			Incident: incident,
 			Updates:  updates,

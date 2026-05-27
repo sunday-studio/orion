@@ -497,7 +497,7 @@ func (s *Server) getPublicStatusPage(c *gin.Context) {
 	if !ok {
 		return
 	}
-	utils.SuccessResponse(c, http.StatusOK, "Status page retrieved successfully", gin.H{
+	s.writePublicStatusPageJSON(c, http.StatusOK, "Status page retrieved successfully", gin.H{
 		"status_page": preview,
 	})
 }
@@ -519,7 +519,7 @@ func (s *Server) listPublicStatusPageIncidents(c *gin.Context) {
 	if !ok {
 		return
 	}
-	utils.SuccessResponse(c, http.StatusOK, "Status page incidents retrieved successfully", gin.H{
+	s.writePublicStatusPageJSON(c, http.StatusOK, "Status page incidents retrieved successfully", gin.H{
 		"incidents": preview.Incidents,
 		"count":     len(preview.Incidents),
 	})
@@ -545,7 +545,7 @@ func (s *Server) getPublicStatusPageIncident(c *gin.Context) {
 	}
 	for _, incident := range preview.Incidents {
 		if incident.ID == c.Param("incident_id") {
-			utils.SuccessResponse(c, http.StatusOK, "Status page incident retrieved successfully", gin.H{
+			s.writePublicStatusPageJSON(c, http.StatusOK, "Status page incident retrieved successfully", gin.H{
 				"incident": incident,
 			})
 			return
