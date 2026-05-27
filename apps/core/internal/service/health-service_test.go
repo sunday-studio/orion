@@ -438,6 +438,64 @@ func TestMonitorWithoutReportsBecomesStaleAfterReportingWindow(t *testing.T) {
 	}
 }
 
+func TestComputeMonitorHealthDetectsFlappingTransitions(t *testing.T) {
+	database := setupHealthTestDB(t)
+	agent := db.Agent{
+		ID:        "agent-flapping",
+		MachineId: "flapping-machine",
+		Name:      "flapping",
+		OS:        "linux",
+		Arch:      "arm64",
+		Token:     "flapping-token",
+		LastSeen:  time.Now(),
+	}
+	if err := database.Create(&agent).Error; err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+
+	monitor := db.Monitor{
+		ID:                       "monitor-flapping",
+		AgentID:                  agent.ID,
+		Name:                     "flapping",
+		Type:                     "http",
+		Lifecycle:                "active",
+		Health:                   "up",
+		ReportingIntervalSeconds: 60,
+		CreatedAt:                time.Now(),
+	}
+	if err := database.Create(&monitor).Error; err != nil {
+		t.Fatalf("create monitor: %v", err)
+	}
+
+	now := time.Now().UTC()
+	reports := []db.MonitorReport{
+		{ID: "report-flap-1", MonitorID: monitor.ID, Payload: "{}", CollectedAt: now.Format(time.RFC3339), Health: "up", CreatedAt: now},
+		{ID: "report-flap-2", MonitorID: monitor.ID, Payload: "{}", CollectedAt: now.Add(-1 * time.Minute).Format(time.RFC3339), Health: "down", CreatedAt: now.Add(-1 * time.Minute)},
+		{ID: "report-flap-3", MonitorID: monitor.ID, Payload: "{}", CollectedAt: now.Add(-2 * time.Minute).Format(time.RFC3339), Health: "up", CreatedAt: now.Add(-2 * time.Minute)},
+		{ID: "report-flap-4", MonitorID: monitor.ID, Payload: "{}", CollectedAt: now.Add(-3 * time.Minute).Format(time.RFC3339), Health: "down", CreatedAt: now.Add(-3 * time.Minute)},
+	}
+	if err := database.Create(&reports).Error; err != nil {
+		t.Fatalf("create reports: %v", err)
+	}
+
+	service := NewHealthService(database, logging.NewLogger())
+	health, err := service.ComputeMonitorHealth(monitor.ID, DefaultHealthConfig())
+	if err != nil {
+		t.Fatalf("ComputeMonitorHealth() error = %v", err)
+	}
+	if health != "degraded" {
+		t.Fatalf("ComputeMonitorHealth() = %q, want degraded flapping health", health)
+	}
+
+	var stored db.Monitor
+	if err := database.Where("id = ?", monitor.ID).First(&stored).Error; err != nil {
+		t.Fatalf("reload monitor: %v", err)
+	}
+	if stored.Health != "up" || stored.ComputedHealth != "degraded" {
+		t.Fatalf("stored monitor health = %q computed = %q, want raw up and computed degraded", stored.Health, stored.ComputedHealth)
+	}
+}
+
 func TestMonitorSummaryUsesComputedHealth(t *testing.T) {
 	database := setupHealthTestDB(t)
 	agent := db.Agent{
