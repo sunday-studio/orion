@@ -11,6 +11,7 @@ func TestLoadCORSOriginsFromEnvironment(t *testing.T) {
 	t.Setenv("ORION_WORKER_ID", "worker-a")
 	t.Setenv("ORION_WORKER_HEARTBEAT_SECONDS", "20")
 	t.Setenv("ORION_WORKER_STALE_SECONDS", "90")
+	t.Setenv("ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS", "120")
 
 	cfg := Load()
 
@@ -22,6 +23,9 @@ func TestLoadCORSOriginsFromEnvironment(t *testing.T) {
 	}
 	if cfg.CoreWorkerID != "worker-a" || cfg.CoreWorkerHeartbeatSeconds != 20 || cfg.CoreWorkerStaleSeconds != 90 {
 		t.Fatalf("worker config = id %q heartbeat %d stale %d", cfg.CoreWorkerID, cfg.CoreWorkerHeartbeatSeconds, cfg.CoreWorkerStaleSeconds)
+	}
+	if cfg.DataLifecycleSchedulerSeconds != 120 {
+		t.Fatalf("DataLifecycleSchedulerSeconds = %d, want 120", cfg.DataLifecycleSchedulerSeconds)
 	}
 }
 
@@ -86,12 +90,13 @@ func TestValidateRejectsPartialFrontendAuthConfig(t *testing.T) {
 
 func TestValidateAcceptsCompleteFrontendAuthConfig(t *testing.T) {
 	cfg := &Config{
-		AdminUsername:              "admin",
-		AdminPassword:              "secret",
-		JWTSecret:                  "jwt-secret",
-		FrontendAuthOn:             true,
-		CoreWorkerHeartbeatSeconds: 15,
-		CoreWorkerStaleSeconds:     60,
+		AdminUsername:                 "admin",
+		AdminPassword:                 "secret",
+		JWTSecret:                     "jwt-secret",
+		FrontendAuthOn:                true,
+		CoreWorkerHeartbeatSeconds:    15,
+		CoreWorkerStaleSeconds:        60,
+		DataLifecycleSchedulerSeconds: 3600,
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -114,8 +119,9 @@ func TestValidateRejectsInvalidWorkerDiagnosticsConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := &Config{
-				CoreWorkerHeartbeatSeconds: tt.heartbeatSeconds,
-				CoreWorkerStaleSeconds:     tt.staleSeconds,
+				CoreWorkerHeartbeatSeconds:    tt.heartbeatSeconds,
+				CoreWorkerStaleSeconds:        tt.staleSeconds,
+				DataLifecycleSchedulerSeconds: 3600,
 			}
 
 			if err := cfg.Validate(); err == nil {
@@ -125,16 +131,41 @@ func TestValidateRejectsInvalidWorkerDiagnosticsConfig(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsInvalidDataLifecycleSchedulerConfig(t *testing.T) {
+	tests := []struct {
+		name             string
+		schedulerSeconds int
+	}{
+		{name: "zero interval", schedulerSeconds: 0},
+		{name: "negative interval", schedulerSeconds: -1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &Config{
+				CoreWorkerHeartbeatSeconds:    15,
+				CoreWorkerStaleSeconds:        60,
+				DataLifecycleSchedulerSeconds: tt.schedulerSeconds,
+			}
+
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want invalid data lifecycle scheduler config error")
+			}
+		})
+	}
+}
+
 func TestValidatePublicStatusMailConfig(t *testing.T) {
 	valid := Config{
-		CoreWorkerHeartbeatSeconds:   15,
-		CoreWorkerStaleSeconds:       60,
-		PublicStatusMailEnabled:      true,
-		PublicStatusMailHost:         "smtp.example.com",
-		PublicStatusMailPort:         587,
-		PublicStatusMailFromEmail:    "status@example.com",
-		PublicStatusURLOrigin:        "https://status.example.com",
-		PublicStatusSubscriberSecret: "subscriber-secret",
+		CoreWorkerHeartbeatSeconds:    15,
+		CoreWorkerStaleSeconds:        60,
+		DataLifecycleSchedulerSeconds: 3600,
+		PublicStatusMailEnabled:       true,
+		PublicStatusMailHost:          "smtp.example.com",
+		PublicStatusMailPort:          587,
+		PublicStatusMailFromEmail:     "status@example.com",
+		PublicStatusURLOrigin:         "https://status.example.com",
+		PublicStatusSubscriberSecret:  "subscriber-secret",
 	}
 	if err := valid.Validate(); err != nil {
 		t.Fatalf("Validate() error = %v", err)

@@ -105,6 +105,7 @@ docker run -d \
   -p 8999:8999 \
   -v orion-data:/data \
   -e ORION_DATA_DIR=/data \
+  -e ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS=3600 \
   -e ORION_ADMIN_USERNAME=admin \
   -e ORION_ADMIN_PASSWORD='change-me' \
   -e ORION_JWT_SECRET='change-me-to-a-long-random-value' \

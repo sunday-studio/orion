@@ -4,9 +4,11 @@ import (
 	"context"
 	"orion/core/internal/api"
 	"orion/core/internal/logging"
+	"orion/core/internal/service"
 	"orion/core/internal/startup"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 // @title           Orion Core API
@@ -48,6 +50,13 @@ func main() {
 	server := api.NewServer(database, logger, cfg)
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	lifecycleScheduler := service.NewDataLifecycleSchedulerService(database, logger, cfg.DataDir, time.Duration(cfg.DataLifecycleSchedulerSeconds)*time.Second)
+	go func() {
+		if err := lifecycleScheduler.Run(ctx); err != nil {
+			logger.Error("Data lifecycle scheduler stopped", "error", err)
+		}
+	}()
 
 	logger.Info("Orion Core Server started successfully")
 	if err := server.Start(ctx, ":"+cfg.Port); err != nil {
