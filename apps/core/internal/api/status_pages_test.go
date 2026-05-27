@@ -1011,6 +1011,15 @@ func TestStatusPagePublishValidation(t *testing.T) {
 	}
 	decodeResponse(t, createPageResp, &createdPage)
 
+	duplicateSlugResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages", gin.H{
+		"slug":  "validation-status",
+		"title": "Duplicate Validation Status",
+	}, "")
+	if duplicateSlugResp.Code != http.StatusConflict {
+		t.Fatalf("duplicate slug status = %d, body = %s, want 409", duplicateSlugResp.Code, duplicateSlugResp.Body.String())
+	}
+	assertContains(t, duplicateSlugResp.Body.String(), "slug already exists")
+
 	emptyPublishResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+createdPage.Data.Page.ID+"/publish", nil, "")
 	if emptyPublishResp.Code != http.StatusBadRequest {
 		t.Fatalf("empty publish status = %d, body = %s, want 400", emptyPublishResp.Code, emptyPublishResp.Body.String())
@@ -1046,6 +1055,50 @@ func TestStatusPagePublishValidation(t *testing.T) {
 	}
 	assertContains(t, unmappedPublishResp.Body.String(), "mapped resource or manual status")
 	assertContains(t, unmappedPublishResp.Body.String(), "looks like an internal host")
+
+	ipPageResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages", gin.H{
+		"slug":  "ip-validation-status",
+		"title": "IP Validation Status",
+	}, "")
+	if ipPageResp.Code != http.StatusCreated {
+		t.Fatalf("create IP validation page status = %d, body = %s", ipPageResp.Code, ipPageResp.Body.String())
+	}
+	var ipPage struct {
+		Data struct {
+			Page struct {
+				ID string `json:"id"`
+			} `json:"page"`
+		} `json:"data"`
+	}
+	decodeResponse(t, ipPageResp, &ipPage)
+	ipSectionResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+ipPage.Data.Page.ID+"/sections", gin.H{
+		"name": "IP Private",
+	}, "")
+	if ipSectionResp.Code != http.StatusCreated {
+		t.Fatalf("create IP validation section status = %d, body = %s", ipSectionResp.Code, ipSectionResp.Body.String())
+	}
+	var ipSection struct {
+		Data struct {
+			Section struct {
+				ID string `json:"id"`
+			} `json:"section"`
+		} `json:"data"`
+	}
+	decodeResponse(t, ipSectionResp, &ipSection)
+	ipComponentResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+ipPage.Data.Page.ID+"/components", gin.H{
+		"section_id":    ipSection.Data.Section.ID,
+		"public_name":   "192.168.1.10",
+		"manual_status": "operational",
+		"visible":       true,
+	}, "")
+	if ipComponentResp.Code != http.StatusCreated {
+		t.Fatalf("create IP validation component status = %d, body = %s", ipComponentResp.Code, ipComponentResp.Body.String())
+	}
+	ipPublishResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+ipPage.Data.Page.ID+"/publish", nil, "")
+	if ipPublishResp.Code != http.StatusBadRequest {
+		t.Fatalf("IP label publish status = %d, body = %s, want 400", ipPublishResp.Code, ipPublishResp.Body.String())
+	}
+	assertContains(t, ipPublishResp.Body.String(), "looks like an internal host")
 }
 
 func performHostRequest(t *testing.T, server *Server, method string, path string, host string) *httptest.ResponseRecorder {
