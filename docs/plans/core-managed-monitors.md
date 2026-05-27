@@ -508,163 +508,29 @@ Design implications:
 
 ## Milestones
 
-### Milestone 1: Core owner, worker app, and HTTP MVP
+Milestones map directly to Maat goals. Ticket rows under each milestone map to Maat tickets.
 
-Outcome: a Core-owned HTTP monitor can be created by API, claimed and executed by the Core monitor worker, reported into `monitor_reports`, and shown in the existing monitor list.
+| Milestone row | Outcome | Ticket rows |
+|---|---|---|
+| M1: Core owner, worker app, and HTTP MVP | A Core-owned HTTP monitor can be created by API, claimed and executed by the Core monitor worker, reported into `monitor_reports`, and shown in the existing monitor list. | Design Core monitor ownership and migration; Build Core monitor worker app foundation; Add due-check leasing and scheduling; Add HTTP status monitor runner; Wire Core monitor reports into incident reconciliation; Add Core worker diagnostics and deployment wiring. |
+| M2: Console creation workflow | A user can create, test, pause, resume, edit, delete, filter, and inspect Core monitors from Console without editing Agent YAML. | Add Core monitor create/edit/test API; Build Console Core monitor create workflow; Add Console owner and monitor type filters; Add Core monitor detail config summary; Redact Core monitor secrets in Console and API responses. |
+| M3: Heartbeats | Core supports cron, backup, script, and scheduled-job monitoring through generated heartbeat endpoints and worker-side missed-heartbeat reconciliation. | Add heartbeat token and ingest routes; Add heartbeat missed-check reconciliation worker; Add heartbeat Console copy and setup affordances; Add heartbeat failure payload inspection. |
+| M4: Better incident controls | Core monitors have enough noise controls to be useful in production without opening incidents for short transient failures. | Add monitor confirmation periods; Add monitor recovery periods; Add Core monitor flapping handling; Add Core monitor severity defaults; Add Core monitor maintenance windows. |
+| M5: Components and status page groundwork | Core and Agent monitors can be mapped to service/status-page components so incidents identify impacted components and future status pages can consume monitor health. | Design component data model; Add monitor-to-component mapping; Add incident component fields; Update status page architecture for monitor components. |
+| M6: Full monitor catalog expansion | Orion implements the full now-scope monitor catalog through the Core monitor worker with clear safety limits, report shapes, and incident behavior. | Add HTTP keyword monitor; Add expected status code monitor; Add TCP port monitor; Add TLS certificate monitor; Add DNS monitor; Add ping monitor; Add domain expiration monitor; Add API request monitor; Add UDP monitor; Add SMTP IMAP and POP monitors; Add Playwright transaction monitor; Add synthetic multi-step monitor. |
 
-Scope:
+## Maat Loading Rows
 
-- Core owner row or owner field;
-- `core_monitor_configs` migration;
-- worker app entrypoint and deployment config;
-- HTTP status runner;
-- due-check claiming with leases;
-- incident reconciliation reuse;
-- OpenAPI and SDK regeneration;
-- basic Console listing changes.
+Loaded into Maat on 2026-05-27. Each milestone row is a Maat goal. Each ticket row is a Maat ticket under that milestone goal.
 
-Acceptance:
-
-- Core API can create, pause, resume, and delete one HTTP monitor.
-- Core monitor worker can claim and run the monitor without blocking the Core API process.
-- A failed Core check opens an incident.
-- A recovered Core check resolves the incident.
-- Existing Agent monitor behavior is unchanged.
-
-### Milestone 2: Console creation workflow
-
-Outcome: a user can create and test Core HTTP/TCP/TLS monitors from Console.
-
-Scope:
-
-- create/edit dialog or page;
-- type-specific forms;
-- test-now action;
-- owner/type filters;
-- monitor detail config summary;
-- redacted secrets.
-
-Acceptance:
-
-- User can create a monitor without editing YAML.
-- The monitor appears immediately with owner `Core`.
-- Failed tests show actionable errors.
-
-### Milestone 3: Heartbeats
-
-Outcome: Core supports cron/background job monitoring.
-
-Scope:
-
-- heartbeat token generation;
-- success and failure ingest routes;
-- pending before first heartbeat;
-- interval plus grace period;
-- missed heartbeat reconciliation in the Core monitor worker;
-- Console copy endpoint action.
-
-Acceptance:
-
-- A missed heartbeat opens an incident after the grace period.
-- A later success resolves the incident after the recovery rule.
-- Failure payloads are truncated and visible in the detail view.
-
-### Milestone 4: Better incident controls
-
-Outcome: Core monitors have enough noise controls to be useful in production.
-
-Scope:
-
-- confirmation period;
-- recovery period;
-- flapping handling;
-- severity defaults by monitor type;
-- maintenance windows for monitors.
-
-Acceptance:
-
-- One transient failure does not open an incident when confirmation requires multiple failures or elapsed time.
-- A monitor can be put in maintenance without creating alerts.
-
-### Milestone 5: Components and status page groundwork
-
-Outcome: monitors can be mapped to services/components.
-
-Scope:
-
-- component model;
-- monitor-to-component mapping;
-- incident component fields;
-- status page architecture update.
-
-Acceptance:
-
-- A monitor incident can identify the impacted component.
-- Status page work can consume monitor/component health without rethinking monitor ownership.
-
-### Milestone 6: Full monitor catalog expansion
-
-Outcome: Orion implements the full now-scope monitor catalog through the Core monitor worker.
-
-Scope candidates:
-
-- API request body and JSON assertions;
-- DNS records;
-- ping;
-- domain expiration;
-- UDP;
-- SMTP/IMAP/POP;
-- Playwright transaction checks;
-- synthetic multi-step API/browser flows;
-- screenshots and artifacts;
-- multi-location runners.
-
-Acceptance:
-
-- Each new type has clear safety limits, report shape, and incident behavior.
-
-## Proposed Maat Loading Plan
-
-Do not load these into Maat until the owner approves the structure. Maat does not currently need a separate "sub-ticket" primitive for this plan; use goals as the parent containers and create one ticket per major deliverable or monitor type.
-
-Goal: Build Core monitor worker platform.
-
-Tickets:
-
-- Design Core monitor ownership and migration.
-- Build Core monitor worker app foundation.
-- Add due-check leasing and scheduling.
-- Add Core monitor create/edit/test API.
-- Build Console Core monitor workflow.
-- Add Core worker diagnostics and deployment wiring.
-
-Goal: Implement now-scope Core monitor catalog.
-
-Tickets:
-
-- Add HTTP status monitor.
-- Add HTTP keyword monitor.
-- Add expected status code monitor.
-- Add TCP port monitor.
-- Add TLS certificate monitor.
-- Add heartbeat monitor.
-- Add DNS monitor.
-- Add ping monitor.
-- Add domain expiration monitor.
-- Add API request monitor.
-- Add UDP monitor.
-- Add SMTP, IMAP, and POP monitors.
-- Add Playwright transaction monitor.
-- Add synthetic multi-step monitor.
-
-Goal: Connect Core monitors to incidents and status communication.
-
-Tickets:
-
-- Add monitor confirmation and recovery periods.
-- Add Core monitor maintenance windows.
-- Add alert routing hooks for Core monitor metadata.
-- Design monitor component mapping for status pages.
+| Maat goal row | Goal ID | Ticket IDs |
+|---|---|---|
+| M1: Core owner, worker app, and HTTP MVP | `G-20260527-111522-f2ee` | `T-20260527-111641-85ec`, `T-20260527-111653-3a22`, `T-20260527-111705-6c56`, `T-20260527-111715-8985`, `T-20260527-111724-8c57`, `T-20260527-111737-edb2` |
+| M2: Console creation workflow | `G-20260527-111543-5f4e` | `T-20260527-111749-59d7`, `T-20260527-111759-a920`, `T-20260527-111824-6353`, `T-20260527-111835-b813`, `T-20260527-111846-2d78` |
+| M3: Heartbeats | `G-20260527-111553-dcc5` | `T-20260527-111856-87f6`, `T-20260527-111907-416e`, `T-20260527-111918-7ad7`, `T-20260527-111931-a4dc` |
+| M4: Better incident controls | `G-20260527-111602-3269` | `T-20260527-111943-73e5`, `T-20260527-111956-14f8`, `T-20260527-112007-e8ac`, `T-20260527-112022-51a5`, `T-20260527-112035-ca71` |
+| M5: Components and status page groundwork | `G-20260527-111616-a92c` | `T-20260527-112050-0cfb`, `T-20260527-112103-2087`, `T-20260527-112118-7764`, `T-20260527-112139-910e` |
+| M6: Full monitor catalog expansion | `G-20260527-111626-e3b0` | `T-20260527-112154-d351`, `T-20260527-112209-1875`, `T-20260527-112220-3115`, `T-20260527-112232-63ef`, `T-20260527-112242-b01d`, `T-20260527-112250-8206`, `T-20260527-112259-4dfc`, `T-20260527-112313-2c00`, `T-20260527-112337-7951`, `T-20260527-112346-811e`, `T-20260527-112401-3ba3`, `T-20260527-112412-1f05` |
 
 ## Review Questions
 
