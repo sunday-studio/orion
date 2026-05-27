@@ -206,6 +206,17 @@ type IncidentEvent struct {
 	CreatedAt       time.Time `json:"created_at" gorm:"index:idx_incident_events_created_at"`
 }
 
+type AuditEvent struct {
+	ID                 string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	Action             string    `json:"action" gorm:"not null;index:idx_audit_events_action"`
+	StatusPageID       string    `json:"status_page_id" gorm:"not null;index:idx_audit_events_status_page_id"`
+	AffectedObjectType string    `json:"affected_object_type" gorm:"not null;index:idx_audit_events_affected_object"`
+	AffectedObjectID   string    `json:"affected_object_id" gorm:"not null;index:idx_audit_events_affected_object"`
+	ActorType          string    `json:"actor_type" gorm:"not null"`
+	ActorID            string    `json:"actor_id" gorm:"not null"`
+	CreatedAt          time.Time `json:"created_at" gorm:"not null;index:idx_audit_events_created_at"`
+}
+
 type StatusPage struct {
 	ID                        string     `json:"id" gorm:"primaryKey;type:varchar(255)"`
 	Slug                      string     `json:"slug" gorm:"uniqueIndex;not null"`

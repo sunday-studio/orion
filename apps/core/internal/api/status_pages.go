@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"orion/core/internal/db"
+	"orion/core/internal/service"
 	"orion/core/internal/utils"
 	"sort"
 	"strings"
@@ -414,9 +415,19 @@ func (s *Server) publishStatusPage(c *gin.Context) {
 	page.Visibility = statusPageVisibilityPublic
 	now := time.Now().UTC()
 	page.PublishedAt = &now
-	if err := s.db.Save(&page).Error; err != nil {
-		s.logger.Error("Failed to update status page visibility", "error", err)
-		utils.InternalError(c, "Failed to update status page visibility", err)
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(&page).Error; err != nil {
+			return err
+		}
+		return s.recordStatusPageAuditEvent(tx, c, service.StatusPageAuditEventInput{
+			Action:             service.StatusPageAuditActionPublished,
+			StatusPageID:       page.ID,
+			AffectedObjectType: "status_page",
+			AffectedObjectID:   page.ID,
+		})
+	}); err != nil {
+		s.logger.Error("Failed to publish status page", "status_page_id", page.ID, "error", err)
+		utils.InternalError(c, "Failed to publish status page", err)
 		return
 	}
 	utils.SuccessResponse(c, http.StatusOK, "Status page published successfully", gin.H{
@@ -841,7 +852,17 @@ func (s *Server) createStatusPageComponentMapping(c *gin.Context) {
 		utils.BadRequest(c, err.Error())
 		return
 	}
-	if err := s.db.Create(&mapping).Error; err != nil {
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&mapping).Error; err != nil {
+			return err
+		}
+		return s.recordStatusPageAuditEvent(tx, c, service.StatusPageAuditEventInput{
+			Action:             service.StatusPageAuditActionComponentMappingCreated,
+			StatusPageID:       c.Param("id"),
+			AffectedObjectType: "component_mapping",
+			AffectedObjectID:   mapping.ID,
+		})
+	}); err != nil {
 		writeStatusPageCreateError(c, err, "Status page component mapping already exists")
 		return
 	}
@@ -887,7 +908,17 @@ func (s *Server) updateStatusPageComponentMapping(c *gin.Context) {
 		utils.BadRequest(c, err.Error())
 		return
 	}
-	if err := s.db.Save(&mapping).Error; err != nil {
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(&mapping).Error; err != nil {
+			return err
+		}
+		return s.recordStatusPageAuditEvent(tx, c, service.StatusPageAuditEventInput{
+			Action:             service.StatusPageAuditActionComponentMappingUpdated,
+			StatusPageID:       c.Param("id"),
+			AffectedObjectType: "component_mapping",
+			AffectedObjectID:   mapping.ID,
+		})
+	}); err != nil {
 		writeStatusPageCreateError(c, err, "Status page component mapping already exists")
 		return
 	}
@@ -961,8 +992,18 @@ func (s *Server) createStatusPageIncident(c *gin.Context) {
 		utils.BadRequest(c, err.Error())
 		return
 	}
-	if err := s.db.Create(&incident).Error; err != nil {
-		s.logger.Error("Failed to create status page incident", "error", err)
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&incident).Error; err != nil {
+			return err
+		}
+		return s.recordStatusPageAuditEvent(tx, c, service.StatusPageAuditEventInput{
+			Action:             service.StatusPageAuditActionPublicIncidentCreated,
+			StatusPageID:       incident.StatusPageID,
+			AffectedObjectType: "public_incident",
+			AffectedObjectID:   incident.ID,
+		})
+	}); err != nil {
+		s.logger.Error("Failed to create status page incident", "status_page_id", incident.StatusPageID, "error", err)
 		utils.InternalError(c, "Failed to create status page incident", err)
 		return
 	}
@@ -998,12 +1039,34 @@ func (s *Server) updateStatusPageIncident(c *gin.Context) {
 		utils.BadRequest(c, "Invalid status page incident payload")
 		return
 	}
+	wasResolved := incident.PublicStatus == "resolved" || incident.ResolvedAt != nil
 	if err := s.applyStatusPageIncidentRequest(&incident, request, false); err != nil {
 		utils.BadRequest(c, err.Error())
 		return
 	}
-	if err := s.db.Save(&incident).Error; err != nil {
-		s.logger.Error("Failed to update status page incident", "error", err)
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(&incident).Error; err != nil {
+			return err
+		}
+		if err := s.recordStatusPageAuditEvent(tx, c, service.StatusPageAuditEventInput{
+			Action:             service.StatusPageAuditActionPublicIncidentUpdated,
+			StatusPageID:       incident.StatusPageID,
+			AffectedObjectType: "public_incident",
+			AffectedObjectID:   incident.ID,
+		}); err != nil {
+			return err
+		}
+		if !wasResolved && (incident.PublicStatus == "resolved" || incident.ResolvedAt != nil) {
+			return s.recordStatusPageAuditEvent(tx, c, service.StatusPageAuditEventInput{
+				Action:             service.StatusPageAuditActionPublicIncidentResolved,
+				StatusPageID:       incident.StatusPageID,
+				AffectedObjectType: "public_incident",
+				AffectedObjectID:   incident.ID,
+			})
+		}
+		return nil
+	}); err != nil {
+		s.logger.Error("Failed to update status page incident", "status_page_id", incident.StatusPageID, "incident_id", incident.ID, "error", err)
 		utils.InternalError(c, "Failed to update status page incident", err)
 		return
 	}
@@ -1053,6 +1116,7 @@ func (s *Server) createStatusPageIncidentUpdate(c *gin.Context) {
 		utils.BadRequest(c, err.Error())
 		return
 	}
+	wasResolved := incident.PublicStatus == "resolved" || incident.ResolvedAt != nil
 	if err := s.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&update).Error; err != nil {
 			return err
@@ -1066,7 +1130,26 @@ func (s *Server) createStatusPageIncidentUpdate(c *gin.Context) {
 			now := time.Now().UTC()
 			incident.ResolvedAt = &now
 		}
-		return tx.Save(&incident).Error
+		if err := tx.Save(&incident).Error; err != nil {
+			return err
+		}
+		if err := s.recordStatusPageAuditEvent(tx, c, service.StatusPageAuditEventInput{
+			Action:             service.StatusPageAuditActionPublicIncidentUpdateCreated,
+			StatusPageID:       incident.StatusPageID,
+			AffectedObjectType: "public_incident_update",
+			AffectedObjectID:   update.ID,
+		}); err != nil {
+			return err
+		}
+		if !wasResolved && (incident.PublicStatus == "resolved" || incident.ResolvedAt != nil) {
+			return s.recordStatusPageAuditEvent(tx, c, service.StatusPageAuditEventInput{
+				Action:             service.StatusPageAuditActionPublicIncidentResolved,
+				StatusPageID:       incident.StatusPageID,
+				AffectedObjectType: "public_incident",
+				AffectedObjectID:   incident.ID,
+			})
+		}
+		return nil
 	}); err != nil {
 		s.logger.Error("Failed to create status page incident update", "error", err)
 		utils.InternalError(c, "Failed to create status page incident update", err)
@@ -1089,8 +1172,22 @@ func (s *Server) setStatusPageVisibility(c *gin.Context, visibility string, stam
 		now := time.Now().UTC()
 		page.PublishedAt = &now
 	}
-	if err := s.db.Save(&page).Error; err != nil {
-		s.logger.Error("Failed to update status page visibility", "error", err)
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(&page).Error; err != nil {
+			return err
+		}
+		action := service.StatusPageAuditActionUnpublished
+		if visibility == statusPageVisibilityPublic || visibility == statusPageVisibilityUnlisted {
+			action = service.StatusPageAuditActionPublished
+		}
+		return s.recordStatusPageAuditEvent(tx, c, service.StatusPageAuditEventInput{
+			Action:             action,
+			StatusPageID:       page.ID,
+			AffectedObjectType: "status_page",
+			AffectedObjectID:   page.ID,
+		})
+	}); err != nil {
+		s.logger.Error("Failed to update status page visibility", "status_page_id", page.ID, "error", err)
 		utils.InternalError(c, "Failed to update status page visibility", err)
 		return
 	}
@@ -1683,6 +1780,21 @@ func (s *Server) ensureStatusPageComponentsExist(pageID string, componentIDs []s
 		return &requestValidationError{message: "affected_component_ids must reference components on this status page"}
 	}
 	return nil
+}
+
+func (s *Server) recordStatusPageAuditEvent(tx *gorm.DB, c *gin.Context, input service.StatusPageAuditEventInput) error {
+	input.ActorType, input.ActorID = statusPageAuditActor(c)
+	_, err := service.NewAuditService(tx, s.logger).RecordStatusPageEvent(input)
+	return err
+}
+
+func statusPageAuditActor(c *gin.Context) (string, string) {
+	if actor, ok := c.Get("frontend_actor_id"); ok {
+		if actorID, ok := actor.(string); ok && strings.TrimSpace(actorID) != "" {
+			return "user", strings.TrimSpace(actorID)
+		}
+	}
+	return "system", "console"
 }
 
 func statusPageResponse(page db.StatusPage) StatusPageResponse {

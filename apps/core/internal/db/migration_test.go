@@ -74,6 +74,9 @@ func TestMigrateAppliesEmbeddedMigrations(t *testing.T) {
 	if !database.Migrator().HasTable(&StatusPageIncidentUpdate{}) {
 		t.Fatal("status_page_incident_updates table was not created")
 	}
+	if !database.Migrator().HasTable(&AuditEvent{}) {
+		t.Fatal("audit_events table was not created")
+	}
 
 	var count int64
 	if err := database.Table("schema_migrations").Where("version = ?", 1).Count(&count).Error; err != nil {

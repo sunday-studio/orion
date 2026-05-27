@@ -3,12 +3,14 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
 	"orion/core/internal/config"
 	"orion/core/internal/db"
 	"orion/core/internal/logging"
+	"orion/core/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/sqlite"
@@ -27,6 +29,173 @@ func TestStatusPageAdminAPIRequiresFrontendJWTWhenConfigured(t *testing.T) {
 	authorized := performJSONRequest(t, server, http.MethodGet, "/v1/status-pages", nil, token)
 	if authorized.Code != http.StatusOK {
 		t.Fatalf("authorized status = %d, body = %s", authorized.Code, authorized.Body.String())
+	}
+}
+
+func TestStatusPageAuditEventsRecordActorAndMinimalFields(t *testing.T) {
+	server := setupStatusPageAuthTestServer(t)
+	token := loginStatusPageTestAdmin(t, server)
+	registered := registerTestAgent(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+
+	createPageResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages", gin.H{
+		"slug":  "audit-status",
+		"title": "Audit Status",
+	}, token)
+	if createPageResp.Code != http.StatusCreated {
+		t.Fatalf("create status page status = %d, body = %s", createPageResp.Code, createPageResp.Body.String())
+	}
+	var createdPage struct {
+		Data struct {
+			Page struct {
+				ID string `json:"id"`
+			} `json:"page"`
+		} `json:"data"`
+	}
+	decodeResponse(t, createPageResp, &createdPage)
+
+	createSectionResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+createdPage.Data.Page.ID+"/sections", gin.H{
+		"name": "API",
+	}, token)
+	if createSectionResp.Code != http.StatusCreated {
+		t.Fatalf("create section status = %d, body = %s", createSectionResp.Code, createSectionResp.Body.String())
+	}
+	var createdSection struct {
+		Data struct {
+			Section struct {
+				ID string `json:"id"`
+			} `json:"section"`
+		} `json:"data"`
+	}
+	decodeResponse(t, createSectionResp, &createdSection)
+
+	createComponentResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+createdPage.Data.Page.ID+"/components", gin.H{
+		"section_id":  createdSection.Data.Section.ID,
+		"public_name": "REST API",
+		"visible":     true,
+	}, token)
+	if createComponentResp.Code != http.StatusCreated {
+		t.Fatalf("create component status = %d, body = %s", createComponentResp.Code, createComponentResp.Body.String())
+	}
+	var createdComponent struct {
+		Data struct {
+			Component struct {
+				ID string `json:"id"`
+			} `json:"component"`
+		} `json:"data"`
+	}
+	decodeResponse(t, createComponentResp, &createdComponent)
+
+	createMappingResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+createdPage.Data.Page.ID+"/components/"+createdComponent.Data.Component.ID+"/mappings", gin.H{
+		"resource_type":          "monitor",
+		"resource_id":            registeredMonitor.Data.MonitorID,
+		"health_rollup_strategy": "worst",
+		"uptime_rollup_strategy": "worst",
+	}, token)
+	if createMappingResp.Code != http.StatusCreated {
+		t.Fatalf("create mapping status = %d, body = %s", createMappingResp.Code, createMappingResp.Body.String())
+	}
+	var createdMapping struct {
+		Data struct {
+			Mapping struct {
+				ID string `json:"id"`
+			} `json:"mapping"`
+		} `json:"data"`
+	}
+	decodeResponse(t, createMappingResp, &createdMapping)
+
+	updateMappingResp := performJSONRequest(t, server, http.MethodPut, "/v1/status-pages/"+createdPage.Data.Page.ID+"/components/"+createdComponent.Data.Component.ID+"/mappings/"+createdMapping.Data.Mapping.ID, gin.H{
+		"health_rollup_strategy": "average",
+	}, token)
+	if updateMappingResp.Code != http.StatusOK {
+		t.Fatalf("update mapping status = %d, body = %s", updateMappingResp.Code, updateMappingResp.Body.String())
+	}
+
+	publishResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+createdPage.Data.Page.ID+"/publish", nil, token)
+	if publishResp.Code != http.StatusOK {
+		t.Fatalf("publish status = %d, body = %s", publishResp.Code, publishResp.Body.String())
+	}
+
+	now := time.Now().UTC()
+	createIncidentResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+createdPage.Data.Page.ID+"/incidents", gin.H{
+		"title":                  "Elevated API errors",
+		"public_status":          "investigating",
+		"severity":               "high",
+		"impact_summary":         "Customer-safe summary only",
+		"visibility":             "published",
+		"affected_component_ids": []string{createdComponent.Data.Component.ID},
+		"published_at":           now,
+	}, token)
+	if createIncidentResp.Code != http.StatusCreated {
+		t.Fatalf("create incident status = %d, body = %s", createIncidentResp.Code, createIncidentResp.Body.String())
+	}
+	var createdIncident struct {
+		Data struct {
+			Incident struct {
+				ID string `json:"id"`
+			} `json:"incident"`
+		} `json:"data"`
+	}
+	decodeResponse(t, createIncidentResp, &createdIncident)
+
+	updateIncidentResp := performJSONRequest(t, server, http.MethodPut, "/v1/status-pages/"+createdPage.Data.Page.ID+"/incidents/"+createdIncident.Data.Incident.ID, gin.H{
+		"public_status": "identified",
+	}, token)
+	if updateIncidentResp.Code != http.StatusOK {
+		t.Fatalf("update incident status = %d, body = %s", updateIncidentResp.Code, updateIncidentResp.Body.String())
+	}
+
+	rawTimelineMessage := "raw incident payload with internal secret token"
+	createUpdateResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+createdPage.Data.Page.ID+"/incidents/"+createdIncident.Data.Incident.ID+"/updates", gin.H{
+		"status":       "resolved",
+		"message":      rawTimelineMessage,
+		"created_by":   "ops",
+		"published_at": now,
+	}, token)
+	if createUpdateResp.Code != http.StatusCreated {
+		t.Fatalf("create incident update status = %d, body = %s", createUpdateResp.Code, createUpdateResp.Body.String())
+	}
+
+	unpublishResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+createdPage.Data.Page.ID+"/unpublish", nil, token)
+	if unpublishResp.Code != http.StatusOK {
+		t.Fatalf("unpublish status = %d, body = %s", unpublishResp.Code, unpublishResp.Body.String())
+	}
+
+	var events []db.AuditEvent
+	if err := server.db.Order("created_at ASC").Find(&events).Error; err != nil {
+		t.Fatalf("load audit events: %v", err)
+	}
+	actions := map[string]bool{}
+	for _, event := range events {
+		if event.StatusPageID != createdPage.Data.Page.ID {
+			t.Fatalf("audit event status_page_id = %q, want %q", event.StatusPageID, createdPage.Data.Page.ID)
+		}
+		if event.ActorType != "user" || event.ActorID != "admin" {
+			t.Fatalf("audit event actor = %s/%s, want user/admin", event.ActorType, event.ActorID)
+		}
+		if event.AffectedObjectType == "" || event.AffectedObjectID == "" || event.CreatedAt.IsZero() {
+			t.Fatalf("audit event missing required field: %+v", event)
+		}
+		serializedFields := strings.Join([]string{event.Action, event.StatusPageID, event.AffectedObjectType, event.AffectedObjectID, event.ActorType, event.ActorID}, " ")
+		if strings.Contains(serializedFields, rawTimelineMessage) {
+			t.Fatalf("audit event stored raw incident update message: %+v", event)
+		}
+		actions[event.Action] = true
+	}
+
+	for _, action := range []string{
+		service.StatusPageAuditActionComponentMappingCreated,
+		service.StatusPageAuditActionComponentMappingUpdated,
+		service.StatusPageAuditActionPublished,
+		service.StatusPageAuditActionPublicIncidentCreated,
+		service.StatusPageAuditActionPublicIncidentUpdated,
+		service.StatusPageAuditActionPublicIncidentUpdateCreated,
+		service.StatusPageAuditActionPublicIncidentResolved,
+		service.StatusPageAuditActionUnpublished,
+	} {
+		if !actions[action] {
+			t.Fatalf("missing audit action %q in events: %+v", action, events)
+		}
 	}
 }
 
