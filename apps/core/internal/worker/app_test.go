@@ -138,6 +138,112 @@ func TestRunDueChecksStoresDownReportForUnexpectedStatus(t *testing.T) {
 	}
 }
 
+func TestRunDueChecksAcceptsExpectedStatusSet(t *testing.T) {
+	database := openWorkerMigratedTestDatabase(t)
+	httpClient := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		return workerHTTPResponse(http.StatusAccepted), nil
+	})}
+
+	insertWorkerCoreOwner(t, database)
+	insertWorkerMonitor(t, database, "monitor-http-status-set")
+	insertWorkerCoreMonitorConfig(t, database, db.CoreMonitorConfig{
+		MonitorID:       "monitor-http-status-set",
+		Kind:            "http",
+		ConfigJSON:      `{"url":"https://example.com/job","expected_statuses":[200,202,204]}`,
+		IntervalSeconds: 60,
+		TimeoutSeconds:  5,
+		NextRunAt:       time.Now().UTC().Add(-time.Minute),
+	})
+
+	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
+	if err := app.runDueChecks(context.Background()); err != nil {
+		t.Fatalf("runDueChecks() error = %v", err)
+	}
+
+	report := loadWorkerMonitorReport(t, database, "monitor-http-status-set")
+	if report.Health != "up" {
+		t.Fatalf("report health = %q, want up", report.Health)
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
+		t.Fatalf("unmarshal report payload: %v", err)
+	}
+	statuses, ok := payload["expected_statuses"].([]interface{})
+	if !ok || len(statuses) != 3 || statuses[1].(float64) != 202 {
+		t.Fatalf("expected_statuses = %+v, want [200 202 204]", payload["expected_statuses"])
+	}
+}
+
+func TestRunDueChecksStoresDownReportForMissingRequiredKeyword(t *testing.T) {
+	database := openWorkerMigratedTestDatabase(t)
+	httpClient := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		return workerHTTPResponse(http.StatusOK, "ready=false"), nil
+	})}
+
+	insertWorkerCoreOwner(t, database)
+	insertWorkerMonitor(t, database, "monitor-http-required-keyword")
+	insertWorkerCoreMonitorConfig(t, database, db.CoreMonitorConfig{
+		MonitorID:       "monitor-http-required-keyword",
+		Kind:            "http",
+		ConfigJSON:      `{"url":"https://example.com/health","required_contains":["ready=true"]}`,
+		IntervalSeconds: 60,
+		TimeoutSeconds:  5,
+		NextRunAt:       time.Now().UTC().Add(-time.Minute),
+	})
+
+	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
+	if err := app.runDueChecks(context.Background()); err != nil {
+		t.Fatalf("runDueChecks() error = %v", err)
+	}
+
+	report := loadWorkerMonitorReport(t, database, "monitor-http-required-keyword")
+	if report.Health != "down" {
+		t.Fatalf("report health = %q, want down", report.Health)
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
+		t.Fatalf("unmarshal report payload: %v", err)
+	}
+	if payload["failure_stage"] != "body_required" || payload["body_sample"] != "ready=false" {
+		t.Fatalf("payload = %+v, want bounded required-keyword failure", payload)
+	}
+}
+
+func TestRunDueChecksStoresDownReportForForbiddenKeyword(t *testing.T) {
+	database := openWorkerMigratedTestDatabase(t)
+	httpClient := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		return workerHTTPResponse(http.StatusOK, "status=ok debug=true"), nil
+	})}
+
+	insertWorkerCoreOwner(t, database)
+	insertWorkerMonitor(t, database, "monitor-http-forbidden-keyword")
+	insertWorkerCoreMonitorConfig(t, database, db.CoreMonitorConfig{
+		MonitorID:       "monitor-http-forbidden-keyword",
+		Kind:            "http",
+		ConfigJSON:      `{"url":"https://example.com/health","forbidden_contains":["debug=true"]}`,
+		IntervalSeconds: 60,
+		TimeoutSeconds:  5,
+		NextRunAt:       time.Now().UTC().Add(-time.Minute),
+	})
+
+	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
+	if err := app.runDueChecks(context.Background()); err != nil {
+		t.Fatalf("runDueChecks() error = %v", err)
+	}
+
+	report := loadWorkerMonitorReport(t, database, "monitor-http-forbidden-keyword")
+	if report.Health != "down" {
+		t.Fatalf("report health = %q, want down", report.Health)
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
+		t.Fatalf("unmarshal report payload: %v", err)
+	}
+	if payload["failure_stage"] != "body_forbidden" || payload["body_sample"] != "status=ok debug=true" {
+		t.Fatalf("payload = %+v, want bounded forbidden-keyword failure", payload)
+	}
+}
+
 func TestRunDueChecksStoresDownReportForInvalidConfig(t *testing.T) {
 	database := openWorkerMigratedTestDatabase(t)
 
@@ -278,10 +384,14 @@ func (f roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) 
 	return f(request)
 }
 
-func workerHTTPResponse(statusCode int) *http.Response {
+func workerHTTPResponse(statusCode int, body ...string) *http.Response {
+	responseBody := ""
+	if len(body) > 0 {
+		responseBody = body[0]
+	}
 	return &http.Response{
 		StatusCode: statusCode,
-		Body:       io.NopCloser(strings.NewReader("")),
+		Body:       io.NopCloser(strings.NewReader(responseBody)),
 		Header:     make(http.Header),
 	}
 }

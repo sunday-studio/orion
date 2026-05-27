@@ -27,6 +27,7 @@ const (
 	httpStatusRunnerKind    = "http"
 	httpStatusRunnerName    = "http_status"
 	maxHTTPResponseDrainLen = 512
+	maxHTTPBodyCaptureLen   = 4096
 )
 
 // Options configures the Core monitor worker foundation.
@@ -197,21 +198,27 @@ func (a *App) runClaimedCheck(ctx context.Context, monitorConfig db.CoreMonitorC
 }
 
 type httpStatusConfig struct {
-	URL            string `json:"url"`
-	Method         string `json:"method"`
-	ExpectedStatus int    `json:"expected_status"`
+	URL               string   `json:"url"`
+	Method            string   `json:"method"`
+	ExpectedStatus    int      `json:"expected_status"`
+	ExpectedStatuses  []int    `json:"expected_statuses"`
+	RequiredContains  []string `json:"required_contains"`
+	ForbiddenContains []string `json:"forbidden_contains"`
 }
 
 type httpStatusResult struct {
-	Health         string
-	FinishedAt     time.Time
-	Duration       time.Duration
-	TargetURL      string
-	Method         string
-	ExpectedStatus int
-	StatusCode     int
-	Error          error
-	FailureStage   string
+	Health           string
+	FinishedAt       time.Time
+	Duration         time.Duration
+	TargetURL        string
+	Method           string
+	ExpectedStatus   int
+	ExpectedStatuses []int
+	StatusCode       int
+	BodySample       string
+	BodyTruncated    bool
+	Error            error
+	FailureStage     string
 }
 
 func (a *App) runHTTPStatusCheck(ctx context.Context, monitorConfig db.CoreMonitorConfig) httpStatusResult {
@@ -232,6 +239,7 @@ func (a *App) runHTTPStatusCheck(ctx context.Context, monitorConfig db.CoreMonit
 	result.TargetURL = runnerConfig.URL
 	result.Method = runnerConfig.Method
 	result.ExpectedStatus = runnerConfig.ExpectedStatus
+	result.ExpectedStatuses = runnerConfig.ExpectedStatuses
 
 	timeout := time.Duration(monitorConfig.TimeoutSeconds) * time.Second
 	if timeout <= 0 {
@@ -258,17 +266,77 @@ func (a *App) runHTTPStatusCheck(ctx context.Context, monitorConfig db.CoreMonit
 		return result
 	}
 	defer response.Body.Close()
-	_, _ = io.CopyN(io.Discard, response.Body, maxHTTPResponseDrainLen)
 
 	result.StatusCode = response.StatusCode
-	if httpStatusMatches(response.StatusCode, result.ExpectedStatus) {
-		result.Health = "up"
+	bodySample, truncated, err := captureHTTPBodySample(response.Body)
+	if err != nil {
+		result.Error = err
+		result.FailureStage = "http_body"
+		return result
+	}
+	result.BodySample = bodySample
+	result.BodyTruncated = truncated
+
+	if !httpStatusMatches(response.StatusCode, result.ExpectedStatus, result.ExpectedStatuses) {
+		result.Error = fmt.Errorf("unexpected HTTP status %d", response.StatusCode)
+		result.FailureStage = "http_response"
+		return result
+	}
+	if missing := missingRequiredContains(result.BodySample, runnerConfig.RequiredContains); len(missing) > 0 {
+		result.Error = fmt.Errorf("required response content not found: %s", strings.Join(missing, ", "))
+		result.FailureStage = "body_required"
+		return result
+	}
+	if found := foundForbiddenContains(result.BodySample, runnerConfig.ForbiddenContains); len(found) > 0 {
+		result.Error = fmt.Errorf("forbidden response content found: %s", strings.Join(found, ", "))
+		result.FailureStage = "body_forbidden"
 		return result
 	}
 
-	result.Error = fmt.Errorf("unexpected HTTP status %d", response.StatusCode)
-	result.FailureStage = "http_response"
+	result.Health = "up"
 	return result
+}
+
+func captureHTTPBodySample(body io.Reader) (string, bool, error) {
+	limited := io.LimitReader(body, maxHTTPBodyCaptureLen+1)
+	bodyBytes, err := io.ReadAll(limited)
+	if err != nil {
+		return "", false, err
+	}
+	truncated := len(bodyBytes) > maxHTTPBodyCaptureLen
+	if truncated {
+		bodyBytes = bodyBytes[:maxHTTPBodyCaptureLen]
+	}
+	_, _ = io.CopyN(io.Discard, body, maxHTTPResponseDrainLen)
+	return string(bodyBytes), truncated, nil
+}
+
+func missingRequiredContains(body string, required []string) []string {
+	missing := []string{}
+	for _, keyword := range required {
+		keyword = strings.TrimSpace(keyword)
+		if keyword == "" {
+			continue
+		}
+		if !strings.Contains(body, keyword) {
+			missing = append(missing, keyword)
+		}
+	}
+	return missing
+}
+
+func foundForbiddenContains(body string, forbidden []string) []string {
+	found := []string{}
+	for _, keyword := range forbidden {
+		keyword = strings.TrimSpace(keyword)
+		if keyword == "" {
+			continue
+		}
+		if strings.Contains(body, keyword) {
+			found = append(found, keyword)
+		}
+	}
+	return found
 }
 
 func parseHTTPStatusConfig(raw string) (httpStatusConfig, error) {
@@ -302,13 +370,39 @@ func parseHTTPStatusConfig(raw string) (httpStatusConfig, error) {
 	if cfg.ExpectedStatus != 0 && (cfg.ExpectedStatus < 100 || cfg.ExpectedStatus > 599) {
 		return cfg, fmt.Errorf("expected_status must be between 100 and 599")
 	}
+	seenStatuses := map[int]struct{}{}
+	normalizedStatuses := []int{}
+	for _, status := range cfg.ExpectedStatuses {
+		if status < 100 || status > 599 {
+			return cfg, fmt.Errorf("expected_statuses must contain values between 100 and 599")
+		}
+		if _, exists := seenStatuses[status]; exists {
+			continue
+		}
+		seenStatuses[status] = struct{}{}
+		normalizedStatuses = append(normalizedStatuses, status)
+	}
+	if cfg.ExpectedStatus != 0 {
+		if _, exists := seenStatuses[cfg.ExpectedStatus]; !exists {
+			normalizedStatuses = append([]int{cfg.ExpectedStatus}, normalizedStatuses...)
+		}
+	}
+	cfg.ExpectedStatuses = normalizedStatuses
 
 	return cfg, nil
 }
 
-func httpStatusMatches(statusCode int, expectedStatus int) bool {
-	if expectedStatus == 0 {
+func httpStatusMatches(statusCode int, expectedStatus int, expectedStatuses []int) bool {
+	if len(expectedStatuses) == 0 && expectedStatus == 0 {
 		return statusCode >= 200 && statusCode <= 299
+	}
+	for _, expected := range expectedStatuses {
+		if statusCode == expected {
+			return true
+		}
+	}
+	if expectedStatus == 0 {
+		return false
 	}
 	return statusCode == expectedStatus
 }
@@ -340,8 +434,16 @@ func httpStatusPayload(result httpStatusResult, resultErr error) map[string]inte
 	}
 	if result.ExpectedStatus > 0 {
 		payload["expected_status"] = result.ExpectedStatus
-	} else {
+	}
+	if len(result.ExpectedStatuses) > 0 {
+		payload["expected_statuses"] = result.ExpectedStatuses
+	}
+	if result.ExpectedStatus == 0 && len(result.ExpectedStatuses) == 0 {
 		payload["expected_status"] = "2xx"
+	}
+	if result.FailureStage == "body_required" || result.FailureStage == "body_forbidden" {
+		payload["body_sample"] = result.BodySample
+		payload["body_truncated"] = result.BodyTruncated
 	}
 	if resultErr != nil {
 		payload["error"] = resultErr.Error()
