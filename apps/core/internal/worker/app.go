@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -20,6 +21,7 @@ const (
 	defaultHealthInterval    = 30 * time.Second
 	defaultCheckInterval     = 5 * time.Second
 	defaultLeaseDuration     = 2 * time.Minute
+	defaultHeartbeatInterval = 60 * time.Second
 	defaultHTTPTimeout       = 10 * time.Second
 	defaultCoreWorkerID      = "core-monitor-worker"
 	httpStatusRunnerKind     = "http"
@@ -167,6 +169,9 @@ func (a *App) Run(ctx context.Context) error {
 	if err := a.runDueChecks(ctx); err != nil {
 		a.logger.Error("Core monitor worker due check sweep failed", "error", err)
 	}
+	if err := a.reconcileMissedHeartbeats(ctx, time.Now().UTC()); err != nil {
+		a.logger.Error("Core monitor worker heartbeat reconciliation failed", "error", err)
+	}
 
 	healthTicker := time.NewTicker(a.healthInterval)
 	defer healthTicker.Stop()
@@ -183,6 +188,9 @@ func (a *App) Run(ctx context.Context) error {
 		case <-checkTicker.C:
 			if err := a.runDueChecks(ctx); err != nil {
 				a.logger.Error("Core monitor worker due check sweep failed", "error", err)
+			}
+			if err := a.reconcileMissedHeartbeats(ctx, time.Now().UTC()); err != nil {
+				a.logger.Error("Core monitor worker heartbeat reconciliation failed", "error", err)
 			}
 		}
 	}
@@ -232,6 +240,103 @@ func (a *App) runDueChecks(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func (a *App) reconcileMissedHeartbeats(ctx context.Context, now time.Time) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+
+	var configs []db.CoreMonitorConfig
+	if err := a.db.
+		Preload("Monitor").
+		Joins("JOIN monitors ON monitors.id = core_monitor_configs.monitor_id").
+		Where("core_monitor_configs.kind = ?", "heartbeat").
+		Where("core_monitor_configs.paused = ?", false).
+		Where("core_monitor_configs.last_signal_at IS NOT NULL").
+		Where("monitors.lifecycle = ?", "active").
+		Find(&configs).Error; err != nil {
+		return err
+	}
+
+	for _, monitorConfig := range configs {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if !heartbeatSignalIsMissed(monitorConfig, now) {
+			continue
+		}
+		if heartbeatFailureIsCurrent(monitorConfig) {
+			continue
+		}
+		if err := a.storeMissedHeartbeatReport(monitorConfig, now); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func heartbeatSignalIsMissed(config db.CoreMonitorConfig, now time.Time) bool {
+	if config.LastSignalAt == nil {
+		return false
+	}
+	interval := time.Duration(config.IntervalSeconds) * time.Second
+	if interval <= 0 {
+		interval = defaultHeartbeatInterval
+	}
+	grace := time.Duration(heartbeatGraceSeconds(config.ConfigJSON)) * time.Second
+	return now.After(config.LastSignalAt.UTC().Add(interval + grace))
+}
+
+func heartbeatFailureIsCurrent(config db.CoreMonitorConfig) bool {
+	if config.LastSignalAt == nil || config.LastFailureAt == nil {
+		return false
+	}
+	return !config.LastFailureAt.UTC().Before(config.LastSignalAt.UTC())
+}
+
+func heartbeatGraceSeconds(configJSON string) int {
+	var cfg struct {
+		GraceSeconds int `json:"grace_seconds"`
+	}
+	if err := json.Unmarshal([]byte(configJSON), &cfg); err != nil || cfg.GraceSeconds < 0 {
+		return 0
+	}
+	return cfg.GraceSeconds
+}
+
+func (a *App) storeMissedHeartbeatReport(monitorConfig db.CoreMonitorConfig, now time.Time) error {
+	intervalSeconds := monitorConfig.IntervalSeconds
+	if intervalSeconds <= 0 {
+		intervalSeconds = int(defaultHeartbeatInterval.Seconds())
+	}
+	graceSeconds := heartbeatGraceSeconds(monitorConfig.ConfigJSON)
+	missedAfter := monitorConfig.LastSignalAt.UTC().Add(time.Duration(intervalSeconds+graceSeconds) * time.Second)
+	payload := service.MonitorReportPayload{
+		Timestamp: now.Format(time.RFC3339),
+		Health:    "stale",
+		Metrics: map[string]interface{}{
+			"runner":           "core",
+			"type":             "heartbeat",
+			"failure_stage":    "missed_signal",
+			"last_signal_at":   monitorConfig.LastSignalAt.UTC().Format(time.RFC3339),
+			"missed_after":     missedAfter.Format(time.RFC3339),
+			"interval_seconds": intervalSeconds,
+			"grace_seconds":    graceSeconds,
+		},
+	}
+	if _, err := a.reports.StoreMonitorReport(monitorConfig.MonitorID, payload); err != nil {
+		return err
+	}
+	return a.db.Model(&db.CoreMonitorConfig{}).
+		Where("monitor_id = ?", monitorConfig.MonitorID).
+		Updates(map[string]interface{}{
+			"last_failure_at": now,
+			"updated_at":      now,
+		}).Error
 }
 
 // RunImmediateCheck executes one Core monitor check without requiring a scheduler lease.
