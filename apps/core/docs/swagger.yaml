@@ -122,6 +122,8 @@ definitions:
         type: string
       webhook_configured:
         type: boolean
+      webhook_signature_configured:
+        type: boolean
       webhook_url:
         type: string
     type: object
@@ -150,6 +152,8 @@ definitions:
     type: object
   api.AlertDeliveryResponse:
     properties:
+      alert_group_id:
+        type: string
       attempt_count:
         type: integer
       attempts:
@@ -260,6 +264,10 @@ definitions:
         items:
           type: string
         type: array
+      grouping_delay_seconds:
+        type: integer
+      grouping_policy:
+        type: string
       id:
         type: string
       monitor_ids:
@@ -783,6 +791,8 @@ definitions:
         type: array
       type:
         type: string
+      webhook_signing_secret:
+        type: string
       webhook_url:
         type: string
     type: object
@@ -832,6 +842,10 @@ definitions:
         items:
           type: string
         type: array
+      grouping_delay_seconds:
+        type: integer
+      grouping_policy:
+        type: string
       monitor_ids:
         items:
           type: string
@@ -1104,6 +1118,21 @@ definitions:
       monitor_type:
         type: string
       severity:
+        type: string
+    type: object
+  service.AlertSMTPServiceTestResult:
+    properties:
+      error:
+        type: string
+      smtp_service_id:
+        type: string
+      smtp_service_name:
+        type: string
+      stage:
+        type: string
+      status:
+        type: string
+      tested_at:
         type: string
     type: object
   service.ArchiveRunResult:
@@ -2351,6 +2380,45 @@ paths:
       summary: Update alert email destination
       tags:
       - alerts
+  /v1/alerts/email-destinations/{id}/test:
+    post:
+      consumes:
+      - application/json
+      description: Send a manual test notification through a reusable email destination.
+        Delivery errors are sanitized in the response.
+      operationId: testAlertEmailDestination
+      parameters:
+      - description: Email destination ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    delivery:
+                      $ref: '#/definitions/api.AlertDeliveryResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Test alert email destination
+      tags:
+      - alerts
   /v1/alerts/routes:
     get:
       consumes:
@@ -2739,6 +2807,45 @@ paths:
           schema:
             $ref: '#/definitions/utils.APIResponse'
       summary: Update alert SMTP service
+      tags:
+      - alerts
+  /v1/alerts/smtp-services/{id}/test:
+    post:
+      consumes:
+      - application/json
+      description: Connect to a reusable SMTP service and return a sanitized connectivity
+        result without secret values.
+      operationId: testAlertSMTPService
+      parameters:
+      - description: SMTP service ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    test:
+                      $ref: '#/definitions/service.AlertSMTPServiceTestResult'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Test alert SMTP service
       tags:
       - alerts
   /v1/auth/login:

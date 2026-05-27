@@ -141,6 +141,7 @@ type AlertDeliveryResponse struct {
 	ID            string                         `json:"id"`
 	IncidentID    string                         `json:"incident_id"`
 	RouteID       string                         `json:"route_id,omitempty"`
+	AlertGroupID  string                         `json:"alert_group_id,omitempty"`
 	EventType     string                         `json:"event_type"`
 	Channel       string                         `json:"channel"`
 	Type          string                         `json:"type"`
@@ -171,39 +172,42 @@ type AlertDeliveryAttemptResponse struct {
 
 // AlertRouteResponse represents an explicit alert route.
 type AlertRouteResponse struct {
-	ID           string    `json:"id"`
-	Name         string    `json:"name"`
-	Enabled      bool      `json:"enabled"`
-	Priority     int       `json:"priority"`
-	EventTypes   []string  `json:"event_types"`
-	Severities   []string  `json:"severities"`
-	AgentIDs     []string  `json:"agent_ids"`
-	MonitorIDs   []string  `json:"monitor_ids"`
-	MonitorTypes []string  `json:"monitor_types"`
-	ChannelIDs   []string  `json:"channel_ids"`
-	Suppress     bool      `json:"suppress"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID                   string    `json:"id"`
+	Name                 string    `json:"name"`
+	Enabled              bool      `json:"enabled"`
+	Priority             int       `json:"priority"`
+	EventTypes           []string  `json:"event_types"`
+	Severities           []string  `json:"severities"`
+	AgentIDs             []string  `json:"agent_ids"`
+	MonitorIDs           []string  `json:"monitor_ids"`
+	MonitorTypes         []string  `json:"monitor_types"`
+	ChannelIDs           []string  `json:"channel_ids"`
+	Suppress             bool      `json:"suppress"`
+	GroupingPolicy       string    `json:"grouping_policy"`
+	GroupingDelaySeconds int       `json:"grouping_delay_seconds"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
 }
 
 // AlertChannelResponse represents a configured alert channel.
 type AlertChannelResponse struct {
-	ID                     string     `json:"id"`
-	Name                   string     `json:"name"`
-	Type                   string     `json:"type"`
-	Enabled                bool       `json:"enabled"`
-	WebhookURL             string     `json:"webhook_url,omitempty"`
-	WebhookConfigured      bool       `json:"webhook_configured,omitempty"`
-	EmailToConfigured      bool       `json:"email_to_configured,omitempty"`
-	EmailFromConfigured    bool       `json:"email_from_configured,omitempty"`
-	SMTPHostConfigured     bool       `json:"smtp_host_configured,omitempty"`
-	SMTPPortConfigured     bool       `json:"smtp_port_configured,omitempty"`
-	SMTPUsernameConfigured bool       `json:"smtp_username_configured,omitempty"`
-	SubscribedEvents       []string   `json:"subscribed_events"`
-	LastDeliveryStatus     string     `json:"last_delivery_status,omitempty"`
-	LastDeliveryAt         *time.Time `json:"last_delivery_at,omitempty"`
-	CreatedAt              time.Time  `json:"created_at"`
-	UpdatedAt              time.Time  `json:"updated_at"`
+	ID                         string     `json:"id"`
+	Name                       string     `json:"name"`
+	Type                       string     `json:"type"`
+	Enabled                    bool       `json:"enabled"`
+	WebhookURL                 string     `json:"webhook_url,omitempty"`
+	WebhookConfigured          bool       `json:"webhook_configured,omitempty"`
+	WebhookSignatureConfigured bool       `json:"webhook_signature_configured,omitempty"`
+	EmailToConfigured          bool       `json:"email_to_configured,omitempty"`
+	EmailFromConfigured        bool       `json:"email_from_configured,omitempty"`
+	SMTPHostConfigured         bool       `json:"smtp_host_configured,omitempty"`
+	SMTPPortConfigured         bool       `json:"smtp_port_configured,omitempty"`
+	SMTPUsernameConfigured     bool       `json:"smtp_username_configured,omitempty"`
+	SubscribedEvents           []string   `json:"subscribed_events"`
+	LastDeliveryStatus         string     `json:"last_delivery_status,omitempty"`
+	LastDeliveryAt             *time.Time `json:"last_delivery_at,omitempty"`
+	CreatedAt                  time.Time  `json:"created_at"`
+	UpdatedAt                  time.Time  `json:"updated_at"`
 }
 
 // AlertSMTPServiceResponse represents a reusable SMTP service without secrets.
@@ -468,6 +472,7 @@ func alertDeliveryResponse(delivery db.AlertDelivery) AlertDeliveryResponse {
 		ID:            delivery.ID,
 		IncidentID:    delivery.IncidentID,
 		RouteID:       delivery.RouteID,
+		AlertGroupID:  delivery.AlertGroupID,
 		EventType:     delivery.EventType,
 		Channel:       delivery.Channel,
 		Type:          delivery.Type,
@@ -496,8 +501,12 @@ func alertRouteResponse(route db.AlertRoute) AlertRouteResponse {
 		MonitorTypes: decodeResponseList(route.MonitorTypes, nil),
 		ChannelIDs:   decodeResponseList(route.ChannelIDs, nil),
 		Suppress:     route.Suppress,
-		CreatedAt:    route.CreatedAt,
-		UpdatedAt:    route.UpdatedAt,
+		GroupingPolicy: normalizeAlertGroupingPolicy(
+			route.GroupingPolicy,
+		),
+		GroupingDelaySeconds: normalizeAlertGroupingDelaySeconds(route.GroupingDelaySeconds),
+		CreatedAt:            route.CreatedAt,
+		UpdatedAt:            route.UpdatedAt,
 	}
 }
 
@@ -573,7 +582,7 @@ func alertDeliveryAttemptResponses(attempts []db.AlertDeliveryAttempt) []AlertDe
 
 func safeAlertDeliveryError(value string) string {
 	switch value {
-	case "", "alert channel disabled", "alert cooldown active", "no alert channels configured", "no alert routes matched", "alert route destination missing", "alert grouped into active alert group", "alert grouped; sibling incidents still active":
+	case "", "alert channel disabled", "alert cooldown active", "no alert channels configured", "no alert routes matched", "alert route destination missing", "alert grouped into active alert group", "alert grouped; sibling incidents still active", "alert grouped summary pending":
 		return value
 	default:
 		if strings.HasPrefix(value, "alert route suppressed event") {

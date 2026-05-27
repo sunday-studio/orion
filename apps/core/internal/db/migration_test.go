@@ -26,6 +26,9 @@ func TestMigrateAppliesEmbeddedMigrations(t *testing.T) {
 	if !database.Migrator().HasTable(&AlertChannel{}) {
 		t.Fatal("alert_channels table was not created")
 	}
+	if !database.Migrator().HasColumn(&AlertChannel{}, "webhook_signing_secret") {
+		t.Fatal("alert_channels.webhook_signing_secret was not created")
+	}
 	if !database.Migrator().HasTable(&AlertSMTPService{}) {
 		t.Fatal("alert_smtp_services table was not created")
 	}
@@ -37,6 +40,12 @@ func TestMigrateAppliesEmbeddedMigrations(t *testing.T) {
 	}
 	if !database.Migrator().HasColumn(&AlertDelivery{}, "route_id") {
 		t.Fatal("alert_deliveries.route_id was not created")
+	}
+	if !database.Migrator().HasColumn(&AlertRoute{}, "grouping_policy") {
+		t.Fatal("alert_routes.grouping_policy was not created")
+	}
+	if !database.Migrator().HasColumn(&AlertRoute{}, "grouping_delay_seconds") {
+		t.Fatal("alert_routes.grouping_delay_seconds was not created")
 	}
 	if !database.Migrator().HasTable(&AlertGroup{}) {
 		t.Fatal("alert_groups table was not created")

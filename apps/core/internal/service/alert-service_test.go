@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"orion/core/internal/config"
@@ -191,6 +192,55 @@ func TestAlertServiceWebhookUsesPayloadV1(t *testing.T) {
 	}
 }
 
+func TestAlertServiceWebhookAppliesConfiguredSignature(t *testing.T) {
+	database := setupAlertServiceDatabase(t)
+	createTestIncident(t, database, "incident-1")
+	createTestAlertChannel(t, database, db.AlertChannel{
+		Name:                 "ops-webhook",
+		Type:                 "webhook",
+		Enabled:              true,
+		WebhookURL:           "https://alerts.example.com/hook",
+		WebhookSigningSecret: "signing-secret",
+	})
+
+	var receivedBody []byte
+	var signatureHeader string
+	var timestampHeader string
+	transport := roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		var err error
+		receivedBody, err = io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read webhook body: %v", err)
+		}
+		signatureHeader = r.Header.Get("X-Orion-Signature")
+		timestampHeader = r.Header.Get("X-Orion-Timestamp")
+		return &http.Response{
+			StatusCode: http.StatusNoContent,
+			Body:       http.NoBody,
+			Header:     make(http.Header),
+		}, nil
+	})
+
+	service := NewAlertService(database, logging.NewLogger(), &config.Config{})
+	service.httpClient.Transport = transport
+
+	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentOpened); err != nil {
+		t.Fatalf("QueueIncidentNotifications() error = %v", err)
+	}
+
+	var payload AlertPayload
+	if err := json.Unmarshal(receivedBody, &payload); err != nil {
+		t.Fatalf("decode webhook body: %v", err)
+	}
+	want := SignAlertWebhookPayload("signing-secret", payload.DeliveredAt, receivedBody)
+	if signatureHeader != want.Value {
+		t.Fatalf("signature header = %q, want %q", signatureHeader, want.Value)
+	}
+	if timestampHeader != want.Timestamp {
+		t.Fatalf("timestamp header = %q, want %q", timestampHeader, want.Timestamp)
+	}
+}
+
 func TestSignAlertWebhookPayloadIsDeterministic(t *testing.T) {
 	timestamp := time.Date(2026, 5, 27, 11, 30, 0, 0, time.UTC)
 	first := SignAlertWebhookPayload("secret", timestamp, []byte(`{"event_type":"incident_opened"}`))
@@ -205,6 +255,38 @@ func TestSignAlertWebhookPayloadIsDeterministic(t *testing.T) {
 	}
 	if first.Value == changed.Value || !strings.HasPrefix(first.Value, "t=2026-05-27T11:30:00Z,v1=") {
 		t.Fatalf("signature value = %q, want v1 digest that changes with body", first.Value)
+	}
+}
+
+func TestRenderAlertEmailIncludesPlainTextAndHTML(t *testing.T) {
+	payload := AlertPayload{
+		Version:     AlertPayloadVersion,
+		EventType:   db.AlertEventIncidentOpened,
+		DeliveredAt: time.Date(2026, 5, 27, 11, 30, 0, 0, time.UTC),
+		Incident: AlertPayloadIncident{
+			ID:          "incident-1",
+			Status:      "open",
+			Severity:    "high",
+			Title:       "api <down>",
+			AgentID:     "agent-1",
+			MonitorID:   "monitor-1",
+			LatestEvent: "HTTP <500>",
+		},
+		Summary: AlertPayloadSummary{
+			Title: "api <down>",
+			Text:  "incident_opened: api <down> is open (high)",
+		},
+	}
+
+	email := RenderAlertEmail(payload)
+	if !strings.Contains(email.Body, "Event: incident_opened") || !strings.Contains(email.Body, "Latest event: HTTP <500>") {
+		t.Fatalf("plain body = %q, want existing text fields", email.Body)
+	}
+	if !strings.Contains(email.HTMLBody, "api &lt;down&gt;") || !strings.Contains(email.HTMLBody, "HTTP &lt;500&gt;") {
+		t.Fatalf("html body = %q, want escaped HTML alert fields", email.HTMLBody)
+	}
+	if strings.Contains(email.HTMLBody, "HTTP <500>") {
+		t.Fatalf("html body = %q, want dynamic values escaped", email.HTMLBody)
 	}
 }
 
@@ -445,6 +527,132 @@ func TestAlertServiceGroupsSiblingIncidentNotifications(t *testing.T) {
 	}
 }
 
+func TestAlertServiceDelaysGroupedSummaryForRoutePolicy(t *testing.T) {
+	database := setupAlertServiceDatabase(t)
+	createTestIncident(t, database, "incident-1")
+	createTestIncident(t, database, "incident-2")
+	createTestAlertChannel(t, database, db.AlertChannel{Name: "ops-webhook", Type: "webhook", Enabled: true, WebhookURL: "https://alerts.example.com/hook"})
+	createTestAlertRoute(t, database, db.AlertRoute{
+		ID:                   "route-delayed-summary",
+		Name:                 "delayed summary",
+		Enabled:              true,
+		Priority:             10,
+		EventTypes:           db.EncodeAlertEvents([]string{db.AlertEventIncidentOpened}),
+		ChannelIDs:           encodeTestStringList([]string{"channel-ops-webhook"}),
+		GroupingPolicy:       db.AlertGroupingPolicyDelayedSummary,
+		GroupingDelaySeconds: 60,
+	})
+
+	payloads := make([]AlertPayload, 0, 2)
+	transport := roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		var payload AlertPayload
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode webhook payload: %v", err)
+		}
+		payloads = append(payloads, payload)
+		return &http.Response{
+			StatusCode: http.StatusNoContent,
+			Body:       http.NoBody,
+			Header:     make(http.Header),
+		}, nil
+	})
+	service := NewAlertService(database, logging.NewLogger(), &config.Config{})
+	service.httpClient.Transport = transport
+
+	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentOpened); err != nil {
+		t.Fatalf("first QueueIncidentNotifications() error = %v", err)
+	}
+	if err := service.QueueIncidentNotifications("incident-2", db.AlertEventIncidentOpened); err != nil {
+		t.Fatalf("second QueueIncidentNotifications() error = %v", err)
+	}
+
+	var deliveries []db.AlertDelivery
+	if err := database.Order("created_at ASC").Find(&deliveries).Error; err != nil {
+		t.Fatalf("find deliveries: %v", err)
+	}
+	if len(deliveries) != 2 {
+		t.Fatalf("delivery count = %d, want immediate delivery and pending summary", len(deliveries))
+	}
+	if deliveries[0].Status != "sent" || deliveries[0].EventType != db.AlertEventIncidentOpened || deliveries[0].AlertGroupID == "" {
+		t.Fatalf("first delivery = %+v, want sent opened delivery with group", deliveries[0])
+	}
+	if deliveries[1].Status != "pending" || deliveries[1].EventType != alertEventGroupSummary || deliveries[1].NextAttemptAt == nil || deliveries[1].AlertGroupID != deliveries[0].AlertGroupID {
+		t.Fatalf("summary delivery = %+v, want pending grouped summary in same group", deliveries[1])
+	}
+	if len(payloads) != 1 || payloads[0].EventType != db.AlertEventIncidentOpened {
+		t.Fatalf("payloads after queue = %+v, want only first opened payload", payloads)
+	}
+
+	past := time.Now().UTC().Add(-time.Minute)
+	if err := database.Model(&db.AlertDelivery{}).Where("id = ?", deliveries[1].ID).Update("next_attempt_at", past).Error; err != nil {
+		t.Fatalf("force summary due: %v", err)
+	}
+	processed, err := service.ProcessDueDeliveries(10)
+	if err != nil {
+		t.Fatalf("ProcessDueDeliveries() error = %v", err)
+	}
+	if processed != 1 {
+		t.Fatalf("processed = %d, want 1 due summary", processed)
+	}
+	if len(payloads) != 2 || payloads[1].EventType != alertEventGroupSummary || !strings.Contains(payloads[1].Summary.Title, "2 high") {
+		t.Fatalf("summary payload = %+v, want grouped summary for two incidents", payloads)
+	}
+
+	var summaryDelivery db.AlertDelivery
+	if err := database.Where("id = ?", deliveries[1].ID).First(&summaryDelivery).Error; err != nil {
+		t.Fatalf("find summary delivery: %v", err)
+	}
+	if summaryDelivery.Status != "sent" || summaryDelivery.AttemptCount != 1 || summaryDelivery.AlertGroupID == "" {
+		t.Fatalf("summary delivery after processing = %+v, want sent with alert_group_id", summaryDelivery)
+	}
+}
+
+func TestAlertServiceRouteCanDisableGrouping(t *testing.T) {
+	database := setupAlertServiceDatabase(t)
+	createTestIncident(t, database, "incident-1")
+	createTestIncident(t, database, "incident-2")
+	createTestAlertChannel(t, database, db.AlertChannel{Name: "ops-webhook", Type: "webhook", Enabled: true, WebhookURL: "https://alerts.example.com/hook"})
+	createTestAlertRoute(t, database, db.AlertRoute{
+		ID:                   "route-no-grouping",
+		Name:                 "no grouping",
+		Enabled:              true,
+		Priority:             10,
+		EventTypes:           db.EncodeAlertEvents([]string{db.AlertEventIncidentOpened}),
+		ChannelIDs:           encodeTestStringList([]string{"channel-ops-webhook"}),
+		GroupingPolicy:       db.AlertGroupingPolicyNone,
+		GroupingDelaySeconds: db.DefaultAlertGroupingDelaySeconds,
+	})
+	var webhookRequests int
+	transport := roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		webhookRequests++
+		return &http.Response{
+			StatusCode: http.StatusNoContent,
+			Body:       http.NoBody,
+			Header:     make(http.Header),
+		}, nil
+	})
+	service := NewAlertService(database, logging.NewLogger(), &config.Config{})
+	service.httpClient.Transport = transport
+
+	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentOpened); err != nil {
+		t.Fatalf("first QueueIncidentNotifications() error = %v", err)
+	}
+	if err := service.QueueIncidentNotifications("incident-2", db.AlertEventIncidentOpened); err != nil {
+		t.Fatalf("second QueueIncidentNotifications() error = %v", err)
+	}
+
+	var deliveries []db.AlertDelivery
+	if err := database.Order("created_at ASC").Find(&deliveries).Error; err != nil {
+		t.Fatalf("find deliveries: %v", err)
+	}
+	if len(deliveries) != 2 || deliveries[0].Status != "sent" || deliveries[1].Status != "sent" || deliveries[0].AlertGroupID != "" || deliveries[1].AlertGroupID != "" {
+		t.Fatalf("deliveries = %+v, want two sent ungrouped deliveries", deliveries)
+	}
+	if webhookRequests != 2 {
+		t.Fatalf("webhook requests = %d, want 2", webhookRequests)
+	}
+}
+
 func TestAlertServiceSuppressesRecoveryUntilGroupedSiblingsResolve(t *testing.T) {
 	database := setupAlertServiceDatabase(t)
 	createTestIncident(t, database, "incident-1")
@@ -565,11 +773,147 @@ func TestAlertServiceTestsConfiguredEmailChannel(t *testing.T) {
 	}
 	select {
 	case message := <-messages:
-		if !strings.Contains(message, "Subject: Orion alert: Alert channel test") || !strings.Contains(message, "Event: test") {
-			t.Fatalf("email message = %q, want alert channel test content", message)
+		for _, want := range []string{
+			"Subject: Orion alert: Alert channel test",
+			"Content-Type: multipart/alternative",
+			"Content-Type: text/plain; charset=UTF-8",
+			"Content-Type: text/html; charset=UTF-8",
+			"Event: test",
+			"<td style=\"border-top:1px solid #e5e7eb;padding:10px 0;color:#111827;\">test</td>",
+		} {
+			if !strings.Contains(message, want) {
+				t.Fatalf("email message = %q, missing %q", message, want)
+			}
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for test email")
+	}
+}
+
+func TestAlertServiceTestsSMTPServiceConnectivity(t *testing.T) {
+	database := setupAlertServiceDatabase(t)
+	smtpAddress, _ := startTestSMTPServer(t)
+	host, portValue, err := net.SplitHostPort(smtpAddress)
+	if err != nil {
+		t.Fatalf("split smtp address: %v", err)
+	}
+	port, err := strconv.Atoi(portValue)
+	if err != nil {
+		t.Fatalf("parse smtp port: %v", err)
+	}
+	if err := database.Create(&db.AlertSMTPService{
+		ID:        "smtp-primary",
+		Name:      "Primary SMTP",
+		Enabled:   true,
+		Host:      host,
+		Port:      port,
+		FromEmail: "orion@example.com",
+	}).Error; err != nil {
+		t.Fatalf("create smtp service: %v", err)
+	}
+	service := NewAlertService(database, logging.NewLogger(), &config.Config{})
+
+	result, err := service.TestSMTPService("smtp-primary")
+	if err != nil {
+		t.Fatalf("TestSMTPService() error = %v", err)
+	}
+
+	if result.SMTPServiceID != "smtp-primary" || result.SMTPServiceName != "Primary SMTP" || result.Status != "ok" || result.Stage != "connected" || result.Error != "" {
+		t.Fatalf("smtp service test result = %+v, want successful sanitized connectivity result", result)
+	}
+}
+
+func TestAlertServiceSanitizesSMTPServiceConnectivityFailures(t *testing.T) {
+	database := setupAlertServiceDatabase(t)
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen closed smtp address: %v", err)
+	}
+	address := listener.Addr().String()
+	_ = listener.Close()
+	host, portValue, err := net.SplitHostPort(address)
+	if err != nil {
+		t.Fatalf("split smtp address: %v", err)
+	}
+	port, err := strconv.Atoi(portValue)
+	if err != nil {
+		t.Fatalf("parse smtp port: %v", err)
+	}
+	if err := database.Create(&db.AlertSMTPService{
+		ID:        "smtp-primary",
+		Name:      "Primary SMTP",
+		Enabled:   true,
+		Host:      host,
+		Port:      port,
+		Username:  "mailer",
+		Password:  "secret-password",
+		FromEmail: "orion@example.com",
+	}).Error; err != nil {
+		t.Fatalf("create smtp service: %v", err)
+	}
+	service := NewAlertService(database, logging.NewLogger(), &config.Config{})
+
+	result, err := service.TestSMTPService("smtp-primary")
+	if err != nil {
+		t.Fatalf("TestSMTPService() error = %v", err)
+	}
+
+	if result.Status != "failed" || result.Stage != "smtp_connect" || result.Error != "smtp connectivity failed; check Core logs" {
+		t.Fatalf("smtp service test result = %+v, want sanitized failed connectivity result", result)
+	}
+	if strings.Contains(result.Error, "secret-password") || strings.Contains(result.Error, "mailer") {
+		t.Fatalf("smtp service test error leaked credentials: %q", result.Error)
+	}
+}
+
+func TestAlertServiceTestsEmailDestination(t *testing.T) {
+	database := setupAlertServiceDatabase(t)
+	smtpAddress, messages := startTestSMTPServer(t)
+	host, portValue, err := net.SplitHostPort(smtpAddress)
+	if err != nil {
+		t.Fatalf("split smtp address: %v", err)
+	}
+	port, err := strconv.Atoi(portValue)
+	if err != nil {
+		t.Fatalf("parse smtp port: %v", err)
+	}
+	if err := database.Create(&db.AlertSMTPService{
+		ID:        "smtp-primary",
+		Name:      "Primary SMTP",
+		Enabled:   true,
+		Host:      host,
+		Port:      port,
+		FromEmail: "orion@example.com",
+	}).Error; err != nil {
+		t.Fatalf("create smtp service: %v", err)
+	}
+	if err := database.Create(&db.AlertEmailDestination{
+		ID:               "destination-ops",
+		SMTPServiceID:    "smtp-primary",
+		Name:             "ops-email",
+		Enabled:          true,
+		EmailTo:          "ops@example.com",
+		SubscribedEvents: db.EncodeAlertEvents([]string{db.AlertEventIncidentOpened}),
+	}).Error; err != nil {
+		t.Fatalf("create email destination: %v", err)
+	}
+	service := NewAlertService(database, logging.NewLogger(), &config.Config{})
+
+	delivery, err := service.TestEmailDestination("destination-ops")
+	if err != nil {
+		t.Fatalf("TestEmailDestination() error = %v", err)
+	}
+
+	if delivery.IncidentID != "alert-email-destination-test" || delivery.EventType != "test" || delivery.Channel != "ops-email" || delivery.Type != "email" || delivery.Status != "sent" {
+		t.Fatalf("email destination test delivery = %+v, want sent test email delivery", delivery)
+	}
+	select {
+	case message := <-messages:
+		if !strings.Contains(message, "Subject: Orion alert: Alert channel test") || !strings.Contains(message, "To: ops@example.com") {
+			t.Fatalf("email message = %q, want destination test email content", message)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for destination test email")
 	}
 }
 
@@ -667,49 +1011,53 @@ func startTestSMTPServer(t *testing.T) (string, <-chan string) {
 		_ = listener.Close()
 	})
 
-	messages := make(chan string, 1)
+	messages := make(chan string, 8)
 	go func() {
-		conn, err := listener.Accept()
-		if err != nil {
-			return
-		}
-		defer conn.Close()
-
-		reader := bufio.NewReader(conn)
-		_, _ = fmt.Fprint(conn, "220 orion-test-smtp\r\n")
 		for {
-			line, err := reader.ReadString('\n')
+			conn, err := listener.Accept()
 			if err != nil {
 				return
 			}
-			command := strings.TrimRight(line, "\r\n")
-			upperCommand := strings.ToUpper(command)
-			switch {
-			case strings.HasPrefix(upperCommand, "EHLO"), strings.HasPrefix(upperCommand, "HELO"):
-				_, _ = fmt.Fprint(conn, "250 orion-test-smtp\r\n")
-			case strings.HasPrefix(upperCommand, "MAIL FROM:"), strings.HasPrefix(upperCommand, "RCPT TO:"):
-				_, _ = fmt.Fprint(conn, "250 ok\r\n")
-			case upperCommand == "DATA":
-				_, _ = fmt.Fprint(conn, "354 send message\r\n")
-				var message strings.Builder
+			func() {
+				defer conn.Close()
+
+				reader := bufio.NewReader(conn)
+				_, _ = fmt.Fprint(conn, "220 orion-test-smtp\r\n")
 				for {
-					dataLine, err := reader.ReadString('\n')
+					line, err := reader.ReadString('\n')
 					if err != nil {
 						return
 					}
-					if strings.TrimRight(dataLine, "\r\n") == "." {
-						break
+					command := strings.TrimRight(line, "\r\n")
+					upperCommand := strings.ToUpper(command)
+					switch {
+					case strings.HasPrefix(upperCommand, "EHLO"), strings.HasPrefix(upperCommand, "HELO"):
+						_, _ = fmt.Fprint(conn, "250 orion-test-smtp\r\n")
+					case strings.HasPrefix(upperCommand, "MAIL FROM:"), strings.HasPrefix(upperCommand, "RCPT TO:"):
+						_, _ = fmt.Fprint(conn, "250 ok\r\n")
+					case upperCommand == "DATA":
+						_, _ = fmt.Fprint(conn, "354 send message\r\n")
+						var message strings.Builder
+						for {
+							dataLine, err := reader.ReadString('\n')
+							if err != nil {
+								return
+							}
+							if strings.TrimRight(dataLine, "\r\n") == "." {
+								break
+							}
+							message.WriteString(dataLine)
+						}
+						messages <- message.String()
+						_, _ = fmt.Fprint(conn, "250 queued\r\n")
+					case upperCommand == "QUIT":
+						_, _ = fmt.Fprint(conn, "221 bye\r\n")
+						return
+					default:
+						_, _ = fmt.Fprint(conn, "250 ok\r\n")
 					}
-					message.WriteString(dataLine)
 				}
-				messages <- message.String()
-				_, _ = fmt.Fprint(conn, "250 queued\r\n")
-			case upperCommand == "QUIT":
-				_, _ = fmt.Fprint(conn, "221 bye\r\n")
-				return
-			default:
-				_, _ = fmt.Fprint(conn, "250 ok\r\n")
-			}
+			}()
 		}
 	}()
 

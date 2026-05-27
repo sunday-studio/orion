@@ -13,17 +13,18 @@ import (
 )
 
 type alertChannelRequest struct {
-	Name             string   `json:"name"`
-	Type             string   `json:"type"`
-	Enabled          *bool    `json:"enabled"`
-	WebhookURL       string   `json:"webhook_url"`
-	EmailTo          string   `json:"email_to"`
-	EmailFrom        string   `json:"email_from"`
-	SMTPHost         string   `json:"smtp_host"`
-	SMTPPort         int      `json:"smtp_port"`
-	SMTPUsername     string   `json:"smtp_username"`
-	SMTPPassword     string   `json:"smtp_password"`
-	SubscribedEvents []string `json:"subscribed_events"`
+	Name                 string   `json:"name"`
+	Type                 string   `json:"type"`
+	Enabled              *bool    `json:"enabled"`
+	WebhookURL           string   `json:"webhook_url"`
+	WebhookSigningSecret *string  `json:"webhook_signing_secret"`
+	EmailTo              string   `json:"email_to"`
+	EmailFrom            string   `json:"email_from"`
+	SMTPHost             string   `json:"smtp_host"`
+	SMTPPort             int      `json:"smtp_port"`
+	SMTPUsername         string   `json:"smtp_username"`
+	SMTPPassword         string   `json:"smtp_password"`
+	SubscribedEvents     []string `json:"subscribed_events"`
 }
 
 type alertSMTPServiceRequest struct {
@@ -45,16 +46,18 @@ type alertEmailDestinationRequest struct {
 }
 
 type alertRouteRequest struct {
-	Name         string   `json:"name"`
-	Enabled      *bool    `json:"enabled"`
-	Priority     *int     `json:"priority"`
-	EventTypes   []string `json:"event_types"`
-	Severities   []string `json:"severities"`
-	AgentIDs     []string `json:"agent_ids"`
-	MonitorIDs   []string `json:"monitor_ids"`
-	MonitorTypes []string `json:"monitor_types"`
-	ChannelIDs   []string `json:"channel_ids"`
-	Suppress     *bool    `json:"suppress"`
+	Name                 string   `json:"name"`
+	Enabled              *bool    `json:"enabled"`
+	Priority             *int     `json:"priority"`
+	EventTypes           []string `json:"event_types"`
+	Severities           []string `json:"severities"`
+	AgentIDs             []string `json:"agent_ids"`
+	MonitorIDs           []string `json:"monitor_ids"`
+	MonitorTypes         []string `json:"monitor_types"`
+	ChannelIDs           []string `json:"channel_ids"`
+	Suppress             *bool    `json:"suppress"`
+	GroupingPolicy       string   `json:"grouping_policy"`
+	GroupingDelaySeconds *int     `json:"grouping_delay_seconds"`
 }
 
 type alertRouteDryRunRequest struct {
@@ -185,18 +188,19 @@ func (s *Server) createAlertChannel(c *gin.Context) {
 	}
 
 	channel := db.AlertChannel{
-		ID:               utils.GenerateID("alert_channel"),
-		Name:             strings.TrimSpace(request.Name),
-		Type:             strings.TrimSpace(request.Type),
-		Enabled:          true,
-		WebhookURL:       strings.TrimSpace(request.WebhookURL),
-		EmailTo:          strings.TrimSpace(request.EmailTo),
-		EmailFrom:        strings.TrimSpace(request.EmailFrom),
-		SMTPHost:         strings.TrimSpace(request.SMTPHost),
-		SMTPPort:         request.SMTPPort,
-		SMTPUsername:     strings.TrimSpace(request.SMTPUsername),
-		SMTPPassword:     request.SMTPPassword,
-		SubscribedEvents: db.EncodeAlertEvents(normalizeAlertEvents(request.SubscribedEvents)),
+		ID:                   utils.GenerateID("alert_channel"),
+		Name:                 strings.TrimSpace(request.Name),
+		Type:                 strings.TrimSpace(request.Type),
+		Enabled:              true,
+		WebhookURL:           strings.TrimSpace(request.WebhookURL),
+		WebhookSigningSecret: alertOptionalSecret(request.WebhookSigningSecret),
+		EmailTo:              strings.TrimSpace(request.EmailTo),
+		EmailFrom:            strings.TrimSpace(request.EmailFrom),
+		SMTPHost:             strings.TrimSpace(request.SMTPHost),
+		SMTPPort:             request.SMTPPort,
+		SMTPUsername:         strings.TrimSpace(request.SMTPUsername),
+		SMTPPassword:         request.SMTPPassword,
+		SubscribedEvents:     db.EncodeAlertEvents(normalizeAlertEvents(request.SubscribedEvents)),
 	}
 	if request.Enabled != nil {
 		channel.Enabled = *request.Enabled
@@ -279,6 +283,9 @@ func (s *Server) updateAlertChannel(c *gin.Context) {
 	}
 	if strings.TrimSpace(request.WebhookURL) != "" {
 		channel.WebhookURL = strings.TrimSpace(request.WebhookURL)
+	}
+	if request.WebhookSigningSecret != nil {
+		channel.WebhookSigningSecret = strings.TrimSpace(*request.WebhookSigningSecret)
 	}
 	if strings.TrimSpace(request.EmailTo) != "" {
 		channel.EmailTo = strings.TrimSpace(request.EmailTo)
@@ -580,6 +587,35 @@ func (s *Server) deleteAlertSMTPService(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Alert SMTP service deleted successfully", gin.H{})
 }
 
+// testAlertSMTPService verifies direct SMTP service connectivity.
+// @Summary      Test alert SMTP service
+// @Description  Connect to a reusable SMTP service and return a sanitized connectivity result without secret values.
+// @Tags         alerts
+// @Accept       json
+// @Produce      json
+// @ID           testAlertSMTPService
+// @Param        id   path      string  true  "SMTP service ID"
+// @Success      200  {object}  utils.APIResponse{data=object{test=service.AlertSMTPServiceTestResult}}
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/alerts/smtp-services/{id}/test [post]
+func (s *Server) testAlertSMTPService(c *gin.Context) {
+	result, err := service.NewAlertService(s.db, s.logger, s.cfg).TestSMTPService(c.Param("id"))
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			utils.NotFound(c, "Alert SMTP service not found")
+			return
+		}
+		s.logger.Error("Failed to test alert SMTP service", "error", err)
+		utils.InternalError(c, "Failed to test alert SMTP service", err)
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, "Alert SMTP service test completed", gin.H{
+		"test": result,
+	})
+}
+
 // listAlertEmailDestinations retrieves reusable email alert destinations.
 // @Summary      List alert email destinations
 // @Description  Get reusable email destinations and their last delivery status
@@ -788,6 +824,35 @@ func (s *Server) deleteAlertEmailDestination(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Alert email destination deleted successfully", gin.H{})
 }
 
+// testAlertEmailDestination sends a manual test email through a reusable destination.
+// @Summary      Test alert email destination
+// @Description  Send a manual test notification through a reusable email destination. Delivery errors are sanitized in the response.
+// @Tags         alerts
+// @Accept       json
+// @Produce      json
+// @ID           testAlertEmailDestination
+// @Param        id   path      string  true  "Email destination ID"
+// @Success      200  {object}  utils.APIResponse{data=object{delivery=AlertDeliveryResponse}}
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/alerts/email-destinations/{id}/test [post]
+func (s *Server) testAlertEmailDestination(c *gin.Context) {
+	delivery, err := service.NewAlertService(s.db, s.logger, s.cfg).TestEmailDestination(c.Param("id"))
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			utils.NotFound(c, "Alert email destination not found")
+			return
+		}
+		s.logger.Error("Failed to test alert email destination", "error", err)
+		utils.InternalError(c, "Failed to test alert email destination", err)
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, "Alert email destination test completed", gin.H{
+		"delivery": alertDeliveryResponse(*delivery),
+	})
+}
+
 // listAlertRoutes retrieves explicit alert routes.
 // @Summary      List alert routes
 // @Description  Get explicit alert routes ordered by priority
@@ -834,16 +899,18 @@ func (s *Server) createAlertRoute(c *gin.Context) {
 	}
 
 	route := db.AlertRoute{
-		ID:           utils.GenerateID("alert_route"),
-		Name:         strings.TrimSpace(request.Name),
-		Enabled:      true,
-		Priority:     100,
-		EventTypes:   encodeStringList(normalizeAlertEvents(request.EventTypes)),
-		Severities:   encodeStringList(normalizeStringList(request.Severities)),
-		AgentIDs:     encodeStringList(normalizeStringList(request.AgentIDs)),
-		MonitorIDs:   encodeStringList(normalizeStringList(request.MonitorIDs)),
-		MonitorTypes: encodeStringList(normalizeStringList(request.MonitorTypes)),
-		ChannelIDs:   encodeStringList(normalizeStringList(request.ChannelIDs)),
+		ID:                   utils.GenerateID("alert_route"),
+		Name:                 strings.TrimSpace(request.Name),
+		Enabled:              true,
+		Priority:             100,
+		EventTypes:           encodeStringList(normalizeAlertEvents(request.EventTypes)),
+		Severities:           encodeStringList(normalizeStringList(request.Severities)),
+		AgentIDs:             encodeStringList(normalizeStringList(request.AgentIDs)),
+		MonitorIDs:           encodeStringList(normalizeStringList(request.MonitorIDs)),
+		MonitorTypes:         encodeStringList(normalizeStringList(request.MonitorTypes)),
+		ChannelIDs:           encodeStringList(normalizeStringList(request.ChannelIDs)),
+		GroupingPolicy:       normalizeAlertGroupingPolicy(request.GroupingPolicy),
+		GroupingDelaySeconds: db.DefaultAlertGroupingDelaySeconds,
 	}
 	if request.Enabled != nil {
 		route.Enabled = *request.Enabled
@@ -853,6 +920,9 @@ func (s *Server) createAlertRoute(c *gin.Context) {
 	}
 	if request.Suppress != nil {
 		route.Suppress = *request.Suppress
+	}
+	if request.GroupingDelaySeconds != nil {
+		route.GroupingDelaySeconds = *request.GroupingDelaySeconds
 	}
 	if err := validateAlertEvents(request.EventTypes); err != nil {
 		utils.BadRequest(c, err.Error())
@@ -948,6 +1018,12 @@ func (s *Server) updateAlertRoute(c *gin.Context) {
 	}
 	if request.Suppress != nil {
 		route.Suppress = *request.Suppress
+	}
+	if strings.TrimSpace(request.GroupingPolicy) != "" {
+		route.GroupingPolicy = normalizeAlertGroupingPolicy(request.GroupingPolicy)
+	}
+	if request.GroupingDelaySeconds != nil {
+		route.GroupingDelaySeconds = *request.GroupingDelaySeconds
 	}
 	if err := validateAlertRoute(route); err != nil {
 		utils.BadRequest(c, err.Error())
@@ -1120,20 +1196,21 @@ func (s *Server) listAlertRules(c *gin.Context) {
 
 func (s *Server) alertChannelResponse(channel db.AlertChannel) AlertChannelResponse {
 	response := AlertChannelResponse{
-		ID:                     channel.ID,
-		Name:                   channel.Name,
-		Type:                   channel.Type,
-		Enabled:                channel.Enabled,
-		WebhookURL:             channel.WebhookURL,
-		WebhookConfigured:      channel.WebhookURL != "",
-		EmailToConfigured:      channel.EmailTo != "",
-		EmailFromConfigured:    channel.EmailFrom != "",
-		SMTPHostConfigured:     channel.SMTPHost != "",
-		SMTPPortConfigured:     channel.SMTPPort > 0,
-		SMTPUsernameConfigured: channel.SMTPUsername != "",
-		SubscribedEvents:       db.DecodeAlertEvents(channel.SubscribedEvents),
-		CreatedAt:              channel.CreatedAt,
-		UpdatedAt:              channel.UpdatedAt,
+		ID:                         channel.ID,
+		Name:                       channel.Name,
+		Type:                       channel.Type,
+		Enabled:                    channel.Enabled,
+		WebhookURL:                 channel.WebhookURL,
+		WebhookConfigured:          channel.WebhookURL != "",
+		WebhookSignatureConfigured: channel.WebhookSigningSecret != "",
+		EmailToConfigured:          channel.EmailTo != "",
+		EmailFromConfigured:        channel.EmailFrom != "",
+		SMTPHostConfigured:         channel.SMTPHost != "",
+		SMTPPortConfigured:         channel.SMTPPort > 0,
+		SMTPUsernameConfigured:     channel.SMTPUsername != "",
+		SubscribedEvents:           db.DecodeAlertEvents(channel.SubscribedEvents),
+		CreatedAt:                  channel.CreatedAt,
+		UpdatedAt:                  channel.UpdatedAt,
 	}
 
 	var delivery db.AlertDelivery
@@ -1296,6 +1373,13 @@ func writeAlertNameConflict(c *gin.Context, err error, message string) {
 	utils.InternalError(c, message, err)
 }
 
+func alertOptionalSecret(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return strings.TrimSpace(*value)
+}
+
 func validateAlertChannel(channel db.AlertChannel) error {
 	if strings.TrimSpace(channel.Name) == "" {
 		return &requestValidationError{message: "alert channel name is required"}
@@ -1365,6 +1449,12 @@ func validateAlertRoute(route db.AlertRoute) error {
 			return &requestValidationError{message: "unsupported alert route severity"}
 		}
 	}
+	if !validAlertGroupingPolicy(route.GroupingPolicy) {
+		return &requestValidationError{message: "unsupported alert route grouping_policy"}
+	}
+	if route.GroupingDelaySeconds <= 0 {
+		return &requestValidationError{message: "alert route grouping_delay_seconds must be greater than zero"}
+	}
 	if !route.Suppress && len(decodeResponseList(route.ChannelIDs, nil)) == 0 {
 		return &requestValidationError{message: "alert route requires channel_ids unless suppress is true"}
 	}
@@ -1378,6 +1468,35 @@ func validAlertRouteSeverity(severity string) bool {
 	default:
 		return false
 	}
+}
+
+func validAlertGroupingPolicy(policy string) bool {
+	switch normalizeAlertGroupingPolicy(policy) {
+	case db.AlertGroupingPolicySuppress, db.AlertGroupingPolicyDelayedSummary, db.AlertGroupingPolicyNone:
+		return true
+	default:
+		return false
+	}
+}
+
+func normalizeAlertGroupingPolicy(policy string) string {
+	switch strings.TrimSpace(policy) {
+	case "", db.AlertGroupingPolicySuppress:
+		return db.AlertGroupingPolicySuppress
+	case db.AlertGroupingPolicyDelayedSummary:
+		return db.AlertGroupingPolicyDelayedSummary
+	case db.AlertGroupingPolicyNone:
+		return db.AlertGroupingPolicyNone
+	default:
+		return strings.TrimSpace(policy)
+	}
+}
+
+func normalizeAlertGroupingDelaySeconds(value int) int {
+	if value <= 0 {
+		return db.DefaultAlertGroupingDelaySeconds
+	}
+	return value
 }
 
 func normalizeAlertEvents(events []string) []string {

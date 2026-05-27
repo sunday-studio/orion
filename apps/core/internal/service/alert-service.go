@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/smtp"
 	"orion/core/internal/config"
@@ -20,6 +21,8 @@ import (
 const (
 	defaultAlertDeliveryMaxAttempts = 3
 	defaultAlertDeliveryRetryDelay  = 5 * time.Minute
+	alertEventGroupSummary          = "group_summary"
+	alertGroupedSummaryPending      = "alert grouped summary pending"
 )
 
 type AlertRouteContext struct {
@@ -57,6 +60,15 @@ type AlertDestinationDecision struct {
 	Reason      string `json:"reason"`
 }
 
+type AlertSMTPServiceTestResult struct {
+	SMTPServiceID   string    `json:"smtp_service_id"`
+	SMTPServiceName string    `json:"smtp_service_name"`
+	Status          string    `json:"status"`
+	Stage           string    `json:"stage"`
+	Error           string    `json:"error,omitempty"`
+	TestedAt        time.Time `json:"tested_at"`
+}
+
 type alertDeliveryError struct {
 	stage string
 	err   error
@@ -86,9 +98,12 @@ func alertDeliveryErrorStage(err error) string {
 }
 
 type alertGroupingDecision struct {
-	GroupID  string
-	Suppress bool
-	Reason   string
+	GroupID      string
+	Policy       string
+	Suppress     bool
+	SummaryDue   bool
+	SummaryDelay time.Duration
+	Reason       string
 }
 
 type AlertService struct {
@@ -112,13 +127,17 @@ func (s *AlertService) QueueIncidentNotifications(incidentID string, eventType s
 	if err != nil {
 		return err
 	}
-	grouping, err := s.groupingDecision(*event)
-	if err != nil {
-		return err
-	}
 	routes, err := s.alertRoutes()
 	if err != nil {
 		return err
+	}
+	groupingPolicy, groupingDelay := s.groupingPolicyForEvent(*event, routes)
+	grouping, err := s.groupingDecision(*event, groupingPolicy, groupingDelay)
+	if err != nil {
+		return err
+	}
+	if grouping.SummaryDue {
+		return s.queueGroupedSummary(*event, grouping, routes)
 	}
 	if grouping.Suppress {
 		return s.queueGroupedSuppression(*event, grouping, routes)
@@ -284,6 +303,100 @@ func (s *AlertService) queueGroupedSuppression(event AlertRouteContext, grouping
 	return err
 }
 
+func (s *AlertService) queueGroupedSummary(event AlertRouteContext, grouping alertGroupingDecision, routes []db.AlertRoute) error {
+	if len(routes) == 0 {
+		return s.queueGroupedSuppression(event, alertGroupingDecision{
+			GroupID:  grouping.GroupID,
+			Suppress: true,
+			Reason:   alertGroupedSummaryPending,
+		}, routes)
+	}
+
+	plan, err := s.evaluateRoutes(event, routes)
+	if err != nil {
+		return err
+	}
+	if plan.Suppressed {
+		return s.queueGroupedSuppression(event, alertGroupingDecision{
+			GroupID:  grouping.GroupID,
+			Suppress: true,
+			Reason:   plan.SuppressionReason,
+		}, routes)
+	}
+
+	dueAt := time.Now().UTC().Add(grouping.SummaryDelay)
+	scheduled := 0
+	for _, decision := range plan.DestinationDecisions {
+		if decision.Status != "pending" {
+			_, err := s.createDelivery(db.AlertDelivery{
+				IncidentID:   event.IncidentID,
+				RouteID:      decision.RouteID,
+				AlertGroupID: grouping.GroupID,
+				EventType:    alertEventGroupSummary,
+				Channel:      decision.ChannelName,
+				Type:         decision.ChannelType,
+				Status:       decision.Status,
+				Error:        decision.Reason,
+			})
+			if err != nil {
+				return err
+			}
+			continue
+		}
+		if err := s.scheduleGroupedSummaryDelivery(event, grouping.GroupID, decision, dueAt); err != nil {
+			return err
+		}
+		scheduled++
+	}
+
+	if scheduled == 0 && len(plan.DestinationDecisions) == 0 {
+		_, err := s.createDelivery(db.AlertDelivery{
+			IncidentID:   event.IncidentID,
+			AlertGroupID: grouping.GroupID,
+			EventType:    alertEventGroupSummary,
+			Channel:      "none",
+			Type:         "none",
+			Status:       "suppressed",
+			Error:        "no alert routes matched",
+		})
+		return err
+	}
+	return nil
+}
+
+func (s *AlertService) scheduleGroupedSummaryDelivery(event AlertRouteContext, groupID string, decision AlertDestinationDecision, dueAt time.Time) error {
+	var existing db.AlertDelivery
+	result := s.db.
+		Where("alert_group_id = ? AND route_id = ? AND channel = ? AND type = ? AND event_type = ? AND status = ?", groupID, decision.RouteID, decision.ChannelName, decision.ChannelType, alertEventGroupSummary, "pending").
+		Order("created_at DESC").
+		Limit(1).
+		Find(&existing)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected > 0 {
+		return s.db.Model(&db.AlertDelivery{}).Where("id = ?", existing.ID).Updates(map[string]interface{}{
+			"incident_id":     event.IncidentID,
+			"next_attempt_at": dueAt,
+			"error":           alertGroupedSummaryPending,
+		}).Error
+	}
+
+	_, err := s.createDelivery(db.AlertDelivery{
+		IncidentID:    event.IncidentID,
+		RouteID:       decision.RouteID,
+		AlertGroupID:  groupID,
+		EventType:     alertEventGroupSummary,
+		Channel:       decision.ChannelName,
+		Type:          decision.ChannelType,
+		Status:        "pending",
+		Error:         alertGroupedSummaryPending,
+		MaxAttempts:   defaultAlertDeliveryMaxAttempts,
+		NextAttemptAt: &dueAt,
+	})
+	return err
+}
+
 func (s *AlertService) TestChannel(channelID string) (*db.AlertDelivery, error) {
 	var channel db.AlertChannel
 	if err := s.db.Where("id = ?", channelID).First(&channel).Error; err != nil {
@@ -305,6 +418,61 @@ func (s *AlertService) TestChannel(channelID string) (*db.AlertDelivery, error) 
 		return s.deliverTest(channel)
 	}); err != nil {
 		s.logger.Error("Alert channel test failed", "channel", channel.Name, "error", err)
+		return delivery, nil
+	}
+
+	return delivery, nil
+}
+
+func (s *AlertService) TestSMTPService(smtpServiceID string) (*AlertSMTPServiceTestResult, error) {
+	var smtpService db.AlertSMTPService
+	if err := s.db.Where("id = ?", smtpServiceID).First(&smtpService).Error; err != nil {
+		return nil, err
+	}
+
+	result := &AlertSMTPServiceTestResult{
+		SMTPServiceID:   smtpService.ID,
+		SMTPServiceName: smtpService.Name,
+		Status:          "ok",
+		Stage:           "connected",
+		TestedAt:        time.Now().UTC(),
+	}
+	if err := s.testSMTPConnectivity(smtpService); err != nil {
+		result.Status = "failed"
+		result.Stage = alertDeliveryErrorStage(err)
+		result.Error = "smtp connectivity failed; check Core logs"
+		s.logger.Error("Alert SMTP service test failed", "smtp_service_id", smtpService.ID, "stage", result.Stage, "error", err)
+	}
+	return result, nil
+}
+
+func (s *AlertService) TestEmailDestination(destinationID string) (*db.AlertDelivery, error) {
+	var destination db.AlertEmailDestination
+	if err := s.db.Where("id = ?", destinationID).First(&destination).Error; err != nil {
+		return nil, err
+	}
+
+	var smtpService db.AlertSMTPService
+	if err := s.db.Where("id = ?", destination.SMTPServiceID).First(&smtpService).Error; err != nil {
+		return nil, err
+	}
+
+	channel := alertChannelFromEmailDestination(destination, smtpService)
+	delivery, err := s.createDelivery(db.AlertDelivery{
+		IncidentID: "alert-email-destination-test",
+		EventType:  "test",
+		Channel:    destination.Name,
+		Type:       "email",
+		Status:     "pending",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.attemptDelivery(delivery, func() error {
+		return s.deliverTest(channel)
+	}); err != nil {
+		s.logger.Error("Alert email destination test failed", "destination", destination.Name, "error", err)
 		return delivery, nil
 	}
 
@@ -385,6 +553,9 @@ func (s *AlertService) ProcessDueDeliveries(limit int) (int, error) {
 			continue
 		}
 		if err := s.attemptDelivery(delivery, func() error {
+			if delivery.EventType == alertEventGroupSummary && delivery.AlertGroupID != "" {
+				return s.deliverGroupSummary(channel, delivery.AlertGroupID)
+			}
 			return s.deliver(channel, delivery.IncidentID, delivery.EventType)
 		}); err != nil {
 			s.logger.Error("Alert delivery retry failed", "delivery_id", delivery.ID, "channel", delivery.Channel, "error", err)
@@ -453,21 +624,25 @@ func (s *AlertService) emailDestinationChannels() ([]db.AlertChannel, error) {
 		if !ok {
 			continue
 		}
-		channels = append(channels, db.AlertChannel{
-			ID:               destination.ID,
-			Name:             destination.Name,
-			Type:             "email",
-			Enabled:          destination.Enabled && smtpService.Enabled,
-			EmailTo:          destination.EmailTo,
-			EmailFrom:        smtpService.FromEmail,
-			SMTPHost:         smtpService.Host,
-			SMTPPort:         smtpService.Port,
-			SMTPUsername:     smtpService.Username,
-			SMTPPassword:     smtpService.Password,
-			SubscribedEvents: destination.SubscribedEvents,
-		})
+		channels = append(channels, alertChannelFromEmailDestination(destination, smtpService))
 	}
 	return channels, nil
+}
+
+func alertChannelFromEmailDestination(destination db.AlertEmailDestination, smtpService db.AlertSMTPService) db.AlertChannel {
+	return db.AlertChannel{
+		ID:               destination.ID,
+		Name:             destination.Name,
+		Type:             "email",
+		Enabled:          destination.Enabled && smtpService.Enabled,
+		EmailTo:          destination.EmailTo,
+		EmailFrom:        smtpService.FromEmail,
+		SMTPHost:         smtpService.Host,
+		SMTPPort:         smtpService.Port,
+		SMTPUsername:     smtpService.Username,
+		SMTPPassword:     smtpService.Password,
+		SubscribedEvents: destination.SubscribedEvents,
+	}
 }
 
 func (s *AlertService) createDelivery(delivery db.AlertDelivery) (*db.AlertDelivery, error) {
@@ -489,7 +664,10 @@ func (s *AlertService) updateDelivery(deliveryID string, status string, message 
 	}).Error
 }
 
-func (s *AlertService) groupingDecision(event AlertRouteContext) (alertGroupingDecision, error) {
+func (s *AlertService) groupingDecision(event AlertRouteContext, policy string, delay time.Duration) (alertGroupingDecision, error) {
+	if policy == db.AlertGroupingPolicyNone {
+		return alertGroupingDecision{Policy: policy}, nil
+	}
 	if event.EventType != db.AlertEventIncidentOpened && event.EventType != db.AlertEventIncidentResolved {
 		return alertGroupingDecision{}, nil
 	}
@@ -501,21 +679,21 @@ func (s *AlertService) groupingDecision(event AlertRouteContext) (alertGroupingD
 
 	switch event.EventType {
 	case db.AlertEventIncidentOpened:
-		return s.openIncidentGroupingDecision(event, incident)
+		return s.openIncidentGroupingDecision(event, incident, policy, delay)
 	case db.AlertEventIncidentResolved:
-		return s.resolveIncidentGroupingDecision(event, incident)
+		return s.resolveIncidentGroupingDecision(event, incident, policy)
 	default:
 		return alertGroupingDecision{}, nil
 	}
 }
 
-func (s *AlertService) openIncidentGroupingDecision(event AlertRouteContext, incident db.Incident) (alertGroupingDecision, error) {
+func (s *AlertService) openIncidentGroupingDecision(event AlertRouteContext, incident db.Incident, policy string, delay time.Duration) (alertGroupingDecision, error) {
 	existingGroup, found, err := s.alertGroupForIncident(incident.ID)
 	if err != nil {
 		return alertGroupingDecision{}, err
 	}
 	if found {
-		return alertGroupingDecision{GroupID: existingGroup.ID}, nil
+		return alertGroupingDecision{GroupID: existingGroup.ID, Policy: policy}, nil
 	}
 
 	now := time.Now().UTC()
@@ -549,7 +727,7 @@ func (s *AlertService) openIncidentGroupingDecision(event AlertRouteContext, inc
 		if err := s.createAlertGroupMember(group.ID, incident.ID); err != nil {
 			return alertGroupingDecision{}, err
 		}
-		return alertGroupingDecision{GroupID: group.ID}, nil
+		return alertGroupingDecision{GroupID: group.ID, Policy: policy}, nil
 	}
 
 	if err := s.createAlertGroupMember(group.ID, incident.ID); err != nil {
@@ -566,14 +744,22 @@ func (s *AlertService) openIncidentGroupingDecision(event AlertRouteContext, inc
 		return alertGroupingDecision{}, err
 	}
 
-	return alertGroupingDecision{
-		GroupID:  group.ID,
-		Suppress: true,
-		Reason:   "alert grouped into active alert group",
-	}, nil
+	decision := alertGroupingDecision{
+		GroupID: group.ID,
+		Policy:  policy,
+	}
+	if policy == db.AlertGroupingPolicyDelayedSummary {
+		decision.SummaryDue = true
+		decision.SummaryDelay = delay
+		decision.Reason = alertGroupedSummaryPending
+		return decision, nil
+	}
+	decision.Suppress = true
+	decision.Reason = "alert grouped into active alert group"
+	return decision, nil
 }
 
-func (s *AlertService) resolveIncidentGroupingDecision(event AlertRouteContext, incident db.Incident) (alertGroupingDecision, error) {
+func (s *AlertService) resolveIncidentGroupingDecision(event AlertRouteContext, incident db.Incident, policy string) (alertGroupingDecision, error) {
 	group, found, err := s.alertGroupForIncident(incident.ID)
 	if err != nil || !found {
 		return alertGroupingDecision{}, err
@@ -593,6 +779,7 @@ func (s *AlertService) resolveIncidentGroupingDecision(event AlertRouteContext, 
 		}
 		return alertGroupingDecision{
 			GroupID:  group.ID,
+			Policy:   policy,
 			Suppress: true,
 			Reason:   "alert grouped; sibling incidents still active",
 		}, nil
@@ -606,7 +793,7 @@ func (s *AlertService) resolveIncidentGroupingDecision(event AlertRouteContext, 
 	}).Error; err != nil {
 		return alertGroupingDecision{}, err
 	}
-	return alertGroupingDecision{GroupID: group.ID}, nil
+	return alertGroupingDecision{GroupID: group.ID, Policy: policy}, nil
 }
 
 func (s *AlertService) alertGroupForIncident(incidentID string) (db.AlertGroup, bool, error) {
@@ -642,6 +829,40 @@ func (s *AlertService) activeAlertGroupIncidentCount(groupID string) (int64, err
 		Where("alert_group_members.alert_group_id = ? AND incidents.status IN ?", groupID, []string{"open", "acknowledged"}).
 		Count(&count).Error
 	return count, err
+}
+
+func (s *AlertService) groupingPolicyForEvent(event AlertRouteContext, routes []db.AlertRoute) (string, time.Duration) {
+	if len(routes) == 0 {
+		return db.AlertGroupingPolicySuppress, time.Duration(db.DefaultAlertGroupingDelaySeconds) * time.Second
+	}
+	for _, route := range routes {
+		matched, _ := routeMatchesEvent(route, event)
+		if !matched || !route.Enabled {
+			continue
+		}
+		return normalizeAlertGroupingPolicy(route.GroupingPolicy), time.Duration(normalizeAlertGroupingDelaySeconds(route.GroupingDelaySeconds)) * time.Second
+	}
+	return db.AlertGroupingPolicySuppress, time.Duration(db.DefaultAlertGroupingDelaySeconds) * time.Second
+}
+
+func normalizeAlertGroupingPolicy(policy string) string {
+	switch strings.TrimSpace(policy) {
+	case "", db.AlertGroupingPolicySuppress:
+		return db.AlertGroupingPolicySuppress
+	case db.AlertGroupingPolicyDelayedSummary:
+		return db.AlertGroupingPolicyDelayedSummary
+	case db.AlertGroupingPolicyNone:
+		return db.AlertGroupingPolicyNone
+	default:
+		return db.AlertGroupingPolicySuppress
+	}
+}
+
+func normalizeAlertGroupingDelaySeconds(value int) int {
+	if value <= 0 {
+		return db.DefaultAlertGroupingDelaySeconds
+	}
+	return value
 }
 
 func alertGroupKey(event AlertRouteContext) string {
@@ -692,6 +913,48 @@ func (s *AlertService) deliver(channel db.AlertChannel, incidentID string, event
 	}
 }
 
+func (s *AlertService) deliverGroupSummary(channel db.AlertChannel, groupID string) error {
+	payload, err := s.buildAlertGroupSummaryPayload(groupID, time.Now().UTC())
+	if err != nil {
+		return err
+	}
+	switch channel.Type {
+	case "webhook":
+		return s.deliverWebhookPayload(channel, payload)
+	case "email":
+		return s.deliverEmailPayload(channel, payload)
+	default:
+		return newAlertDeliveryError("channel_type", fmt.Errorf("unsupported alert channel type: %s", channel.Type))
+	}
+}
+
+func (s *AlertService) buildAlertGroupSummaryPayload(groupID string, deliveredAt time.Time) (AlertPayload, error) {
+	var group db.AlertGroup
+	if err := s.db.Where("id = ?", groupID).First(&group).Error; err != nil {
+		return AlertPayload{}, newAlertDeliveryError("load_alert_group", err)
+	}
+
+	incidentID := group.LastIncidentID
+	if strings.TrimSpace(incidentID) == "" {
+		incidentID = group.FirstIncidentID
+	}
+	var incident db.Incident
+	if err := s.db.Where("id = ?", incidentID).First(&incident).Error; err != nil {
+		return AlertPayload{}, newAlertDeliveryError("load_incident", err)
+	}
+
+	payload := s.buildAlertPayload(incident, alertEventGroupSummary, deliveredAt)
+	title := fmt.Sprintf("%d grouped %s incident(s)", group.IncidentCount, group.Severity)
+	if strings.TrimSpace(group.Summary) != "" {
+		title = group.Summary
+	}
+	payload.Summary = AlertPayloadSummary{
+		Title: title,
+		Text:  fmt.Sprintf("%s across alert group %s. Latest incident: %s.", title, group.ID, incident.Title),
+	}
+	return payload, nil
+}
+
 func (s *AlertService) deliverTest(channel db.AlertChannel) error {
 	incident := db.Incident{
 		ID:          "alert-channel-test",
@@ -712,10 +975,14 @@ func (s *AlertService) deliverTest(channel db.AlertChannel) error {
 }
 
 func (s *AlertService) deliverWebhook(channel db.AlertChannel, incident db.Incident, eventType string) error {
+	payload := s.buildAlertPayload(incident, eventType, time.Now().UTC())
+	return s.deliverWebhookPayload(channel, payload)
+}
+
+func (s *AlertService) deliverWebhookPayload(channel db.AlertChannel, payload AlertPayload) error {
 	if channel.WebhookURL == "" {
 		return newAlertDeliveryError("configure", fmt.Errorf("webhook URL is not configured"))
 	}
-	payload := s.buildAlertPayload(incident, eventType, time.Now().UTC())
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return newAlertDeliveryError("serialize", err)
@@ -728,6 +995,11 @@ func (s *AlertService) deliverWebhook(channel db.AlertChannel, incident db.Incid
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("User-Agent", "orion-core-alerts/1")
 	request.Header.Set("X-Orion-Payload-Version", AlertPayloadVersion)
+	if signingSecret := strings.TrimSpace(channel.WebhookSigningSecret); signingSecret != "" {
+		signature := SignAlertWebhookPayload(signingSecret, payload.DeliveredAt, body)
+		request.Header.Set(signature.Header, signature.Value)
+		request.Header.Set("X-Orion-Timestamp", signature.Timestamp)
+	}
 
 	resp, err := s.httpClient.Do(request)
 	if err != nil {
@@ -744,8 +1016,17 @@ func (s *AlertService) deliverWebhook(channel db.AlertChannel, incident db.Incid
 func (s *AlertService) deliverEmail(channel db.AlertChannel, incident db.Incident, eventType string) error {
 	address := fmt.Sprintf("%s:%d", channel.SMTPHost, channel.SMTPPort)
 	payload := s.buildAlertPayload(incident, eventType, time.Now().UTC())
+	return s.deliverEmailPayloadAtAddress(channel, payload, address)
+}
+
+func (s *AlertService) deliverEmailPayload(channel db.AlertChannel, payload AlertPayload) error {
+	address := fmt.Sprintf("%s:%d", channel.SMTPHost, channel.SMTPPort)
+	return s.deliverEmailPayloadAtAddress(channel, payload, address)
+}
+
+func (s *AlertService) deliverEmailPayloadAtAddress(channel db.AlertChannel, payload AlertPayload, address string) error {
 	email := RenderAlertEmail(payload)
-	message := []byte(fmt.Sprintf("To: %s\r\nFrom: %s\r\nSubject: %s\r\n\r\n%s", channel.EmailTo, channel.EmailFrom, email.Subject, email.Body))
+	message := alertEmailMessage(channel.EmailTo, channel.EmailFrom, email)
 
 	var auth smtp.Auth
 	if channel.SMTPUsername != "" || channel.SMTPPassword != "" {
@@ -755,6 +1036,57 @@ func (s *AlertService) deliverEmail(channel db.AlertChannel, incident db.Inciden
 		return newAlertDeliveryError("smtp_send", err)
 	}
 	return nil
+}
+
+func (s *AlertService) testSMTPConnectivity(smtpService db.AlertSMTPService) error {
+	address := fmt.Sprintf("%s:%d", smtpService.Host, smtpService.Port)
+	dialer := net.Dialer{Timeout: 10 * time.Second}
+	conn, err := dialer.Dial("tcp", address)
+	if err != nil {
+		return newAlertDeliveryError("smtp_connect", err)
+	}
+	defer conn.Close()
+
+	client, err := smtp.NewClient(conn, smtpService.Host)
+	if err != nil {
+		return newAlertDeliveryError("smtp_connect", err)
+	}
+	defer client.Close()
+
+	if err := client.Hello("localhost"); err != nil {
+		return newAlertDeliveryError("smtp_hello", err)
+	}
+	if smtpService.Username != "" || smtpService.Password != "" {
+		auth := smtp.PlainAuth("", smtpService.Username, smtpService.Password, smtpService.Host)
+		if err := client.Auth(auth); err != nil {
+			return newAlertDeliveryError("smtp_auth", err)
+		}
+	}
+	if err := client.Quit(); err != nil {
+		return newAlertDeliveryError("smtp_quit", err)
+	}
+	return nil
+}
+
+func alertEmailMessage(to string, from string, email AlertEmailTemplate) []byte {
+	const boundary = "orion-alert-boundary-v1"
+	message := strings.Builder{}
+	message.WriteString("To: " + sanitizeEmailHeader(to) + "\r\n")
+	message.WriteString("From: " + sanitizeEmailHeader(from) + "\r\n")
+	message.WriteString("Subject: " + email.Subject + "\r\n")
+	message.WriteString("MIME-Version: 1.0\r\n")
+	message.WriteString("Content-Type: multipart/alternative; boundary=\"" + boundary + "\"\r\n")
+	message.WriteString("\r\n")
+	message.WriteString("--" + boundary + "\r\n")
+	message.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
+	message.WriteString("Content-Transfer-Encoding: 8bit\r\n\r\n")
+	message.WriteString(email.Body)
+	message.WriteString("\r\n--" + boundary + "\r\n")
+	message.WriteString("Content-Type: text/html; charset=UTF-8\r\n")
+	message.WriteString("Content-Transfer-Encoding: 8bit\r\n\r\n")
+	message.WriteString(email.HTMLBody)
+	message.WriteString("\r\n--" + boundary + "--\r\n")
+	return []byte(message.String())
 }
 
 func (s *AlertService) LoadAlertRouteContext(incidentID string, eventType string) (*AlertRouteContext, error) {

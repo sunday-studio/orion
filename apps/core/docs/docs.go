@@ -1664,6 +1664,68 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/alerts/email-destinations/{id}/test": {
+            "post": {
+                "description": "Send a manual test notification through a reusable email destination. Delivery errors are sanitized in the response.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Test alert email destination",
+                "operationId": "testAlertEmailDestination",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Email destination ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "delivery": {
+                                                    "$ref": "#/definitions/api.AlertDeliveryResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/alerts/routes": {
             "get": {
                 "description": "Get explicit alert routes ordered by priority",
@@ -2268,6 +2330,68 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/alerts/smtp-services/{id}/test": {
+            "post": {
+                "description": "Connect to a reusable SMTP service and return a sanitized connectivity result without secret values.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Test alert SMTP service",
+                "operationId": "testAlertSMTPService",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "SMTP service ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "test": {
+                                                    "$ref": "#/definitions/service.AlertSMTPServiceTestResult"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/utils.APIResponse"
                         }
@@ -5333,6 +5457,9 @@ const docTemplate = `{
                 "webhook_configured": {
                     "type": "boolean"
                 },
+                "webhook_signature_configured": {
+                    "type": "boolean"
+                },
                 "webhook_url": {
                     "type": "string"
                 }
@@ -5376,6 +5503,9 @@ const docTemplate = `{
         "api.AlertDeliveryResponse": {
             "type": "object",
             "properties": {
+                "alert_group_id": {
+                    "type": "string"
+                },
                 "attempt_count": {
                     "type": "integer"
                 },
@@ -5542,6 +5672,12 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "grouping_delay_seconds": {
+                    "type": "integer"
+                },
+                "grouping_policy": {
+                    "type": "string"
                 },
                 "id": {
                     "type": "string"
@@ -6339,6 +6475,9 @@ const docTemplate = `{
                 "type": {
                     "type": "string"
                 },
+                "webhook_signing_secret": {
+                    "type": "string"
+                },
                 "webhook_url": {
                     "type": "string"
                 }
@@ -6413,6 +6552,12 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "grouping_delay_seconds": {
+                    "type": "integer"
+                },
+                "grouping_policy": {
+                    "type": "string"
                 },
                 "monitor_ids": {
                     "type": "array",
@@ -6828,6 +6973,29 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "severity": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.AlertSMTPServiceTestResult": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "smtp_service_id": {
+                    "type": "string"
+                },
+                "smtp_service_name": {
+                    "type": "string"
+                },
+                "stage": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "tested_at": {
                     "type": "string"
                 }
             }

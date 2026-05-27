@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"html"
 	"orion/core/internal/db"
 	"strings"
 	"time"
@@ -55,8 +56,9 @@ type AlertPayloadSummary struct {
 }
 
 type AlertEmailTemplate struct {
-	Subject string
-	Body    string
+	Subject  string
+	Body     string
+	HTMLBody string
 }
 
 type AlertWebhookSignature struct {
@@ -113,20 +115,23 @@ func (s *AlertService) buildAlertPayload(incident db.Incident, eventType string,
 }
 
 func RenderAlertEmail(payload AlertPayload) AlertEmailTemplate {
+	body := strings.Join([]string{
+		payload.Summary.Text,
+		"",
+		"Event: " + payload.EventType,
+		"Incident: " + payload.Incident.ID,
+		"Status: " + payload.Incident.Status,
+		"Severity: " + payload.Incident.Severity,
+		"Monitor: " + alertPayloadMonitorLabel(payload),
+		"Agent: " + alertPayloadAgentLabel(payload),
+		"Latest event: " + payload.Incident.LatestEvent,
+		"Payload version: " + payload.Version,
+	}, "\n") + "\n"
+
 	return AlertEmailTemplate{
-		Subject: sanitizeEmailHeader("Orion alert: " + payload.Summary.Title),
-		Body: strings.Join([]string{
-			payload.Summary.Text,
-			"",
-			"Event: " + payload.EventType,
-			"Incident: " + payload.Incident.ID,
-			"Status: " + payload.Incident.Status,
-			"Severity: " + payload.Incident.Severity,
-			"Monitor: " + alertPayloadMonitorLabel(payload),
-			"Agent: " + alertPayloadAgentLabel(payload),
-			"Latest event: " + payload.Incident.LatestEvent,
-			"Payload version: " + payload.Version,
-		}, "\n") + "\n",
+		Subject:  sanitizeEmailHeader("Orion alert: " + payload.Summary.Title),
+		Body:     body,
+		HTMLBody: renderAlertEmailHTML(payload),
 	}
 }
 
@@ -173,6 +178,40 @@ func alertPayloadAgentLabel(payload AlertPayload) string {
 		return fmt.Sprintf("%s (%s)", payload.Agent.Name, payload.Agent.ID)
 	}
 	return payload.Agent.ID
+}
+
+func renderAlertEmailHTML(payload AlertPayload) string {
+	rows := []struct {
+		label string
+		value string
+	}{
+		{label: "Event", value: payload.EventType},
+		{label: "Incident", value: payload.Incident.ID},
+		{label: "Status", value: payload.Incident.Status},
+		{label: "Severity", value: payload.Incident.Severity},
+		{label: "Monitor", value: alertPayloadMonitorLabel(payload)},
+		{label: "Agent", value: alertPayloadAgentLabel(payload)},
+		{label: "Latest event", value: payload.Incident.LatestEvent},
+		{label: "Payload version", value: payload.Version},
+	}
+
+	var builder strings.Builder
+	builder.WriteString(`<!doctype html><html><body style="font-family:Arial,sans-serif;color:#111827;background:#ffffff;margin:0;padding:24px;">`)
+	builder.WriteString(`<main style="max-width:640px;margin:0 auto;">`)
+	builder.WriteString(`<h1 style="font-size:20px;line-height:1.3;margin:0 0 12px;">`)
+	builder.WriteString(html.EscapeString(payload.Summary.Title))
+	builder.WriteString(`</h1><p style="font-size:14px;line-height:1.5;margin:0 0 20px;">`)
+	builder.WriteString(html.EscapeString(payload.Summary.Text))
+	builder.WriteString(`</p><table role="presentation" style="border-collapse:collapse;width:100%;font-size:14px;">`)
+	for _, row := range rows {
+		builder.WriteString(`<tr><th align="left" style="border-top:1px solid #e5e7eb;padding:10px 12px 10px 0;color:#4b5563;font-weight:600;width:36%;">`)
+		builder.WriteString(html.EscapeString(row.label))
+		builder.WriteString(`</th><td style="border-top:1px solid #e5e7eb;padding:10px 0;color:#111827;">`)
+		builder.WriteString(html.EscapeString(row.value))
+		builder.WriteString(`</td></tr>`)
+	}
+	builder.WriteString(`</table></main></body></html>`)
+	return builder.String()
 }
 
 func sanitizeEmailHeader(value string) string {

@@ -1,11 +1,14 @@
 package api
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -1964,11 +1967,12 @@ func TestAlertReadEndpointsShowWebhookURLAndRedactSecrets(t *testing.T) {
 		AlertCooldownSeconds:       300,
 	})
 	if err := server.db.Create(&db.AlertChannel{
-		ID:         "alert-channel-webhook",
-		Name:       "ops-webhook",
-		Type:       "webhook",
-		Enabled:    true,
-		WebhookURL: "https://secret.example.com/hook",
+		ID:                   "alert-channel-webhook",
+		Name:                 "ops-webhook",
+		Type:                 "webhook",
+		Enabled:              true,
+		WebhookURL:           "https://secret.example.com/hook",
+		WebhookSigningSecret: "webhook-signing-secret",
 	}).Error; err != nil {
 		t.Fatalf("create webhook channel: %v", err)
 	}
@@ -1990,6 +1994,7 @@ func TestAlertReadEndpointsShowWebhookURLAndRedactSecrets(t *testing.T) {
 	delivery := db.AlertDelivery{
 		ID:           "alert-delivery-test",
 		IncidentID:   "incident-test",
+		AlertGroupID: "alert-group-test",
 		EventType:    "incident_opened",
 		Channel:      "ops-webhook",
 		Type:         "webhook",
@@ -2031,16 +2036,18 @@ func TestAlertReadEndpointsShowWebhookURLAndRedactSecrets(t *testing.T) {
 		t.Fatalf("channels status = %d, body = %s", channelsResp.Code, channelsResp.Body.String())
 	}
 	assertNotContains(t, channelsResp.Body.String(), "secret-password")
+	assertNotContains(t, channelsResp.Body.String(), "webhook-signing-secret")
 
 	var channels struct {
 		Success bool `json:"success"`
 		Data    struct {
 			Channels []struct {
-				Name               string `json:"name"`
-				Type               string `json:"type"`
-				WebhookURL         string `json:"webhook_url"`
-				WebhookConfigured  bool   `json:"webhook_configured"`
-				LastDeliveryStatus string `json:"last_delivery_status"`
+				Name                       string `json:"name"`
+				Type                       string `json:"type"`
+				WebhookURL                 string `json:"webhook_url"`
+				WebhookConfigured          bool   `json:"webhook_configured"`
+				WebhookSignatureConfigured bool   `json:"webhook_signature_configured"`
+				LastDeliveryStatus         string `json:"last_delivery_status"`
 			} `json:"channels"`
 			Count int `json:"count"`
 		} `json:"data"`
@@ -2050,11 +2057,12 @@ func TestAlertReadEndpointsShowWebhookURLAndRedactSecrets(t *testing.T) {
 		t.Fatalf("channels response = %+v, want two channels", channels)
 	}
 	var webhookChannel struct {
-		Name               string `json:"name"`
-		Type               string `json:"type"`
-		WebhookURL         string `json:"webhook_url"`
-		WebhookConfigured  bool   `json:"webhook_configured"`
-		LastDeliveryStatus string `json:"last_delivery_status"`
+		Name                       string `json:"name"`
+		Type                       string `json:"type"`
+		WebhookURL                 string `json:"webhook_url"`
+		WebhookConfigured          bool   `json:"webhook_configured"`
+		WebhookSignatureConfigured bool   `json:"webhook_signature_configured"`
+		LastDeliveryStatus         string `json:"last_delivery_status"`
 	}
 	for _, channel := range channels.Data.Channels {
 		if channel.Name == "ops-webhook" {
@@ -2062,7 +2070,7 @@ func TestAlertReadEndpointsShowWebhookURLAndRedactSecrets(t *testing.T) {
 			break
 		}
 	}
-	if webhookChannel.WebhookURL != "https://secret.example.com/hook" || !webhookChannel.WebhookConfigured || webhookChannel.LastDeliveryStatus != "failed" {
+	if webhookChannel.WebhookURL != "https://secret.example.com/hook" || !webhookChannel.WebhookConfigured || !webhookChannel.WebhookSignatureConfigured || webhookChannel.LastDeliveryStatus != "failed" {
 		t.Fatalf("webhook channel response = %+v, want webhook URL with last failed status", webhookChannel)
 	}
 
@@ -2083,10 +2091,11 @@ func TestAlertReadEndpointsShowWebhookURLAndRedactSecrets(t *testing.T) {
 		Success bool `json:"success"`
 		Data    struct {
 			Deliveries []struct {
-				IncidentID string `json:"incident_id"`
-				Status     string `json:"status"`
-				Error      string `json:"error"`
-				Attempts   []struct {
+				IncidentID   string `json:"incident_id"`
+				AlertGroupID string `json:"alert_group_id"`
+				Status       string `json:"status"`
+				Error        string `json:"error"`
+				Attempts     []struct {
 					Status string `json:"status"`
 					Stage  string `json:"stage"`
 					Error  string `json:"error"`
@@ -2100,8 +2109,8 @@ func TestAlertReadEndpointsShowWebhookURLAndRedactSecrets(t *testing.T) {
 		t.Fatalf("filtered deliveries response = %+v, want one delivery", filteredDeliveries)
 	}
 	filteredDelivery := filteredDeliveries.Data.Deliveries[0]
-	if filteredDelivery.IncidentID != "incident-test" || filteredDelivery.Status != "failed" || filteredDelivery.Error != "delivery failed; check Core logs" {
-		t.Fatalf("filtered delivery = %+v, want sanitized failed incident-test delivery", filteredDelivery)
+	if filteredDelivery.IncidentID != "incident-test" || filteredDelivery.AlertGroupID != "alert-group-test" || filteredDelivery.Status != "failed" || filteredDelivery.Error != "delivery failed; check Core logs" {
+		t.Fatalf("filtered delivery = %+v, want sanitized failed incident-test delivery with alert_group_id", filteredDelivery)
 	}
 	if len(filteredDelivery.Attempts) != 1 || filteredDelivery.Attempts[0].Status != "failed" || filteredDelivery.Attempts[0].Stage != "http_request" || filteredDelivery.Attempts[0].Error != "delivery failed; check Core logs" {
 		t.Fatalf("filtered delivery attempts = %+v, want sanitized http_request failure", filteredDelivery.Attempts)
@@ -2138,6 +2147,7 @@ func TestAlertReadEndpointsShowWebhookURLAndRedactSecrets(t *testing.T) {
 	}
 	assertNotContains(t, rulesResp.Body.String(), "secret.example.com")
 	assertNotContains(t, rulesResp.Body.String(), "secret-password")
+	assertNotContains(t, rulesResp.Body.String(), "webhook-signing-secret")
 }
 
 func TestAlertChannelTestEndpointSendsConfiguredWebhook(t *testing.T) {
@@ -2228,11 +2238,12 @@ func TestAlertChannelWriteEndpointsPersistWebhookConfiguration(t *testing.T) {
 
 	server := NewServer(database, logging.NewLogger(), &config.Config{})
 	createResp := performJSONRequest(t, server, http.MethodPost, "/v1/alerts/channels", gin.H{
-		"name":              "ops-webhook",
-		"type":              "webhook",
-		"enabled":           true,
-		"webhook_url":       "https://secret.example.com/hook",
-		"subscribed_events": []string{db.AlertEventIncidentOpened},
+		"name":                   "ops-webhook",
+		"type":                   "webhook",
+		"enabled":                true,
+		"webhook_url":            "https://secret.example.com/hook",
+		"webhook_signing_secret": "initial-signing-secret",
+		"subscribed_events":      []string{db.AlertEventIncidentOpened},
 	}, "")
 	if createResp.Code != http.StatusCreated {
 		t.Fatalf("create channel status = %d, body = %s", createResp.Code, createResp.Body.String())
@@ -2240,16 +2251,18 @@ func TestAlertChannelWriteEndpointsPersistWebhookConfiguration(t *testing.T) {
 	var created struct {
 		Data struct {
 			Channel struct {
-				ID                string   `json:"id"`
-				Name              string   `json:"name"`
-				WebhookURL        string   `json:"webhook_url"`
-				WebhookConfigured bool     `json:"webhook_configured"`
-				SubscribedEvents  []string `json:"subscribed_events"`
+				ID                         string   `json:"id"`
+				Name                       string   `json:"name"`
+				WebhookURL                 string   `json:"webhook_url"`
+				WebhookConfigured          bool     `json:"webhook_configured"`
+				WebhookSignatureConfigured bool     `json:"webhook_signature_configured"`
+				SubscribedEvents           []string `json:"subscribed_events"`
 			} `json:"channel"`
 		} `json:"data"`
 	}
 	decodeResponse(t, createResp, &created)
-	if created.Data.Channel.ID == "" || created.Data.Channel.Name != "ops-webhook" || created.Data.Channel.WebhookURL != "https://secret.example.com/hook" || !created.Data.Channel.WebhookConfigured {
+	assertNotContains(t, createResp.Body.String(), "initial-signing-secret")
+	if created.Data.Channel.ID == "" || created.Data.Channel.Name != "ops-webhook" || created.Data.Channel.WebhookURL != "https://secret.example.com/hook" || !created.Data.Channel.WebhookConfigured || !created.Data.Channel.WebhookSignatureConfigured {
 		t.Fatalf("created channel = %+v, want webhook channel", created.Data.Channel)
 	}
 	if got := created.Data.Channel.SubscribedEvents; len(got) != 1 || got[0] != db.AlertEventIncidentOpened {
@@ -2257,14 +2270,16 @@ func TestAlertChannelWriteEndpointsPersistWebhookConfiguration(t *testing.T) {
 	}
 
 	updateResp := performJSONRequest(t, server, http.MethodPatch, "/v1/alerts/channels/"+created.Data.Channel.ID, gin.H{
-		"name":              "critical-webhook",
-		"enabled":           false,
-		"webhook_url":       "https://alerts.example.com/critical",
-		"subscribed_events": []string{db.AlertEventIncidentOpened, db.AlertEventIncidentResolved},
+		"name":                   "critical-webhook",
+		"enabled":                false,
+		"webhook_url":            "https://alerts.example.com/critical",
+		"webhook_signing_secret": "rotated-signing-secret",
+		"subscribed_events":      []string{db.AlertEventIncidentOpened, db.AlertEventIncidentResolved},
 	}, "")
 	if updateResp.Code != http.StatusOK {
 		t.Fatalf("update channel status = %d, body = %s", updateResp.Code, updateResp.Body.String())
 	}
+	assertNotContains(t, updateResp.Body.String(), "rotated-signing-secret")
 
 	var stored db.AlertChannel
 	if err := server.db.Where("id = ?", created.Data.Channel.ID).First(&stored).Error; err != nil {
@@ -2275,6 +2290,9 @@ func TestAlertChannelWriteEndpointsPersistWebhookConfiguration(t *testing.T) {
 	}
 	if stored.WebhookURL != "https://alerts.example.com/critical" {
 		t.Fatalf("stored webhook url = %q, want updated webhook url", stored.WebhookURL)
+	}
+	if stored.WebhookSigningSecret != "rotated-signing-secret" {
+		t.Fatalf("stored webhook signing secret = %q, want rotated signing secret", stored.WebhookSigningSecret)
 	}
 	if got := db.DecodeAlertEvents(stored.SubscribedEvents); len(got) != 2 || got[0] != db.AlertEventIncidentOpened || got[1] != db.AlertEventIncidentResolved {
 		t.Fatalf("stored subscribed_events = %#v, want opened and resolved", got)
@@ -2317,11 +2335,13 @@ func TestAlertRouteWriteAndDryRunEndpoints(t *testing.T) {
 	}
 
 	createResp := performJSONRequest(t, server, http.MethodPost, "/v1/alerts/routes", gin.H{
-		"name":        "critical route",
-		"priority":    10,
-		"event_types": []string{db.AlertEventIncidentOpened},
-		"severities":  []string{"high"},
-		"channel_ids": []string{"channel-ops-webhook"},
+		"name":                   "critical route",
+		"priority":               10,
+		"event_types":            []string{db.AlertEventIncidentOpened},
+		"severities":             []string{"high"},
+		"channel_ids":            []string{"channel-ops-webhook"},
+		"grouping_policy":        db.AlertGroupingPolicyDelayedSummary,
+		"grouping_delay_seconds": 120,
 	}, "")
 	if createResp.Code != http.StatusCreated {
 		t.Fatalf("create route status = %d, body = %s", createResp.Code, createResp.Body.String())
@@ -2329,15 +2349,18 @@ func TestAlertRouteWriteAndDryRunEndpoints(t *testing.T) {
 	var created struct {
 		Data struct {
 			Route struct {
-				ID         string   `json:"id"`
-				Name       string   `json:"name"`
-				EventTypes []string `json:"event_types"`
-				ChannelIDs []string `json:"channel_ids"`
+				ID                   string   `json:"id"`
+				Name                 string   `json:"name"`
+				EventTypes           []string `json:"event_types"`
+				ChannelIDs           []string `json:"channel_ids"`
+				GroupingPolicy       string   `json:"grouping_policy"`
+				GroupingDelaySeconds int      `json:"grouping_delay_seconds"`
 			} `json:"route"`
 		} `json:"data"`
 	}
 	decodeResponse(t, createResp, &created)
-	if created.Data.Route.ID == "" || created.Data.Route.Name != "critical route" || len(created.Data.Route.ChannelIDs) != 1 {
+	if created.Data.Route.ID == "" || created.Data.Route.Name != "critical route" || len(created.Data.Route.ChannelIDs) != 1 ||
+		created.Data.Route.GroupingPolicy != db.AlertGroupingPolicyDelayedSummary || created.Data.Route.GroupingDelaySeconds != 120 {
 		t.Fatalf("created route = %+v, want route with channel", created.Data.Route)
 	}
 
@@ -2348,14 +2371,16 @@ func TestAlertRouteWriteAndDryRunEndpoints(t *testing.T) {
 	var listed struct {
 		Data struct {
 			Routes []struct {
-				ID         string   `json:"id"`
-				Name       string   `json:"name"`
-				Enabled    bool     `json:"enabled"`
-				Priority   int      `json:"priority"`
-				EventTypes []string `json:"event_types"`
-				Severities []string `json:"severities"`
-				ChannelIDs []string `json:"channel_ids"`
-				Suppress   bool     `json:"suppress"`
+				ID                   string   `json:"id"`
+				Name                 string   `json:"name"`
+				Enabled              bool     `json:"enabled"`
+				Priority             int      `json:"priority"`
+				EventTypes           []string `json:"event_types"`
+				Severities           []string `json:"severities"`
+				ChannelIDs           []string `json:"channel_ids"`
+				Suppress             bool     `json:"suppress"`
+				GroupingPolicy       string   `json:"grouping_policy"`
+				GroupingDelaySeconds int      `json:"grouping_delay_seconds"`
 			} `json:"routes"`
 			Count int `json:"count"`
 		} `json:"data"`
@@ -2364,7 +2389,8 @@ func TestAlertRouteWriteAndDryRunEndpoints(t *testing.T) {
 	if listed.Data.Count != 1 || len(listed.Data.Routes) != 1 {
 		t.Fatalf("listed routes count=%d len=%d, want one route", listed.Data.Count, len(listed.Data.Routes))
 	}
-	if listed.Data.Routes[0].ID != created.Data.Route.ID || listed.Data.Routes[0].Name != "critical route" || listed.Data.Routes[0].Priority != 10 {
+	if listed.Data.Routes[0].ID != created.Data.Route.ID || listed.Data.Routes[0].Name != "critical route" || listed.Data.Routes[0].Priority != 10 ||
+		listed.Data.Routes[0].GroupingPolicy != db.AlertGroupingPolicyDelayedSummary || listed.Data.Routes[0].GroupingDelaySeconds != 120 {
 		t.Fatalf("listed route = %+v, want created critical route", listed.Data.Routes[0])
 	}
 	if len(listed.Data.Routes[0].EventTypes) != 1 || listed.Data.Routes[0].EventTypes[0] != db.AlertEventIncidentOpened || len(listed.Data.Routes[0].ChannelIDs) != 1 {
@@ -2372,16 +2398,18 @@ func TestAlertRouteWriteAndDryRunEndpoints(t *testing.T) {
 	}
 
 	updateResp := performJSONRequest(t, server, http.MethodPatch, "/v1/alerts/routes/"+created.Data.Route.ID, gin.H{
-		"name":          "suppress recovery",
-		"enabled":       false,
-		"priority":      5,
-		"event_types":   []string{db.AlertEventIncidentResolved},
-		"severities":    []string{"medium"},
-		"agent_ids":     []string{"agent-prod"},
-		"monitor_ids":   []string{"monitor-api"},
-		"monitor_types": []string{"http"},
-		"channel_ids":   []string{},
-		"suppress":      true,
+		"name":                   "suppress recovery",
+		"enabled":                false,
+		"priority":               5,
+		"event_types":            []string{db.AlertEventIncidentResolved},
+		"severities":             []string{"medium"},
+		"agent_ids":              []string{"agent-prod"},
+		"monitor_ids":            []string{"monitor-api"},
+		"monitor_types":          []string{"http"},
+		"channel_ids":            []string{},
+		"suppress":               true,
+		"grouping_policy":        db.AlertGroupingPolicyNone,
+		"grouping_delay_seconds": 30,
 	}, "")
 	if updateResp.Code != http.StatusOK {
 		t.Fatalf("update route status = %d, body = %s", updateResp.Code, updateResp.Body.String())
@@ -2389,22 +2417,25 @@ func TestAlertRouteWriteAndDryRunEndpoints(t *testing.T) {
 	var updated struct {
 		Data struct {
 			Route struct {
-				ID           string   `json:"id"`
-				Name         string   `json:"name"`
-				Enabled      bool     `json:"enabled"`
-				Priority     int      `json:"priority"`
-				EventTypes   []string `json:"event_types"`
-				Severities   []string `json:"severities"`
-				AgentIDs     []string `json:"agent_ids"`
-				MonitorIDs   []string `json:"monitor_ids"`
-				MonitorTypes []string `json:"monitor_types"`
-				ChannelIDs   []string `json:"channel_ids"`
-				Suppress     bool     `json:"suppress"`
+				ID                   string   `json:"id"`
+				Name                 string   `json:"name"`
+				Enabled              bool     `json:"enabled"`
+				Priority             int      `json:"priority"`
+				EventTypes           []string `json:"event_types"`
+				Severities           []string `json:"severities"`
+				AgentIDs             []string `json:"agent_ids"`
+				MonitorIDs           []string `json:"monitor_ids"`
+				MonitorTypes         []string `json:"monitor_types"`
+				ChannelIDs           []string `json:"channel_ids"`
+				Suppress             bool     `json:"suppress"`
+				GroupingPolicy       string   `json:"grouping_policy"`
+				GroupingDelaySeconds int      `json:"grouping_delay_seconds"`
 			} `json:"route"`
 		} `json:"data"`
 	}
 	decodeResponse(t, updateResp, &updated)
-	if updated.Data.Route.ID != created.Data.Route.ID || updated.Data.Route.Name != "suppress recovery" || updated.Data.Route.Enabled || updated.Data.Route.Priority != 5 || !updated.Data.Route.Suppress {
+	if updated.Data.Route.ID != created.Data.Route.ID || updated.Data.Route.Name != "suppress recovery" || updated.Data.Route.Enabled || updated.Data.Route.Priority != 5 ||
+		!updated.Data.Route.Suppress || updated.Data.Route.GroupingPolicy != db.AlertGroupingPolicyNone || updated.Data.Route.GroupingDelaySeconds != 30 {
 		t.Fatalf("updated route = %+v, want disabled suppress recovery route", updated.Data.Route)
 	}
 	if len(updated.Data.Route.EventTypes) != 1 || updated.Data.Route.EventTypes[0] != db.AlertEventIncidentResolved {
@@ -2569,6 +2600,169 @@ func TestAlertSMTPServiceAndEmailDestinationEndpoints(t *testing.T) {
 	}
 }
 
+func TestAlertSMTPServiceAndEmailDestinationTestEndpoints(t *testing.T) {
+	server := setupTestServer(t)
+	smtpAddress, messages := startAPITestSMTPServer(t)
+	host, portValue, err := net.SplitHostPort(smtpAddress)
+	if err != nil {
+		t.Fatalf("split smtp address: %v", err)
+	}
+	port, err := strconv.Atoi(portValue)
+	if err != nil {
+		t.Fatalf("parse smtp port: %v", err)
+	}
+
+	createServiceResp := performJSONRequest(t, server, http.MethodPost, "/v1/alerts/smtp-services", gin.H{
+		"name":       "Local SMTP",
+		"enabled":    true,
+		"host":       host,
+		"port":       port,
+		"from_email": "orion@example.com",
+	}, "")
+	if createServiceResp.Code != http.StatusCreated {
+		t.Fatalf("create smtp service status = %d, body = %s", createServiceResp.Code, createServiceResp.Body.String())
+	}
+	var createdService struct {
+		Data struct {
+			SMTPService struct {
+				ID string `json:"id"`
+			} `json:"smtp_service"`
+		} `json:"data"`
+	}
+	decodeResponse(t, createServiceResp, &createdService)
+
+	testServiceResp := performJSONRequest(t, server, http.MethodPost, "/v1/alerts/smtp-services/"+createdService.Data.SMTPService.ID+"/test", nil, "")
+	if testServiceResp.Code != http.StatusOK {
+		t.Fatalf("test smtp service status = %d, body = %s", testServiceResp.Code, testServiceResp.Body.String())
+	}
+	var testedService struct {
+		Data struct {
+			Test struct {
+				SMTPServiceID string `json:"smtp_service_id"`
+				Status        string `json:"status"`
+				Stage         string `json:"stage"`
+				Error         string `json:"error"`
+			} `json:"test"`
+		} `json:"data"`
+	}
+	decodeResponse(t, testServiceResp, &testedService)
+	if testedService.Data.Test.SMTPServiceID != createdService.Data.SMTPService.ID || testedService.Data.Test.Status != "ok" || testedService.Data.Test.Stage != "connected" || testedService.Data.Test.Error != "" {
+		t.Fatalf("smtp service test = %+v, want successful connectivity result", testedService.Data.Test)
+	}
+
+	createDestinationResp := performJSONRequest(t, server, http.MethodPost, "/v1/alerts/email-destinations", gin.H{
+		"smtp_service_id": createdService.Data.SMTPService.ID,
+		"name":            "Ops Email",
+		"enabled":         true,
+		"email_to":        "ops@example.com",
+	}, "")
+	if createDestinationResp.Code != http.StatusCreated {
+		t.Fatalf("create email destination status = %d, body = %s", createDestinationResp.Code, createDestinationResp.Body.String())
+	}
+	var createdDestination struct {
+		Data struct {
+			EmailDestination struct {
+				ID string `json:"id"`
+			} `json:"email_destination"`
+		} `json:"data"`
+	}
+	decodeResponse(t, createDestinationResp, &createdDestination)
+
+	testDestinationResp := performJSONRequest(t, server, http.MethodPost, "/v1/alerts/email-destinations/"+createdDestination.Data.EmailDestination.ID+"/test", nil, "")
+	if testDestinationResp.Code != http.StatusOK {
+		t.Fatalf("test email destination status = %d, body = %s", testDestinationResp.Code, testDestinationResp.Body.String())
+	}
+	var testedDestination struct {
+		Data struct {
+			Delivery struct {
+				IncidentID string `json:"incident_id"`
+				EventType  string `json:"event_type"`
+				Channel    string `json:"channel"`
+				Type       string `json:"type"`
+				Status     string `json:"status"`
+				Error      string `json:"error"`
+			} `json:"delivery"`
+		} `json:"data"`
+	}
+	decodeResponse(t, testDestinationResp, &testedDestination)
+	if testedDestination.Data.Delivery.IncidentID != "alert-email-destination-test" ||
+		testedDestination.Data.Delivery.EventType != "test" ||
+		testedDestination.Data.Delivery.Channel != "Ops Email" ||
+		testedDestination.Data.Delivery.Type != "email" ||
+		testedDestination.Data.Delivery.Status != "sent" ||
+		testedDestination.Data.Delivery.Error != "" {
+		t.Fatalf("email destination test delivery = %+v, want sent sanitized test delivery", testedDestination.Data.Delivery)
+	}
+	select {
+	case message := <-messages:
+		if !strings.Contains(message, "To: ops@example.com") || !strings.Contains(message, "Subject: Orion alert: Alert channel test") {
+			t.Fatalf("email message = %q, want destination test email content", message)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for email destination test")
+	}
+}
+
+func TestAlertSMTPServiceTestEndpointSanitizesFailures(t *testing.T) {
+	server := setupTestServer(t)
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen closed smtp address: %v", err)
+	}
+	address := listener.Addr().String()
+	_ = listener.Close()
+	host, portValue, err := net.SplitHostPort(address)
+	if err != nil {
+		t.Fatalf("split smtp address: %v", err)
+	}
+	port, err := strconv.Atoi(portValue)
+	if err != nil {
+		t.Fatalf("parse smtp port: %v", err)
+	}
+
+	createServiceResp := performJSONRequest(t, server, http.MethodPost, "/v1/alerts/smtp-services", gin.H{
+		"name":       "Failing SMTP",
+		"enabled":    true,
+		"host":       host,
+		"port":       port,
+		"username":   "mailer",
+		"password":   "secret-password",
+		"from_email": "orion@example.com",
+	}, "")
+	if createServiceResp.Code != http.StatusCreated {
+		t.Fatalf("create smtp service status = %d, body = %s", createServiceResp.Code, createServiceResp.Body.String())
+	}
+	var createdService struct {
+		Data struct {
+			SMTPService struct {
+				ID string `json:"id"`
+			} `json:"smtp_service"`
+		} `json:"data"`
+	}
+	decodeResponse(t, createServiceResp, &createdService)
+
+	testServiceResp := performJSONRequest(t, server, http.MethodPost, "/v1/alerts/smtp-services/"+createdService.Data.SMTPService.ID+"/test", nil, "")
+	if testServiceResp.Code != http.StatusOK {
+		t.Fatalf("test smtp service status = %d, body = %s", testServiceResp.Code, testServiceResp.Body.String())
+	}
+	assertNotContains(t, testServiceResp.Body.String(), "secret-password")
+	assertNotContains(t, testServiceResp.Body.String(), "mailer")
+
+	var testedService struct {
+		Data struct {
+			Test struct {
+				Status string `json:"status"`
+				Stage  string `json:"stage"`
+				Error  string `json:"error"`
+			} `json:"test"`
+		} `json:"data"`
+	}
+	decodeResponse(t, testServiceResp, &testedService)
+	if testedService.Data.Test.Status != "failed" || testedService.Data.Test.Stage != "smtp_connect" || testedService.Data.Test.Error != "smtp connectivity failed; check Core logs" {
+		t.Fatalf("smtp service test = %+v, want sanitized failed result", testedService.Data.Test)
+	}
+}
+
 func registerTestAgent(t *testing.T, server *Server) struct {
 	Success bool `json:"success"`
 	Data    struct {
@@ -2705,6 +2899,70 @@ func assertNotContains(t *testing.T, body string, value string) {
 	if strings.Contains(body, value) {
 		t.Fatalf("response exposed %q: %s", value, body)
 	}
+}
+
+func startAPITestSMTPServer(t *testing.T) (string, <-chan string) {
+	t.Helper()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen smtp: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = listener.Close()
+	})
+
+	messages := make(chan string, 8)
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				return
+			}
+			func() {
+				defer conn.Close()
+
+				reader := bufio.NewReader(conn)
+				_, _ = fmt.Fprint(conn, "220 orion-test-smtp\r\n")
+				for {
+					line, err := reader.ReadString('\n')
+					if err != nil {
+						return
+					}
+					command := strings.TrimRight(line, "\r\n")
+					upperCommand := strings.ToUpper(command)
+					switch {
+					case strings.HasPrefix(upperCommand, "EHLO"), strings.HasPrefix(upperCommand, "HELO"):
+						_, _ = fmt.Fprint(conn, "250 orion-test-smtp\r\n")
+					case strings.HasPrefix(upperCommand, "MAIL FROM:"), strings.HasPrefix(upperCommand, "RCPT TO:"):
+						_, _ = fmt.Fprint(conn, "250 ok\r\n")
+					case upperCommand == "DATA":
+						_, _ = fmt.Fprint(conn, "354 send message\r\n")
+						var message strings.Builder
+						for {
+							dataLine, err := reader.ReadString('\n')
+							if err != nil {
+								return
+							}
+							if strings.TrimRight(dataLine, "\r\n") == "." {
+								break
+							}
+							message.WriteString(dataLine)
+						}
+						messages <- message.String()
+						_, _ = fmt.Fprint(conn, "250 queued\r\n")
+					case upperCommand == "QUIT":
+						_, _ = fmt.Fprint(conn, "221 bye\r\n")
+						return
+					default:
+						_, _ = fmt.Fprint(conn, "250 ok\r\n")
+					}
+				}
+			}()
+		}
+	}()
+
+	return listener.Addr().String(), messages
 }
 
 func performJSONRequest(t *testing.T, server *Server, method string, path string, body interface{}, token string) *httptest.ResponseRecorder {

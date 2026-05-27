@@ -10,6 +10,11 @@ import (
 const (
 	AlertEventIncidentOpened   = "incident_opened"
 	AlertEventIncidentResolved = "incident_resolved"
+
+	AlertGroupingPolicySuppress       = "suppress"
+	AlertGroupingPolicyDelayedSummary = "delayed_summary"
+	AlertGroupingPolicyNone           = "none"
+	DefaultAlertGroupingDelaySeconds  = 300
 )
 
 func SupportedAlertEvents() []string {
@@ -339,36 +344,39 @@ type AlertGroupMember struct {
 }
 
 type AlertRoute struct {
-	ID           string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
-	Name         string    `json:"name" gorm:"uniqueIndex;not null"`
-	Enabled      bool      `json:"enabled" gorm:"not null;default:true;index:idx_alert_routes_enabled"`
-	Priority     int       `json:"priority" gorm:"not null;default:100;index:idx_alert_routes_priority"`
-	EventTypes   string    `json:"event_types" gorm:"type:text"`
-	Severities   string    `json:"severities" gorm:"type:text"`
-	AgentIDs     string    `json:"agent_ids" gorm:"type:text"`
-	MonitorIDs   string    `json:"monitor_ids" gorm:"type:text"`
-	MonitorTypes string    `json:"monitor_types" gorm:"type:text"`
-	ChannelIDs   string    `json:"channel_ids" gorm:"type:text"`
-	Suppress     bool      `json:"suppress" gorm:"not null;default:false;index:idx_alert_routes_suppress"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID                   string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	Name                 string    `json:"name" gorm:"uniqueIndex;not null"`
+	Enabled              bool      `json:"enabled" gorm:"not null;default:true;index:idx_alert_routes_enabled"`
+	Priority             int       `json:"priority" gorm:"not null;default:100;index:idx_alert_routes_priority"`
+	EventTypes           string    `json:"event_types" gorm:"type:text"`
+	Severities           string    `json:"severities" gorm:"type:text"`
+	AgentIDs             string    `json:"agent_ids" gorm:"type:text"`
+	MonitorIDs           string    `json:"monitor_ids" gorm:"type:text"`
+	MonitorTypes         string    `json:"monitor_types" gorm:"type:text"`
+	ChannelIDs           string    `json:"channel_ids" gorm:"type:text"`
+	Suppress             bool      `json:"suppress" gorm:"not null;default:false;index:idx_alert_routes_suppress"`
+	GroupingPolicy       string    `json:"grouping_policy" gorm:"not null;default:suppress;index:idx_alert_routes_grouping_policy"`
+	GroupingDelaySeconds int       `json:"grouping_delay_seconds" gorm:"not null;default:300"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
 }
 
 type AlertChannel struct {
-	ID               string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
-	Name             string    `json:"name" gorm:"uniqueIndex;not null"`
-	Type             string    `json:"type" gorm:"not null"` // webhook | email
-	Enabled          bool      `json:"enabled" gorm:"not null"`
-	WebhookURL       string    `json:"webhook_url" gorm:"type:text"`
-	EmailTo          string    `json:"email_to"`
-	EmailFrom        string    `json:"email_from"`
-	SMTPHost         string    `json:"smtp_host"`
-	SMTPPort         int       `json:"smtp_port"`
-	SMTPUsername     string    `json:"smtp_username"`
-	SMTPPassword     string    `json:"smtp_password"`
-	SubscribedEvents string    `json:"subscribed_events" gorm:"type:text"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
+	ID                   string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	Name                 string    `json:"name" gorm:"uniqueIndex;not null"`
+	Type                 string    `json:"type" gorm:"not null"` // webhook | email
+	Enabled              bool      `json:"enabled" gorm:"not null"`
+	WebhookURL           string    `json:"webhook_url" gorm:"type:text"`
+	WebhookSigningSecret string    `json:"webhook_signing_secret" gorm:"type:text"`
+	EmailTo              string    `json:"email_to"`
+	EmailFrom            string    `json:"email_from"`
+	SMTPHost             string    `json:"smtp_host"`
+	SMTPPort             int       `json:"smtp_port"`
+	SMTPUsername         string    `json:"smtp_username"`
+	SMTPPassword         string    `json:"smtp_password"`
+	SubscribedEvents     string    `json:"subscribed_events" gorm:"type:text"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
 }
 
 type AlertSMTPService struct {
