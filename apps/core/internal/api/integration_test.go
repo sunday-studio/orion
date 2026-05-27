@@ -1535,12 +1535,13 @@ func TestCoreWorkerReportsOpenAndResolveIncident(t *testing.T) {
 			Incidents []struct {
 				AgentName   string `json:"agent_name"`
 				MonitorName string `json:"monitor_name"`
+				Severity    string `json:"severity"`
 			} `json:"incidents"`
 			Count int64 `json:"count"`
 		} `json:"data"`
 	}
 	decodeResponse(t, listResp, &listed)
-	if !listed.Success || listed.Data.Count != 1 || listed.Data.Incidents[0].AgentName != "Orion Core" || listed.Data.Incidents[0].MonitorName != "Core API health" {
+	if !listed.Success || listed.Data.Count != 1 || listed.Data.Incidents[0].AgentName != "Orion Core" || listed.Data.Incidents[0].MonitorName != "Core API health" || listed.Data.Incidents[0].Severity != "high" {
 		t.Fatalf("listed core incidents = %+v, want Orion Core incident", listed)
 	}
 
@@ -1574,6 +1575,142 @@ func TestCoreWorkerReportsOpenAndResolveIncident(t *testing.T) {
 	}
 	if storedMonitor.Health != "up" || storedMonitor.LastSuccessfulReportAt == nil {
 		t.Fatalf("recovered core monitor = %+v, want up with last_successful_report_at", storedMonitor)
+	}
+}
+
+func TestCoreMonitorIncidentSeverityOverrideAppearsInResponses(t *testing.T) {
+	server := setupTestServer(t)
+	monitor := db.Monitor{
+		ID:                       "monitor-core-severity-override",
+		AgentID:                  "agent-core-severity-override",
+		Name:                     "Checkout journey",
+		Type:                     "synthetic",
+		Lifecycle:                "active",
+		Health:                   "unknown",
+		ComputedHealth:           "unknown",
+		ReportingIntervalSeconds: 60,
+		CreatedAt:                time.Now(),
+		UpdatedAt:                time.Now(),
+	}
+	if err := server.db.Create(&monitor).Error; err != nil {
+		t.Fatalf("create core monitor: %v", err)
+	}
+	if err := server.db.Create(&db.CoreMonitorConfig{
+		MonitorID:       monitor.ID,
+		Kind:            "synthetic_multi_step",
+		ConfigJSON:      `{"steps":[],"incident_severity":" Critical "}`,
+		SecretRefJSON:   `{}`,
+		IntervalSeconds: 60,
+		TimeoutSeconds:  10,
+		NextRunAt:       time.Now().UTC(),
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}).Error; err != nil {
+		t.Fatalf("create core monitor config: %v", err)
+	}
+
+	_, err := server.reportService.StoreMonitorReport(monitor.ID, service.MonitorReportPayload{
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Health:    "down",
+		Metrics: map[string]interface{}{
+			"runner":       "core",
+			"failure_step": "checkout",
+		},
+	})
+	if err != nil {
+		t.Fatalf("store core down report: %v", err)
+	}
+
+	var incident db.Incident
+	if err := server.db.Where("monitor_id = ?", monitor.ID).First(&incident).Error; err != nil {
+		t.Fatalf("find core incident: %v", err)
+	}
+	if incident.Severity != "critical" {
+		t.Fatalf("core incident severity = %q, want critical", incident.Severity)
+	}
+
+	listResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents?monitor_id="+monitor.ID, nil, "")
+	if listResp.Code != http.StatusOK {
+		t.Fatalf("list core incidents status = %d, body = %s", listResp.Code, listResp.Body.String())
+	}
+	var listed struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Incidents []struct {
+				Severity string `json:"severity"`
+			} `json:"incidents"`
+			Count int64 `json:"count"`
+		} `json:"data"`
+	}
+	decodeResponse(t, listResp, &listed)
+	if !listed.Success || listed.Data.Count != 1 || len(listed.Data.Incidents) != 1 || listed.Data.Incidents[0].Severity != "critical" {
+		t.Fatalf("listed core incident severity = %+v, want critical", listed)
+	}
+
+	detailResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents/"+incident.ID, nil, "")
+	if detailResp.Code != http.StatusOK {
+		t.Fatalf("detail core incident status = %d, body = %s", detailResp.Code, detailResp.Body.String())
+	}
+	var detail struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Incident struct {
+				Severity string `json:"severity"`
+			} `json:"incident"`
+		} `json:"data"`
+	}
+	decodeResponse(t, detailResp, &detail)
+	if !detail.Success || detail.Data.Incident.Severity != "critical" {
+		t.Fatalf("detail core incident severity = %+v, want critical", detail)
+	}
+}
+
+func TestCoreMonitorIncidentSeverityInvalidOverrideFallsBack(t *testing.T) {
+	server := setupTestServer(t)
+	monitor := db.Monitor{
+		ID:                       "monitor-core-severity-invalid",
+		AgentID:                  "agent-core-severity-invalid",
+		Name:                     "API health",
+		Type:                     "http",
+		Lifecycle:                "active",
+		Health:                   "unknown",
+		ComputedHealth:           "unknown",
+		ReportingIntervalSeconds: 60,
+		CreatedAt:                time.Now(),
+		UpdatedAt:                time.Now(),
+	}
+	if err := server.db.Create(&monitor).Error; err != nil {
+		t.Fatalf("create core monitor: %v", err)
+	}
+	if err := server.db.Create(&db.CoreMonitorConfig{
+		MonitorID:       monitor.ID,
+		Kind:            "http",
+		ConfigJSON:      `{"url":"https://api.example.com/health","incident_severity":"urgent"}`,
+		SecretRefJSON:   `{}`,
+		IntervalSeconds: 60,
+		TimeoutSeconds:  10,
+		NextRunAt:       time.Now().UTC(),
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}).Error; err != nil {
+		t.Fatalf("create core monitor config: %v", err)
+	}
+
+	_, err := server.reportService.StoreMonitorReport(monitor.ID, service.MonitorReportPayload{
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Health:    "down",
+		Metrics:   map[string]interface{}{"runner": "core", "status_code": 500},
+	})
+	if err != nil {
+		t.Fatalf("store core down report: %v", err)
+	}
+
+	var incident db.Incident
+	if err := server.db.Where("monitor_id = ?", monitor.ID).First(&incident).Error; err != nil {
+		t.Fatalf("find core incident: %v", err)
+	}
+	if incident.Severity != "high" {
+		t.Fatalf("core incident severity = %q, want high fallback", incident.Severity)
 	}
 }
 

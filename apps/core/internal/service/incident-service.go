@@ -113,9 +113,10 @@ func (s *IncidentService) ReconcileStaleMonitors(agentID string) error {
 func (s *IncidentService) openOrUpdateIncident(agent db.Agent, monitor db.Monitor, monitorReportID string, health string, incidentState string) error {
 	now := time.Now().UTC()
 	message := incidentMessage(agent, monitor, health)
+	severity := s.monitorIncidentSeverity(agent, monitor, health)
 
 	if monitor.ActiveIncidentID != "" {
-		if updated, err := s.updateActiveIncidentByID(monitor.ActiveIncidentID, monitor.ID, monitorReportID, incidentSeverity(health), message, incidentState); err != nil {
+		if updated, err := s.updateActiveIncidentByID(monitor.ActiveIncidentID, monitor.ID, monitorReportID, severity, message, incidentState); err != nil {
 			return err
 		} else if updated {
 			return nil
@@ -128,7 +129,7 @@ func (s *IncidentService) openOrUpdateIncident(agent db.Agent, monitor db.Monito
 	}
 	if found {
 		updates := map[string]interface{}{
-			"severity":      incidentSeverity(health),
+			"severity":      severity,
 			"last_event_at": now,
 			"latest_event":  message,
 		}
@@ -144,7 +145,7 @@ func (s *IncidentService) openOrUpdateIncident(agent db.Agent, monitor db.Monito
 	newIncident := db.Incident{
 		ID:                 utils.GenerateID("incident"),
 		Status:             "open",
-		Severity:           incidentSeverity(health),
+		Severity:           severity,
 		Title:              incidentTitle(agent, monitor, health),
 		AgentID:            agent.ID,
 		MonitorID:          monitor.ID,
@@ -429,6 +430,73 @@ func incidentMessage(agent db.Agent, monitor db.Monitor, health string) string {
 
 func isCoreOwnerAgent(agent db.Agent) bool {
 	return agent.MachineId == coreOwnerMachineID
+}
+
+type coreMonitorIncidentConfig struct {
+	IncidentSeverity string `json:"incident_severity"`
+	Severity         string `json:"severity"`
+}
+
+func (s *IncidentService) monitorIncidentSeverity(agent db.Agent, monitor db.Monitor, health string) string {
+	if !isCoreOwnerAgent(agent) {
+		return incidentSeverity(health)
+	}
+
+	var monitorConfig db.CoreMonitorConfig
+	if err := s.db.Where("monitor_id = ?", monitor.ID).First(&monitorConfig).Error; err != nil {
+		return incidentSeverity(health)
+	}
+	if override, ok := coreMonitorIncidentSeverityOverride(monitorConfig.ConfigJSON); ok {
+		return override
+	}
+	return coreMonitorIncidentSeverityDefault(monitorConfig.Kind, health)
+}
+
+func coreMonitorIncidentSeverityOverride(configJSON string) (string, bool) {
+	var config coreMonitorIncidentConfig
+	if err := json.Unmarshal([]byte(configJSON), &config); err != nil {
+		return "", false
+	}
+	severity := normalizeIncidentSeverity(config.IncidentSeverity)
+	if severity == "" {
+		severity = normalizeIncidentSeverity(config.Severity)
+	}
+	if !validIncidentSeverity(severity) {
+		return "", false
+	}
+	return severity, true
+}
+
+func coreMonitorIncidentSeverityDefault(kind string, health string) string {
+	normalizedKind := strings.ToLower(strings.TrimSpace(kind))
+	switch normalizedKind {
+	case "tls", "tls_certificate", "domain_expiration":
+		if health == "degraded" {
+			return "medium"
+		}
+	case "synthetic", "synthetic_multi_step", "playwright", "playwright_transaction":
+		if health == "down" || health == "stale" {
+			return "high"
+		}
+	case "http", "http_status", "http_keyword", "expected_status", "api_request", "tcp", "tcp_port", "dns", "udp", "ping", "mail", "smtp", "imap", "pop", "pop3":
+		if health == "down" || health == "stale" {
+			return "high"
+		}
+	}
+	return incidentSeverity(health)
+}
+
+func normalizeIncidentSeverity(severity string) string {
+	return strings.ToLower(strings.TrimSpace(severity))
+}
+
+func validIncidentSeverity(severity string) bool {
+	switch severity {
+	case "low", "medium", "high", "critical", "error":
+		return true
+	default:
+		return false
+	}
 }
 
 func incidentSeverity(health string) string {
