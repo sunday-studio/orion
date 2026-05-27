@@ -366,6 +366,57 @@ definitions:
       username_configured:
         type: boolean
     type: object
+  api.CoreMonitorConfigResponse:
+    properties:
+      config:
+        additionalProperties: true
+        type: object
+      confirmation_period_seconds:
+        type: integer
+      interval_seconds:
+        type: integer
+      kind:
+        type: string
+      last_failure_at:
+        type: string
+      last_run_at:
+        type: string
+      last_success_at:
+        type: string
+      lease_expires_at:
+        type: string
+      lease_owner:
+        type: string
+      monitor_id:
+        type: string
+      next_run_at:
+        type: string
+      paused:
+        type: boolean
+      recovery_period_seconds:
+        type: integer
+      secret_refs:
+        additionalProperties: true
+        type: object
+      timeout_seconds:
+        type: integer
+    type: object
+  api.CoreMonitorManagementResponse:
+    properties:
+      config:
+        $ref: '#/definitions/api.CoreMonitorConfigResponse'
+      monitor:
+        $ref: '#/definitions/api.MonitorResponse'
+      result:
+        $ref: '#/definitions/api.CoreMonitorTestNowResponse'
+    type: object
+  api.CoreMonitorTestNowResponse:
+    properties:
+      monitor_id:
+        type: string
+      status:
+        type: string
+    type: object
   api.DataLifecycleRollupRequest:
     properties:
       date:
@@ -1390,6 +1441,64 @@ definitions:
         type: boolean
       skipped_because_no_reports:
         type: boolean
+    type: object
+  service.CoreManagedMonitorCreateRequest:
+    properties:
+      config:
+        additionalProperties: true
+        type: object
+      confirmation_period_seconds:
+        type: integer
+      description:
+        type: string
+      interval_seconds:
+        type: integer
+      kind:
+        type: string
+      name:
+        type: string
+      paused:
+        type: boolean
+      recovery_period_seconds:
+        type: integer
+      secret_refs:
+        additionalProperties: true
+        type: object
+      timeout_seconds:
+        type: integer
+      type:
+        type: string
+    required:
+    - config
+    - kind
+    - name
+    type: object
+  service.CoreManagedMonitorUpdateRequest:
+    properties:
+      config:
+        additionalProperties: true
+        type: object
+      confirmation_period_seconds:
+        type: integer
+      description:
+        type: string
+      interval_seconds:
+        type: integer
+      kind:
+        type: string
+      name:
+        type: string
+      paused:
+        type: boolean
+      recovery_period_seconds:
+        type: integer
+      secret_refs:
+        additionalProperties: true
+        type: object
+      timeout_seconds:
+        type: integer
+      type:
+        type: string
     type: object
   service.DataLifecycleSettingsPayload:
     properties:
@@ -4696,7 +4805,77 @@ paths:
       summary: List monitors
       tags:
       - monitors
+    post:
+      consumes:
+      - application/json
+      description: Create a Core-managed monitor and its runner configuration.
+      operationId: createCoreMonitor
+      parameters:
+      - description: Core monitor create request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.CoreManagedMonitorCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.CoreMonitorManagementResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Create a Core monitor
+      tags:
+      - monitors
   /v1/monitors/{id}:
+    delete:
+      description: Soft delete a Core-managed monitor and pause its runner configuration.
+      operationId: deleteCoreMonitor
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    success:
+                      type: boolean
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Delete a Core monitor
+      tags:
+      - monitors
     get:
       consumes:
       - application/json
@@ -4739,6 +4918,83 @@ paths:
           schema:
             $ref: '#/definitions/utils.APIResponse'
       summary: Get monitor details
+      tags:
+      - monitors
+    patch:
+      consumes:
+      - application/json
+      description: Update a Core-managed monitor and its runner configuration.
+      operationId: updateCoreMonitor
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Core monitor update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.CoreManagedMonitorUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.CoreMonitorManagementResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Update a Core monitor
+      tags:
+      - monitors
+  /v1/monitors/{id}/config:
+    get:
+      description: Return redacted Core-managed monitor configuration.
+      operationId: getCoreMonitorConfig
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.CoreMonitorManagementResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get Core monitor config
       tags:
       - monitors
   /v1/monitors/{id}/history:
@@ -4802,6 +5058,106 @@ paths:
           schema:
             $ref: '#/definitions/utils.APIResponse'
       summary: Get monitor history
+      tags:
+      - monitors
+  /v1/monitors/{id}/pause:
+    post:
+      description: Pause a Core-managed monitor so the worker will not claim it.
+      operationId: pauseCoreMonitor
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.CoreMonitorManagementResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Pause a Core monitor
+      tags:
+      - monitors
+  /v1/monitors/{id}/resume:
+    post:
+      description: Resume a Core-managed monitor and make it due immediately.
+      operationId: resumeCoreMonitor
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.CoreMonitorManagementResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Resume a Core monitor
+      tags:
+      - monitors
+  /v1/monitors/{id}/test:
+    post:
+      description: Execute a Core-managed monitor immediately and store the resulting
+        monitor report.
+      operationId: testCoreMonitor
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.CoreMonitorManagementResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Test a Core monitor
       tags:
       - monitors
   /v1/monitors/{id}/uptime:

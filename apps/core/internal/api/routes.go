@@ -21,23 +21,24 @@ import (
 )
 
 type Server struct {
-	db                        *gorm.DB
-	logger                    *logging.Logger
-	cfg                       *config.Config
-	agentService              *service.AgentService
-	authService               *service.AuthService
-	reportService             *service.ReportService
-	serviceLogService         *service.ServiceLogService
-	monitorService            *service.MonitorService
-	settingsService           *service.SettingsService
-	rollupService             *service.RollupService
-	archiveService            *service.ArchiveService
-	workerDiagnosticsService  *service.WorkerDiagnosticsService
-	runtimeDiagnosticsService *service.RuntimeDiagnosticsService
-	loginLimiter              *RateLimiter
-	publicSubscriberLimiter   *RateLimiter
-	publicStatusMailSend      func(publicStatusMailMessage) error
-	router                    *gin.Engine
+	db                           *gorm.DB
+	logger                       *logging.Logger
+	cfg                          *config.Config
+	agentService                 *service.AgentService
+	authService                  *service.AuthService
+	reportService                *service.ReportService
+	serviceLogService            *service.ServiceLogService
+	monitorService               *service.MonitorService
+	coreMonitorManagementService *service.CoreMonitorManagementService
+	settingsService              *service.SettingsService
+	rollupService                *service.RollupService
+	archiveService               *service.ArchiveService
+	workerDiagnosticsService     *service.WorkerDiagnosticsService
+	runtimeDiagnosticsService    *service.RuntimeDiagnosticsService
+	loginLimiter                 *RateLimiter
+	publicSubscriberLimiter      *RateLimiter
+	publicStatusMailSend         func(publicStatusMailMessage) error
+	router                       *gin.Engine
 }
 
 func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *Server {
@@ -46,6 +47,7 @@ func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *S
 	reportService := service.NewReportService(database, logger, cfg)
 	serviceLogService := service.NewServiceLogService(database, logger)
 	monitorService := service.NewMonitorService(database, logger)
+	coreMonitorManagementService := service.NewCoreMonitorManagementService(database, logger)
 	settingsService := service.NewSettingsService(database, logger, cfg.DataDir)
 	rollupService := service.NewRollupService(database, logger)
 	archiveService := service.NewArchiveService(database, logger, cfg.DataDir)
@@ -70,22 +72,23 @@ func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *S
 	router.Use(RuntimeDiagnosticsMiddleware(runtimeDiagnosticsService))
 
 	server := &Server{
-		db:                        database,
-		logger:                    logger,
-		cfg:                       cfg,
-		agentService:              agentService,
-		authService:               authService,
-		reportService:             reportService,
-		serviceLogService:         serviceLogService,
-		monitorService:            monitorService,
-		settingsService:           settingsService,
-		rollupService:             rollupService,
-		archiveService:            archiveService,
-		workerDiagnosticsService:  workerDiagnosticsService,
-		runtimeDiagnosticsService: runtimeDiagnosticsService,
-		loginLimiter:              NewRateLimiter(cfg.LoginRateLimitAttempts, time.Duration(cfg.LoginRateLimitWindowSecs)*time.Second),
-		publicSubscriberLimiter:   NewRateLimiter(10, time.Minute),
-		router:                    router,
+		db:                           database,
+		logger:                       logger,
+		cfg:                          cfg,
+		agentService:                 agentService,
+		authService:                  authService,
+		reportService:                reportService,
+		serviceLogService:            serviceLogService,
+		monitorService:               monitorService,
+		coreMonitorManagementService: coreMonitorManagementService,
+		settingsService:              settingsService,
+		rollupService:                rollupService,
+		archiveService:               archiveService,
+		workerDiagnosticsService:     workerDiagnosticsService,
+		runtimeDiagnosticsService:    runtimeDiagnosticsService,
+		loginLimiter:                 NewRateLimiter(cfg.LoginRateLimitAttempts, time.Duration(cfg.LoginRateLimitWindowSecs)*time.Second),
+		publicSubscriberLimiter:      NewRateLimiter(10, time.Minute),
+		router:                       router,
 	}
 	server.publicStatusMailSend = server.deliverPublicStatusMail
 
@@ -144,7 +147,14 @@ func (s *Server) setupRoutes() {
 			frontend.GET("/agents/:id/uptime", s.getAgentUptime)
 			frontend.GET("/agents/:id/monitors", s.listMonitors)
 			frontend.GET("/monitors", s.listAllMonitors)
+			frontend.POST("/monitors", s.createCoreMonitor)
 			frontend.GET("/monitors/summary", s.getMonitorSummary)
+			frontend.PATCH("/monitors/:id", s.updateCoreMonitor)
+			frontend.DELETE("/monitors/:id", s.deleteCoreMonitor)
+			frontend.GET("/monitors/:id/config", s.getCoreMonitorConfig)
+			frontend.POST("/monitors/:id/pause", s.pauseCoreMonitor)
+			frontend.POST("/monitors/:id/resume", s.resumeCoreMonitor)
+			frontend.POST("/monitors/:id/test", s.testCoreMonitor)
 			frontend.GET("/monitors/:id", s.getMonitorDetail)
 			frontend.GET("/monitors/:id/uptime", s.getMonitorUptime)
 			frontend.GET("/monitors/:id/history", s.getMonitorHistory)

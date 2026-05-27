@@ -111,7 +111,7 @@ availability only; Core worker state is exposed through `/v1/diagnostics/core-wo
 - `GET /v1/diagnostics/core-worker`
   Returns Core monitor worker heartbeat status. Requires frontend/admin auth when configured.
 
-Planned Core monitor admin endpoints:
+Core monitor admin endpoints:
 
 - `POST /v1/monitors`
   Creates a Core-managed monitor. Frontend/admin auth.
@@ -124,7 +124,7 @@ Planned Core monitor admin endpoints:
 - `POST /v1/monitors/:id/resume`
   Resumes a paused Core-managed monitor. Frontend/admin auth.
 - `POST /v1/monitors/:id/test`
-  Requests one immediate Core-managed check. Frontend/admin auth.
+  Executes one immediate Core-managed check and stores the resulting report. Frontend/admin auth.
 - `GET /v1/monitors/:id/config`
   Returns redacted Core monitor configuration for editing. Frontend/admin auth.
 

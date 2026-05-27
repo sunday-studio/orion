@@ -2108,6 +2108,203 @@ func TestCoreWorkerReportsOpenAndResolveIncident(t *testing.T) {
 	}
 }
 
+func TestCoreMonitorManagementLifecycle(t *testing.T) {
+	server := setupTestServer(t)
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/health" {
+			http.NotFound(w, r)
+			return
+		}
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte("ready"))
+	}))
+	defer target.Close()
+
+	createResp := performJSONRequest(t, server, http.MethodPost, "/v1/monitors", map[string]interface{}{
+		"name":             "Core API probe",
+		"description":      "managed by core",
+		"kind":             "http",
+		"interval_seconds": 30,
+		"timeout_seconds":  2,
+		"config": map[string]interface{}{
+			"url":               target.URL + "/health",
+			"expected_status":   http.StatusAccepted,
+			"authorization":     "Bearer should-not-leak",
+			"required_contains": []string{"ready"},
+		},
+		"secret_refs": map[string]interface{}{
+			"header": "secret-ref",
+		},
+	}, "")
+	if createResp.Code != http.StatusCreated {
+		t.Fatalf("create core monitor status = %d, body = %s", createResp.Code, createResp.Body.String())
+	}
+	assertNotContains(t, createResp.Body.String(), "should-not-leak")
+	assertNotContains(t, createResp.Body.String(), "secret-ref")
+
+	var created struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Monitor struct {
+				ID        string `json:"id"`
+				OwnerKind string `json:"owner_kind"`
+				Source    string `json:"source"`
+			} `json:"monitor"`
+			Config struct {
+				Kind       string                 `json:"kind"`
+				Config     map[string]interface{} `json:"config"`
+				SecretRefs map[string]interface{} `json:"secret_refs"`
+			} `json:"config"`
+		} `json:"data"`
+	}
+	decodeResponse(t, createResp, &created)
+	if !created.Success || created.Data.Monitor.ID == "" {
+		t.Fatalf("create response = %+v, want monitor id", created)
+	}
+	monitorID := created.Data.Monitor.ID
+	if created.Data.Monitor.OwnerKind != "core" || created.Data.Monitor.Source != "core" {
+		t.Fatalf("owner fields = %+v, want core/core", created.Data.Monitor)
+	}
+	if created.Data.Config.Kind != "http" || created.Data.Config.Config["authorization"] != "[redacted]" || created.Data.Config.SecretRefs["header"] != "[redacted]" {
+		t.Fatalf("redacted config = %+v, secret refs = %+v", created.Data.Config.Config, created.Data.Config.SecretRefs)
+	}
+
+	configResp := performJSONRequest(t, server, http.MethodGet, "/v1/monitors/"+monitorID+"/config", nil, "")
+	if configResp.Code != http.StatusOK {
+		t.Fatalf("get config status = %d, body = %s", configResp.Code, configResp.Body.String())
+	}
+	assertNotContains(t, configResp.Body.String(), "should-not-leak")
+
+	updateResp := performJSONRequest(t, server, http.MethodPatch, "/v1/monitors/"+monitorID, map[string]interface{}{
+		"name":             "Core API probe updated",
+		"interval_seconds": 45,
+		"config": map[string]interface{}{
+			"url":             target.URL + "/health",
+			"expected_status": http.StatusAccepted,
+			"token":           "patch-secret",
+		},
+	}, "")
+	if updateResp.Code != http.StatusOK {
+		t.Fatalf("update status = %d, body = %s", updateResp.Code, updateResp.Body.String())
+	}
+	assertNotContains(t, updateResp.Body.String(), "patch-secret")
+	var updated db.Monitor
+	if err := server.db.Where("id = ?", monitorID).First(&updated).Error; err != nil {
+		t.Fatalf("find updated monitor: %v", err)
+	}
+	if updated.Name != "Core API probe updated" || updated.ReportingIntervalSeconds != 45 {
+		t.Fatalf("updated monitor = %+v, want updated name and interval", updated)
+	}
+
+	pauseResp := performJSONRequest(t, server, http.MethodPost, "/v1/monitors/"+monitorID+"/pause", nil, "")
+	if pauseResp.Code != http.StatusOK {
+		t.Fatalf("pause status = %d, body = %s", pauseResp.Code, pauseResp.Body.String())
+	}
+	var paused db.CoreMonitorConfig
+	if err := server.db.Where("monitor_id = ?", monitorID).First(&paused).Error; err != nil {
+		t.Fatalf("find paused core monitor config: %v", err)
+	}
+	if !paused.Paused {
+		t.Fatalf("paused = false, want true")
+	}
+
+	resumeResp := performJSONRequest(t, server, http.MethodPost, "/v1/monitors/"+monitorID+"/resume", nil, "")
+	if resumeResp.Code != http.StatusOK {
+		t.Fatalf("resume status = %d, body = %s", resumeResp.Code, resumeResp.Body.String())
+	}
+	var resumed db.CoreMonitorConfig
+	if err := server.db.Where("monitor_id = ?", monitorID).First(&resumed).Error; err != nil {
+		t.Fatalf("find resumed core monitor config: %v", err)
+	}
+	if resumed.Paused || resumed.NextRunAt.After(time.Now().UTC().Add(2*time.Second)) {
+		t.Fatalf("resumed config = %+v, want unpaused and due", resumed)
+	}
+
+	testResp := performJSONRequest(t, server, http.MethodPost, "/v1/monitors/"+monitorID+"/test", nil, "")
+	if testResp.Code != http.StatusOK {
+		t.Fatalf("test-now status = %d, body = %s", testResp.Code, testResp.Body.String())
+	}
+	var reportCount int64
+	if err := server.db.Model(&db.MonitorReport{}).Where("monitor_id = ?", monitorID).Count(&reportCount).Error; err != nil {
+		t.Fatalf("count test-now reports: %v", err)
+	}
+	if reportCount != 1 {
+		t.Fatalf("test-now report count = %d, want 1", reportCount)
+	}
+	var tested db.CoreMonitorConfig
+	if err := server.db.Where("monitor_id = ?", monitorID).First(&tested).Error; err != nil {
+		t.Fatalf("find tested core monitor config: %v", err)
+	}
+	if tested.LastRunAt == nil || tested.LastSuccessAt == nil {
+		t.Fatalf("tested config = %+v, want last run and success", tested)
+	}
+
+	deleteResp := performJSONRequest(t, server, http.MethodDelete, "/v1/monitors/"+monitorID, nil, "")
+	if deleteResp.Code != http.StatusOK {
+		t.Fatalf("delete status = %d, body = %s", deleteResp.Code, deleteResp.Body.String())
+	}
+	var deleted db.Monitor
+	if err := server.db.Where("id = ?", monitorID).First(&deleted).Error; err != nil {
+		t.Fatalf("find deleted monitor: %v", err)
+	}
+	if deleted.Lifecycle != "deleted" {
+		t.Fatalf("deleted lifecycle = %q, want deleted", deleted.Lifecycle)
+	}
+}
+
+func TestCoreMonitorManagementRejectsUnsupportedKind(t *testing.T) {
+	server := setupTestServer(t)
+	resp := performJSONRequest(t, server, http.MethodPost, "/v1/monitors", map[string]interface{}{
+		"name":   "Unsupported",
+		"kind":   "coffee",
+		"config": map[string]interface{}{},
+	}, "")
+	if resp.Code != http.StatusBadRequest {
+		t.Fatalf("unsupported kind status = %d, body = %s", resp.Code, resp.Body.String())
+	}
+}
+
+func TestCoreMonitorManagementRejectsInvalidConfig(t *testing.T) {
+	server := setupTestServer(t)
+
+	createResp := performJSONRequest(t, server, http.MethodPost, "/v1/monitors", map[string]interface{}{
+		"name":   "Missing URL",
+		"kind":   "http",
+		"config": map[string]interface{}{},
+	}, "")
+	if createResp.Code != http.StatusBadRequest {
+		t.Fatalf("invalid create status = %d, body = %s", createResp.Code, createResp.Body.String())
+	}
+
+	validResp := performJSONRequest(t, server, http.MethodPost, "/v1/monitors", map[string]interface{}{
+		"name": "Valid URL",
+		"kind": "http",
+		"config": map[string]interface{}{
+			"url": "https://example.com/health",
+		},
+	}, "")
+	if validResp.Code != http.StatusCreated {
+		t.Fatalf("valid create status = %d, body = %s", validResp.Code, validResp.Body.String())
+	}
+	var created struct {
+		Data struct {
+			Monitor struct {
+				ID string `json:"id"`
+			} `json:"monitor"`
+		} `json:"data"`
+	}
+	decodeResponse(t, validResp, &created)
+
+	updateResp := performJSONRequest(t, server, http.MethodPatch, "/v1/monitors/"+created.Data.Monitor.ID, map[string]interface{}{
+		"config": map[string]interface{}{
+			"url": "ftp://example.com/health",
+		},
+	}, "")
+	if updateResp.Code != http.StatusBadRequest {
+		t.Fatalf("invalid update status = %d, body = %s", updateResp.Code, updateResp.Body.String())
+	}
+}
+
 func TestCoreMonitorIncidentSeverityOverrideAppearsInResponses(t *testing.T) {
 	server := setupTestServer(t)
 	monitor := db.Monitor{

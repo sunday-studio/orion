@@ -4683,6 +4683,63 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "post": {
+                "description": "Create a Core-managed monitor and its runner configuration.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "Create a Core monitor",
+                "operationId": "createCoreMonitor",
+                "parameters": [
+                    {
+                        "description": "Core monitor create request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.CoreManagedMonitorCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/api.CoreMonitorManagementResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
             }
         },
         "/v1/monitors/summary": {
@@ -4796,6 +4853,187 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "delete": {
+                "description": "Soft delete a Core-managed monitor and pause its runner configuration.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "Delete a Core monitor",
+                "operationId": "deleteCoreMonitor",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Monitor ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "description": "Update a Core-managed monitor and its runner configuration.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "Update a Core monitor",
+                "operationId": "updateCoreMonitor",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Monitor ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Core monitor update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.CoreManagedMonitorUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/api.CoreMonitorManagementResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/monitors/{id}/config": {
+            "get": {
+                "description": "Return redacted Core-managed monitor configuration.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "Get Core monitor config",
+                "operationId": "getCoreMonitorConfig",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Monitor ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/api.CoreMonitorManagementResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
             }
         },
         "/v1/monitors/{id}/history": {
@@ -4879,6 +5117,168 @@ const docTemplate = `{
                         "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/monitors/{id}/pause": {
+            "post": {
+                "description": "Pause a Core-managed monitor so the worker will not claim it.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "Pause a Core monitor",
+                "operationId": "pauseCoreMonitor",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Monitor ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/api.CoreMonitorManagementResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/monitors/{id}/resume": {
+            "post": {
+                "description": "Resume a Core-managed monitor and make it due immediately.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "Resume a Core monitor",
+                "operationId": "resumeCoreMonitor",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Monitor ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/api.CoreMonitorManagementResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/monitors/{id}/test": {
+            "post": {
+                "description": "Execute a Core-managed monitor immediately and store the resulting monitor report.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "Test a Core monitor",
+                "operationId": "testCoreMonitor",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Monitor ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/api.CoreMonitorManagementResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "404": {
@@ -7456,6 +7856,83 @@ const docTemplate = `{
                 }
             }
         },
+        "api.CoreMonitorConfigResponse": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "confirmation_period_seconds": {
+                    "type": "integer"
+                },
+                "interval_seconds": {
+                    "type": "integer"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "last_failure_at": {
+                    "type": "string"
+                },
+                "last_run_at": {
+                    "type": "string"
+                },
+                "last_success_at": {
+                    "type": "string"
+                },
+                "lease_expires_at": {
+                    "type": "string"
+                },
+                "lease_owner": {
+                    "type": "string"
+                },
+                "monitor_id": {
+                    "type": "string"
+                },
+                "next_run_at": {
+                    "type": "string"
+                },
+                "paused": {
+                    "type": "boolean"
+                },
+                "recovery_period_seconds": {
+                    "type": "integer"
+                },
+                "secret_refs": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "timeout_seconds": {
+                    "type": "integer"
+                }
+            }
+        },
+        "api.CoreMonitorManagementResponse": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "$ref": "#/definitions/api.CoreMonitorConfigResponse"
+                },
+                "monitor": {
+                    "$ref": "#/definitions/api.MonitorResponse"
+                },
+                "result": {
+                    "$ref": "#/definitions/api.CoreMonitorTestNowResponse"
+                }
+            }
+        },
+        "api.CoreMonitorTestNowResponse": {
+            "type": "object",
+            "properties": {
+                "monitor_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "api.DataLifecycleRollupRequest": {
             "type": "object",
             "properties": {
@@ -9018,6 +9495,91 @@ const docTemplate = `{
                 },
                 "skipped_because_no_reports": {
                     "type": "boolean"
+                }
+            }
+        },
+        "service.CoreManagedMonitorCreateRequest": {
+            "type": "object",
+            "required": [
+                "config",
+                "kind",
+                "name"
+            ],
+            "properties": {
+                "config": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "confirmation_period_seconds": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "interval_seconds": {
+                    "type": "integer"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "paused": {
+                    "type": "boolean"
+                },
+                "recovery_period_seconds": {
+                    "type": "integer"
+                },
+                "secret_refs": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "timeout_seconds": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.CoreManagedMonitorUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "confirmation_period_seconds": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "interval_seconds": {
+                    "type": "integer"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "paused": {
+                    "type": "boolean"
+                },
+                "recovery_period_seconds": {
+                    "type": "integer"
+                },
+                "secret_refs": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "timeout_seconds": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string"
                 }
             }
         },

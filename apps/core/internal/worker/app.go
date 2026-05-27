@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"orion/core/internal/config"
@@ -83,6 +84,12 @@ type App struct {
 	playwrightRun  playwrightRunFunc
 	scheduler      *service.CoreMonitorSchedulerService
 	reports        *service.ReportService
+}
+
+type checkRunResult struct {
+	finishedAt time.Time
+	success    bool
+	complete   bool
 }
 
 // NewApp creates a worker app bound to the Core database.
@@ -227,7 +234,53 @@ func (a *App) runDueChecks(ctx context.Context) error {
 	return nil
 }
 
+// RunImmediateCheck executes one Core monitor check without requiring a scheduler lease.
+func (a *App) RunImmediateCheck(ctx context.Context, monitorConfig db.CoreMonitorConfig) error {
+	result, err := a.runCheckAndStore(ctx, monitorConfig)
+	if err != nil {
+		return err
+	}
+	if !result.complete {
+		return fmt.Errorf("unsupported core monitor kind %q", monitorConfig.Kind)
+	}
+	interval := time.Duration(monitorConfig.IntervalSeconds) * time.Second
+	if interval <= 0 {
+		interval = defaultCheckInterval
+	}
+	updates := map[string]interface{}{
+		"last_run_at":      &result.finishedAt,
+		"next_run_at":      result.finishedAt.Add(interval),
+		"lease_owner":      "",
+		"lease_expires_at": nil,
+		"updated_at":       result.finishedAt,
+	}
+	if result.success {
+		updates["last_success_at"] = &result.finishedAt
+	} else {
+		updates["last_failure_at"] = &result.finishedAt
+	}
+	return a.db.Model(&db.CoreMonitorConfig{}).Where("monitor_id = ?", monitorConfig.MonitorID).Updates(updates).Error
+}
+
 func (a *App) runClaimedCheck(ctx context.Context, monitorConfig db.CoreMonitorConfig) error {
+	result, err := a.runCheckAndStore(ctx, monitorConfig)
+	if err != nil {
+		return err
+	}
+	if !result.complete {
+		return nil
+	}
+
+	_, err = a.scheduler.CompleteCoreMonitorCheck(service.CompleteCoreMonitorCheckRequest{
+		MonitorID:  monitorConfig.MonitorID,
+		LeaseOwner: a.workerID,
+		FinishedAt: result.finishedAt,
+		Success:    result.success,
+	})
+	return err
+}
+
+func (a *App) runCheckAndStore(ctx context.Context, monitorConfig db.CoreMonitorConfig) (checkRunResult, error) {
 	finishedAt := time.Now().UTC()
 	success := false
 	complete := true
@@ -294,17 +347,7 @@ func (a *App) runClaimedCheck(ctx context.Context, monitorConfig db.CoreMonitorC
 		a.logger.Warn("Skipping unsupported Core monitor kind", "monitor_id", monitorConfig.MonitorID, "kind", monitorConfig.Kind)
 	}
 	if reportErr != nil {
-		return reportErr
+		return checkRunResult{}, reportErr
 	}
-	if !complete {
-		return nil
-	}
-
-	_, err := a.scheduler.CompleteCoreMonitorCheck(service.CompleteCoreMonitorCheckRequest{
-		MonitorID:  monitorConfig.MonitorID,
-		LeaseOwner: a.workerID,
-		FinishedAt: finishedAt,
-		Success:    success,
-	})
-	return err
+	return checkRunResult{finishedAt: finishedAt, success: success, complete: complete}, nil
 }

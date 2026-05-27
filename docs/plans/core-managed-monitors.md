@@ -478,14 +478,14 @@ Worker deployment requirements:
 
 ## API Plan
 
-New public admin routes should not live under Agent routes:
+Core monitor admin routes live under monitor resources, not Agent routes:
 
 - `POST /v1/monitors`: create Core-managed monitor;
 - `PATCH /v1/monitors/{id}`: edit Core monitor config;
 - `DELETE /v1/monitors/{id}`: soft-delete or disable monitor;
 - `POST /v1/monitors/{id}/pause`;
 - `POST /v1/monitors/{id}/resume`;
-- `POST /v1/monitors/{id}/test`: execute one check now;
+- `POST /v1/monitors/{id}/test`: execute one check now and store the report;
 - `POST /v1/heartbeats/{token}`: receive heartbeat success;
 - `POST /v1/heartbeats/{token}/fail`: receive heartbeat failure;
 - `GET /v1/monitors/{id}/config`: return redacted config for Console editing.
