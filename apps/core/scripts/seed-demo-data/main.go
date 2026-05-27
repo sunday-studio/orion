@@ -187,6 +187,9 @@ func resetSeedData(database *gorm.DB) error {
 			return query.Error
 		}
 	}
+	if err := database.Exec("DELETE FROM core_monitor_configs WHERE monitor_id LIKE ?", "seed-%").Error; err != nil {
+		return err
+	}
 	if err := database.Exec("DELETE FROM monitor_uptime_rollups WHERE monitor_id LIKE ?", "seed-%").Error; err != nil {
 		return err
 	}
@@ -241,6 +244,30 @@ func seed(database *gorm.DB, cfg seedConfig) (seedStats, error) {
 			monitorToScenario[monitor.ID] = sc
 			monitorToTemplate[monitor.ID] = templateByMonitor(monitor)
 		}
+	}
+
+	coreOwner := makeCoreOwner(now)
+	if err := database.Create(&coreOwner).Error; err != nil {
+		return stats, err
+	}
+	stats.agents++
+	coreMonitor := makeCoreMonitor(coreOwner, now)
+	if err := database.Create(&coreMonitor).Error; err != nil {
+		return stats, err
+	}
+	if err := seedCoreMonitorConfig(database, coreMonitor.ID, now); err != nil {
+		return stats, err
+	}
+	stats.monitors++
+	allMonitors = append(allMonitors, coreMonitor)
+	monitorToAgent[coreMonitor.ID] = coreOwner
+	monitorToScenario[coreMonitor.ID] = scenarios[0]
+	monitorToTemplate[coreMonitor.ID] = monitorTemplate{
+		key:         "core-http",
+		name:        "Core HTTP",
+		kind:        "http",
+		description: "Core-managed HTTP status check",
+		intervalSec: 60,
 	}
 
 	for _, monitor := range allMonitors {
@@ -420,6 +447,66 @@ func makeMonitors(agent db.Agent, sc scenario, now time.Time) []db.Monitor {
 		})
 	}
 	return monitors
+}
+
+func makeCoreOwner(now time.Time) db.Agent {
+	return db.Agent{
+		ID:                       "seed-agent-core",
+		MachineId:                "core",
+		Name:                     "Orion Core",
+		OS:                       "linux",
+		Platform:                 "orion",
+		KernelVersion:            "core",
+		Arch:                     "amd64",
+		Token:                    "seed-token-core",
+		ReportingIntervalSeconds: 60,
+		CreatedAt:                now.AddDate(0, 0, -120),
+		LastSeen:                 now,
+		Meta: mustJSON(map[string]interface{}{
+			"seed":  true,
+			"owner": "core",
+		}),
+	}
+}
+
+func makeCoreMonitor(agent db.Agent, now time.Time) db.Monitor {
+	description := "Core-managed HTTP check seeded for Console owner and source filters"
+	lastSuccess := now.Add(-time.Minute)
+	return db.Monitor{
+		ID:                       "seed-monitor-core-public-api",
+		Description:              &description,
+		Type:                     "http",
+		Name:                     "Core Public API",
+		AgentID:                  agent.ID,
+		LastSuccessfulReportAt:   &lastSuccess,
+		ReportingIntervalSeconds: 60,
+		ComputedHealth:           "up",
+		LastHealthComputation:    ptrTime(now),
+		Lifecycle:                "active",
+		Health:                   "up",
+		IncidentState:            "unknown",
+		Meta: mustJSON(map[string]interface{}{
+			"seed":    true,
+			"owner":   "core",
+			"monitor": "core-http",
+		}),
+		CreatedAt: now.AddDate(0, 0, -120),
+		UpdatedAt: now,
+	}
+}
+
+func seedCoreMonitorConfig(database *gorm.DB, monitorID string, now time.Time) error {
+	return database.Create(&db.CoreMonitorConfig{
+		MonitorID:       monitorID,
+		Kind:            "http",
+		ConfigJSON:      mustJSON(map[string]interface{}{"url": "https://status.example.test/health", "expected_status": 200}),
+		SecretRefJSON:   "{}",
+		IntervalSeconds: 60,
+		TimeoutSeconds:  10,
+		NextRunAt:       now.Add(time.Minute),
+		CreatedAt:       now,
+		UpdatedAt:       now,
+	}).Error
 }
 
 func seedAgentReports(database *gorm.DB, agent db.Agent, sc scenario, cfg seedConfig, start time.Time, now time.Time) (int, error) {

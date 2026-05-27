@@ -503,8 +503,16 @@ definitions:
         type: string
       name:
         type: string
+      owner_id:
+        type: string
+      owner_kind:
+        type: string
+      owner_name:
+        type: string
       reporting_interval_seconds:
         type: integer
+      source:
+        type: string
       type:
         type: string
       updated_at:
@@ -4620,6 +4628,18 @@ paths:
       - description: Filter by monitor type
         in: query
         name: type
+        type: string
+      - description: Filter by owner kind (agent|core)
+        in: query
+        name: owner_kind
+        type: string
+      - description: Filter by owner name, id, or machine id
+        in: query
+        name: owner_name
+        type: string
+      - description: Filter by monitor source (agent|core)
+        in: query
+        name: source
         type: string
       - description: Filter by lifecycle status (active|disabled|deleted)
         in: query

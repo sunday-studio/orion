@@ -39,6 +39,15 @@ test("renders primary operations pages with seeded Core data", async ({ page }) 
   await page.getByPlaceholder("Search monitors").fill("Healthy Server HTTP API");
   await expect(page.getByText("Healthy Server HTTP API")).toBeVisible();
 
+  await page.goto("/monitors?owner=core&type=http&source=core");
+  await expect(page.getByRole("heading", { name: "Monitors" })).toBeVisible();
+  await expect(page.getByText("Core Public API")).toBeVisible();
+  await expect(page.getByText("Core", { exact: true })).toBeVisible();
+  await expect(page.getByText("Orion Core")).toBeVisible();
+  await expect(page.getByText("Owner: Core")).toBeVisible();
+  await expect(page.getByText("Type: HTTP")).toBeVisible();
+  await expect(page.getByText("Source: Core")).toBeVisible();
+
   await page.getByRole("link", { name: "Alerts" }).click();
   await expect(page.getByRole("heading", { name: "Alerts" })).toBeVisible();
   await expect(page.getByRole("tab", { name: "Notification Log" })).toBeVisible();

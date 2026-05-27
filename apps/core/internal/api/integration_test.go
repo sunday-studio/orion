@@ -1487,6 +1487,103 @@ func TestListAllMonitorsFiltersCanonicalMonitorTypeAliases(t *testing.T) {
 	}
 }
 
+func TestListAllMonitorsFiltersByOwnerAndSource(t *testing.T) {
+	server := setupTestServer(t)
+	agent := db.Agent{
+		ID:        "agent-monitor-owner-filter",
+		MachineId: "machine-monitor-owner-filter",
+		Name:      "Customer App Agent",
+		OS:        "linux",
+		Arch:      "arm64",
+		Token:     "token-monitor-owner-filter",
+		LastSeen:  time.Now(),
+	}
+	coreOwner := db.Agent{
+		ID:        "agent-core-monitor-owner-filter",
+		MachineId: "core",
+		Name:      "Orion Core",
+		OS:        "linux",
+		Arch:      "arm64",
+		Token:     "token-core-monitor-owner-filter",
+		LastSeen:  time.Now(),
+	}
+	if err := server.db.Create(&[]db.Agent{agent, coreOwner}).Error; err != nil {
+		t.Fatalf("create owner filter agents: %v", err)
+	}
+
+	monitors := []db.Monitor{
+		{
+			ID:        "monitor-agent-owner-filter",
+			AgentID:   agent.ID,
+			Name:      "Agent API check",
+			Type:      "http-healthcheck",
+			Lifecycle: "active",
+			Health:    "up",
+		},
+		{
+			ID:        "monitor-core-owner-filter",
+			AgentID:   coreOwner.ID,
+			Name:      "Core API check",
+			Type:      "http",
+			Lifecycle: "active",
+			Health:    "up",
+		},
+	}
+	if err := server.db.Create(&monitors).Error; err != nil {
+		t.Fatalf("create owner filter monitors: %v", err)
+	}
+	if err := server.db.Create(&db.CoreMonitorConfig{
+		MonitorID:       "monitor-core-owner-filter",
+		Kind:            "http",
+		ConfigJSON:      "{}",
+		SecretRefJSON:   "{}",
+		IntervalSeconds: 60,
+		TimeoutSeconds:  10,
+		NextRunAt:       time.Now().Add(time.Minute),
+	}).Error; err != nil {
+		t.Fatalf("create core monitor config: %v", err)
+	}
+
+	for _, tc := range []struct {
+		query     string
+		wantID    string
+		wantOwner string
+		wantName  string
+	}{
+		{query: "owner_kind=agent", wantID: "monitor-agent-owner-filter", wantOwner: "agent", wantName: "Customer App Agent"},
+		{query: "owner_kind=core", wantID: "monitor-core-owner-filter", wantOwner: "core", wantName: "Orion Core"},
+		{query: "source=agent", wantID: "monitor-agent-owner-filter", wantOwner: "agent", wantName: "Customer App Agent"},
+		{query: "source=core", wantID: "monitor-core-owner-filter", wantOwner: "core", wantName: "Orion Core"},
+		{query: "owner_name=Customer", wantID: "monitor-agent-owner-filter", wantOwner: "agent", wantName: "Customer App Agent"},
+		{query: "owner_name=Orion", wantID: "monitor-core-owner-filter", wantOwner: "core", wantName: "Orion Core"},
+	} {
+		resp := performJSONRequest(t, server, http.MethodGet, "/v1/monitors?"+tc.query, nil, "")
+		if resp.Code != http.StatusOK {
+			t.Fatalf("%s monitor list status = %d, body = %s", tc.query, resp.Code, resp.Body.String())
+		}
+		var listed struct {
+			Success bool `json:"success"`
+			Data    struct {
+				Monitors []struct {
+					ID        string `json:"id"`
+					OwnerKind string `json:"owner_kind"`
+					OwnerName string `json:"owner_name"`
+					Source    string `json:"source"`
+				} `json:"monitors"`
+				Count int64 `json:"count"`
+			} `json:"data"`
+		}
+		decodeResponse(t, resp, &listed)
+		if !listed.Success || listed.Data.Count != 1 || len(listed.Data.Monitors) != 1 {
+			t.Fatalf("%s listed monitors = %+v, want exactly one monitor", tc.query, listed)
+		}
+		got := listed.Data.Monitors[0]
+		if got.ID != tc.wantID || got.OwnerKind != tc.wantOwner || got.OwnerName != tc.wantName || got.Source != tc.wantOwner {
+			t.Fatalf("%s monitor = %+v, want id %s owner/source %s name %s", tc.query, got, tc.wantID, tc.wantOwner, tc.wantName)
+		}
+	}
+}
+
 func TestListAllMonitorsFiltersByComputedHealth(t *testing.T) {
 	server := setupTestServer(t)
 	agent := db.Agent{

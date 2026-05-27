@@ -65,6 +65,10 @@ type MonitorResponse struct {
 	Name                     string     `json:"name"`
 	AgentID                  string     `json:"agent_id"`
 	AgentName                string     `json:"agent_name,omitempty"`
+	OwnerKind                string     `json:"owner_kind"`
+	OwnerID                  string     `json:"owner_id"`
+	OwnerName                string     `json:"owner_name,omitempty"`
+	Source                   string     `json:"source"`
 	LastSuccessfulReportAt   *time.Time `json:"last_successful_report_at"`
 	ReportingIntervalSeconds int        `json:"reporting_interval_seconds"`
 	ComputedHealth           string     `json:"computed_health"`
@@ -372,6 +376,9 @@ func monitorResponse(monitor db.Monitor) MonitorResponse {
 		Type:                     monitor.Type,
 		Name:                     monitor.Name,
 		AgentID:                  monitor.AgentID,
+		OwnerKind:                "agent",
+		OwnerID:                  monitor.AgentID,
+		Source:                   "agent",
 		LastSuccessfulReportAt:   monitor.LastSuccessfulReportAt,
 		ReportingIntervalSeconds: monitor.ReportingIntervalSeconds,
 		ComputedHealth:           monitor.ComputedHealth,
@@ -394,12 +401,17 @@ func monitorResponses(monitors []db.Monitor) []MonitorResponse {
 	return responses
 }
 
-func monitorResponsesWithAgents(monitors []db.Monitor, agentsByID map[string]db.Agent) []MonitorResponse {
+func monitorResponsesWithAgents(monitors []db.Monitor, agentsByID map[string]db.Agent, coreMonitorIDs map[string]struct{}) []MonitorResponse {
 	responses := make([]MonitorResponse, 0, len(monitors))
 	for _, monitor := range monitors {
 		response := monitorResponse(monitor)
 		if agent, ok := agentsByID[monitor.AgentID]; ok {
 			response.AgentName = agent.Name
+			response.OwnerName = agent.Name
+		}
+		if _, ok := coreMonitorIDs[monitor.ID]; ok {
+			response.OwnerKind = "core"
+			response.Source = "core"
 		}
 		responses = append(responses, response)
 	}

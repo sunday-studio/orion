@@ -40,6 +40,9 @@ type ListAllMonitorsOpts struct {
 	Search       string
 	Health       string
 	Type         string
+	OwnerKind    string
+	OwnerName    string
+	Source       string
 	Lifecycle    string
 	StaleOnly    bool
 	HasIncidents bool
@@ -345,6 +348,8 @@ func (s *MonitorService) applyMonitorListFilters(query *gorm.DB, agentID string,
 }
 
 func (s *MonitorService) applyAllMonitorListFilters(query *gorm.DB, opts ListAllMonitorsOpts) *gorm.DB {
+	coreMonitorIDs := s.db.Model(&db.CoreMonitorConfig{}).Select("monitor_id")
+
 	if opts.Search != "" {
 		like := "%" + opts.Search + "%"
 		query = query.Where(
@@ -354,6 +359,28 @@ func (s *MonitorService) applyAllMonitorListFilters(query *gorm.DB, opts ListAll
 			like,
 			s.db.Model(&db.Agent{}).Select("id").Where("name LIKE ? OR machine_id LIKE ?", like, like),
 		)
+	}
+
+	if opts.OwnerName != "" {
+		like := "%" + opts.OwnerName + "%"
+		query = query.Where(
+			"agent_id IN (?)",
+			s.db.Model(&db.Agent{}).Select("id").Where("name LIKE ? OR machine_id LIKE ? OR id LIKE ?", like, like, like),
+		)
+	}
+
+	switch normalizeMonitorOwnerFilter(opts.OwnerKind) {
+	case "core":
+		query = query.Where("id IN (?)", coreMonitorIDs)
+	case "agent":
+		query = query.Where("id NOT IN (?)", coreMonitorIDs)
+	}
+
+	switch normalizeMonitorOwnerFilter(opts.Source) {
+	case "core":
+		query = query.Where("id IN (?)", coreMonitorIDs)
+	case "agent":
+		query = query.Where("id NOT IN (?)", coreMonitorIDs)
 	}
 
 	if opts.Lifecycle != "" {
@@ -384,6 +411,17 @@ func normalizeMonitorTypeFilter(monitorType string) string {
 		return "systemd-service"
 	default:
 		return strings.ToLower(strings.TrimSpace(monitorType))
+	}
+}
+
+func normalizeMonitorOwnerFilter(owner string) string {
+	switch strings.ToLower(strings.TrimSpace(owner)) {
+	case "core", "core-worker", "core_monitor", "core-monitor":
+		return "core"
+	case "agent", "agent-monitor", "agent_monitor":
+		return "agent"
+	default:
+		return ""
 	}
 }
 

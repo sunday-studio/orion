@@ -4587,6 +4587,24 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "Filter by owner kind (agent|core)",
+                        "name": "owner_kind",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by owner name, id, or machine id",
+                        "name": "owner_name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by monitor source (agent|core)",
+                        "name": "source",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "description": "Filter by lifecycle status (active|disabled|deleted)",
                         "name": "lifecycle",
                         "in": "query"
@@ -7646,8 +7664,20 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "owner_id": {
+                    "type": "string"
+                },
+                "owner_kind": {
+                    "type": "string"
+                },
+                "owner_name": {
+                    "type": "string"
+                },
                 "reporting_interval_seconds": {
                     "type": "integer"
+                },
+                "source": {
+                    "type": "string"
                 },
                 "type": {
                     "type": "string"
