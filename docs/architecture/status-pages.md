@@ -361,6 +361,32 @@ Later policies can allow auto-publishing for trusted components:
 - auto-update affected component state;
 - require manual approval for external notification fan-out.
 
+## Public Incident Display Flow
+
+Published incident display is a projection of public incident records, public component links, and public timeline updates. It must not read directly from internal incident event text.
+
+```mermaid
+flowchart TD
+  Visitor["Visitor opens public status page"] --> LoadPage["Load published or unlisted page"]
+  LoadPage --> Active["Load published active incidents"]
+  LoadPage --> Recent["Load recent resolved incidents"]
+  Active --> Components["Load affected public components"]
+  Recent --> Components
+  Components --> Timeline["Load published public updates"]
+  Timeline --> Boundary{"Public DTO boundary"}
+  Boundary -- "safe" --> Render["Render incident title, impact, components, status, and updates"]
+  Boundary -- "unsafe or draft" --> Omit["Omit draft, private, or internal-only data"]
+  Render --> Subscribe["Offer public subscription or feed links when enabled"]
+```
+
+Display rules:
+
+- active published incidents appear above recent resolved incidents;
+- affected component names come from `status_page_components.public_name`;
+- incident timelines use `status_page_incident_updates.public_message`;
+- draft, private, and internal-only incidents are omitted from unauthenticated routes;
+- linked internal incident ids are never included in public payloads.
+
 ## Scheduled Maintenance Flow
 
 Scheduled maintenance is public communication, not necessarily the same as Agent maintenance mode. It should be able to exist before any monitor changes.
@@ -581,6 +607,39 @@ Console should treat status pages as a configuration workflow:
 - publish/unpublish controls.
 
 The editor should make privacy decisions visible. For example, show the public component name next to the internal monitor name and warn when they are identical.
+
+## Admin Workflow Flow
+
+Admin workflows should keep drafting, previewing, validation, publishing, and rollback separate so operators can make public changes deliberately.
+
+```mermaid
+flowchart TD
+  List["Open status page list"] --> Select{"Existing page?"}
+  Select -- "no" --> Draft["Create draft page"]
+  Select -- "yes" --> Edit["Open page editor"]
+  Draft --> Basics["Edit basics and metadata"]
+  Edit --> Basics
+  Basics --> Components["Configure sections, components, and mappings"]
+  Components --> Incidents["Draft public incidents or maintenance"]
+  Incidents --> Preview["Preview public DTO"]
+  Preview --> Validate{"Validation passes?"}
+  Validate -- "no" --> Fix["Fix labels, mappings, visibility, or copy"]
+  Fix --> Preview
+  Validate -- "yes" --> Publish["Publish or update public page"]
+  Publish --> Audit["Record audit event"]
+  Audit --> Monitor["Monitor public payload and subscriber delivery"]
+  Monitor --> Rollback{"Need rollback?"}
+  Rollback -- "yes" --> Unpublish["Unpublish or revert latest draft"]
+  Rollback -- "no" --> Edit
+  Unpublish --> Audit
+```
+
+Admin rules:
+
+- preview must use the same public DTO shape as unauthenticated public reads;
+- publish actions should run validation and record audit events;
+- unpublish should remove public visibility without deleting draft configuration;
+- subscriber delivery diagnostics should stay masked and scoped to public subscriber records.
 
 ## Public Page Experience
 
