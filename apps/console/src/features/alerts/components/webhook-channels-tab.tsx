@@ -4,12 +4,13 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import type { ApiAlertChannelResponse } from "@/orion-sdk";
 import type { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Send, Trash2 } from "lucide-react";
 import { useMemo } from "react";
 import { boolLabel, eventLabel } from "./alert-constants";
 
@@ -45,18 +46,30 @@ type WebhookChannelsTabProps = {
   channels: ApiAlertChannelResponse[];
   error: unknown;
   isLoading: boolean;
+  isTesting: boolean;
   onCreate: () => void;
   onDelete: (channel: ApiAlertChannelResponse) => void;
   onEdit: (channel: ApiAlertChannelResponse) => void;
+  onTest: (channel: ApiAlertChannelResponse) => void;
+  testFeedback: {
+    channelId?: string;
+    message: string;
+    status: "pending" | "success" | "error";
+  } | null;
+  testingChannelId: string | null;
 };
 
 export const WebhookChannelsTab = ({
   channels,
   error,
   isLoading,
+  isTesting,
   onCreate,
   onDelete,
   onEdit,
+  onTest,
+  testFeedback,
+  testingChannelId,
 }: WebhookChannelsTabProps) => {
   const columns = useMemo<ColumnDef<ApiAlertChannelResponse>[]>(
     () => [
@@ -101,8 +114,12 @@ export const WebhookChannelsTab = ({
       {
         id: "actions",
         header: "",
-        cell: ({ row }) =>
-          row.original.type === "webhook" ? (
+        cell: ({ row }) => {
+          const canManageWebhook = row.original.type === "webhook";
+          const canTest = row.original.type === "webhook" || row.original.type === "email";
+          const isTestingThisChannel = isTesting && testingChannelId === row.original.id;
+
+          return canManageWebhook || canTest ? (
             <DropdownMenu>
               <DropdownMenuTrigger
                 aria-label={`Open actions for ${row.original.name ?? "channel"}`}
@@ -111,20 +128,35 @@ export const WebhookChannelsTab = ({
                 <MoreHorizontal className="size-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => onEdit(row.original)}>
-                  <Pencil className="size-4" />
-                  Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onDelete(row.original)}>
-                  <Trash2 className="size-4" />
-                  Delete
-                </DropdownMenuItem>
+                {canTest && (
+                  <DropdownMenuItem
+                    disabled={!row.original.id || isTesting}
+                    onClick={() => onTest(row.original)}
+                  >
+                    <Send className="size-4" />
+                    {isTestingThisChannel ? "Sending test..." : "Send test"}
+                  </DropdownMenuItem>
+                )}
+                {canTest && canManageWebhook && <DropdownMenuSeparator />}
+                {canManageWebhook && (
+                  <>
+                    <DropdownMenuItem onClick={() => onEdit(row.original)}>
+                      <Pencil className="size-4" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onDelete(row.original)}>
+                      <Trash2 className="size-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
-          ) : null,
+          ) : null;
+        },
       },
     ],
-    [onDelete, onEdit],
+    [isTesting, onDelete, onEdit, onTest, testingChannelId],
   );
 
   return (
@@ -140,6 +172,15 @@ export const WebhookChannelsTab = ({
           New webhook
         </Button>
       </div>
+      {testFeedback && (
+        <div
+          className={
+            testFeedback.status === "error" ? "text-sm text-red-700" : "text-sm text-neutral-600"
+          }
+        >
+          {testFeedback.message}
+        </div>
+      )}
       {Boolean(error) && <div className="text-sm">Unable to load alert channels.</div>}
       {!error && (
         <DataTable

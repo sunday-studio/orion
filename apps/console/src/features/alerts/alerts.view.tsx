@@ -7,6 +7,7 @@ import {
   useGetAlertChannels,
   useGetAlertDeliveries,
   useGetAlertRules,
+  useTestAlertChannel,
   useUpdateAlertChannel,
 } from "@/orion-sdk";
 import { parseAsInteger, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
@@ -32,10 +33,22 @@ export const AlertsPage = () => {
   const [webhookUrl, setWebhookUrl] = useState("");
   const [webhookEnabled, setWebhookEnabled] = useState(true);
   const [webhookEvents, setWebhookEvents] = useState<string[]>(defaultAlertEvents);
-  const [{ page, status, incident, tab }, setDeliveryQuery] = useQueryStates({
+  const [testingChannelId, setTestingChannelId] = useState<string | null>(null);
+  const [testFeedback, setTestFeedback] = useState<{
+    channelId?: string;
+    message: string;
+    status: "pending" | "success" | "error";
+  } | null>(null);
+  const [
+    { page, status, incident, tab, type: deliveryType, channel, event_type: eventType },
+    setDeliveryQuery,
+  ] = useQueryStates({
     page: parseAsInteger.withDefault(1),
     status: parseAsStringLiteral(deliveryStatuses).withDefault("all"),
     incident: parseAsString.withDefault(""),
+    type: parseAsString.withDefault("all"),
+    channel: parseAsString.withDefault("all"),
+    event_type: parseAsString.withDefault("all"),
     tab: parseAsStringLiteral(alertTabs).withDefault("logs"),
   });
 
@@ -47,8 +60,12 @@ export const AlertsPage = () => {
     limit: DELIVERY_LIMIT,
     offset,
     status: status === "all" ? undefined : status,
+    type: deliveryType === "all" ? undefined : deliveryType,
+    channel: channel === "all" ? undefined : channel,
+    event_type: eventType === "all" ? undefined : eventType,
     incident_id: incident.trim() || undefined,
   });
+  const channels = useMemo(() => channelsResponse.data?.channels ?? [], [channelsResponse.data]);
 
   const refreshAlertConfiguration = () => {
     void channelsResponse.refetch();
@@ -87,8 +104,39 @@ export const AlertsPage = () => {
       },
     },
   });
+  const testChannel = useTestAlertChannel({
+    mutation: {
+      onSuccess: (data, variables) => {
+        const testedChannel = channels.find((item) => item.id === variables.id);
+        const channelName = testedChannel?.name ?? "alert destination";
+        const deliveryStatus = data.delivery?.status;
 
-  const channels = useMemo(() => channelsResponse.data?.channels ?? [], [channelsResponse.data]);
+        setTestFeedback({
+          channelId: variables.id,
+          message: deliveryStatus
+            ? `Test sent to ${channelName}. Delivery status: ${deliveryStatus}.`
+            : `Test sent to ${channelName}.`,
+          status: "success",
+        });
+        void channelsResponse.refetch();
+        void deliveriesQuery.refetch();
+      },
+      onError: (error, variables) => {
+        const testedChannel = channels.find((item) => item.id === variables.id);
+        const channelName = testedChannel?.name ?? "alert destination";
+
+        setTestFeedback({
+          channelId: variables.id,
+          message: `Unable to test ${channelName}. ${getMutationErrorMessage(error, "Test delivery failed.")}`,
+          status: "error",
+        });
+      },
+      onSettled: () => {
+        setTestingChannelId(null);
+      },
+    },
+  });
+
   const displayedRules = rulesResponse.data?.rules ?? [];
   const deliveries = deliveriesQuery.data?.deliveries ?? [];
   const deliveryCount = deliveriesQuery.data?.count ?? deliveries.length;
@@ -107,6 +155,25 @@ export const AlertsPage = () => {
   };
   const setIncident = (nextIncident: string) => {
     void setDeliveryQuery({ incident: nextIncident, page: 1 });
+  };
+  const setDeliveryType = (nextType: string) => {
+    void setDeliveryQuery({ type: nextType, page: 1 });
+  };
+  const setChannel = (nextChannel: string) => {
+    void setDeliveryQuery({ channel: nextChannel, page: 1 });
+  };
+  const setEventType = (nextEventType: string) => {
+    void setDeliveryQuery({ event_type: nextEventType, page: 1 });
+  };
+  const clearDeliveryFilters = () => {
+    void setDeliveryQuery({
+      status: "all",
+      type: "all",
+      channel: "all",
+      event_type: "all",
+      incident: "",
+      page: 1,
+    });
   };
   const setTab = (nextTab: string) => {
     if (!alertTabs.includes(nextTab as (typeof alertTabs)[number])) return;
@@ -136,6 +203,18 @@ export const AlertsPage = () => {
       if (enabled) return Array.from(new Set([...current, event]));
       return current.filter((item) => item !== event);
     });
+  };
+  const testAlertDestination = (channel: ApiAlertChannelResponse) => {
+    if (!channel.id || testChannel.isPending) return;
+    const channelName = channel.name ?? "alert destination";
+
+    setTestingChannelId(channel.id);
+    setTestFeedback({
+      channelId: channel.id,
+      message: `Sending test to ${channelName}...`,
+      status: "pending",
+    });
+    testChannel.mutate({ id: channel.id });
   };
   const handleWebhookSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -184,16 +263,24 @@ export const AlertsPage = () => {
 
         <TabsContent value="logs">
           <NotificationLogTab
+            channel={channel}
+            channels={channels}
             count={deliveryCount}
             deliveries={deliveries}
             error={deliveriesQuery.error}
+            eventType={eventType}
             incident={incident}
             isLoading={deliveriesQuery.isLoading}
             offset={offset}
+            onChannelChange={setChannel}
+            onClearFilters={clearDeliveryFilters}
+            onEventTypeChange={setEventType}
             onIncidentChange={setIncident}
             onOffsetChange={setOffset}
             onStatusChange={setStatus}
+            onTypeChange={setDeliveryType}
             status={status}
+            type={deliveryType}
           />
         </TabsContent>
 
@@ -201,10 +288,14 @@ export const AlertsPage = () => {
           <WebhookChannelsTab
             channels={channels}
             error={channelsResponse.error}
+            isTesting={testChannel.isPending}
             isLoading={channelsResponse.isLoading}
             onCreate={openCreateWebhookDialog}
             onDelete={setDeletingChannel}
             onEdit={openEditWebhookDialog}
+            onTest={testAlertDestination}
+            testFeedback={testFeedback}
+            testingChannelId={testingChannelId}
           />
         </TabsContent>
 
