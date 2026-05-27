@@ -25,6 +25,7 @@ const (
 	httpStatusRunnerName    = "http_status"
 	tcpRunnerKind           = "tcp"
 	tcpRunnerName           = "tcp_port"
+	dnsRunnerKind           = "dns"
 	maxHTTPResponseDrainLen = 512
 	maxHTTPBodyCaptureLen   = 4096
 )
@@ -40,6 +41,7 @@ type Options struct {
 	WorkerID       string
 	HTTPClient     *http.Client
 	TCPDialContext dialContextFunc
+	DNSResolver    dnsResolver
 	Config         *config.Config
 }
 
@@ -54,6 +56,7 @@ type App struct {
 	workerID       string
 	httpClient     *http.Client
 	tcpDialContext dialContextFunc
+	dnsResolver    dnsResolver
 	scheduler      *service.CoreMonitorSchedulerService
 	reports        *service.ReportService
 }
@@ -85,6 +88,10 @@ func NewApp(database *gorm.DB, logger *logging.Logger, opts Options) *App {
 		tcpDialer := &net.Dialer{}
 		tcpDialContext = tcpDialer.DialContext
 	}
+	dnsResolver := opts.DNSResolver
+	if dnsResolver == nil {
+		dnsResolver = net.DefaultResolver
+	}
 	return &App{
 		db:             database,
 		logger:         logger,
@@ -95,6 +102,7 @@ func NewApp(database *gorm.DB, logger *logging.Logger, opts Options) *App {
 		workerID:       workerID,
 		httpClient:     httpClient,
 		tcpDialContext: tcpDialContext,
+		dnsResolver:    dnsResolver,
 		scheduler:      service.NewCoreMonitorSchedulerService(database, logger),
 		reports:        service.NewReportService(database, logger, opts.Config),
 	}
@@ -191,6 +199,11 @@ func (a *App) runClaimedCheck(ctx context.Context, monitorConfig db.CoreMonitorC
 		finishedAt = result.FinishedAt
 		success = result.Health == "up"
 		reportErr = a.storeTCPReport(monitorConfig.MonitorID, result)
+	case dnsRunnerKind:
+		result := a.runDNSCheck(ctx, monitorConfig)
+		finishedAt = result.FinishedAt
+		success = result.Health == "up"
+		reportErr = a.storeDNSReport(monitorConfig.MonitorID, result)
 	default:
 		complete = false
 		a.logger.Warn("Skipping unsupported Core monitor kind", "monitor_id", monitorConfig.MonitorID, "kind", monitorConfig.Kind)

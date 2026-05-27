@@ -410,6 +410,171 @@ func TestRunDueChecksStoresDownReportForTCPTimeout(t *testing.T) {
 	assertTCPFailurePayload(t, database, "monitor-tcp-timeout", "timeout")
 }
 
+func TestRunDueChecksStoresUpReportForDNSRecords(t *testing.T) {
+	cases := []struct {
+		name       string
+		recordType string
+		config     string
+		expected   string
+	}{
+		{
+			name:       "a",
+			recordType: "A",
+			config:     `{"host":"example.com","record_type":"A","expected_values":["192.0.2.10"]}`,
+			expected:   "192.0.2.10",
+		},
+		{
+			name:       "aaaa",
+			recordType: "AAAA",
+			config:     `{"host":"example.com","record_type":"AAAA","expected_values":["2001:db8::10"]}`,
+			expected:   "2001:db8::10",
+		},
+		{
+			name:       "cname",
+			recordType: "CNAME",
+			config:     `{"host":"alias.example.com","record_type":"CNAME","expected_values":["target.example.com"]}`,
+			expected:   "target.example.com",
+		},
+		{
+			name:       "txt",
+			recordType: "TXT",
+			config:     `{"host":"example.com","record_type":"TXT","expected_values":["v=spf1 -all"]}`,
+			expected:   "v=spf1 -all",
+		},
+		{
+			name:       "mx",
+			recordType: "MX",
+			config:     `{"host":"example.com","record_type":"MX","expected_values":["mail.example.com"]}`,
+			expected:   "mail.example.com",
+		},
+		{
+			name:       "ns",
+			recordType: "NS",
+			config:     `{"host":"example.com","record_type":"NS","expected_values":["ns1.example.com"]}`,
+			expected:   "ns1.example.com",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			database := openWorkerMigratedTestDatabase(t)
+			resolver := fakeDNSResolver{
+				ipAnswers: map[string][]net.IPAddr{
+					"example.com": {
+						{IP: net.ParseIP("192.0.2.10")},
+						{IP: net.ParseIP("2001:db8::10")},
+					},
+				},
+				cnameAnswers: map[string]string{"alias.example.com": "target.example.com."},
+				txtAnswers:   map[string][]string{"example.com": {"v=spf1 -all"}},
+				mxAnswers:    map[string][]*net.MX{"example.com": {{Host: "mail.example.com.", Pref: 10}}},
+				nsAnswers:    map[string][]*net.NS{"example.com": {{Host: "ns1.example.com."}}},
+			}
+			monitorID := "monitor-dns-" + tc.name
+
+			insertWorkerCoreOwner(t, database)
+			insertWorkerMonitor(t, database, monitorID)
+			insertWorkerCoreMonitorConfig(t, database, db.CoreMonitorConfig{
+				MonitorID:       monitorID,
+				Kind:            "dns",
+				ConfigJSON:      tc.config,
+				IntervalSeconds: 60,
+				TimeoutSeconds:  5,
+				NextRunAt:       time.Now().UTC().Add(-time.Minute),
+			})
+
+			app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-dns-test", DNSResolver: resolver})
+			if err := app.runDueChecks(context.Background()); err != nil {
+				t.Fatalf("runDueChecks() error = %v", err)
+			}
+
+			report := loadWorkerMonitorReport(t, database, monitorID)
+			if report.Health != "up" {
+				t.Fatalf("report health = %q, want up", report.Health)
+			}
+			var payload map[string]interface{}
+			if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
+				t.Fatalf("unmarshal report payload: %v", err)
+			}
+			if payload["type"] != "dns" || payload["record_type"] != tc.recordType || payload["ok"] != true {
+				t.Fatalf("payload = %+v, want DNS %s success", payload, tc.recordType)
+			}
+			assertPayloadContainsString(t, payload["answers"], tc.expected)
+		})
+	}
+}
+
+func TestRunDueChecksStoresDownReportForDNSExpectedValueMiss(t *testing.T) {
+	database := openWorkerMigratedTestDatabase(t)
+	resolver := fakeDNSResolver{
+		txtAnswers: map[string][]string{"example.com": {"actual-token"}},
+	}
+
+	insertWorkerCoreOwner(t, database)
+	insertWorkerMonitor(t, database, "monitor-dns-miss")
+	insertWorkerCoreMonitorConfig(t, database, db.CoreMonitorConfig{
+		MonitorID:       "monitor-dns-miss",
+		Kind:            "dns",
+		ConfigJSON:      `{"host":"example.com","record_type":"TXT","expected_values":["required-token"]}`,
+		IntervalSeconds: 60,
+		TimeoutSeconds:  5,
+		NextRunAt:       time.Now().UTC().Add(-time.Minute),
+	})
+
+	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-dns-test", DNSResolver: resolver})
+	if err := app.runDueChecks(context.Background()); err != nil {
+		t.Fatalf("runDueChecks() error = %v", err)
+	}
+
+	report := loadWorkerMonitorReport(t, database, "monitor-dns-miss")
+	if report.Health != "down" {
+		t.Fatalf("report health = %q, want down", report.Health)
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
+		t.Fatalf("unmarshal report payload: %v", err)
+	}
+	if payload["failure_stage"] != "expected_values" || payload["ok"] != false {
+		t.Fatalf("payload = %+v, want expected_values failure", payload)
+	}
+	assertPayloadContainsString(t, payload["missing_values"], "required-token")
+}
+
+func TestRunDueChecksStoresDownReportForDNSLookupFailure(t *testing.T) {
+	database := openWorkerMigratedTestDatabase(t)
+	resolver := fakeDNSResolver{
+		lookupErr: &net.DNSError{Name: "missing.example.invalid", Err: "no such host"},
+	}
+
+	insertWorkerCoreOwner(t, database)
+	insertWorkerMonitor(t, database, "monitor-dns-lookup-failure")
+	insertWorkerCoreMonitorConfig(t, database, db.CoreMonitorConfig{
+		MonitorID:       "monitor-dns-lookup-failure",
+		Kind:            "dns",
+		ConfigJSON:      `{"host":"missing.example.invalid","record_type":"A"}`,
+		IntervalSeconds: 60,
+		TimeoutSeconds:  5,
+		NextRunAt:       time.Now().UTC().Add(-time.Minute),
+	})
+
+	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-dns-test", DNSResolver: resolver})
+	if err := app.runDueChecks(context.Background()); err != nil {
+		t.Fatalf("runDueChecks() error = %v", err)
+	}
+
+	report := loadWorkerMonitorReport(t, database, "monitor-dns-lookup-failure")
+	if report.Health != "down" {
+		t.Fatalf("report health = %q, want down", report.Health)
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
+		t.Fatalf("unmarshal report payload: %v", err)
+	}
+	if payload["failure_stage"] != "lookup" || payload["record_type"] != "A" {
+		t.Fatalf("payload = %+v, want DNS lookup failure", payload)
+	}
+}
+
 func openWorkerTestDatabase(t *testing.T) *gorm.DB {
 	t.Helper()
 	database, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
@@ -567,3 +732,82 @@ type timeoutTestError struct{}
 func (timeoutTestError) Error() string   { return "dial timeout" }
 func (timeoutTestError) Timeout() bool   { return true }
 func (timeoutTestError) Temporary() bool { return true }
+
+type fakeDNSResolver struct {
+	ipAnswers    map[string][]net.IPAddr
+	cnameAnswers map[string]string
+	txtAnswers   map[string][]string
+	mxAnswers    map[string][]*net.MX
+	nsAnswers    map[string][]*net.NS
+	lookupErr    error
+}
+
+func (r fakeDNSResolver) LookupIPAddr(ctx context.Context, host string) ([]net.IPAddr, error) {
+	if r.lookupErr != nil {
+		return nil, r.lookupErr
+	}
+	answers, ok := r.ipAnswers[host]
+	if !ok {
+		return nil, &net.DNSError{Name: host, Err: "no such host"}
+	}
+	return answers, nil
+}
+
+func (r fakeDNSResolver) LookupCNAME(ctx context.Context, host string) (string, error) {
+	if r.lookupErr != nil {
+		return "", r.lookupErr
+	}
+	answer, ok := r.cnameAnswers[host]
+	if !ok {
+		return "", &net.DNSError{Name: host, Err: "no such host"}
+	}
+	return answer, nil
+}
+
+func (r fakeDNSResolver) LookupTXT(ctx context.Context, host string) ([]string, error) {
+	if r.lookupErr != nil {
+		return nil, r.lookupErr
+	}
+	answers, ok := r.txtAnswers[host]
+	if !ok {
+		return nil, &net.DNSError{Name: host, Err: "no such host"}
+	}
+	return answers, nil
+}
+
+func (r fakeDNSResolver) LookupMX(ctx context.Context, host string) ([]*net.MX, error) {
+	if r.lookupErr != nil {
+		return nil, r.lookupErr
+	}
+	answers, ok := r.mxAnswers[host]
+	if !ok {
+		return nil, &net.DNSError{Name: host, Err: "no such host"}
+	}
+	return answers, nil
+}
+
+func (r fakeDNSResolver) LookupNS(ctx context.Context, host string) ([]*net.NS, error) {
+	if r.lookupErr != nil {
+		return nil, r.lookupErr
+	}
+	answers, ok := r.nsAnswers[host]
+	if !ok {
+		return nil, &net.DNSError{Name: host, Err: "no such host"}
+	}
+	return answers, nil
+}
+
+func assertPayloadContainsString(t *testing.T, raw interface{}, expected string) {
+	t.Helper()
+
+	values, ok := raw.([]interface{})
+	if !ok {
+		t.Fatalf("payload values = %T(%v), want array containing %q", raw, raw, expected)
+	}
+	for _, value := range values {
+		if value == expected {
+			return
+		}
+	}
+	t.Fatalf("payload values = %+v, want %q", values, expected)
+}
