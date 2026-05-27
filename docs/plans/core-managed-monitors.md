@@ -244,6 +244,12 @@ Minimum options:
 - secrets for login flows;
 - interval.
 
+First release behavior: Core treats Playwright transactions as bounded browser step lists executed
+through an external Node/Playwright runtime. The worker enforces step count, timeout, viewport, and
+artifact-size limits, redacts configured secret variable names in reports, captures bounded
+screenshot artifacts on failure, and reports `runtime_unavailable` clearly when Playwright is not
+configured on the worker host.
+
 14. Synthetic multi-step API/browser flows
 
 Runs a sequence of API or browser checks as one monitor with step-level results.

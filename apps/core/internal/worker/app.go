@@ -39,6 +39,8 @@ const (
 	pop3RunnerKind          = "pop3"
 	syntheticRunnerKind     = "synthetic"
 	syntheticRunnerName     = "synthetic_multi_step"
+	playwrightRunnerKind    = "playwright"
+	playwrightRunnerName    = "playwright_transaction"
 	maxHTTPResponseDrainLen = 512
 	maxHTTPBodyCaptureLen   = 4096
 )
@@ -57,6 +59,7 @@ type Options struct {
 	DNSResolver    dnsResolver
 	TLSCheck       tlsCheckFunc
 	UDPDialContext dialContextFunc
+	PlaywrightRun  playwrightRunFunc
 	Config         *config.Config
 }
 
@@ -75,6 +78,7 @@ type App struct {
 	tlsCheck       tlsCheckFunc
 	tlsWarningDays int
 	udpDialContext dialContextFunc
+	playwrightRun  playwrightRunFunc
 	scheduler      *service.CoreMonitorSchedulerService
 	reports        *service.ReportService
 }
@@ -123,6 +127,10 @@ func NewApp(database *gorm.DB, logger *logging.Logger, opts Options) *App {
 		udpDialer := &net.Dialer{}
 		udpDialContext = udpDialer.DialContext
 	}
+	playwrightRun := opts.PlaywrightRun
+	if playwrightRun == nil {
+		playwrightRun = defaultPlaywrightRun
+	}
 	return &App{
 		db:             database,
 		logger:         logger,
@@ -137,6 +145,7 @@ func NewApp(database *gorm.DB, logger *logging.Logger, opts Options) *App {
 		tlsCheck:       tlsCheck,
 		tlsWarningDays: tlsWarningDays,
 		udpDialContext: udpDialContext,
+		playwrightRun:  playwrightRun,
 		scheduler:      service.NewCoreMonitorSchedulerService(database, logger),
 		reports:        service.NewReportService(database, logger, opts.Config),
 	}
@@ -273,6 +282,11 @@ func (a *App) runClaimedCheck(ctx context.Context, monitorConfig db.CoreMonitorC
 		finishedAt = result.FinishedAt
 		success = result.Health == "up"
 		reportErr = a.storeSyntheticReport(monitorConfig.MonitorID, result)
+	case playwrightRunnerKind, playwrightRunnerName:
+		result := a.runPlaywrightCheck(ctx, monitorConfig)
+		finishedAt = result.FinishedAt
+		success = result.Health == "up"
+		reportErr = a.storePlaywrightReport(monitorConfig.MonitorID, result)
 	default:
 		complete = false
 		a.logger.Warn("Skipping unsupported Core monitor kind", "monitor_id", monitorConfig.MonitorID, "kind", monitorConfig.Kind)
