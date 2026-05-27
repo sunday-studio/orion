@@ -1952,6 +1952,10 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/utils.APIResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -1995,6 +1999,10 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/utils.APIResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -2036,6 +2044,10 @@ paths:
               type: object
         "404":
           description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "429":
+          description: Too Many Requests
           schema:
             $ref: '#/definitions/utils.APIResponse'
         "500":
@@ -2090,6 +2102,10 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/utils.APIResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -2129,6 +2145,10 @@ paths:
                       type: boolean
                   type: object
               type: object
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:

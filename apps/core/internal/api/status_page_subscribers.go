@@ -63,9 +63,13 @@ type StatusPageSubscriberComponentResponse struct {
 // @Success      202      {object}  utils.APIResponse{data=object{subscriber=StatusPageSubscriberPublicResponse,confirmation_required=bool}}
 // @Failure      400      {object}  utils.APIResponse
 // @Failure      404      {object}  utils.APIResponse
+// @Failure      429      {object}  utils.APIResponse
 // @Failure      500      {object}  utils.APIResponse
 // @Router       /status/{slug}/subscribers [post]
 func (s *Server) createPublicStatusPageSubscriber(c *gin.Context) {
+	if !s.allowPublicSubscriberRequest(c, "create") {
+		return
+	}
 	page, ok := s.loadPublicStatusPageForSubscriberRequest(c)
 	if !ok {
 		return
@@ -182,9 +186,13 @@ func (s *Server) createPublicStatusPageSubscriber(c *gin.Context) {
 // @Param        token  path      string  true  "Confirmation token"
 // @Success      200    {object}  utils.APIResponse{data=object{subscriber=StatusPageSubscriberPublicResponse}}
 // @Failure      404    {object}  utils.APIResponse
+// @Failure      429    {object}  utils.APIResponse
 // @Failure      500    {object}  utils.APIResponse
 // @Router       /status/{slug}/subscribers/confirm/{token} [get]
 func (s *Server) confirmPublicStatusPageSubscriber(c *gin.Context) {
+	if !s.allowPublicSubscriberRequest(c, "confirm") {
+		return
+	}
 	page, ok := s.loadPublicStatusPageForSubscriberRequest(c)
 	if !ok {
 		return
@@ -235,9 +243,13 @@ func (s *Server) confirmPublicStatusPageSubscriber(c *gin.Context) {
 // @Param        token  path      string  true  "Manage token"
 // @Success      200    {object}  utils.APIResponse{data=object{subscriber=StatusPageSubscriberPublicResponse}}
 // @Failure      404    {object}  utils.APIResponse
+// @Failure      429    {object}  utils.APIResponse
 // @Failure      500    {object}  utils.APIResponse
 // @Router       /status/{slug}/subscribers/manage/{token} [get]
 func (s *Server) getPublicStatusPageSubscriberPreferences(c *gin.Context) {
+	if !s.allowPublicSubscriberRequest(c, "manage") {
+		return
+	}
 	page, subscriber, ok := s.loadPublicSubscriberByManageToken(c)
 	if !ok {
 		return
@@ -264,9 +276,13 @@ func (s *Server) getPublicStatusPageSubscriberPreferences(c *gin.Context) {
 // @Success      200      {object}  utils.APIResponse{data=object{subscriber=StatusPageSubscriberPublicResponse}}
 // @Failure      400      {object}  utils.APIResponse
 // @Failure      404      {object}  utils.APIResponse
+// @Failure      429      {object}  utils.APIResponse
 // @Failure      500      {object}  utils.APIResponse
 // @Router       /status/{slug}/subscribers/manage/{token} [put]
 func (s *Server) updatePublicStatusPageSubscriberPreferences(c *gin.Context) {
+	if !s.allowPublicSubscriberRequest(c, "manage") {
+		return
+	}
 	page, subscriber, ok := s.loadPublicSubscriberByManageToken(c)
 	if !ok {
 		return
@@ -324,9 +340,13 @@ func (s *Server) updatePublicStatusPageSubscriberPreferences(c *gin.Context) {
 // @Param        slug   path      string  true  "Status page slug"
 // @Param        token  path      string  true  "Unsubscribe token"
 // @Success      200    {object}  utils.APIResponse{data=object{unsubscribed=bool}}
+// @Failure      429    {object}  utils.APIResponse
 // @Failure      500    {object}  utils.APIResponse
 // @Router       /status/{slug}/subscribers/unsubscribe/{token} [post]
 func (s *Server) unsubscribePublicStatusPageSubscriber(c *gin.Context) {
+	if !s.allowPublicSubscriberRequest(c, "unsubscribe") {
+		return
+	}
 	page, ok := s.loadPublicStatusPageForSubscriberRequest(c)
 	if !ok {
 		return
@@ -359,6 +379,16 @@ func (s *Server) unsubscribePublicStatusPageSubscriber(c *gin.Context) {
 		}
 	}
 	writeGenericUnsubscribeSuccess(c)
+}
+
+func (s *Server) allowPublicSubscriberRequest(c *gin.Context, scope string) bool {
+	key := "status_page_subscriber:" + scope + ":" + strings.TrimSpace(c.Param("slug")) + ":" + c.ClientIP()
+	if s.publicSubscriberLimiter.TooManyFailures(key) {
+		utils.ErrorResponse(c, http.StatusTooManyRequests, "Too many status page subscriber requests", nil)
+		return false
+	}
+	s.publicSubscriberLimiter.RecordFailure(key)
+	return true
 }
 
 func (s *Server) loadPublicStatusPageForSubscriberRequest(c *gin.Context) (db.StatusPage, bool) {

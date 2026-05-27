@@ -737,6 +737,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/utils.APIResponse"
                         }
                     },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -806,6 +812,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/utils.APIResponse"
                         }
                     },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -871,6 +883,12 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/utils.APIResponse"
                         }
@@ -957,6 +975,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/utils.APIResponse"
                         }
                     },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -1018,6 +1042,12 @@ const docTemplate = `{
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
                         }
                     },
                     "500": {

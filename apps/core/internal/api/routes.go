@@ -33,6 +33,7 @@ type Server struct {
 	archiveService           *service.ArchiveService
 	workerDiagnosticsService *service.WorkerDiagnosticsService
 	loginLimiter             *RateLimiter
+	publicSubscriberLimiter  *RateLimiter
 	router                   *gin.Engine
 }
 
@@ -74,6 +75,7 @@ func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *S
 		archiveService:           archiveService,
 		workerDiagnosticsService: workerDiagnosticsService,
 		loginLimiter:             NewRateLimiter(cfg.LoginRateLimitAttempts, time.Duration(cfg.LoginRateLimitWindowSecs)*time.Second),
+		publicSubscriberLimiter:  NewRateLimiter(10, time.Minute),
 		router:                   router,
 	}
 

@@ -99,6 +99,105 @@ func TestPublicStatusPageSubscriberConfirmationUsesOneTimeHashedToken(t *testing
 	}
 }
 
+func TestPublicStatusPageSubscriberConfirmationRejectsInvalidExpiredAndRateLimitedTokens(t *testing.T) {
+	server := setupTestServer(t)
+	page, visibleComponent, _ := createPublishedStatusPageForSubscriberTest(t, server, "confirm-invalid-status")
+	expiredToken := "expired-confirm-token-for-test"
+	expiredSubscriber := seedStatusPageSubscriberForTest(t, server, page.ID, "Expired.User@example.com", statusPageSubscriberStatePending, expiredToken, "manage-token", "unsubscribe-token", []string{visibleComponent.ID})
+	expiredAt := time.Now().UTC().Add(-time.Minute)
+	if err := server.db.Model(&db.StatusPageSubscriber{}).Where("id = ?", expiredSubscriber.ID).Update("confirmation_token_expires_at", expiredAt).Error; err != nil {
+		t.Fatalf("expire confirmation token: %v", err)
+	}
+
+	invalidResp := performJSONRequest(t, server, http.MethodGet, "/status/"+page.Slug+"/subscribers/confirm/not-a-real-token", nil, "")
+	if invalidResp.Code != http.StatusNotFound {
+		t.Fatalf("invalid confirmation status = %d, body = %s, want 404", invalidResp.Code, invalidResp.Body.String())
+	}
+	assertNotContains(t, invalidResp.Body.String(), "not-a-real-token")
+
+	expiredResp := performJSONRequest(t, server, http.MethodGet, "/status/"+page.Slug+"/subscribers/confirm/"+expiredToken, nil, "")
+	if expiredResp.Code != http.StatusNotFound {
+		t.Fatalf("expired confirmation status = %d, body = %s, want 404", expiredResp.Code, expiredResp.Body.String())
+	}
+	assertNotContains(t, expiredResp.Body.String(), expiredToken)
+
+	limitedServer := setupTestServer(t)
+	limitedPage, _, _ := createPublishedStatusPageForSubscriberTest(t, limitedServer, "confirm-rate-limit-status")
+	limitedServer.publicSubscriberLimiter = NewRateLimiter(1, time.Hour)
+
+	firstResp := performJSONRequest(t, limitedServer, http.MethodGet, "/status/"+limitedPage.Slug+"/subscribers/confirm/not-a-real-token", nil, "")
+	if firstResp.Code != http.StatusNotFound {
+		t.Fatalf("first limited confirmation status = %d, body = %s, want 404", firstResp.Code, firstResp.Body.String())
+	}
+	secondResp := performJSONRequest(t, limitedServer, http.MethodGet, "/status/"+limitedPage.Slug+"/subscribers/confirm/not-a-real-token", nil, "")
+	if secondResp.Code != http.StatusTooManyRequests {
+		t.Fatalf("second limited confirmation status = %d, body = %s, want 429", secondResp.Code, secondResp.Body.String())
+	}
+	assertNotContains(t, secondResp.Body.String(), "not-a-real-token")
+}
+
+func TestPublicStatusPageSubscriberSelfServiceEndpointsAreRateLimited(t *testing.T) {
+	cases := []struct {
+		name          string
+		method        string
+		path          func(string) string
+		body          gin.H
+		firstWantCode int
+	}{
+		{
+			name:          "create",
+			method:        http.MethodPost,
+			path:          func(slug string) string { return "/status/" + slug + "/subscribers" },
+			body:          gin.H{},
+			firstWantCode: http.StatusBadRequest,
+		},
+		{
+			name:          "confirm",
+			method:        http.MethodGet,
+			path:          func(slug string) string { return "/status/" + slug + "/subscribers/confirm/not-a-real-token" },
+			firstWantCode: http.StatusNotFound,
+		},
+		{
+			name:          "manage-get",
+			method:        http.MethodGet,
+			path:          func(slug string) string { return "/status/" + slug + "/subscribers/manage/not-a-real-token" },
+			firstWantCode: http.StatusNotFound,
+		},
+		{
+			name:          "manage-put",
+			method:        http.MethodPut,
+			path:          func(slug string) string { return "/status/" + slug + "/subscribers/manage/not-a-real-token" },
+			body:          gin.H{},
+			firstWantCode: http.StatusNotFound,
+		},
+		{
+			name:          "unsubscribe",
+			method:        http.MethodPost,
+			path:          func(slug string) string { return "/status/" + slug + "/subscribers/unsubscribe/not-a-real-token" },
+			firstWantCode: http.StatusOK,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			server := setupTestServer(t)
+			page, _, _ := createPublishedStatusPageForSubscriberTest(t, server, "rate-limit-"+tc.name)
+			server.publicSubscriberLimiter = NewRateLimiter(1, time.Hour)
+
+			firstResp := performJSONRequest(t, server, tc.method, tc.path(page.Slug), tc.body, "")
+			if firstResp.Code != tc.firstWantCode {
+				t.Fatalf("first %s status = %d, body = %s, want %d", tc.name, firstResp.Code, firstResp.Body.String(), tc.firstWantCode)
+			}
+			secondResp := performJSONRequest(t, server, tc.method, tc.path(page.Slug), tc.body, "")
+			if secondResp.Code != http.StatusTooManyRequests {
+				t.Fatalf("second %s status = %d, body = %s, want 429", tc.name, secondResp.Code, secondResp.Body.String())
+			}
+			assertContains(t, secondResp.Body.String(), "Too many status page subscriber requests")
+			assertNotContains(t, secondResp.Body.String(), "not-a-real-token")
+		})
+	}
+}
+
 func TestPublicStatusPageSubscriberUnsubscribeIsIdempotent(t *testing.T) {
 	server := setupTestServer(t)
 	page, visibleComponent, _ := createPublishedStatusPageForSubscriberTest(t, server, "unsubscribe-status")
