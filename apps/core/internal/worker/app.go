@@ -26,6 +26,8 @@ const (
 	tcpRunnerKind           = "tcp"
 	tcpRunnerName           = "tcp_port"
 	dnsRunnerKind           = "dns"
+	tlsRunnerKind           = "tls"
+	tlsRunnerName           = "tls_certificate"
 	maxHTTPResponseDrainLen = 512
 	maxHTTPBodyCaptureLen   = 4096
 )
@@ -42,6 +44,7 @@ type Options struct {
 	HTTPClient     *http.Client
 	TCPDialContext dialContextFunc
 	DNSResolver    dnsResolver
+	TLSCheck       tlsCheckFunc
 	Config         *config.Config
 }
 
@@ -57,6 +60,8 @@ type App struct {
 	httpClient     *http.Client
 	tcpDialContext dialContextFunc
 	dnsResolver    dnsResolver
+	tlsCheck       tlsCheckFunc
+	tlsWarningDays int
 	scheduler      *service.CoreMonitorSchedulerService
 	reports        *service.ReportService
 }
@@ -92,6 +97,14 @@ func NewApp(database *gorm.DB, logger *logging.Logger, opts Options) *App {
 	if dnsResolver == nil {
 		dnsResolver = net.DefaultResolver
 	}
+	tlsCheck := opts.TLSCheck
+	if tlsCheck == nil {
+		tlsCheck = defaultTLSCheck
+	}
+	tlsWarningDays := defaultTLSWarningDays
+	if opts.Config != nil && opts.Config.AlertTLSExpiryDays > 0 {
+		tlsWarningDays = opts.Config.AlertTLSExpiryDays
+	}
 	return &App{
 		db:             database,
 		logger:         logger,
@@ -103,6 +116,8 @@ func NewApp(database *gorm.DB, logger *logging.Logger, opts Options) *App {
 		httpClient:     httpClient,
 		tcpDialContext: tcpDialContext,
 		dnsResolver:    dnsResolver,
+		tlsCheck:       tlsCheck,
+		tlsWarningDays: tlsWarningDays,
 		scheduler:      service.NewCoreMonitorSchedulerService(database, logger),
 		reports:        service.NewReportService(database, logger, opts.Config),
 	}
@@ -204,6 +219,11 @@ func (a *App) runClaimedCheck(ctx context.Context, monitorConfig db.CoreMonitorC
 		finishedAt = result.FinishedAt
 		success = result.Health == "up"
 		reportErr = a.storeDNSReport(monitorConfig.MonitorID, result)
+	case tlsRunnerKind, tlsRunnerName:
+		result := a.runTLSCheck(ctx, monitorConfig)
+		finishedAt = result.FinishedAt
+		success = result.Health == "up"
+		reportErr = a.storeTLSReport(monitorConfig.MonitorID, result)
 	default:
 		complete = false
 		a.logger.Warn("Skipping unsupported Core monitor kind", "monitor_id", monitorConfig.MonitorID, "kind", monitorConfig.Kind)
