@@ -40,6 +40,19 @@ const monitorTypeFilters = [
   "systemd-service",
   "internal-service",
   "http",
+  "http_keyword",
+  "expected_status",
+  "dns",
+  "tls",
+  "udp",
+  "api_request",
+  "domain_expiration",
+  "ping",
+  "smtp",
+  "imap",
+  "pop",
+  "synthetic",
+  "playwright",
 ] as const;
 
 const monitorTypeOptions: Array<{ value: (typeof monitorTypeFilters)[number]; label: string }> = [
@@ -54,6 +67,19 @@ const monitorTypeOptions: Array<{ value: (typeof monitorTypeFilters)[number]; la
   { value: "systemd-service", label: "Systemd" },
   { value: "internal-service", label: "Internal service" },
   { value: "http", label: "HTTP" },
+  { value: "http_keyword", label: "HTTP keyword" },
+  { value: "expected_status", label: "Expected status" },
+  { value: "dns", label: "DNS" },
+  { value: "tls", label: "TLS" },
+  { value: "udp", label: "UDP" },
+  { value: "api_request", label: "API request" },
+  { value: "domain_expiration", label: "Domain expiration" },
+  { value: "ping", label: "Ping" },
+  { value: "smtp", label: "SMTP" },
+  { value: "imap", label: "IMAP" },
+  { value: "pop", label: "POP" },
+  { value: "synthetic", label: "Synthetic" },
+  { value: "playwright", label: "Playwright" },
 ];
 
 const monitorStatusOptions: Array<{
