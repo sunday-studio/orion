@@ -236,6 +236,8 @@ type StatusPagePublicIncidentResponse struct {
 	AffectedComponentIDs []string   `json:"affected_component_ids"`
 	PublishedAt          *time.Time `json:"published_at,omitempty"`
 	ResolvedAt           *time.Time `json:"resolved_at,omitempty"`
+	ScheduledStartAt     *time.Time `json:"scheduled_start_at,omitempty"`
+	ScheduledEndAt       *time.Time `json:"scheduled_end_at,omitempty"`
 }
 
 type StatusPagePublishValidationResponse struct {
@@ -1561,6 +1563,8 @@ func (s *Server) statusPagePreview(detail StatusPageDetailResponse, includeDraft
 			AffectedComponentIDs: incident.AffectedComponentIDs,
 			PublishedAt:          publicMinutePtr(incident.PublishedAt),
 			ResolvedAt:           publicMinutePtr(incident.ResolvedAt),
+			ScheduledStartAt:     publicMinutePtr(incident.ScheduledStartAt),
+			ScheduledEndAt:       publicMinutePtr(incident.ScheduledEndAt),
 		})
 	}
 

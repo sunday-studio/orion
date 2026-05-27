@@ -8765,6 +8765,12 @@ const docTemplate = `{
                 "resolved_at": {
                     "type": "string"
                 },
+                "scheduled_end_at": {
+                    "type": "string"
+                },
+                "scheduled_start_at": {
+                    "type": "string"
+                },
                 "severity": {
                     "type": "string"
                 },

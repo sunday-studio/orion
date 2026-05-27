@@ -469,13 +469,17 @@ func TestStatusPageAdminAPIFlow(t *testing.T) {
 	}
 
 	now := time.Now().UTC()
+	scheduledStart := now.Add(2 * time.Hour).Truncate(time.Second)
+	scheduledEnd := scheduledStart.Add(30 * time.Minute)
 	createIncidentResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+createdPage.Data.Page.ID+"/incidents", gin.H{
 		"title":                  "Elevated API errors",
-		"public_status":          "investigating",
+		"public_status":          "scheduled",
 		"severity":               "high",
 		"impact_summary":         "Some requests are failing.",
 		"visibility":             "draft",
 		"affected_component_ids": []string{createdComponent.Data.Component.ID},
+		"scheduled_start_at":     scheduledStart,
+		"scheduled_end_at":       scheduledEnd,
 	}, "")
 	if createIncidentResp.Code != http.StatusCreated {
 		t.Fatalf("create public incident status = %d, body = %s", createIncidentResp.Code, createIncidentResp.Body.String())
@@ -487,20 +491,27 @@ func TestStatusPageAdminAPIFlow(t *testing.T) {
 				Title                string   `json:"title"`
 				PublicStatus         string   `json:"public_status"`
 				AffectedComponentIDs []string `json:"affected_component_ids"`
+				ScheduledStartAt     string   `json:"scheduled_start_at"`
+				ScheduledEndAt       string   `json:"scheduled_end_at"`
 			} `json:"incident"`
 		} `json:"data"`
 	}
 	decodeResponse(t, createIncidentResp, &createdIncident)
 	if createdIncident.Data.Incident.ID == "" || createdIncident.Data.Incident.Title != "Elevated API errors" ||
+		createdIncident.Data.Incident.PublicStatus != "scheduled" ||
+		createdIncident.Data.Incident.ScheduledStartAt == "" ||
+		createdIncident.Data.Incident.ScheduledEndAt == "" ||
 		len(createdIncident.Data.Incident.AffectedComponentIDs) != 1 ||
 		createdIncident.Data.Incident.AffectedComponentIDs[0] != createdComponent.Data.Component.ID {
 		t.Fatalf("created incident = %+v, want API incident", createdIncident.Data.Incident)
 	}
 
 	updateIncidentResp := performJSONRequest(t, server, http.MethodPut, "/v1/status-pages/"+createdPage.Data.Page.ID+"/incidents/"+createdIncident.Data.Incident.ID, gin.H{
-		"public_status": "identified",
-		"visibility":    "published",
-		"published_at":  now,
+		"public_status":      "scheduled",
+		"visibility":         "published",
+		"published_at":       now,
+		"scheduled_start_at": scheduledStart,
+		"scheduled_end_at":   scheduledEnd,
 	}, "")
 	if updateIncidentResp.Code != http.StatusOK {
 		t.Fatalf("update public incident status = %d, body = %s", updateIncidentResp.Code, updateIncidentResp.Body.String())
@@ -612,9 +623,11 @@ func TestStatusPageAdminAPIFlow(t *testing.T) {
 					} `json:"components"`
 				} `json:"sections"`
 				Incidents []struct {
-					ID           string `json:"id"`
-					Title        string `json:"title"`
-					PublicStatus string `json:"public_status"`
+					ID               string `json:"id"`
+					Title            string `json:"title"`
+					PublicStatus     string `json:"public_status"`
+					ScheduledStartAt string `json:"scheduled_start_at"`
+					ScheduledEndAt   string `json:"scheduled_end_at"`
 				} `json:"incidents"`
 			} `json:"status_page"`
 		} `json:"data"`
@@ -626,6 +639,10 @@ func TestStatusPageAdminAPIFlow(t *testing.T) {
 		len(publicPage.Data.StatusPage.Sections[0].Components) != 1 ||
 		len(publicPage.Data.StatusPage.Incidents) != 1 {
 		t.Fatalf("public page = %+v, want public-safe status projection", publicPage.Data.StatusPage)
+	}
+	if publicPage.Data.StatusPage.Incidents[0].ScheduledStartAt == "" ||
+		publicPage.Data.StatusPage.Incidents[0].ScheduledEndAt == "" {
+		t.Fatalf("public incident = %+v, want scheduled window timestamps", publicPage.Data.StatusPage.Incidents[0])
 	}
 
 	publicIncidentsResp := performJSONRequest(t, server, http.MethodGet, "/status/main-status/incidents", nil, "")

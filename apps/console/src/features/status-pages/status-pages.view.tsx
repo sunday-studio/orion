@@ -81,6 +81,8 @@ type IncidentFormState = {
   affectedComponentIds: string[];
   publishedAt: string;
   resolvedAt: string;
+  scheduledStartAt: string;
+  scheduledEndAt: string;
 };
 
 type IncidentUpdateFormState = {
@@ -139,6 +141,8 @@ const emptyIncidentForm: IncidentFormState = {
   affectedComponentIds: [],
   publishedAt: "",
   resolvedAt: "",
+  scheduledStartAt: "",
+  scheduledEndAt: "",
 };
 
 const emptyIncidentUpdateForm: IncidentUpdateFormState = {
@@ -313,6 +317,8 @@ const incidentFormFromIncident = (incident?: ApiStatusPageIncidentResponse): Inc
   affectedComponentIds: incident?.affected_component_ids ?? [],
   publishedAt: isoToDateTimeLocal(incident?.published_at),
   resolvedAt: isoToDateTimeLocal(incident?.resolved_at),
+  scheduledStartAt: isoToDateTimeLocal(incident?.scheduled_start_at),
+  scheduledEndAt: isoToDateTimeLocal(incident?.scheduled_end_at),
 });
 
 const incidentOptionLabel = (incident: ApiIncidentResponse) =>
@@ -601,6 +607,8 @@ export const StatusPagesPage = () => {
     public_status: form.publicStatus,
     published_at: dateTimeLocalToIso(form.publishedAt),
     resolved_at: dateTimeLocalToIso(form.resolvedAt),
+    scheduled_end_at: dateTimeLocalToIso(form.scheduledEndAt),
+    scheduled_start_at: dateTimeLocalToIso(form.scheduledStartAt),
     severity: form.severity,
     title: form.title.trim(),
     visibility: form.visibility,
@@ -1301,6 +1309,32 @@ export const StatusPagesPage = () => {
                     rows={3}
                   />
                 </Field>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="Scheduled start">
+                    <Input
+                      type="datetime-local"
+                      value={createIncidentForm.scheduledStartAt}
+                      onChange={(event) =>
+                        setCreateIncidentForm((current) => ({
+                          ...current,
+                          scheduledStartAt: event.target.value,
+                        }))
+                      }
+                    />
+                  </Field>
+                  <Field label="Scheduled end">
+                    <Input
+                      type="datetime-local"
+                      value={createIncidentForm.scheduledEndAt}
+                      onChange={(event) =>
+                        setCreateIncidentForm((current) => ({
+                          ...current,
+                          scheduledEndAt: event.target.value,
+                        }))
+                      }
+                    />
+                  </Field>
+                </div>
                 <div className="space-y-2">
                   <div className="text-sm font-medium">Affected components</div>
                   <div className="space-y-1">
@@ -1512,6 +1546,32 @@ export const StatusPagesPage = () => {
                               setEditIncidentForm((current) => ({
                                 ...current,
                                 resolvedAt: event.target.value,
+                              }))
+                            }
+                          />
+                        </Field>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <Field label="Scheduled start">
+                          <Input
+                            type="datetime-local"
+                            value={editIncidentForm.scheduledStartAt}
+                            onChange={(event) =>
+                              setEditIncidentForm((current) => ({
+                                ...current,
+                                scheduledStartAt: event.target.value,
+                              }))
+                            }
+                          />
+                        </Field>
+                        <Field label="Scheduled end">
+                          <Input
+                            type="datetime-local"
+                            value={editIncidentForm.scheduledEndAt}
+                            onChange={(event) =>
+                              setEditIncidentForm((current) => ({
+                                ...current,
+                                scheduledEndAt: event.target.value,
                               }))
                             }
                           />
