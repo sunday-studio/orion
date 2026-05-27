@@ -3751,6 +3751,132 @@ func TestAlertChannelWriteEndpointsPersistWebhookConfiguration(t *testing.T) {
 	}
 }
 
+func TestAlertChannelWriteEndpointsPersistChatConfiguration(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())
+	database, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	if err := db.Migrate(database); err != nil {
+		t.Fatalf("migrate database: %v", err)
+	}
+
+	server := NewServer(database, logging.NewLogger(), &config.Config{})
+	for _, channelType := range []string{"slack", "discord"} {
+		missingWebhookResp := performJSONRequest(t, server, http.MethodPost, "/v1/alerts/channels", gin.H{
+			"name": "missing-" + channelType,
+			"type": channelType,
+		}, "")
+		if missingWebhookResp.Code != http.StatusBadRequest {
+			t.Fatalf("missing %s webhook status = %d, body = %s", channelType, missingWebhookResp.Code, missingWebhookResp.Body.String())
+		}
+	}
+
+	createResp := performJSONRequest(t, server, http.MethodPost, "/v1/alerts/channels", gin.H{
+		"name":              "ops-slack",
+		"type":              "slack",
+		"webhook_url":       "https://hooks.slack.example.com/services/T000/B000/secret",
+		"subscribed_events": []string{db.AlertEventIncidentOpened},
+	}, "")
+	if createResp.Code != http.StatusCreated {
+		t.Fatalf("create slack channel status = %d, body = %s", createResp.Code, createResp.Body.String())
+	}
+	var created struct {
+		Data struct {
+			Channel struct {
+				ID                 string   `json:"id"`
+				Name               string   `json:"name"`
+				Type               string   `json:"type"`
+				WebhookURL         string   `json:"webhook_url"`
+				WebhookConfigured  bool     `json:"webhook_configured"`
+				SubscribedEvents   []string `json:"subscribed_events"`
+				LastDeliveryStatus string   `json:"last_delivery_status"`
+			} `json:"channel"`
+		} `json:"data"`
+	}
+	decodeResponse(t, createResp, &created)
+	if created.Data.Channel.ID == "" || created.Data.Channel.Name != "ops-slack" || created.Data.Channel.Type != "slack" || created.Data.Channel.WebhookURL == "" || !created.Data.Channel.WebhookConfigured {
+		t.Fatalf("created chat channel = %+v, want configured slack channel", created.Data.Channel)
+	}
+	if got := created.Data.Channel.SubscribedEvents; len(got) != 1 || got[0] != db.AlertEventIncidentOpened {
+		t.Fatalf("created subscribed_events = %#v, want incident_opened", got)
+	}
+	if created.Data.Channel.LastDeliveryStatus != "" {
+		t.Fatalf("created last_delivery_status = %q, want empty", created.Data.Channel.LastDeliveryStatus)
+	}
+
+	updateResp := performJSONRequest(t, server, http.MethodPatch, "/v1/alerts/channels/"+created.Data.Channel.ID, gin.H{
+		"name":              "ops-discord",
+		"type":              "discord",
+		"webhook_url":       "https://discord.example.com/api/webhooks/1/secret",
+		"subscribed_events": []string{db.AlertEventIncidentResolved},
+	}, "")
+	if updateResp.Code != http.StatusOK {
+		t.Fatalf("update chat channel status = %d, body = %s", updateResp.Code, updateResp.Body.String())
+	}
+
+	var stored db.AlertChannel
+	if err := server.db.Where("id = ?", created.Data.Channel.ID).First(&stored).Error; err != nil {
+		t.Fatalf("find updated chat channel: %v", err)
+	}
+	if stored.Name != "ops-discord" || stored.Type != "discord" || stored.WebhookURL != "https://discord.example.com/api/webhooks/1/secret" {
+		t.Fatalf("stored chat channel = %+v, want updated discord channel", stored)
+	}
+	if got := db.DecodeAlertEvents(stored.SubscribedEvents); len(got) != 1 || got[0] != db.AlertEventIncidentResolved {
+		t.Fatalf("stored subscribed_events = %#v, want incident_resolved", got)
+	}
+
+	deliveredAt := time.Now().UTC().Add(-time.Minute)
+	if err := server.db.Create(&db.AlertDelivery{
+		ID:           "delivery-chat-last",
+		IncidentID:   "incident-chat",
+		EventType:    db.AlertEventIncidentResolved,
+		Channel:      stored.Name,
+		Type:         stored.Type,
+		Status:       "sent",
+		AttemptCount: 1,
+		MaxAttempts:  3,
+		CreatedAt:    deliveredAt,
+		UpdatedAt:    deliveredAt,
+	}).Error; err != nil {
+		t.Fatalf("create chat delivery: %v", err)
+	}
+
+	listResp := performJSONRequest(t, server, http.MethodGet, "/v1/alerts/channels", nil, "")
+	if listResp.Code != http.StatusOK {
+		t.Fatalf("list chat channel status = %d, body = %s", listResp.Code, listResp.Body.String())
+	}
+	var listed struct {
+		Data struct {
+			Channels []struct {
+				ID                 string     `json:"id"`
+				Name               string     `json:"name"`
+				Type               string     `json:"type"`
+				WebhookConfigured  bool       `json:"webhook_configured"`
+				SubscribedEvents   []string   `json:"subscribed_events"`
+				LastDeliveryStatus string     `json:"last_delivery_status"`
+				LastDeliveryAt     *time.Time `json:"last_delivery_at"`
+			} `json:"channels"`
+		} `json:"data"`
+	}
+	decodeResponse(t, listResp, &listed)
+	if len(listed.Data.Channels) != 1 {
+		t.Fatalf("listed channel count = %d, want 1", len(listed.Data.Channels))
+	}
+	channel := listed.Data.Channels[0]
+	if channel.ID != stored.ID || channel.Name != "ops-discord" || channel.Type != "discord" || !channel.WebhookConfigured {
+		t.Fatalf("listed chat channel = %+v, want discord channel with webhook", channel)
+	}
+	if got := channel.SubscribedEvents; len(got) != 1 || got[0] != db.AlertEventIncidentResolved {
+		t.Fatalf("listed subscribed_events = %#v, want incident_resolved", got)
+	}
+	if channel.LastDeliveryStatus != "sent" || channel.LastDeliveryAt == nil {
+		t.Fatalf("listed delivery metadata status=%q at=%v, want sent with timestamp", channel.LastDeliveryStatus, channel.LastDeliveryAt)
+	}
+}
+
 func TestAlertRouteWriteAndDryRunEndpoints(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

@@ -3273,8 +3273,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create a webhook or email alert channel. Secret values are stored
-        but never returned by the API.
+      description: Create a webhook, Slack, Discord, or email alert channel. Secret
+        values are stored but never returned by the API.
       operationId: createAlertChannel
       parameters:
       - description: Alert channel payload

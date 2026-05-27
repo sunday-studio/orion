@@ -2225,7 +2225,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Create a webhook or email alert channel. Secret values are stored but never returned by the API.",
+                "description": "Create a webhook, Slack, Discord, or email alert channel. Secret values are stored but never returned by the API.",
                 "consumes": [
                     "application/json"
                 ],

@@ -169,7 +169,7 @@ func (s *Server) listAlertChannels(c *gin.Context) {
 
 // createAlertChannel creates a persisted alert channel.
 // @Summary      Create alert channel
-// @Description  Create a webhook or email alert channel. Secret values are stored but never returned by the API.
+// @Description  Create a webhook, Slack, Discord, or email alert channel. Secret values are stored but never returned by the API.
 // @Tags         alerts
 // @Accept       json
 // @Produce      json
@@ -1385,9 +1385,9 @@ func validateAlertChannel(channel db.AlertChannel) error {
 		return &requestValidationError{message: "alert channel name is required"}
 	}
 	switch channel.Type {
-	case "webhook":
+	case "webhook", "slack", "discord":
 		if strings.TrimSpace(channel.WebhookURL) == "" {
-			return &requestValidationError{message: "webhook alert channel requires webhook_url"}
+			return &requestValidationError{message: channel.Type + " alert channel requires webhook_url"}
 		}
 	case "email":
 		if strings.TrimSpace(channel.EmailTo) == "" || strings.TrimSpace(channel.EmailFrom) == "" || strings.TrimSpace(channel.SMTPHost) == "" || channel.SMTPPort <= 0 {

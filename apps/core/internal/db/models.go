@@ -414,7 +414,7 @@ type AlertDelivery struct {
 	AlertGroupID  string                 `json:"alert_group_id" gorm:"not null;default:'';index:idx_alert_deliveries_alert_group_id"`
 	EventType     string                 `json:"event_type" gorm:"not null"` // incident_opened | incident_resolved | test
 	Channel       string                 `json:"channel" gorm:"not null"`
-	Type          string                 `json:"type" gorm:"not null"`   // webhook | email | none
+	Type          string                 `json:"type" gorm:"not null"`   // webhook | slack | discord | email | none
 	Status        string                 `json:"status" gorm:"not null"` // pending | sent | failed | suppressed | cooldown
 	Error         string                 `json:"error" gorm:"type:text"`
 	AttemptCount  int                    `json:"attempt_count" gorm:"not null;default:0"`
@@ -484,7 +484,7 @@ type AlertRoute struct {
 type AlertChannel struct {
 	ID                   string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
 	Name                 string    `json:"name" gorm:"uniqueIndex;not null"`
-	Type                 string    `json:"type" gorm:"not null"` // webhook | email
+	Type                 string    `json:"type" gorm:"not null"` // webhook | slack | discord | email
 	Enabled              bool      `json:"enabled" gorm:"not null"`
 	WebhookURL           string    `json:"webhook_url" gorm:"type:text"`
 	WebhookSigningSecret string    `json:"webhook_signing_secret" gorm:"type:text"`
