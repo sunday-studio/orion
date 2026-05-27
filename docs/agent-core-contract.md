@@ -41,11 +41,23 @@ The Agent should not:
 - Own incidents, alerts, retention, migrations, and API behavior.
 - Serve the Console and public API.
 
+## Core Monitor Worker Responsibilities
+
+- Run as a separate process from the Core API.
+- Execute Core-managed monitor checks, not Agent-owned host-local checks.
+- Use the Core SQLite database and shared services for worker diagnostics and future Core monitor reports.
+- Record worker heartbeat state so Core can expose monitor execution health separately from API health.
+- Shut down and restart without affecting Console/API responsiveness.
+
+The Core API should not run polling checks in-process. `/health` reports API and database
+availability only; Core worker state is exposed through `/v1/diagnostics/core-worker`.
+
 ## API Rules
 
 - Public API routes are versioned under `/v1`.
 - `/health` is unversioned.
 - Protected agent routes require `Authorization: Bearer <token>`.
+- Frontend diagnostics routes use frontend/admin auth when configured.
 - Core validates that the token belongs to the `agent_id` in the path.
 - `X-Request-ID` may be supplied by callers; Core echoes or generates one.
 - Path IDs and body IDs must agree on agent-scoped routes.
@@ -62,6 +74,8 @@ The Agent should not:
   Stores system metrics and updates agent `last_seen`. Requires auth.
 - `POST /v1/agents/:agent_id/:monitor_id/report`
   Stores check result and updates monitor state. Requires auth.
+- `GET /v1/diagnostics/core-worker`
+  Returns Core monitor worker heartbeat status. Requires frontend/admin auth when configured.
 
 ## Endpoint Behavior
 

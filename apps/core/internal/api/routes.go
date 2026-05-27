@@ -21,18 +21,19 @@ import (
 )
 
 type Server struct {
-	db              *gorm.DB
-	logger          *logging.Logger
-	cfg             *config.Config
-	agentService    *service.AgentService
-	authService     *service.AuthService
-	reportService   *service.ReportService
-	monitorService  *service.MonitorService
-	settingsService *service.SettingsService
-	rollupService   *service.RollupService
-	archiveService  *service.ArchiveService
-	loginLimiter    *RateLimiter
-	router          *gin.Engine
+	db                       *gorm.DB
+	logger                   *logging.Logger
+	cfg                      *config.Config
+	agentService             *service.AgentService
+	authService              *service.AuthService
+	reportService            *service.ReportService
+	monitorService           *service.MonitorService
+	settingsService          *service.SettingsService
+	rollupService            *service.RollupService
+	archiveService           *service.ArchiveService
+	workerDiagnosticsService *service.WorkerDiagnosticsService
+	loginLimiter             *RateLimiter
+	router                   *gin.Engine
 }
 
 func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *Server {
@@ -43,6 +44,7 @@ func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *S
 	settingsService := service.NewSettingsService(database, logger, cfg.DataDir)
 	rollupService := service.NewRollupService(database, logger)
 	archiveService := service.NewArchiveService(database, logger, cfg.DataDir)
+	workerDiagnosticsService := service.NewWorkerDiagnosticsService(database, logger)
 	router := gin.Default()
 	corsOrigins := cfg.CORSOrigins
 	if len(corsOrigins) == 0 {
@@ -60,18 +62,19 @@ func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *S
 	router.Use(RequestIDMiddleware(logger))
 
 	server := &Server{
-		db:              database,
-		logger:          logger,
-		cfg:             cfg,
-		agentService:    agentService,
-		authService:     authService,
-		reportService:   reportService,
-		monitorService:  monitorService,
-		settingsService: settingsService,
-		rollupService:   rollupService,
-		archiveService:  archiveService,
-		loginLimiter:    NewRateLimiter(cfg.LoginRateLimitAttempts, time.Duration(cfg.LoginRateLimitWindowSecs)*time.Second),
-		router:          router,
+		db:                       database,
+		logger:                   logger,
+		cfg:                      cfg,
+		agentService:             agentService,
+		authService:              authService,
+		reportService:            reportService,
+		monitorService:           monitorService,
+		settingsService:          settingsService,
+		rollupService:            rollupService,
+		archiveService:           archiveService,
+		workerDiagnosticsService: workerDiagnosticsService,
+		loginLimiter:             NewRateLimiter(cfg.LoginRateLimitAttempts, time.Duration(cfg.LoginRateLimitWindowSecs)*time.Second),
+		router:                   router,
 	}
 
 	server.setupRoutes()
@@ -134,6 +137,7 @@ func (s *Server) setupRoutes() {
 			frontend.GET("/monitors/:id/history", s.getMonitorHistory)
 			frontend.GET("/health/summary", s.getSystemHealth)
 			frontend.GET("/health/issues", s.getHealthIssues)
+			frontend.GET("/diagnostics/core-worker", s.getCoreWorkerDiagnostics)
 			frontend.GET("/incidents", s.listIncidents)
 			frontend.GET("/incidents/:id", s.getIncidentDetail)
 			frontend.GET("/incidents/:id/timeline", s.getIncidentTimeline)

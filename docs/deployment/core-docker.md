@@ -6,20 +6,23 @@ It builds:
 
 - the Console with Vite;
 - the Core Go binary;
+- the Core monitor worker Go binary;
 - the Console static files copied into the Core runtime image.
 
-The final runtime image contains one process: `orion-core`. It serves both the backend API and the Console UI from the runtime `web/` directory.
+The final runtime image contains two binaries: `orion-core` for the API/Console process and
+`orion-core-worker` for Core-managed monitor execution. Run them as separate containers that share
+the same `/data` volume.
 
 ## Image
 
-Core and Console are shipped together as one Docker image:
+Core API, Core monitor worker, and Console are shipped together as one Docker image:
 
 ```txt
 ghcr.io/sunday-studio/orion-core:<version>
 ```
 
-The image contains one runtime process, `orion-core`, which serves both the backend API and the
-Console UI.
+The default command runs `orion-core`, which serves the backend API and Console UI. Override the
+command with `./orion-core-worker` to run the monitor worker.
 
 ## Run With Docker Compose
 
@@ -43,12 +46,24 @@ EOF
 ```
 
 Start Core. If you skip the `.env` file, Compose uses the defaults in `orion-compose.yaml`.
+Compose starts two services:
+
+- `orion-core`: API, Console, incidents, alerts, and diagnostics;
+- `orion-core-worker`: Core-managed monitor worker heartbeat and check execution.
 
 ```sh
 docker compose -f orion-compose.yaml up -d
 ```
 
 Core listens on `http://localhost:8999`.
+Worker state is exposed through the API diagnostics route:
+
+```sh
+curl http://localhost:8999/v1/diagnostics/core-worker
+```
+
+The plain `/health` endpoint only reports API and database availability. It does not fail because
+the worker is paused, stale, or stopped.
 
 From this repository, you can run the example directly:
 
@@ -78,6 +93,20 @@ docker run -d \
   -e ORION_ADMIN_PASSWORD='change-me' \
   -e ORION_JWT_SECRET='change-me-to-a-long-random-value' \
   ghcr.io/sunday-studio/orion-core:<version>
+
+docker run -d \
+  --name orion-core-worker \
+  --restart unless-stopped \
+  -v orion-data:/data \
+  -e ORION_DATA_DIR=/data \
+  -e ORION_WORKER_ID=core-monitor-worker \
+  -e ORION_WORKER_HEARTBEAT_SECONDS=15 \
+  -e ORION_WORKER_STALE_SECONDS=60 \
+  -e ORION_ADMIN_USERNAME=admin \
+  -e ORION_ADMIN_PASSWORD='change-me' \
+  -e ORION_JWT_SECRET='change-me-to-a-long-random-value' \
+  ghcr.io/sunday-studio/orion-core:<version> \
+  ./orion-core-worker
 ```
 
 ## Runtime Example
@@ -105,13 +134,16 @@ docker compose -f orion-compose.yaml down
 
 ## Data
 
-The container stores Core data at `/data`, mounted by Docker Compose as the `orion-data` volume.
+Both Core containers store Core data at `/data`, mounted by Docker Compose as the `orion-data`
+volume. The first worker release uses shared SQLite access on a single Docker host. Do not point
+multiple hosts at the same SQLite file.
 
 This includes:
 
 - `orion.db`;
 - archive SQLite files;
 - lifecycle metadata.
+- Core worker heartbeat diagnostics.
 
 Backups should include the Docker volume. See [SQLite backup and restore](../sqlite-backup-restore.md).
 
@@ -131,4 +163,5 @@ Common examples:
 Image publishing is manually triggered from GitHub Actions. Run the `Docker Images` workflow and
 provide the version tag to publish.
 
-Agents should be installed separately on each monitored machine. They do not run inside this Core container.
+Agents should be installed separately on each monitored machine. They do not run inside the Core API
+or Core worker containers.

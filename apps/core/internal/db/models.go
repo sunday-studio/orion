@@ -202,6 +202,19 @@ type CoreMonitorConfig struct {
 	Monitor                   Monitor    `json:"monitor,omitempty" gorm:"foreignKey:MonitorID;references:ID"`
 }
 
+type CoreWorkerStatus struct {
+	WorkerID        string    `json:"worker_id" gorm:"primaryKey;type:varchar(255)"`
+	ProcessKind     string    `json:"process_kind" gorm:"not null;default:core-monitor-worker"`
+	Hostname        string    `json:"hostname" gorm:"not null;default:''"`
+	Status          string    `json:"status" gorm:"not null;default:unknown"`
+	Version         string    `json:"version" gorm:"not null;default:''"`
+	StartedAt       time.Time `json:"started_at" gorm:"not null"`
+	LastHeartbeatAt time.Time `json:"last_heartbeat_at" gorm:"not null;index:idx_core_worker_statuses_last_heartbeat_at"`
+	LastError       string    `json:"last_error" gorm:"not null;default:'';type:text"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+
 type Incident struct {
 	ID                 string     `json:"id" gorm:"primaryKey;type:varchar(255)"`
 	Status             string     `json:"status" gorm:"not null;index:idx_incidents_status"` // open | acknowledged | resolved

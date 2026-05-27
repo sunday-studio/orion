@@ -4,7 +4,8 @@ Orion is a self-hosted monitoring app for small server setups.
 
 An Agent runs on each machine, collects system metrics and monitor results, and sends them to Core.
 Core stores the data in SQLite, computes health, opens incidents, sends alerts, and serves the
-Console UI.
+Console UI. Core-managed monitors run in a separate Core monitor worker process so API health stays
+separate from monitor execution health.
 
 ## Preview
 
@@ -25,26 +26,30 @@ flowchart LR
         A2[Orion Agent]
     end
     subgraph core [Core host]
-        C[Orion Core]
+        C[Orion Core API]
+        W[Core monitor worker]
         DB[(SQLite)]
         UI[Console]
     end
     A1 -->|HTTP/S + token| C
     A2 -->|HTTP/S + token| C
     C --> DB
+    W --> DB
     UI --> C
 ```
 
 - **Agent** runs on Linux/macOS hosts and reports system metrics plus monitor checks.
 - **Core** receives reports, stores data, derives health, manages incidents, and serves the API.
+- **Core monitor worker** executes Core-managed checks and records worker heartbeat diagnostics.
 - **Console** is the web UI for incidents, agents, monitors, alerts, logs, and settings.
 
 ## Deploy
 
 ### Core
 
-Deploy Core and Console together from the published Docker image. Core stores data in `/data`, so
-mount that path to persistent storage.
+Deploy Core API, Core monitor worker, and Console from the published Docker image. Core stores data
+in `/data`, so mount that path to persistent storage. The Compose file starts the API and worker as
+separate services that share the same SQLite volume.
 
 With Docker Compose:
 
@@ -71,7 +76,7 @@ Start it:
 docker compose -f orion-compose.yml up -d
 ```
 
-With plain Docker:
+With plain Docker, run one API container and one worker container against the same `/data` volume:
 
 ```sh
 docker run -d \
@@ -85,6 +90,18 @@ docker run -d \
   -e ORION_ADMIN_PASSWORD='replace-with-a-strong-password' \
   -e ORION_JWT_SECRET='replace-with-a-long-random-secret' \
   ghcr.io/sunday-studio/orion-core:<version>
+
+docker run -d \
+  --name orion-core-worker \
+  --restart unless-stopped \
+  -v orion-data:/data \
+  -e ORION_DATA_DIR=/data \
+  -e ORION_WORKER_ID=core-monitor-worker \
+  -e ORION_ADMIN_USERNAME=admin \
+  -e ORION_ADMIN_PASSWORD='replace-with-a-strong-password' \
+  -e ORION_JWT_SECRET='replace-with-a-long-random-secret' \
+  ghcr.io/sunday-studio/orion-core:<version> \
+  ./orion-core-worker
 ```
 
 Expose Core through a stable URL that Agents can reach, then open that URL in the browser. See
@@ -231,6 +248,7 @@ Run the bundled Core and Console example from this repository:
 cd deploy/examples
 docker compose -f ./core-console-compose up -d
 curl http://localhost:8999/health
+curl http://localhost:8999/v1/diagnostics/core-worker
 ```
 
 Run the Console dev server against local Core:
@@ -257,6 +275,7 @@ Run tests and builds:
 
 ```sh
 cd apps/core && go test ./...
+make core-worker-build
 cd apps/agent && go test ./...
 cd apps/console && npm run build
 ```

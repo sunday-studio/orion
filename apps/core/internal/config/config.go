@@ -13,6 +13,9 @@ type Config struct {
 	DataDir                    string
 	Port                       string
 	CORSOrigins                []string
+	CoreWorkerID               string
+	CoreWorkerHeartbeatSeconds int
+	CoreWorkerStaleSeconds     int
 	AdminUsername              string
 	AdminPassword              string
 	JWTSecret                  string
@@ -38,6 +41,9 @@ func Load() *Config {
 		DataDir:                    getEnv("ORION_DATA_DIR", "data"),
 		Port:                       getEnv("ORION_PORT", "8999"),
 		CORSOrigins:                getEnvList("ORION_CORS_ORIGINS", []string{"http://localhost:5173", "http://127.0.0.1:5173"}),
+		CoreWorkerID:               getEnv("ORION_WORKER_ID", "core-monitor-worker"),
+		CoreWorkerHeartbeatSeconds: getEnvInt("ORION_WORKER_HEARTBEAT_SECONDS", 15),
+		CoreWorkerStaleSeconds:     getEnvInt("ORION_WORKER_STALE_SECONDS", 60),
 		AdminUsername:              adminUser,
 		AdminPassword:              adminPass,
 		JWTSecret:                  jwtSecret,
@@ -138,6 +144,12 @@ func (c *Config) Validate() error {
 	}
 	if c.LoginRateLimitWindowSecs < 0 {
 		return &ValidationError{Msg: "ORION_LOGIN_RATE_LIMIT_WINDOW_SECONDS must be >= 0"}
+	}
+	if c.CoreWorkerHeartbeatSeconds <= 0 {
+		return &ValidationError{Msg: "ORION_WORKER_HEARTBEAT_SECONDS must be > 0"}
+	}
+	if c.CoreWorkerStaleSeconds <= 0 {
+		return &ValidationError{Msg: "ORION_WORKER_STALE_SECONDS must be > 0"}
 	}
 	if c.AlertCooldownSeconds < 0 {
 		return &ValidationError{Msg: "ORION_ALERT_COOLDOWN_SECONDS must be >= 0"}

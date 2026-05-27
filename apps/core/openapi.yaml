@@ -3667,6 +3667,37 @@ paths:
       summary: Log in to Console
       tags:
       - auth
+  /v1/diagnostics/core-worker:
+    get:
+      consumes:
+      - application/json
+      description: Get Core monitor worker heartbeat state without affecting Core
+        API health
+      operationId: getCoreWorkerDiagnostics
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    api:
+                      type: object
+                    worker:
+                      type: object
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get Core worker diagnostics
+      tags:
+      - health
   /v1/events:
     get:
       consumes:

@@ -3437,6 +3437,56 @@
                 }
             }
         },
+        "/v1/diagnostics/core-worker": {
+            "get": {
+                "description": "Get Core monitor worker heartbeat state without affecting Core API health",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "health"
+                ],
+                "summary": "Get Core worker diagnostics",
+                "operationId": "getCoreWorkerDiagnostics",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "api": {
+                                                    "type": "object"
+                                                },
+                                                "worker": {
+                                                    "type": "object"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/events": {
             "get": {
                 "description": "Get a paginated operational event log for Core, agents, monitors, incidents, alerts, and lifecycle actions",

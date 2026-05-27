@@ -3,6 +3,7 @@ package api
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -165,6 +166,79 @@ func TestHealthCheckResponse(t *testing.T) {
 	}
 	if healthResp.Header().Get("X-Request-ID") == "" {
 		t.Fatalf("health response missing X-Request-ID header")
+	}
+}
+
+func TestCoreWorkerDiagnosticsDoNotAffectAPIHealth(t *testing.T) {
+	server := setupTestServer(t)
+	server.cfg.CoreWorkerStaleSeconds = 30
+
+	emptyResp := performJSONRequest(t, server, http.MethodGet, "/v1/diagnostics/core-worker", nil, "")
+	if emptyResp.Code != http.StatusOK {
+		t.Fatalf("empty diagnostics status = %d, body = %s", emptyResp.Code, emptyResp.Body.String())
+	}
+
+	var diagnostics struct {
+		Success bool `json:"success"`
+		Data    struct {
+			API struct {
+				Status  string `json:"status"`
+				Service string `json:"service"`
+			} `json:"api"`
+			Worker struct {
+				Status      string `json:"status"`
+				WorkerCount int    `json:"worker_count"`
+				OnlineCount int    `json:"online_count"`
+				StaleCount  int    `json:"stale_count"`
+				Workers     []struct {
+					WorkerID string `json:"worker_id"`
+					Health   string `json:"health"`
+				} `json:"workers"`
+			} `json:"worker"`
+		} `json:"data"`
+	}
+	decodeResponse(t, emptyResp, &diagnostics)
+	if !diagnostics.Success || diagnostics.Data.API.Status != "healthy" || diagnostics.Data.Worker.Status != "unknown" || diagnostics.Data.Worker.WorkerCount != 0 {
+		t.Fatalf("empty diagnostics = %+v, want healthy API and unknown worker state", diagnostics)
+	}
+
+	now := time.Now().UTC()
+	if err := server.workerDiagnosticsService.RecordHeartbeat(context.Background(), service.WorkerHeartbeat{
+		WorkerID:        "worker-fresh",
+		Hostname:        "core-host",
+		Status:          "running",
+		Version:         "test",
+		StartedAt:       now.Add(-time.Minute),
+		LastHeartbeatAt: now,
+	}); err != nil {
+		t.Fatalf("record fresh heartbeat: %v", err)
+	}
+	if err := server.db.Create(&db.CoreWorkerStatus{
+		WorkerID:        "worker-stale",
+		ProcessKind:     service.CoreMonitorWorkerProcessKind,
+		Hostname:        "core-host",
+		Status:          "running",
+		Version:         "test",
+		StartedAt:       now.Add(-time.Hour),
+		LastHeartbeatAt: now.Add(-time.Minute),
+		CreatedAt:       now.Add(-time.Hour),
+		UpdatedAt:       now.Add(-time.Minute),
+	}).Error; err != nil {
+		t.Fatalf("create stale heartbeat: %v", err)
+	}
+
+	staleResp := performJSONRequest(t, server, http.MethodGet, "/v1/diagnostics/core-worker", nil, "")
+	if staleResp.Code != http.StatusOK {
+		t.Fatalf("stale diagnostics status = %d, body = %s", staleResp.Code, staleResp.Body.String())
+	}
+	decodeResponse(t, staleResp, &diagnostics)
+	if diagnostics.Data.Worker.Status != "degraded" || diagnostics.Data.Worker.WorkerCount != 2 || diagnostics.Data.Worker.OnlineCount != 1 || diagnostics.Data.Worker.StaleCount != 1 {
+		t.Fatalf("stale diagnostics = %+v, want degraded worker state with one online and one stale", diagnostics.Data.Worker)
+	}
+
+	healthResp := performJSONRequest(t, server, http.MethodGet, "/health", nil, "")
+	if healthResp.Code != http.StatusOK {
+		t.Fatalf("health status = %d, body = %s, want API health to remain independent of worker diagnostics", healthResp.Code, healthResp.Body.String())
 	}
 }
 

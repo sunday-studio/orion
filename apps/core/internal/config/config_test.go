@@ -8,6 +8,9 @@ import (
 
 func TestLoadCORSOriginsFromEnvironment(t *testing.T) {
 	t.Setenv("ORION_CORS_ORIGINS", "https://console.example.com, http://localhost:5173 ")
+	t.Setenv("ORION_WORKER_ID", "worker-a")
+	t.Setenv("ORION_WORKER_HEARTBEAT_SECONDS", "20")
+	t.Setenv("ORION_WORKER_STALE_SECONDS", "90")
 
 	cfg := Load()
 
@@ -16,6 +19,9 @@ func TestLoadCORSOriginsFromEnvironment(t *testing.T) {
 	}
 	if cfg.CORSOrigins[0] != "https://console.example.com" || cfg.CORSOrigins[1] != "http://localhost:5173" {
 		t.Fatalf("CORSOrigins = %#v", cfg.CORSOrigins)
+	}
+	if cfg.CoreWorkerID != "worker-a" || cfg.CoreWorkerHeartbeatSeconds != 20 || cfg.CoreWorkerStaleSeconds != 90 {
+		t.Fatalf("worker config = id %q heartbeat %d stale %d", cfg.CoreWorkerID, cfg.CoreWorkerHeartbeatSeconds, cfg.CoreWorkerStaleSeconds)
 	}
 }
 
@@ -52,14 +58,42 @@ func TestValidateRejectsPartialFrontendAuthConfig(t *testing.T) {
 
 func TestValidateAcceptsCompleteFrontendAuthConfig(t *testing.T) {
 	cfg := &Config{
-		AdminUsername:  "admin",
-		AdminPassword:  "secret",
-		JWTSecret:      "jwt-secret",
-		FrontendAuthOn: true,
+		AdminUsername:              "admin",
+		AdminPassword:              "secret",
+		JWTSecret:                  "jwt-secret",
+		FrontendAuthOn:             true,
+		CoreWorkerHeartbeatSeconds: 15,
+		CoreWorkerStaleSeconds:     60,
 	}
 
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("Validate() error = %v", err)
+	}
+}
+
+func TestValidateRejectsInvalidWorkerDiagnosticsConfig(t *testing.T) {
+	tests := []struct {
+		name             string
+		heartbeatSeconds int
+		staleSeconds     int
+	}{
+		{name: "zero heartbeat", heartbeatSeconds: 0, staleSeconds: 60},
+		{name: "negative heartbeat", heartbeatSeconds: -1, staleSeconds: 60},
+		{name: "zero stale threshold", heartbeatSeconds: 15, staleSeconds: 0},
+		{name: "negative stale threshold", heartbeatSeconds: 15, staleSeconds: -1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &Config{
+				CoreWorkerHeartbeatSeconds: tt.heartbeatSeconds,
+				CoreWorkerStaleSeconds:     tt.staleSeconds,
+			}
+
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want invalid worker diagnostics config error")
+			}
+		})
 	}
 }
 

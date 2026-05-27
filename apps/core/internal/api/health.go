@@ -114,6 +114,33 @@ func (s *Server) getSystemHealth(c *gin.Context) {
 	})
 }
 
+// getCoreWorkerDiagnostics retrieves Core monitor worker process state.
+// @Summary      Get Core worker diagnostics
+// @Description  Get Core monitor worker heartbeat state without affecting Core API health
+// @Tags         health
+// @Accept       json
+// @Produce      json
+// @ID           getCoreWorkerDiagnostics
+// @Success      200  {object}  utils.APIResponse{data=object{api=object,worker=object}}
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/diagnostics/core-worker [get]
+func (s *Server) getCoreWorkerDiagnostics(c *gin.Context) {
+	staleAfter := time.Duration(s.cfg.CoreWorkerStaleSeconds) * time.Second
+	workerDiagnostics, err := s.workerDiagnosticsService.GetDiagnostics(c.Request.Context(), staleAfter, time.Now().UTC())
+	if err != nil {
+		utils.InternalError(c, "Failed to get Core worker diagnostics", err)
+		return
+	}
+
+	utils.SuccessResponse(c, 200, "Core worker diagnostics retrieved successfully", gin.H{
+		"api": gin.H{
+			"status":  "healthy",
+			"service": "orion-core",
+		},
+		"worker": workerDiagnostics,
+	})
+}
+
 // getHealthIssues retrieves all health issues in the system
 // @Summary      Get health issues
 // @Description  Get a list of all monitors with health issues (down, degraded, or stale)
