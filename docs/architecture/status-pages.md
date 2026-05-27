@@ -672,11 +672,10 @@ Resolved status page architecture decisions are recorded in:
 - [First-Release Status Page Cardinality](status-page-decisions/first-release-page-cardinality.md)
 - [Public Incident Automation Policy](status-page-decisions/public-incident-automation-policy.md)
 - [Status Page Subscription Infrastructure Reuse](status-page-decisions/subscription-infrastructure-reuse.md)
+- [Public Uptime Formatting](status-page-decisions/public-uptime-formatting.md)
 
 ## Open Decisions
 
-- Whether public uptime should round to one decimal place, two decimals, or a simpler `99.9%` style.
-- Whether `unknown` should be hidden, shown as degraded, or shown as its own public state by default.
 - Which public mail sender configuration should power first subscriber confirmation and fan-out emails.
 
 ## Decision
