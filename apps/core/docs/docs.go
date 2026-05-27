@@ -7218,6 +7218,9 @@ const docTemplate = `{
                 "last_updated": {
                     "type": "string"
                 },
+                "metadata": {
+                    "$ref": "#/definitions/api.StatusPagePublicMetadataResponse"
+                },
                 "overall_status": {
                     "type": "string"
                 },
@@ -7360,6 +7363,46 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.StatusPagePublicMetadataResponse": {
+            "type": "object",
+            "properties": {
+                "canonical_url": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "open_graph": {
+                    "$ref": "#/definitions/api.StatusPagePublicOpenGraphResponse"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.StatusPagePublicOpenGraphResponse": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "site_name": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "url": {
                     "type": "string"
                 }
             }

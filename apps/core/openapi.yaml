@@ -640,6 +640,8 @@ definitions:
         type: array
       last_updated:
         type: string
+      metadata:
+        $ref: '#/definitions/api.StatusPagePublicMetadataResponse'
       overall_status:
         type: string
       overall_status_display:
@@ -733,6 +735,32 @@ definitions:
       published_at:
         type: string
       status:
+        type: string
+    type: object
+  api.StatusPagePublicMetadataResponse:
+    properties:
+      canonical_url:
+        type: string
+      description:
+        type: string
+      open_graph:
+        $ref: '#/definitions/api.StatusPagePublicOpenGraphResponse'
+      title:
+        type: string
+    type: object
+  api.StatusPagePublicOpenGraphResponse:
+    properties:
+      description:
+        type: string
+      image_url:
+        type: string
+      site_name:
+        type: string
+      title:
+        type: string
+      type:
+        type: string
+      url:
         type: string
     type: object
   api.StatusPagePublicPageResponse:

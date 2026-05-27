@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -515,6 +516,204 @@ func TestStatusPageAdminAPIFlow(t *testing.T) {
 		resp := performJSONRequest(t, server, http.MethodGet, path, nil, "")
 		if resp.Code != http.StatusOK {
 			t.Fatalf("list %s status = %d, body = %s", path, resp.Code, resp.Body.String())
+		}
+	}
+}
+
+func TestPublicStatusPageMetadataProjectionUsesSafeDefaultsAndConfiguredFields(t *testing.T) {
+	server := setupTestServer(t)
+	now := time.Now().UTC()
+	pages := []db.StatusPage{
+		{
+			ID:                        "status-page-metadata-default",
+			Slug:                      "metadata-default",
+			Title:                     "Acme Status",
+			Description:               "Service availability",
+			Visibility:                statusPageVisibilityPublic,
+			ThemeSettings:             "{}",
+			DefaultIncidentVisibility: statusPageIncidentVisibilityDraft,
+			PublishedAt:               &now,
+		},
+		{
+			ID:                "status-page-metadata-configured",
+			Slug:              "metadata-configured",
+			Title:             "Acme Internal Page Title",
+			Description:       "Fallback public description",
+			SEOTitle:          "Acme availability",
+			SEODescription:    "Live platform state",
+			OpenGraphImageURL: "https://cdn.acme.test/status.png",
+			CanonicalURL:      "https://status.acme.test/",
+			Visibility:        statusPageVisibilityUnlisted,
+			ThemeSettings: `{
+				"open_graph_description": "Realtime availability for Acme",
+				"open_graph_site_name": "Acme Trust",
+				"open_graph_title": "Acme Status Updates",
+				"open_graph_type": "website"
+			}`,
+			DefaultIncidentVisibility: statusPageIncidentVisibilityDraft,
+			PublishedAt:               &now,
+		},
+		{
+			ID:                        "status-page-metadata-draft",
+			Slug:                      "metadata-draft",
+			Title:                     "Draft Status",
+			Visibility:                statusPageVisibilityDraft,
+			ThemeSettings:             "{}",
+			DefaultIncidentVisibility: statusPageIncidentVisibilityDraft,
+		},
+	}
+	if err := server.db.Create(&pages).Error; err != nil {
+		t.Fatalf("create status pages: %v", err)
+	}
+
+	defaultResp := performJSONRequest(t, server, http.MethodGet, "/status/metadata-default", nil, "")
+	if defaultResp.Code != http.StatusOK {
+		t.Fatalf("default metadata status = %d, body = %s", defaultResp.Code, defaultResp.Body.String())
+	}
+	var defaultPayload struct {
+		Data struct {
+			StatusPage struct {
+				Metadata StatusPagePublicMetadataResponse `json:"metadata"`
+			} `json:"status_page"`
+		} `json:"data"`
+	}
+	decodeResponse(t, defaultResp, &defaultPayload)
+	defaultMetadata := defaultPayload.Data.StatusPage.Metadata
+	if defaultMetadata.Title != "Acme Status" ||
+		defaultMetadata.Description != "Service availability" ||
+		defaultMetadata.CanonicalURL != "" ||
+		defaultMetadata.OpenGraph.Title != "Acme Status" ||
+		defaultMetadata.OpenGraph.Description != "Service availability" ||
+		defaultMetadata.OpenGraph.URL != "" ||
+		defaultMetadata.OpenGraph.Type != "website" ||
+		defaultMetadata.OpenGraph.SiteName != "Acme Status" ||
+		defaultMetadata.OpenGraph.ImageURL != "" {
+		t.Fatalf("default metadata = %+v, want page-owned safe defaults", defaultMetadata)
+	}
+
+	configuredResp := performJSONRequest(t, server, http.MethodGet, "/status/metadata-configured", nil, "")
+	if configuredResp.Code != http.StatusOK {
+		t.Fatalf("configured metadata status = %d, body = %s", configuredResp.Code, configuredResp.Body.String())
+	}
+	var configuredPayload struct {
+		Data struct {
+			StatusPage struct {
+				Metadata StatusPagePublicMetadataResponse `json:"metadata"`
+			} `json:"status_page"`
+		} `json:"data"`
+	}
+	decodeResponse(t, configuredResp, &configuredPayload)
+	configuredMetadata := configuredPayload.Data.StatusPage.Metadata
+	if configuredMetadata.Title != "Acme availability" ||
+		configuredMetadata.Description != "Live platform state" ||
+		configuredMetadata.CanonicalURL != "https://status.acme.test" ||
+		configuredMetadata.OpenGraph.Title != "Acme Status Updates" ||
+		configuredMetadata.OpenGraph.Description != "Realtime availability for Acme" ||
+		configuredMetadata.OpenGraph.URL != "https://status.acme.test" ||
+		configuredMetadata.OpenGraph.Type != "website" ||
+		configuredMetadata.OpenGraph.SiteName != "Acme Trust" ||
+		configuredMetadata.OpenGraph.ImageURL != "https://cdn.acme.test/status.png" {
+		t.Fatalf("configured metadata = %+v, want configured public SEO and Open Graph fields", configuredMetadata)
+	}
+
+	draftResp := performJSONRequest(t, server, http.MethodGet, "/status/metadata-draft", nil, "")
+	if draftResp.Code != http.StatusNotFound {
+		t.Fatalf("draft public metadata status = %d, body = %s, want 404", draftResp.Code, draftResp.Body.String())
+	}
+	draftPreviewResp := performJSONRequest(t, server, http.MethodGet, "/v1/status-pages/status-page-metadata-draft/preview", nil, "")
+	if draftPreviewResp.Code != http.StatusOK {
+		t.Fatalf("draft preview metadata status = %d, body = %s", draftPreviewResp.Code, draftPreviewResp.Body.String())
+	}
+	var draftPreviewPayload struct {
+		Data struct {
+			Preview struct {
+				Metadata StatusPagePublicMetadataResponse `json:"metadata"`
+			} `json:"preview"`
+		} `json:"data"`
+	}
+	decodeResponse(t, draftPreviewResp, &draftPreviewPayload)
+	if draftPreviewPayload.Data.Preview.Metadata.Title != "Draft Status" {
+		t.Fatalf("draft preview metadata = %+v, want draft metadata in admin preview", draftPreviewPayload.Data.Preview.Metadata)
+	}
+}
+
+func TestPublicStatusPageMetadataDoesNotUseMappedInternalResources(t *testing.T) {
+	server := setupTestServer(t)
+	registered := registerTestAgent(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+	if err := server.db.Model(&db.Monitor{}).Where("id = ?", registeredMonitor.Data.MonitorID).Updates(map[string]interface{}{
+		"name":            "internal-db-01.local",
+		"computed_health": "up",
+		"health":          "up",
+	}).Error; err != nil {
+		t.Fatalf("update monitor: %v", err)
+	}
+
+	now := time.Now().UTC()
+	page := db.StatusPage{
+		ID:                        "status-page-metadata-redaction",
+		Slug:                      "metadata-redaction",
+		Title:                     "Customer Status",
+		Description:               "Customer-facing availability",
+		Visibility:                statusPageVisibilityPublic,
+		ThemeSettings:             "{}",
+		DefaultIncidentVisibility: statusPageIncidentVisibilityDraft,
+		PublishedAt:               &now,
+	}
+	section := db.StatusPageSection{
+		ID:           "status-page-metadata-redaction-section",
+		StatusPageID: page.ID,
+		Name:         "Public services",
+	}
+	component := db.StatusPageComponent{
+		ID:           "status-page-metadata-redaction-component",
+		StatusPageID: page.ID,
+		SectionID:    section.ID,
+		PublicName:   "Checkout API",
+		DisplayMode:  "single_resource",
+		Visible:      true,
+	}
+	mapping := db.StatusPageComponentMapping{
+		ID:                   "status-page-metadata-redaction-mapping",
+		ComponentID:          component.ID,
+		ResourceType:         "monitor",
+		ResourceID:           registeredMonitor.Data.MonitorID,
+		HealthRollupStrategy: "worst",
+		UptimeRollupStrategy: "worst",
+	}
+	if err := server.db.Create(&page).Error; err != nil {
+		t.Fatalf("create status page: %v", err)
+	}
+	if err := server.db.Create(&section).Error; err != nil {
+		t.Fatalf("create section: %v", err)
+	}
+	if err := server.db.Create(&component).Error; err != nil {
+		t.Fatalf("create component: %v", err)
+	}
+	if err := server.db.Create(&mapping).Error; err != nil {
+		t.Fatalf("create mapping: %v", err)
+	}
+
+	resp := performJSONRequest(t, server, http.MethodGet, "/status/metadata-redaction", nil, "")
+	if resp.Code != http.StatusOK {
+		t.Fatalf("metadata redaction status = %d, body = %s", resp.Code, resp.Body.String())
+	}
+	var payload struct {
+		Data struct {
+			StatusPage struct {
+				Metadata StatusPagePublicMetadataResponse `json:"metadata"`
+			} `json:"status_page"`
+		} `json:"data"`
+	}
+	decodeResponse(t, resp, &payload)
+	metadataJSON, err := json.Marshal(payload.Data.StatusPage.Metadata)
+	if err != nil {
+		t.Fatalf("marshal metadata: %v", err)
+	}
+	metadata := string(metadataJSON)
+	for _, internalValue := range []string{registeredMonitor.Data.MonitorID, "internal-db-01.local", registered.Data.AgentID} {
+		if strings.Contains(metadata, internalValue) {
+			t.Fatalf("metadata %s leaked internal resource value %q", metadata, internalValue)
 		}
 	}
 }

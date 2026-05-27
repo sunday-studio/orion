@@ -177,11 +177,28 @@ type StatusPageDetailResponse struct {
 
 type StatusPagePreviewResponse struct {
 	Page                 StatusPagePublicPageResponse       `json:"page"`
+	Metadata             StatusPagePublicMetadataResponse   `json:"metadata"`
 	Sections             []StatusPagePublicSectionResponse  `json:"sections"`
 	Incidents            []StatusPagePublicIncidentResponse `json:"incidents"`
 	OverallStatus        string                             `json:"overall_status"`
 	OverallStatusDisplay string                             `json:"overall_status_display"`
 	LastUpdated          time.Time                          `json:"last_updated"`
+}
+
+type StatusPagePublicMetadataResponse struct {
+	Title        string                            `json:"title"`
+	Description  string                            `json:"description,omitempty"`
+	CanonicalURL string                            `json:"canonical_url,omitempty"`
+	OpenGraph    StatusPagePublicOpenGraphResponse `json:"open_graph"`
+}
+
+type StatusPagePublicOpenGraphResponse struct {
+	Title       string `json:"title"`
+	Description string `json:"description,omitempty"`
+	URL         string `json:"url,omitempty"`
+	Type        string `json:"type"`
+	SiteName    string `json:"site_name"`
+	ImageURL    string `json:"image_url,omitempty"`
 }
 
 type StatusPagePublicPageResponse struct {
@@ -1395,12 +1412,62 @@ func (s *Server) statusPagePreview(detail StatusPageDetailResponse, includeDraft
 			Description: detail.Page.Description,
 			Visibility:  detail.Page.Visibility,
 		},
+		Metadata:             statusPagePublicMetadata(detail.Page),
 		Sections:             sections,
 		Incidents:            incidents,
 		OverallStatus:        overallStatus,
 		OverallStatusDisplay: publicStatusDisplay(overallStatus),
 		LastUpdated:          publicMinute(time.Now()),
 	}
+}
+
+func statusPagePublicMetadata(page StatusPageResponse) StatusPagePublicMetadataResponse {
+	title := firstNonEmpty(page.SEOTitle, page.Title)
+	description := firstNonEmpty(page.SEODescription, page.Description)
+	canonicalURL := strings.TrimRight(strings.TrimSpace(page.CanonicalURL), "/")
+	openGraphType := statusPageMetadataSetting(page.ThemeSettings, "open_graph_type")
+	if openGraphType == "" {
+		openGraphType = "website"
+	}
+	siteName := firstNonEmpty(statusPageMetadataSetting(page.ThemeSettings, "open_graph_site_name"), page.Title)
+
+	return StatusPagePublicMetadataResponse{
+		Title:        title,
+		Description:  description,
+		CanonicalURL: canonicalURL,
+		OpenGraph: StatusPagePublicOpenGraphResponse{
+			Title:       firstNonEmpty(statusPageMetadataSetting(page.ThemeSettings, "open_graph_title"), title),
+			Description: firstNonEmpty(statusPageMetadataSetting(page.ThemeSettings, "open_graph_description"), description),
+			URL:         canonicalURL,
+			Type:        openGraphType,
+			SiteName:    siteName,
+			ImageURL:    strings.TrimSpace(page.OpenGraphImageURL),
+		},
+	}
+}
+
+func statusPageMetadataSetting(settings map[string]interface{}, key string) string {
+	if settings == nil {
+		return ""
+	}
+	value, ok := settings[key]
+	if !ok {
+		return ""
+	}
+	text, ok := value.(string)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(text)
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
 
 func (s *Server) statusPagePublicComponentResponse(component StatusPageComponentResponse, status string) StatusPagePublicComponentResponse {
