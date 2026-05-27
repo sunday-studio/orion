@@ -47,6 +47,24 @@ func TestMigrateAppliesEmbeddedMigrations(t *testing.T) {
 	if !database.Migrator().HasColumn(&AlertDelivery{}, "alert_group_id") {
 		t.Fatal("alert_deliveries.alert_group_id was not created")
 	}
+	if !database.Migrator().HasTable(&StatusPage{}) {
+		t.Fatal("status_pages table was not created")
+	}
+	if !database.Migrator().HasTable(&StatusPageSection{}) {
+		t.Fatal("status_page_sections table was not created")
+	}
+	if !database.Migrator().HasTable(&StatusPageComponent{}) {
+		t.Fatal("status_page_components table was not created")
+	}
+	if !database.Migrator().HasTable(&StatusPageComponentMapping{}) {
+		t.Fatal("status_page_component_mappings table was not created")
+	}
+	if !database.Migrator().HasTable(&StatusPageIncident{}) {
+		t.Fatal("status_page_incidents table was not created")
+	}
+	if !database.Migrator().HasTable(&StatusPageIncidentUpdate{}) {
+		t.Fatal("status_page_incident_updates table was not created")
+	}
 
 	var count int64
 	if err := database.Table("schema_migrations").Where("version = ?", 1).Count(&count).Error; err != nil {

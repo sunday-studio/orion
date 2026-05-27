@@ -201,6 +201,87 @@ type IncidentEvent struct {
 	CreatedAt       time.Time `json:"created_at" gorm:"index:idx_incident_events_created_at"`
 }
 
+type StatusPage struct {
+	ID                        string     `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	Slug                      string     `json:"slug" gorm:"uniqueIndex;not null"`
+	Title                     string     `json:"title" gorm:"not null"`
+	Description               string     `json:"description" gorm:"type:text"`
+	SEOTitle                  string     `json:"seo_title"`
+	SEODescription            string     `json:"seo_description" gorm:"type:text"`
+	OpenGraphImageURL         string     `json:"open_graph_image_url" gorm:"type:text"`
+	CanonicalURL              string     `json:"canonical_url" gorm:"type:text"`
+	Visibility                string     `json:"visibility" gorm:"not null;default:draft;index:idx_status_pages_visibility"`
+	ThemeSettings             string     `json:"theme_settings" gorm:"type:text;not null;default:'{}'"`
+	DefaultIncidentVisibility string     `json:"default_incident_visibility" gorm:"not null;default:draft"`
+	PublishedAt               *time.Time `json:"published_at" gorm:"index:idx_status_pages_published_at"`
+	CreatedAt                 time.Time  `json:"created_at"`
+	UpdatedAt                 time.Time  `json:"updated_at"`
+}
+
+type StatusPageSection struct {
+	ID                 string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	StatusPageID       string    `json:"status_page_id" gorm:"not null;index:idx_status_page_sections_page_sort"`
+	Name               string    `json:"name" gorm:"not null"`
+	SortOrder          int       `json:"sort_order" gorm:"not null;default:0;index:idx_status_page_sections_page_sort"`
+	CollapsedByDefault bool      `json:"collapsed_by_default" gorm:"not null;default:false"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
+}
+
+type StatusPageComponent struct {
+	ID                 string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	StatusPageID       string    `json:"status_page_id" gorm:"not null;index:idx_status_page_components_page_visible_sort"`
+	SectionID          string    `json:"section_id" gorm:"not null;index:idx_status_page_components_section_sort"`
+	PublicName         string    `json:"public_name" gorm:"not null"`
+	PublicDescription  string    `json:"public_description" gorm:"type:text"`
+	DisplayMode        string    `json:"display_mode" gorm:"not null;default:single_resource"`
+	ManualStatus       string    `json:"manual_status"`
+	ManualStatusReason string    `json:"manual_status_reason" gorm:"type:text"`
+	SortOrder          int       `json:"sort_order" gorm:"not null;default:0;index:idx_status_page_components_page_visible_sort;index:idx_status_page_components_section_sort"`
+	Visible            bool      `json:"visible" gorm:"not null;default:true;index:idx_status_page_components_page_visible_sort"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
+}
+
+type StatusPageComponentMapping struct {
+	ID                   string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	ComponentID          string    `json:"component_id" gorm:"not null;uniqueIndex:idx_status_page_component_mapping_unique;index:idx_status_page_component_mappings_component_id"`
+	ResourceType         string    `json:"resource_type" gorm:"not null;uniqueIndex:idx_status_page_component_mapping_unique;index:idx_status_page_component_mappings_resource"`
+	ResourceID           string    `json:"resource_id" gorm:"not null;uniqueIndex:idx_status_page_component_mapping_unique;index:idx_status_page_component_mappings_resource"`
+	HealthRollupStrategy string    `json:"health_rollup_strategy" gorm:"not null;default:worst"`
+	UptimeRollupStrategy string    `json:"uptime_rollup_strategy" gorm:"not null;default:worst"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
+}
+
+type StatusPageIncident struct {
+	ID                   string     `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	StatusPageID         string     `json:"status_page_id" gorm:"not null;index:idx_status_page_incidents_page_visibility"`
+	InternalIncidentID   string     `json:"internal_incident_id" gorm:"index:idx_status_page_incidents_internal_incident_id"`
+	Title                string     `json:"title" gorm:"not null"`
+	PublicStatus         string     `json:"public_status" gorm:"not null;index:idx_status_page_incidents_public_status"`
+	Severity             string     `json:"severity" gorm:"not null"`
+	ImpactSummary        string     `json:"impact_summary" gorm:"type:text"`
+	Visibility           string     `json:"visibility" gorm:"not null;default:draft;index:idx_status_page_incidents_page_visibility"`
+	AffectedComponentIDs string     `json:"affected_component_ids" gorm:"type:text;not null;default:'[]'"`
+	PublishedAt          *time.Time `json:"published_at" gorm:"index:idx_status_page_incidents_published_at"`
+	ResolvedAt           *time.Time `json:"resolved_at"`
+	ScheduledStartAt     *time.Time `json:"scheduled_start_at"`
+	ScheduledEndAt       *time.Time `json:"scheduled_end_at"`
+	CreatedAt            time.Time  `json:"created_at"`
+	UpdatedAt            time.Time  `json:"updated_at"`
+}
+
+type StatusPageIncidentUpdate struct {
+	ID          string     `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	IncidentID  string     `json:"incident_id" gorm:"not null;index:idx_status_page_incident_updates_incident_published"`
+	Status      string     `json:"status" gorm:"not null"`
+	Message     string     `json:"message" gorm:"type:text;not null"`
+	CreatedBy   string     `json:"created_by"`
+	PublishedAt *time.Time `json:"published_at" gorm:"index:idx_status_page_incident_updates_incident_published"`
+	CreatedAt   time.Time  `json:"created_at"`
+}
+
 type AlertDelivery struct {
 	ID            string                 `json:"id" gorm:"primaryKey;type:varchar(255)"`
 	IncidentID    string                 `json:"incident_id" gorm:"index:idx_alert_deliveries_incident_id;not null"`
