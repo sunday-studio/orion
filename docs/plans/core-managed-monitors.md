@@ -1,6 +1,6 @@
 # Core-Managed Monitors Plan
 
-This plan captures the product and implementation path for monitors created in Console and executed by Orion Core. These are not tied to a deployed Agent. The mental model is: Core is the monitor owner and runtime.
+This plan captures the product and implementation path for monitors created in Console and executed by Orion Core. These are not tied to a deployed Agent. The mental model is: Core owns the configuration and history, while a separate Core monitor worker executes the checks.
 
 ## Why This Matters
 
@@ -40,7 +40,7 @@ The product lesson is to keep monitor creation simple, but make the downstream e
 Core-managed monitors should appear beside Agent monitors in the existing Monitors surface, but they need a clear owner label:
 
 - `Agent monitor`: checked by an Orion Agent running on a server.
-- `Core monitor`: checked by Orion Core.
+- `Core monitor`: checked by the Core monitor worker.
 - `Heartbeat`: owned by Core, but checked by receiving expected pings instead of polling.
 
 Core monitor detail pages should show:
@@ -58,7 +58,7 @@ Core monitor detail pages should show:
 
 ## Monitor Types
 
-### MVP Types
+### Now-Scope Types
 
 1. HTTP status monitor
 
@@ -120,45 +120,137 @@ Minimum options:
 - failure endpoint with optional exit code and output payload;
 - last heartbeat and last failure details.
 
-### Near-Term Types
-
 6. DNS monitor
 
 Checks name resolution or a specific record value.
+
+Minimum options:
+
+- hostname;
+- record type: A, AAAA, CNAME, TXT, MX, NS;
+- expected values;
+- resolver selection later;
+- timeout;
+- interval.
 
 7. Ping monitor
 
 Useful if Core runs with ICMP permissions, otherwise this may need a TCP or HTTP substitute.
 
+Minimum options:
+
+- host;
+- timeout;
+- interval;
+- packet count later;
+- fallback TCP probe if ICMP is unavailable.
+
 8. Domain expiration monitor
 
-Useful for public services, but WHOIS/RDAP edge cases make it a second-phase item.
+Checks RDAP/WHOIS domain expiration where provider data is available.
+
+Minimum options:
+
+- domain;
+- expiration threshold;
+- RDAP first, WHOIS fallback later;
+- interval.
 
 9. Expected status code monitor
 
 Can be a variant of HTTP status, but deserves a UI path because it is common for APIs.
 
+Minimum options:
+
+- URL;
+- method;
+- exact expected status code or status code set;
+- timeout;
+- interval.
+
 10. API request monitor
 
 Adds method, headers, auth, body, response JSON checks, and stricter debugging output.
 
-### Later Types
+Minimum options:
+
+- method;
+- URL;
+- headers;
+- body;
+- auth header or token secret;
+- expected status;
+- JSON path assertions;
+- response body capture limit;
+- timeout;
+- interval.
 
 11. UDP monitor
 
 Needs careful semantics because UDP "success" is service-specific.
 
+Minimum options:
+
+- host;
+- port;
+- payload;
+- expected response bytes or text;
+- timeout;
+- interval.
+
 12. SMTP, IMAP, POP monitors
 
-Useful but only after generic TCP and TLS are stable.
+Checks mail server availability and TLS behavior without becoming a mailbox workflow product.
+
+Minimum options:
+
+- protocol: SMTP, IMAP, POP;
+- host;
+- port;
+- TLS mode;
+- expected banner or login capability;
+- optional credentials later;
+- timeout;
+- interval.
 
 13. Playwright transaction monitor
 
-High value, but should wait until Core has a sandboxed browser runtime story, resource limits, secret handling, screenshots, and artifact retention.
+Runs a browser transaction from the Core monitor worker.
+
+Minimum options:
+
+- script or recorded steps;
+- timeout;
+- viewport;
+- screenshot on failure;
+- artifact retention;
+- secrets for login flows;
+- interval.
 
 14. Synthetic multi-step API/browser flows
 
-This belongs after single request monitors and incident grouping are reliable.
+Runs a sequence of API or browser checks as one monitor with step-level results.
+
+Minimum options:
+
+- ordered steps;
+- shared variables;
+- per-step assertions;
+- stop-on-failure behavior;
+- timeout budget;
+- artifact capture;
+- interval.
+
+### Implementation Order
+
+All types above are in the target product scope now. Implementation should still land in controlled slices:
+
+1. HTTP status, expected status, keyword, TCP, TLS, and heartbeat.
+2. DNS, ping, domain expiration, and API request assertions.
+3. UDP and mail protocol checks.
+4. Playwright transactions and synthetic multi-step flows.
+
+This keeps the product ambition broad without forcing the first worker release to carry the browser sandbox, protocol edge cases, and artifact retention all at once.
 
 ### Explicit Non-Goals
 
@@ -207,6 +299,8 @@ Use a separate table instead of stuffing runtime config into `monitors.meta`:
 - `last_run_at`;
 - `last_success_at`;
 - `last_failure_at`;
+- `lease_owner`;
+- `lease_expires_at`;
 - `created_at`, `updated_at`.
 
 3. Continue using `monitor_reports`.
@@ -238,33 +332,71 @@ Console needs to distinguish monitor owners:
 
 Existing `agent_id` and `agent_name` can remain for compatibility, but the new owner fields should become the UI language.
 
-## Core Runtime Architecture
+## Core Monitor Worker Architecture
 
-Add a Core monitor runner inside Core services:
+Do not run polling work inside the Core API main instance. Core should remain the API, persistence, Console, contract, incident, and alert control plane. A separate worker app/process should own check execution so polling, network timeouts, retries, slow targets, and future browser checks cannot overload the API server.
+
+Recommended shape:
+
+- `apps/core`: Core API and shared internal services remain here.
+- `apps/core/cmd/worker`: deployable Core monitor worker binary for the first implementation.
+- Core API writes monitor definitions and schedules.
+- Core worker claims due checks, executes them with bounded concurrency, writes reports, and triggers the same incident reconciliation path.
+- Core API can expose a test-now route that enqueues an immediate check or asks the worker through a queue/DB claim mechanism.
+
+A `cmd/worker` under `apps/core` is the lowest-friction first step because it can reuse Core DB models, migrations, config loading, logging, and service code without creating a new Go module. If the worker grows materially different deployment needs, it can later move to `apps/core-worker`.
 
 ```mermaid
 flowchart TD
   Console["Console creates Core monitor"] --> API["Core monitor API"]
   API --> DB["monitors + core_monitor_configs"]
-  Scheduler["Core monitor scheduler"] --> Due["Load due active configs"]
-  Due --> Worker["Run bounded check worker"]
-  Worker --> Report["Store monitor_report"]
+  WorkerApp["Core monitor worker app"] --> Claim["Claim due configs with leases"]
+  Claim --> Check["Run bounded checks"]
+  Check --> Report["Store monitor_report"]
   Report --> State["Update monitor health timestamps"]
   State --> Incident["Existing incident reconciliation"]
   Incident --> Alerts["Existing alert delivery pipeline"]
+  API --> Manual["Manual test request"]
+  Manual --> Claim
 ```
+
+Worker responsibilities:
+
+- scan for due Core monitor configs;
+- claim work using DB leases so multiple workers can run later;
+- execute HTTP, TCP, TLS, DNS, ping, domain, API, UDP, mail, heartbeat, Playwright, and synthetic checks;
+- write monitor reports and update schedule timestamps;
+- call shared health and incident services after reports are written;
+- expose health/metrics for the worker process itself;
+- shut down gracefully without losing in-flight results.
+
+API responsibilities:
+
+- create, edit, pause, resume, delete, and list monitor configs;
+- validate and redact config;
+- show schedule and worker status;
+- enqueue or mark manual test requests;
+- serve Console and public API traffic without doing polling work.
 
 Runtime requirements:
 
-- bounded concurrency so checks cannot exhaust Core;
+- bounded worker concurrency so checks cannot exhaust the worker host;
 - per-check timeout;
 - minimum interval, probably 30 or 60 seconds for self-hosted defaults;
 - jitter to avoid thundering herds;
-- idempotent scheduling so restarts do not duplicate too many checks;
+- DB leases or a durable queue so restarts do not duplicate too many checks;
 - explicit pause/resume;
 - startup recovery that schedules overdue checks;
 - one manual "test now" path that stores a report only when requested;
 - no unchecked goroutine growth.
+
+Worker deployment requirements:
+
+- Docker Compose should run Core API and Core monitor worker as separate services.
+- Both processes need access to the same Core SQLite database path, or the worker must submit reports through authenticated internal API routes.
+- The first version should prefer shared SQLite access only if file locking and deployment paths are documented and tested.
+- If shared SQLite is too fragile for the deployment target, use internal API ingestion from worker to Core instead.
+- Core API health should not go red only because the worker is temporarily paused, but the UI should show worker status and stale Core monitor execution clearly.
 
 ## API Plan
 
@@ -285,7 +417,14 @@ Contract work:
 - route annotations in Core;
 - regenerated OpenAPI;
 - regenerated Console SDK;
-- docs update in `docs/agent-core-contract.md` because Core becomes an active monitor runner, not only a receiver.
+- docs update in `docs/agent-core-contract.md` because Core becomes an owner of monitor definitions while the Core monitor worker becomes a report producer.
+
+Internal worker contract:
+
+- preferred first decision: worker writes through shared service methods against the Core DB, or worker reports through internal Core API;
+- if using DB access, document the lease fields, transaction behavior, SQLite busy timeout, and single-host deployment assumption;
+- if using internal API, add worker credentials and keep the report ingestion path private/admin-only;
+- in either model, Console should never call the worker directly for normal product flows.
 
 ## Console Plan
 
@@ -355,34 +494,39 @@ Open security decision: Orion is self-hosted, so some users will want to monitor
 
 ## Operational Limits
 
-Core monitors have a built-in blind spot: if Core is down, Core cannot check anything. Orion should be honest about that.
+Core monitors have a built-in blind spot: if the Core monitor worker is down, Core cannot execute Core-managed polling checks. If the Core API is down, Console and incident/alert handling are unavailable. Orion should distinguish those conditions.
 
 Design implications:
 
-- Core monitors are best for services visible from the Core host.
+- Core monitors are best for services visible from the Core worker host.
 - Agent monitors remain the right answer for remote host-local checks.
+- Core API and Core worker should have separate health states in diagnostics.
+- Core monitor rows should become stale when the worker stops checking them.
+- The worker should be restartable without impacting Console responsiveness.
 - A future "remote Core runner" or "synthetic Agent" could provide multi-location checks.
 - Multi-region checks should be future work, not MVP.
 
 ## Milestones
 
-### Milestone 1: Core owner and HTTP MVP
+### Milestone 1: Core owner, worker app, and HTTP MVP
 
-Outcome: a Core-owned HTTP monitor can be created by API, scheduled by Core, reported into `monitor_reports`, and shown in the existing monitor list.
+Outcome: a Core-owned HTTP monitor can be created by API, claimed and executed by the Core monitor worker, reported into `monitor_reports`, and shown in the existing monitor list.
 
 Scope:
 
 - Core owner row or owner field;
 - `core_monitor_configs` migration;
+- worker app entrypoint and deployment config;
 - HTTP status runner;
-- scheduler loop;
+- due-check claiming with leases;
 - incident reconciliation reuse;
 - OpenAPI and SDK regeneration;
 - basic Console listing changes.
 
 Acceptance:
 
-- Core can create, run, pause, resume, and delete one HTTP monitor.
+- Core API can create, pause, resume, and delete one HTTP monitor.
+- Core monitor worker can claim and run the monitor without blocking the Core API process.
 - A failed Core check opens an incident.
 - A recovered Core check resolves the incident.
 - Existing Agent monitor behavior is unchanged.
@@ -416,7 +560,7 @@ Scope:
 - success and failure ingest routes;
 - pending before first heartbeat;
 - interval plus grace period;
-- missed heartbeat reconciliation job;
+- missed heartbeat reconciliation in the Core monitor worker;
 - Console copy endpoint action.
 
 Acceptance:
@@ -458,17 +602,20 @@ Acceptance:
 - A monitor incident can identify the impacted component.
 - Status page work can consume monitor/component health without rethinking monitor ownership.
 
-### Milestone 6: Advanced synthetic monitoring
+### Milestone 6: Full monitor catalog expansion
 
-Outcome: Orion can grow beyond basic uptime checks.
+Outcome: Orion implements the full now-scope monitor catalog through the Core monitor worker.
 
 Scope candidates:
 
 - API request body and JSON assertions;
 - DNS records;
+- ping;
 - domain expiration;
+- UDP;
 - SMTP/IMAP/POP;
 - Playwright transaction checks;
+- synthetic multi-step API/browser flows;
 - screenshots and artifacts;
 - multi-location runners.
 
@@ -476,21 +623,55 @@ Acceptance:
 
 - Each new type has clear safety limits, report shape, and incident behavior.
 
-## Proposed Maat Task Breakdown
+## Proposed Maat Loading Plan
 
-Use the new goal `Design Core-managed monitors` as the parent until implementation begins. Suggested implementation tickets:
+Do not load these into Maat until the owner approves the structure. Maat does not currently need a separate "sub-ticket" primitive for this plan; use goals as the parent containers and create one ticket per major deliverable or monitor type.
+
+Goal: Build Core monitor worker platform.
+
+Tickets:
 
 - Design Core monitor ownership and migration.
-- Implement Core monitor scheduler and HTTP runner.
+- Build Core monitor worker app foundation.
+- Add due-check leasing and scheduling.
 - Add Core monitor create/edit/test API.
-- Build Console Core monitor create workflow.
-- Add heartbeat monitors.
+- Build Console Core monitor workflow.
+- Add Core worker diagnostics and deployment wiring.
+
+Goal: Implement now-scope Core monitor catalog.
+
+Tickets:
+
+- Add HTTP status monitor.
+- Add HTTP keyword monitor.
+- Add expected status code monitor.
+- Add TCP port monitor.
+- Add TLS certificate monitor.
+- Add heartbeat monitor.
+- Add DNS monitor.
+- Add ping monitor.
+- Add domain expiration monitor.
+- Add API request monitor.
+- Add UDP monitor.
+- Add SMTP, IMAP, and POP monitors.
+- Add Playwright transaction monitor.
+- Add synthetic multi-step monitor.
+
+Goal: Connect Core monitors to incidents and status communication.
+
+Tickets:
+
 - Add monitor confirmation and recovery periods.
-- Design component mapping for status pages.
+- Add Core monitor maintenance windows.
+- Add alert routing hooks for Core monitor metadata.
+- Design monitor component mapping for status pages.
 
 ## Review Questions
 
 - Should Core monitors be represented as a special Core Agent row for the first implementation, or should we pay the cost now for an `owner_kind` abstraction?
+- Should the worker write directly to the shared SQLite database through Core services, or report back through internal Core API routes?
+- Should the first worker live under `apps/core/cmd/worker`, or should it be a separate `apps/core-worker` app from day one?
+- How should Docker Compose and local development start the API and worker together?
 - Should private network targets be allowed by default for self-hosted users, or require an explicit setting?
 - Should MVP include only HTTP status, or should TCP and TLS ship alongside it?
 - Should heartbeats be part of the first release or the second?
@@ -500,4 +681,4 @@ Use the new goal `Design Core-managed monitors` as the parent until implementati
 
 Start small but make the ownership model explicit.
 
-The best first release is: Core owner, HTTP status checks, scheduler, Console creation, test now, pause/resume, and existing incident reconciliation. Then add TCP/TLS and heartbeats. Status page components and incident grouping should follow after Core monitors are producing reliable history.
+The best first release is: Core owner, separate Core monitor worker, HTTP status checks, Console creation, test now, pause/resume, and existing incident reconciliation. Then add TCP/TLS, heartbeats, and the rest of the now-scope monitor catalog in type-focused slices. Status page components and incident grouping should follow after Core monitors are producing reliable history.
