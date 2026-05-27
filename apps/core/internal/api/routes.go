@@ -139,6 +139,7 @@ func (s *Server) setupRoutes() {
 			frontend.PATCH("/alerts/routes/:id", s.updateAlertRoute)
 			frontend.DELETE("/alerts/routes/:id", s.deleteAlertRoute)
 			frontend.GET("/alerts/rules", s.listAlertRules)
+			s.registerStatusPageAdminRoutes(frontend)
 			frontend.GET("/events", s.listOrionEvents)
 			frontend.GET("/settings/data-lifecycle", s.getDataLifecycleSettings)
 			frontend.PUT("/settings/data-lifecycle", s.updateDataLifecycleSettings)

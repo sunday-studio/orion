@@ -501,6 +501,253 @@ definitions:
       type:
         type: string
     type: object
+  api.StatusPageComponentMappingResponse:
+    properties:
+      component_id:
+        type: string
+      created_at:
+        type: string
+      health_rollup_strategy:
+        type: string
+      id:
+        type: string
+      resource_id:
+        type: string
+      resource_type:
+        type: string
+      updated_at:
+        type: string
+      uptime_rollup_strategy:
+        type: string
+    type: object
+  api.StatusPageComponentResponse:
+    properties:
+      created_at:
+        type: string
+      display_mode:
+        type: string
+      id:
+        type: string
+      manual_status:
+        type: string
+      manual_status_reason:
+        type: string
+      mappings:
+        items:
+          $ref: '#/definitions/api.StatusPageComponentMappingResponse'
+        type: array
+      public_description:
+        type: string
+      public_name:
+        type: string
+      section_id:
+        type: string
+      sort_order:
+        type: integer
+      status_page_id:
+        type: string
+      updated_at:
+        type: string
+      visible:
+        type: boolean
+    type: object
+  api.StatusPageDetailResponse:
+    properties:
+      components:
+        items:
+          $ref: '#/definitions/api.StatusPageComponentResponse'
+        type: array
+      incidents:
+        items:
+          $ref: '#/definitions/api.StatusPageIncidentResponse'
+        type: array
+      page:
+        $ref: '#/definitions/api.StatusPageResponse'
+      sections:
+        items:
+          $ref: '#/definitions/api.StatusPageSectionResponse'
+        type: array
+    type: object
+  api.StatusPageIncidentResponse:
+    properties:
+      affected_component_ids:
+        items:
+          type: string
+        type: array
+      created_at:
+        type: string
+      id:
+        type: string
+      impact_summary:
+        type: string
+      internal_incident_id:
+        type: string
+      public_status:
+        type: string
+      published_at:
+        type: string
+      resolved_at:
+        type: string
+      scheduled_end_at:
+        type: string
+      scheduled_start_at:
+        type: string
+      severity:
+        type: string
+      status_page_id:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+      updates:
+        items:
+          $ref: '#/definitions/api.StatusPageIncidentUpdateResponse'
+        type: array
+      visibility:
+        type: string
+    type: object
+  api.StatusPageIncidentUpdateResponse:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      id:
+        type: string
+      incident_id:
+        type: string
+      message:
+        type: string
+      published_at:
+        type: string
+      status:
+        type: string
+    type: object
+  api.StatusPagePreviewResponse:
+    properties:
+      incidents:
+        items:
+          $ref: '#/definitions/api.StatusPagePublicIncidentResponse'
+        type: array
+      last_updated:
+        type: string
+      page:
+        $ref: '#/definitions/api.StatusPagePublicPageResponse'
+      sections:
+        items:
+          $ref: '#/definitions/api.StatusPagePublicSectionResponse'
+        type: array
+    type: object
+  api.StatusPagePublicComponentResponse:
+    properties:
+      description:
+        type: string
+      display_mode:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      status:
+        type: string
+      status_reason:
+        type: string
+    type: object
+  api.StatusPagePublicIncidentResponse:
+    properties:
+      affected_component_ids:
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      impact_summary:
+        type: string
+      public_status:
+        type: string
+      published_at:
+        type: string
+      resolved_at:
+        type: string
+      severity:
+        type: string
+      title:
+        type: string
+    type: object
+  api.StatusPagePublicPageResponse:
+    properties:
+      description:
+        type: string
+      slug:
+        type: string
+      title:
+        type: string
+      visibility:
+        type: string
+    type: object
+  api.StatusPagePublicSectionResponse:
+    properties:
+      collapsed_by_default:
+        type: boolean
+      components:
+        items:
+          $ref: '#/definitions/api.StatusPagePublicComponentResponse'
+        type: array
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  api.StatusPageResponse:
+    properties:
+      canonical_url:
+        type: string
+      created_at:
+        type: string
+      default_incident_visibility:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      open_graph_image_url:
+        type: string
+      published_at:
+        type: string
+      seo_description:
+        type: string
+      seo_title:
+        type: string
+      slug:
+        type: string
+      theme_settings:
+        additionalProperties: true
+        type: object
+      title:
+        type: string
+      updated_at:
+        type: string
+      visibility:
+        type: string
+    type: object
+  api.StatusPageSectionResponse:
+    properties:
+      collapsed_by_default:
+        type: boolean
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      sort_order:
+        type: integer
+      status_page_id:
+        type: string
+      updated_at:
+        type: string
+    type: object
   api.UptimeDayBucketResponse:
     properties:
       date:
@@ -620,6 +867,107 @@ definitions:
         type: integer
       username:
         type: string
+    type: object
+  api.statusPageComponentMappingRequest:
+    properties:
+      health_rollup_strategy:
+        type: string
+      resource_id:
+        type: string
+      resource_type:
+        type: string
+      uptime_rollup_strategy:
+        type: string
+    type: object
+  api.statusPageComponentRequest:
+    properties:
+      display_mode:
+        type: string
+      manual_status:
+        type: string
+      manual_status_reason:
+        type: string
+      public_description:
+        type: string
+      public_name:
+        type: string
+      section_id:
+        type: string
+      sort_order:
+        type: integer
+      visible:
+        type: boolean
+    type: object
+  api.statusPageIncidentRequest:
+    properties:
+      affected_component_ids:
+        items:
+          type: string
+        type: array
+      impact_summary:
+        type: string
+      internal_incident_id:
+        type: string
+      public_status:
+        type: string
+      published_at:
+        type: string
+      resolved_at:
+        type: string
+      scheduled_end_at:
+        type: string
+      scheduled_start_at:
+        type: string
+      severity:
+        type: string
+      title:
+        type: string
+      visibility:
+        type: string
+    type: object
+  api.statusPageIncidentUpdateRequest:
+    properties:
+      created_by:
+        type: string
+      message:
+        type: string
+      published_at:
+        type: string
+      status:
+        type: string
+    type: object
+  api.statusPageRequest:
+    properties:
+      canonical_url:
+        type: string
+      default_incident_visibility:
+        type: string
+      description:
+        type: string
+      open_graph_image_url:
+        type: string
+      seo_description:
+        type: string
+      seo_title:
+        type: string
+      slug:
+        type: string
+      theme_settings:
+        additionalProperties: true
+        type: object
+      title:
+        type: string
+      visibility:
+        type: string
+    type: object
+  api.statusPageSectionRequest:
+    properties:
+      collapsed_by_default:
+        type: boolean
+      name:
+        type: string
+      sort_order:
+        type: integer
     type: object
   db.CPUStats:
     properties:
@@ -3213,6 +3561,968 @@ paths:
       summary: Run data lifecycle rollup
       tags:
       - settings
+  /v1/status-pages:
+    get:
+      consumes:
+      - application/json
+      description: Get status page publication configurations ordered by title
+      operationId: listStatusPages
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    pages:
+                      items:
+                        $ref: '#/definitions/api.StatusPageResponse'
+                      type: array
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List status pages
+      tags:
+      - status-pages
+    post:
+      consumes:
+      - application/json
+      description: Create a draft status page publication configuration
+      operationId: createStatusPage
+      parameters:
+      - description: Status page payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.statusPageRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    page:
+                      $ref: '#/definitions/api.StatusPageResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create status page
+      tags:
+      - status-pages
+  /v1/status-pages/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get a status page with sections, components, mappings, incidents,
+        and incident updates
+      operationId: getStatusPage
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.StatusPageDetailResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get status page
+      tags:
+      - status-pages
+    put:
+      consumes:
+      - application/json
+      description: Update page-level status page publication settings
+      operationId: updateStatusPage
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Status page payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.statusPageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    page:
+                      $ref: '#/definitions/api.StatusPageResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update status page
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/components:
+    get:
+      consumes:
+      - application/json
+      description: Get components and mappings for a status page
+      operationId: listStatusPageComponents
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    components:
+                      items:
+                        $ref: '#/definitions/api.StatusPageComponentResponse'
+                      type: array
+                    count:
+                      type: integer
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List status page components
+      tags:
+      - status-pages
+    post:
+      consumes:
+      - application/json
+      description: Create a public component for a status page
+      operationId: createStatusPageComponent
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Component payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.statusPageComponentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    component:
+                      $ref: '#/definitions/api.StatusPageComponentResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create status page component
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/components/{component_id}:
+    put:
+      consumes:
+      - application/json
+      description: Update a public component for a status page
+      operationId: updateStatusPageComponent
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Component ID
+        in: path
+        name: component_id
+        required: true
+        type: string
+      - description: Component payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.statusPageComponentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    component:
+                      $ref: '#/definitions/api.StatusPageComponentResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update status page component
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/components/{component_id}/mappings:
+    get:
+      consumes:
+      - application/json
+      description: Get internal resource mappings for a public component
+      operationId: listStatusPageComponentMappings
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Component ID
+        in: path
+        name: component_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    mappings:
+                      items:
+                        $ref: '#/definitions/api.StatusPageComponentMappingResponse'
+                      type: array
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List status page component mappings
+      tags:
+      - status-pages
+    post:
+      consumes:
+      - application/json
+      description: Map a public component to an internal agent or monitor
+      operationId: createStatusPageComponentMapping
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Component ID
+        in: path
+        name: component_id
+        required: true
+        type: string
+      - description: Mapping payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.statusPageComponentMappingRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    mapping:
+                      $ref: '#/definitions/api.StatusPageComponentMappingResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create status page component mapping
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/components/{component_id}/mappings/{mapping_id}:
+    put:
+      consumes:
+      - application/json
+      description: Update a public component internal resource mapping
+      operationId: updateStatusPageComponentMapping
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Component ID
+        in: path
+        name: component_id
+        required: true
+        type: string
+      - description: Mapping ID
+        in: path
+        name: mapping_id
+        required: true
+        type: string
+      - description: Mapping payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.statusPageComponentMappingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    mapping:
+                      $ref: '#/definitions/api.StatusPageComponentMappingResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update status page component mapping
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/incidents:
+    get:
+      consumes:
+      - application/json
+      description: Get manual public incident records for a status page
+      operationId: listStatusPageIncidents
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    incidents:
+                      items:
+                        $ref: '#/definitions/api.StatusPageIncidentResponse'
+                      type: array
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List status page incidents
+      tags:
+      - status-pages
+    post:
+      consumes:
+      - application/json
+      description: Create a manual public incident for a status page
+      operationId: createStatusPageIncident
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Incident payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.statusPageIncidentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    incident:
+                      $ref: '#/definitions/api.StatusPageIncidentResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create status page incident
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/incidents/{incident_id}:
+    put:
+      consumes:
+      - application/json
+      description: Update a manual public incident for a status page
+      operationId: updateStatusPageIncident
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Incident ID
+        in: path
+        name: incident_id
+        required: true
+        type: string
+      - description: Incident payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.statusPageIncidentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    incident:
+                      $ref: '#/definitions/api.StatusPageIncidentResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update status page incident
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/incidents/{incident_id}/updates:
+    post:
+      consumes:
+      - application/json
+      description: Create a public timeline update for a manual status page incident
+      operationId: createStatusPageIncidentUpdate
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Incident ID
+        in: path
+        name: incident_id
+        required: true
+        type: string
+      - description: Incident update payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.statusPageIncidentUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    incident:
+                      $ref: '#/definitions/api.StatusPageIncidentResponse'
+                    update:
+                      $ref: '#/definitions/api.StatusPageIncidentUpdateResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create status page incident update
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/preview:
+    get:
+      consumes:
+      - application/json
+      description: Preview the public-safe projection of a status page draft or publication
+      operationId: previewStatusPage
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    preview:
+                      $ref: '#/definitions/api.StatusPagePreviewResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Preview status page
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/publish:
+    post:
+      consumes:
+      - application/json
+      description: Mark a status page as public and set published_at
+      operationId: publishStatusPage
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    page:
+                      $ref: '#/definitions/api.StatusPageResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Publish status page
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/sections:
+    get:
+      consumes:
+      - application/json
+      description: Get sections for a status page
+      operationId: listStatusPageSections
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    sections:
+                      items:
+                        $ref: '#/definitions/api.StatusPageSectionResponse'
+                      type: array
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List status page sections
+      tags:
+      - status-pages
+    post:
+      consumes:
+      - application/json
+      description: Create a section for grouping public components
+      operationId: createStatusPageSection
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Section payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.statusPageSectionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    section:
+                      $ref: '#/definitions/api.StatusPageSectionResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create status page section
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/sections/{section_id}:
+    put:
+      consumes:
+      - application/json
+      description: Update a status page section
+      operationId: updateStatusPageSection
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Section ID
+        in: path
+        name: section_id
+        required: true
+        type: string
+      - description: Section payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.statusPageSectionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    section:
+                      $ref: '#/definitions/api.StatusPageSectionResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update status page section
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/unpublish:
+    post:
+      consumes:
+      - application/json
+      description: Return a status page to draft visibility while retaining published_at
+        history
+      operationId: unpublishStatusPage
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    page:
+                      $ref: '#/definitions/api.StatusPageResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Unpublish status page
+      tags:
+      - status-pages
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.
