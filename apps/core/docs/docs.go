@@ -3982,6 +3982,136 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/incidents/{id}/acknowledge": {
+            "post": {
+                "description": "Mark an active incident as acknowledged and record a manual incident event",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "incidents"
+                ],
+                "summary": "Acknowledge incident",
+                "operationId": "acknowledgeIncident",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Incident ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "incident": {
+                                                    "$ref": "#/definitions/api.IncidentResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/incidents/{id}/resolve": {
+            "post": {
+                "description": "Mark an active incident as resolved, clear its monitor active incident path, and record a manual incident event",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "incidents"
+                ],
+                "summary": "Resolve incident",
+                "operationId": "resolveIncident",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Incident ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "incident": {
+                                                    "$ref": "#/definitions/api.IncidentResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/incidents/{id}/timeline": {
             "get": {
                 "description": "Get normalized incident timeline events including alert delivery attempts",

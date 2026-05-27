@@ -1,8 +1,10 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 	"orion/core/internal/db"
+	"orion/core/internal/service"
 	"orion/core/internal/utils"
 	"sort"
 	"strconv"
@@ -169,6 +171,75 @@ func (s *Server) getIncidentTimeline(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Incident timeline retrieved successfully", gin.H{
 		"timeline": timeline,
 		"count":    len(timeline),
+	})
+}
+
+// acknowledgeIncident manually acknowledges an active incident.
+// @Summary      Acknowledge incident
+// @Description  Mark an active incident as acknowledged and record a manual incident event
+// @Tags         incidents
+// @Accept       json
+// @Produce      json
+// @ID           acknowledgeIncident
+// @Param        id   path      string  true  "Incident ID"
+// @Success      200  {object}  utils.APIResponse{data=object{incident=IncidentResponse}}
+// @Failure      400  {object}  utils.APIResponse
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/incidents/{id}/acknowledge [post]
+func (s *Server) acknowledgeIncident(c *gin.Context) {
+	incident, err := service.NewIncidentService(s.db, s.logger, s.cfg).AcknowledgeIncident(c.Param("id"))
+	if err != nil {
+		s.handleIncidentActionError(c, err, "Failed to acknowledge incident")
+		return
+	}
+	s.writeIncidentActionResponse(c, "Incident acknowledged successfully", incident)
+}
+
+// resolveIncident manually resolves an active incident.
+// @Summary      Resolve incident
+// @Description  Mark an active incident as resolved, clear its monitor active incident path, and record a manual incident event
+// @Tags         incidents
+// @Accept       json
+// @Produce      json
+// @ID           resolveIncident
+// @Param        id   path      string  true  "Incident ID"
+// @Success      200  {object}  utils.APIResponse{data=object{incident=IncidentResponse}}
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/incidents/{id}/resolve [post]
+func (s *Server) resolveIncident(c *gin.Context) {
+	incident, err := service.NewIncidentService(s.db, s.logger, s.cfg).ResolveIncident(c.Param("id"))
+	if err != nil {
+		s.handleIncidentActionError(c, err, "Failed to resolve incident")
+		return
+	}
+	s.writeIncidentActionResponse(c, "Incident resolved successfully", incident)
+}
+
+func (s *Server) handleIncidentActionError(c *gin.Context, err error, message string) {
+	switch {
+	case errors.Is(err, service.ErrIncidentNotFound):
+		utils.NotFound(c, "Incident not found")
+	case errors.Is(err, service.ErrIncidentAlreadyResolved):
+		utils.BadRequest(c, "Incident is already resolved")
+	default:
+		s.logger.Error(message, "error", err)
+		utils.InternalError(c, message, err)
+	}
+}
+
+func (s *Server) writeIncidentActionResponse(c *gin.Context, message string, incident db.Incident) {
+	var agent db.Agent
+	if err := s.db.Where("id = ?", incident.AgentID).First(&agent).Error; err != nil {
+		agent = db.Agent{ID: incident.AgentID, Name: incident.AgentID}
+	}
+	var monitor db.Monitor
+	if err := s.db.Where("id = ?", incident.MonitorID).First(&monitor).Error; err != nil {
+		monitor = db.Monitor{ID: incident.MonitorID, Name: incident.MonitorID}
+	}
+	utils.SuccessResponse(c, http.StatusOK, message, gin.H{
+		"incident": incidentResponse(incident, agent, monitor),
 	})
 }
 

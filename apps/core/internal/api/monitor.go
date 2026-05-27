@@ -94,6 +94,11 @@ func (s *Server) unregisterMonitor(c *gin.Context) {
 		utils.InternalError(c, "Failed to unregister monitor", err)
 		return
 	}
+	if err := service.NewIncidentService(s.db, s.logger, s.cfg).ResolveMonitorRemoved(req.MonitorID); err != nil {
+		s.logger.Error("Failed to resolve monitor incidents after unregister", "error", err, "monitor_id", req.MonitorID)
+		utils.InternalError(c, "Failed to unregister monitor", err)
+		return
+	}
 
 	utils.SuccessResponse(c, 200, "Monitor unregistered successfully", response)
 }

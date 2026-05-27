@@ -23,6 +23,11 @@ const (
 	coreOwnerName                     = "Orion Core"
 )
 
+var (
+	ErrIncidentAlreadyResolved = errors.New("incident already resolved")
+	ErrIncidentNotFound        = errors.New("incident not found")
+)
+
 type IncidentService struct {
 	db     *gorm.DB
 	logger *logging.Logger
@@ -108,6 +113,73 @@ func (s *IncidentService) ReconcileStaleMonitors(agentID string) error {
 	}
 
 	return nil
+}
+
+func (s *IncidentService) AcknowledgeIncident(incidentID string) (db.Incident, error) {
+	var incident db.Incident
+	if err := s.db.Where("id = ?", incidentID).First(&incident).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return db.Incident{}, ErrIncidentNotFound
+		}
+		return db.Incident{}, err
+	}
+	if incident.Status == "resolved" {
+		return db.Incident{}, ErrIncidentAlreadyResolved
+	}
+	if incident.Status == "acknowledged" {
+		return incident, nil
+	}
+
+	now := time.Now().UTC()
+	message := "Incident manually acknowledged"
+	if err := s.db.Model(&incident).Updates(map[string]interface{}{
+		"status":        "acknowledged",
+		"last_event_at": now,
+		"latest_event":  message,
+	}).Error; err != nil {
+		return db.Incident{}, err
+	}
+	if err := s.createIncidentEvent(incident.ID, "incident_acknowledged", message, ""); err != nil {
+		return db.Incident{}, err
+	}
+	if err := s.db.Where("id = ?", incident.ID).First(&incident).Error; err != nil {
+		return db.Incident{}, err
+	}
+	return incident, nil
+}
+
+func (s *IncidentService) ResolveIncident(incidentID string) (db.Incident, error) {
+	var incident db.Incident
+	if err := s.db.Where("id = ?", incidentID).First(&incident).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return db.Incident{}, ErrIncidentNotFound
+		}
+		return db.Incident{}, err
+	}
+	if incident.Status == "resolved" {
+		return incident, nil
+	}
+
+	message := "Incident manually resolved"
+	if err := s.resolveIncidentRecord(&incident, message, "", "up", true); err != nil {
+		return db.Incident{}, err
+	}
+	if err := s.db.Where("id = ?", incident.ID).First(&incident).Error; err != nil {
+		return db.Incident{}, err
+	}
+	return incident, nil
+}
+
+func (s *IncidentService) ResolveMonitorRemoved(monitorID string) error {
+	incident, found, err := s.findActiveIncident(monitorID)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return s.updateMonitorIncidentState(monitorID, "", "unknown")
+	}
+	message := "Monitor removed; active incident resolved"
+	return s.resolveIncidentRecord(incident, message, "", "unknown", true)
 }
 
 func (s *IncidentService) openOrUpdateIncident(agent db.Agent, monitor db.Monitor, monitorReportID string, health string, incidentState string) error {
@@ -206,6 +278,29 @@ func (s *IncidentService) resolveActiveIncident(monitor db.Monitor, monitorRepor
 		return err
 	}
 	if s.cfg != nil && !s.cfg.AlertRecoveryNotifications {
+		return nil
+	}
+	return NewAlertService(s.db, s.logger, s.cfg).QueueIncidentNotifications(incident.ID, "incident_resolved")
+}
+
+func (s *IncidentService) resolveIncidentRecord(incident *db.Incident, message string, monitorReportID string, incidentState string, notify bool) error {
+	now := time.Now().UTC()
+	updates := map[string]interface{}{
+		"status":        "resolved",
+		"resolved_at":   &now,
+		"last_event_at": now,
+		"latest_event":  message,
+	}
+	if err := s.db.Model(incident).Where("status IN ?", []string{"open", "acknowledged"}).Updates(updates).Error; err != nil {
+		return err
+	}
+	if err := s.updateMonitorIncidentState(incident.MonitorID, "", incidentState); err != nil {
+		return err
+	}
+	if err := s.createIncidentEvent(incident.ID, "incident_resolved", message, monitorReportID); err != nil {
+		return err
+	}
+	if !notify || (s.cfg != nil && !s.cfg.AlertRecoveryNotifications) {
 		return nil
 	}
 	return NewAlertService(s.db, s.logger, s.cfg).QueueIncidentNotifications(incident.ID, "incident_resolved")

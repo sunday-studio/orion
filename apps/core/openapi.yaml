@@ -4010,6 +4010,88 @@ paths:
       summary: Get incident detail
       tags:
       - incidents
+  /v1/incidents/{id}/acknowledge:
+    post:
+      consumes:
+      - application/json
+      description: Mark an active incident as acknowledged and record a manual incident
+        event
+      operationId: acknowledgeIncident
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    incident:
+                      $ref: '#/definitions/api.IncidentResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Acknowledge incident
+      tags:
+      - incidents
+  /v1/incidents/{id}/resolve:
+    post:
+      consumes:
+      - application/json
+      description: Mark an active incident as resolved, clear its monitor active incident
+        path, and record a manual incident event
+      operationId: resolveIncident
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    incident:
+                      $ref: '#/definitions/api.IncidentResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Resolve incident
+      tags:
+      - incidents
   /v1/incidents/{id}/timeline:
     get:
       consumes:

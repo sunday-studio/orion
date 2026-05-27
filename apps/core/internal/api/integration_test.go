@@ -1525,6 +1525,157 @@ func TestMonitorReportsOpenAndResolveIncident(t *testing.T) {
 	}
 }
 
+func TestManualIncidentActionsAcknowledgeAndResolve(t *testing.T) {
+	server := setupTestServer(t)
+	registered := registerTestAgent(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+	reportPath := "/v1/agents/" + registered.Data.AgentID + "/" + registeredMonitor.Data.MonitorID + "/report"
+
+	downResp := performJSONRequest(t, server, http.MethodPost, reportPath, map[string]interface{}{
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"health":    "down",
+		"metrics": map[string]interface{}{
+			"failure_reason": "manual action test failure",
+		},
+	}, registered.Data.Token)
+	if downResp.Code != http.StatusOK {
+		t.Fatalf("down report status = %d, body = %s", downResp.Code, downResp.Body.String())
+	}
+
+	var incident db.Incident
+	if err := server.db.Where("monitor_id = ?", registeredMonitor.Data.MonitorID).First(&incident).Error; err != nil {
+		t.Fatalf("find incident: %v", err)
+	}
+
+	ackResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/acknowledge", nil, "")
+	if ackResp.Code != http.StatusOK {
+		t.Fatalf("acknowledge incident status = %d, body = %s", ackResp.Code, ackResp.Body.String())
+	}
+	if err := server.db.Where("id = ?", incident.ID).First(&incident).Error; err != nil {
+		t.Fatalf("reload acknowledged incident: %v", err)
+	}
+	if incident.Status != "acknowledged" || incident.LatestEvent != "Incident manually acknowledged" {
+		t.Fatalf("acknowledged incident = %+v, want acknowledged manual latest event", incident)
+	}
+	assertIncidentEvent(t, server, incident.ID, "incident_acknowledged", "Incident manually acknowledged")
+	assertMonitorIncidentState(t, server, registeredMonitor.Data.MonitorID, incident.ID, "down")
+
+	resolveResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/resolve", nil, "")
+	if resolveResp.Code != http.StatusOK {
+		t.Fatalf("resolve incident status = %d, body = %s", resolveResp.Code, resolveResp.Body.String())
+	}
+	if err := server.db.Where("id = ?", incident.ID).First(&incident).Error; err != nil {
+		t.Fatalf("reload resolved incident: %v", err)
+	}
+	if incident.Status != "resolved" || incident.ResolvedAt == nil || incident.LatestEvent != "Incident manually resolved" {
+		t.Fatalf("resolved incident = %+v, want resolved manual latest event", incident)
+	}
+	assertIncidentEvent(t, server, incident.ID, "incident_resolved", "Incident manually resolved")
+	assertMonitorIncidentState(t, server, registeredMonitor.Data.MonitorID, "", "up")
+
+	ackResolvedResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/acknowledge", nil, "")
+	if ackResolvedResp.Code != http.StatusBadRequest {
+		t.Fatalf("acknowledge resolved incident status = %d, want 400, body = %s", ackResolvedResp.Code, ackResolvedResp.Body.String())
+	}
+}
+
+func TestUnregisterMonitorResolvesActiveIncidentPath(t *testing.T) {
+	server := setupTestServer(t)
+	registered := registerTestAgent(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+
+	downResp := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+registered.Data.AgentID+"/"+registeredMonitor.Data.MonitorID+"/report", map[string]interface{}{
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"health":    "down",
+		"metrics": map[string]interface{}{
+			"failure_reason": "removed monitor failure",
+		},
+	}, registered.Data.Token)
+	if downResp.Code != http.StatusOK {
+		t.Fatalf("down report status = %d, body = %s", downResp.Code, downResp.Body.String())
+	}
+
+	var incident db.Incident
+	if err := server.db.Where("monitor_id = ?", registeredMonitor.Data.MonitorID).First(&incident).Error; err != nil {
+		t.Fatalf("find incident: %v", err)
+	}
+	assertMonitorIncidentState(t, server, registeredMonitor.Data.MonitorID, incident.ID, "down")
+
+	unregisterResp := performJSONRequest(
+		t,
+		server,
+		http.MethodPost,
+		"/v1/agents/"+registered.Data.AgentID+"/unregister-monitor",
+		map[string]interface{}{"monitor_id": registeredMonitor.Data.MonitorID},
+		registered.Data.Token,
+	)
+	if unregisterResp.Code != http.StatusOK {
+		t.Fatalf("unregister monitor status = %d, body = %s", unregisterResp.Code, unregisterResp.Body.String())
+	}
+
+	if err := server.db.Where("id = ?", incident.ID).First(&incident).Error; err != nil {
+		t.Fatalf("reload incident: %v", err)
+	}
+	if incident.Status != "resolved" || incident.ResolvedAt == nil || incident.LatestEvent != "Monitor removed; active incident resolved" {
+		t.Fatalf("incident after monitor unregister = %+v, want resolved monitor removed event", incident)
+	}
+	assertIncidentEvent(t, server, incident.ID, "incident_resolved", "Monitor removed; active incident resolved")
+	assertMonitorIncidentState(t, server, registeredMonitor.Data.MonitorID, "", "unknown")
+}
+
+func TestUnregisterMonitorClearsStaleIncidentPathWithoutDuplicateEvent(t *testing.T) {
+	server := setupTestServer(t)
+	registered := registerTestAgent(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+	now := time.Now().UTC()
+	incident := db.Incident{
+		ID:                 "incident-stale-active-path",
+		Status:             "resolved",
+		Severity:           "high",
+		Title:              "Resolved stale active path",
+		AgentID:            registered.Data.AgentID,
+		MonitorID:          registeredMonitor.Data.MonitorID,
+		OpenedAt:           now.Add(-30 * time.Minute),
+		ResolvedAt:         &now,
+		LastEventAt:        now,
+		LatestEvent:        "Already resolved",
+		NotificationStatus: "suppressed",
+	}
+	if err := server.db.Create(&incident).Error; err != nil {
+		t.Fatalf("create resolved incident: %v", err)
+	}
+	if err := server.db.Model(&db.Monitor{}).Where("id = ?", registeredMonitor.Data.MonitorID).Updates(map[string]interface{}{
+		"active_incident_id": incident.ID,
+		"incident_state":     "down",
+	}).Error; err != nil {
+		t.Fatalf("set stale monitor incident path: %v", err)
+	}
+
+	unregisterResp := performJSONRequest(
+		t,
+		server,
+		http.MethodPost,
+		"/v1/agents/"+registered.Data.AgentID+"/unregister-monitor",
+		map[string]interface{}{"monitor_id": registeredMonitor.Data.MonitorID},
+		registered.Data.Token,
+	)
+	if unregisterResp.Code != http.StatusOK {
+		t.Fatalf("unregister monitor status = %d, body = %s", unregisterResp.Code, unregisterResp.Body.String())
+	}
+
+	assertMonitorIncidentState(t, server, registeredMonitor.Data.MonitorID, "", "unknown")
+
+	var resolvedEventCount int64
+	if err := server.db.Model(&db.IncidentEvent{}).
+		Where("incident_id = ? AND type = ?", incident.ID, "incident_resolved").
+		Count(&resolvedEventCount).Error; err != nil {
+		t.Fatalf("count resolved events: %v", err)
+	}
+	if resolvedEventCount != 0 {
+		t.Fatalf("resolved event count = %d, want 0 duplicate events", resolvedEventCount)
+	}
+}
+
 func TestCoreWorkerReportsOpenAndResolveIncident(t *testing.T) {
 	server := setupTestServer(t)
 	monitor := db.Monitor{
@@ -3256,6 +3407,15 @@ func assertAlertDelivery(t *testing.T, server *Server, incidentID string, eventT
 	}
 	if delivery.Status != wantStatus {
 		t.Fatalf("alert delivery status = %q, want %q", delivery.Status, wantStatus)
+	}
+}
+
+func assertIncidentEvent(t *testing.T, server *Server, incidentID string, eventType string, wantMessage string) {
+	t.Helper()
+
+	var event db.IncidentEvent
+	if err := server.db.Where("incident_id = ? AND type = ? AND message = ?", incidentID, eventType, wantMessage).First(&event).Error; err != nil {
+		t.Fatalf("find incident event %s: %v", eventType, err)
 	}
 }
 

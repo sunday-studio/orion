@@ -145,6 +145,8 @@ func (s *Server) setupRoutes() {
 			frontend.GET("/incidents", s.listIncidents)
 			frontend.GET("/incidents/:id", s.getIncidentDetail)
 			frontend.GET("/incidents/:id/timeline", s.getIncidentTimeline)
+			frontend.POST("/incidents/:id/acknowledge", s.acknowledgeIncident)
+			frontend.POST("/incidents/:id/resolve", s.resolveIncident)
 			frontend.GET("/incidents/candidates", s.getIncidentCandidates)
 			frontend.GET("/alerts/deliveries", s.listAlertDeliveries)
 			frontend.GET("/alerts/channels", s.listAlertChannels)

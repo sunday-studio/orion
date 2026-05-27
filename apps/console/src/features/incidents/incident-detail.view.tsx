@@ -8,6 +8,7 @@ import {
   toSeverity,
   toStatus,
 } from "@/components/status-badges";
+import { Button } from "@/components/ui/button";
 import { TabCount, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ReportInspectionDrawer } from "@/features/report-inspection/report-inspection-drawer";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
@@ -16,9 +17,15 @@ import {
   type ApiIncidentResponse,
   type ApiIncidentTimelineItemResponse,
   type ApiMonitorReportResponse,
+  getGetIncidentQueryKey,
+  getGetIncidentTimelineQueryKey,
+  useAcknowledgeIncident,
   useGetIncident,
+  useResolveIncident,
 } from "@/orion-sdk";
+import { useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
+import { CheckIcon, CircleCheckIcon } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
@@ -177,8 +184,16 @@ const monitorReportColumns: ColumnDef<ApiMonitorReportResponse>[] = [
 
 export const IncidentDetailPage = () => {
   const { incidentId = "" } = useParams();
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
+  const refreshIncident = () => {
+    void queryClient.invalidateQueries({ queryKey: getGetIncidentQueryKey(incidentId) });
+    void queryClient.invalidateQueries({ queryKey: getGetIncidentTimelineQueryKey(incidentId) });
+    void queryClient.invalidateQueries({ queryKey: ["/v1/incidents"] });
+  };
   const incidentResponse = useGetIncident(incidentId);
+  const acknowledgeIncident = useAcknowledgeIncident({ mutation: { onSuccess: refreshIncident } });
+  const resolveIncident = useResolveIncident({ mutation: { onSuccess: refreshIncident } });
   const incident = incidentResponse.data?.incident;
   const timeline = incidentResponse.data?.timeline ?? [];
   const alertDeliveries = incidentResponse.data?.alert_deliveries ?? [];
@@ -194,6 +209,9 @@ export const IncidentDetailPage = () => {
   const latestTimelineItem = timeline[0];
   const requestedTab = searchParams.get("tab");
   const activeTab: DetailTab = isDetailTab(requestedTab) ? requestedTab : "timeline";
+  const canAcknowledge = incident?.status === "open";
+  const canResolve = incident?.status !== "resolved";
+  const actionPending = acknowledgeIncident.isPending || resolveIncident.isPending;
 
   const handleTabChange = (tab: string) => {
     if (!isDetailTab(tab)) return;
@@ -230,12 +248,38 @@ export const IncidentDetailPage = () => {
       </div>
 
       <section className="space-y-4">
-        <div className="space-y-2">
-          <h1 className="text-base font-medium">{incident.title ?? "Untitled incident"}</h1>
-          <p className="max-w-3xl text-sm text-neutral-600">
-            {incident.latest_event ?? "No latest event recorded."}
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-2">
+            <h1 className="text-base font-medium">{incident.title ?? "Untitled incident"}</h1>
+            <p className="max-w-3xl text-sm text-neutral-600">
+              {incident.latest_event ?? "No latest event recorded."}
+            </p>
+          </div>
+          {canResolve && (
+            <div className="flex flex-wrap gap-2">
+              {canAcknowledge && (
+                <Button
+                  variant="outline"
+                  disabled={actionPending}
+                  onClick={() => acknowledgeIncident.mutate({ id: incident.id ?? "" })}
+                >
+                  <CheckIcon />
+                  Acknowledge
+                </Button>
+              )}
+              <Button
+                disabled={actionPending}
+                onClick={() => resolveIncident.mutate({ id: incident.id ?? "" })}
+              >
+                <CircleCheckIcon />
+                Resolve
+              </Button>
+            </div>
+          )}
         </div>
+        {(acknowledgeIncident.error || resolveIncident.error) && (
+          <div className="text-sm text-rose-700">Unable to update incident.</div>
+        )}
 
         <div className="grid gap-3 lg:grid-cols-3">
           <DetailGroup title="Incident">
