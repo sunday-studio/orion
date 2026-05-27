@@ -10,6 +10,7 @@ const navItems = [
   { label: "Agents", to: "/agents" },
   { label: "Monitors", to: "/monitors" },
   { label: "Alerts", to: "/alerts" },
+  { label: "Status", to: "/status-pages" },
   { label: "Logs", to: "/logs" },
   { label: "Settings", to: "/settings" },
 ];
