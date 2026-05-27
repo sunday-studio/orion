@@ -88,27 +88,9 @@ export const AlertsPage = () => {
     },
   });
 
-  const webhookChannels = useMemo(
-    () => (channelsResponse.data?.channels ?? []).filter((channel) => channel.type === "webhook"),
-    [channelsResponse.data?.channels],
-  );
-  const webhookChannelNames = useMemo(
-    () => new Set(webhookChannels.flatMap((channel) => (channel.name ? [channel.name] : []))),
-    [webhookChannels],
-  );
-  const displayedRules = useMemo(
-    () =>
-      (rulesResponse.data?.rules ?? []).map((rule) => ({
-        ...rule,
-        target_channels: (rule.target_channels ?? []).filter((channel) =>
-          webhookChannelNames.has(channel),
-        ),
-      })),
-    [rulesResponse.data?.rules, webhookChannelNames],
-  );
-  const deliveries = (deliveriesQuery.data?.deliveries ?? []).filter(
-    (delivery) => delivery.type !== "email",
-  );
+  const channels = useMemo(() => channelsResponse.data?.channels ?? [], [channelsResponse.data]);
+  const displayedRules = rulesResponse.data?.rules ?? [];
+  const deliveries = deliveriesQuery.data?.deliveries ?? [];
   const deliveryCount = deliveriesQuery.data?.count ?? deliveries.length;
   const isEditingWebhook = Boolean(editingChannel);
   const isWebhookPending = createWebhook.isPending || updateWebhook.isPending;
@@ -217,7 +199,7 @@ export const AlertsPage = () => {
 
         <TabsContent value="channels">
           <WebhookChannelsTab
-            channels={webhookChannels}
+            channels={channels}
             error={channelsResponse.error}
             isLoading={channelsResponse.isLoading}
             onCreate={openCreateWebhookDialog}
@@ -231,7 +213,6 @@ export const AlertsPage = () => {
             error={rulesResponse.error}
             isLoading={rulesResponse.isLoading}
             rules={displayedRules}
-            webhookChannelNames={webhookChannelNames}
           />
         </TabsContent>
       </Tabs>

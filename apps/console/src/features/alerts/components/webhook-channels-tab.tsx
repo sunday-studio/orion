@@ -13,10 +13,32 @@ import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useMemo } from "react";
 import { boolLabel, eventLabel } from "./alert-constants";
 
-const configuredParts = (channel: { webhook_configured?: boolean; webhook_url?: string }) => {
+const channelTypeLabel = (type?: string) => {
+  if (type === "webhook") return "Webhook";
+  if (type === "email") return "Email";
+  return type ?? "unknown";
+};
+
+const configuredParts = (
+  channel: Pick<
+    ApiAlertChannelResponse,
+    | "email_from_configured"
+    | "email_to_configured"
+    | "smtp_host_configured"
+    | "smtp_port_configured"
+    | "smtp_username_configured"
+    | "webhook_configured"
+    | "webhook_url"
+  >,
+) => {
   const parts = [];
   if (channel.webhook_configured) parts.push(channel.webhook_url ?? "webhook url");
-  return parts.length > 0 ? parts.join(", ") : "no endpoint configured";
+  if (channel.email_to_configured) parts.push("recipient");
+  if (channel.email_from_configured) parts.push("sender");
+  if (channel.smtp_host_configured) parts.push("SMTP host");
+  if (channel.smtp_port_configured) parts.push("SMTP port");
+  if (channel.smtp_username_configured) parts.push("SMTP username");
+  return parts.length > 0 ? parts.join(", ") : "no destination configured";
 };
 
 type WebhookChannelsTabProps = {
@@ -41,6 +63,11 @@ export const WebhookChannelsTab = ({
       {
         accessorKey: "name",
         header: "Name",
+      },
+      {
+        accessorKey: "type",
+        header: "Type",
+        cell: ({ row }) => channelTypeLabel(row.original.type),
       },
       {
         accessorKey: "enabled",
@@ -74,26 +101,27 @@ export const WebhookChannelsTab = ({
       {
         id: "actions",
         header: "",
-        cell: ({ row }) => (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              aria-label={`Open actions for ${row.original.name ?? "channel"}`}
-              className="ml-auto flex size-6 items-center justify-center hover:bg-accent focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-            >
-              <MoreHorizontal className="size-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => onEdit(row.original)}>
-                <Pencil className="size-4" />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onDelete(row.original)}>
-                <Trash2 className="size-4" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ),
+        cell: ({ row }) =>
+          row.original.type === "webhook" ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                aria-label={`Open actions for ${row.original.name ?? "channel"}`}
+                className="ml-auto flex size-6 items-center justify-center hover:bg-accent focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                <MoreHorizontal className="size-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => onEdit(row.original)}>
+                  <Pencil className="size-4" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onDelete(row.original)}>
+                  <Trash2 className="size-4" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null,
       },
     ],
     [onDelete, onEdit],
@@ -105,7 +133,7 @@ export const WebhookChannelsTab = ({
         <div>
           <h2 className="text-sm font-medium">Channels</h2>
           <p className="text-sm text-neutral-600">
-            Add webhooks here and Core stores them for delivery.
+            Review alert destinations Core can deliver to. Webhook destinations can be managed here.
           </p>
         </div>
         <Button size="sm" onClick={onCreate}>
@@ -117,10 +145,10 @@ export const WebhookChannelsTab = ({
         <DataTable
           columns={columns}
           data={channels}
-          emptyMessage="No webhooks configured."
+          emptyMessage="No alert destinations configured."
           getRowId={(channel, index) => channel.name ?? channel.type ?? `channel-${index}`}
           isLoading={isLoading}
-          loadingMessage="Loading webhooks..."
+          loadingMessage="Loading alert destinations..."
         />
       )}
     </section>

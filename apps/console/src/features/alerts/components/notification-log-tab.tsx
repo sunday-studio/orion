@@ -22,8 +22,13 @@ const deliveryColumns: ColumnDef<ApiAlertDeliveryResponse>[] = [
   },
   {
     accessorKey: "channel",
-    header: "Channel",
-    cell: ({ row }) => row.original.channel ?? "none",
+    header: "Destination",
+    cell: ({ row }) => row.original.channel ?? row.original.type ?? "none",
+  },
+  {
+    accessorKey: "type",
+    header: "Type",
+    cell: ({ row }) => row.original.type ?? "unknown",
   },
   {
     accessorKey: "event_type",
