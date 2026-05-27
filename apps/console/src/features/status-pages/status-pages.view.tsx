@@ -5,21 +5,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  type ApiIncidentResponse,
+  type ApiStatusPageIncidentResponse,
   type ApiStatusPagePublicComponentResponse,
   type ApiStatusPageResponse,
   useCreateStatusPage,
   useCreateStatusPageComponent,
   useCreateStatusPageComponentMapping,
+  useCreateStatusPageIncident,
+  useCreateStatusPageIncidentUpdate,
   useCreateStatusPageSection,
   useGetAgents,
+  useGetIncidents,
   useGetMonitors,
   useGetStatusPage,
   useListStatusPages,
   usePreviewStatusPage,
   usePublishStatusPage,
   useUnpublishStatusPage,
+  useUpdateStatusPageIncident,
 } from "@/orion-sdk";
-import { ExternalLink, Eye, Globe2, Link2, Plus, RadioTower } from "lucide-react";
+import { CheckCircle2, ExternalLink, Eye, Globe2, Link2, Plus, RadioTower } from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
@@ -46,6 +52,25 @@ type MappingFormState = {
   resourceId: string;
 };
 
+type IncidentFormState = {
+  internalIncidentId: string;
+  title: string;
+  publicStatus: string;
+  severity: string;
+  impactSummary: string;
+  visibility: string;
+  affectedComponentIds: string[];
+  publishedAt: string;
+  resolvedAt: string;
+};
+
+type IncidentUpdateFormState = {
+  status: string;
+  message: string;
+  createdBy: string;
+  publishedAt: string;
+};
+
 const emptyPageForm: PageFormState = {
   slug: "",
   title: "",
@@ -69,6 +94,25 @@ const emptyMappingForm: MappingFormState = {
   resourceId: "",
 };
 
+const emptyIncidentForm: IncidentFormState = {
+  internalIncidentId: "",
+  title: "",
+  publicStatus: "investigating",
+  severity: "medium",
+  impactSummary: "",
+  visibility: "draft",
+  affectedComponentIds: [],
+  publishedAt: "",
+  resolvedAt: "",
+};
+
+const emptyIncidentUpdateForm: IncidentUpdateFormState = {
+  status: "investigating",
+  message: "",
+  createdBy: "",
+  publishedAt: "",
+};
+
 const manualStatuses = [
   { label: "No override", value: "" },
   { label: "Operational", value: "operational" },
@@ -77,6 +121,27 @@ const manualStatuses = [
   { label: "Major outage", value: "major_outage" },
   { label: "Maintenance", value: "maintenance" },
   { label: "Unknown", value: "unknown" },
+];
+
+const incidentStatuses = [
+  { label: "Investigating", value: "investigating" },
+  { label: "Identified", value: "identified" },
+  { label: "Monitoring", value: "monitoring" },
+  { label: "Resolved", value: "resolved" },
+  { label: "Scheduled", value: "scheduled" },
+];
+
+const incidentSeverities = [
+  { label: "Low", value: "low" },
+  { label: "Medium", value: "medium" },
+  { label: "High", value: "high" },
+  { label: "Critical", value: "critical" },
+];
+
+const incidentVisibilities = [
+  { label: "Draft", value: "draft" },
+  { label: "Published", value: "published" },
+  { label: "Private", value: "private" },
 ];
 
 const statusBadgeStatus = (status?: string) => {
@@ -95,7 +160,60 @@ const statusBadgeStatus = (status?: string) => {
   }
 };
 
+const incidentBadgeStatus = (status?: string) => {
+  switch (status) {
+    case "resolved":
+      return "up";
+    case "scheduled":
+    case "monitoring":
+      return "maintenance";
+    case "identified":
+      return "degraded";
+    case "investigating":
+      return "down";
+    default:
+      return "unknown";
+  }
+};
+
 const publicUrl = (slug?: string) => (slug ? `/status/${slug}` : "");
+
+const dateTimeLocalToIso = (value: string) => {
+  if (!value.trim()) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date.toISOString();
+};
+
+const isoToDateTimeLocal = (value?: string) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return localDate.toISOString().slice(0, 16);
+};
+
+const formatDateTime = (value?: string) => {
+  if (!value) return "Not set";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
+};
+
+const incidentFormFromIncident = (incident?: ApiStatusPageIncidentResponse): IncidentFormState => ({
+  internalIncidentId: incident?.internal_incident_id ?? "",
+  title: incident?.title ?? "",
+  publicStatus: incident?.public_status ?? "investigating",
+  severity: incident?.severity ?? "medium",
+  impactSummary: incident?.impact_summary ?? "",
+  visibility: incident?.visibility ?? "draft",
+  affectedComponentIds: incident?.affected_component_ids ?? [],
+  publishedAt: isoToDateTimeLocal(incident?.published_at),
+  resolvedAt: isoToDateTimeLocal(incident?.resolved_at),
+});
+
+const incidentOptionLabel = (incident: ApiIncidentResponse) =>
+  `${incident.title ?? incident.id ?? "Untitled incident"}${incident.status ? ` (${incident.status})` : ""}`;
 
 const Field = ({ label, children }: { label: string; children: ReactNode }) => (
   <label className="block space-y-1">
@@ -115,10 +233,20 @@ export const StatusPagesPage = () => {
   const previewResponse = usePreviewStatusPage(pageId, { query: { enabled: Boolean(pageId) } });
   const monitorsResponse = useGetMonitors({ limit: 200 });
   const agentsResponse = useGetAgents({ limit: 200 });
+  const internalIncidentsResponse = useGetIncidents({
+    limit: 50,
+    offset: 0,
+    status: "open,acknowledged,resolved",
+  });
   const [pageForm, setPageForm] = useState<PageFormState>(emptyPageForm);
   const [sectionForm, setSectionForm] = useState<SectionFormState>(emptySectionForm);
   const [componentForm, setComponentForm] = useState<ComponentFormState>(emptyComponentForm);
   const [mappingForm, setMappingForm] = useState<MappingFormState>(emptyMappingForm);
+  const [createIncidentForm, setCreateIncidentForm] =
+    useState<IncidentFormState>(emptyIncidentForm);
+  const [editIncidentForm, setEditIncidentForm] = useState<IncidentFormState>(emptyIncidentForm);
+  const [updateForm, setUpdateForm] = useState<IncidentUpdateFormState>(emptyIncidentUpdateForm);
+  const [selectedIncidentId, setSelectedIncidentId] = useState("");
 
   useEffect(() => {
     if (!selectedPageId && pages[0]?.id) {
@@ -138,6 +266,22 @@ export const StatusPagesPage = () => {
         : { ...current, componentId: firstComponent },
     );
   }, [detailResponse.data]);
+
+  useEffect(() => {
+    const incidents = detailResponse.data?.incidents ?? [];
+    if (selectedIncidentId && incidents.some((incident) => incident.id === selectedIncidentId)) {
+      return;
+    }
+    setSelectedIncidentId(incidents[0]?.id ?? "");
+  }, [detailResponse.data, selectedIncidentId]);
+
+  const detail = detailResponse.data;
+  const incidents = detail?.incidents ?? [];
+  const selectedIncident = incidents.find((incident) => incident.id === selectedIncidentId);
+
+  useEffect(() => {
+    setEditIncidentForm(incidentFormFromIncident(selectedIncident));
+  }, [selectedIncident]);
 
   const refreshStatusPages = () => {
     void pagesResponse.refetch();
@@ -183,13 +327,33 @@ export const StatusPagesPage = () => {
       },
     },
   });
+  const createIncident = useCreateStatusPageIncident({
+    mutation: {
+      onSuccess: (result) => {
+        setCreateIncidentForm(emptyIncidentForm);
+        if (result.incident?.id) setSelectedIncidentId(result.incident.id);
+        refreshStatusPages();
+      },
+    },
+  });
+  const updateIncident = useUpdateStatusPageIncident({
+    mutation: { onSuccess: refreshStatusPages },
+  });
+  const createIncidentUpdate = useCreateStatusPageIncidentUpdate({
+    mutation: {
+      onSuccess: () => {
+        setUpdateForm(emptyIncidentUpdateForm);
+        refreshStatusPages();
+      },
+    },
+  });
   const publishPage = usePublishStatusPage({ mutation: { onSuccess: refreshStatusPages } });
   const unpublishPage = useUnpublishStatusPage({ mutation: { onSuccess: refreshStatusPages } });
 
-  const detail = detailResponse.data;
   const preview = previewResponse.data?.preview;
   const monitors = monitorsResponse.data?.monitors ?? [];
   const agents = agentsResponse.data?.agents ?? [];
+  const internalIncidents = internalIncidentsResponse.data?.incidents ?? [];
   const selectedResourceOptions =
     mappingForm.resourceType === "monitor"
       ? monitors.map((monitor) => ({
@@ -246,6 +410,101 @@ export const StatusPagesPage = () => {
         resource_id: mappingForm.resourceId,
         resource_type: mappingForm.resourceType,
         uptime_rollup_strategy: "worst",
+      },
+    });
+  };
+
+  const toggleIncidentComponent = (
+    form: IncidentFormState,
+    setForm: (form: IncidentFormState) => void,
+    componentId: string,
+  ) => {
+    const hasComponent = form.affectedComponentIds.includes(componentId);
+    setForm({
+      ...form,
+      affectedComponentIds: hasComponent
+        ? form.affectedComponentIds.filter((id) => id !== componentId)
+        : [...form.affectedComponentIds, componentId],
+    });
+  };
+
+  const incidentRequest = (form: IncidentFormState) => ({
+    affected_component_ids: form.affectedComponentIds,
+    impact_summary: form.impactSummary.trim() || undefined,
+    internal_incident_id: form.internalIncidentId.trim() || undefined,
+    public_status: form.publicStatus,
+    published_at: dateTimeLocalToIso(form.publishedAt),
+    resolved_at: dateTimeLocalToIso(form.resolvedAt),
+    severity: form.severity,
+    title: form.title.trim(),
+    visibility: form.visibility,
+  });
+
+  const submitCreateIncident = (event: FormEvent) => {
+    event.preventDefault();
+    if (!pageId) return;
+    createIncident.mutate({
+      id: pageId,
+      data: {
+        ...incidentRequest(createIncidentForm),
+        visibility: "draft",
+      },
+    });
+  };
+
+  const submitEditIncident = (event: FormEvent) => {
+    event.preventDefault();
+    if (!pageId || !selectedIncident?.id) return;
+    updateIncident.mutate({
+      id: pageId,
+      incidentId: selectedIncident.id,
+      data: incidentRequest(editIncidentForm),
+    });
+  };
+
+  const publishIncident = () => {
+    if (!pageId || !selectedIncident?.id) return;
+    const form = {
+      ...editIncidentForm,
+      publishedAt: editIncidentForm.publishedAt || isoToDateTimeLocal(new Date().toISOString()),
+      visibility: "published",
+    };
+    updateIncident.mutate({
+      id: pageId,
+      incidentId: selectedIncident.id,
+      data: incidentRequest(form),
+    });
+  };
+
+  const resolveIncident = () => {
+    if (!pageId || !selectedIncident?.id) return;
+    const now = isoToDateTimeLocal(new Date().toISOString());
+    const form = {
+      ...editIncidentForm,
+      publicStatus: "resolved",
+      publishedAt: editIncidentForm.publishedAt || now,
+      resolvedAt: now,
+      visibility: "published",
+    };
+    updateIncident.mutate({
+      id: pageId,
+      incidentId: selectedIncident.id,
+      data: incidentRequest(form),
+    });
+  };
+
+  const submitIncidentUpdate = (event: FormEvent) => {
+    event.preventDefault();
+    if (!pageId || !selectedIncident?.id) return;
+    const publishedAt = dateTimeLocalToIso(updateForm.publishedAt) || new Date().toISOString();
+    createIncidentUpdate.mutate({
+      id: pageId,
+      incidentId: selectedIncident.id,
+      data: {
+        created_by: updateForm.createdBy.trim() || undefined,
+        message: updateForm.message.trim(),
+        published_at: publishedAt,
+        status: updateForm.status,
       },
     });
   };
@@ -512,6 +771,460 @@ export const StatusPagesPage = () => {
                   Add mapping
                 </Button>
               </form>
+            </section>
+
+            <section className="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
+              <form className="space-y-3" onSubmit={submitCreateIncident}>
+                <h3 className="text-sm font-medium">New Public Incident</h3>
+                <Field label="Internal incident link">
+                  <select
+                    className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                    value={createIncidentForm.internalIncidentId}
+                    onChange={(event) =>
+                      setCreateIncidentForm((current) => ({
+                        ...current,
+                        internalIncidentId: event.target.value,
+                      }))
+                    }
+                  >
+                    <option value="">No linked incident</option>
+                    {internalIncidents.map((incident) => (
+                      <option key={incident.id} value={incident.id}>
+                        {incidentOptionLabel(incident)}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Internal incident ID">
+                  <Input
+                    value={createIncidentForm.internalIncidentId}
+                    onChange={(event) =>
+                      setCreateIncidentForm((current) => ({
+                        ...current,
+                        internalIncidentId: event.target.value,
+                      }))
+                    }
+                    placeholder="incident_..."
+                  />
+                </Field>
+                <Field label="Public title">
+                  <Input
+                    value={createIncidentForm.title}
+                    onChange={(event) =>
+                      setCreateIncidentForm((current) => ({
+                        ...current,
+                        title: event.target.value,
+                      }))
+                    }
+                    placeholder="API latency elevated"
+                  />
+                </Field>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="Public status">
+                    <select
+                      className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                      value={createIncidentForm.publicStatus}
+                      onChange={(event) =>
+                        setCreateIncidentForm((current) => ({
+                          ...current,
+                          publicStatus: event.target.value,
+                        }))
+                      }
+                    >
+                      {incidentStatuses.map((status) => (
+                        <option key={status.value} value={status.value}>
+                          {status.label}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Severity">
+                    <select
+                      className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                      value={createIncidentForm.severity}
+                      onChange={(event) =>
+                        setCreateIncidentForm((current) => ({
+                          ...current,
+                          severity: event.target.value,
+                        }))
+                      }
+                    >
+                      {incidentSeverities.map((severity) => (
+                        <option key={severity.value} value={severity.value}>
+                          {severity.label}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+                <Field label="Public impact">
+                  <Textarea
+                    value={createIncidentForm.impactSummary}
+                    onChange={(event) =>
+                      setCreateIncidentForm((current) => ({
+                        ...current,
+                        impactSummary: event.target.value,
+                      }))
+                    }
+                    rows={3}
+                  />
+                </Field>
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">Affected components</div>
+                  <div className="space-y-1">
+                    {(detail?.components ?? []).map((component) => (
+                      <label className="flex items-center gap-2 text-sm" key={component.id}>
+                        <input
+                          checked={createIncidentForm.affectedComponentIds.includes(
+                            component.id ?? "",
+                          )}
+                          onChange={() =>
+                            component.id &&
+                            toggleIncidentComponent(
+                              createIncidentForm,
+                              setCreateIncidentForm,
+                              component.id,
+                            )
+                          }
+                          type="checkbox"
+                        />
+                        <span>{component.public_name}</span>
+                      </label>
+                    ))}
+                    {(detail?.components ?? []).length === 0 && (
+                      <div className="text-sm text-neutral-600">No components configured.</div>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  disabled={!pageId || !createIncidentForm.title.trim() || createIncident.isPending}
+                  variant="outline"
+                >
+                  <Plus className="size-4" />
+                  {createIncident.isPending ? "Creating..." : "Create draft incident"}
+                </Button>
+                {createIncident.isError && (
+                  <p className="text-sm">Unable to create public incident.</p>
+                )}
+              </form>
+
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium">Configured Incidents</h3>
+                  {incidents.length === 0 && (
+                    <EmptyState
+                      title="No public incidents"
+                      description="Create a draft public incident when customer-facing communication is needed."
+                    />
+                  )}
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {incidents.map((incident) => (
+                      <button
+                        className={`border px-3 py-2 text-left text-sm ${
+                          incident.id === selectedIncidentId
+                            ? "border-neutral-950 bg-neutral-100"
+                            : "border-neutral-200 hover:bg-neutral-50"
+                        }`}
+                        key={incident.id}
+                        onClick={() => setSelectedIncidentId(incident.id ?? "")}
+                        type="button"
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="font-medium">{incident.title}</span>
+                          <StatusBadge
+                            fallback={incident.public_status}
+                            value={incidentBadgeStatus(incident.public_status)}
+                          />
+                        </span>
+                        <span className="mt-1 block text-neutral-600">
+                          {incident.visibility}
+                          {incident.internal_incident_id
+                            ? ` - linked ${incident.internal_incident_id}`
+                            : ""}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {selectedIncident && (
+                  <div className="grid gap-4 xl:grid-cols-2">
+                    <form className="space-y-3" onSubmit={submitEditIncident}>
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-sm font-medium">Edit Public Incident</h3>
+                        <StatusBadge
+                          fallback={editIncidentForm.visibility}
+                          value={editIncidentForm.visibility === "published" ? "up" : "unknown"}
+                        />
+                      </div>
+                      <Field label="Internal incident ID">
+                        <Input
+                          value={editIncidentForm.internalIncidentId}
+                          onChange={(event) =>
+                            setEditIncidentForm((current) => ({
+                              ...current,
+                              internalIncidentId: event.target.value,
+                            }))
+                          }
+                        />
+                      </Field>
+                      <Field label="Public title">
+                        <Input
+                          value={editIncidentForm.title}
+                          onChange={(event) =>
+                            setEditIncidentForm((current) => ({
+                              ...current,
+                              title: event.target.value,
+                            }))
+                          }
+                        />
+                      </Field>
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <Field label="Public status">
+                          <select
+                            className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                            value={editIncidentForm.publicStatus}
+                            onChange={(event) =>
+                              setEditIncidentForm((current) => ({
+                                ...current,
+                                publicStatus: event.target.value,
+                              }))
+                            }
+                          >
+                            {incidentStatuses.map((status) => (
+                              <option key={status.value} value={status.value}>
+                                {status.label}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                        <Field label="Severity">
+                          <select
+                            className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                            value={editIncidentForm.severity}
+                            onChange={(event) =>
+                              setEditIncidentForm((current) => ({
+                                ...current,
+                                severity: event.target.value,
+                              }))
+                            }
+                          >
+                            {incidentSeverities.map((severity) => (
+                              <option key={severity.value} value={severity.value}>
+                                {severity.label}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                        <Field label="Visibility">
+                          <select
+                            className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                            value={editIncidentForm.visibility}
+                            onChange={(event) =>
+                              setEditIncidentForm((current) => ({
+                                ...current,
+                                visibility: event.target.value,
+                              }))
+                            }
+                          >
+                            {incidentVisibilities.map((visibility) => (
+                              <option key={visibility.value} value={visibility.value}>
+                                {visibility.label}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                      </div>
+                      <Field label="Public impact">
+                        <Textarea
+                          value={editIncidentForm.impactSummary}
+                          onChange={(event) =>
+                            setEditIncidentForm((current) => ({
+                              ...current,
+                              impactSummary: event.target.value,
+                            }))
+                          }
+                          rows={3}
+                        />
+                      </Field>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <Field label="Published at">
+                          <Input
+                            type="datetime-local"
+                            value={editIncidentForm.publishedAt}
+                            onChange={(event) =>
+                              setEditIncidentForm((current) => ({
+                                ...current,
+                                publishedAt: event.target.value,
+                              }))
+                            }
+                          />
+                        </Field>
+                        <Field label="Resolved at">
+                          <Input
+                            type="datetime-local"
+                            value={editIncidentForm.resolvedAt}
+                            onChange={(event) =>
+                              setEditIncidentForm((current) => ({
+                                ...current,
+                                resolvedAt: event.target.value,
+                              }))
+                            }
+                          />
+                        </Field>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="text-sm font-medium">Affected components</div>
+                        <div className="grid gap-1 sm:grid-cols-2">
+                          {(detail?.components ?? []).map((component) => (
+                            <label className="flex items-center gap-2 text-sm" key={component.id}>
+                              <input
+                                checked={editIncidentForm.affectedComponentIds.includes(
+                                  component.id ?? "",
+                                )}
+                                onChange={() =>
+                                  component.id &&
+                                  toggleIncidentComponent(
+                                    editIncidentForm,
+                                    setEditIncidentForm,
+                                    component.id,
+                                  )
+                                }
+                                type="checkbox"
+                              />
+                              <span>{component.public_name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          disabled={!editIncidentForm.title.trim() || updateIncident.isPending}
+                          variant="outline"
+                        >
+                          {updateIncident.isPending ? "Saving..." : "Save incident"}
+                        </Button>
+                        <Button
+                          disabled={updateIncident.isPending}
+                          onClick={publishIncident}
+                          type="button"
+                          variant="outline"
+                        >
+                          <Globe2 className="size-4" />
+                          Publish
+                        </Button>
+                        <Button
+                          disabled={updateIncident.isPending}
+                          onClick={resolveIncident}
+                          type="button"
+                          variant="outline"
+                        >
+                          <CheckCircle2 className="size-4" />
+                          Resolve
+                        </Button>
+                      </div>
+                      {updateIncident.isError && (
+                        <p className="text-sm">Unable to update public incident.</p>
+                      )}
+                    </form>
+
+                    <div className="space-y-4">
+                      <form className="space-y-3" onSubmit={submitIncidentUpdate}>
+                        <h3 className="text-sm font-medium">Add Public Update</h3>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <Field label="Status">
+                            <select
+                              className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                              value={updateForm.status}
+                              onChange={(event) =>
+                                setUpdateForm((current) => ({
+                                  ...current,
+                                  status: event.target.value,
+                                }))
+                              }
+                            >
+                              {incidentStatuses.map((status) => (
+                                <option key={status.value} value={status.value}>
+                                  {status.label}
+                                </option>
+                              ))}
+                            </select>
+                          </Field>
+                          <Field label="Published at">
+                            <Input
+                              type="datetime-local"
+                              value={updateForm.publishedAt}
+                              onChange={(event) =>
+                                setUpdateForm((current) => ({
+                                  ...current,
+                                  publishedAt: event.target.value,
+                                }))
+                              }
+                            />
+                          </Field>
+                        </div>
+                        <Field label="Message">
+                          <Textarea
+                            value={updateForm.message}
+                            onChange={(event) =>
+                              setUpdateForm((current) => ({
+                                ...current,
+                                message: event.target.value,
+                              }))
+                            }
+                            rows={4}
+                          />
+                        </Field>
+                        <Field label="Created by">
+                          <Input
+                            value={updateForm.createdBy}
+                            onChange={(event) =>
+                              setUpdateForm((current) => ({
+                                ...current,
+                                createdBy: event.target.value,
+                              }))
+                            }
+                            placeholder="Support"
+                          />
+                        </Field>
+                        <Button
+                          disabled={!updateForm.message.trim() || createIncidentUpdate.isPending}
+                        >
+                          <Plus className="size-4" />
+                          {createIncidentUpdate.isPending ? "Adding..." : "Add update"}
+                        </Button>
+                        {createIncidentUpdate.isError && (
+                          <p className="text-sm">Unable to add public update.</p>
+                        )}
+                      </form>
+
+                      <div className="space-y-2">
+                        <h3 className="text-sm font-medium">Public Updates</h3>
+                        {(selectedIncident.updates ?? []).length === 0 && (
+                          <div className="text-sm text-neutral-600">No updates yet.</div>
+                        )}
+                        {(selectedIncident.updates ?? []).map((update) => (
+                          <div className="border border-neutral-200 p-3 text-sm" key={update.id}>
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <StatusBadge
+                                fallback={update.status}
+                                value={incidentBadgeStatus(update.status)}
+                              />
+                              <span className="text-neutral-600">
+                                {formatDateTime(update.published_at ?? update.created_at)}
+                              </span>
+                            </div>
+                            <p className="mt-2 whitespace-pre-wrap">{update.message}</p>
+                            {update.created_by && (
+                              <div className="mt-2 text-neutral-600">By {update.created_by}</div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </section>
 
             <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
