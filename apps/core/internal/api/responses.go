@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"orion/core/internal/db"
 	"orion/core/internal/service"
+	"strings"
 	"time"
 )
 
@@ -137,15 +138,52 @@ type UptimeResponse struct {
 
 // AlertDeliveryResponse represents a frontend-safe alert delivery record.
 type AlertDeliveryResponse struct {
-	ID         string    `json:"id"`
-	IncidentID string    `json:"incident_id"`
-	EventType  string    `json:"event_type"`
-	Channel    string    `json:"channel"`
-	Type       string    `json:"type"`
-	Status     string    `json:"status"`
-	Error      string    `json:"error,omitempty"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	ID            string                         `json:"id"`
+	IncidentID    string                         `json:"incident_id"`
+	RouteID       string                         `json:"route_id,omitempty"`
+	EventType     string                         `json:"event_type"`
+	Channel       string                         `json:"channel"`
+	Type          string                         `json:"type"`
+	Status        string                         `json:"status"`
+	Error         string                         `json:"error,omitempty"`
+	AttemptCount  int                            `json:"attempt_count"`
+	MaxAttempts   int                            `json:"max_attempts"`
+	NextAttemptAt *time.Time                     `json:"next_attempt_at,omitempty"`
+	LastAttemptAt *time.Time                     `json:"last_attempt_at,omitempty"`
+	Attempts      []AlertDeliveryAttemptResponse `json:"attempts"`
+	CreatedAt     time.Time                      `json:"created_at"`
+	UpdatedAt     time.Time                      `json:"updated_at"`
+}
+
+// AlertDeliveryAttemptResponse represents one sanitized delivery try.
+type AlertDeliveryAttemptResponse struct {
+	ID              string     `json:"id"`
+	AlertDeliveryID string     `json:"alert_delivery_id"`
+	AttemptNumber   int        `json:"attempt_number"`
+	Status          string     `json:"status"`
+	Stage           string     `json:"stage"`
+	Error           string     `json:"error,omitempty"`
+	StartedAt       time.Time  `json:"started_at"`
+	CompletedAt     *time.Time `json:"completed_at,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+}
+
+// AlertRouteResponse represents an explicit alert route.
+type AlertRouteResponse struct {
+	ID           string    `json:"id"`
+	Name         string    `json:"name"`
+	Enabled      bool      `json:"enabled"`
+	Priority     int       `json:"priority"`
+	EventTypes   []string  `json:"event_types"`
+	Severities   []string  `json:"severities"`
+	AgentIDs     []string  `json:"agent_ids"`
+	MonitorIDs   []string  `json:"monitor_ids"`
+	MonitorTypes []string  `json:"monitor_types"`
+	ChannelIDs   []string  `json:"channel_ids"`
+	Suppress     bool      `json:"suppress"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 // AlertChannelResponse represents a configured alert channel.
@@ -168,6 +206,35 @@ type AlertChannelResponse struct {
 	UpdatedAt              time.Time  `json:"updated_at"`
 }
 
+// AlertSMTPServiceResponse represents a reusable SMTP service without secrets.
+type AlertSMTPServiceResponse struct {
+	ID                 string    `json:"id"`
+	Name               string    `json:"name"`
+	Enabled            bool      `json:"enabled"`
+	Host               string    `json:"host"`
+	Port               int       `json:"port"`
+	FromEmail          string    `json:"from_email"`
+	UsernameConfigured bool      `json:"username_configured,omitempty"`
+	PasswordConfigured bool      `json:"password_configured,omitempty"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
+}
+
+// AlertEmailDestinationResponse represents a reusable email destination.
+type AlertEmailDestinationResponse struct {
+	ID                 string     `json:"id"`
+	SMTPServiceID      string     `json:"smtp_service_id"`
+	SMTPServiceName    string     `json:"smtp_service_name,omitempty"`
+	Name               string     `json:"name"`
+	Enabled            bool       `json:"enabled"`
+	EmailTo            string     `json:"email_to"`
+	SubscribedEvents   []string   `json:"subscribed_events"`
+	LastDeliveryStatus string     `json:"last_delivery_status,omitempty"`
+	LastDeliveryAt     *time.Time `json:"last_delivery_at,omitempty"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+}
+
 // AlertRuleResponse represents an effective Core alert rule.
 type AlertRuleResponse struct {
 	Name                          string   `json:"name"`
@@ -178,6 +245,24 @@ type AlertRuleResponse struct {
 	RecoveryNotificationEnabled   bool     `json:"recovery_notification_enabled"`
 	MaintenanceSuppressionEnabled bool     `json:"maintenance_suppression_enabled"`
 	TargetChannels                []string `json:"target_channels"`
+}
+
+// AlertRouteDryRunResponse explains route matching and destination decisions.
+type AlertRouteDryRunResponse struct {
+	Event                service.AlertRouteContext          `json:"event"`
+	LegacyFallback       bool                               `json:"legacy_fallback"`
+	Suppressed           bool                               `json:"suppressed"`
+	SuppressionReason    string                             `json:"suppression_reason,omitempty"`
+	RouteEvaluations     []AlertRouteEvaluationResponse     `json:"route_evaluations"`
+	DestinationDecisions []service.AlertDestinationDecision `json:"destination_decisions"`
+}
+
+// AlertRouteEvaluationResponse explains one route's match result.
+type AlertRouteEvaluationResponse struct {
+	Route      AlertRouteResponse `json:"route"`
+	Matched    bool               `json:"matched"`
+	Suppressed bool               `json:"suppressed"`
+	Reasons    []string           `json:"reasons"`
 }
 
 // IncidentTimelineItemResponse represents a normalized incident timeline item.
@@ -380,16 +465,79 @@ func incidentEventResponses(events []db.IncidentEvent) []IncidentEventResponse {
 
 func alertDeliveryResponse(delivery db.AlertDelivery) AlertDeliveryResponse {
 	return AlertDeliveryResponse{
-		ID:         delivery.ID,
-		IncidentID: delivery.IncidentID,
-		EventType:  delivery.EventType,
-		Channel:    delivery.Channel,
-		Type:       delivery.Type,
-		Status:     delivery.Status,
-		Error:      safeAlertDeliveryError(delivery.Error),
-		CreatedAt:  delivery.CreatedAt,
-		UpdatedAt:  delivery.UpdatedAt,
+		ID:            delivery.ID,
+		IncidentID:    delivery.IncidentID,
+		RouteID:       delivery.RouteID,
+		EventType:     delivery.EventType,
+		Channel:       delivery.Channel,
+		Type:          delivery.Type,
+		Status:        delivery.Status,
+		Error:         safeAlertDeliveryError(delivery.Error),
+		AttemptCount:  delivery.AttemptCount,
+		MaxAttempts:   delivery.MaxAttempts,
+		NextAttemptAt: delivery.NextAttemptAt,
+		LastAttemptAt: delivery.LastAttemptAt,
+		Attempts:      alertDeliveryAttemptResponses(delivery.Attempts),
+		CreatedAt:     delivery.CreatedAt,
+		UpdatedAt:     delivery.UpdatedAt,
 	}
+}
+
+func alertRouteResponse(route db.AlertRoute) AlertRouteResponse {
+	return AlertRouteResponse{
+		ID:           route.ID,
+		Name:         route.Name,
+		Enabled:      route.Enabled,
+		Priority:     route.Priority,
+		EventTypes:   decodeResponseList(route.EventTypes, db.DefaultAlertEvents()),
+		Severities:   decodeResponseList(route.Severities, nil),
+		AgentIDs:     decodeResponseList(route.AgentIDs, nil),
+		MonitorIDs:   decodeResponseList(route.MonitorIDs, nil),
+		MonitorTypes: decodeResponseList(route.MonitorTypes, nil),
+		ChannelIDs:   decodeResponseList(route.ChannelIDs, nil),
+		Suppress:     route.Suppress,
+		CreatedAt:    route.CreatedAt,
+		UpdatedAt:    route.UpdatedAt,
+	}
+}
+
+func alertRouteResponses(routes []db.AlertRoute) []AlertRouteResponse {
+	responses := make([]AlertRouteResponse, 0, len(routes))
+	for _, route := range routes {
+		responses = append(responses, alertRouteResponse(route))
+	}
+	return responses
+}
+
+func alertRouteDryRunResponse(result *service.AlertRouteDryRunResult) AlertRouteDryRunResponse {
+	evaluations := make([]AlertRouteEvaluationResponse, 0, len(result.RouteEvaluations))
+	for _, evaluation := range result.RouteEvaluations {
+		evaluations = append(evaluations, AlertRouteEvaluationResponse{
+			Route:      alertRouteResponse(evaluation.Route),
+			Matched:    evaluation.Matched,
+			Suppressed: evaluation.Suppressed,
+			Reasons:    evaluation.Reasons,
+		})
+	}
+	return AlertRouteDryRunResponse{
+		Event:                result.Event,
+		LegacyFallback:       result.LegacyFallback,
+		Suppressed:           result.Suppressed,
+		SuppressionReason:    result.SuppressionReason,
+		RouteEvaluations:     evaluations,
+		DestinationDecisions: result.DestinationDecisions,
+	}
+}
+
+func decodeResponseList(value string, fallback []string) []string {
+	if value == "" {
+		return fallback
+	}
+	var values []string
+	if err := json.Unmarshal([]byte(value), &values); err != nil || len(values) == 0 {
+		return fallback
+	}
+	return values
 }
 
 func alertDeliveryResponses(deliveries []db.AlertDelivery) []AlertDeliveryResponse {
@@ -400,11 +548,37 @@ func alertDeliveryResponses(deliveries []db.AlertDelivery) []AlertDeliveryRespon
 	return responses
 }
 
+func alertDeliveryAttemptResponse(attempt db.AlertDeliveryAttempt) AlertDeliveryAttemptResponse {
+	return AlertDeliveryAttemptResponse{
+		ID:              attempt.ID,
+		AlertDeliveryID: attempt.AlertDeliveryID,
+		AttemptNumber:   attempt.AttemptNumber,
+		Status:          attempt.Status,
+		Stage:           attempt.Stage,
+		Error:           safeAlertDeliveryError(attempt.Error),
+		StartedAt:       attempt.StartedAt,
+		CompletedAt:     attempt.CompletedAt,
+		CreatedAt:       attempt.CreatedAt,
+		UpdatedAt:       attempt.UpdatedAt,
+	}
+}
+
+func alertDeliveryAttemptResponses(attempts []db.AlertDeliveryAttempt) []AlertDeliveryAttemptResponse {
+	responses := make([]AlertDeliveryAttemptResponse, 0, len(attempts))
+	for _, attempt := range attempts {
+		responses = append(responses, alertDeliveryAttemptResponse(attempt))
+	}
+	return responses
+}
+
 func safeAlertDeliveryError(value string) string {
 	switch value {
-	case "", "alert channel disabled", "alert cooldown active", "no alert channels configured":
+	case "", "alert channel disabled", "alert cooldown active", "no alert channels configured", "no alert routes matched", "alert route destination missing", "alert grouped into active alert group", "alert grouped; sibling incidents still active":
 		return value
 	default:
+		if strings.HasPrefix(value, "alert route suppressed event") {
+			return value
+		}
 		return "delivery failed; check Core logs"
 	}
 }

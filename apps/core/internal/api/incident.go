@@ -207,7 +207,13 @@ func (s *Server) incidentEvents(incidentID string) ([]db.IncidentEvent, error) {
 
 func (s *Server) incidentAlertDeliveries(incidentID string) ([]db.AlertDelivery, error) {
 	var deliveries []db.AlertDelivery
-	err := s.db.Where("incident_id = ?", incidentID).Order("created_at ASC").Find(&deliveries).Error
+	err := s.db.
+		Preload("Attempts", func(tx *gorm.DB) *gorm.DB {
+			return tx.Order("attempt_number ASC")
+		}).
+		Where("incident_id = ?", incidentID).
+		Order("created_at ASC").
+		Find(&deliveries).Error
 	return deliveries, err
 }
 
