@@ -2341,6 +2341,106 @@ func TestAlertRouteWriteAndDryRunEndpoints(t *testing.T) {
 		t.Fatalf("created route = %+v, want route with channel", created.Data.Route)
 	}
 
+	listResp := performJSONRequest(t, server, http.MethodGet, "/v1/alerts/routes", nil, "")
+	if listResp.Code != http.StatusOK {
+		t.Fatalf("list routes status = %d, body = %s", listResp.Code, listResp.Body.String())
+	}
+	var listed struct {
+		Data struct {
+			Routes []struct {
+				ID         string   `json:"id"`
+				Name       string   `json:"name"`
+				Enabled    bool     `json:"enabled"`
+				Priority   int      `json:"priority"`
+				EventTypes []string `json:"event_types"`
+				Severities []string `json:"severities"`
+				ChannelIDs []string `json:"channel_ids"`
+				Suppress   bool     `json:"suppress"`
+			} `json:"routes"`
+			Count int `json:"count"`
+		} `json:"data"`
+	}
+	decodeResponse(t, listResp, &listed)
+	if listed.Data.Count != 1 || len(listed.Data.Routes) != 1 {
+		t.Fatalf("listed routes count=%d len=%d, want one route", listed.Data.Count, len(listed.Data.Routes))
+	}
+	if listed.Data.Routes[0].ID != created.Data.Route.ID || listed.Data.Routes[0].Name != "critical route" || listed.Data.Routes[0].Priority != 10 {
+		t.Fatalf("listed route = %+v, want created critical route", listed.Data.Routes[0])
+	}
+	if len(listed.Data.Routes[0].EventTypes) != 1 || listed.Data.Routes[0].EventTypes[0] != db.AlertEventIncidentOpened || len(listed.Data.Routes[0].ChannelIDs) != 1 {
+		t.Fatalf("listed route filters = %+v, want opened event and channel", listed.Data.Routes[0])
+	}
+
+	updateResp := performJSONRequest(t, server, http.MethodPatch, "/v1/alerts/routes/"+created.Data.Route.ID, gin.H{
+		"name":          "suppress recovery",
+		"enabled":       false,
+		"priority":      5,
+		"event_types":   []string{db.AlertEventIncidentResolved},
+		"severities":    []string{"medium"},
+		"agent_ids":     []string{"agent-prod"},
+		"monitor_ids":   []string{"monitor-api"},
+		"monitor_types": []string{"http"},
+		"channel_ids":   []string{},
+		"suppress":      true,
+	}, "")
+	if updateResp.Code != http.StatusOK {
+		t.Fatalf("update route status = %d, body = %s", updateResp.Code, updateResp.Body.String())
+	}
+	var updated struct {
+		Data struct {
+			Route struct {
+				ID           string   `json:"id"`
+				Name         string   `json:"name"`
+				Enabled      bool     `json:"enabled"`
+				Priority     int      `json:"priority"`
+				EventTypes   []string `json:"event_types"`
+				Severities   []string `json:"severities"`
+				AgentIDs     []string `json:"agent_ids"`
+				MonitorIDs   []string `json:"monitor_ids"`
+				MonitorTypes []string `json:"monitor_types"`
+				ChannelIDs   []string `json:"channel_ids"`
+				Suppress     bool     `json:"suppress"`
+			} `json:"route"`
+		} `json:"data"`
+	}
+	decodeResponse(t, updateResp, &updated)
+	if updated.Data.Route.ID != created.Data.Route.ID || updated.Data.Route.Name != "suppress recovery" || updated.Data.Route.Enabled || updated.Data.Route.Priority != 5 || !updated.Data.Route.Suppress {
+		t.Fatalf("updated route = %+v, want disabled suppress recovery route", updated.Data.Route)
+	}
+	if len(updated.Data.Route.EventTypes) != 1 || updated.Data.Route.EventTypes[0] != db.AlertEventIncidentResolved {
+		t.Fatalf("updated event_types = %#v, want resolved", updated.Data.Route.EventTypes)
+	}
+	if len(updated.Data.Route.Severities) != 1 || updated.Data.Route.Severities[0] != "medium" ||
+		len(updated.Data.Route.AgentIDs) != 1 || updated.Data.Route.AgentIDs[0] != "agent-prod" ||
+		len(updated.Data.Route.MonitorIDs) != 1 || updated.Data.Route.MonitorIDs[0] != "monitor-api" ||
+		len(updated.Data.Route.MonitorTypes) != 1 || updated.Data.Route.MonitorTypes[0] != "http" ||
+		len(updated.Data.Route.ChannelIDs) != 0 {
+		t.Fatalf("updated route filters = %+v, want requested filters and no channels", updated.Data.Route)
+	}
+
+	deleteResp := performJSONRequest(t, server, http.MethodDelete, "/v1/alerts/routes/"+created.Data.Route.ID, nil, "")
+	if deleteResp.Code != http.StatusOK {
+		t.Fatalf("delete route status = %d, body = %s", deleteResp.Code, deleteResp.Body.String())
+	}
+	var routeCount int64
+	if err := server.db.Model(&db.AlertRoute{}).Count(&routeCount).Error; err != nil {
+		t.Fatalf("count alert routes: %v", err)
+	}
+	if routeCount != 0 {
+		t.Fatalf("alert route count = %d, want 0", routeCount)
+	}
+
+	createResp = performJSONRequest(t, server, http.MethodPost, "/v1/alerts/routes", gin.H{
+		"name":        "critical route",
+		"priority":    10,
+		"event_types": []string{db.AlertEventIncidentOpened},
+		"severities":  []string{"high"},
+		"channel_ids": []string{"channel-ops-webhook"},
+	}, "")
+	if createResp.Code != http.StatusCreated {
+		t.Fatalf("recreate route status = %d, body = %s", createResp.Code, createResp.Body.String())
+	}
+
 	dryRunResp := performJSONRequest(t, server, http.MethodPost, "/v1/alerts/routes/dry-run", gin.H{
 		"event_type": db.AlertEventIncidentOpened,
 		"severity":   "high",

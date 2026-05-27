@@ -171,6 +171,7 @@ Configured behavior:
 - each webhook can subscribe to incident opened, incident resolved, or both;
 - disabled channels create suppressed delivery rows;
 - unsubscribed event/channel pairs are skipped and do not create delivery rows;
+- explicit alert routes evaluate incident alert events after incidents exist; Core maintenance mode stays outside route matching because it suppresses incident candidates before alert delivery is queued;
 - cooldown can prevent repeated sent alerts;
 - recovery notifications can be disabled;
 - TLS expiry threshold defaults to 14 days.
