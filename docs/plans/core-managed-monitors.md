@@ -258,6 +258,11 @@ Minimum options:
 - artifact capture;
 - interval.
 
+First release behavior: Core supports ordered API steps with shared `{{variable}}` substitution,
+JSON-path assertions, JSON response extraction into later steps, stop-on-failure behavior, and
+bounded response samples as step artifacts. Browser steps are preserved as an explicit
+`unsupported_step` result until the Playwright transaction runner owns browser execution.
+
 ### Implementation Order
 
 All types above are in the target product scope now. Implementation should still land in controlled slices:

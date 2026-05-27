@@ -37,6 +37,8 @@ const (
 	imapRunnerKind          = "imap"
 	popRunnerKind           = "pop"
 	pop3RunnerKind          = "pop3"
+	syntheticRunnerKind     = "synthetic"
+	syntheticRunnerName     = "synthetic_multi_step"
 	maxHTTPResponseDrainLen = 512
 	maxHTTPBodyCaptureLen   = 4096
 )
@@ -266,6 +268,11 @@ func (a *App) runClaimedCheck(ctx context.Context, monitorConfig db.CoreMonitorC
 		finishedAt = result.FinishedAt
 		success = result.Health == "up"
 		reportErr = a.storeMailReport(monitorConfig.MonitorID, result)
+	case syntheticRunnerKind, syntheticRunnerName:
+		result := a.runSyntheticCheck(ctx, monitorConfig)
+		finishedAt = result.FinishedAt
+		success = result.Health == "up"
+		reportErr = a.storeSyntheticReport(monitorConfig.MonitorID, result)
 	default:
 		complete = false
 		a.logger.Warn("Skipping unsupported Core monitor kind", "monitor_id", monitorConfig.MonitorID, "kind", monitorConfig.Kind)
