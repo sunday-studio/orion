@@ -132,6 +132,9 @@ func (s *Server) setupRoutes() {
 		{
 			public.POST("/register", s.registerAgent)
 			public.POST("/auth/login", s.login)
+			public.POST("/heartbeats/:token", s.receiveHeartbeatSuccess)
+			public.POST("/heartbeats/:token/success", s.receiveHeartbeatSuccess)
+			public.POST("/heartbeats/:token/failure", s.receiveHeartbeatFailure)
 		}
 
 		// Frontend routes (JWT when ORION_ADMIN_* and ORION_JWT_SECRET are set)

@@ -204,6 +204,7 @@ type CoreMonitorConfig struct {
 	Kind                      string     `json:"kind" gorm:"not null;index:idx_core_monitor_configs_kind"`
 	ConfigJSON                string     `json:"config_json" gorm:"type:text;not null;default:'{}'"`
 	SecretRefJSON             string     `json:"secret_ref_json" gorm:"type:text;not null;default:'{}'"`
+	HeartbeatTokenHash        string     `json:"heartbeat_token_hash" gorm:"not null;default:'';index:idx_core_monitor_configs_heartbeat_token_hash"`
 	IntervalSeconds           int        `json:"interval_seconds" gorm:"not null;default:60"`
 	TimeoutSeconds            int        `json:"timeout_seconds" gorm:"not null;default:10"`
 	ConfirmationPeriodSeconds int        `json:"confirmation_period_seconds" gorm:"not null;default:0"`
@@ -211,6 +212,7 @@ type CoreMonitorConfig struct {
 	Paused                    bool       `json:"paused" gorm:"not null;default:false;index:idx_core_monitor_configs_due"`
 	NextRunAt                 time.Time  `json:"next_run_at" gorm:"not null;index:idx_core_monitor_configs_due"`
 	LastRunAt                 *time.Time `json:"last_run_at"`
+	LastSignalAt              *time.Time `json:"last_signal_at"`
 	LastSuccessAt             *time.Time `json:"last_success_at"`
 	LastFailureAt             *time.Time `json:"last_failure_at"`
 	LeaseOwner                string     `json:"lease_owner" gorm:"not null;default:'';index:idx_core_monitor_configs_lease_owner"`

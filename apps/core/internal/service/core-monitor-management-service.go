@@ -1,6 +1,8 @@
 package service
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -53,8 +55,9 @@ type CoreManagedMonitorUpdateRequest struct {
 }
 
 type CoreManagedMonitorRecord struct {
-	Monitor db.Monitor
-	Config  db.CoreMonitorConfig
+	Monitor        db.Monitor
+	Config         db.CoreMonitorConfig
+	HeartbeatToken string
 }
 
 type CoreMonitorManagementService struct {
@@ -124,6 +127,16 @@ func (s *CoreMonitorManagementService) CreateCoreMonitor(req CoreManagedMonitorC
 			return err
 		}
 
+		heartbeatToken := ""
+		heartbeatTokenHash := ""
+		if kind == "heartbeat" {
+			heartbeatToken, err = utils.GenerateToken()
+			if err != nil {
+				return err
+			}
+			heartbeatTokenHash = HashHeartbeatMonitorToken(heartbeatToken)
+		}
+
 		nextRunAt := now
 		if req.Paused {
 			nextRunAt = now.Add(time.Duration(interval) * time.Second)
@@ -133,6 +146,7 @@ func (s *CoreMonitorManagementService) CreateCoreMonitor(req CoreManagedMonitorC
 			Kind:                      kind,
 			ConfigJSON:                configJSON,
 			SecretRefJSON:             secretRefJSON,
+			HeartbeatTokenHash:        heartbeatTokenHash,
 			IntervalSeconds:           interval,
 			TimeoutSeconds:            timeout,
 			ConfirmationPeriodSeconds: nonNegative(req.ConfirmationPeriodSeconds),
@@ -146,7 +160,7 @@ func (s *CoreMonitorManagementService) CreateCoreMonitor(req CoreManagedMonitorC
 			return err
 		}
 
-		record = CoreManagedMonitorRecord{Monitor: monitor, Config: config}
+		record = CoreManagedMonitorRecord{Monitor: monitor, Config: config, HeartbeatToken: heartbeatToken}
 		return nil
 	})
 	if err != nil {
@@ -164,6 +178,7 @@ func (s *CoreMonitorManagementService) UpdateCoreMonitor(monitorID string, req C
 
 	record := CoreManagedMonitorRecord{}
 	now := time.Now().UTC()
+	heartbeatToken := ""
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		var monitor db.Monitor
 		if err := tx.Where("id = ?", monitorID).First(&monitor).Error; err != nil {
@@ -203,6 +218,18 @@ func (s *CoreMonitorManagementService) UpdateCoreMonitor(monitorID string, req C
 		if err := validateCoreManagedMonitorConfig(nextKind, nextConfigJSON, nextSecretRefJSON); err != nil {
 			return err
 		}
+		nextHeartbeatTokenHash := config.HeartbeatTokenHash
+		if nextKind == "heartbeat" && nextHeartbeatTokenHash == "" {
+			var err error
+			heartbeatToken, err = utils.GenerateToken()
+			if err != nil {
+				return err
+			}
+			nextHeartbeatTokenHash = HashHeartbeatMonitorToken(heartbeatToken)
+		}
+		if nextKind != "heartbeat" {
+			nextHeartbeatTokenHash = ""
+		}
 
 		monitorUpdates := map[string]interface{}{"updated_at": now}
 		if req.Name != nil {
@@ -236,6 +263,9 @@ func (s *CoreMonitorManagementService) UpdateCoreMonitor(monitorID string, req C
 				return ErrCoreManagedMonitorUnsupportedKind
 			}
 			configUpdates["kind"] = kind
+		}
+		if nextHeartbeatTokenHash != config.HeartbeatTokenHash {
+			configUpdates["heartbeat_token_hash"] = nextHeartbeatTokenHash
 		}
 		if req.Config != nil {
 			configUpdates["config_json"] = nextConfigJSON
@@ -273,7 +303,7 @@ func (s *CoreMonitorManagementService) UpdateCoreMonitor(monitorID string, req C
 		if err := tx.Where("monitor_id = ?", monitorID).First(&config).Error; err != nil {
 			return err
 		}
-		record = CoreManagedMonitorRecord{Monitor: monitor, Config: config}
+		record = CoreManagedMonitorRecord{Monitor: monitor, Config: config, HeartbeatToken: heartbeatToken}
 		return nil
 	})
 	if err != nil {
@@ -339,6 +369,53 @@ func (s *CoreMonitorManagementService) GetCoreMonitorConfig(monitorID string) (*
 	return &record, nil
 }
 
+func (s *CoreMonitorManagementService) GetHeartbeatMonitorByToken(token string) (*CoreManagedMonitorRecord, error) {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return nil, ErrCoreManagedMonitorNotFound
+	}
+
+	var record CoreManagedMonitorRecord
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.
+			Where("kind = ? AND heartbeat_token_hash = ?", "heartbeat", HashHeartbeatMonitorToken(token)).
+			First(&record.Config).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrCoreManagedMonitorNotFound
+			}
+			return err
+		}
+		if err := tx.Where("id = ?", record.Config.MonitorID).First(&record.Monitor).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrCoreManagedMonitorNotFound
+			}
+			return err
+		}
+		if record.Monitor.Lifecycle == "deleted" {
+			return ErrCoreManagedMonitorNotFound
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
+func (s *CoreMonitorManagementService) RecordHeartbeatSignal(monitorID string, health string, receivedAt time.Time) error {
+	updates := map[string]interface{}{
+		"last_signal_at": receivedAt,
+		"updated_at":     receivedAt,
+	}
+	switch health {
+	case "up":
+		updates["last_success_at"] = receivedAt
+	case "down":
+		updates["last_failure_at"] = receivedAt
+	}
+	return s.db.Model(&db.CoreMonitorConfig{}).Where("monitor_id = ?", monitorID).Updates(updates).Error
+}
+
 func (s *CoreMonitorManagementService) setCoreMonitorPaused(monitorID string, paused bool) (*CoreManagedMonitorRecord, error) {
 	now := time.Now().UTC()
 	record := CoreManagedMonitorRecord{}
@@ -389,6 +466,8 @@ func ensureCoreMonitorExists(tx *gorm.DB, monitorID string) error {
 
 func normalizeCoreManagedMonitorKind(kind string) string {
 	switch strings.ToLower(strings.TrimSpace(kind)) {
+	case "heartbeat":
+		return "heartbeat"
 	case "http", "http_status":
 		return "http"
 	case "http_keyword":
@@ -422,7 +501,7 @@ func normalizeCoreManagedMonitorKind(kind string) string {
 
 func isSupportedCoreManagedMonitorKind(kind string) bool {
 	switch normalizeCoreManagedMonitorKind(kind) {
-	case "http", "http_keyword", "expected_status", "tcp", "dns", "tls", "udp", "api_request", "domain_expiration", "ping", "mail", "smtp", "imap", "pop", "pop3", "synthetic", "playwright":
+	case "heartbeat", "http", "http_keyword", "expected_status", "tcp", "dns", "tls", "udp", "api_request", "domain_expiration", "ping", "mail", "smtp", "imap", "pop", "pop3", "synthetic", "playwright":
 		return true
 	default:
 		return false
@@ -446,6 +525,8 @@ func validateCoreManagedMonitorConfig(kind string, configJSON string, secretRefJ
 	}
 
 	switch normalizeCoreManagedMonitorKind(kind) {
+	case "heartbeat":
+		return validateCoreHeartbeatMonitorConfig(configJSON)
 	case "http", "http_keyword", "expected_status":
 		return validateCoreHTTPMonitorConfig(configJSON)
 	case "api_request":
@@ -471,6 +552,24 @@ func validateCoreManagedMonitorConfig(kind string, configJSON string, secretRefJ
 	default:
 		return ErrCoreManagedMonitorUnsupportedKind
 	}
+}
+
+func HashHeartbeatMonitorToken(token string) string {
+	sum := sha256.Sum256([]byte(strings.TrimSpace(token)))
+	return hex.EncodeToString(sum[:])
+}
+
+func validateCoreHeartbeatMonitorConfig(configJSON string) error {
+	var cfg struct {
+		GraceSeconds int `json:"grace_seconds"`
+	}
+	if err := json.Unmarshal([]byte(configJSON), &cfg); err != nil {
+		return fmt.Errorf("%w: parse config json: %v", ErrCoreManagedMonitorValidation, err)
+	}
+	if cfg.GraceSeconds < 0 {
+		return fmt.Errorf("%w: grace_seconds must be zero or greater", ErrCoreManagedMonitorValidation)
+	}
+	return nil
 }
 
 func validateCoreHTTPMonitorConfig(configJSON string) error {

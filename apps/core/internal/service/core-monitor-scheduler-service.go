@@ -80,6 +80,7 @@ func (s *CoreMonitorSchedulerService) ClaimDueCoreMonitorConfigs(req ClaimDueCor
 			Joins("JOIN monitors ON monitors.id = core_monitor_configs.monitor_id").
 			Where("monitors.lifecycle = ?", "active").
 			Where("core_monitor_configs.paused = ?", false).
+			Where("core_monitor_configs.kind <> ?", "heartbeat").
 			Where("core_monitor_configs.next_run_at <= ?", now).
 			Where("(core_monitor_configs.lease_expires_at IS NULL OR core_monitor_configs.lease_expires_at <= ?)", now).
 			Order("core_monitor_configs.next_run_at ASC").
@@ -93,6 +94,7 @@ func (s *CoreMonitorSchedulerService) ClaimDueCoreMonitorConfigs(req ClaimDueCor
 			result := tx.Model(&db.CoreMonitorConfig{}).
 				Where("monitor_id = ?", monitorID).
 				Where("paused = ?", false).
+				Where("kind <> ?", "heartbeat").
 				Where("next_run_at <= ?", now).
 				Where("(lease_expires_at IS NULL OR lease_expires_at <= ?)", now).
 				Where("monitor_id IN (?)", tx.Model(&db.Monitor{}).Select("id").Where("lifecycle = ?", "active")).

@@ -3976,6 +3976,120 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/heartbeats/{token}/failure": {
+            "post": {
+                "description": "Record a failure signal for a Core heartbeat monitor using its generated token.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "heartbeats"
+                ],
+                "summary": "Record heartbeat failure",
+                "operationId": "receiveHeartbeatFailure",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Heartbeat token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/api.HeartbeatSignalResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/heartbeats/{token}/success": {
+            "post": {
+                "description": "Record a success signal for a Core heartbeat monitor using its generated token.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "heartbeats"
+                ],
+                "summary": "Record heartbeat success",
+                "operationId": "receiveHeartbeatSuccess",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Heartbeat token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/api.HeartbeatSignalResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/incidents": {
             "get": {
                 "description": "Get a paginated list of persisted incidents. Defaults to active incidents.",
@@ -7866,6 +7980,9 @@ const docTemplate = `{
                 "confirmation_period_seconds": {
                     "type": "integer"
                 },
+                "heartbeat_token": {
+                    "type": "string"
+                },
                 "interval_seconds": {
                     "type": "integer"
                 },
@@ -7876,6 +7993,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "last_run_at": {
+                    "type": "string"
+                },
+                "last_signal_at": {
                     "type": "string"
                 },
                 "last_success_at": {
@@ -7939,6 +8059,26 @@ const docTemplate = `{
                 "date": {
                     "type": "string",
                     "example": "2026-05-12"
+                }
+            }
+        },
+        "api.HeartbeatSignalResponse": {
+            "type": "object",
+            "properties": {
+                "health": {
+                    "type": "string"
+                },
+                "monitor_id": {
+                    "type": "string"
+                },
+                "payload_truncated": {
+                    "type": "boolean"
+                },
+                "received_at": {
+                    "type": "string"
+                },
+                "report_id": {
+                    "type": "string"
                 }
             }
         },

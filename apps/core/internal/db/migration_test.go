@@ -92,6 +92,12 @@ func TestMigrateAppliesEmbeddedMigrations(t *testing.T) {
 	if !database.Migrator().HasTable(&CoreMonitorConfig{}) {
 		t.Fatal("core_monitor_configs table was not created")
 	}
+	if !database.Migrator().HasColumn(&CoreMonitorConfig{}, "heartbeat_token_hash") {
+		t.Fatal("core_monitor_configs.heartbeat_token_hash was not created")
+	}
+	if !database.Migrator().HasColumn(&CoreMonitorConfig{}, "last_signal_at") {
+		t.Fatal("core_monitor_configs.last_signal_at was not created")
+	}
 	if !database.Migrator().HasTable(&CoreWorkerStatus{}) {
 		t.Fatal("core_worker_statuses table was not created")
 	}

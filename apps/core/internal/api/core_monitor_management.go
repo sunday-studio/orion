@@ -18,6 +18,7 @@ type CoreMonitorConfigResponse struct {
 	Kind                      string                 `json:"kind"`
 	Config                    map[string]interface{} `json:"config"`
 	SecretRefs                map[string]interface{} `json:"secret_refs"`
+	HeartbeatToken            string                 `json:"heartbeat_token,omitempty"`
 	IntervalSeconds           int                    `json:"interval_seconds"`
 	TimeoutSeconds            int                    `json:"timeout_seconds"`
 	ConfirmationPeriodSeconds int                    `json:"confirmation_period_seconds"`
@@ -25,6 +26,7 @@ type CoreMonitorConfigResponse struct {
 	Paused                    bool                   `json:"paused"`
 	NextRunAt                 time.Time              `json:"next_run_at"`
 	LastRunAt                 *time.Time             `json:"last_run_at,omitempty"`
+	LastSignalAt              *time.Time             `json:"last_signal_at,omitempty"`
 	LastSuccessAt             *time.Time             `json:"last_success_at,omitempty"`
 	LastFailureAt             *time.Time             `json:"last_failure_at,omitempty"`
 	LeaseOwner                string                 `json:"lease_owner,omitempty"`
@@ -227,9 +229,11 @@ func (s *Server) coreMonitorManagementResponse(record *service.CoreManagedMonito
 		monitor.AgentName = agent.Name
 		monitor.OwnerName = agent.Name
 	}
+	config := coreMonitorConfigResponse(record.Config)
+	config.HeartbeatToken = record.HeartbeatToken
 	return CoreMonitorManagementResponse{
 		Monitor: monitor,
-		Config:  coreMonitorConfigResponse(record.Config),
+		Config:  config,
 	}
 }
 
@@ -246,6 +250,7 @@ func coreMonitorConfigResponse(config db.CoreMonitorConfig) CoreMonitorConfigRes
 		Paused:                    config.Paused,
 		NextRunAt:                 config.NextRunAt,
 		LastRunAt:                 config.LastRunAt,
+		LastSignalAt:              config.LastSignalAt,
 		LastSuccessAt:             config.LastSuccessAt,
 		LastFailureAt:             config.LastFailureAt,
 		LeaseOwner:                config.LeaseOwner,

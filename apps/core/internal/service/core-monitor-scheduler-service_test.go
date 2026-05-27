@@ -195,6 +195,32 @@ func TestClaimDueCoreMonitorConfigsClaimsResumedMonitor(t *testing.T) {
 	}
 }
 
+func TestClaimDueCoreMonitorConfigsSkipsHeartbeatMonitors(t *testing.T) {
+	database := openCoreMonitorSchedulerTestDatabase(t)
+	now := time.Date(2026, 5, 27, 10, 0, 0, 0, time.UTC)
+	insertCoreMonitorSchedulerAgent(t, database, "agent-core")
+	insertCoreMonitorSchedulerMonitor(t, database, "monitor-heartbeat", "agent-core", "active")
+	insertCoreMonitorSchedulerConfig(t, database, db.CoreMonitorConfig{
+		MonitorID:       "monitor-heartbeat",
+		Kind:            "heartbeat",
+		IntervalSeconds: 60,
+		TimeoutSeconds:  10,
+		NextRunAt:       now.Add(-time.Minute),
+	})
+
+	service := NewCoreMonitorSchedulerService(database, logging.NewLogger())
+	claimed, err := service.ClaimDueCoreMonitorConfigs(ClaimDueCoreMonitorConfigsRequest{
+		LeaseOwner: "worker-a",
+		Now:        now,
+	})
+	if err != nil {
+		t.Fatalf("ClaimDueCoreMonitorConfigs() error = %v", err)
+	}
+	if len(claimed) != 0 {
+		t.Fatalf("claimed = %+v, want heartbeat monitors skipped by due-check worker", claimed)
+	}
+}
+
 func TestCompleteCoreMonitorCheckSchedulesNextRunAndClearsLease(t *testing.T) {
 	database := openCoreMonitorSchedulerTestDatabase(t)
 	now := time.Date(2026, 5, 27, 10, 0, 0, 0, time.UTC)

@@ -373,6 +373,8 @@ definitions:
         type: object
       confirmation_period_seconds:
         type: integer
+      heartbeat_token:
+        type: string
       interval_seconds:
         type: integer
       kind:
@@ -380,6 +382,8 @@ definitions:
       last_failure_at:
         type: string
       last_run_at:
+        type: string
+      last_signal_at:
         type: string
       last_success_at:
         type: string
@@ -421,6 +425,19 @@ definitions:
     properties:
       date:
         example: "2026-05-12"
+        type: string
+    type: object
+  api.HeartbeatSignalResponse:
+    properties:
+      health:
+        type: string
+      monitor_id:
+        type: string
+      payload_truncated:
+        type: boolean
+      received_at:
+        type: string
+      report_id:
         type: string
     type: object
   api.IncidentEventResponse:
@@ -4349,6 +4366,78 @@ paths:
       summary: Get system health summary
       tags:
       - health
+  /v1/heartbeats/{token}/failure:
+    post:
+      consumes:
+      - application/json
+      description: Record a failure signal for a Core heartbeat monitor using its
+        generated token.
+      operationId: receiveHeartbeatFailure
+      parameters:
+      - description: Heartbeat token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.HeartbeatSignalResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Record heartbeat failure
+      tags:
+      - heartbeats
+  /v1/heartbeats/{token}/success:
+    post:
+      consumes:
+      - application/json
+      description: Record a success signal for a Core heartbeat monitor using its
+        generated token.
+      operationId: receiveHeartbeatSuccess
+      parameters:
+      - description: Heartbeat token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.HeartbeatSignalResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Record heartbeat success
+      tags:
+      - heartbeats
   /v1/incidents:
     get:
       consumes:
