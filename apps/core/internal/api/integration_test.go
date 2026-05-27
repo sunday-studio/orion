@@ -16,6 +16,7 @@ import (
 	"orion/core/internal/config"
 	"orion/core/internal/db"
 	"orion/core/internal/logging"
+	"orion/core/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/sqlite"
@@ -1383,6 +1384,122 @@ func TestMonitorReportsOpenAndResolveIncident(t *testing.T) {
 	}
 	if eventCount != 3 {
 		t.Fatalf("incident event count = %d, want 3", eventCount)
+	}
+}
+
+func TestCoreWorkerReportsOpenAndResolveIncident(t *testing.T) {
+	server := setupTestServer(t)
+	monitor := db.Monitor{
+		ID:                       "monitor-core-worker-report",
+		AgentID:                  "agent-core-worker",
+		Name:                     "Core API health",
+		Type:                     "http",
+		Lifecycle:                "active",
+		Health:                   "unknown",
+		ComputedHealth:           "unknown",
+		ReportingIntervalSeconds: 30,
+		CreatedAt:                time.Now(),
+		UpdatedAt:                time.Now(),
+	}
+	if err := server.db.Create(&monitor).Error; err != nil {
+		t.Fatalf("create core monitor: %v", err)
+	}
+
+	downReportID, err := server.reportService.StoreMonitorReport(monitor.ID, service.MonitorReportPayload{
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Health:    "down",
+		Metrics: map[string]interface{}{
+			"runner":       "core",
+			"status_code":  500,
+			"duration_ms":  125,
+			"failure_step": "http",
+		},
+	})
+	if err != nil {
+		t.Fatalf("store core down report: %v", err)
+	}
+	if downReportID == nil || *downReportID == "" {
+		t.Fatalf("down report id = %v, want generated id", downReportID)
+	}
+
+	var coreOwner db.Agent
+	if err := server.db.Where("id = ?", "agent-core-worker").First(&coreOwner).Error; err != nil {
+		t.Fatalf("find generated core owner: %v", err)
+	}
+	if coreOwner.MachineId != "core" || coreOwner.Name != "Orion Core" {
+		t.Fatalf("core owner = %+v, want Orion Core owner row", coreOwner)
+	}
+
+	var incident db.Incident
+	if err := server.db.Where("monitor_id = ?", monitor.ID).First(&incident).Error; err != nil {
+		t.Fatalf("find core incident: %v", err)
+	}
+	if incident.Status != "open" || incident.Severity != "high" || incident.AgentID != coreOwner.ID {
+		t.Fatalf("core incident = %+v, want open high incident owned by core", incident)
+	}
+	if incident.Title != "Core monitor down: Core API health" {
+		t.Fatalf("core incident title = %q, want Core monitor down title", incident.Title)
+	}
+	assertAlertDelivery(t, server, incident.ID, "incident_opened", "suppressed")
+	assertMonitorIncidentState(t, server, monitor.ID, incident.ID, "down")
+
+	var storedMonitor db.Monitor
+	if err := server.db.Where("id = ?", monitor.ID).First(&storedMonitor).Error; err != nil {
+		t.Fatalf("reload core monitor: %v", err)
+	}
+	if storedMonitor.Health != "down" || storedMonitor.ComputedHealth != "down" {
+		t.Fatalf("core monitor health = stored %q computed %q, want down/down", storedMonitor.Health, storedMonitor.ComputedHealth)
+	}
+
+	listResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents?monitor_id="+monitor.ID, nil, "")
+	if listResp.Code != http.StatusOK {
+		t.Fatalf("list core incidents status = %d, body = %s", listResp.Code, listResp.Body.String())
+	}
+	var listed struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Incidents []struct {
+				AgentName   string `json:"agent_name"`
+				MonitorName string `json:"monitor_name"`
+			} `json:"incidents"`
+			Count int64 `json:"count"`
+		} `json:"data"`
+	}
+	decodeResponse(t, listResp, &listed)
+	if !listed.Success || listed.Data.Count != 1 || listed.Data.Incidents[0].AgentName != "Orion Core" || listed.Data.Incidents[0].MonitorName != "Core API health" {
+		t.Fatalf("listed core incidents = %+v, want Orion Core incident", listed)
+	}
+
+	upReportID, err := server.reportService.StoreMonitorReport(monitor.ID, service.MonitorReportPayload{
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Health:    "up",
+		Metrics: map[string]interface{}{
+			"runner":      "core",
+			"status_code": 200,
+			"duration_ms": 48,
+		},
+	})
+	if err != nil {
+		t.Fatalf("store core up report: %v", err)
+	}
+	if upReportID == nil || *upReportID == "" {
+		t.Fatalf("up report id = %v, want generated id", upReportID)
+	}
+
+	if err := server.db.Where("id = ?", incident.ID).First(&incident).Error; err != nil {
+		t.Fatalf("reload core incident: %v", err)
+	}
+	if incident.Status != "resolved" || incident.ResolvedAt == nil {
+		t.Fatalf("core incident = %+v, want resolved with resolved_at", incident)
+	}
+	assertAlertDelivery(t, server, incident.ID, "incident_resolved", "suppressed")
+	assertMonitorIncidentState(t, server, monitor.ID, "", "up")
+
+	if err := server.db.Where("id = ?", monitor.ID).First(&storedMonitor).Error; err != nil {
+		t.Fatalf("reload recovered core monitor: %v", err)
+	}
+	if storedMonitor.Health != "up" || storedMonitor.LastSuccessfulReportAt == nil {
+		t.Fatalf("recovered core monitor = %+v, want up with last_successful_report_at", storedMonitor)
 	}
 }
 
