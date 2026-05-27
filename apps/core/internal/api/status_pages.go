@@ -243,6 +243,17 @@ type StatusPagePublishValidationResponse struct {
 	Warnings []string `json:"warnings"`
 }
 
+type StatusPageIncidentComponentSuggestionMatchResponse struct {
+	ResourceType string `json:"resource_type"`
+	MatchReason  string `json:"match_reason"`
+}
+
+type StatusPageIncidentComponentSuggestionResponse struct {
+	ComponentID   string                                               `json:"component_id"`
+	ComponentName string                                               `json:"component_name"`
+	Matches       []StatusPageIncidentComponentSuggestionMatchResponse `json:"matches"`
+}
+
 func (s *Server) registerStatusPageAdminRoutes(frontend *gin.RouterGroup) {
 	frontend.GET("/status-pages", s.listStatusPages)
 	frontend.POST("/status-pages", s.createStatusPage)
@@ -261,6 +272,7 @@ func (s *Server) registerStatusPageAdminRoutes(frontend *gin.RouterGroup) {
 	frontend.POST("/status-pages/:id/components/:component_id/mappings", s.createStatusPageComponentMapping)
 	frontend.PUT("/status-pages/:id/components/:component_id/mappings/:mapping_id", s.updateStatusPageComponentMapping)
 	frontend.GET("/status-pages/:id/incidents", s.listStatusPageIncidents)
+	frontend.GET("/status-pages/:id/incidents/suggestions", s.suggestStatusPageIncidentComponents)
 	frontend.POST("/status-pages/:id/incidents", s.createStatusPageIncident)
 	frontend.PUT("/status-pages/:id/incidents/:incident_id", s.updateStatusPageIncident)
 	frontend.POST("/status-pages/:id/incidents/:incident_id/updates", s.createStatusPageIncidentUpdate)
@@ -985,6 +997,52 @@ func (s *Server) listStatusPageIncidents(c *gin.Context) {
 	})
 }
 
+// suggestStatusPageIncidentComponents suggests public components affected by an internal incident.
+// @Summary      Suggest status page incident components
+// @Description  Suggest public status page components mapped to the internal incident monitor or agent without exposing internal incident details
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           suggestStatusPageIncidentComponents
+// @Param        id           path      string  true  "Status page ID"
+// @Param        incident_id  query     string  true  "Internal incident ID"
+// @Success      200          {object}  utils.APIResponse{data=object{suggestions=[]StatusPageIncidentComponentSuggestionResponse,count=int}}
+// @Failure      400          {object}  utils.APIResponse
+// @Failure      404          {object}  utils.APIResponse
+// @Failure      500          {object}  utils.APIResponse
+// @Router       /v1/status-pages/{id}/incidents/suggestions [get]
+func (s *Server) suggestStatusPageIncidentComponents(c *gin.Context) {
+	pageID := c.Param("id")
+	if !s.statusPageExists(c, pageID) {
+		return
+	}
+
+	incidentID := strings.TrimSpace(c.Query("incident_id"))
+	if incidentID == "" {
+		utils.BadRequest(c, "incident_id is required")
+		return
+	}
+
+	var incident db.Incident
+	if err := s.db.Where("id = ?", incidentID).First(&incident).Error; err != nil {
+		writeStatusPageLoadError(c, err, "Incident not found")
+		return
+	}
+
+	suggestions, err := s.statusPageIncidentComponentSuggestions(pageID, incident)
+	if err != nil {
+		s.logger.Error("Failed to suggest status page incident components", "status_page_id", pageID, "incident_id", incidentID, "error", err)
+		utils.InternalError(c, "Failed to suggest status page incident components", err)
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, "Status page incident component suggestions retrieved successfully", gin.H{
+		"suggestions": suggestions,
+		"count":       len(suggestions),
+	})
+}
+
 // createStatusPageIncident creates a manual public incident.
 // @Summary      Create status page incident
 // @Description  Create a manual public incident for a status page
@@ -1303,6 +1361,65 @@ func (s *Server) loadStatusPageIncidents(pageID string) ([]StatusPageIncidentRes
 		responses = append(responses, statusPageIncidentResponse(incident, updatesByIncident[incident.ID]))
 	}
 	return responses, nil
+}
+
+func (s *Server) statusPageIncidentComponentSuggestions(pageID string, incident db.Incident) ([]StatusPageIncidentComponentSuggestionResponse, error) {
+	type suggestionRow struct {
+		ComponentID   string
+		ComponentName string
+		ResourceType  string
+	}
+
+	query := s.db.Table("status_page_components AS components").
+		Select("components.id AS component_id, components.public_name AS component_name, mappings.resource_type AS resource_type").
+		Joins("JOIN status_page_component_mappings AS mappings ON mappings.component_id = components.id").
+		Where("components.status_page_id = ? AND components.visible = ?", pageID, true)
+
+	matchClauses := make([]string, 0, 2)
+	matchArgs := make([]interface{}, 0, 4)
+	if incident.MonitorID != "" {
+		matchClauses = append(matchClauses, "(mappings.resource_type = ? AND mappings.resource_id = ?)")
+		matchArgs = append(matchArgs, "monitor", incident.MonitorID)
+	}
+	if incident.AgentID != "" {
+		matchClauses = append(matchClauses, "(mappings.resource_type = ? AND mappings.resource_id = ?)")
+		matchArgs = append(matchArgs, "agent", incident.AgentID)
+	}
+	if len(matchClauses) == 0 {
+		return []StatusPageIncidentComponentSuggestionResponse{}, nil
+	}
+
+	var rows []suggestionRow
+	if err := query.
+		Where(strings.Join(matchClauses, " OR "), matchArgs...).
+		Order("components.sort_order ASC, components.public_name ASC, mappings.resource_type ASC").
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+
+	suggestionsByComponent := map[string]*StatusPageIncidentComponentSuggestionResponse{}
+	order := make([]string, 0, len(rows))
+	for _, row := range rows {
+		if _, ok := suggestionsByComponent[row.ComponentID]; !ok {
+			suggestionsByComponent[row.ComponentID] = &StatusPageIncidentComponentSuggestionResponse{
+				ComponentID:   row.ComponentID,
+				ComponentName: row.ComponentName,
+				Matches:       []StatusPageIncidentComponentSuggestionMatchResponse{},
+			}
+			order = append(order, row.ComponentID)
+		}
+		suggestion := suggestionsByComponent[row.ComponentID]
+		suggestion.Matches = append(suggestion.Matches, StatusPageIncidentComponentSuggestionMatchResponse{
+			ResourceType: row.ResourceType,
+			MatchReason:  statusPageIncidentSuggestionMatchReason(row.ResourceType),
+		})
+	}
+
+	suggestions := make([]StatusPageIncidentComponentSuggestionResponse, 0, len(order))
+	for _, componentID := range order {
+		suggestions = append(suggestions, *suggestionsByComponent[componentID])
+	}
+	return suggestions, nil
 }
 
 func (s *Server) loadStatusPageComponentForRequest(c *gin.Context) (db.StatusPageComponent, bool) {
@@ -2056,6 +2173,17 @@ func statusPageIncidentUpdateResponse(update db.StatusPageIncidentUpdate) Status
 		CreatedBy:   update.CreatedBy,
 		PublishedAt: update.PublishedAt,
 		CreatedAt:   update.CreatedAt,
+	}
+}
+
+func statusPageIncidentSuggestionMatchReason(resourceType string) string {
+	switch resourceType {
+	case "monitor":
+		return "internal incident monitor matched a public component mapping"
+	case "agent":
+		return "internal incident agent matched a public component mapping"
+	default:
+		return "internal incident resource matched a public component mapping"
 	}
 }
 

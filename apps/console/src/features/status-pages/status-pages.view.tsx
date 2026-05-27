@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   type ApiIncidentResponse,
+  type ApiStatusPageIncidentComponentSuggestionResponse,
   type ApiStatusPageIncidentResponse,
   type ApiStatusPagePublicComponentResponse,
   type ApiStatusPageResponse,
@@ -22,6 +23,7 @@ import {
   useListStatusPages,
   usePreviewStatusPage,
   usePublishStatusPage,
+  useSuggestStatusPageIncidentComponents,
   useUnpublishStatusPage,
   useUpdateStatusPage,
   useUpdateStatusPageIncident,
@@ -261,9 +263,7 @@ const themeBoolean = (
 const validAccentColor = (value: string) =>
   /^#[0-9a-f]{6}$/i.test(value) ? value : emptyPageSettingsForm.accentColor;
 
-const pageSettingsFormFromPage = (
-  page?: ApiStatusPageResponse,
-): PageSettingsFormState => {
+const pageSettingsFormFromPage = (page?: ApiStatusPageResponse): PageSettingsFormState => {
   const themeSettings = page?.theme_settings;
   return {
     accentColor: validAccentColor(
@@ -317,6 +317,12 @@ const incidentFormFromIncident = (incident?: ApiStatusPageIncidentResponse): Inc
 
 const incidentOptionLabel = (incident: ApiIncidentResponse) =>
   `${incident.title ?? incident.id ?? "Untitled incident"}${incident.status ? ` (${incident.status})` : ""}`;
+
+const suggestionMatchLabel = (suggestion: ApiStatusPageIncidentComponentSuggestionResponse) =>
+  (suggestion.matches ?? [])
+    .map((match) => match.resource_type)
+    .filter(Boolean)
+    .join(", ");
 
 const Field = ({ label, children }: { label: string; children: ReactNode }) => (
   <label className="block space-y-1">
@@ -465,6 +471,20 @@ export const StatusPagesPage = () => {
   const monitors = monitorsResponse.data?.monitors ?? [];
   const agents = agentsResponse.data?.agents ?? [];
   const internalIncidents = internalIncidentsResponse.data?.incidents ?? [];
+  const createSuggestionIncidentId = createIncidentForm.internalIncidentId.trim();
+  const editSuggestionIncidentId = editIncidentForm.internalIncidentId.trim();
+  const createSuggestionsResponse = useSuggestStatusPageIncidentComponents(
+    pageId,
+    { incident_id: createSuggestionIncidentId },
+    { query: { enabled: Boolean(pageId && createSuggestionIncidentId) } },
+  );
+  const editSuggestionsResponse = useSuggestStatusPageIncidentComponents(
+    pageId,
+    { incident_id: editSuggestionIncidentId },
+    { query: { enabled: Boolean(pageId && editSuggestionIncidentId && selectedIncident) } },
+  );
+  const createSuggestions = createSuggestionsResponse.data?.suggestions ?? [];
+  const editSuggestions = editSuggestionsResponse.data?.suggestions ?? [];
   const selectedResourceOptions =
     mappingForm.resourceType === "monitor"
       ? monitors.map((monitor) => ({
@@ -556,6 +576,24 @@ export const StatusPagesPage = () => {
     });
   };
 
+  const applySuggestedIncidentComponents = (
+    form: IncidentFormState,
+    setForm: (form: IncidentFormState) => void,
+    suggestions: ApiStatusPageIncidentComponentSuggestionResponse[],
+  ) => {
+    const suggestedComponentIds = suggestions
+      .map((suggestion) => suggestion.component_id)
+      .filter((componentId): componentId is string => Boolean(componentId));
+    if (suggestedComponentIds.length === 0) return;
+
+    setForm({
+      ...form,
+      affectedComponentIds: Array.from(
+        new Set([...form.affectedComponentIds, ...suggestedComponentIds]),
+      ),
+    });
+  };
+
   const incidentRequest = (form: IncidentFormState) => ({
     affected_component_ids: form.affectedComponentIds,
     impact_summary: form.impactSummary.trim() || undefined,
@@ -635,6 +673,56 @@ export const StatusPagesPage = () => {
         status: updateForm.status,
       },
     });
+  };
+
+  const renderIncidentSuggestions = ({
+    internalIncidentId,
+    isError,
+    isLoading,
+    onApply,
+    suggestions,
+  }: {
+    internalIncidentId: string;
+    isError: boolean;
+    isLoading: boolean;
+    onApply: () => void;
+    suggestions: ApiStatusPageIncidentComponentSuggestionResponse[];
+  }) => {
+    if (!internalIncidentId) return null;
+
+    return (
+      <div className="space-y-2 border border-neutral-200 p-3 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="font-medium">Suggested components</div>
+          <Button
+            disabled={isLoading || suggestions.length === 0}
+            onClick={onApply}
+            type="button"
+            variant="outline"
+          >
+            Apply suggestions
+          </Button>
+        </div>
+        {isLoading && <div className="text-neutral-600">Loading suggested components...</div>}
+        {isError && <div>Unable to load suggested components.</div>}
+        {!isLoading && !isError && suggestions.length === 0 && (
+          <div className="text-neutral-600">No mapped public components found.</div>
+        )}
+        {suggestions.length > 0 && (
+          <div className="space-y-1">
+            {suggestions.map((suggestion) => (
+              <div
+                className="flex flex-wrap items-center justify-between gap-2"
+                key={suggestion.component_id}
+              >
+                <span>{suggestion.component_name}</span>
+                <span className="text-neutral-600">{suggestionMatchLabel(suggestion)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -1139,6 +1227,18 @@ export const StatusPagesPage = () => {
                     placeholder="incident_..."
                   />
                 </Field>
+                {renderIncidentSuggestions({
+                  internalIncidentId: createSuggestionIncidentId,
+                  isError: createSuggestionsResponse.isError,
+                  isLoading: createSuggestionsResponse.isLoading,
+                  onApply: () =>
+                    applySuggestedIncidentComponents(
+                      createIncidentForm,
+                      setCreateIncidentForm,
+                      createSuggestions,
+                    ),
+                  suggestions: createSuggestions,
+                })}
                 <Field label="Public title">
                   <Input
                     value={createIncidentForm.title}
@@ -1300,6 +1400,18 @@ export const StatusPagesPage = () => {
                           }
                         />
                       </Field>
+                      {renderIncidentSuggestions({
+                        internalIncidentId: editSuggestionIncidentId,
+                        isError: editSuggestionsResponse.isError,
+                        isLoading: editSuggestionsResponse.isLoading,
+                        onApply: () =>
+                          applySuggestedIncidentComponents(
+                            editIncidentForm,
+                            setEditIncidentForm,
+                            editSuggestions,
+                          ),
+                        suggestions: editSuggestions,
+                      })}
                       <Field label="Public title">
                         <Input
                           value={editIncidentForm.title}

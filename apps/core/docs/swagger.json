@@ -5613,6 +5613,92 @@
                 }
             }
         },
+        "/v1/status-pages/{id}/incidents/suggestions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Suggest public status page components mapped to the internal incident monitor or agent without exposing internal incident details",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Suggest status page incident components",
+                "operationId": "suggestStatusPageIncidentComponents",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Internal incident ID",
+                        "name": "incident_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "suggestions": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/api.StatusPageIncidentComponentSuggestionResponse"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/status-pages/{id}/incidents/{incident_id}": {
             "put": {
                 "security": [
@@ -7111,6 +7197,34 @@
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/api.StatusPageSectionResponse"
+                    }
+                }
+            }
+        },
+        "api.StatusPageIncidentComponentSuggestionMatchResponse": {
+            "type": "object",
+            "properties": {
+                "match_reason": {
+                    "type": "string"
+                },
+                "resource_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.StatusPageIncidentComponentSuggestionResponse": {
+            "type": "object",
+            "properties": {
+                "component_id": {
+                    "type": "string"
+                },
+                "component_name": {
+                    "type": "string"
+                },
+                "matches": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.StatusPageIncidentComponentSuggestionMatchResponse"
                     }
                 }
             }

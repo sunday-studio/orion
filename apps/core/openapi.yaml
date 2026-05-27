@@ -576,6 +576,24 @@ definitions:
           $ref: '#/definitions/api.StatusPageSectionResponse'
         type: array
     type: object
+  api.StatusPageIncidentComponentSuggestionMatchResponse:
+    properties:
+      match_reason:
+        type: string
+      resource_type:
+        type: string
+    type: object
+  api.StatusPageIncidentComponentSuggestionResponse:
+    properties:
+      component_id:
+        type: string
+      component_name:
+        type: string
+      matches:
+        items:
+          $ref: '#/definitions/api.StatusPageIncidentComponentSuggestionMatchResponse'
+        type: array
+    type: object
   api.StatusPageIncidentResponse:
     properties:
       affected_component_ids:
@@ -5120,6 +5138,60 @@ paths:
       security:
       - BearerAuth: []
       summary: Create status page incident update
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/incidents/suggestions:
+    get:
+      consumes:
+      - application/json
+      description: Suggest public status page components mapped to the internal incident
+        monitor or agent without exposing internal incident details
+      operationId: suggestStatusPageIncidentComponents
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Internal incident ID
+        in: query
+        name: incident_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    suggestions:
+                      items:
+                        $ref: '#/definitions/api.StatusPageIncidentComponentSuggestionResponse'
+                      type: array
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Suggest status page incident components
       tags:
       - status-pages
   /v1/status-pages/{id}/preview:
