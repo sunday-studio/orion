@@ -25,6 +25,34 @@ func TestLoadCORSOriginsFromEnvironment(t *testing.T) {
 	}
 }
 
+func TestLoadPublicStatusMailConfigFromEnvironment(t *testing.T) {
+	t.Setenv("ORION_PUBLIC_STATUS_MAIL_ENABLED", "true")
+	t.Setenv("ORION_PUBLIC_STATUS_MAIL_HOST", "smtp.example.com")
+	t.Setenv("ORION_PUBLIC_STATUS_MAIL_PORT", "2525")
+	t.Setenv("ORION_PUBLIC_STATUS_MAIL_USERNAME", "status-user")
+	t.Setenv("ORION_PUBLIC_STATUS_MAIL_PASSWORD", "status-secret")
+	t.Setenv("ORION_PUBLIC_STATUS_MAIL_FROM_EMAIL", "status@example.com")
+	t.Setenv("ORION_PUBLIC_STATUS_MAIL_FROM_NAME", "Example Status")
+	t.Setenv("ORION_PUBLIC_STATUS_MAIL_REPLY_TO", "support@example.com")
+	t.Setenv("ORION_PUBLIC_STATUS_URL_ORIGIN", "https://status.example.com")
+	t.Setenv("ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET", "subscriber-secret")
+
+	cfg := Load()
+
+	if !cfg.PublicStatusMailEnabled ||
+		cfg.PublicStatusMailHost != "smtp.example.com" ||
+		cfg.PublicStatusMailPort != 2525 ||
+		cfg.PublicStatusMailUsername != "status-user" ||
+		cfg.PublicStatusMailPassword != "status-secret" ||
+		cfg.PublicStatusMailFromEmail != "status@example.com" ||
+		cfg.PublicStatusMailFromName != "Example Status" ||
+		cfg.PublicStatusMailReplyTo != "support@example.com" ||
+		cfg.PublicStatusURLOrigin != "https://status.example.com" ||
+		cfg.PublicStatusSubscriberSecret != "subscriber-secret" {
+		t.Fatalf("public status mail config = %+v", cfg)
+	}
+}
+
 func TestValidateRejectsPartialFrontendAuthConfig(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -92,6 +120,45 @@ func TestValidateRejectsInvalidWorkerDiagnosticsConfig(t *testing.T) {
 
 			if err := cfg.Validate(); err == nil {
 				t.Fatal("Validate() error = nil, want invalid worker diagnostics config error")
+			}
+		})
+	}
+}
+
+func TestValidatePublicStatusMailConfig(t *testing.T) {
+	valid := Config{
+		CoreWorkerHeartbeatSeconds:   15,
+		CoreWorkerStaleSeconds:       60,
+		PublicStatusMailEnabled:      true,
+		PublicStatusMailHost:         "smtp.example.com",
+		PublicStatusMailPort:         587,
+		PublicStatusMailFromEmail:    "status@example.com",
+		PublicStatusURLOrigin:        "https://status.example.com",
+		PublicStatusSubscriberSecret: "subscriber-secret",
+	}
+	if err := valid.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+
+	tests := []struct {
+		name   string
+		mutate func(*Config)
+	}{
+		{name: "missing host", mutate: func(cfg *Config) { cfg.PublicStatusMailHost = "" }},
+		{name: "missing from", mutate: func(cfg *Config) { cfg.PublicStatusMailFromEmail = "" }},
+		{name: "bad from", mutate: func(cfg *Config) { cfg.PublicStatusMailFromEmail = "not-email" }},
+		{name: "bad reply-to", mutate: func(cfg *Config) { cfg.PublicStatusMailReplyTo = "not-email" }},
+		{name: "missing origin", mutate: func(cfg *Config) { cfg.PublicStatusURLOrigin = "" }},
+		{name: "bad origin scheme", mutate: func(cfg *Config) { cfg.PublicStatusURLOrigin = "ftp://status.example.com" }},
+		{name: "origin path", mutate: func(cfg *Config) { cfg.PublicStatusURLOrigin = "https://status.example.com/path" }},
+		{name: "missing secret", mutate: func(cfg *Config) { cfg.PublicStatusSubscriberSecret = "" }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := valid
+			tt.mutate(&cfg)
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want invalid public status mail config error")
 			}
 		})
 	}

@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -62,6 +63,66 @@ func TestPublicStatusPageSubscriptionRequestStoresHashesAndMasksDestination(t *t
 	}
 	if len(preferences) != 1 || preferences[0].ComponentID != visibleComponent.ID {
 		t.Fatalf("preferences = %+v, want only visible component %s", preferences, visibleComponent.ID)
+	}
+}
+
+func TestPublicStatusPageSubscriptionSendsConfirmationWithConfiguredPublicSender(t *testing.T) {
+	server := setupTestServer(t)
+	configurePublicStatusMailForTest(server)
+	var messages []publicStatusMailMessage
+	server.publicStatusMailSend = func(message publicStatusMailMessage) error {
+		messages = append(messages, message)
+		return nil
+	}
+	page, visibleComponent, _ := createPublishedStatusPageForSubscriberTest(t, server, "configured-subscriber-status")
+	if err := server.db.Model(&db.StatusPage{}).Where("id = ?", page.ID).Update("custom_domain", "status.customer.example").Error; err != nil {
+		t.Fatalf("set custom domain: %v", err)
+	}
+	page.CustomDomain = "status.customer.example"
+
+	rawDestination := "Configured.User@example.com"
+	resp := performJSONRequest(t, server, http.MethodPost, "/status/"+page.Slug+"/subscribers", gin.H{
+		"destination":   rawDestination,
+		"component_ids": []string{visibleComponent.ID},
+	}, "")
+	if resp.Code != http.StatusAccepted {
+		t.Fatalf("subscription request status = %d, body = %s", resp.Code, resp.Body.String())
+	}
+	body := resp.Body.String()
+	assertContains(t, body, `"confirmation_delivery":"sent"`)
+	assertNotContains(t, body, rawDestination)
+	assertNotContains(t, body, "confirm/")
+	assertNotContains(t, body, "token")
+	if len(messages) != 1 {
+		t.Fatalf("messages len = %d, want 1", len(messages))
+	}
+	if messages[0].To != "configured.user@example.com" {
+		t.Fatalf("message recipient = %q, want normalized destination", messages[0].To)
+	}
+	assertContains(t, messages[0].Text, "https://status.customer.example/status/"+page.Slug+"/subscribers/confirm/")
+	assertNotContains(t, messages[0].Text, server.cfg.PublicStatusMailPassword)
+
+	var subscriber db.StatusPageSubscriber
+	if err := server.db.Where("status_page_id = ?", page.ID).First(&subscriber).Error; err != nil {
+		t.Fatalf("load subscriber: %v", err)
+	}
+	if subscriber.DestinationValueCiphertext == "" || strings.Contains(subscriber.DestinationValueCiphertext, "configured.user") {
+		t.Fatalf("destination ciphertext = %q, want encrypted non-raw value", subscriber.DestinationValueCiphertext)
+	}
+	decrypted, err := server.decryptStatusPageSubscriberDestination(subscriber)
+	if err != nil {
+		t.Fatalf("decrypt destination: %v", err)
+	}
+	if decrypted != "configured.user@example.com" {
+		t.Fatalf("decrypted destination = %q", decrypted)
+	}
+
+	var delivery db.StatusPageSubscriberDelivery
+	if err := server.db.Where("subscriber_id = ?", subscriber.ID).First(&delivery).Error; err != nil {
+		t.Fatalf("load confirmation delivery: %v", err)
+	}
+	if delivery.DeliveryState != statusPageSubscriberDeliveryStateSent || delivery.SentAt == nil || delivery.ErrorCode != "" || delivery.PublicIncidentID != "" {
+		t.Fatalf("delivery = %+v, want sent confirmation ledger row", delivery)
 	}
 }
 
@@ -314,13 +375,17 @@ func seedStatusPageSubscriberForTest(t *testing.T, server *Server, pageID string
 	if err != nil {
 		t.Fatalf("normalize destination: %v", err)
 	}
+	destinationCiphertext, err := server.encryptStatusPageSubscriberDestination(normalizedDestination)
+	if err != nil {
+		t.Fatalf("encrypt destination: %v", err)
+	}
 	expiresAt := time.Now().UTC().Add(time.Hour)
 	subscriber := db.StatusPageSubscriber{
 		ID:                         utils.GenerateID("status_page_subscriber"),
 		StatusPageID:               pageID,
 		DestinationType:            destinationType,
 		DestinationHash:            hashStatusPageSubscriberValue(destinationType + ":" + normalizedDestination),
-		DestinationValueCiphertext: "",
+		DestinationValueCiphertext: destinationCiphertext,
 		MaskedDestination:          maskedDestination,
 		State:                      state,
 		ConfirmationTokenHash:      hashStatusPageSubscriberToken(confirmationToken),
@@ -342,4 +407,17 @@ func seedStatusPageSubscriberForTest(t *testing.T, server *Server, pageID string
 		t.Fatalf("create subscriber preferences: %v", err)
 	}
 	return subscriber
+}
+
+func configurePublicStatusMailForTest(server *Server) {
+	server.cfg.PublicStatusMailEnabled = true
+	server.cfg.PublicStatusMailHost = "smtp.example.com"
+	server.cfg.PublicStatusMailPort = 587
+	server.cfg.PublicStatusMailFromEmail = "status@example.com"
+	server.cfg.PublicStatusMailFromName = "Orion Status"
+	server.cfg.PublicStatusMailReplyTo = "support@example.com"
+	server.cfg.PublicStatusMailUsername = "status-user"
+	server.cfg.PublicStatusMailPassword = "status-password-secret"
+	server.cfg.PublicStatusURLOrigin = "https://status.example.com"
+	server.cfg.PublicStatusSubscriberSecret = "test-subscriber-secret"
 }

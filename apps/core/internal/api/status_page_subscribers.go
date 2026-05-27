@@ -99,6 +99,12 @@ func (s *Server) createPublicStatusPageSubscriber(c *gin.Context) {
 	}
 	expiresAt := time.Now().UTC().Add(24 * time.Hour)
 	destinationHash := hashStatusPageSubscriberValue(destinationType + ":" + normalizedDestination)
+	destinationCiphertext, err := s.encryptStatusPageSubscriberDestination(normalizedDestination)
+	if err != nil {
+		s.logger.Error("Failed to encrypt status page subscriber destination", "status_page_id", page.ID, "error", err)
+		utils.InternalError(c, "Failed to create status page subscription", err)
+		return
+	}
 	var subscriber db.StatusPageSubscriber
 	confirmationRequired := true
 
@@ -111,7 +117,7 @@ func (s *Server) createPublicStatusPageSubscriber(c *gin.Context) {
 				StatusPageID:               page.ID,
 				DestinationType:            destinationType,
 				DestinationHash:            destinationHash,
-				DestinationValueCiphertext: "",
+				DestinationValueCiphertext: destinationCiphertext,
 				MaskedDestination:          maskedDestination,
 				State:                      statusPageSubscriberStatePending,
 				ConfirmationTokenHash:      hashStatusPageSubscriberToken(confirmationToken),
@@ -141,6 +147,9 @@ func (s *Server) createPublicStatusPageSubscriber(c *gin.Context) {
 				confirmationRequired = false
 			}
 			subscriber.MaskedDestination = maskedDestination
+			if destinationCiphertext != "" {
+				subscriber.DestinationValueCiphertext = destinationCiphertext
+			}
 			if subscriber.ManageTokenHash == "" {
 				subscriber.ManageTokenHash = hashStatusPageSubscriberToken(manageToken)
 				subscriber.ManageTokenVersion++
@@ -160,7 +169,21 @@ func (s *Server) createPublicStatusPageSubscriber(c *gin.Context) {
 		return
 	}
 
-	// TODO(status-page-subscriptions): deliver the confirmation link through a dedicated public mail sender.
+	confirmationDelivery := "not_required"
+	if confirmationRequired {
+		if err := s.sendStatusPageSubscriberConfirmation(page, normalizedDestination, confirmationToken); err != nil {
+			state, errorCode, summary := safePublicStatusMailFailure(err)
+			s.recordStatusPageSubscriberDelivery(page.ID, subscriber.ID, state, errorCode, summary)
+			if state == statusPageSubscriberDeliveryStatePendingSenderConfig {
+				confirmationDelivery = "not_configured"
+			} else {
+				confirmationDelivery = "failed"
+			}
+		} else {
+			s.recordStatusPageSubscriberDelivery(page.ID, subscriber.ID, statusPageSubscriberDeliveryStateSent, "", "")
+			confirmationDelivery = "sent"
+		}
+	}
 	response, err := s.statusPageSubscriberPublicResponse(page.ID, subscriber)
 	if err != nil {
 		s.logger.Error("Failed to load status page subscriber response", "status_page_id", page.ID, "subscriber_id", subscriber.ID, "error", err)
@@ -170,8 +193,8 @@ func (s *Server) createPublicStatusPageSubscriber(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusAccepted, "Status page subscription requested successfully", gin.H{
 		"subscriber":             response,
 		"confirmation_required":  confirmationRequired,
-		"confirmation_delivery":  "not_configured",
-		"production_fanout_live": false,
+		"confirmation_delivery":  confirmationDelivery,
+		"production_fanout_live": s.ensurePublicStatusMailConfigured() == nil,
 	})
 }
 

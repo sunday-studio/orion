@@ -34,6 +34,7 @@ type Server struct {
 	workerDiagnosticsService *service.WorkerDiagnosticsService
 	loginLimiter             *RateLimiter
 	publicSubscriberLimiter  *RateLimiter
+	publicStatusMailSend     func(publicStatusMailMessage) error
 	router                   *gin.Engine
 }
 
@@ -78,6 +79,7 @@ func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *S
 		publicSubscriberLimiter:  NewRateLimiter(10, time.Minute),
 		router:                   router,
 	}
+	server.publicStatusMailSend = server.deliverPublicStatusMail
 
 	server.setupRoutes()
 

@@ -91,6 +91,89 @@ func TestStatusPageSubscriberFanoutWritesSafeLedgerRowsForConfirmedMatches(t *te
 	}
 }
 
+func TestStatusPageSubscriberFanoutSendsPublicIncidentUpdatesWithConfiguredSender(t *testing.T) {
+	server := setupTestServer(t)
+	configurePublicStatusMailForTest(server)
+	var messages []publicStatusMailMessage
+	server.publicStatusMailSend = func(message publicStatusMailMessage) error {
+		messages = append(messages, message)
+		return nil
+	}
+	page, apiComponent, _ := createPublishedStatusPageForSubscriberTest(t, server, "fanout-configured-status")
+	matchingSubscriber := seedStatusPageSubscriberForTest(t, server, page.ID, "Fanout.User@example.com", statusPageSubscriberStateConfirmed, "confirm-fanout", "manage-fanout", "unsubscribe-fanout", []string{apiComponent.ID})
+
+	incidentID := createStatusPageIncidentForFanoutTest(t, server, page.ID, []string{apiComponent.ID})
+	updateID := createPublishedStatusPageIncidentUpdateForFanoutTest(t, server, page.ID, incidentID, "Customer-visible update without smtp_password=secret monitor_id=monitor-private agent_id=agent-private")
+
+	if len(messages) != 1 {
+		t.Fatalf("messages len = %d, want 1", len(messages))
+	}
+	if messages[0].To != "fanout.user@example.com" {
+		t.Fatalf("message recipient = %q, want decrypted normalized subscriber destination", messages[0].To)
+	}
+	assertContains(t, messages[0].Subject, "Subscriber Test Status")
+	assertContains(t, messages[0].Text, "https://status.example.com/status/"+page.Slug+"/incidents/"+incidentID)
+	assertContains(t, messages[0].Text, "https://status.example.com/status/"+page.Slug+"/subscribers/unsubscribe/")
+	assertContains(t, messages[0].Text, "Customer-visible update")
+	for _, leaked := range []string{server.cfg.PublicStatusMailPassword, "fanout.User", "confirm-fanout", "manage-fanout", "unsubscribe-fanout"} {
+		assertNotContains(t, messages[0].Text, leaked)
+	}
+
+	var delivery db.StatusPageSubscriberDelivery
+	if err := server.db.Where("subscriber_id = ? AND public_incident_update_id = ?", matchingSubscriber.ID, updateID).First(&delivery).Error; err != nil {
+		t.Fatalf("load sent delivery: %v", err)
+	}
+	if delivery.DeliveryState != statusPageSubscriberDeliveryStateSent || delivery.SentAt == nil || delivery.FailedAt != nil || delivery.ErrorCode != "" || delivery.AttemptCount != 1 {
+		t.Fatalf("delivery = %+v, want sent public mail delivery", delivery)
+	}
+
+	var stored db.StatusPageSubscriber
+	if err := server.db.Where("id = ?", matchingSubscriber.ID).First(&stored).Error; err != nil {
+		t.Fatalf("load subscriber: %v", err)
+	}
+	if stored.LastDeliveryStatus != statusPageSubscriberDeliveryStateSent || stored.LastDeliveryAt == nil {
+		t.Fatalf("stored subscriber = %+v, want sent delivery summary", stored)
+	}
+	if stored.UnsubscribeTokenHash == hashStatusPageSubscriberToken("unsubscribe-fanout") || stored.UnsubscribeTokenVersion != 2 {
+		t.Fatalf("unsubscribe token was not rotated for delivery: %+v", stored)
+	}
+}
+
+func TestStatusPageSubscriberFanoutRecordsSafeFailureWhenDestinationUnavailable(t *testing.T) {
+	server := setupTestServer(t)
+	configurePublicStatusMailForTest(server)
+	server.publicStatusMailSend = func(message publicStatusMailMessage) error {
+		t.Fatalf("publicStatusMailSend should not be called without decryptable destination: %+v", message)
+		return nil
+	}
+	page, apiComponent, _ := createPublishedStatusPageForSubscriberTest(t, server, "fanout-missing-destination-status")
+	subscriber := seedStatusPageSubscriberForTest(t, server, page.ID, "Missing.Destination@example.com", statusPageSubscriberStateConfirmed, "confirm-missing-destination", "manage-missing-destination", "unsubscribe-missing-destination", []string{apiComponent.ID})
+	if err := server.db.Model(&db.StatusPageSubscriber{}).Where("id = ?", subscriber.ID).Update("destination_value_ciphertext", "").Error; err != nil {
+		t.Fatalf("clear destination ciphertext: %v", err)
+	}
+
+	incidentID := createStatusPageIncidentForFanoutTest(t, server, page.ID, []string{apiComponent.ID})
+	updateID := createPublishedStatusPageIncidentUpdateForFanoutTest(t, server, page.ID, incidentID, "Public update")
+
+	var delivery db.StatusPageSubscriberDelivery
+	if err := server.db.Where("subscriber_id = ? AND public_incident_update_id = ?", subscriber.ID, updateID).First(&delivery).Error; err != nil {
+		t.Fatalf("load failed delivery: %v", err)
+	}
+	if delivery.DeliveryState != statusPageSubscriberDeliveryStateFailed ||
+		delivery.ErrorCode != statusPageSubscriberDeliveryErrorPublicDestinationMissing ||
+		delivery.SafeErrorSummary != statusPageSubscriberDeliverySummaryDestinationUnavailable ||
+		delivery.FailedAt == nil ||
+		delivery.SentAt != nil {
+		t.Fatalf("delivery = %+v, want sanitized destination failure", delivery)
+	}
+	serialized := strings.Join([]string{delivery.ErrorCode, delivery.SafeErrorSummary, delivery.ProviderMessageID}, " ")
+	for _, leaked := range []string{"Missing.Destination", "missing.destination@example.com", server.cfg.PublicStatusMailPassword, incidentID, updateID} {
+		if strings.Contains(serialized, leaked) {
+			t.Fatalf("delivery leaked sensitive value %q: %+v", leaked, delivery)
+		}
+	}
+}
+
 func TestStatusPageSubscriberFanoutDoesNotNotifyHiddenOnlyIncidents(t *testing.T) {
 	server := setupTestServer(t)
 	page, _, hiddenComponent := createPublishedStatusPageForSubscriberTest(t, server, "hidden-fanout-status")

@@ -60,6 +60,42 @@ func (s *Server) enqueueStatusPageSubscriberIncidentUpdateDeliveries(tx *gorm.DB
 		if exists {
 			continue
 		}
+		state := statusPageSubscriberDeliveryStateSent
+		errorCode := ""
+		summary := ""
+		sentAt := &now
+		failedAt := (*time.Time)(nil)
+		attemptCount := 1
+		if err := s.ensurePublicStatusMailConfigured(); err != nil {
+			state, errorCode, summary = safePublicStatusMailFailure(err)
+			sentAt = nil
+			if state == statusPageSubscriberDeliveryStateFailed {
+				failedAt = &now
+			}
+			attemptCount = 0
+		} else {
+			destination, err := s.decryptStatusPageSubscriberDestination(subscriber)
+			if err != nil {
+				state, errorCode, summary = safePublicStatusMailFailure(err)
+				sentAt = nil
+				failedAt = &now
+			} else {
+				unsubscribeToken, err := utils.GenerateToken()
+				if err != nil {
+					return err
+				}
+				subscriber.UnsubscribeTokenHash = hashStatusPageSubscriberToken(unsubscribeToken)
+				subscriber.UnsubscribeTokenVersion++
+				if err := tx.Save(&subscriber).Error; err != nil {
+					return err
+				}
+				if err := s.sendStatusPageIncidentUpdateMail(page, incident, update, subscriber, destination, unsubscribeToken); err != nil {
+					state, errorCode, summary = safePublicStatusMailFailure(err)
+					sentAt = nil
+					failedAt = &now
+				}
+			}
+		}
 		delivery := db.StatusPageSubscriberDelivery{
 			ID:                     utils.GenerateID("status_page_delivery"),
 			SubscriberID:           subscriber.ID,
@@ -67,19 +103,21 @@ func (s *Server) enqueueStatusPageSubscriberIncidentUpdateDeliveries(tx *gorm.DB
 			PublicIncidentID:       incident.ID,
 			PublicIncidentUpdateID: update.ID,
 			DeliveryType:           statusPageSubscriberDeliveryTypeEmail,
-			DeliveryState:          statusPageSubscriberDeliveryStatePendingSenderConfig,
-			ErrorCode:              statusPageSubscriberDeliveryErrorPublicSenderMissing,
-			SafeErrorSummary:       statusPageSubscriberDeliverySummaryPublicSenderMissing,
+			DeliveryState:          state,
+			ErrorCode:              errorCode,
+			SafeErrorSummary:       summary,
+			AttemptCount:           attemptCount,
 			QueuedAt:               &now,
+			SentAt:                 sentAt,
+			FailedAt:               failedAt,
 		}
-		// TODO(status-page-subscriptions): send through the dedicated public mail sender once configured.
 		if err := tx.Create(&delivery).Error; err != nil {
 			return err
 		}
 		if err := tx.Model(&db.StatusPageSubscriber{}).
 			Where("id = ?", subscriber.ID).
 			Updates(map[string]interface{}{
-				"last_delivery_status": statusPageSubscriberDeliveryStatePendingSenderConfig,
+				"last_delivery_status": state,
 				"last_delivery_at":     now,
 			}).Error; err != nil {
 			return err

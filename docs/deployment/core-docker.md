@@ -45,6 +45,22 @@ ORION_JWT_SECRET=replace-with-a-long-random-secret
 EOF
 ```
 
+Public status page subscriber email is disabled by default. To send confirmation and public incident
+update mail, configure a dedicated sender for public subscribers:
+
+```sh
+ORION_PUBLIC_STATUS_MAIL_ENABLED=true
+ORION_PUBLIC_STATUS_MAIL_HOST=smtp.example.com
+ORION_PUBLIC_STATUS_MAIL_PORT=587
+ORION_PUBLIC_STATUS_MAIL_USERNAME=status-sender
+ORION_PUBLIC_STATUS_MAIL_PASSWORD=replace-with-smtp-password
+ORION_PUBLIC_STATUS_MAIL_FROM_EMAIL=status@example.com
+ORION_PUBLIC_STATUS_MAIL_FROM_NAME="Example Status"
+ORION_PUBLIC_STATUS_MAIL_REPLY_TO=support@example.com
+ORION_PUBLIC_STATUS_URL_ORIGIN=https://status.example.com
+ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET=replace-with-a-long-random-secret
+```
+
 Start Core. If you skip the `.env` file, Compose uses the defaults in `orion-compose.yaml`.
 Compose starts two services:
 
