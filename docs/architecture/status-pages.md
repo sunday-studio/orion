@@ -477,7 +477,7 @@ Forbidden coupling:
 
 Public subscriber fan-out should have its own queue or queue namespace, template set, delivery ledger, metrics labels, and audit events. If the implementation later reuses the alert delivery engine, it must do so behind an adapter that accepts only public DTOs and provider credentials selected for public subscriber mail. That adapter must not receive internal alert channel records or secrets.
 
-Implementation dependency: the first email subscriber implementation needs a documented public mail sender configuration, including sender identity, reply-to behavior, bounce handling, rate limits, and token URL origin. Until that exists, implementation tickets should create schema and public-safe lifecycle endpoints without sending production fan-out.
+Public subscriber email uses a dedicated public mail sender configuration. It may reuse low-level SMTP client code, but it does not reuse internal alert destinations, routes, templates, or escalation policy. Until the public sender and public URL origin are configured, subscription routes may create pending subscribers but must not send confirmation or fan-out mail.
 
 ## Public API Shape
 
@@ -673,10 +673,7 @@ Resolved status page architecture decisions are recorded in:
 - [Public Incident Automation Policy](status-page-decisions/public-incident-automation-policy.md)
 - [Status Page Subscription Infrastructure Reuse](status-page-decisions/subscription-infrastructure-reuse.md)
 - [Public Uptime Formatting](status-page-decisions/public-uptime-formatting.md)
-
-## Open Decisions
-
-- Which public mail sender configuration should power first subscriber confirmation and fan-out emails.
+- [Public Subscriber Mail Sender](status-page-decisions/public-subscriber-mail-sender.md)
 
 ## Decision
 
@@ -685,5 +682,7 @@ Build status pages as a publication layer over Core, not as a second monitoring 
 Serve public status pages from the Core main binary with a dedicated public status page bundle packaged through the existing static asset path. The first release supports one status page per Core instance while preserving plural schema, slug routes, and APIs so multiple pages can be enabled later without a data migration.
 
 Use a separate public subscriber system for status page subscriptions. Public subscriber records, tokens, preferences, deliveries, templates, and public mail credentials must stay separate from internal alert channel records and secrets. Shared transport helpers are acceptable only behind a public DTO adapter that cannot read or mutate internal alert channels.
+
+Use a dedicated public subscriber mail sender configuration for confirmation and fan-out emails. Token links are built from the configured public URL origin or a validated custom domain, never from arbitrary request headers. Missing sender configuration can accept pending subscription records but must not attempt delivery.
 
 The first useful release should prioritize manual control, privacy, and clear component health. Internal incidents stay private by default; Core may draft or suggest public incident updates, but publishing remains explicit unless a later component-level trusted automation policy is enabled.
