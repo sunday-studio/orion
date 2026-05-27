@@ -28,6 +28,7 @@ const (
 	dnsRunnerKind           = "dns"
 	tlsRunnerKind           = "tls"
 	tlsRunnerName           = "tls_certificate"
+	udpRunnerKind           = "udp"
 	maxHTTPResponseDrainLen = 512
 	maxHTTPBodyCaptureLen   = 4096
 )
@@ -45,6 +46,7 @@ type Options struct {
 	TCPDialContext dialContextFunc
 	DNSResolver    dnsResolver
 	TLSCheck       tlsCheckFunc
+	UDPDialContext dialContextFunc
 	Config         *config.Config
 }
 
@@ -62,6 +64,7 @@ type App struct {
 	dnsResolver    dnsResolver
 	tlsCheck       tlsCheckFunc
 	tlsWarningDays int
+	udpDialContext dialContextFunc
 	scheduler      *service.CoreMonitorSchedulerService
 	reports        *service.ReportService
 }
@@ -105,6 +108,11 @@ func NewApp(database *gorm.DB, logger *logging.Logger, opts Options) *App {
 	if opts.Config != nil && opts.Config.AlertTLSExpiryDays > 0 {
 		tlsWarningDays = opts.Config.AlertTLSExpiryDays
 	}
+	udpDialContext := opts.UDPDialContext
+	if udpDialContext == nil {
+		udpDialer := &net.Dialer{}
+		udpDialContext = udpDialer.DialContext
+	}
 	return &App{
 		db:             database,
 		logger:         logger,
@@ -118,6 +126,7 @@ func NewApp(database *gorm.DB, logger *logging.Logger, opts Options) *App {
 		dnsResolver:    dnsResolver,
 		tlsCheck:       tlsCheck,
 		tlsWarningDays: tlsWarningDays,
+		udpDialContext: udpDialContext,
 		scheduler:      service.NewCoreMonitorSchedulerService(database, logger),
 		reports:        service.NewReportService(database, logger, opts.Config),
 	}
@@ -224,6 +233,11 @@ func (a *App) runClaimedCheck(ctx context.Context, monitorConfig db.CoreMonitorC
 		finishedAt = result.FinishedAt
 		success = result.Health == "up"
 		reportErr = a.storeTLSReport(monitorConfig.MonitorID, result)
+	case udpRunnerKind:
+		result := a.runUDPCheck(ctx, monitorConfig)
+		finishedAt = result.FinishedAt
+		success = result.Health == "up"
+		reportErr = a.storeUDPReport(monitorConfig.MonitorID, result)
 	default:
 		complete = false
 		a.logger.Warn("Skipping unsupported Core monitor kind", "monitor_id", monitorConfig.MonitorID, "kind", monitorConfig.Kind)
