@@ -16,33 +16,35 @@ import (
 )
 
 const (
-	defaultHealthInterval   = 30 * time.Second
-	defaultCheckInterval    = 5 * time.Second
-	defaultLeaseDuration    = 2 * time.Minute
-	defaultHTTPTimeout      = 10 * time.Second
-	defaultCoreWorkerID     = "core-monitor-worker"
-	httpStatusRunnerKind    = "http"
-	httpStatusRunnerName    = "http_status"
-	tcpRunnerKind           = "tcp"
-	tcpRunnerName           = "tcp_port"
-	dnsRunnerKind           = "dns"
-	tlsRunnerKind           = "tls"
-	tlsRunnerName           = "tls_certificate"
-	udpRunnerKind           = "udp"
-	apiRequestRunnerKind    = "api_request"
-	domainExpirationKind    = "domain_expiration"
-	pingRunnerKind          = "ping"
-	mailRunnerKind          = "mail"
-	smtpRunnerKind          = "smtp"
-	imapRunnerKind          = "imap"
-	popRunnerKind           = "pop"
-	pop3RunnerKind          = "pop3"
-	syntheticRunnerKind     = "synthetic"
-	syntheticRunnerName     = "synthetic_multi_step"
-	playwrightRunnerKind    = "playwright"
-	playwrightRunnerName    = "playwright_transaction"
-	maxHTTPResponseDrainLen = 512
-	maxHTTPBodyCaptureLen   = 4096
+	defaultHealthInterval    = 30 * time.Second
+	defaultCheckInterval     = 5 * time.Second
+	defaultLeaseDuration     = 2 * time.Minute
+	defaultHTTPTimeout       = 10 * time.Second
+	defaultCoreWorkerID      = "core-monitor-worker"
+	httpStatusRunnerKind     = "http"
+	httpStatusRunnerName     = "http_status"
+	httpKeywordRunnerName    = "http_keyword"
+	expectedStatusRunnerName = "expected_status"
+	tcpRunnerKind            = "tcp"
+	tcpRunnerName            = "tcp_port"
+	dnsRunnerKind            = "dns"
+	tlsRunnerKind            = "tls"
+	tlsRunnerName            = "tls_certificate"
+	udpRunnerKind            = "udp"
+	apiRequestRunnerKind     = "api_request"
+	domainExpirationKind     = "domain_expiration"
+	pingRunnerKind           = "ping"
+	mailRunnerKind           = "mail"
+	smtpRunnerKind           = "smtp"
+	imapRunnerKind           = "imap"
+	popRunnerKind            = "pop"
+	pop3RunnerKind           = "pop3"
+	syntheticRunnerKind      = "synthetic"
+	syntheticRunnerName      = "synthetic_multi_step"
+	playwrightRunnerKind     = "playwright"
+	playwrightRunnerName     = "playwright_transaction"
+	maxHTTPResponseDrainLen  = 512
+	maxHTTPBodyCaptureLen    = 4096
 )
 
 type dialContextFunc func(context.Context, string, string) (net.Conn, error)
@@ -232,7 +234,7 @@ func (a *App) runClaimedCheck(ctx context.Context, monitorConfig db.CoreMonitorC
 	reportErr := error(nil)
 
 	switch strings.ToLower(strings.TrimSpace(monitorConfig.Kind)) {
-	case httpStatusRunnerKind, httpStatusRunnerName:
+	case httpStatusRunnerKind, httpStatusRunnerName, httpKeywordRunnerName, expectedStatusRunnerName:
 		result := a.runHTTPStatusCheck(ctx, monitorConfig)
 		finishedAt = result.FinishedAt
 		success = result.Health == "up"

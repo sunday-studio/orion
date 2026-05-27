@@ -176,6 +176,41 @@ func TestRunDueChecksAcceptsExpectedStatusSet(t *testing.T) {
 	}
 }
 
+func TestRunDueChecksAcceptsExpectedStatusKindAlias(t *testing.T) {
+	database := openWorkerMigratedTestDatabase(t)
+	httpClient := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		return workerHTTPResponse(http.StatusAccepted), nil
+	})}
+
+	insertWorkerCoreOwner(t, database)
+	insertWorkerMonitor(t, database, "monitor-expected-status-alias")
+	insertWorkerCoreMonitorConfig(t, database, db.CoreMonitorConfig{
+		MonitorID:       "monitor-expected-status-alias",
+		Kind:            "expected_status",
+		ConfigJSON:      `{"url":"https://example.com/job","expected_status":202}`,
+		IntervalSeconds: 60,
+		TimeoutSeconds:  5,
+		NextRunAt:       time.Now().UTC().Add(-time.Minute),
+	})
+
+	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
+	if err := app.runDueChecks(context.Background()); err != nil {
+		t.Fatalf("runDueChecks() error = %v", err)
+	}
+
+	report := loadWorkerMonitorReport(t, database, "monitor-expected-status-alias")
+	if report.Health != "up" {
+		t.Fatalf("report health = %q, want up", report.Health)
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
+		t.Fatalf("unmarshal report payload: %v", err)
+	}
+	if payload["type"] != "http" || payload["status_code"].(float64) != 202 || payload["expected_status"].(float64) != 202 {
+		t.Fatalf("payload = %+v, want expected status alias report", payload)
+	}
+}
+
 func TestRunDueChecksStoresDownReportForMissingRequiredKeyword(t *testing.T) {
 	database := openWorkerMigratedTestDatabase(t)
 	httpClient := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
@@ -208,6 +243,41 @@ func TestRunDueChecksStoresDownReportForMissingRequiredKeyword(t *testing.T) {
 	}
 	if payload["failure_stage"] != "body_required" || payload["body_sample"] != "ready=false" {
 		t.Fatalf("payload = %+v, want bounded required-keyword failure", payload)
+	}
+}
+
+func TestRunDueChecksAcceptsHTTPKeywordKindAlias(t *testing.T) {
+	database := openWorkerMigratedTestDatabase(t)
+	httpClient := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		return workerHTTPResponse(http.StatusOK, "ready=true"), nil
+	})}
+
+	insertWorkerCoreOwner(t, database)
+	insertWorkerMonitor(t, database, "monitor-http-keyword-alias")
+	insertWorkerCoreMonitorConfig(t, database, db.CoreMonitorConfig{
+		MonitorID:       "monitor-http-keyword-alias",
+		Kind:            "http_keyword",
+		ConfigJSON:      `{"url":"https://example.com/health","required_contains":["ready=true"]}`,
+		IntervalSeconds: 60,
+		TimeoutSeconds:  5,
+		NextRunAt:       time.Now().UTC().Add(-time.Minute),
+	})
+
+	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
+	if err := app.runDueChecks(context.Background()); err != nil {
+		t.Fatalf("runDueChecks() error = %v", err)
+	}
+
+	report := loadWorkerMonitorReport(t, database, "monitor-http-keyword-alias")
+	if report.Health != "up" {
+		t.Fatalf("report health = %q, want up", report.Health)
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
+		t.Fatalf("unmarshal report payload: %v", err)
+	}
+	if payload["type"] != "http" || payload["status_code"].(float64) != 200 || payload["ok"] != true {
+		t.Fatalf("payload = %+v, want keyword alias report", payload)
 	}
 }
 
