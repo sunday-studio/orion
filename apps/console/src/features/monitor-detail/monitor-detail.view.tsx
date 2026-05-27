@@ -5,6 +5,9 @@ import { PageBreadcrumbs } from "@/components/page-breadcrumbs";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge, toStatus } from "@/components/status-badges";
 import { TabCount, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ReportInspectionDrawer } from "@/features/report-inspection/report-inspection-drawer";
+import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
+import { cn } from "@/lib/utils";
 import {
   type ApiIncidentResponse,
   type ApiMonitorReportResponse,
@@ -14,11 +17,9 @@ import {
   useGetMonitorHistory,
   useGetMonitorUptime,
 } from "@/orion-sdk";
-import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
-import { cn } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
-import { type ReactNode } from "react";
 import { parseAsInteger, useQueryStates } from "nuqs";
+import { type ReactNode, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
 const HISTORY_LIMIT = 20;
@@ -191,6 +192,7 @@ export const MonitorDetailPage = () => {
   const reports = historyQuery.data?.reports ?? [];
   const reportCount = historyQuery.data?.count ?? reports.length;
   const latestReport = monitorResponse.data?.recent_reports?.[0] ?? reports[0];
+  const [selectedReport, setSelectedReport] = useState<ApiMonitorReportResponse>();
   const latestPayload = parsePayload(latestReport?.payload);
   const uptimeBuckets = uptimeResponse.data?.daily_buckets ?? [];
   const recentUptimeBuckets = uptimeBuckets.slice(-7);
@@ -394,6 +396,7 @@ export const MonitorDetailPage = () => {
                   }
                   isLoading={historyQuery.isLoading}
                   loadingMessage="Loading check history..."
+                  onRowClick={setSelectedReport}
                 />
               )}
               {reportCount > 0 && (
@@ -441,6 +444,13 @@ export const MonitorDetailPage = () => {
           </TabsContent>
         </Tabs>
       </section>
+      <ReportInspectionDrawer
+        kind="monitor"
+        report={selectedReport}
+        onOpenChange={(open) => {
+          if (!open) setSelectedReport(undefined);
+        }}
+      />
     </div>
   );
 };

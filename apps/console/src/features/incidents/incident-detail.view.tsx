@@ -9,6 +9,7 @@ import {
   toStatus,
 } from "@/components/status-badges";
 import { TabCount, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ReportInspectionDrawer } from "@/features/report-inspection/report-inspection-drawer";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import {
   type ApiAlertDeliveryResponse,
@@ -18,7 +19,7 @@ import {
   useGetIncident,
 } from "@/orion-sdk";
 import type { ColumnDef } from "@tanstack/react-table";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
 const DetailItem = ({ label, value }: { label: string; value: ReactNode }) => (
@@ -182,6 +183,7 @@ export const IncidentDetailPage = () => {
   const timeline = incidentResponse.data?.timeline ?? [];
   const alertDeliveries = incidentResponse.data?.alert_deliveries ?? [];
   const monitorReports = incidentResponse.data?.monitor_reports ?? [];
+  const [selectedMonitorReport, setSelectedMonitorReport] = useState<ApiMonitorReportResponse>();
   const sortedMonitorReports = [...monitorReports].sort(
     (a, b) => reportSortTime(a) - reportSortTime(b),
   );
@@ -368,10 +370,18 @@ export const IncidentDetailPage = () => {
               data={monitorReports}
               emptyMessage="No monitor reports linked."
               getRowId={(report, index) => report.id ?? `monitor-report-${index}`}
+              onRowClick={setSelectedMonitorReport}
             />
           </TabsContent>
         </Tabs>
       </section>
+      <ReportInspectionDrawer
+        kind="monitor"
+        report={selectedMonitorReport}
+        onOpenChange={(open) => {
+          if (!open) setSelectedMonitorReport(undefined);
+        }}
+      />
     </div>
   );
 };
