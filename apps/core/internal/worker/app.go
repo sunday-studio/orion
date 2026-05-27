@@ -32,6 +32,11 @@ const (
 	apiRequestRunnerKind    = "api_request"
 	domainExpirationKind    = "domain_expiration"
 	pingRunnerKind          = "ping"
+	mailRunnerKind          = "mail"
+	smtpRunnerKind          = "smtp"
+	imapRunnerKind          = "imap"
+	popRunnerKind           = "pop"
+	pop3RunnerKind          = "pop3"
 	maxHTTPResponseDrainLen = 512
 	maxHTTPBodyCaptureLen   = 4096
 )
@@ -256,6 +261,11 @@ func (a *App) runClaimedCheck(ctx context.Context, monitorConfig db.CoreMonitorC
 		finishedAt = result.FinishedAt
 		success = result.Health == "up"
 		reportErr = a.storePingReport(monitorConfig.MonitorID, result)
+	case mailRunnerKind, smtpRunnerKind, imapRunnerKind, popRunnerKind, pop3RunnerKind:
+		result := a.runMailCheck(ctx, monitorConfig)
+		finishedAt = result.FinishedAt
+		success = result.Health == "up"
+		reportErr = a.storeMailReport(monitorConfig.MonitorID, result)
 	default:
 		complete = false
 		a.logger.Warn("Skipping unsupported Core monitor kind", "monitor_id", monitorConfig.MonitorID, "kind", monitorConfig.Kind)

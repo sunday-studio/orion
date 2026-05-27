@@ -225,6 +225,11 @@ Minimum options:
 - timeout;
 - interval.
 
+First release behavior: Core opens the configured mail endpoint, reads the protocol banner, and
+optionally checks advertised capabilities without sending login credentials. `auth_enabled: true`
+fails configuration validation until credentialed mailbox checks are designed. Reports include the
+protocol, banner, capabilities, `tls_mode`, `tls_negotiated`, and missing-capability context.
+
 13. Playwright transaction monitor
 
 Runs a browser transaction from the Core monitor worker.
