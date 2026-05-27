@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type {
   ApiCoreMonitorConfigResponse,
@@ -16,8 +17,10 @@ import type {
   ServiceCoreManagedMonitorCreateRequest,
   ServiceCoreManagedMonitorUpdateRequest,
 } from "@/orion-sdk";
-import { Save } from "lucide-react";
+import { Play, Save } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
+
+export type CoreMonitorSubmitAction = "save" | "save_test";
 
 type CoreMonitorDialogProps = {
   config?: ApiCoreMonitorConfigResponse;
@@ -28,6 +31,7 @@ type CoreMonitorDialogProps = {
   onOpenChange: (open: boolean) => void;
   onSubmit: (
     payload: ServiceCoreManagedMonitorCreateRequest | ServiceCoreManagedMonitorUpdateRequest,
+    action: CoreMonitorSubmitAction,
   ) => void;
   open: boolean;
 };
@@ -36,8 +40,10 @@ type FormState = {
   description: string;
   expectedStatus: string;
   intervalSeconds: string;
+  kind: "http" | "http_keyword";
   name: string;
   paused: boolean;
+  requiredContains: string;
   timeoutSeconds: string;
   url: string;
 };
@@ -46,11 +52,18 @@ const defaultForm: FormState = {
   description: "",
   expectedStatus: "200",
   intervalSeconds: "60",
+  kind: "http",
   name: "",
   paused: false,
+  requiredContains: "",
   timeoutSeconds: "10",
   url: "",
 };
+
+const coreMonitorKindOptions = [
+  { value: "http", label: "HTTP status" },
+  { value: "http_keyword", label: "HTTP keyword" },
+] as const;
 
 const readConfigString = (config: ApiCoreMonitorConfigResponse | undefined, key: string) => {
   const value = config?.config?.[key];
@@ -63,6 +76,16 @@ const readConfigNumber = (config: ApiCoreMonitorConfigResponse | undefined, key:
   const value = config?.config?.[key];
   if (typeof value === "number") return String(value);
   if (typeof value === "string" && value.trim() !== "") return value;
+  return "";
+};
+
+const readConfigStringList = (config: ApiCoreMonitorConfigResponse | undefined, key: string) => {
+  const value = config?.config?.[key];
+  if (Array.isArray(value)) {
+    return value
+      .filter((item): item is string => typeof item === "string" && item.trim() !== "")
+      .join("\n");
+  }
   return "";
 };
 
@@ -82,6 +105,7 @@ export const CoreMonitorDialog = ({
   open,
 }: CoreMonitorDialogProps) => {
   const [form, setForm] = useState<FormState>(defaultForm);
+  const [submitAction, setSubmitAction] = useState<CoreMonitorSubmitAction>("save");
 
   useEffect(() => {
     if (!open) return;
@@ -93,8 +117,10 @@ export const CoreMonitorDialog = ({
       description: monitor?.description ?? "",
       expectedStatus: readConfigNumber(config, "expected_status") || "200",
       intervalSeconds: String(config?.interval_seconds ?? monitor?.reporting_interval_seconds ?? 60),
+      kind: config?.kind === "http_keyword" ? "http_keyword" : "http",
       name: monitor?.name ?? "",
       paused: config?.paused ?? false,
+      requiredContains: readConfigStringList(config, "required_contains"),
       timeoutSeconds: String(config?.timeout_seconds ?? 10),
       url: readConfigString(config, "url"),
     });
@@ -105,20 +131,27 @@ export const CoreMonitorDialog = ({
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const expectedStatus = toPositiveInt(form.expectedStatus, 200);
+    const requiredContains = form.requiredContains
+      .split(/\n|,/)
+      .map((value) => value.trim())
+      .filter(Boolean);
     const payload = {
       config: {
         expected_status: expectedStatus,
+        ...(form.kind === "http_keyword" && requiredContains.length > 0
+          ? { required_contains: requiredContains }
+          : {}),
         url: form.url.trim(),
       },
       description: form.description.trim() || undefined,
       interval_seconds: toPositiveInt(form.intervalSeconds, 60),
-      kind: "http",
+      kind: form.kind,
       name: form.name.trim(),
       paused: form.paused,
       timeout_seconds: toPositiveInt(form.timeoutSeconds, 10),
-      type: "http",
+      type: form.kind,
     };
-    onSubmit(payload);
+    onSubmit(payload, submitAction);
   };
 
   const title = mode === "create" ? "Create Core Monitor" : "Edit Core Monitor";
@@ -145,6 +178,28 @@ export const CoreMonitorDialog = ({
                 onChange={(event) => updateForm({ name: event.target.value })}
                 placeholder="Core public API"
               />
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="font-medium">Type</span>
+              <Select
+                value={form.kind}
+                onValueChange={(value) => {
+                  if (value === "http" || value === "http_keyword") updateForm({ kind: value });
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <span data-slot="select-value">
+                    {coreMonitorKindOptions.find((option) => option.value === form.kind)?.label}
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  {coreMonitorKindOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </label>
             <label className="space-y-1 text-sm">
               <span className="font-medium">URL</span>
@@ -194,6 +249,16 @@ export const CoreMonitorDialog = ({
               />
               Start paused
             </label>
+            {form.kind === "http_keyword" && (
+              <label className="space-y-1 text-sm sm:col-span-2">
+                <span className="font-medium">Required response text</span>
+                <Textarea
+                  value={form.requiredContains}
+                  onChange={(event) => updateForm({ requiredContains: event.target.value })}
+                  placeholder="One keyword per line"
+                />
+              </label>
+            )}
             <label className="space-y-1 text-sm sm:col-span-2">
               <span className="font-medium">Description</span>
               <Textarea
@@ -210,10 +275,24 @@ export const CoreMonitorDialog = ({
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button disabled={isSubmitting || !form.name.trim() || !form.url.trim()} type="submit">
+            <Button
+              disabled={isSubmitting || !form.name.trim() || !form.url.trim()}
+              type="submit"
+              onClick={() => setSubmitAction("save")}
+            >
               <Save />
               {mode === "create" ? "Create" : "Save"}
             </Button>
+            {mode === "create" && (
+              <Button
+                disabled={isSubmitting || !form.name.trim() || !form.url.trim()}
+                type="submit"
+                onClick={() => setSubmitAction("save_test")}
+              >
+                <Play />
+                Create and test
+              </Button>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

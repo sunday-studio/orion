@@ -78,9 +78,10 @@ test("creates and manages a Core HTTP monitor", async ({ page }) => {
   await page.getByRole("button", { name: "Core monitor" }).click();
   await page.getByLabel("Name").fill(monitorName);
   await page.getByLabel("URL").fill("http://127.0.0.1:18999/health");
-  await page.getByLabel("Expected status").fill("200");
+  await page.getByLabel("Expected status").fill("503");
   await page.getByLabel("Interval seconds").fill("45");
-  await page.getByRole("button", { name: "Create" }).click();
+  await page.getByRole("button", { name: "Create and test" }).click();
+  await expect(page.getByText("received HTTP 200, expected 503")).toBeVisible();
 
   await page.getByPlaceholder("Search monitors").fill(monitorName);
   await expect(page.getByRole("link", { name: monitorName })).toBeVisible();
@@ -93,7 +94,7 @@ test("creates and manages a Core HTTP monitor", async ({ page }) => {
   await expect(page.getByLabel("Configuration").getByText("45s")).toBeVisible();
 
   await page.getByRole("button", { name: "Test" }).click();
-  await expect(page.getByText("Core monitor test finished.")).toBeVisible();
+  await expect(page.getByText("Core monitor test reported down.")).toBeVisible();
 
   await page.getByRole("button", { name: "Pause" }).click();
   await expect(page.getByText("Core monitor paused.")).toBeVisible();

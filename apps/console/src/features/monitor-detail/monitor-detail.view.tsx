@@ -276,8 +276,14 @@ export const MonitorDetailPage = () => {
   });
   const testMonitor = useTestCoreMonitor({
     mutation: {
-      onSuccess: () => {
-        setActionFeedback("Core monitor test finished.");
+      onSuccess: (result) => {
+        const testHealth =
+          result.monitor?.computed_health ?? result.monitor?.health ?? result.result?.status ?? "unknown";
+        setActionFeedback(
+          testHealth === "up"
+            ? "Core monitor test reported up."
+            : `Core monitor test reported ${testHealth}. Review the latest check history row.`,
+        );
         refreshMonitor();
       },
     },
