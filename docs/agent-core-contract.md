@@ -20,6 +20,7 @@ The exact HTTP schema lives in `apps/core/openapi.yaml`.
 - Collect system metrics: uptime, CPU, memory, disk, OS/platform, and optional location metadata.
 - Run configured monitors and capture monitor-specific metrics and errors.
 - Send system and monitor reports on schedule.
+- Ship bounded batches of its own structured Orion JSONL service logs for product debugging.
 - Send an initial report soon after startup.
 - Retry temporary network failures without crashing.
 - Store only identity, token, maintenance state, and monitor mapping state locally.
@@ -40,6 +41,7 @@ The Agent should not:
 - Register, soft-delete, and revive monitors.
 - Enforce unique monitor names per agent.
 - Store agent reports and monitor reports.
+- Store deduplicated service log entries shipped by Agents.
 - Track last seen and last successful check timestamps.
 - Compute server, monitor, stale, degraded, and aggregate health states.
 - Own incidents, alerts, retention, migrations, and API behavior.
@@ -98,8 +100,14 @@ availability only; Core worker state is exposed through `/v1/diagnostics/core-wo
   Soft-deletes a monitor. Requires auth.
 - `POST /v1/agents/:agent_id/report`
   Stores system metrics and updates agent `last_seen`. Requires auth.
+- `POST /v1/agents/:agent_id/logs/batch`
+  Stores a bounded batch of structured Agent service log entries. Requires auth.
 - `POST /v1/agents/:agent_id/:monitor_id/report`
   Stores check result and updates monitor state. Requires auth.
+- `GET /v1/logs/service`
+  Returns paginated service logs across Agents. Requires frontend/admin auth when configured.
+- `GET /v1/agents/:id/service-logs`
+  Returns paginated service logs for one Agent. Requires frontend/admin auth when configured.
 - `GET /v1/diagnostics/core-worker`
   Returns Core monitor worker heartbeat status. Requires frontend/admin auth when configured.
 
@@ -167,6 +175,16 @@ Planned Core monitor admin endpoints:
 - Agent reports may include a compact `config_summary` with reporting interval, monitor count, and monitor type counts.
 - Core may refresh the stored agent reporting interval from `config_summary.reporting_interval`.
 - Core owns retention and rollups.
+
+### Agent Service Logs
+
+- Agent reads only its configured Orion structured JSONL log file for the first product version.
+- Agent ships at most a bounded recent batch on its normal system report cadence.
+- Core deduplicates service logs by `(agent_id, fingerprint)` so repeated batches are safe.
+- Core stores service logs separately from `/v1/events`; operational events and diagnostic service output remain separate product concepts.
+- Core exposes service logs with pagination and filters for agent, monitor, source, level, component, and text search.
+- Agent and Core must redact known sensitive field names such as token, secret, password, API key, and authorization before service logs appear in Console.
+- Raw service-manager, journal, launchd, Docker, PM2, or command output is not part of the first service-log ingestion contract. Those sources require explicit allowlists and source-specific redaction before they can be shipped.
 
 ### Monitor Reports
 

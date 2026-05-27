@@ -304,6 +304,13 @@ func (a *Agent) runSystemMetrics() error {
 	}
 	logging.Debugf("system report sent: agent_id=%s", a.internalState.AgentID)
 
+	if err := a.shipServiceLogs(); err != nil {
+		if transport.IsAuthError(err) {
+			return err
+		}
+		logging.Warnf("Service log shipping failed: %v", err)
+	}
+
 	return nil
 }
 

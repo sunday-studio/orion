@@ -278,6 +278,31 @@ func (c *Client) SendMonitorReport(report MonitorReport, agentID string, monitor
 	return nil
 }
 
+func (c *Client) SendServiceLogs(batch ServiceLogBatch, agentID string) error {
+	if len(batch.Entries) == 0 {
+		return nil
+	}
+
+	endpoint := fmt.Sprintf("/v1/agents/%s/logs/batch", agentID)
+	resp, err := c.makeProtectedRequest("POST", endpoint, batch)
+	if err != nil {
+		return fmt.Errorf("failed to send service logs: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		if isAuthStatus(resp.StatusCode) {
+			return &AuthError{StatusCode: resp.StatusCode, Body: string(body)}
+		}
+		logging.Warnf("unexpected status from core service log ingest: %d — %s", resp.StatusCode, string(body))
+		return fmt.Errorf("core server returned status %d", resp.StatusCode)
+	}
+
+	logging.Infof("service logs successfully sent to core")
+	return nil
+}
+
 func (c *Client) RegisterAgent(req AgentRegistrationRequest) (*AgentRegistrationResponse, error) {
 	resp, err := c.makeRequest("POST", "/v1/register", req, nil)
 	if err != nil {

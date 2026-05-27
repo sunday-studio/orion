@@ -27,6 +27,7 @@ type Server struct {
 	agentService              *service.AgentService
 	authService               *service.AuthService
 	reportService             *service.ReportService
+	serviceLogService         *service.ServiceLogService
 	monitorService            *service.MonitorService
 	settingsService           *service.SettingsService
 	rollupService             *service.RollupService
@@ -43,6 +44,7 @@ func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *S
 	agentService := service.NewAgentService(database, logger)
 	authService := service.NewAuthService(database, logger)
 	reportService := service.NewReportService(database, logger, cfg)
+	serviceLogService := service.NewServiceLogService(database, logger)
 	monitorService := service.NewMonitorService(database, logger)
 	settingsService := service.NewSettingsService(database, logger, cfg.DataDir)
 	rollupService := service.NewRollupService(database, logger)
@@ -74,6 +76,7 @@ func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *S
 		agentService:              agentService,
 		authService:               authService,
 		reportService:             reportService,
+		serviceLogService:         serviceLogService,
 		monitorService:            monitorService,
 		settingsService:           settingsService,
 		rollupService:             rollupService,
@@ -137,6 +140,7 @@ func (s *Server) setupRoutes() {
 			frontend.GET("/agents/:id", s.getAgentDetail)
 			frontend.GET("/agents/:id/health", s.getAgentHealth)
 			frontend.GET("/agents/:id/reports", s.getAgentReports)
+			frontend.GET("/agents/:id/service-logs", s.listAgentServiceLogs)
 			frontend.GET("/agents/:id/uptime", s.getAgentUptime)
 			frontend.GET("/agents/:id/monitors", s.listMonitors)
 			frontend.GET("/monitors", s.listAllMonitors)
@@ -178,6 +182,7 @@ func (s *Server) setupRoutes() {
 			frontend.GET("/alerts/rules", s.listAlertRules)
 			s.registerStatusPageAdminRoutes(frontend)
 			frontend.GET("/events", s.listOrionEvents)
+			frontend.GET("/logs/service", s.listServiceLogs)
 			frontend.GET("/settings/data-lifecycle", s.getDataLifecycleSettings)
 			frontend.PUT("/settings/data-lifecycle", s.updateDataLifecycleSettings)
 			frontend.POST("/settings/data-lifecycle/actions/rollup", s.runDataLifecycleRollup)
@@ -191,6 +196,7 @@ func (s *Server) setupRoutes() {
 			protected.POST("/:agent_id/register-monitor", ValidateAgentToken(s.agentService, s.authService), s.registerMonitor)
 			protected.POST("/:agent_id/unregister-monitor", ValidateAgentToken(s.agentService, s.authService), s.unregisterMonitor)
 			protected.POST("/:agent_id/report", ValidateAgentToken(s.agentService, s.authService), s.receiveAgentReport)
+			protected.POST("/:agent_id/logs/batch", ValidateAgentToken(s.agentService, s.authService), s.receiveAgentLogBatch)
 			protected.POST("/:agent_id/:monitor_id/report", ValidateAgentToken(s.agentService, s.authService), s.receiveMonitorReport)
 			protected.PUT("/:agent_id/maintenance", ValidateAgentToken(s.agentService, s.authService), s.setMaintenanceMode)
 		}

@@ -540,6 +540,44 @@ definitions:
       type:
         type: string
     type: object
+  api.ServiceLogBatchResponse:
+    properties:
+      received:
+        type: integer
+      stored:
+        type: integer
+    type: object
+  api.ServiceLogEntryResponse:
+    properties:
+      agent_id:
+        type: string
+      agent_name:
+        type: string
+      collected_at:
+        type: string
+      component:
+        type: string
+      created_at:
+        type: string
+      fields:
+        type: string
+      id:
+        type: string
+      level:
+        type: string
+      message:
+        type: string
+      monitor_id:
+        type: string
+      monitor_name:
+        type: string
+      occurred_at:
+        type: string
+      source:
+        type: string
+      stream:
+        type: string
+    type: object
   api.StatusPageComponentMappingResponse:
     properties:
       component_id:
@@ -1577,6 +1615,44 @@ definitions:
       operation:
         type: string
     type: object
+  service.ServiceLogBatchPayload:
+    properties:
+      entries:
+        items:
+          $ref: '#/definitions/service.ServiceLogEntryPayload'
+        type: array
+    required:
+    - entries
+    type: object
+  service.ServiceLogEntryPayload:
+    properties:
+      component:
+        type: string
+      fields:
+        additionalProperties: {}
+        type: object
+      fingerprint:
+        type: string
+      level:
+        type: string
+      message:
+        type: string
+      monitor_id:
+        type: string
+      monitor_name:
+        type: string
+      raw:
+        type: string
+      source:
+        type: string
+      stream:
+        type: string
+      timestamp:
+        type: string
+    required:
+    - fingerprint
+    - timestamp
+    type: object
   service.SetMaintenanceModeRequest:
     properties:
       maintenance_mode:
@@ -2424,6 +2500,54 @@ paths:
       summary: Receive monitor report
       tags:
       - reports
+  /v1/agents/{agent_id}/logs/batch:
+    post:
+      consumes:
+      - application/json
+      description: Receive and deduplicate a bounded batch of structured Orion Agent
+        service logs
+      operationId: receiveAgentLogBatch
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agent_id
+        required: true
+        type: string
+      - description: Service log batch
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/service.ServiceLogBatchPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.ServiceLogBatchResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Receive agent service logs
+      tags:
+      - service-logs
   /v1/agents/{agent_id}/maintenance:
     put:
       consumes:
@@ -2823,6 +2947,81 @@ paths:
       summary: Get agent reports
       tags:
       - agents
+  /v1/agents/{id}/service-logs:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated structured service logs for a specific Orion Agent
+      operationId: getAgentServiceLogs
+      parameters:
+      - description: Agent ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 50
+        description: Maximum number of logs to return
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of logs to skip
+        in: query
+        name: offset
+        type: integer
+      - description: Filter by level
+        in: query
+        name: level
+        type: string
+      - description: Filter by component
+        in: query
+        name: component
+        type: string
+      - description: Search message, component, monitor, and related IDs
+        in: query
+        name: q
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      format: int64
+                      type: integer
+                    limit:
+                      type: integer
+                    logs:
+                      items:
+                        $ref: '#/definitions/api.ServiceLogEntryResponse'
+                      type: array
+                    offset:
+                      type: integer
+                    pagination:
+                      $ref: '#/definitions/utils.PaginationMeta'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: List agent service logs
+      tags:
+      - service-logs
   /v1/agents/{id}/uptime:
     get:
       description: Returns daily uptime buckets and overall uptime percentage for
@@ -4319,6 +4518,80 @@ paths:
       summary: Get incident candidates
       tags:
       - health
+  /v1/logs/service:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated structured service logs shipped by Orion services
+      operationId: getServiceLogs
+      parameters:
+      - default: 50
+        description: Maximum number of logs to return
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of logs to skip
+        in: query
+        name: offset
+        type: integer
+      - description: Filter by agent ID
+        in: query
+        name: agent_id
+        type: string
+      - description: Filter by monitor ID
+        in: query
+        name: monitor_id
+        type: string
+      - description: Filter by service log source
+        in: query
+        name: source
+        type: string
+      - description: Filter by level
+        in: query
+        name: level
+        type: string
+      - description: Filter by component
+        in: query
+        name: component
+        type: string
+      - description: Search message, component, monitor, and related IDs
+        in: query
+        name: q
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      format: int64
+                      type: integer
+                    limit:
+                      type: integer
+                    logs:
+                      items:
+                        $ref: '#/definitions/api.ServiceLogEntryResponse'
+                      type: array
+                    offset:
+                      type: integer
+                    pagination:
+                      $ref: '#/definitions/utils.PaginationMeta'
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: List service logs
+      tags:
+      - service-logs
   /v1/monitors:
     get:
       consumes:

@@ -136,6 +136,24 @@ type AgentReport struct {
 	Location      datatypes.JSONType[GeoLocation] `json:"location" gorm:"type:json"`
 }
 
+type ServiceLogEntry struct {
+	ID          string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	AgentID     string    `json:"agent_id" gorm:"not null;index:idx_service_log_entries_agent_time;uniqueIndex:idx_service_log_entries_agent_fingerprint"`
+	MonitorID   string    `json:"monitor_id" gorm:"not null;default:'';index:idx_service_log_entries_monitor_time"`
+	Source      string    `json:"source" gorm:"not null;default:'agent';index:idx_service_log_entries_source_time"`
+	Stream      string    `json:"stream" gorm:"not null;default:'jsonl'"`
+	Level       string    `json:"level" gorm:"not null;default:'INFO';index:idx_service_log_entries_level_time"`
+	Component   string    `json:"component" gorm:"not null;default:'';index:idx_service_log_entries_component_time"`
+	MonitorName string    `json:"monitor_name" gorm:"not null;default:''"`
+	Message     string    `json:"message" gorm:"type:text;not null;default:''"`
+	FieldsJSON  string    `json:"fields_json" gorm:"type:text;not null;default:'{}'"`
+	Raw         string    `json:"raw" gorm:"type:text;not null;default:''"`
+	Fingerprint string    `json:"fingerprint" gorm:"not null;uniqueIndex:idx_service_log_entries_agent_fingerprint"`
+	OccurredAt  time.Time `json:"occurred_at" gorm:"not null;index:idx_service_log_entries_agent_time;index:idx_service_log_entries_monitor_time;index:idx_service_log_entries_source_time;index:idx_service_log_entries_level_time;index:idx_service_log_entries_component_time"`
+	CollectedAt time.Time `json:"collected_at" gorm:"not null;index:idx_service_log_entries_collected_at"`
+	CreatedAt   time.Time `json:"created_at" gorm:"index:idx_service_log_entries_created_at"`
+}
+
 type Monitor struct {
 	ID                       string     `json:"id" gorm:"primaryKey"`
 	Description              *string    `json:"description"`

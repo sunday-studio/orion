@@ -147,6 +147,94 @@ func TestRegisterReportListFlow(t *testing.T) {
 	}
 }
 
+func TestAgentServiceLogBatchFlow(t *testing.T) {
+	server := setupTestServer(t)
+	registered := registerTestAgent(t, server)
+
+	batchPath := "/v1/agents/" + registered.Data.AgentID + "/logs/batch"
+	batchResp := performJSONRequest(t, server, http.MethodPost, batchPath, map[string]interface{}{
+		"entries": []map[string]interface{}{
+			{
+				"timestamp":   "2026-05-27T20:00:00Z",
+				"source":      "agent",
+				"stream":      "jsonl",
+				"level":       "error",
+				"component":   "registration",
+				"message":     "registration failed",
+				"fingerprint": "service-log-fp-1",
+				"fields": map[string]interface{}{
+					"token":   "do-not-return",
+					"attempt": 1,
+				},
+			},
+			{
+				"timestamp":   "2026-05-27T20:00:00Z",
+				"level":       "error",
+				"component":   "registration",
+				"message":     "registration failed",
+				"fingerprint": "service-log-fp-1",
+			},
+		},
+	}, registered.Data.Token)
+	if batchResp.Code != http.StatusOK {
+		t.Fatalf("service log batch status = %d, body = %s", batchResp.Code, batchResp.Body.String())
+	}
+
+	var accepted struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Received int `json:"received"`
+			Stored   int `json:"stored"`
+		} `json:"data"`
+	}
+	decodeResponse(t, batchResp, &accepted)
+	if !accepted.Success || accepted.Data.Received != 2 || accepted.Data.Stored != 1 {
+		t.Fatalf("service log batch response = %+v, want received 2 stored 1", accepted)
+	}
+
+	globalResp := performJSONRequest(t, server, http.MethodGet, "/v1/logs/service?level=ERROR&q=registration", nil, "")
+	if globalResp.Code != http.StatusOK {
+		t.Fatalf("global service logs status = %d, body = %s", globalResp.Code, globalResp.Body.String())
+	}
+	assertNotContains(t, globalResp.Body.String(), registered.Data.Token)
+	assertNotContains(t, globalResp.Body.String(), "do-not-return")
+
+	var listed struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Logs []struct {
+				AgentID   string `json:"agent_id"`
+				AgentName string `json:"agent_name"`
+				Level     string `json:"level"`
+				Component string `json:"component"`
+				Message   string `json:"message"`
+				Fields    string `json:"fields"`
+			} `json:"logs"`
+			Count int64 `json:"count"`
+		} `json:"data"`
+	}
+	decodeResponse(t, globalResp, &listed)
+	if !listed.Success || listed.Data.Count != 1 || len(listed.Data.Logs) != 1 {
+		t.Fatalf("service logs response = %+v, want one entry", listed)
+	}
+	entry := listed.Data.Logs[0]
+	if entry.AgentID != registered.Data.AgentID || entry.AgentName != "test-server" || entry.Level != "ERROR" || entry.Component != "registration" || entry.Message != "registration failed" {
+		t.Fatalf("service log entry = %+v, want registered agent error log", entry)
+	}
+	if !strings.Contains(entry.Fields, `"token":"[redacted]"`) {
+		t.Fatalf("fields = %q, want redacted token", entry.Fields)
+	}
+
+	agentResp := performJSONRequest(t, server, http.MethodGet, "/v1/agents/"+registered.Data.AgentID+"/service-logs?component=registration", nil, "")
+	if agentResp.Code != http.StatusOK {
+		t.Fatalf("agent service logs status = %d, body = %s", agentResp.Code, agentResp.Body.String())
+	}
+	decodeResponse(t, agentResp, &listed)
+	if listed.Data.Count != 1 || len(listed.Data.Logs) != 1 {
+		t.Fatalf("agent service logs response = %+v, want one entry", listed)
+	}
+}
+
 func TestHealthCheckResponse(t *testing.T) {
 	server := setupTestServer(t)
 

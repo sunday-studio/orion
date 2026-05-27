@@ -15,10 +15,11 @@ import { AgentCpuTab } from "./components/agent-cpu-tab";
 import { AgentHealthSummary } from "./components/agent-health-summary";
 import { AgentLogsTab } from "./components/agent-logs-tab";
 import { AgentMonitorsTab } from "./components/agent-monitors-tab";
+import { AgentServiceLogsTab } from "./components/agent-service-logs-tab";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge, toStatus } from "@/components/status-badges";
 
-const AGENT_DETAIL_TABS = ["logs", "monitors", "cpu"] as const;
+const AGENT_DETAIL_TABS = ["logs", "service-logs", "monitors", "cpu"] as const;
 type AgentDetailTab = (typeof AGENT_DETAIL_TABS)[number];
 
 const isAgentDetailTab = (value: string | null): value is AgentDetailTab =>
@@ -149,12 +150,17 @@ export const AgentDetailPage = () => {
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList>
           <TabsTrigger value="logs">Agent Reports</TabsTrigger>
+          <TabsTrigger value="service-logs">Service Logs</TabsTrigger>
           <TabsTrigger value="monitors">Monitors</TabsTrigger>
           <TabsTrigger value="cpu">System Metrics</TabsTrigger>
         </TabsList>
 
         <TabsContent value="logs">
           <AgentLogsTab agentId={currentAgentId} />
+        </TabsContent>
+
+        <TabsContent value="service-logs">
+          <AgentServiceLogsTab agentId={currentAgentId} />
         </TabsContent>
 
         <TabsContent value="monitors">

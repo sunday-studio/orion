@@ -103,6 +103,23 @@ type AgentReportResponse struct {
 	Location      db.GeoLocation              `json:"location"`
 }
 
+type ServiceLogEntryResponse struct {
+	ID          string    `json:"id"`
+	AgentID     string    `json:"agent_id"`
+	AgentName   string    `json:"agent_name,omitempty"`
+	MonitorID   string    `json:"monitor_id,omitempty"`
+	Source      string    `json:"source"`
+	Stream      string    `json:"stream"`
+	Level       string    `json:"level"`
+	Component   string    `json:"component,omitempty"`
+	MonitorName string    `json:"monitor_name,omitempty"`
+	Message     string    `json:"message"`
+	Fields      string    `json:"fields,omitempty"`
+	OccurredAt  time.Time `json:"occurred_at"`
+	CollectedAt time.Time `json:"collected_at"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
 // AgentConfigSummaryResponse is the frontend-safe subset of an agent's reported config summary.
 type AgentConfigSummaryResponse struct {
 	ReportingInterval string         `json:"reporting_interval,omitempty"`
@@ -444,6 +461,36 @@ func agentReportResponses(reports []db.AgentReport) []AgentReportResponse {
 	responses := make([]AgentReportResponse, 0, len(reports))
 	for _, report := range reports {
 		responses = append(responses, agentReportResponse(report))
+	}
+	return responses
+}
+
+func serviceLogEntryResponse(entry db.ServiceLogEntry, agentsByID map[string]db.Agent) ServiceLogEntryResponse {
+	response := ServiceLogEntryResponse{
+		ID:          entry.ID,
+		AgentID:     entry.AgentID,
+		MonitorID:   entry.MonitorID,
+		Source:      entry.Source,
+		Stream:      entry.Stream,
+		Level:       entry.Level,
+		Component:   entry.Component,
+		MonitorName: entry.MonitorName,
+		Message:     entry.Message,
+		Fields:      entry.FieldsJSON,
+		OccurredAt:  entry.OccurredAt,
+		CollectedAt: entry.CollectedAt,
+		CreatedAt:   entry.CreatedAt,
+	}
+	if agent, ok := agentsByID[entry.AgentID]; ok {
+		response.AgentName = agent.Name
+	}
+	return response
+}
+
+func serviceLogEntryResponses(entries []db.ServiceLogEntry, agentsByID map[string]db.Agent) []ServiceLogEntryResponse {
+	responses := make([]ServiceLogEntryResponse, 0, len(entries))
+	for _, entry := range entries {
+		responses = append(responses, serviceLogEntryResponse(entry, agentsByID))
 	}
 	return responses
 }
