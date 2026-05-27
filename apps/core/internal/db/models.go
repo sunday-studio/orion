@@ -298,6 +298,59 @@ type StatusPageIncidentUpdate struct {
 	CreatedAt   time.Time  `json:"created_at"`
 }
 
+type StatusPageSubscriber struct {
+	ID                         string     `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	StatusPageID               string     `json:"status_page_id" gorm:"not null;uniqueIndex:idx_status_page_subscribers_destination;index:idx_status_page_subscribers_page_state"`
+	DestinationType            string     `json:"destination_type" gorm:"not null;uniqueIndex:idx_status_page_subscribers_destination"`
+	DestinationHash            string     `json:"destination_hash" gorm:"not null;uniqueIndex:idx_status_page_subscribers_destination"`
+	DestinationValueCiphertext string     `json:"destination_value_ciphertext" gorm:"not null;default:''"`
+	MaskedDestination          string     `json:"masked_destination" gorm:"not null"`
+	State                      string     `json:"state" gorm:"not null;default:pending;index:idx_status_page_subscribers_page_state"`
+	ConfirmationTokenHash      string     `json:"confirmation_token_hash" gorm:"not null;default:'';index:idx_status_page_subscribers_confirmation_token"`
+	ConfirmationTokenExpiresAt *time.Time `json:"confirmation_token_expires_at"`
+	ManageTokenHash            string     `json:"manage_token_hash" gorm:"not null;default:'';index:idx_status_page_subscribers_manage_token"`
+	ManageTokenVersion         int        `json:"manage_token_version" gorm:"not null;default:1"`
+	UnsubscribeTokenHash       string     `json:"unsubscribe_token_hash" gorm:"not null;default:'';index:idx_status_page_subscribers_unsubscribe_token"`
+	UnsubscribeTokenVersion    int        `json:"unsubscribe_token_version" gorm:"not null;default:1"`
+	BounceCount                int        `json:"bounce_count" gorm:"not null;default:0"`
+	LastDeliveryStatus         string     `json:"last_delivery_status" gorm:"not null;default:''"`
+	LastDeliveryAt             *time.Time `json:"last_delivery_at"`
+	Source                     string     `json:"source" gorm:"not null;default:public_page"`
+	ConfirmedAt                *time.Time `json:"confirmed_at"`
+	UnsubscribedAt             *time.Time `json:"unsubscribed_at"`
+	DisabledAt                 *time.Time `json:"disabled_at"`
+	CreatedAt                  time.Time  `json:"created_at"`
+	UpdatedAt                  time.Time  `json:"updated_at"`
+}
+
+type StatusPageSubscriberComponent struct {
+	ID           string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	SubscriberID string    `json:"subscriber_id" gorm:"not null;uniqueIndex:idx_status_page_subscriber_components_unique;index:idx_status_page_subscriber_components_subscriber"`
+	ComponentID  string    `json:"component_id" gorm:"not null;uniqueIndex:idx_status_page_subscriber_components_unique;index:idx_status_page_subscriber_components_component"`
+	EventScope   string    `json:"event_scope" gorm:"not null;default:all_updates;uniqueIndex:idx_status_page_subscriber_components_unique"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+type StatusPageSubscriberDelivery struct {
+	ID                     string     `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	SubscriberID           string     `json:"subscriber_id" gorm:"not null;index:idx_status_page_subscriber_deliveries_subscriber"`
+	StatusPageID           string     `json:"status_page_id" gorm:"not null;index:idx_status_page_subscriber_deliveries_page_state"`
+	PublicIncidentID       string     `json:"public_incident_id" gorm:"not null;default:''"`
+	PublicIncidentUpdateID string     `json:"public_incident_update_id" gorm:"not null;default:''"`
+	DeliveryType           string     `json:"delivery_type" gorm:"not null"`
+	DeliveryState          string     `json:"delivery_state" gorm:"not null;default:queued;index:idx_status_page_subscriber_deliveries_page_state"`
+	ProviderMessageID      string     `json:"provider_message_id" gorm:"not null;default:''"`
+	ErrorCode              string     `json:"error_code" gorm:"not null;default:''"`
+	SafeErrorSummary       string     `json:"safe_error_summary" gorm:"not null;default:''"`
+	AttemptCount           int        `json:"attempt_count" gorm:"not null;default:0"`
+	QueuedAt               *time.Time `json:"queued_at"`
+	SentAt                 *time.Time `json:"sent_at"`
+	FailedAt               *time.Time `json:"failed_at"`
+	CreatedAt              time.Time  `json:"created_at"`
+	UpdatedAt              time.Time  `json:"updated_at"`
+}
+
 type AlertDelivery struct {
 	ID            string                 `json:"id" gorm:"primaryKey;type:varchar(255)"`
 	IncidentID    string                 `json:"incident_id" gorm:"index:idx_alert_deliveries_incident_id;not null"`

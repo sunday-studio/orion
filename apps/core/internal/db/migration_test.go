@@ -77,6 +77,15 @@ func TestMigrateAppliesEmbeddedMigrations(t *testing.T) {
 	if !database.Migrator().HasTable(&AuditEvent{}) {
 		t.Fatal("audit_events table was not created")
 	}
+	if !database.Migrator().HasTable(&StatusPageSubscriber{}) {
+		t.Fatal("status_page_subscribers table was not created")
+	}
+	if !database.Migrator().HasTable(&StatusPageSubscriberComponent{}) {
+		t.Fatal("status_page_subscriber_components table was not created")
+	}
+	if !database.Migrator().HasTable(&StatusPageSubscriberDelivery{}) {
+		t.Fatal("status_page_subscriber_deliveries table was not created")
+	}
 
 	var count int64
 	if err := database.Table("schema_migrations").Where("version = ?", 1).Count(&count).Error; err != nil {

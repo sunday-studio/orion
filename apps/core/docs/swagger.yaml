@@ -826,6 +826,30 @@ definitions:
       updated_at:
         type: string
     type: object
+  api.StatusPageSubscriberComponentResponse:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  api.StatusPageSubscriberPublicResponse:
+    properties:
+      available_components:
+        items:
+          $ref: '#/definitions/api.StatusPageSubscriberComponentResponse'
+        type: array
+      component_ids:
+        items:
+          type: string
+        type: array
+      destination_type:
+        type: string
+      masked_destination:
+        type: string
+      state:
+        type: string
+    type: object
   api.UptimeDayBucketResponse:
     properties:
       date:
@@ -1052,6 +1076,24 @@ definitions:
         type: string
       sort_order:
         type: integer
+    type: object
+  api.statusPageSubscriberPreferencesRequest:
+    properties:
+      component_ids:
+        items:
+          type: string
+        type: array
+    type: object
+  api.statusPageSubscriptionRequest:
+    properties:
+      component_ids:
+        items:
+          type: string
+        type: array
+      destination:
+        type: string
+      destination_type:
+        type: string
     type: object
   db.CPUStats:
     properties:
@@ -1752,6 +1794,234 @@ paths:
           schema:
             $ref: '#/definitions/utils.APIResponse'
       summary: Get public status page incident history
+      tags:
+      - public-status
+  /status/{slug}/subscribers:
+    post:
+      consumes:
+      - application/json
+      description: Create or refresh a pending public subscriber without exposing
+        confirmation tokens
+      operationId: createPublicStatusPageSubscriber
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Subscription payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.statusPageSubscriptionRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    confirmation_required:
+                      type: boolean
+                    subscriber:
+                      $ref: '#/definitions/api.StatusPageSubscriberPublicResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Request public status page subscription
+      tags:
+      - public-status
+  /status/{slug}/subscribers/confirm/{token}:
+    get:
+      consumes:
+      - application/json
+      description: Confirm a pending public subscriber by one-time token hash
+      operationId: confirmPublicStatusPageSubscriber
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Confirmation token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    subscriber:
+                      $ref: '#/definitions/api.StatusPageSubscriberPublicResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Confirm public status page subscription
+      tags:
+      - public-status
+  /status/{slug}/subscribers/manage/{token}:
+    get:
+      consumes:
+      - application/json
+      description: Get masked subscriber preferences by manage token
+      operationId: getPublicStatusPageSubscriberPreferences
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Manage token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    subscriber:
+                      $ref: '#/definitions/api.StatusPageSubscriberPublicResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get public status page subscriber preferences
+      tags:
+      - public-status
+    put:
+      consumes:
+      - application/json
+      description: Update visible component preferences by manage token
+      operationId: updatePublicStatusPageSubscriberPreferences
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Manage token
+        in: path
+        name: token
+        required: true
+        type: string
+      - description: Preference payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.statusPageSubscriberPreferencesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    subscriber:
+                      $ref: '#/definitions/api.StatusPageSubscriberPublicResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Update public status page subscriber preferences
+      tags:
+      - public-status
+  /status/{slug}/subscribers/unsubscribe/{token}:
+    post:
+      consumes:
+      - application/json
+      description: Idempotently unsubscribe a public status page subscriber by token
+      operationId: unsubscribePublicStatusPageSubscriber
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Unsubscribe token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    unsubscribed:
+                      type: boolean
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Unsubscribe public status page subscriber
       tags:
       - public-status
   /v1/agents:
