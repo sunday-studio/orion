@@ -118,6 +118,257 @@ const docTemplate = `{
                 }
             }
         },
+        "/status/{slug}/components/{component_id}/history": {
+            "get": {
+                "description": "Get sanitized public uptime history for one visible component",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Get public status page component history",
+                "operationId": "getPublicStatusPageComponentHistory",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Public component ID",
+                        "name": "component_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "90d",
+                        "description": "Uptime window: 24h, 7d, 30d, or 90d",
+                        "name": "window",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "component": {
+                                                    "$ref": "#/definitions/api.StatusPagePublicComponentResponse"
+                                                },
+                                                "history": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/api.StatusPagePublicUptimeBucketResponse"
+                                                    }
+                                                },
+                                                "uptime": {
+                                                    "$ref": "#/definitions/api.StatusPagePublicUptimeResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/status/{slug}/components/{component_id}/uptime": {
+            "get": {
+                "description": "Get a sanitized public uptime summary for one visible component",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Get public status page component uptime",
+                "operationId": "getPublicStatusPageComponentUptime",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Public component ID",
+                        "name": "component_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "90d",
+                        "description": "Uptime window: 24h, 7d, 30d, or 90d",
+                        "name": "window",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "component": {
+                                                    "$ref": "#/definitions/api.StatusPagePublicComponentResponse"
+                                                },
+                                                "uptime": {
+                                                    "$ref": "#/definitions/api.StatusPagePublicUptimeResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/status/{slug}/history": {
+            "get": {
+                "description": "Get sanitized public history for a published or unlisted status page",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Get public status page history",
+                "operationId": "getPublicStatusPageHistory",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "90d",
+                        "description": "Uptime window: 24h, 7d, 30d, or 90d",
+                        "name": "window",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "history": {
+                                                    "$ref": "#/definitions/api.StatusPagePublicHistoryResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/status/{slug}/incidents": {
             "get": {
                 "description": "Get published public incidents for a status page",
@@ -232,6 +483,75 @@ const docTemplate = `{
                                             "properties": {
                                                 "incident": {
                                                     "$ref": "#/definitions/api.StatusPagePublicIncidentResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/status/{slug}/incidents/{incident_id}/history": {
+            "get": {
+                "description": "Get published public updates for one public incident",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Get public status page incident history",
+                "operationId": "getPublicStatusPageIncidentHistory",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Public incident ID",
+                        "name": "incident_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "history": {
+                                                    "$ref": "#/definitions/api.StatusPagePublicIncidentHistoryResponse"
                                                 }
                                             }
                                         }
@@ -6447,6 +6767,9 @@ const docTemplate = `{
                 "overall_status": {
                     "type": "string"
                 },
+                "overall_status_display": {
+                    "type": "string"
+                },
                 "page": {
                     "$ref": "#/definitions/api.StatusPagePublicPageResponse"
                 },
@@ -6455,6 +6778,23 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/api.StatusPagePublicSectionResponse"
                     }
+                }
+            }
+        },
+        "api.StatusPagePublicComponentHistoryResponse": {
+            "type": "object",
+            "properties": {
+                "component": {
+                    "$ref": "#/definitions/api.StatusPagePublicComponentResponse"
+                },
+                "history": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.StatusPagePublicUptimeBucketResponse"
+                    }
+                },
+                "uptime": {
+                    "$ref": "#/definitions/api.StatusPagePublicUptimeResponse"
                 }
             }
         },
@@ -6476,8 +6816,48 @@ const docTemplate = `{
                 "status": {
                     "type": "string"
                 },
+                "status_display": {
+                    "type": "string"
+                },
                 "status_reason": {
                     "type": "string"
+                }
+            }
+        },
+        "api.StatusPagePublicHistoryResponse": {
+            "type": "object",
+            "properties": {
+                "components": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.StatusPagePublicComponentHistoryResponse"
+                    }
+                },
+                "generated_at": {
+                    "type": "string"
+                },
+                "incidents": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.StatusPagePublicIncidentResponse"
+                    }
+                },
+                "page": {
+                    "$ref": "#/definitions/api.StatusPagePublicPageResponse"
+                }
+            }
+        },
+        "api.StatusPagePublicIncidentHistoryResponse": {
+            "type": "object",
+            "properties": {
+                "incident": {
+                    "$ref": "#/definitions/api.StatusPagePublicIncidentResponse"
+                },
+                "updates": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.StatusPagePublicIncidentUpdateHistoryResponse"
+                    }
                 }
             }
         },
@@ -6509,6 +6889,23 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.StatusPagePublicIncidentUpdateHistoryResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "published_at": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 }
             }
@@ -6546,6 +6943,34 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.StatusPagePublicUptimeBucketResponse": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string"
+                },
+                "uptime_display": {
+                    "type": "string"
+                },
+                "uptime_ratio": {
+                    "type": "number"
+                }
+            }
+        },
+        "api.StatusPagePublicUptimeResponse": {
+            "type": "object",
+            "properties": {
+                "uptime_display": {
+                    "type": "string"
+                },
+                "uptime_ratio": {
+                    "type": "number"
+                },
+                "window": {
                     "type": "string"
                 }
             }

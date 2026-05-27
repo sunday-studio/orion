@@ -89,6 +89,10 @@ func (s *Server) setupRoutes() {
 
 	// Public status page routes
 	s.router.GET("/status/:slug/feed.atom", s.getStatusPageAtomFeed)
+	s.router.GET("/status/:slug/history", s.getPublicStatusPageHistory)
+	s.router.GET("/status/:slug/components/:component_id/uptime", s.getPublicStatusPageComponentUptime)
+	s.router.GET("/status/:slug/components/:component_id/history", s.getPublicStatusPageComponentHistory)
+	s.router.GET("/status/:slug/incidents/:incident_id/history", s.getPublicStatusPageIncidentHistory)
 	s.router.GET("/status/:slug/incidents/:incident_id", s.getPublicStatusPageIncident)
 	s.router.GET("/status/:slug/incidents", s.listPublicStatusPageIncidents)
 	s.router.GET("/status/:slug", s.getPublicStatusPage)

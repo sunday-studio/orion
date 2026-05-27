@@ -642,12 +642,25 @@ definitions:
         type: string
       overall_status:
         type: string
+      overall_status_display:
+        type: string
       page:
         $ref: '#/definitions/api.StatusPagePublicPageResponse'
       sections:
         items:
           $ref: '#/definitions/api.StatusPagePublicSectionResponse'
         type: array
+    type: object
+  api.StatusPagePublicComponentHistoryResponse:
+    properties:
+      component:
+        $ref: '#/definitions/api.StatusPagePublicComponentResponse'
+      history:
+        items:
+          $ref: '#/definitions/api.StatusPagePublicUptimeBucketResponse'
+        type: array
+      uptime:
+        $ref: '#/definitions/api.StatusPagePublicUptimeResponse'
     type: object
   api.StatusPagePublicComponentResponse:
     properties:
@@ -661,8 +674,34 @@ definitions:
         type: string
       status:
         type: string
+      status_display:
+        type: string
       status_reason:
         type: string
+    type: object
+  api.StatusPagePublicHistoryResponse:
+    properties:
+      components:
+        items:
+          $ref: '#/definitions/api.StatusPagePublicComponentHistoryResponse'
+        type: array
+      generated_at:
+        type: string
+      incidents:
+        items:
+          $ref: '#/definitions/api.StatusPagePublicIncidentResponse'
+        type: array
+      page:
+        $ref: '#/definitions/api.StatusPagePublicPageResponse'
+    type: object
+  api.StatusPagePublicIncidentHistoryResponse:
+    properties:
+      incident:
+        $ref: '#/definitions/api.StatusPagePublicIncidentResponse'
+      updates:
+        items:
+          $ref: '#/definitions/api.StatusPagePublicIncidentUpdateHistoryResponse'
+        type: array
     type: object
   api.StatusPagePublicIncidentResponse:
     properties:
@@ -683,6 +722,17 @@ definitions:
       severity:
         type: string
       title:
+        type: string
+    type: object
+  api.StatusPagePublicIncidentUpdateHistoryResponse:
+    properties:
+      id:
+        type: string
+      message:
+        type: string
+      published_at:
+        type: string
+      status:
         type: string
     type: object
   api.StatusPagePublicPageResponse:
@@ -707,6 +757,24 @@ definitions:
       id:
         type: string
       name:
+        type: string
+    type: object
+  api.StatusPagePublicUptimeBucketResponse:
+    properties:
+      date:
+        type: string
+      uptime_display:
+        type: string
+      uptime_ratio:
+        type: number
+    type: object
+  api.StatusPagePublicUptimeResponse:
+    properties:
+      uptime_display:
+        type: string
+      uptime_ratio:
+        type: number
+      window:
         type: string
     type: object
   api.StatusPageResponse:
@@ -1398,6 +1466,166 @@ paths:
       summary: Get public status page
       tags:
       - public-status
+  /status/{slug}/components/{component_id}/history:
+    get:
+      consumes:
+      - application/json
+      description: Get sanitized public uptime history for one visible component
+      operationId: getPublicStatusPageComponentHistory
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Public component ID
+        in: path
+        name: component_id
+        required: true
+        type: string
+      - default: 90d
+        description: 'Uptime window: 24h, 7d, 30d, or 90d'
+        in: query
+        name: window
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    component:
+                      $ref: '#/definitions/api.StatusPagePublicComponentResponse'
+                    history:
+                      items:
+                        $ref: '#/definitions/api.StatusPagePublicUptimeBucketResponse'
+                      type: array
+                    uptime:
+                      $ref: '#/definitions/api.StatusPagePublicUptimeResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get public status page component history
+      tags:
+      - public-status
+  /status/{slug}/components/{component_id}/uptime:
+    get:
+      consumes:
+      - application/json
+      description: Get a sanitized public uptime summary for one visible component
+      operationId: getPublicStatusPageComponentUptime
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Public component ID
+        in: path
+        name: component_id
+        required: true
+        type: string
+      - default: 90d
+        description: 'Uptime window: 24h, 7d, 30d, or 90d'
+        in: query
+        name: window
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    component:
+                      $ref: '#/definitions/api.StatusPagePublicComponentResponse'
+                    uptime:
+                      $ref: '#/definitions/api.StatusPagePublicUptimeResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get public status page component uptime
+      tags:
+      - public-status
+  /status/{slug}/history:
+    get:
+      consumes:
+      - application/json
+      description: Get sanitized public history for a published or unlisted status
+        page
+      operationId: getPublicStatusPageHistory
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - default: 90d
+        description: 'Uptime window: 24h, 7d, 30d, or 90d'
+        in: query
+        name: window
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    history:
+                      $ref: '#/definitions/api.StatusPagePublicHistoryResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get public status page history
+      tags:
+      - public-status
   /status/{slug}/incidents:
     get:
       consumes:
@@ -1481,6 +1709,49 @@ paths:
           schema:
             $ref: '#/definitions/utils.APIResponse'
       summary: Get public status page incident
+      tags:
+      - public-status
+  /status/{slug}/incidents/{incident_id}/history:
+    get:
+      consumes:
+      - application/json
+      description: Get published public updates for one public incident
+      operationId: getPublicStatusPageIncidentHistory
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Public incident ID
+        in: path
+        name: incident_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    history:
+                      $ref: '#/definitions/api.StatusPagePublicIncidentHistoryResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get public status page incident history
       tags:
       - public-status
   /v1/agents:

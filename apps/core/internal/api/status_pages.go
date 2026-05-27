@@ -176,11 +176,12 @@ type StatusPageDetailResponse struct {
 }
 
 type StatusPagePreviewResponse struct {
-	Page          StatusPagePublicPageResponse       `json:"page"`
-	Sections      []StatusPagePublicSectionResponse  `json:"sections"`
-	Incidents     []StatusPagePublicIncidentResponse `json:"incidents"`
-	OverallStatus string                             `json:"overall_status"`
-	LastUpdated   time.Time                          `json:"last_updated"`
+	Page                 StatusPagePublicPageResponse       `json:"page"`
+	Sections             []StatusPagePublicSectionResponse  `json:"sections"`
+	Incidents            []StatusPagePublicIncidentResponse `json:"incidents"`
+	OverallStatus        string                             `json:"overall_status"`
+	OverallStatusDisplay string                             `json:"overall_status_display"`
+	LastUpdated          time.Time                          `json:"last_updated"`
 }
 
 type StatusPagePublicPageResponse struct {
@@ -198,12 +199,13 @@ type StatusPagePublicSectionResponse struct {
 }
 
 type StatusPagePublicComponentResponse struct {
-	ID           string `json:"id"`
-	Name         string `json:"name"`
-	Description  string `json:"description,omitempty"`
-	Status       string `json:"status"`
-	StatusReason string `json:"status_reason,omitempty"`
-	DisplayMode  string `json:"display_mode"`
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	Description   string `json:"description,omitempty"`
+	Status        string `json:"status"`
+	StatusDisplay string `json:"status_display"`
+	StatusReason  string `json:"status_reason,omitempty"`
+	DisplayMode   string `json:"display_mode"`
 }
 
 type StatusPagePublicIncidentResponse struct {
@@ -1321,17 +1323,25 @@ func (s *Server) statusPageIncidentUpdates(incidentID string) ([]StatusPageIncid
 }
 
 func (s *Server) loadPublicStatusPageProjection(c *gin.Context, slug string) (StatusPagePreviewResponse, bool) {
+	detail, ok := s.loadPublicStatusPageDetail(c, slug)
+	if !ok {
+		return StatusPagePreviewResponse{}, false
+	}
+	return s.statusPagePreview(detail, false), true
+}
+
+func (s *Server) loadPublicStatusPageDetail(c *gin.Context, slug string) (StatusPageDetailResponse, bool) {
 	var page db.StatusPage
 	if err := s.db.Where("slug = ? AND visibility IN ?", strings.TrimSpace(slug), []string{statusPageVisibilityPublic, statusPageVisibilityUnlisted}).First(&page).Error; err != nil {
 		writeStatusPageLoadError(c, err, "Status page not found")
-		return StatusPagePreviewResponse{}, false
+		return StatusPageDetailResponse{}, false
 	}
 	detail, err := s.loadStatusPageDetail(page.ID)
 	if err != nil {
 		writeStatusPageLoadError(c, err, "Failed to load status page")
-		return StatusPagePreviewResponse{}, false
+		return StatusPageDetailResponse{}, false
 	}
-	return s.statusPagePreview(detail, false), true
+	return detail, true
 }
 
 func (s *Server) statusPagePreview(detail StatusPageDetailResponse, includeDraftIncidents bool) StatusPagePreviewResponse {
@@ -1345,14 +1355,7 @@ func (s *Server) statusPagePreview(detail StatusPageDetailResponse, includeDraft
 		if statusPageStatusWeight(componentStatus) > statusPageStatusWeight(overallStatus) {
 			overallStatus = componentStatus
 		}
-		componentsBySection[component.SectionID] = append(componentsBySection[component.SectionID], StatusPagePublicComponentResponse{
-			ID:           component.ID,
-			Name:         component.PublicName,
-			Description:  component.PublicDescription,
-			Status:       componentStatus,
-			StatusReason: component.ManualStatusReason,
-			DisplayMode:  component.DisplayMode,
-		})
+		componentsBySection[component.SectionID] = append(componentsBySection[component.SectionID], s.statusPagePublicComponentResponse(component, componentStatus))
 	}
 
 	sections := make([]StatusPagePublicSectionResponse, 0, len(detail.Sections))
@@ -1380,8 +1383,8 @@ func (s *Server) statusPagePreview(detail StatusPageDetailResponse, includeDraft
 			Severity:             incident.Severity,
 			ImpactSummary:        incident.ImpactSummary,
 			AffectedComponentIDs: incident.AffectedComponentIDs,
-			PublishedAt:          incident.PublishedAt,
-			ResolvedAt:           incident.ResolvedAt,
+			PublishedAt:          publicMinutePtr(incident.PublishedAt),
+			ResolvedAt:           publicMinutePtr(incident.ResolvedAt),
 		})
 	}
 
@@ -1392,10 +1395,23 @@ func (s *Server) statusPagePreview(detail StatusPageDetailResponse, includeDraft
 			Description: detail.Page.Description,
 			Visibility:  detail.Page.Visibility,
 		},
-		Sections:      sections,
-		Incidents:     incidents,
-		OverallStatus: overallStatus,
-		LastUpdated:   time.Now().UTC(),
+		Sections:             sections,
+		Incidents:            incidents,
+		OverallStatus:        overallStatus,
+		OverallStatusDisplay: publicStatusDisplay(overallStatus),
+		LastUpdated:          publicMinute(time.Now()),
+	}
+}
+
+func (s *Server) statusPagePublicComponentResponse(component StatusPageComponentResponse, status string) StatusPagePublicComponentResponse {
+	return StatusPagePublicComponentResponse{
+		ID:            component.ID,
+		Name:          component.PublicName,
+		Description:   component.PublicDescription,
+		Status:        status,
+		StatusDisplay: publicStatusDisplay(status),
+		StatusReason:  component.ManualStatusReason,
+		DisplayMode:   component.DisplayMode,
 	}
 }
 
