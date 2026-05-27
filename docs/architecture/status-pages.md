@@ -469,17 +469,26 @@ Public status routes are unauthenticated by design, so they need narrower behavi
 - Add public embeddable badges.
 - Add optional SEO and Open Graph metadata.
 
+## Decision Records
+
+Resolved status page architecture decisions are recorded in:
+
+- [Public Status Page Serving Model](status-page-decisions/public-status-page-serving-model.md)
+- [First-Release Status Page Cardinality](status-page-decisions/first-release-page-cardinality.md)
+- [Public Incident Automation Policy](status-page-decisions/public-incident-automation-policy.md)
+- [Status Page Subscription Infrastructure Reuse](status-page-decisions/subscription-infrastructure-reuse.md)
+
 ## Open Decisions
 
-- Whether public status pages should be served from Core's main binary or a separate static/public frontend bundle.
-- Whether the first release allows multiple status pages or ships with one default page.
-- Whether internal incident resolution should auto-create a draft public resolution update.
 - Whether public uptime should round to one decimal place, two decimals, or a simpler `99.9%` style.
 - Whether `unknown` should be hidden, shown as degraded, or shown as its own public state by default.
-- Whether subscriptions should reuse alert channel infrastructure or use a separate public subscriber system.
 
 ## Decision
 
 Build status pages as a publication layer over Core, not as a second monitoring system. Keep the Agent/Core contract unchanged. Store public configuration and public incident copy separately from internal incidents, then project safe public DTOs through unauthenticated status routes.
 
-The first useful release should prioritize manual control, privacy, and clear component health. Automation can come after administrators trust the publishing workflow.
+Serve public status pages from the Core main binary with a dedicated public status page bundle packaged through the existing static asset path. The first release supports one status page per Core instance while preserving plural schema, slug routes, and APIs so multiple pages can be enabled later without a data migration.
+
+Use a separate public subscriber system for status page subscriptions. Public subscriber records, tokens, preferences, deliveries, templates, and public mail credentials must stay separate from internal alert channel records and secrets. Shared transport helpers are acceptable only behind a public DTO adapter that cannot read or mutate internal alert channels.
+
+The first useful release should prioritize manual control, privacy, and clear component health. Internal incidents stay private by default; Core may draft or suggest public incident updates, but publishing remains explicit unless a later component-level trusted automation policy is enabled.
