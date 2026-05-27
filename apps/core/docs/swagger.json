@@ -7475,6 +7475,9 @@
                 "created_at": {
                     "type": "string"
                 },
+                "custom_domain": {
+                    "type": "string"
+                },
                 "default_incident_visibility": {
                     "type": "string"
                 },
@@ -7877,6 +7880,9 @@
             "type": "object",
             "properties": {
                 "canonical_url": {
+                    "type": "string"
+                },
+                "custom_domain": {
                     "type": "string"
                 },
                 "default_incident_visibility": {

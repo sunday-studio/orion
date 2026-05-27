@@ -59,6 +59,9 @@ func TestMigrateAppliesEmbeddedMigrations(t *testing.T) {
 	if !database.Migrator().HasTable(&StatusPage{}) {
 		t.Fatal("status_pages table was not created")
 	}
+	if !database.Migrator().HasColumn(&StatusPage{}, "custom_domain") {
+		t.Fatal("status_pages.custom_domain was not created")
+	}
 	if !database.Migrator().HasTable(&StatusPageSection{}) {
 		t.Fatal("status_page_sections table was not created")
 	}

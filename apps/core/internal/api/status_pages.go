@@ -29,6 +29,7 @@ const (
 
 type statusPageRequest struct {
 	Slug                      *string                `json:"slug"`
+	CustomDomain              *string                `json:"custom_domain"`
 	Title                     *string                `json:"title"`
 	Description               *string                `json:"description"`
 	SEOTitle                  *string                `json:"seo_title"`
@@ -88,6 +89,7 @@ type statusPageIncidentUpdateRequest struct {
 type StatusPageResponse struct {
 	ID                        string                 `json:"id"`
 	Slug                      string                 `json:"slug"`
+	CustomDomain              string                 `json:"custom_domain,omitempty"`
 	Title                     string                 `json:"title"`
 	Description               string                 `json:"description,omitempty"`
 	SEOTitle                  string                 `json:"seo_title,omitempty"`
@@ -320,7 +322,7 @@ func (s *Server) createStatusPage(c *gin.Context) {
 		ThemeSettings:             "{}",
 		DefaultIncidentVisibility: statusPageIncidentVisibilityDraft,
 	}
-	if err := applyStatusPageRequest(&page, request, true); err != nil {
+	if err := s.applyStatusPageRequest(&page, request, true); err != nil {
 		utils.BadRequest(c, err.Error())
 		return
 	}
@@ -383,7 +385,7 @@ func (s *Server) updateStatusPage(c *gin.Context) {
 		utils.BadRequest(c, "Invalid status page payload")
 		return
 	}
-	if err := applyStatusPageRequest(&page, request, false); err != nil {
+	if err := s.applyStatusPageRequest(&page, request, false); err != nil {
 		utils.BadRequest(c, err.Error())
 		return
 	}
@@ -517,6 +519,14 @@ func (s *Server) getPublicStatusPage(c *gin.Context) {
 	s.writePublicStatusPageJSON(c, http.StatusOK, "Status page retrieved successfully", gin.H{
 		"status_page": preview,
 	})
+}
+
+func (s *Server) getCustomDomainStatusPage(c *gin.Context) {
+	if !s.requestHostHasCustomStatusPage(c) {
+		s.serveConsole(c)
+		return
+	}
+	s.getPublicStatusPage(c)
 }
 
 // listPublicStatusPageIncidents returns published public incidents for a status page.
@@ -1351,8 +1361,8 @@ func (s *Server) loadPublicStatusPageProjection(c *gin.Context, slug string) (St
 }
 
 func (s *Server) loadPublicStatusPageDetail(c *gin.Context, slug string) (StatusPageDetailResponse, bool) {
-	var page db.StatusPage
-	if err := s.db.Where("slug = ? AND visibility IN ?", strings.TrimSpace(slug), []string{statusPageVisibilityPublic, statusPageVisibilityUnlisted}).First(&page).Error; err != nil {
+	page, err := s.loadPublicStatusPageForRequest(c, slug)
+	if err != nil {
 		writeStatusPageLoadError(c, err, "Status page not found")
 		return StatusPageDetailResponse{}, false
 	}
@@ -1362,6 +1372,35 @@ func (s *Server) loadPublicStatusPageDetail(c *gin.Context, slug string) (Status
 		return StatusPageDetailResponse{}, false
 	}
 	return detail, true
+}
+
+func (s *Server) loadPublicStatusPageForRequest(c *gin.Context, slug string) (db.StatusPage, error) {
+	normalizedSlug := strings.TrimSpace(slug)
+	if host, ok := publicStatusPageRequestHost(c); ok {
+		var hostPage db.StatusPage
+		err := s.db.
+			Where("custom_domain = ? AND visibility IN ?", host, []string{statusPageVisibilityPublic, statusPageVisibilityUnlisted}).
+			First(&hostPage).Error
+		if err == nil {
+			if normalizedSlug == "" || normalizedSlug == hostPage.Slug {
+				return hostPage, nil
+			}
+			return db.StatusPage{}, gorm.ErrRecordNotFound
+		}
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return db.StatusPage{}, err
+		}
+	}
+	if normalizedSlug == "" {
+		return db.StatusPage{}, gorm.ErrRecordNotFound
+	}
+	var page db.StatusPage
+	if err := s.db.
+		Where("slug = ? AND visibility IN ?", normalizedSlug, []string{statusPageVisibilityPublic, statusPageVisibilityUnlisted}).
+		First(&page).Error; err != nil {
+		return db.StatusPage{}, err
+	}
+	return page, nil
 }
 
 func (s *Server) statusPagePreview(detail StatusPageDetailResponse, includeDraftIncidents bool) StatusPagePreviewResponse {
@@ -1568,9 +1607,16 @@ func (s *Server) statusPageMappedResourceStatus(mapping StatusPageComponentMappi
 	}
 }
 
-func applyStatusPageRequest(page *db.StatusPage, request statusPageRequest, create bool) error {
+func (s *Server) applyStatusPageRequest(page *db.StatusPage, request statusPageRequest, create bool) error {
 	if request.Slug != nil {
 		page.Slug = normalizeSlug(*request.Slug)
+	}
+	if request.CustomDomain != nil {
+		domain, err := normalizeStatusPageCustomDomain(*request.CustomDomain)
+		if err != nil {
+			return err
+		}
+		page.CustomDomain = domain
 	}
 	if request.Title != nil {
 		page.Title = strings.TrimSpace(*request.Title)
@@ -1628,11 +1674,31 @@ func applyStatusPageRequest(page *db.StatusPage, request statusPageRequest, crea
 	if !validStatusPageIncidentVisibility(page.DefaultIncidentVisibility) {
 		return &requestValidationError{message: "unsupported default incident visibility"}
 	}
+	if page.CustomDomain != "" {
+		if err := s.ensureStatusPageCustomDomainAvailable(page.ID, page.CustomDomain); err != nil {
+			return err
+		}
+	}
 	if err := validateOptionalURL(page.OpenGraphImageURL, "open_graph_image_url"); err != nil {
 		return err
 	}
 	if err := validateOptionalURL(page.CanonicalURL, "canonical_url"); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (s *Server) ensureStatusPageCustomDomainAvailable(pageID string, domain string) error {
+	var count int64
+	query := s.db.Model(&db.StatusPage{}).Where("custom_domain = ?", domain)
+	if strings.TrimSpace(pageID) != "" {
+		query = query.Where("id <> ?", pageID)
+	}
+	if err := query.Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return &requestValidationError{message: "status page custom_domain is already in use"}
 	}
 	return nil
 }
@@ -1887,6 +1953,7 @@ func statusPageResponse(page db.StatusPage) StatusPageResponse {
 	return StatusPageResponse{
 		ID:                        page.ID,
 		Slug:                      page.Slug,
+		CustomDomain:              page.CustomDomain,
 		Title:                     page.Title,
 		Description:               page.Description,
 		SEOTitle:                  page.SEOTitle,
@@ -2005,6 +2072,97 @@ func normalizeSlug(value string) string {
 	value = strings.ToLower(strings.TrimSpace(value))
 	value = strings.ReplaceAll(value, "_", "-")
 	return value
+}
+
+func normalizeStatusPageCustomDomain(value string) (string, error) {
+	domain := strings.ToLower(strings.TrimSpace(value))
+	domain = strings.TrimSuffix(domain, ".")
+	if domain == "" {
+		return "", nil
+	}
+	if strings.Contains(domain, "://") || strings.ContainsAny(domain, "/?#") || strings.HasPrefix(domain, "*.") || strings.Contains(domain, "*") {
+		return "", &requestValidationError{message: "status page custom_domain must be a hostname without scheme, path, query, fragment, or wildcard"}
+	}
+	if host, port, err := net.SplitHostPort(domain); err == nil && strings.TrimSpace(port) != "" {
+		domain = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(host)), ".")
+	} else if strings.Contains(errHostCandidate(domain), ":") {
+		return "", &requestValidationError{message: "status page custom_domain must not be an IP address or include a path"}
+	}
+	if domain == "" || domain == "localhost" || strings.HasSuffix(domain, ".localhost") || strings.HasSuffix(domain, ".local") || strings.HasSuffix(domain, ".internal") || strings.HasSuffix(domain, ".lan") {
+		return "", &requestValidationError{message: "status page custom_domain must be a public hostname"}
+	}
+	if ip := net.ParseIP(domain); ip != nil {
+		return "", &requestValidationError{message: "status page custom_domain must not be an IP address"}
+	}
+	if !validStatusPageHostname(domain) {
+		return "", &requestValidationError{message: "status page custom_domain must be a valid hostname"}
+	}
+	return domain, nil
+}
+
+func errHostCandidate(value string) string {
+	if strings.HasPrefix(value, "[") && strings.Contains(value, "]") {
+		return strings.Trim(value, "[]")
+	}
+	return value
+}
+
+func validStatusPageHostname(value string) bool {
+	if len(value) > 253 || strings.HasPrefix(value, ".") || strings.HasSuffix(value, ".") || !strings.Contains(value, ".") {
+		return false
+	}
+	labels := strings.Split(value, ".")
+	for _, label := range labels {
+		if label == "" || len(label) > 63 || strings.HasPrefix(label, "-") || strings.HasSuffix(label, "-") {
+			return false
+		}
+		for _, r := range label {
+			if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
+				continue
+			}
+			return false
+		}
+	}
+	return true
+}
+
+func publicStatusPageRequestHost(c *gin.Context) (string, bool) {
+	host, err := normalizePublicStatusPageRequestHost(c.Request.Host)
+	if err != nil || host == "" {
+		return "", false
+	}
+	return host, true
+}
+
+func normalizePublicStatusPageRequestHost(value string) (string, error) {
+	host := strings.ToLower(strings.TrimSpace(value))
+	host = strings.TrimSuffix(host, ".")
+	if host == "" {
+		return "", nil
+	}
+	if parsedHost, _, err := net.SplitHostPort(host); err == nil {
+		host = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(parsedHost)), ".")
+	}
+	domain, err := normalizeStatusPageCustomDomain(host)
+	if err != nil {
+		return "", err
+	}
+	return domain, nil
+}
+
+func (s *Server) requestHostHasCustomStatusPage(c *gin.Context) bool {
+	host, ok := publicStatusPageRequestHost(c)
+	if !ok {
+		return false
+	}
+	var count int64
+	if err := s.db.Model(&db.StatusPage{}).
+		Where("custom_domain = ? AND visibility IN ?", host, []string{statusPageVisibilityPublic, statusPageVisibilityUnlisted}).
+		Count(&count).Error; err != nil {
+		s.logger.Error("Failed to check status page custom domain", "host", host, "error", err)
+		return false
+	}
+	return count > 0
 }
 
 func validSlug(value string) bool {

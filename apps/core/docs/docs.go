@@ -7481,6 +7481,9 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "custom_domain": {
+                    "type": "string"
+                },
                 "default_incident_visibility": {
                     "type": "string"
                 },
@@ -7883,6 +7886,9 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "canonical_url": {
+                    "type": "string"
+                },
+                "custom_domain": {
                     "type": "string"
                 },
                 "default_incident_visibility": {

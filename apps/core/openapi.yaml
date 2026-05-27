@@ -811,6 +811,8 @@ definitions:
         type: string
       created_at:
         type: string
+      custom_domain:
+        type: string
       default_incident_visibility:
         type: string
       description:
@@ -1075,6 +1077,8 @@ definitions:
   api.statusPageRequest:
     properties:
       canonical_url:
+        type: string
+      custom_domain:
         type: string
       default_incident_visibility:
         type: string

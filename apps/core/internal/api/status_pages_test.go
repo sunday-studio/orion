@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -718,6 +719,140 @@ func TestPublicStatusPageMetadataDoesNotUseMappedInternalResources(t *testing.T)
 	}
 }
 
+func TestStatusPageCustomDomainValidationAndConflict(t *testing.T) {
+	server := setupTestServer(t)
+
+	createResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages", gin.H{
+		"slug":          "domain-status",
+		"title":         "Domain Status",
+		"custom_domain": "Status.Example.COM:443",
+	}, "")
+	if createResp.Code != http.StatusCreated {
+		t.Fatalf("create status page status = %d, body = %s", createResp.Code, createResp.Body.String())
+	}
+	var created struct {
+		Data struct {
+			Page struct {
+				ID           string `json:"id"`
+				CustomDomain string `json:"custom_domain"`
+			} `json:"page"`
+		} `json:"data"`
+	}
+	decodeResponse(t, createResp, &created)
+	if created.Data.Page.CustomDomain != "status.example.com" {
+		t.Fatalf("custom_domain = %q, want status.example.com", created.Data.Page.CustomDomain)
+	}
+
+	secondResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages", gin.H{
+		"slug":  "second-domain-status",
+		"title": "Second Domain Status",
+	}, "")
+	if secondResp.Code != http.StatusCreated {
+		t.Fatalf("create second page status = %d, body = %s", secondResp.Code, secondResp.Body.String())
+	}
+	var second struct {
+		Data struct {
+			Page struct {
+				ID string `json:"id"`
+			} `json:"page"`
+		} `json:"data"`
+	}
+	decodeResponse(t, secondResp, &second)
+
+	conflictResp := performJSONRequest(t, server, http.MethodPut, "/v1/status-pages/"+second.Data.Page.ID, gin.H{
+		"slug":          "second-domain-status",
+		"title":         "Second Domain Status",
+		"custom_domain": "status.example.com",
+	}, "")
+	if conflictResp.Code != http.StatusBadRequest {
+		t.Fatalf("conflict status = %d, body = %s, want 400", conflictResp.Code, conflictResp.Body.String())
+	}
+	assertContains(t, conflictResp.Body.String(), "already in use")
+
+	invalidDomains := []string{
+		"localhost",
+		"127.0.0.1",
+		"*.example.com",
+		"https://status.example.com/path",
+		"status",
+		"status.local",
+	}
+	for i, domain := range invalidDomains {
+		resp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages", gin.H{
+			"slug":          fmt.Sprintf("invalid-domain-%d", i),
+			"title":         fmt.Sprintf("Invalid Domain %d", i),
+			"custom_domain": domain,
+		}, "")
+		if resp.Code != http.StatusBadRequest {
+			t.Fatalf("domain %q status = %d, body = %s, want 400", domain, resp.Code, resp.Body.String())
+		}
+	}
+}
+
+func TestStatusPageCustomDomainHostRoutingAndIsolation(t *testing.T) {
+	server := setupTestServer(t)
+	now := time.Now().UTC()
+	pages := []db.StatusPage{
+		{
+			ID:                        "status_page_custom_public",
+			Slug:                      "custom-public",
+			CustomDomain:              "status.example.com",
+			Title:                     "Custom Public",
+			Visibility:                statusPageVisibilityPublic,
+			ThemeSettings:             "{}",
+			DefaultIncidentVisibility: statusPageIncidentVisibilityDraft,
+			PublishedAt:               &now,
+		},
+		{
+			ID:                        "status_page_other_public",
+			Slug:                      "other-public",
+			CustomDomain:              "other.example.com",
+			Title:                     "Other Public",
+			Visibility:                statusPageVisibilityPublic,
+			ThemeSettings:             "{}",
+			DefaultIncidentVisibility: statusPageIncidentVisibilityDraft,
+			PublishedAt:               &now,
+		},
+		{
+			ID:                        "status_page_custom_draft",
+			Slug:                      "custom-draft",
+			CustomDomain:              "draft.example.com",
+			Title:                     "Custom Draft",
+			Visibility:                statusPageVisibilityDraft,
+			ThemeSettings:             "{}",
+			DefaultIncidentVisibility: statusPageIncidentVisibilityDraft,
+		},
+	}
+	if err := server.db.Create(&pages).Error; err != nil {
+		t.Fatalf("seed status pages: %v", err)
+	}
+
+	publicResp := performHostRequest(t, server, http.MethodGet, "/", "STATUS.EXAMPLE.COM:443")
+	if publicResp.Code != http.StatusOK {
+		t.Fatalf("custom host status = %d, body = %s", publicResp.Code, publicResp.Body.String())
+	}
+	assertContains(t, publicResp.Body.String(), "Custom Public")
+	assertNotContains(t, publicResp.Body.String(), "Other Public")
+	assertNotContains(t, publicResp.Body.String(), "Custom Draft")
+
+	otherSlugOnCustomHostResp := performHostRequest(t, server, http.MethodGet, "/status/other-public", "status.example.com")
+	if otherSlugOnCustomHostResp.Code != http.StatusNotFound {
+		t.Fatalf("other slug on custom host status = %d, body = %s, want 404", otherSlugOnCustomHostResp.Code, otherSlugOnCustomHostResp.Body.String())
+	}
+
+	draftResp := performHostRequest(t, server, http.MethodGet, "/", "draft.example.com")
+	if draftResp.Code != http.StatusNotFound {
+		t.Fatalf("draft custom host status = %d, body = %s, want 404", draftResp.Code, draftResp.Body.String())
+	}
+
+	feedResp := performHostRequest(t, server, http.MethodGet, "/feed.atom", "status.example.com")
+	if feedResp.Code != http.StatusOK {
+		t.Fatalf("custom feed status = %d, body = %s", feedResp.Code, feedResp.Body.String())
+	}
+	assertContains(t, feedResp.Body.String(), "http://status.example.com")
+	assertNotContains(t, feedResp.Body.String(), "/status/custom-public")
+}
+
 func TestStatusPagePublishValidation(t *testing.T) {
 	server := setupTestServer(t)
 
@@ -772,6 +907,16 @@ func TestStatusPagePublishValidation(t *testing.T) {
 	}
 	assertContains(t, unmappedPublishResp.Body.String(), "mapped resource or manual status")
 	assertContains(t, unmappedPublishResp.Body.String(), "looks like an internal host")
+}
+
+func performHostRequest(t *testing.T, server *Server, method string, path string, host string) *httptest.ResponseRecorder {
+	t.Helper()
+
+	req := httptest.NewRequest(method, path, nil)
+	req.Host = host
+	recorder := httptest.NewRecorder()
+	server.router.ServeHTTP(recorder, req)
+	return recorder
 }
 
 func setupStatusPageAuthTestServer(t *testing.T) *Server {

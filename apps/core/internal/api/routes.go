@@ -88,6 +88,8 @@ func (s *Server) setupRoutes() {
 	s.router.GET("/health", s.healthCheck)
 
 	// Public status page routes
+	s.router.GET("/", s.getCustomDomainStatusPage)
+	s.router.GET("/feed.atom", s.getCustomDomainStatusPageAtomFeed)
 	s.router.GET("/status/:slug/feed.atom", s.getStatusPageAtomFeed)
 	s.router.GET("/status/:slug/badge.svg", s.getPublicStatusPageBadge)
 	s.router.GET("/status/:slug/history", s.getPublicStatusPageHistory)

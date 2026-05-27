@@ -47,24 +47,40 @@ type atomText struct {
 
 func (s *Server) getStatusPageAtomFeed(c *gin.Context) {
 	slug := strings.TrimSpace(c.Param("slug"))
-	if slug == "" {
-		utils.NotFound(c, "Status page not found")
+	page, ok := s.loadStatusPageFeedPage(c, slug)
+	if !ok {
 		return
 	}
+	s.writeStatusPageAtomFeed(c, page)
+}
 
-	var page db.StatusPage
-	if err := s.db.
-		Where("slug = ? AND visibility IN ?", slug, []string{"public", "unlisted"}).
-		First(&page).Error; err != nil {
+func (s *Server) getCustomDomainStatusPageAtomFeed(c *gin.Context) {
+	if !s.requestHostHasCustomStatusPage(c) {
+		s.serveConsole(c)
+		return
+	}
+	page, ok := s.loadStatusPageFeedPage(c, "")
+	if !ok {
+		return
+	}
+	s.writeStatusPageAtomFeed(c, page)
+}
+
+func (s *Server) loadStatusPageFeedPage(c *gin.Context, slug string) (db.StatusPage, bool) {
+	page, err := s.loadPublicStatusPageForRequest(c, slug)
+	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			utils.NotFound(c, "Status page not found")
-			return
+			return db.StatusPage{}, false
 		}
 		s.logger.Error("Failed to load status page feed", "slug", slug, "error", err)
 		utils.InternalError(c, "Failed to load status page feed", err)
-		return
+		return db.StatusPage{}, false
 	}
+	return page, true
+}
 
+func (s *Server) writeStatusPageAtomFeed(c *gin.Context, page db.StatusPage) {
 	var incidents []db.StatusPageIncident
 	if err := s.db.
 		Where("status_page_id = ? AND visibility = ? AND published_at IS NOT NULL", page.ID, "published").
@@ -165,6 +181,9 @@ func statusPagePublicURL(c *gin.Context, page db.StatusPage) string {
 	}
 
 	host := c.Request.Host
+	if requestHost, ok := publicStatusPageRequestHost(c); ok && requestHost == page.CustomDomain {
+		return fmt.Sprintf("%s://%s", scheme, host)
+	}
 	return fmt.Sprintf("%s://%s/status/%s", scheme, host, url.PathEscape(page.Slug))
 }
 
