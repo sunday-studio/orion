@@ -76,6 +76,14 @@ func (s *Server) enqueueStatusPageSubscriberIncidentUpdateDeliveries(tx *gorm.DB
 		if err := tx.Create(&delivery).Error; err != nil {
 			return err
 		}
+		if err := tx.Model(&db.StatusPageSubscriber{}).
+			Where("id = ?", subscriber.ID).
+			Updates(map[string]interface{}{
+				"last_delivery_status": statusPageSubscriberDeliveryStatePendingSenderConfig,
+				"last_delivery_at":     now,
+			}).Error; err != nil {
+			return err
+		}
 	}
 	return nil
 }

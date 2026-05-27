@@ -11,6 +11,7 @@ import (
 	"orion/core/internal/utils"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func TestStatusPageSubscriberFanoutWritesSafeLedgerRowsForConfirmedMatches(t *testing.T) {
@@ -75,6 +76,19 @@ func TestStatusPageSubscriberFanoutWritesSafeLedgerRowsForConfirmedMatches(t *te
 			}
 		}
 	}
+
+	var updatedSubscribers []db.StatusPageSubscriber
+	if err := server.db.Where("id IN ?", []string{allComponentsSubscriber.ID, scopedSubscriber.ID}).Find(&updatedSubscribers).Error; err != nil {
+		t.Fatalf("load updated subscribers: %v", err)
+	}
+	if len(updatedSubscribers) != 2 {
+		t.Fatalf("updated subscribers = %+v, want two matching subscribers", updatedSubscribers)
+	}
+	for _, subscriber := range updatedSubscribers {
+		if subscriber.LastDeliveryStatus != statusPageSubscriberDeliveryStatePendingSenderConfig || subscriber.LastDeliveryAt == nil {
+			t.Fatalf("subscriber delivery status = %+v, want pending sender configuration timestamp", subscriber)
+		}
+	}
 }
 
 func TestStatusPageSubscriberFanoutDoesNotNotifyHiddenOnlyIncidents(t *testing.T) {
@@ -92,6 +106,56 @@ func TestStatusPageSubscriberFanoutDoesNotNotifyHiddenOnlyIncidents(t *testing.T
 	}
 	if count != 0 {
 		t.Fatalf("deliveries count = %d, want none for hidden-only affected components", count)
+	}
+}
+
+func TestStatusPageSubscriberFanoutRequiresPublishedPageAndUpdate(t *testing.T) {
+	server := setupTestServer(t)
+	page, apiComponent, _ := createPublishedStatusPageForSubscriberTest(t, server, "fanout-publication-status")
+	seedStatusPageSubscriberForTest(t, server, page.ID, "published@example.com", statusPageSubscriberStateConfirmed, "confirm-published", "manage-published", "unsubscribe-published", nil)
+
+	draftIncidentID := createStatusPageIncidentForFanoutTest(t, server, page.ID, []string{apiComponent.ID})
+	createDraftStatusPageIncidentUpdateForFanoutTest(t, server, page.ID, draftIncidentID, "Draft update should not fan out")
+	assertStatusPageSubscriberDeliveryCount(t, server, 0)
+
+	if err := server.db.Model(&db.StatusPage{}).Where("id = ?", page.ID).Updates(map[string]interface{}{
+		"visibility":   statusPageVisibilityDraft,
+		"published_at": nil,
+	}).Error; err != nil {
+		t.Fatalf("unpublish fanout page: %v", err)
+	}
+	unpublishedIncidentID := createStatusPageIncidentForFanoutTest(t, server, page.ID, []string{apiComponent.ID})
+	createPublishedStatusPageIncidentUpdateForFanoutTest(t, server, page.ID, unpublishedIncidentID, "Unpublished page update should not fan out")
+	assertStatusPageSubscriberDeliveryCount(t, server, 0)
+}
+
+func TestStatusPageSubscriberFanoutDeduplicatesIncidentUpdateDeliveries(t *testing.T) {
+	server := setupTestServer(t)
+	page, apiComponent, _ := createPublishedStatusPageForSubscriberTest(t, server, "fanout-dedupe-status")
+	subscriber := seedStatusPageSubscriberForTest(t, server, page.ID, "dedupe@example.com", statusPageSubscriberStateConfirmed, "confirm-dedupe", "manage-dedupe", "unsubscribe-dedupe", []string{apiComponent.ID})
+	incidentID := createStatusPageIncidentForFanoutTest(t, server, page.ID, []string{apiComponent.ID})
+	updateID := createPublishedStatusPageIncidentUpdateForFanoutTest(t, server, page.ID, incidentID, "Published once")
+
+	var incident db.StatusPageIncident
+	if err := server.db.Where("id = ?", incidentID).First(&incident).Error; err != nil {
+		t.Fatalf("load public incident: %v", err)
+	}
+	var update db.StatusPageIncidentUpdate
+	if err := server.db.Where("id = ?", updateID).First(&update).Error; err != nil {
+		t.Fatalf("load public incident update: %v", err)
+	}
+	if err := server.db.Transaction(func(tx *gorm.DB) error {
+		return server.enqueueStatusPageSubscriberIncidentUpdateDeliveries(tx, incident, update)
+	}); err != nil {
+		t.Fatalf("re-enqueue fanout: %v", err)
+	}
+
+	var deliveries []db.StatusPageSubscriberDelivery
+	if err := server.db.Where("subscriber_id = ?", subscriber.ID).Find(&deliveries).Error; err != nil {
+		t.Fatalf("load dedupe deliveries: %v", err)
+	}
+	if len(deliveries) != 1 {
+		t.Fatalf("deliveries = %+v, want one deduplicated delivery", deliveries)
 	}
 }
 
@@ -139,6 +203,30 @@ func createStatusPageIncidentForFanoutTest(t *testing.T, server *Server, pageID 
 	return created.Data.Incident.ID
 }
 
+func createDraftStatusPageIncidentUpdateForFanoutTest(t *testing.T, server *Server, pageID string, incidentID string, message string) string {
+	t.Helper()
+	resp := performJSONRequest(t, server, http.MethodPost, fmt.Sprintf("/v1/status-pages/%s/incidents/%s/updates", pageID, incidentID), gin.H{
+		"status":     "identified",
+		"message":    message,
+		"created_by": "ops",
+	}, "")
+	if resp.Code != http.StatusCreated {
+		t.Fatalf("create draft public incident update status = %d, body = %s", resp.Code, resp.Body.String())
+	}
+	var created struct {
+		Data struct {
+			Update struct {
+				ID string `json:"id"`
+			} `json:"update"`
+		} `json:"data"`
+	}
+	decodeResponse(t, resp, &created)
+	if created.Data.Update.ID == "" {
+		t.Fatalf("created draft incident update response missing ID: %s", resp.Body.String())
+	}
+	return created.Data.Update.ID
+}
+
 func createPublishedStatusPageIncidentUpdateForFanoutTest(t *testing.T, server *Server, pageID string, incidentID string, message string) string {
 	t.Helper()
 	resp := performJSONRequest(t, server, http.MethodPost, fmt.Sprintf("/v1/status-pages/%s/incidents/%s/updates", pageID, incidentID), gin.H{
@@ -162,4 +250,15 @@ func createPublishedStatusPageIncidentUpdateForFanoutTest(t *testing.T, server *
 		t.Fatalf("created incident update response missing ID: %s", resp.Body.String())
 	}
 	return created.Data.Update.ID
+}
+
+func assertStatusPageSubscriberDeliveryCount(t *testing.T, server *Server, expected int64) {
+	t.Helper()
+	var count int64
+	if err := server.db.Model(&db.StatusPageSubscriberDelivery{}).Count(&count).Error; err != nil {
+		t.Fatalf("count subscriber deliveries: %v", err)
+	}
+	if count != expected {
+		t.Fatalf("deliveries count = %d, want %d", count, expected)
+	}
 }
