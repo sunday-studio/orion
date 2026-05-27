@@ -3,7 +3,9 @@ package worker
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
+	"net"
 	"net/http"
 	"orion/core/internal/db"
 	"orion/core/internal/logging"
@@ -281,6 +283,133 @@ func TestRunDueChecksStoresDownReportForInvalidConfig(t *testing.T) {
 	}
 }
 
+func TestRunDueChecksStoresUpReportForTCPConnection(t *testing.T) {
+	database := openWorkerMigratedTestDatabase(t)
+	var dialedNetwork, dialedAddress string
+	tcpDialContext := func(ctx context.Context, network string, address string) (net.Conn, error) {
+		dialedNetwork = network
+		dialedAddress = address
+		return fakeNetConn{}, nil
+	}
+
+	insertWorkerCoreOwner(t, database)
+	insertWorkerMonitor(t, database, "monitor-tcp-up")
+	insertWorkerCoreMonitorConfig(t, database, db.CoreMonitorConfig{
+		MonitorID:       "monitor-tcp-up",
+		Kind:            "tcp",
+		ConfigJSON:      `{"host":"example.com","port":443}`,
+		IntervalSeconds: 60,
+		TimeoutSeconds:  5,
+		NextRunAt:       time.Now().UTC().Add(-time.Minute),
+	})
+
+	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-tcp-test", TCPDialContext: tcpDialContext})
+	if err := app.runDueChecks(context.Background()); err != nil {
+		t.Fatalf("runDueChecks() error = %v", err)
+	}
+	if dialedNetwork != "tcp" || dialedAddress != "example.com:443" {
+		t.Fatalf("dial target = %s %s, want tcp example.com:443", dialedNetwork, dialedAddress)
+	}
+
+	report := loadWorkerMonitorReport(t, database, "monitor-tcp-up")
+	if report.Health != "up" {
+		t.Fatalf("report health = %q, want up", report.Health)
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
+		t.Fatalf("unmarshal report payload: %v", err)
+	}
+	if payload["type"] != "tcp" || payload["host"] != "example.com" || payload["port"].(float64) != 443 || payload["ok"] != true {
+		t.Fatalf("payload = %+v, want tcp success payload", payload)
+	}
+
+	completed := loadWorkerCoreMonitorConfig(t, database, "monitor-tcp-up")
+	if completed.LastSuccessAt == nil || completed.LastFailureAt != nil || completed.LeaseOwner != "" {
+		t.Fatalf("completed config = %+v, want successful TCP completion", completed)
+	}
+}
+
+func TestRunDueChecksStoresDownReportForTCPRefusedConnection(t *testing.T) {
+	database := openWorkerMigratedTestDatabase(t)
+
+	insertWorkerCoreOwner(t, database)
+	insertWorkerMonitor(t, database, "monitor-tcp-refused")
+	insertWorkerCoreMonitorConfig(t, database, db.CoreMonitorConfig{
+		MonitorID:       "monitor-tcp-refused",
+		Kind:            "tcp_port",
+		ConfigJSON:      `{"host":"127.0.0.1","port":65535}`,
+		IntervalSeconds: 60,
+		TimeoutSeconds:  5,
+		NextRunAt:       time.Now().UTC().Add(-time.Minute),
+	})
+
+	app := NewApp(database, logging.NewLogger(), Options{
+		WorkerID: "worker-tcp-test",
+		TCPDialContext: func(ctx context.Context, network string, address string) (net.Conn, error) {
+			return nil, errors.New("connect: connection refused")
+		},
+	})
+	if err := app.runDueChecks(context.Background()); err != nil {
+		t.Fatalf("runDueChecks() error = %v", err)
+	}
+
+	assertTCPFailurePayload(t, database, "monitor-tcp-refused", "connect")
+}
+
+func TestRunDueChecksStoresDownReportForTCPDNSFailure(t *testing.T) {
+	database := openWorkerMigratedTestDatabase(t)
+
+	insertWorkerCoreOwner(t, database)
+	insertWorkerMonitor(t, database, "monitor-tcp-dns")
+	insertWorkerCoreMonitorConfig(t, database, db.CoreMonitorConfig{
+		MonitorID:       "monitor-tcp-dns",
+		Kind:            "tcp",
+		ConfigJSON:      `{"host":"missing.example.invalid","port":443}`,
+		IntervalSeconds: 60,
+		TimeoutSeconds:  5,
+		NextRunAt:       time.Now().UTC().Add(-time.Minute),
+	})
+
+	app := NewApp(database, logging.NewLogger(), Options{
+		WorkerID: "worker-tcp-test",
+		TCPDialContext: func(ctx context.Context, network string, address string) (net.Conn, error) {
+			return nil, &net.DNSError{Name: "missing.example.invalid", Err: "no such host"}
+		},
+	})
+	if err := app.runDueChecks(context.Background()); err != nil {
+		t.Fatalf("runDueChecks() error = %v", err)
+	}
+
+	assertTCPFailurePayload(t, database, "monitor-tcp-dns", "dns")
+}
+
+func TestRunDueChecksStoresDownReportForTCPTimeout(t *testing.T) {
+	database := openWorkerMigratedTestDatabase(t)
+
+	insertWorkerCoreOwner(t, database)
+	insertWorkerMonitor(t, database, "monitor-tcp-timeout")
+	insertWorkerCoreMonitorConfig(t, database, db.CoreMonitorConfig{
+		MonitorID:       "monitor-tcp-timeout",
+		Kind:            "tcp",
+		ConfigJSON:      `{"host":"10.0.0.1","port":443}`,
+		IntervalSeconds: 60,
+		TimeoutSeconds:  1,
+		NextRunAt:       time.Now().UTC().Add(-time.Minute),
+	})
+
+	app := NewApp(database, logging.NewLogger(), Options{
+		WorkerID: "worker-tcp-test",
+		TCPDialContext: func(ctx context.Context, network string, address string) (net.Conn, error) {
+			return nil, timeoutTestError{}
+		},
+	})
+	if err := app.runDueChecks(context.Background()); err != nil {
+		t.Fatalf("runDueChecks() error = %v", err)
+	}
+
+	assertTCPFailurePayload(t, database, "monitor-tcp-timeout", "timeout")
+}
+
 func openWorkerTestDatabase(t *testing.T) *gorm.DB {
 	t.Helper()
 	database, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
@@ -395,3 +524,46 @@ func workerHTTPResponse(statusCode int, body ...string) *http.Response {
 		Header:     make(http.Header),
 	}
 }
+
+func assertTCPFailurePayload(t *testing.T, database *gorm.DB, monitorID string, failureStage string) {
+	t.Helper()
+
+	report := loadWorkerMonitorReport(t, database, monitorID)
+	if report.Health != "down" {
+		t.Fatalf("report health = %q, want down", report.Health)
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
+		t.Fatalf("unmarshal report payload: %v", err)
+	}
+	if payload["type"] != "tcp" || payload["failure_stage"] != failureStage || payload["ok"] != false {
+		t.Fatalf("payload = %+v, want tcp %s failure", payload, failureStage)
+	}
+
+	completed := loadWorkerCoreMonitorConfig(t, database, monitorID)
+	if completed.LastFailureAt == nil || completed.LastSuccessAt != nil || completed.LeaseOwner != "" {
+		t.Fatalf("completed config = %+v, want failed TCP completion", completed)
+	}
+}
+
+type fakeNetConn struct{}
+
+func (fakeNetConn) Read(b []byte) (int, error)         { return 0, io.EOF }
+func (fakeNetConn) Write(b []byte) (int, error)        { return len(b), nil }
+func (fakeNetConn) Close() error                       { return nil }
+func (fakeNetConn) LocalAddr() net.Addr                { return fakeNetAddr("local") }
+func (fakeNetConn) RemoteAddr() net.Addr               { return fakeNetAddr("remote") }
+func (fakeNetConn) SetDeadline(t time.Time) error      { return nil }
+func (fakeNetConn) SetReadDeadline(t time.Time) error  { return nil }
+func (fakeNetConn) SetWriteDeadline(t time.Time) error { return nil }
+
+type fakeNetAddr string
+
+func (a fakeNetAddr) Network() string { return string(a) }
+func (a fakeNetAddr) String() string  { return string(a) }
+
+type timeoutTestError struct{}
+
+func (timeoutTestError) Error() string   { return "dial timeout" }
+func (timeoutTestError) Timeout() bool   { return true }
+func (timeoutTestError) Temporary() bool { return true }
