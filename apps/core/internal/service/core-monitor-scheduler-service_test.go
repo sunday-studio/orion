@@ -150,6 +150,51 @@ func TestClaimDueCoreMonitorConfigsSkipsPausedAndInactiveMonitors(t *testing.T) 
 	}
 }
 
+func TestClaimDueCoreMonitorConfigsClaimsResumedMonitor(t *testing.T) {
+	database := openCoreMonitorSchedulerTestDatabase(t)
+	now := time.Date(2026, 5, 27, 10, 0, 0, 0, time.UTC)
+	insertCoreMonitorSchedulerAgent(t, database, "agent-core")
+	insertCoreMonitorSchedulerMonitor(t, database, "monitor-resumed", "agent-core", "active")
+	insertCoreMonitorSchedulerConfig(t, database, db.CoreMonitorConfig{
+		MonitorID:       "monitor-resumed",
+		Kind:            "http",
+		IntervalSeconds: 60,
+		TimeoutSeconds:  10,
+		Paused:          true,
+		NextRunAt:       now.Add(-time.Minute),
+	})
+
+	service := NewCoreMonitorSchedulerService(database, logging.NewLogger())
+	pausedClaim, err := service.ClaimDueCoreMonitorConfigs(ClaimDueCoreMonitorConfigsRequest{
+		LeaseOwner: "worker-paused",
+		Now:        now,
+	})
+	if err != nil {
+		t.Fatalf("paused ClaimDueCoreMonitorConfigs() error = %v", err)
+	}
+	if len(pausedClaim) != 0 {
+		t.Fatalf("paused claimed = %+v, want no claim", pausedClaim)
+	}
+
+	if err := database.Model(&db.CoreMonitorConfig{}).
+		Where("monitor_id = ?", "monitor-resumed").
+		Update("paused", false).Error; err != nil {
+		t.Fatalf("resume monitor: %v", err)
+	}
+
+	resumedClaim, err := service.ClaimDueCoreMonitorConfigs(ClaimDueCoreMonitorConfigsRequest{
+		LeaseOwner:    "worker-resumed",
+		LeaseDuration: time.Minute,
+		Now:           now,
+	})
+	if err != nil {
+		t.Fatalf("resumed ClaimDueCoreMonitorConfigs() error = %v", err)
+	}
+	if len(resumedClaim) != 1 || resumedClaim[0].MonitorID != "monitor-resumed" || resumedClaim[0].LeaseOwner != "worker-resumed" {
+		t.Fatalf("resumed claimed = %+v, want monitor-resumed leased by worker-resumed", resumedClaim)
+	}
+}
+
 func TestCompleteCoreMonitorCheckSchedulesNextRunAndClearsLease(t *testing.T) {
 	database := openCoreMonitorSchedulerTestDatabase(t)
 	now := time.Date(2026, 5, 27, 10, 0, 0, 0, time.UTC)
