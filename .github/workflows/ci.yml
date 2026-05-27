@@ -130,6 +130,12 @@ jobs:
         with:
           node-version: 22
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/core/go.mod
+          cache-dependency-path: apps/core/go.sum
+
       - name: Set up pnpm
         run: |
           corepack enable
@@ -141,6 +147,14 @@ jobs:
 
       - name: Build Console
         run: pnpm run build
+        working-directory: apps/console
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+        working-directory: apps/console
+
+      - name: Browser smoke
+        run: pnpm run test:e2e
         working-directory: apps/console
 
   generated-contracts:
