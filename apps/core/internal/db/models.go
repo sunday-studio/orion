@@ -181,6 +181,27 @@ type MonitorUptimeRollup struct {
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
+type CoreMonitorConfig struct {
+	MonitorID                 string     `json:"monitor_id" gorm:"primaryKey"`
+	Kind                      string     `json:"kind" gorm:"not null;index:idx_core_monitor_configs_kind"`
+	ConfigJSON                string     `json:"config_json" gorm:"type:text;not null;default:'{}'"`
+	SecretRefJSON             string     `json:"secret_ref_json" gorm:"type:text;not null;default:'{}'"`
+	IntervalSeconds           int        `json:"interval_seconds" gorm:"not null;default:60"`
+	TimeoutSeconds            int        `json:"timeout_seconds" gorm:"not null;default:10"`
+	ConfirmationPeriodSeconds int        `json:"confirmation_period_seconds" gorm:"not null;default:0"`
+	RecoveryPeriodSeconds     int        `json:"recovery_period_seconds" gorm:"not null;default:0"`
+	Paused                    bool       `json:"paused" gorm:"not null;default:false;index:idx_core_monitor_configs_due"`
+	NextRunAt                 time.Time  `json:"next_run_at" gorm:"not null;index:idx_core_monitor_configs_due"`
+	LastRunAt                 *time.Time `json:"last_run_at"`
+	LastSuccessAt             *time.Time `json:"last_success_at"`
+	LastFailureAt             *time.Time `json:"last_failure_at"`
+	LeaseOwner                string     `json:"lease_owner" gorm:"not null;default:'';index:idx_core_monitor_configs_lease_owner"`
+	LeaseExpiresAt            *time.Time `json:"lease_expires_at" gorm:"index:idx_core_monitor_configs_due;index:idx_core_monitor_configs_lease_expires_at"`
+	CreatedAt                 time.Time  `json:"created_at"`
+	UpdatedAt                 time.Time  `json:"updated_at"`
+	Monitor                   Monitor    `json:"monitor,omitempty" gorm:"foreignKey:MonitorID;references:ID"`
+}
+
 type Incident struct {
 	ID                 string     `json:"id" gorm:"primaryKey;type:varchar(255)"`
 	Status             string     `json:"status" gorm:"not null;index:idx_incidents_status"` // open | acknowledged | resolved
