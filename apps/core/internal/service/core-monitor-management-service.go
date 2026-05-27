@@ -36,6 +36,7 @@ type CoreManagedMonitorCreateRequest struct {
 	IntervalSeconds           int                    `json:"interval_seconds,omitempty"`
 	TimeoutSeconds            int                    `json:"timeout_seconds,omitempty"`
 	ConfirmationPeriodSeconds int                    `json:"confirmation_period_seconds,omitempty"`
+	ConfirmationCheckCount    int                    `json:"confirmation_check_count,omitempty"`
 	RecoveryPeriodSeconds     int                    `json:"recovery_period_seconds,omitempty"`
 	Paused                    bool                   `json:"paused,omitempty"`
 }
@@ -50,6 +51,7 @@ type CoreManagedMonitorUpdateRequest struct {
 	IntervalSeconds           *int                   `json:"interval_seconds,omitempty"`
 	TimeoutSeconds            *int                   `json:"timeout_seconds,omitempty"`
 	ConfirmationPeriodSeconds *int                   `json:"confirmation_period_seconds,omitempty"`
+	ConfirmationCheckCount    *int                   `json:"confirmation_check_count,omitempty"`
 	RecoveryPeriodSeconds     *int                   `json:"recovery_period_seconds,omitempty"`
 	Paused                    *bool                  `json:"paused,omitempty"`
 }
@@ -150,6 +152,7 @@ func (s *CoreMonitorManagementService) CreateCoreMonitor(req CoreManagedMonitorC
 			IntervalSeconds:           interval,
 			TimeoutSeconds:            timeout,
 			ConfirmationPeriodSeconds: nonNegative(req.ConfirmationPeriodSeconds),
+			ConfirmationCheckCount:    nonNegative(req.ConfirmationCheckCount),
 			RecoveryPeriodSeconds:     nonNegative(req.RecoveryPeriodSeconds),
 			Paused:                    req.Paused,
 			NextRunAt:                 nextRunAt,
@@ -281,6 +284,9 @@ func (s *CoreMonitorManagementService) UpdateCoreMonitor(monitorID string, req C
 		}
 		if req.ConfirmationPeriodSeconds != nil {
 			configUpdates["confirmation_period_seconds"] = nonNegative(*req.ConfirmationPeriodSeconds)
+		}
+		if req.ConfirmationCheckCount != nil {
+			configUpdates["confirmation_check_count"] = nonNegative(*req.ConfirmationCheckCount)
 		}
 		if req.RecoveryPeriodSeconds != nil {
 			configUpdates["recovery_period_seconds"] = nonNegative(*req.RecoveryPeriodSeconds)

@@ -89,6 +89,28 @@ func (s *IncidentService) ReconcileMonitorReport(monitorID string, monitorReport
 		return reconcileErr
 	}
 
+	if monitor.ActiveIncidentID == "" {
+		activeIncident, found, err := s.findActiveIncident(monitor.ID)
+		if err != nil {
+			reconcileErr = err
+			return err
+		}
+		if found {
+			monitor.ActiveIncidentID = activeIncident.ID
+		} else {
+			confirmed, err := s.coreMonitorFailureConfirmed(monitor.ID, nextIncidentState)
+			if err != nil {
+				reconcileErr = err
+				return err
+			}
+			if !confirmed {
+				s.logger.Info("Core monitor incident deferred during confirmation period", "monitor_id", monitorID, "state", nextIncidentState)
+				reconcileErr = s.updateMonitorIncidentState(monitor.ID, "", nextIncidentState)
+				return reconcileErr
+			}
+		}
+	}
+
 	if tlsExpiring {
 		reconcileErr = s.openOrUpdateIncident(agent, monitor, monitorReportID, "degraded", nextIncidentState)
 		return reconcileErr
@@ -100,6 +122,75 @@ func (s *IncidentService) ReconcileMonitorReport(monitorID string, monitorReport
 	}
 
 	return nil
+}
+
+func (s *IncidentService) coreMonitorFailureConfirmed(monitorID string, incidentState string) (bool, error) {
+	if incidentState == "up" || incidentState == "unknown" {
+		return true, nil
+	}
+
+	var config db.CoreMonitorConfig
+	err := s.db.Where("monitor_id = ?", monitorID).First(&config).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return true, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if config.ConfirmationPeriodSeconds <= 0 && config.ConfirmationCheckCount <= 0 {
+		return true, nil
+	}
+
+	streak, firstFailureAt, latestFailureAt, err := s.currentFailureStreak(monitorID)
+	if err != nil {
+		return false, err
+	}
+	if streak == 0 || firstFailureAt == nil || latestFailureAt == nil {
+		return false, nil
+	}
+
+	periodConfirmed := false
+	if config.ConfirmationPeriodSeconds > 0 {
+		periodConfirmed = latestFailureAt.Sub(*firstFailureAt) >= time.Duration(config.ConfirmationPeriodSeconds)*time.Second
+	}
+	countConfirmed := false
+	if config.ConfirmationCheckCount > 0 {
+		countConfirmed = streak >= config.ConfirmationCheckCount
+	}
+	return periodConfirmed || countConfirmed, nil
+}
+
+func (s *IncidentService) currentFailureStreak(monitorID string) (int, *time.Time, *time.Time, error) {
+	var reports []db.MonitorReport
+	if err := s.db.Where("monitor_id = ?", monitorID).Order("created_at DESC").Limit(100).Find(&reports).Error; err != nil {
+		return 0, nil, nil, err
+	}
+
+	streak := 0
+	var firstFailureAt *time.Time
+	var latestFailureAt *time.Time
+	for _, report := range reports {
+		if report.Health == "up" {
+			break
+		}
+		if report.Health != "down" && report.Health != "degraded" && report.Health != "stale" {
+			continue
+		}
+		streak++
+		reportedAt := monitorReportConfirmationTime(report)
+		if latestFailureAt == nil {
+			latestFailureAt = &reportedAt
+		}
+		firstFailureAt = &reportedAt
+	}
+	return streak, firstFailureAt, latestFailureAt, nil
+}
+
+func monitorReportConfirmationTime(report db.MonitorReport) time.Time {
+	if reportedAt, err := time.Parse(time.RFC3339, report.CollectedAt); err == nil {
+		return reportedAt
+	}
+	return report.CreatedAt
 }
 
 func (s *IncidentService) ReconcileStaleMonitors(agentID string) error {

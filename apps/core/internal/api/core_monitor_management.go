@@ -22,6 +22,7 @@ type CoreMonitorConfigResponse struct {
 	IntervalSeconds           int                    `json:"interval_seconds"`
 	TimeoutSeconds            int                    `json:"timeout_seconds"`
 	ConfirmationPeriodSeconds int                    `json:"confirmation_period_seconds"`
+	ConfirmationCheckCount    int                    `json:"confirmation_check_count"`
 	RecoveryPeriodSeconds     int                    `json:"recovery_period_seconds"`
 	Paused                    bool                   `json:"paused"`
 	NextRunAt                 time.Time              `json:"next_run_at"`
@@ -246,6 +247,7 @@ func coreMonitorConfigResponse(config db.CoreMonitorConfig) CoreMonitorConfigRes
 		IntervalSeconds:           config.IntervalSeconds,
 		TimeoutSeconds:            config.TimeoutSeconds,
 		ConfirmationPeriodSeconds: config.ConfirmationPeriodSeconds,
+		ConfirmationCheckCount:    config.ConfirmationCheckCount,
 		RecoveryPeriodSeconds:     config.RecoveryPeriodSeconds,
 		Paused:                    config.Paused,
 		NextRunAt:                 config.NextRunAt,

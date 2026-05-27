@@ -7971,6 +7971,9 @@
                     "type": "object",
                     "additionalProperties": true
                 },
+                "confirmation_check_count": {
+                    "type": "integer"
+                },
                 "confirmation_period_seconds": {
                     "type": "integer"
                 },
@@ -9647,6 +9650,9 @@
                     "type": "object",
                     "additionalProperties": true
                 },
+                "confirmation_check_count": {
+                    "type": "integer"
+                },
                 "confirmation_period_seconds": {
                     "type": "integer"
                 },
@@ -9686,6 +9692,9 @@
                 "config": {
                     "type": "object",
                     "additionalProperties": true
+                },
+                "confirmation_check_count": {
+                    "type": "integer"
                 },
                 "confirmation_period_seconds": {
                     "type": "integer"

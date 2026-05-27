@@ -37,6 +37,8 @@ type CoreMonitorDialogProps = {
 };
 
 type FormState = {
+  confirmationCheckCount: string;
+  confirmationPeriodSeconds: string;
   description: string;
   expectedStatus: string;
   graceSeconds: string;
@@ -50,6 +52,8 @@ type FormState = {
 };
 
 const defaultForm: FormState = {
+  confirmationCheckCount: "0",
+  confirmationPeriodSeconds: "0",
   description: "",
   expectedStatus: "200",
   graceSeconds: "60",
@@ -97,6 +101,11 @@ const toPositiveInt = (value: string, fallback: number) => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 };
 
+const toNonNegativeInt = (value: string, fallback: number) => {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+};
+
 export const CoreMonitorDialog = ({
   config,
   error,
@@ -117,12 +126,20 @@ export const CoreMonitorDialog = ({
       return;
     }
     setForm({
+      confirmationCheckCount: String(config?.confirmation_check_count ?? 0),
+      confirmationPeriodSeconds: String(config?.confirmation_period_seconds ?? 0),
       description: monitor?.description ?? "",
       expectedStatus: readConfigNumber(config, "expected_status") || "200",
       graceSeconds: readConfigNumber(config, "grace_seconds") || "60",
-      intervalSeconds: String(config?.interval_seconds ?? monitor?.reporting_interval_seconds ?? 60),
+      intervalSeconds: String(
+        config?.interval_seconds ?? monitor?.reporting_interval_seconds ?? 60,
+      ),
       kind:
-        config?.kind === "heartbeat" ? "heartbeat" : config?.kind === "http_keyword" ? "http_keyword" : "http",
+        config?.kind === "heartbeat"
+          ? "heartbeat"
+          : config?.kind === "http_keyword"
+            ? "http_keyword"
+            : "http",
       name: monitor?.name ?? "",
       paused: config?.paused ?? false,
       requiredContains: readConfigStringList(config, "required_contains"),
@@ -131,7 +148,8 @@ export const CoreMonitorDialog = ({
     });
   }, [config, mode, monitor, open]);
 
-  const updateForm = (patch: Partial<FormState>) => setForm((current) => ({ ...current, ...patch }));
+  const updateForm = (patch: Partial<FormState>) =>
+    setForm((current) => ({ ...current, ...patch }));
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -154,6 +172,8 @@ export const CoreMonitorDialog = ({
             url: form.url.trim(),
           },
       description: form.description.trim() || undefined,
+      confirmation_check_count: toNonNegativeInt(form.confirmationCheckCount, 0),
+      confirmation_period_seconds: toNonNegativeInt(form.confirmationPeriodSeconds, 0),
       interval_seconds: toPositiveInt(form.intervalSeconds, 60),
       kind: form.kind,
       name: form.name.trim(),
@@ -290,6 +310,26 @@ export const CoreMonitorDialog = ({
                 />
               </label>
             )}
+            <label className="space-y-1 text-sm">
+              <span className="font-medium">Confirmation seconds</span>
+              <Input
+                inputMode="numeric"
+                min={0}
+                type="number"
+                value={form.confirmationPeriodSeconds}
+                onChange={(event) => updateForm({ confirmationPeriodSeconds: event.target.value })}
+              />
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="font-medium">Confirmation checks</span>
+              <Input
+                inputMode="numeric"
+                min={0}
+                type="number"
+                value={form.confirmationCheckCount}
+                onChange={(event) => updateForm({ confirmationCheckCount: event.target.value })}
+              />
+            </label>
             <label className="flex items-center gap-2 pt-7 text-sm">
               <Checkbox
                 checked={form.paused}

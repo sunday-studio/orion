@@ -2109,6 +2109,60 @@ func TestCoreWorkerReportsOpenAndResolveIncident(t *testing.T) {
 	}
 }
 
+func TestCoreMonitorConfirmationPeriodDefersTransientFailure(t *testing.T) {
+	server := setupTestServer(t)
+	monitor := seedCoreConfirmationMonitor(t, server, "monitor-core-confirm-transient", 60, 0)
+	startedAt := time.Date(2026, 5, 28, 1, 0, 0, 0, time.UTC)
+
+	storeCoreConfirmationReport(t, server, monitor.ID, "down", startedAt)
+	assertCoreIncidentCount(t, server, monitor.ID, 0)
+	assertMonitorIncidentState(t, server, monitor.ID, "", "down")
+
+	storeCoreConfirmationReport(t, server, monitor.ID, "up", startedAt.Add(30*time.Second))
+	assertCoreIncidentCount(t, server, monitor.ID, 0)
+	assertMonitorIncidentState(t, server, monitor.ID, "", "up")
+}
+
+func TestCoreMonitorConfirmationPeriodOpensSustainedFailure(t *testing.T) {
+	server := setupTestServer(t)
+	monitor := seedCoreConfirmationMonitor(t, server, "monitor-core-confirm-sustained", 60, 0)
+	startedAt := time.Date(2026, 5, 28, 1, 10, 0, 0, time.UTC)
+
+	storeCoreConfirmationReport(t, server, monitor.ID, "down", startedAt)
+	assertCoreIncidentCount(t, server, monitor.ID, 0)
+
+	storeCoreConfirmationReport(t, server, monitor.ID, "down", startedAt.Add(61*time.Second))
+
+	var incident db.Incident
+	if err := server.db.Where("monitor_id = ?", monitor.ID).First(&incident).Error; err != nil {
+		t.Fatalf("find sustained core incident: %v", err)
+	}
+	if incident.Status != "open" {
+		t.Fatalf("sustained incident = %+v, want open", incident)
+	}
+	assertMonitorIncidentState(t, server, monitor.ID, incident.ID, "down")
+}
+
+func TestCoreMonitorConfirmationCheckCountOpensAfterConsecutiveFailures(t *testing.T) {
+	server := setupTestServer(t)
+	monitor := seedCoreConfirmationMonitor(t, server, "monitor-core-confirm-count", 0, 2)
+	startedAt := time.Date(2026, 5, 28, 1, 20, 0, 0, time.UTC)
+
+	storeCoreConfirmationReport(t, server, monitor.ID, "down", startedAt)
+	assertCoreIncidentCount(t, server, monitor.ID, 0)
+
+	storeCoreConfirmationReport(t, server, monitor.ID, "down", startedAt.Add(10*time.Second))
+
+	var incident db.Incident
+	if err := server.db.Where("monitor_id = ?", monitor.ID).First(&incident).Error; err != nil {
+		t.Fatalf("find count-confirmed core incident: %v", err)
+	}
+	if incident.Status != "open" {
+		t.Fatalf("count-confirmed incident = %+v, want open", incident)
+	}
+	assertMonitorIncidentState(t, server, monitor.ID, incident.ID, "down")
+}
+
 func TestCoreMonitorManagementLifecycle(t *testing.T) {
 	server := setupTestServer(t)
 	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2122,11 +2176,13 @@ func TestCoreMonitorManagementLifecycle(t *testing.T) {
 	defer target.Close()
 
 	createResp := performJSONRequest(t, server, http.MethodPost, "/v1/monitors", map[string]interface{}{
-		"name":             "Core API probe",
-		"description":      "managed by core",
-		"kind":             "http",
-		"interval_seconds": 30,
-		"timeout_seconds":  2,
+		"name":                        "Core API probe",
+		"description":                 "managed by core",
+		"kind":                        "http",
+		"interval_seconds":            30,
+		"timeout_seconds":             2,
+		"confirmation_period_seconds": 60,
+		"confirmation_check_count":    3,
 		"config": map[string]interface{}{
 			"url":               target.URL + "/health",
 			"expected_status":   http.StatusAccepted,
@@ -2152,9 +2208,11 @@ func TestCoreMonitorManagementLifecycle(t *testing.T) {
 				Source    string `json:"source"`
 			} `json:"monitor"`
 			Config struct {
-				Kind       string                 `json:"kind"`
-				Config     map[string]interface{} `json:"config"`
-				SecretRefs map[string]interface{} `json:"secret_refs"`
+				Kind                      string                 `json:"kind"`
+				ConfirmationPeriodSeconds int                    `json:"confirmation_period_seconds"`
+				ConfirmationCheckCount    int                    `json:"confirmation_check_count"`
+				Config                    map[string]interface{} `json:"config"`
+				SecretRefs                map[string]interface{} `json:"secret_refs"`
 			} `json:"config"`
 		} `json:"data"`
 	}
@@ -2169,6 +2227,9 @@ func TestCoreMonitorManagementLifecycle(t *testing.T) {
 	if created.Data.Config.Kind != "http" || created.Data.Config.Config["authorization"] != "[redacted]" || created.Data.Config.SecretRefs["header"] != "[redacted]" {
 		t.Fatalf("redacted config = %+v, secret refs = %+v", created.Data.Config.Config, created.Data.Config.SecretRefs)
 	}
+	if created.Data.Config.ConfirmationPeriodSeconds != 60 || created.Data.Config.ConfirmationCheckCount != 3 {
+		t.Fatalf("confirmation config = %+v, want 60s and 3 checks", created.Data.Config)
+	}
 
 	configResp := performJSONRequest(t, server, http.MethodGet, "/v1/monitors/"+monitorID+"/config", nil, "")
 	if configResp.Code != http.StatusOK {
@@ -2177,8 +2238,10 @@ func TestCoreMonitorManagementLifecycle(t *testing.T) {
 	assertNotContains(t, configResp.Body.String(), "should-not-leak")
 
 	updateResp := performJSONRequest(t, server, http.MethodPatch, "/v1/monitors/"+monitorID, map[string]interface{}{
-		"name":             "Core API probe updated",
-		"interval_seconds": 45,
+		"name":                        "Core API probe updated",
+		"interval_seconds":            45,
+		"confirmation_period_seconds": 30,
+		"confirmation_check_count":    2,
 		"config": map[string]interface{}{
 			"url":             target.URL + "/health",
 			"expected_status": http.StatusAccepted,
@@ -2195,6 +2258,13 @@ func TestCoreMonitorManagementLifecycle(t *testing.T) {
 	}
 	if updated.Name != "Core API probe updated" || updated.ReportingIntervalSeconds != 45 {
 		t.Fatalf("updated monitor = %+v, want updated name and interval", updated)
+	}
+	var updatedConfig db.CoreMonitorConfig
+	if err := server.db.Where("monitor_id = ?", monitorID).First(&updatedConfig).Error; err != nil {
+		t.Fatalf("find updated core monitor config: %v", err)
+	}
+	if updatedConfig.ConfirmationPeriodSeconds != 30 || updatedConfig.ConfirmationCheckCount != 2 {
+		t.Fatalf("updated confirmation config = %+v, want 30s and 2 checks", updatedConfig)
 	}
 
 	pauseResp := performJSONRequest(t, server, http.MethodPost, "/v1/monitors/"+monitorID+"/pause", nil, "")
@@ -4144,6 +4214,79 @@ func assertMonitorIncidentState(t *testing.T, server *Server, monitorID string, 
 	}
 	if monitor.ActiveIncidentID != wantActiveIncidentID || monitor.IncidentState != wantIncidentState {
 		t.Fatalf("monitor incident state = active %q state %q, want active %q state %q", monitor.ActiveIncidentID, monitor.IncidentState, wantActiveIncidentID, wantIncidentState)
+	}
+}
+
+func seedCoreConfirmationMonitor(t *testing.T, server *Server, monitorID string, confirmationPeriodSeconds int, confirmationCheckCount int) db.Monitor {
+	t.Helper()
+
+	now := time.Now().UTC()
+	monitor := db.Monitor{
+		ID:                       monitorID,
+		AgentID:                  "agent-core-worker",
+		Name:                     monitorID,
+		Type:                     "http",
+		Lifecycle:                "active",
+		Health:                   "unknown",
+		ComputedHealth:           "unknown",
+		ReportingIntervalSeconds: 30,
+		CreatedAt:                now,
+		UpdatedAt:                now,
+	}
+	if err := server.db.Create(&monitor).Error; err != nil {
+		t.Fatalf("create core confirmation monitor: %v", err)
+	}
+	config := db.CoreMonitorConfig{
+		MonitorID:                 monitor.ID,
+		Kind:                      "http",
+		ConfigJSON:                "{}",
+		SecretRefJSON:             "{}",
+		IntervalSeconds:           30,
+		TimeoutSeconds:            10,
+		ConfirmationPeriodSeconds: confirmationPeriodSeconds,
+		ConfirmationCheckCount:    confirmationCheckCount,
+		NextRunAt:                 now,
+		CreatedAt:                 now,
+		UpdatedAt:                 now,
+	}
+	if err := server.db.Create(&config).Error; err != nil {
+		t.Fatalf("create core confirmation config: %v", err)
+	}
+	return monitor
+}
+
+func storeCoreConfirmationReport(t *testing.T, server *Server, monitorID string, health string, reportedAt time.Time) {
+	t.Helper()
+
+	statusCode := 500
+	if health == "up" {
+		statusCode = 200
+	}
+	reportID, err := server.reportService.StoreMonitorReport(monitorID, service.MonitorReportPayload{
+		Timestamp: reportedAt.Format(time.RFC3339),
+		Health:    health,
+		Metrics: map[string]interface{}{
+			"runner":      "core",
+			"status_code": statusCode,
+		},
+	})
+	if err != nil {
+		t.Fatalf("store core confirmation %s report: %v", health, err)
+	}
+	if reportID == nil || *reportID == "" {
+		t.Fatalf("core confirmation report id = %v, want generated id", reportID)
+	}
+}
+
+func assertCoreIncidentCount(t *testing.T, server *Server, monitorID string, want int64) {
+	t.Helper()
+
+	var count int64
+	if err := server.db.Model(&db.Incident{}).Where("monitor_id = ?", monitorID).Count(&count).Error; err != nil {
+		t.Fatalf("count core confirmation incidents: %v", err)
+	}
+	if count != want {
+		t.Fatalf("core confirmation incident count = %d, want %d", count, want)
 	}
 }
 

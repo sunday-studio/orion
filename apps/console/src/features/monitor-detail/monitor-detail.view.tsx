@@ -695,6 +695,10 @@ export const MonitorDetailPage = () => {
                     ) : (
                       <DetailItem label="timeout" value={`${coreConfig.timeout_seconds ?? 0}s`} />
                     )}
+                    <DetailItem
+                      label="confirmation"
+                      value={`${coreConfig.confirmation_period_seconds ?? 0}s / ${coreConfig.confirmation_check_count ?? 0} checks`}
+                    />
                     <DetailItem label="paused" value={coreConfig.paused ? "yes" : "no"} />
                     {coreConfig.kind === "heartbeat" && (
                       <DetailItem

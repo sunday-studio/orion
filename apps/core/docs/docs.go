@@ -7977,6 +7977,9 @@ const docTemplate = `{
                     "type": "object",
                     "additionalProperties": true
                 },
+                "confirmation_check_count": {
+                    "type": "integer"
+                },
                 "confirmation_period_seconds": {
                     "type": "integer"
                 },
@@ -9653,6 +9656,9 @@ const docTemplate = `{
                     "type": "object",
                     "additionalProperties": true
                 },
+                "confirmation_check_count": {
+                    "type": "integer"
+                },
                 "confirmation_period_seconds": {
                     "type": "integer"
                 },
@@ -9692,6 +9698,9 @@ const docTemplate = `{
                 "config": {
                     "type": "object",
                     "additionalProperties": true
+                },
+                "confirmation_check_count": {
+                    "type": "integer"
                 },
                 "confirmation_period_seconds": {
                     "type": "integer"

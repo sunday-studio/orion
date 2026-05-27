@@ -208,6 +208,7 @@ type CoreMonitorConfig struct {
 	IntervalSeconds           int        `json:"interval_seconds" gorm:"not null;default:60"`
 	TimeoutSeconds            int        `json:"timeout_seconds" gorm:"not null;default:10"`
 	ConfirmationPeriodSeconds int        `json:"confirmation_period_seconds" gorm:"not null;default:0"`
+	ConfirmationCheckCount    int        `json:"confirmation_check_count" gorm:"not null;default:0"`
 	RecoveryPeriodSeconds     int        `json:"recovery_period_seconds" gorm:"not null;default:0"`
 	Paused                    bool       `json:"paused" gorm:"not null;default:false;index:idx_core_monitor_configs_due"`
 	NextRunAt                 time.Time  `json:"next_run_at" gorm:"not null;index:idx_core_monitor_configs_due"`
