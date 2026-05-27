@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"net"
 	"net/http"
 	"net/url"
 	"orion/core/internal/db"
@@ -174,10 +175,11 @@ type StatusPageDetailResponse struct {
 }
 
 type StatusPagePreviewResponse struct {
-	Page        StatusPagePublicPageResponse       `json:"page"`
-	Sections    []StatusPagePublicSectionResponse  `json:"sections"`
-	Incidents   []StatusPagePublicIncidentResponse `json:"incidents"`
-	LastUpdated time.Time                          `json:"last_updated"`
+	Page          StatusPagePublicPageResponse       `json:"page"`
+	Sections      []StatusPagePublicSectionResponse  `json:"sections"`
+	Incidents     []StatusPagePublicIncidentResponse `json:"incidents"`
+	OverallStatus string                             `json:"overall_status"`
+	LastUpdated   time.Time                          `json:"last_updated"`
 }
 
 type StatusPagePublicPageResponse struct {
@@ -212,6 +214,11 @@ type StatusPagePublicIncidentResponse struct {
 	AffectedComponentIDs []string   `json:"affected_component_ids"`
 	PublishedAt          *time.Time `json:"published_at,omitempty"`
 	ResolvedAt           *time.Time `json:"resolved_at,omitempty"`
+}
+
+type StatusPagePublishValidationResponse struct {
+	Errors   []string `json:"errors"`
+	Warnings []string `json:"warnings"`
 }
 
 func (s *Server) registerStatusPageAdminRoutes(frontend *gin.RouterGroup) {
@@ -383,7 +390,39 @@ func (s *Server) updateStatusPage(c *gin.Context) {
 // @Failure      500  {object}  utils.APIResponse
 // @Router       /v1/status-pages/{id}/publish [post]
 func (s *Server) publishStatusPage(c *gin.Context) {
-	s.setStatusPageVisibility(c, statusPageVisibilityPublic, true, "Status page published successfully")
+	var page db.StatusPage
+	if err := s.db.Where("id = ?", c.Param("id")).First(&page).Error; err != nil {
+		writeStatusPageLoadError(c, err, "Failed to load status page")
+		return
+	}
+	validation, err := s.validateStatusPageForPublish(page.ID)
+	if err != nil {
+		s.logger.Error("Failed to validate status page before publish", "status_page_id", page.ID, "error", err)
+		utils.InternalError(c, "Failed to validate status page before publish", err)
+		return
+	}
+	if len(validation.Errors) > 0 {
+		c.JSON(http.StatusBadRequest, utils.APIResponse{
+			Success: false,
+			Message: "Status page is not ready to publish",
+			Data: gin.H{
+				"validation": validation,
+			},
+		})
+		return
+	}
+	page.Visibility = statusPageVisibilityPublic
+	now := time.Now().UTC()
+	page.PublishedAt = &now
+	if err := s.db.Save(&page).Error; err != nil {
+		s.logger.Error("Failed to update status page visibility", "error", err)
+		utils.InternalError(c, "Failed to update status page visibility", err)
+		return
+	}
+	utils.SuccessResponse(c, http.StatusOK, "Status page published successfully", gin.H{
+		"page":       statusPageResponse(page),
+		"validation": validation,
+	})
 }
 
 // unpublishStatusPage unpublishes a status page.
@@ -422,10 +461,84 @@ func (s *Server) previewStatusPage(c *gin.Context) {
 		writeStatusPageLoadError(c, err, "Failed to load status page preview")
 		return
 	}
-	preview := s.statusPagePreview(detail)
+	preview := s.statusPagePreview(detail, true)
 	utils.SuccessResponse(c, http.StatusOK, "Status page preview retrieved successfully", gin.H{
 		"preview": preview,
 	})
+}
+
+// getPublicStatusPage returns the published public status page projection.
+// @Summary      Get public status page
+// @Description  Get the public-safe projection of a published or unlisted status page
+// @Tags         public-status
+// @Accept       json
+// @Produce      json
+// @ID           getPublicStatusPage
+// @Param        slug  path      string  true  "Status page slug"
+// @Success      200   {object}  utils.APIResponse{data=object{status_page=StatusPagePreviewResponse}}
+// @Failure      404   {object}  utils.APIResponse
+// @Failure      500   {object}  utils.APIResponse
+// @Router       /status/{slug} [get]
+func (s *Server) getPublicStatusPage(c *gin.Context) {
+	preview, ok := s.loadPublicStatusPageProjection(c, c.Param("slug"))
+	if !ok {
+		return
+	}
+	utils.SuccessResponse(c, http.StatusOK, "Status page retrieved successfully", gin.H{
+		"status_page": preview,
+	})
+}
+
+// listPublicStatusPageIncidents returns published public incidents for a status page.
+// @Summary      List public status page incidents
+// @Description  Get published public incidents for a status page
+// @Tags         public-status
+// @Accept       json
+// @Produce      json
+// @ID           listPublicStatusPageIncidents
+// @Param        slug  path      string  true  "Status page slug"
+// @Success      200   {object}  utils.APIResponse{data=object{incidents=[]StatusPagePublicIncidentResponse,count=int}}
+// @Failure      404   {object}  utils.APIResponse
+// @Failure      500   {object}  utils.APIResponse
+// @Router       /status/{slug}/incidents [get]
+func (s *Server) listPublicStatusPageIncidents(c *gin.Context) {
+	preview, ok := s.loadPublicStatusPageProjection(c, c.Param("slug"))
+	if !ok {
+		return
+	}
+	utils.SuccessResponse(c, http.StatusOK, "Status page incidents retrieved successfully", gin.H{
+		"incidents": preview.Incidents,
+		"count":     len(preview.Incidents),
+	})
+}
+
+// getPublicStatusPageIncident returns a published public incident.
+// @Summary      Get public status page incident
+// @Description  Get a published public incident for a status page
+// @Tags         public-status
+// @Accept       json
+// @Produce      json
+// @ID           getPublicStatusPageIncident
+// @Param        slug         path      string  true  "Status page slug"
+// @Param        incident_id  path      string  true  "Public incident ID"
+// @Success      200          {object}  utils.APIResponse{data=object{incident=StatusPagePublicIncidentResponse}}
+// @Failure      404          {object}  utils.APIResponse
+// @Failure      500          {object}  utils.APIResponse
+// @Router       /status/{slug}/incidents/{incident_id} [get]
+func (s *Server) getPublicStatusPageIncident(c *gin.Context) {
+	preview, ok := s.loadPublicStatusPageProjection(c, c.Param("slug"))
+	if !ok {
+		return
+	}
+	for _, incident := range preview.Incidents {
+		if incident.ID == c.Param("incident_id") {
+			utils.SuccessResponse(c, http.StatusOK, "Status page incident retrieved successfully", gin.H{
+				"incident": incident,
+			})
+			return
+		}
+	}
+	utils.NotFound(c, "Status page incident not found")
 }
 
 // listStatusPageSections lists sections for a status page.
@@ -1110,17 +1223,36 @@ func (s *Server) statusPageIncidentUpdates(incidentID string) ([]StatusPageIncid
 	return responses, nil
 }
 
-func (s *Server) statusPagePreview(detail StatusPageDetailResponse) StatusPagePreviewResponse {
+func (s *Server) loadPublicStatusPageProjection(c *gin.Context, slug string) (StatusPagePreviewResponse, bool) {
+	var page db.StatusPage
+	if err := s.db.Where("slug = ? AND visibility IN ?", strings.TrimSpace(slug), []string{statusPageVisibilityPublic, statusPageVisibilityUnlisted}).First(&page).Error; err != nil {
+		writeStatusPageLoadError(c, err, "Status page not found")
+		return StatusPagePreviewResponse{}, false
+	}
+	detail, err := s.loadStatusPageDetail(page.ID)
+	if err != nil {
+		writeStatusPageLoadError(c, err, "Failed to load status page")
+		return StatusPagePreviewResponse{}, false
+	}
+	return s.statusPagePreview(detail, false), true
+}
+
+func (s *Server) statusPagePreview(detail StatusPageDetailResponse, includeDraftIncidents bool) StatusPagePreviewResponse {
 	componentsBySection := map[string][]StatusPagePublicComponentResponse{}
+	overallStatus := "operational"
 	for _, component := range detail.Components {
 		if !component.Visible {
 			continue
+		}
+		componentStatus := s.statusPageComponentStatus(component)
+		if statusPageStatusWeight(componentStatus) > statusPageStatusWeight(overallStatus) {
+			overallStatus = componentStatus
 		}
 		componentsBySection[component.SectionID] = append(componentsBySection[component.SectionID], StatusPagePublicComponentResponse{
 			ID:           component.ID,
 			Name:         component.PublicName,
 			Description:  component.PublicDescription,
-			Status:       s.statusPageComponentStatus(component),
+			Status:       componentStatus,
 			StatusReason: component.ManualStatusReason,
 			DisplayMode:  component.DisplayMode,
 		})
@@ -1139,6 +1271,9 @@ func (s *Server) statusPagePreview(detail StatusPageDetailResponse) StatusPagePr
 	incidents := make([]StatusPagePublicIncidentResponse, 0, len(detail.Incidents))
 	for _, incident := range detail.Incidents {
 		if incident.Visibility == statusPageIncidentVisibilityPrivate {
+			continue
+		}
+		if !includeDraftIncidents && (incident.Visibility != statusPageIncidentVisibilityPublished || incident.PublishedAt == nil) {
 			continue
 		}
 		incidents = append(incidents, StatusPagePublicIncidentResponse{
@@ -1160,10 +1295,58 @@ func (s *Server) statusPagePreview(detail StatusPageDetailResponse) StatusPagePr
 			Description: detail.Page.Description,
 			Visibility:  detail.Page.Visibility,
 		},
-		Sections:    sections,
-		Incidents:   incidents,
-		LastUpdated: time.Now().UTC(),
+		Sections:      sections,
+		Incidents:     incidents,
+		OverallStatus: overallStatus,
+		LastUpdated:   time.Now().UTC(),
 	}
+}
+
+func (s *Server) validateStatusPageForPublish(pageID string) (StatusPagePublishValidationResponse, error) {
+	detail, err := s.loadStatusPageDetail(pageID)
+	if err != nil {
+		return StatusPagePublishValidationResponse{}, err
+	}
+
+	validation := StatusPagePublishValidationResponse{
+		Errors:   []string{},
+		Warnings: []string{},
+	}
+	visibleComponents := 0
+	for _, component := range detail.Components {
+		if !component.Visible {
+			continue
+		}
+		visibleComponents++
+		if component.ManualStatus == "" && len(component.Mappings) == 0 {
+			validation.Errors = append(validation.Errors, "visible component "+component.PublicName+" must have a mapped resource or manual status")
+		}
+		if looksLikePrivateStatusPageLabel(component.PublicName) {
+			validation.Errors = append(validation.Errors, "visible component "+component.PublicName+" looks like an internal host, IP address, or private domain")
+		}
+	}
+	if visibleComponents == 0 {
+		validation.Errors = append(validation.Errors, "status page must have at least one visible component")
+	}
+	if looksLikePrivateStatusPageLabel(detail.Page.Title) {
+		validation.Warnings = append(validation.Warnings, "status page title looks like an internal host, IP address, or private domain")
+	}
+	for _, incident := range detail.Incidents {
+		if incident.Visibility != statusPageIncidentVisibilityPublished {
+			continue
+		}
+		hasPublishedUpdate := false
+		for _, update := range incident.Updates {
+			if update.PublishedAt != nil && strings.TrimSpace(update.Message) != "" {
+				hasPublishedUpdate = true
+				break
+			}
+		}
+		if !hasPublishedUpdate {
+			validation.Errors = append(validation.Errors, "published incident "+incident.Title+" must have at least one published update message")
+		}
+	}
+	return validation, nil
 }
 
 func (s *Server) statusPageComponentStatus(component StatusPageComponentResponse) string {
@@ -1752,6 +1935,29 @@ func statusPageStatusWeight(value string) int {
 	default:
 		return 1
 	}
+}
+
+func looksLikePrivateStatusPageLabel(value string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	if normalized == "" {
+		return false
+	}
+	fields := strings.FieldsFunc(normalized, func(r rune) bool {
+		return r == ' ' || r == '/' || r == ':' || r == '[' || r == ']' || r == '(' || r == ')' || r == ','
+	})
+	for _, field := range fields {
+		field = strings.Trim(field, ".")
+		if field == "" {
+			continue
+		}
+		if field == "localhost" || strings.HasSuffix(field, ".local") || strings.HasSuffix(field, ".internal") || strings.HasSuffix(field, ".lan") {
+			return true
+		}
+		if ip := net.ParseIP(field); ip != nil {
+			return true
+		}
+	}
+	return false
 }
 
 func writeStatusPageLoadError(c *gin.Context, err error, message string) {

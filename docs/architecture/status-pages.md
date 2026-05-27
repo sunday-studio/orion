@@ -22,6 +22,7 @@ The status page is not a mirror of the Console. It is a curated publication laye
 Default public status page content:
 
 - page name and optional description;
+- safe page metadata for browsers and link previews;
 - overall status summary;
 - component sections and component health;
 - active public incidents and scheduled maintenance;
@@ -80,6 +81,7 @@ flowchart LR
     Mappings["status_page_component_mappings"]
     PublicIncidents["status_page_incidents"]
     Updates["status_page_incident_updates"]
+    Subscriptions["status_page_subscribers"]
   end
 
   subgraph Public["Public read model"]
@@ -87,6 +89,7 @@ flowchart LR
     ComponentList["component health"]
     IncidentList["public incidents"]
     Uptime["public uptime"]
+    Subscribe["subscriber preferences"]
   end
 
   Agents --> Mappings
@@ -100,6 +103,8 @@ flowchart LR
   Components --> ComponentList
   Mappings --> ComponentList
   PublicIncidents --> IncidentList
+  Components --> Subscriptions
+  Subscriptions --> Subscribe
 ```
 
 ## Data Model
@@ -114,6 +119,10 @@ Stores page-level configuration:
 - slug;
 - title;
 - description;
+- optional SEO title;
+- optional SEO description;
+- optional Open Graph image URL;
+- optional canonical URL override;
 - visibility: `draft`, `public`, or `unlisted`;
 - theme settings;
 - custom domain fields later;
@@ -184,16 +193,58 @@ Stores public timeline updates:
 
 Keep public messages separate from internal incident events. Internal incident events are operational facts; public updates are communication.
 
-### `status_page_subscriptions`
+### `status_page_subscribers`
 
-Add later when notification channels are in place:
+Stores public subscriber identities and confirmation state. These records are owned by the status page publication layer and must not reference internal alert channel ids, alert destination ids, alert secrets, webhook signing secrets, escalation routes, or operator notification preferences.
 
+Fields:
+
+- id;
 - status page id;
-- subscriber destination;
-- destination type;
-- confirmation state;
-- subscribed component ids;
-- created, confirmed, disabled timestamps.
+- destination type: initially `email`, later `webhook`, `rss`, `atom`, or other public delivery types;
+- normalized destination hash for uniqueness and abuse checks;
+- encrypted destination value, such as email address or public webhook URL;
+- display destination, such as a masked email for admin support views;
+- confirmation state: `pending`, `confirmed`, `unsubscribed`, `bounced`, or `disabled`;
+- confirmation token hash;
+- confirmation token expires at;
+- unsubscribe token hash;
+- unsubscribe token version;
+- bounce count;
+- last delivery status and last delivery at;
+- source: `public_page`, `admin_import`, or future `api`;
+- created, confirmed, unsubscribed, disabled, updated timestamps.
+
+Destination values are public subscriber contact data, not internal alert secrets. They still need encryption at rest and redaction in admin APIs because they are personal or customer data.
+
+### `status_page_subscriber_components`
+
+Stores component-scoped preferences:
+
+- subscriber id;
+- component id;
+- event scope: `all_updates`, `incidents_only`, or future `maintenance_only`;
+- created and updated timestamps.
+
+An empty component preference set means the subscriber wants all visible components on the page. Component ids in this table are public status page component ids only. Do not store monitor ids, agent ids, incident ids, or internal component mapping ids here.
+
+### `status_page_subscriber_deliveries`
+
+Optional delivery ledger for fan-out and audit:
+
+- id;
+- subscriber id;
+- status page id;
+- optional public incident id;
+- optional public incident update id;
+- delivery type;
+- delivery state: `queued`, `sent`, `failed`, `suppressed`, or `bounced`;
+- provider message id;
+- error code and safe error summary;
+- attempt count;
+- queued, sent, failed timestamps.
+
+Delivery rows should store public incident ids and public update ids. They must not store internal alert delivery row ids or internal channel configuration.
 
 ## Entity Relationship
 
@@ -204,9 +255,13 @@ erDiagram
   STATUS_PAGES ||--o{ STATUS_PAGE_INCIDENTS : publishes
   STATUS_PAGE_SECTIONS ||--o{ STATUS_PAGE_COMPONENTS : groups
   STATUS_PAGE_COMPONENTS ||--o{ STATUS_PAGE_COMPONENT_MAPPINGS : maps
+  STATUS_PAGE_COMPONENTS ||--o{ STATUS_PAGE_SUBSCRIBER_COMPONENTS : scopes
   STATUS_PAGE_COMPONENTS ||--o{ STATUS_PAGE_INCIDENT_COMPONENTS : affected_by
   STATUS_PAGE_INCIDENTS ||--o{ STATUS_PAGE_INCIDENT_UPDATES : has
   STATUS_PAGE_INCIDENTS ||--o{ STATUS_PAGE_INCIDENT_COMPONENTS : affects
+  STATUS_PAGES ||--o{ STATUS_PAGE_SUBSCRIBERS : has
+  STATUS_PAGE_SUBSCRIBERS ||--o{ STATUS_PAGE_SUBSCRIBER_COMPONENTS : chooses
+  STATUS_PAGE_SUBSCRIBERS ||--o{ STATUS_PAGE_SUBSCRIBER_DELIVERIES : receives
   STATUS_PAGE_COMPONENT_MAPPINGS }o--|| AGENTS : may_reference
   STATUS_PAGE_COMPONENT_MAPPINGS }o--|| MONITORS : may_reference
   STATUS_PAGE_INCIDENTS }o--o| INCIDENTS : may_link
@@ -326,6 +381,104 @@ flowchart TD
 
 Do not require Agent maintenance mode for scheduled maintenance. Agent maintenance mode controls collection and incident suppression; status page maintenance controls public communication.
 
+## Subscriber Confirmation Flow
+
+Public subscriptions are opt-in and must be confirmed before Orion sends incident or maintenance notifications.
+
+```mermaid
+sequenceDiagram
+  participant Visitor
+  participant PublicPage
+  participant Core
+  participant Mailer
+
+  Visitor->>PublicPage: Enter destination and optional components
+  PublicPage->>Core: POST public subscription request
+  Core->>Core: Normalize destination and store pending subscriber
+  Core->>Core: Store public component preferences
+  Core->>Mailer: Send confirmation link with one-time token
+  Visitor->>Core: Open confirmation link
+  Core->>Core: Mark subscriber confirmed
+  Core-->>Visitor: Show confirmed preferences and unsubscribe link
+```
+
+Lifecycle rules:
+
+- New public subscriptions start as `pending`.
+- Pending subscribers do not receive public incident fan-out except a confirmation message.
+- Confirmation tokens are one-time hashes with a short expiry, such as 24 hours.
+- Re-subscribing with the same normalized destination and page should rotate the confirmation token if still pending, or send a preferences management link if already confirmed.
+- Confirmed subscribers can receive only public status page notifications generated from published public incidents, public incident updates, scheduled maintenance, and page-level public announcements.
+- Bounced destinations move to `bounced` after the configured bounce threshold.
+- Operators can set a subscriber to `disabled` for abuse, support, or compliance reasons.
+- `unsubscribed`, `bounced`, and `disabled` subscribers are excluded from notification fan-out.
+
+Confirmation links should resolve through public-safe routes and reveal only masked destination information. Admin APIs can expose subscriber counts and masked destinations, but not raw destination values unless a future support workflow explicitly requires it and adds audit logging.
+
+## Component-Scoped Subscriptions
+
+Subscribers may choose all components on a page or a subset of public components.
+
+Scoping rules:
+
+- Component preferences reference `status_page_components.id` only.
+- Hidden components cannot be selected through the public subscription UI.
+- If a visible component is later hidden, renamed, or deleted, existing subscriber preferences should be suppressed from fan-out until the subscriber updates preferences.
+- A public incident update fans out to a subscriber when at least one affected public component matches their selected component set.
+- Subscribers with no component rows receive updates for all visible components on that status page.
+- Page-wide announcements and scheduled maintenance can either target selected public components or all subscribers on the page.
+
+Component-scoped subscriptions must use the same public component ids that appear in public DTOs. They must never expose or persist internal monitor ids, agent ids, hostnames, or component mapping ids in subscriber preferences.
+
+## Unsubscribe And Preference Flow
+
+Every subscriber gets an unsubscribe token that is separate from the confirmation token. Tokens are stored as hashes, rotated after successful preference changes, and treated as bearer credentials for public subscriber self-service.
+
+```mermaid
+flowchart TD
+  Link["Subscriber opens unsubscribe or manage link"] --> Token{"Valid token?"}
+  Token -- "no" --> Generic["Show generic expired or invalid state"]
+  Token -- "yes" --> Choice{"Subscriber action"}
+  Choice -- "unsubscribe all" --> Unsub["Set subscriber unsubscribed"]
+  Choice -- "change components" --> Prefs["Update component preferences"]
+  Choice -- "resend confirmation" --> Confirm["Rotate confirmation token"]
+  Prefs --> Rotate["Rotate unsubscribe token version"]
+  Unsub --> Suppress["Suppress future fan-out"]
+  Confirm --> Pending["Keep or set pending until confirmed"]
+```
+
+Unsubscribe rules:
+
+- Public incident emails and webhooks must include an unsubscribe URL or documented equivalent for the delivery type.
+- Unsubscribe must not require Console authentication.
+- Successful unsubscribe should be idempotent and return a generic success page even if the subscriber was already unsubscribed.
+- Preference management may require the current unsubscribe token or a fresh magic link sent to the destination.
+- Unsubscribe actions should not delete the subscriber immediately; keep the row with `unsubscribed_at` so future re-subscribe, suppression, and compliance behavior are deterministic.
+- Hard deletion can be a later privacy/compliance feature if data retention policy requires it.
+
+## Public Subscriber Boundary
+
+Public subscribers are separate from internal alert channels by design.
+
+Allowed reuse:
+
+- shared low-level SMTP or HTTP client code;
+- shared retry worker primitives that accept public delivery jobs;
+- shared redaction helpers;
+- shared rate-limit infrastructure.
+
+Forbidden coupling:
+
+- storing public subscribers in internal alert channel tables;
+- reusing internal alert destination ids as subscriber ids;
+- exposing internal webhook URLs, SMTP credentials, signing secrets, escalation policies, or operator routing settings to subscriber code paths;
+- delivering public status notifications from internal incident alert templates;
+- allowing public subscribe, confirm, unsubscribe, or preference routes to read or mutate internal alert channels.
+
+Public subscriber fan-out should have its own queue or queue namespace, template set, delivery ledger, metrics labels, and audit events. If the implementation later reuses the alert delivery engine, it must do so behind an adapter that accepts only public DTOs and provider credentials selected for public subscriber mail. That adapter must not receive internal alert channel records or secrets.
+
+Implementation dependency: the first email subscriber implementation needs a documented public mail sender configuration, including sender identity, reply-to behavior, bounce handling, rate limits, and token URL origin. Until that exists, implementation tickets should create schema and public-safe lifecycle endpoints without sending production fan-out.
+
 ## Public API Shape
 
 Add public, read-only routes:
@@ -335,6 +488,14 @@ Add public, read-only routes:
 - `GET /status/:slug/incidents`
 - `GET /status/:slug/incidents/:incident_id`
 - `GET /status/:slug/feed.atom` later
+
+Add public subscription mutation routes:
+
+- `POST /status/:slug/subscribers`
+- `GET /status/:slug/subscribers/confirm/:token`
+- `GET /status/:slug/subscribers/manage/:token`
+- `PUT /status/:slug/subscribers/manage/:token`
+- `POST /status/:slug/subscribers/unsubscribe/:token`
 
 Add Console-admin routes under `/v1`:
 
@@ -351,6 +512,9 @@ Add Console-admin routes under `/v1`:
 - `POST /v1/status-pages/:id/incidents`
 - `PUT /v1/status-pages/:id/incidents/:incident_id`
 - `POST /v1/status-pages/:id/incidents/:incident_id/updates`
+- `GET /v1/status-pages/:id/subscribers`
+- `POST /v1/status-pages/:id/subscribers/:subscriber_id/disable`
+- `GET /v1/status-pages/:id/subscriber-deliveries`
 
 Public routes must never use the Console API response structs directly. Return a dedicated public payload that contains only approved fields.
 
@@ -373,6 +537,36 @@ Public DTO rules:
 - include public incident text only;
 - include uptime percentages and bucket states, not raw report counts unless explicitly chosen;
 - omit hidden components and draft incidents.
+
+## Public Metadata Boundary
+
+Published status pages should expose safe browser and social sharing metadata without expanding the public data boundary.
+
+Metadata should be projected from the status page publication layer, not from mapped agents, monitors, raw incidents, reports, or internal Console DTOs. The public metadata projector should return:
+
+- document title;
+- meta description;
+- canonical URL;
+- Open Graph title;
+- Open Graph description;
+- Open Graph URL;
+- Open Graph type, normally `website`;
+- Open Graph site name;
+- optional Open Graph image URL when explicitly configured.
+
+Safe defaults:
+
+- title defaults to the public status page title;
+- description defaults to the public status page description, or a generic public status summary when no description is configured;
+- Open Graph title and description default to the safe SEO title and description;
+- canonical URL is built from the published public origin and page slug, or from a configured custom domain when custom domains exist;
+- Open Graph site name defaults to the public status page title.
+
+Do not derive metadata from internal resource names, agent names, monitor names, hostnames, IP addresses, report payloads, private incident titles, or internal incident events. Component names may only appear in metadata when they are already public component labels and an administrator explicitly configures metadata that includes them.
+
+Metadata should only render for `public` and `unlisted` pages that resolve through the public status page route. Draft previews may show metadata in the Console, but draft metadata must not be indexable and must not be exposed through unauthenticated public routes.
+
+Implementation dependency: this metadata layer depends on the base status page serving model, including status page schema, public read DTOs, and a public page renderer or HTML response path for `/status/:slug`. Until those exist, metadata work should remain schema/design preparation rather than inventing a separate public status implementation.
 
 ## Console Experience
 
@@ -421,13 +615,14 @@ Freshness target:
 
 Public status routes are unauthenticated by design, so they need narrower behavior:
 
-- no mutation from public routes;
+- no mutation from public routes except rate-limited subscriber self-service endpoints;
 - no internal ids in public payloads;
 - no raw SQL filters or arbitrary date ranges without limits;
-- rate limit subscription creation and confirmation endpoints later;
+- rate limit subscription creation, confirmation, preference, and unsubscribe endpoints;
+- store subscriber confirmation and unsubscribe tokens only as hashes;
 - validate slugs and custom domains strictly;
 - redact all secrets in admin preview and public output;
-- add audit events for publish, unpublish, incident update, and component mapping changes.
+- add audit events for publish, unpublish, incident update, component mapping, subscriber disable, and delivery suppression changes.
 
 ## Implementation Phases
 
@@ -467,7 +662,7 @@ Public status routes are unauthenticated by design, so they need narrower behavi
 - Add custom domains.
 - Add page theme settings.
 - Add public embeddable badges.
-- Add optional SEO and Open Graph metadata.
+- Add optional SEO and Open Graph metadata using the public metadata boundary.
 
 ## Decision Records
 
@@ -482,6 +677,7 @@ Resolved status page architecture decisions are recorded in:
 
 - Whether public uptime should round to one decimal place, two decimals, or a simpler `99.9%` style.
 - Whether `unknown` should be hidden, shown as degraded, or shown as its own public state by default.
+- Which public mail sender configuration should power first subscriber confirmation and fan-out emails.
 
 ## Decision
 

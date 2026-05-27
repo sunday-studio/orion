@@ -282,9 +282,58 @@ func TestStatusPageAdminAPIFlow(t *testing.T) {
 	if publishResp.Code != http.StatusOK {
 		t.Fatalf("publish status = %d, body = %s", publishResp.Code, publishResp.Body.String())
 	}
+	publicResp := performJSONRequest(t, server, http.MethodGet, "/status/main-status", nil, "")
+	if publicResp.Code != http.StatusOK {
+		t.Fatalf("public status page status = %d, body = %s", publicResp.Code, publicResp.Body.String())
+	}
+	assertNotContains(t, publicResp.Body.String(), registeredMonitor.Data.MonitorID)
+	var publicPage struct {
+		Data struct {
+			StatusPage struct {
+				Page struct {
+					Slug string `json:"slug"`
+				} `json:"page"`
+				OverallStatus string `json:"overall_status"`
+				Sections      []struct {
+					Components []struct {
+						ID     string `json:"id"`
+						Name   string `json:"name"`
+						Status string `json:"status"`
+					} `json:"components"`
+				} `json:"sections"`
+				Incidents []struct {
+					ID           string `json:"id"`
+					Title        string `json:"title"`
+					PublicStatus string `json:"public_status"`
+				} `json:"incidents"`
+			} `json:"status_page"`
+		} `json:"data"`
+	}
+	decodeResponse(t, publicResp, &publicPage)
+	if publicPage.Data.StatusPage.Page.Slug != "main-status" ||
+		publicPage.Data.StatusPage.OverallStatus != "major_outage" ||
+		len(publicPage.Data.StatusPage.Sections) != 1 ||
+		len(publicPage.Data.StatusPage.Sections[0].Components) != 1 ||
+		len(publicPage.Data.StatusPage.Incidents) != 1 {
+		t.Fatalf("public page = %+v, want public-safe status projection", publicPage.Data.StatusPage)
+	}
+
+	publicIncidentsResp := performJSONRequest(t, server, http.MethodGet, "/status/main-status/incidents", nil, "")
+	if publicIncidentsResp.Code != http.StatusOK {
+		t.Fatalf("public incidents status = %d, body = %s", publicIncidentsResp.Code, publicIncidentsResp.Body.String())
+	}
+	publicIncidentResp := performJSONRequest(t, server, http.MethodGet, "/status/main-status/incidents/"+createdIncident.Data.Incident.ID, nil, "")
+	if publicIncidentResp.Code != http.StatusOK {
+		t.Fatalf("public incident detail status = %d, body = %s", publicIncidentResp.Code, publicIncidentResp.Body.String())
+	}
+
 	unpublishResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+createdPage.Data.Page.ID+"/unpublish", nil, "")
 	if unpublishResp.Code != http.StatusOK {
 		t.Fatalf("unpublish status = %d, body = %s", unpublishResp.Code, unpublishResp.Body.String())
+	}
+	notFoundPublicResp := performJSONRequest(t, server, http.MethodGet, "/status/main-status", nil, "")
+	if notFoundPublicResp.Code != http.StatusNotFound {
+		t.Fatalf("unpublished public status = %d, body = %s, want 404", notFoundPublicResp.Code, notFoundPublicResp.Body.String())
 	}
 
 	for _, path := range []string{
@@ -299,6 +348,62 @@ func TestStatusPageAdminAPIFlow(t *testing.T) {
 			t.Fatalf("list %s status = %d, body = %s", path, resp.Code, resp.Body.String())
 		}
 	}
+}
+
+func TestStatusPagePublishValidation(t *testing.T) {
+	server := setupTestServer(t)
+
+	createPageResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages", gin.H{
+		"slug":  "validation-status",
+		"title": "Validation Status",
+	}, "")
+	if createPageResp.Code != http.StatusCreated {
+		t.Fatalf("create status page status = %d, body = %s", createPageResp.Code, createPageResp.Body.String())
+	}
+	var createdPage struct {
+		Data struct {
+			Page struct {
+				ID string `json:"id"`
+			} `json:"page"`
+		} `json:"data"`
+	}
+	decodeResponse(t, createPageResp, &createdPage)
+
+	emptyPublishResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+createdPage.Data.Page.ID+"/publish", nil, "")
+	if emptyPublishResp.Code != http.StatusBadRequest {
+		t.Fatalf("empty publish status = %d, body = %s, want 400", emptyPublishResp.Code, emptyPublishResp.Body.String())
+	}
+	assertContains(t, emptyPublishResp.Body.String(), "at least one visible component")
+
+	createSectionResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+createdPage.Data.Page.ID+"/sections", gin.H{
+		"name": "Private",
+	}, "")
+	if createSectionResp.Code != http.StatusCreated {
+		t.Fatalf("create section status = %d, body = %s", createSectionResp.Code, createSectionResp.Body.String())
+	}
+	var createdSection struct {
+		Data struct {
+			Section struct {
+				ID string `json:"id"`
+			} `json:"section"`
+		} `json:"data"`
+	}
+	decodeResponse(t, createSectionResp, &createdSection)
+
+	createComponentResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+createdPage.Data.Page.ID+"/components", gin.H{
+		"section_id":  createdSection.Data.Section.ID,
+		"public_name": "localhost",
+		"visible":     true,
+	}, "")
+	if createComponentResp.Code != http.StatusCreated {
+		t.Fatalf("create component status = %d, body = %s", createComponentResp.Code, createComponentResp.Body.String())
+	}
+	unmappedPublishResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+createdPage.Data.Page.ID+"/publish", nil, "")
+	if unmappedPublishResp.Code != http.StatusBadRequest {
+		t.Fatalf("unmapped publish status = %d, body = %s, want 400", unmappedPublishResp.Code, unmappedPublishResp.Body.String())
+	}
+	assertContains(t, unmappedPublishResp.Body.String(), "mapped resource or manual status")
+	assertContains(t, unmappedPublishResp.Body.String(), "looks like an internal host")
 }
 
 func setupStatusPageAuthTestServer(t *testing.T) *Server {

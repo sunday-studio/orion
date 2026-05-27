@@ -87,6 +87,12 @@ func (s *Server) setupRoutes() {
 	// Health check endpoint (no versioning)
 	s.router.GET("/health", s.healthCheck)
 
+	// Public status page routes
+	s.router.GET("/status/:slug/feed.atom", s.getStatusPageAtomFeed)
+	s.router.GET("/status/:slug/incidents/:incident_id", s.getPublicStatusPageIncident)
+	s.router.GET("/status/:slug/incidents", s.listPublicStatusPageIncidents)
+	s.router.GET("/status/:slug", s.getPublicStatusPage)
+
 	// Version 1 API routes
 	v1 := s.router.Group("/v1")
 	{
