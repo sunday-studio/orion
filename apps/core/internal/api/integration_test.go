@@ -1953,6 +1953,80 @@ func TestManualIncidentActionsAcknowledgeAndResolve(t *testing.T) {
 	}
 }
 
+func TestCoveredIncidentSuppressesFailuresUntilRecoveryOrExpiry(t *testing.T) {
+	server := setupTestServer(t)
+	startedAt := time.Date(2026, 5, 28, 3, 0, 0, 0, time.UTC)
+	coveredMonitor := seedCoreNoiseMonitor(t, server, "monitor-core-covered-suppression", 0, 0, 0)
+
+	storeCoreConfirmationReport(t, server, coveredMonitor.ID, "down", startedAt)
+	var incident db.Incident
+	if err := server.db.Where("monitor_id = ?", coveredMonitor.ID).First(&incident).Error; err != nil {
+		t.Fatalf("find covered suppression incident: %v", err)
+	}
+
+	coveredUntil := time.Now().UTC().Add(time.Hour).Truncate(time.Second)
+	coverResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/cover", map[string]interface{}{
+		"covered_until": coveredUntil.Format(time.RFC3339),
+		"note":          "Known upstream outage",
+	}, "")
+	if coverResp.Code != http.StatusOK {
+		t.Fatalf("cover incident status = %d, body = %s", coverResp.Code, coverResp.Body.String())
+	}
+
+	storeCoreConfirmationReport(t, server, coveredMonitor.ID, "down", startedAt.Add(time.Minute))
+	assertCoreIncidentCount(t, server, coveredMonitor.ID, 1)
+	incident = db.Incident{}
+	if err := server.db.Where("monitor_id = ?", coveredMonitor.ID).First(&incident).Error; err != nil {
+		t.Fatalf("reload suppressed incident: %v", err)
+	}
+	if incident.Status != "covered" || incident.CoveredAt == nil || incident.CoveredUntil == nil || incident.CoverageNote != "Known upstream outage" || incident.LatestEvent != "Incident coverage suppressed failing monitor report" {
+		t.Fatalf("suppressed incident = %+v, want covered with suppression event", incident)
+	}
+	assertMonitorIncidentState(t, server, coveredMonitor.ID, incident.ID, "down")
+	assertIncidentEventCount(t, server, incident.ID, "incident_coverage_suppressed", 1)
+	assertIncidentEventCount(t, server, incident.ID, "monitor_failed", 0)
+
+	storeCoreConfirmationReport(t, server, coveredMonitor.ID, "up", startedAt.Add(2*time.Minute))
+	incident = db.Incident{}
+	if err := server.db.Where("monitor_id = ?", coveredMonitor.ID).First(&incident).Error; err != nil {
+		t.Fatalf("reload recovered covered incident: %v", err)
+	}
+	if incident.Status != "resolved" || incident.ResolvedAt == nil || incident.CoveredAt != nil || incident.CoveredUntil != nil || incident.CoverageNote != "" || incident.ResolutionKind != "recovered" {
+		t.Fatalf("recovered covered incident = %+v, want resolved with cleared coverage", incident)
+	}
+	assertMonitorIncidentState(t, server, coveredMonitor.ID, "", "up")
+	assertIncidentEvent(t, server, incident.ID, "incident_resolved", "Monitor "+coveredMonitor.Name+" recovered")
+
+	expiringMonitor := seedCoreNoiseMonitor(t, server, "monitor-core-covered-expiry", 0, 0, 0)
+	storeCoreConfirmationReport(t, server, expiringMonitor.ID, "down", startedAt)
+	var expiringIncident db.Incident
+	if err := server.db.Where("monitor_id = ?", expiringMonitor.ID).First(&expiringIncident).Error; err != nil {
+		t.Fatalf("find expiring coverage incident: %v", err)
+	}
+
+	expiredUntil := time.Now().UTC().Add(-time.Minute).Truncate(time.Second)
+	expiredCoverResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+expiringIncident.ID+"/cover", map[string]interface{}{
+		"covered_until": expiredUntil.Format(time.RFC3339),
+		"note":          "Expired maintenance cover",
+	}, "")
+	if expiredCoverResp.Code != http.StatusOK {
+		t.Fatalf("cover expiring incident status = %d, body = %s", expiredCoverResp.Code, expiredCoverResp.Body.String())
+	}
+
+	storeCoreConfirmationReport(t, server, expiringMonitor.ID, "down", startedAt.Add(time.Minute))
+	assertCoreIncidentCount(t, server, expiringMonitor.ID, 1)
+	expiringIncident = db.Incident{}
+	if err := server.db.Where("monitor_id = ?", expiringMonitor.ID).First(&expiringIncident).Error; err != nil {
+		t.Fatalf("reload expired coverage incident: %v", err)
+	}
+	if expiringIncident.Status != "open" || expiringIncident.CoveredAt != nil || expiringIncident.CoveredUntil != nil || expiringIncident.CoverageNote != "" || expiringIncident.LatestEvent == "Incident coverage expired" {
+		t.Fatalf("expired coverage incident = %+v, want reopened failure with cleared coverage", expiringIncident)
+	}
+	assertMonitorIncidentState(t, server, expiringMonitor.ID, expiringIncident.ID, "down")
+	assertIncidentEventCount(t, server, expiringIncident.ID, "incident_coverage_expired", 1)
+	assertIncidentEventCount(t, server, expiringIncident.ID, "monitor_failed", 1)
+}
+
 func TestUnregisterMonitorResolvesActiveIncidentPath(t *testing.T) {
 	server := setupTestServer(t)
 	registered := registerTestAgent(t, server)

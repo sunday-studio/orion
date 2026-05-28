@@ -245,7 +245,7 @@ type IncidentComponentImpact struct {
 
 type Incident struct {
 	ID                 string     `json:"id" gorm:"primaryKey;type:varchar(255)"`
-	Status             string     `json:"status" gorm:"not null;index:idx_incidents_status"` // open | acknowledged | resolved
+	Status             string     `json:"status" gorm:"not null;index:idx_incidents_status"` // open | acknowledged | covered | resolved
 	Severity           string     `json:"severity" gorm:"not null;index:idx_incidents_severity"`
 	Title              string     `json:"title" gorm:"not null"`
 	AgentID            string     `json:"agent_id" gorm:"index:idx_incidents_agent_id;not null"`
