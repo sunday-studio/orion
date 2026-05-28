@@ -134,22 +134,31 @@ type AgentConfigSummaryResponse struct {
 
 // IncidentResponse represents a persisted incident in frontend API responses.
 type IncidentResponse struct {
-	ID                 string     `json:"id"`
-	Status             string     `json:"status"`
-	Severity           string     `json:"severity"`
-	Title              string     `json:"title"`
-	AgentID            string     `json:"agent_id"`
-	AgentName          string     `json:"agent_name"`
-	MonitorID          string     `json:"monitor_id"`
-	MonitorName        string     `json:"monitor_name"`
-	MonitorType        string     `json:"monitor_type"`
-	OpenedAt           time.Time  `json:"opened_at"`
-	ResolvedAt         *time.Time `json:"resolved_at"`
-	LastEventAt        time.Time  `json:"last_event_at"`
-	LatestEvent        string     `json:"latest_event"`
-	NotificationStatus string     `json:"notification_status"`
-	CreatedAt          time.Time  `json:"created_at"`
-	UpdatedAt          time.Time  `json:"updated_at"`
+	ID                 string                            `json:"id"`
+	Status             string                            `json:"status"`
+	Severity           string                            `json:"severity"`
+	Title              string                            `json:"title"`
+	AgentID            string                            `json:"agent_id"`
+	AgentName          string                            `json:"agent_name"`
+	MonitorID          string                            `json:"monitor_id"`
+	MonitorName        string                            `json:"monitor_name"`
+	MonitorType        string                            `json:"monitor_type"`
+	ImpactedComponents []IncidentComponentImpactResponse `json:"impacted_components"`
+	OpenedAt           time.Time                         `json:"opened_at"`
+	ResolvedAt         *time.Time                        `json:"resolved_at"`
+	LastEventAt        time.Time                         `json:"last_event_at"`
+	LatestEvent        string                            `json:"latest_event"`
+	NotificationStatus string                            `json:"notification_status"`
+	CreatedAt          time.Time                         `json:"created_at"`
+	UpdatedAt          time.Time                         `json:"updated_at"`
+}
+
+// IncidentComponentImpactResponse represents one affected public-facing component snapshot.
+type IncidentComponentImpactResponse struct {
+	ComponentID   string `json:"component_id,omitempty"`
+	ComponentName string `json:"component_name"`
+	Status        string `json:"status,omitempty"`
+	Impact        string `json:"impact,omitempty"`
 }
 
 // IncidentEventResponse represents an incident event in frontend API responses.
@@ -604,6 +613,7 @@ func incidentResponse(incident db.Incident, agent db.Agent, monitor db.Monitor) 
 		MonitorID:          incident.MonitorID,
 		MonitorName:        monitor.Name,
 		MonitorType:        monitor.Type,
+		ImpactedComponents: incidentComponentImpactResponses(incident.ImpactedComponents),
 		OpenedAt:           incident.OpenedAt,
 		ResolvedAt:         incident.ResolvedAt,
 		LastEventAt:        incident.LastEventAt,
@@ -612,6 +622,32 @@ func incidentResponse(incident db.Incident, agent db.Agent, monitor db.Monitor) 
 		CreatedAt:          incident.CreatedAt,
 		UpdatedAt:          incident.UpdatedAt,
 	}
+}
+
+func incidentComponentImpactResponses(raw string) []IncidentComponentImpactResponse {
+	if strings.TrimSpace(raw) == "" {
+		return []IncidentComponentImpactResponse{}
+	}
+
+	var impacts []db.IncidentComponentImpact
+	if err := json.Unmarshal([]byte(raw), &impacts); err != nil {
+		return []IncidentComponentImpactResponse{}
+	}
+
+	responses := make([]IncidentComponentImpactResponse, 0, len(impacts))
+	for _, impact := range impacts {
+		response := IncidentComponentImpactResponse{
+			ComponentID:   strings.TrimSpace(impact.ComponentID),
+			ComponentName: strings.TrimSpace(impact.ComponentName),
+			Status:        strings.TrimSpace(impact.Status),
+			Impact:        strings.TrimSpace(impact.Impact),
+		}
+		if response.ComponentID == "" && response.ComponentName == "" {
+			continue
+		}
+		responses = append(responses, response)
+	}
+	return responses
 }
 
 func incidentEventResponse(event db.IncidentEvent) IncidentEventResponse {

@@ -29,6 +29,14 @@ const incidentMonitorPath = (incident: ApiIncidentResponse) =>
     ? `/monitors/${incident.monitor_id}?incident=${encodeURIComponent(incident.id ?? "")}`
     : undefined;
 
+const componentLabel = (
+  component: NonNullable<ApiIncidentResponse["impacted_components"]>[number],
+) => component.component_name || component.component_id || "Unnamed component";
+
+const componentImpactLabel = (
+  component: NonNullable<ApiIncidentResponse["impacted_components"]>[number],
+) => component.impact || component.status || "";
+
 const statusParam = (status: IncidentSummaryStatus) => {
   if (status === "all" || status === "errors") return allIncidentStatuses;
   return status;
@@ -81,7 +89,36 @@ const columns: ColumnDef<ApiIncidentResponse>[] = [
       return <DataTableLink to={path}>{incident.monitor_name ?? "Unknown monitor"}</DataTableLink>;
     },
   },
+  {
+    accessorKey: "impacted_components",
+    header: "Components",
+    cell: ({ row }) => {
+      const components = row.original.impacted_components ?? [];
+      if (components.length === 0) {
+        return <span className="text-neutral-500">No components</span>;
+      }
 
+      return (
+        <div className="max-w-48 space-y-1">
+          {components.slice(0, 2).map((component, index) => {
+            const impact = componentImpactLabel(component);
+            return (
+              <div
+                key={`${component.component_id ?? component.component_name ?? "component"}-${index}`}
+                className="truncate text-sm"
+              >
+                <span className="font-medium">{componentLabel(component)}</span>
+                {impact && <span className="text-neutral-500"> / {impact}</span>}
+              </div>
+            );
+          })}
+          {components.length > 2 && (
+            <div className="text-xs text-neutral-500">+{components.length - 2} more</div>
+          )}
+        </div>
+      );
+    },
+  },
   {
     accessorKey: "notification_status",
     header: "Notification",

@@ -2830,6 +2830,7 @@ func TestListIncidentsReturnsPersistedActiveIncidents(t *testing.T) {
 	server := setupTestServer(t)
 	registered := registerTestAgent(t, server)
 	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+	createIncidentImpactStatusPageMapping(t, server, registeredMonitor.Data.MonitorID, registered.Data.AgentID, "incident-list-component", "Public API", "monitor")
 
 	reportPath := "/v1/agents/" + registered.Data.AgentID + "/" + registeredMonitor.Data.MonitorID + "/report"
 	reportResp := performJSONRequest(t, server, http.MethodPost, reportPath, map[string]interface{}{
@@ -2850,10 +2851,16 @@ func TestListIncidentsReturnsPersistedActiveIncidents(t *testing.T) {
 		Success bool `json:"success"`
 		Data    struct {
 			Incidents []struct {
-				Status      string `json:"status"`
-				AgentID     string `json:"agent_id"`
-				AgentName   string `json:"agent_name"`
-				MonitorName string `json:"monitor_name"`
+				Status             string `json:"status"`
+				AgentID            string `json:"agent_id"`
+				AgentName          string `json:"agent_name"`
+				MonitorName        string `json:"monitor_name"`
+				ImpactedComponents []struct {
+					ComponentID   string `json:"component_id"`
+					ComponentName string `json:"component_name"`
+					Status        string `json:"status"`
+					Impact        string `json:"impact"`
+				} `json:"impacted_components"`
 			} `json:"incidents"`
 			Count int64 `json:"count"`
 		} `json:"data"`
@@ -2866,6 +2873,13 @@ func TestListIncidentsReturnsPersistedActiveIncidents(t *testing.T) {
 		listed.Data.Incidents[0].AgentName != "test-server" ||
 		listed.Data.Incidents[0].MonitorName != "homepage" {
 		t.Fatalf("incident row = %+v, want open homepage on test-server", listed.Data.Incidents[0])
+	}
+	if len(listed.Data.Incidents[0].ImpactedComponents) != 1 ||
+		listed.Data.Incidents[0].ImpactedComponents[0].ComponentID != "incident-list-component" ||
+		listed.Data.Incidents[0].ImpactedComponents[0].ComponentName != "Public API" ||
+		listed.Data.Incidents[0].ImpactedComponents[0].Status != "major_outage" ||
+		listed.Data.Incidents[0].ImpactedComponents[0].Impact != "down" {
+		t.Fatalf("incident component impact = %+v, want Public API down impact", listed.Data.Incidents[0].ImpactedComponents)
 	}
 
 	filteredResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents?agent_id="+registered.Data.AgentID, nil, "")
@@ -2962,6 +2976,7 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 	server := setupTestServer(t)
 	registered := registerTestAgent(t, server)
 	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+	createIncidentImpactStatusPageMapping(t, server, registeredMonitor.Data.MonitorID, registered.Data.AgentID, "incident-detail-component", "Checkout", "agent")
 
 	reportPath := "/v1/agents/" + registered.Data.AgentID + "/" + registeredMonitor.Data.MonitorID + "/report"
 	downResp := performJSONRequest(t, server, http.MethodPost, reportPath, map[string]interface{}{
@@ -2986,9 +3001,15 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 		Success bool `json:"success"`
 		Data    struct {
 			Incident struct {
-				ID          string `json:"id"`
-				AgentName   string `json:"agent_name"`
-				MonitorName string `json:"monitor_name"`
+				ID                 string `json:"id"`
+				AgentName          string `json:"agent_name"`
+				MonitorName        string `json:"monitor_name"`
+				ImpactedComponents []struct {
+					ComponentID   string `json:"component_id"`
+					ComponentName string `json:"component_name"`
+					Status        string `json:"status"`
+					Impact        string `json:"impact"`
+				} `json:"impacted_components"`
 			} `json:"incident"`
 			Timeline []struct {
 				Type   string `json:"type"`
@@ -3008,6 +3029,13 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 	}
 	if detail.Data.Incident.AgentName != "test-server" || detail.Data.Incident.MonitorName != "homepage" {
 		t.Fatalf("incident names = %+v, want agent and monitor names", detail.Data.Incident)
+	}
+	if len(detail.Data.Incident.ImpactedComponents) != 1 ||
+		detail.Data.Incident.ImpactedComponents[0].ComponentID != "incident-detail-component" ||
+		detail.Data.Incident.ImpactedComponents[0].ComponentName != "Checkout" ||
+		detail.Data.Incident.ImpactedComponents[0].Status != "major_outage" ||
+		detail.Data.Incident.ImpactedComponents[0].Impact != "down" {
+		t.Fatalf("incident detail component impact = %+v, want Checkout down impact", detail.Data.Incident.ImpactedComponents)
 	}
 	if len(detail.Data.Timeline) < 2 || len(detail.Data.AlertDeliveries) == 0 || len(detail.Data.MonitorReports) == 0 {
 		t.Fatalf("incident detail linked data missing: %+v", detail.Data)
@@ -3029,6 +3057,59 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 	decodeResponse(t, timelineResp, &timeline)
 	if !timeline.Success || timeline.Data.Count < 2 {
 		t.Fatalf("timeline response = %+v, want incident and alert events", timeline)
+	}
+}
+
+func createIncidentImpactStatusPageMapping(t *testing.T, server *Server, monitorID string, agentID string, componentID string, componentName string, resourceType string) {
+	t.Helper()
+
+	now := time.Now().UTC()
+	page := db.StatusPage{
+		ID:                        componentID + "-page",
+		Slug:                      componentID + "-page",
+		Title:                     componentName + " Status",
+		Visibility:                statusPageVisibilityPublic,
+		ThemeSettings:             "{}",
+		DefaultIncidentVisibility: statusPageIncidentVisibilityDraft,
+		PublishedAt:               &now,
+	}
+	section := db.StatusPageSection{
+		ID:           componentID + "-section",
+		StatusPageID: page.ID,
+		Name:         "Public services",
+	}
+	component := db.StatusPageComponent{
+		ID:           componentID,
+		StatusPageID: page.ID,
+		SectionID:    section.ID,
+		PublicName:   componentName,
+		DisplayMode:  "single_resource",
+		SortOrder:    1,
+		Visible:      true,
+	}
+	resourceID := monitorID
+	if resourceType == "agent" {
+		resourceID = agentID
+	}
+	mapping := db.StatusPageComponentMapping{
+		ID:                   componentID + "-mapping",
+		ComponentID:          component.ID,
+		ResourceType:         resourceType,
+		ResourceID:           resourceID,
+		HealthRollupStrategy: "worst",
+		UptimeRollupStrategy: "worst",
+	}
+	if err := server.db.Create(&page).Error; err != nil {
+		t.Fatalf("create status page for incident impact: %v", err)
+	}
+	if err := server.db.Create(&section).Error; err != nil {
+		t.Fatalf("create status page section for incident impact: %v", err)
+	}
+	if err := server.db.Create(&component).Error; err != nil {
+		t.Fatalf("create status page component for incident impact: %v", err)
+	}
+	if err := server.db.Create(&mapping).Error; err != nil {
+		t.Fatalf("create status page component mapping for incident impact: %v", err)
 	}
 }
 

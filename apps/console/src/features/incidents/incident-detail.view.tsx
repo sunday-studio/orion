@@ -56,6 +56,37 @@ const durationLabel = (incident: ApiIncidentResponse) => {
   return `${minutes}m`;
 };
 
+type IncidentComponentImpact = NonNullable<ApiIncidentResponse["impacted_components"]>[number];
+
+const componentLabel = (component: IncidentComponentImpact) =>
+  component.component_name || component.component_id || "Unnamed component";
+
+const componentImpactLabel = (component: IncidentComponentImpact) =>
+  component.impact || component.status || "";
+
+const ComponentImpactList = ({ components }: { components: IncidentComponentImpact[] }) => {
+  if (components.length === 0) {
+    return <span className="text-neutral-500">No components</span>;
+  }
+
+  return (
+    <div className="space-y-1">
+      {components.map((component, index) => {
+        const impact = componentImpactLabel(component);
+        return (
+          <div
+            key={`${component.component_id ?? component.component_name ?? "component"}-${index}`}
+            className="min-w-0"
+          >
+            <div className="truncate">{componentLabel(component)}</div>
+            {impact && <div className="truncate text-xs text-neutral-500">{impact}</div>}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 type MonitorPayload = Record<string, unknown>;
 
 const parsePayload = (payload?: string): MonitorPayload => {
@@ -211,6 +242,7 @@ export const IncidentDetailPage = () => {
   const acknowledgeIncident = useAcknowledgeIncident({ mutation: { onSuccess: refreshIncident } });
   const resolveIncident = useResolveIncident({ mutation: { onSuccess: refreshIncident } });
   const incident = incidentResponse.data?.incident;
+  const impactedComponents = incident?.impacted_components ?? [];
   const timeline = incidentResponse.data?.timeline ?? [];
   const alertDeliveries = incidentResponse.data?.alert_deliveries ?? [];
   const monitorReports = incidentResponse.data?.monitor_reports ?? [];
@@ -323,6 +355,10 @@ export const IncidentDetailPage = () => {
             <DetailItem label="agent" value={incident.agent_name ?? "Unknown agent"} />
             <DetailItem label="monitor" value={incident.monitor_name ?? "Unknown monitor"} />
             <DetailItem label="monitor type" value={incident.monitor_type ?? "unknown"} />
+            <DetailItem
+              label="components"
+              value={<ComponentImpactList components={impactedComponents} />}
+            />
             <div className="flex flex-wrap gap-4 text-sm">
               {incident.agent_id && (
                 <Link

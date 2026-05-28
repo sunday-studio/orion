@@ -442,6 +442,17 @@ definitions:
       report_id:
         type: string
     type: object
+  api.IncidentComponentImpactResponse:
+    properties:
+      component_id:
+        type: string
+      component_name:
+        type: string
+      impact:
+        type: string
+      status:
+        type: string
+    type: object
   api.IncidentEventResponse:
     properties:
       created_at:
@@ -467,6 +478,10 @@ definitions:
         type: string
       id:
         type: string
+      impacted_components:
+        items:
+          $ref: '#/definitions/api.IncidentComponentImpactResponse'
+        type: array
       last_event_at:
         type: string
       latest_event:

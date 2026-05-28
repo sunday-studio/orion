@@ -8085,6 +8085,23 @@ const docTemplate = `{
                 }
             }
         },
+        "api.IncidentComponentImpactResponse": {
+            "type": "object",
+            "properties": {
+                "component_id": {
+                    "type": "string"
+                },
+                "component_name": {
+                    "type": "string"
+                },
+                "impact": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "api.IncidentEventResponse": {
             "type": "object",
             "properties": {
@@ -8122,6 +8139,12 @@ const docTemplate = `{
                 },
                 "id": {
                     "type": "string"
+                },
+                "impacted_components": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.IncidentComponentImpactResponse"
+                    }
                 },
                 "last_event_at": {
                     "type": "string"

@@ -236,6 +236,13 @@ type CoreWorkerStatus struct {
 	UpdatedAt       time.Time `json:"updated_at"`
 }
 
+type IncidentComponentImpact struct {
+	ComponentID   string `json:"component_id,omitempty"`
+	ComponentName string `json:"component_name"`
+	Status        string `json:"status,omitempty"`
+	Impact        string `json:"impact,omitempty"`
+}
+
 type Incident struct {
 	ID                 string     `json:"id" gorm:"primaryKey;type:varchar(255)"`
 	Status             string     `json:"status" gorm:"not null;index:idx_incidents_status"` // open | acknowledged | resolved
@@ -243,6 +250,7 @@ type Incident struct {
 	Title              string     `json:"title" gorm:"not null"`
 	AgentID            string     `json:"agent_id" gorm:"index:idx_incidents_agent_id;not null"`
 	MonitorID          string     `json:"monitor_id" gorm:"index:idx_incidents_monitor_id;not null"`
+	ImpactedComponents string     `json:"impacted_components" gorm:"type:text;not null;default:'[]'"`
 	OpenedAt           time.Time  `json:"opened_at" gorm:"not null;index:idx_incidents_opened_at"`
 	ResolvedAt         *time.Time `json:"resolved_at"`
 	LastEventAt        time.Time  `json:"last_event_at" gorm:"not null"`

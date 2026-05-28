@@ -77,6 +77,9 @@ func TestMigrateAppliesEmbeddedMigrations(t *testing.T) {
 	if !database.Migrator().HasTable(&StatusPageIncidentUpdate{}) {
 		t.Fatal("status_page_incident_updates table was not created")
 	}
+	if !database.Migrator().HasColumn(&Incident{}, "impacted_components") {
+		t.Fatal("incidents.impacted_components was not created")
+	}
 	if !database.Migrator().HasTable(&AuditEvent{}) {
 		t.Fatal("audit_events table was not created")
 	}
@@ -176,6 +179,42 @@ func TestMigrateRepairsLegacyAgentReportMetadataColumns(t *testing.T) {
 			created_at DATETIME,
 			updated_at DATETIME
 		);
+		CREATE TABLE incidents (
+			id VARCHAR(255) PRIMARY KEY,
+			status TEXT NOT NULL,
+			severity TEXT NOT NULL,
+			title TEXT NOT NULL,
+			agent_id TEXT NOT NULL,
+			monitor_id TEXT NOT NULL,
+			opened_at DATETIME NOT NULL,
+			resolved_at DATETIME,
+			last_event_at DATETIME NOT NULL,
+			latest_event TEXT,
+			notification_status TEXT NOT NULL DEFAULT 'pending',
+			created_at DATETIME,
+			updated_at DATETIME
+		);
+		INSERT INTO incidents (
+			id,
+			status,
+			severity,
+			title,
+			agent_id,
+			monitor_id,
+			opened_at,
+			last_event_at,
+			notification_status
+		) VALUES (
+			'incident-legacy',
+			'open',
+			'high',
+			'legacy incident',
+			'agent-legacy',
+			'monitor-legacy',
+			CURRENT_TIMESTAMP,
+			CURRENT_TIMESTAMP,
+			'pending'
+		);
 	`); err != nil {
 		t.Fatalf("create legacy schema: %v", err)
 	}
@@ -188,6 +227,16 @@ func TestMigrateRepairsLegacyAgentReportMetadataColumns(t *testing.T) {
 		if !database.Migrator().HasColumn(&AgentReport{}, column) {
 			t.Fatalf("agent_reports.%s was not added", column)
 		}
+	}
+	if !database.Migrator().HasColumn(&Incident{}, "impacted_components") {
+		t.Fatal("incidents.impacted_components was not added")
+	}
+	var impactedComponents string
+	if err := database.Table("incidents").Select("impacted_components").Where("id = ?", "incident-legacy").Scan(&impactedComponents).Error; err != nil {
+		t.Fatalf("read legacy incident impacted components: %v", err)
+	}
+	if impactedComponents != "[]" {
+		t.Fatalf("legacy incident impacted_components = %q, want []", impactedComponents)
 	}
 }
 
