@@ -11,6 +11,7 @@ import (
 	"orion/core/internal/db"
 	"orion/core/internal/logging"
 	"orion/core/internal/utils"
+	"strconv"
 	"strings"
 	"time"
 
@@ -716,6 +717,7 @@ func validateCoreDomainExpirationMonitorConfig(configJSON string) error {
 	var cfg struct {
 		Domain      string `json:"domain"`
 		RDAPURL     string `json:"rdap_url"`
+		WHOISServer string `json:"whois_server"`
 		WarningDays int    `json:"warning_days"`
 	}
 	if err := json.Unmarshal([]byte(configJSON), &cfg); err != nil {
@@ -732,6 +734,33 @@ func validateCoreDomainExpirationMonitorConfig(configJSON string) error {
 	}
 	if strings.TrimSpace(cfg.RDAPURL) != "" {
 		return validateCoreHTTPURL(cfg.RDAPURL, "rdap_url")
+	}
+	if strings.TrimSpace(cfg.WHOISServer) != "" {
+		return validateCoreWHOISServer(cfg.WHOISServer)
+	}
+	return nil
+}
+
+func validateCoreWHOISServer(value string) error {
+	value = strings.TrimSpace(value)
+	if strings.ContainsAny(value, "/@") {
+		return fmt.Errorf("%w: whois_server must be a hostname with optional port", ErrCoreManagedMonitorValidation)
+	}
+	host := value
+	port := ""
+	if strings.Count(value, ":") == 1 {
+		parts := strings.SplitN(value, ":", 2)
+		host = parts[0]
+		port = parts[1]
+	}
+	if strings.TrimSpace(host) == "" {
+		return fmt.Errorf("%w: whois_server host is required", ErrCoreManagedMonitorValidation)
+	}
+	if port != "" {
+		parsedPort, err := strconv.Atoi(port)
+		if err != nil || parsedPort < 1 || parsedPort > 65535 {
+			return fmt.Errorf("%w: whois_server port must be between 1 and 65535", ErrCoreManagedMonitorValidation)
+		}
 	}
 	return nil
 }
