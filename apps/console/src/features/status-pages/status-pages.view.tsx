@@ -351,7 +351,7 @@ export const StatusPagesPage = () => {
   const internalIncidentsResponse = useGetIncidents({
     limit: 50,
     offset: 0,
-    status: "open,acknowledged,resolved",
+    status: "open,acknowledged,covered,resolved",
   });
   const [pageForm, setPageForm] = useState<PageFormState>(emptyPageForm);
   const [pageSettingsForm, setPageSettingsForm] =

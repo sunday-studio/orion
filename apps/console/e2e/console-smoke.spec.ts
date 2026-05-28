@@ -207,6 +207,16 @@ test("exercises incident detail tabs and lifecycle actions", async ({ page }) =>
   await page.getByRole("tab", { name: /Monitor reports/ }).click();
   await expect(page.getByText("down").first()).toBeVisible();
 
+  await page.getByRole("button", { name: "Cover" }).click();
+  await page.getByRole("dialog").getByLabel("note").fill("Known maintenance");
+  await page.getByRole("dialog").getByRole("button", { name: "Cover" }).click();
+  await expect(page.getByRole("button", { name: "Reopen" })).toBeVisible();
+  await expect(page.getByText("Incident marked covered")).toBeVisible();
+
+  await page.getByRole("button", { name: "Reopen" }).click();
+  await expect(page.getByRole("button", { name: "Acknowledge" })).toBeVisible();
+  await expect(page.getByText("Incident reopened")).toBeVisible();
+
   await page.getByRole("button", { name: "Acknowledge" }).click();
   await expect(page.getByRole("button", { name: "Acknowledge" })).toBeHidden();
   await expect(page.getByRole("button", { name: "Resolve" })).toBeVisible();

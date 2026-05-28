@@ -1862,12 +1862,46 @@ func TestManualIncidentActionsAcknowledgeAndResolve(t *testing.T) {
 	if err := server.db.Where("monitor_id = ?", registeredMonitor.Data.MonitorID).First(&incident).Error; err != nil {
 		t.Fatalf("find incident: %v", err)
 	}
+	incidentID := incident.ID
+
+	coveredUntil := time.Now().UTC().Add(time.Hour).Truncate(time.Second)
+	coverResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incidentID+"/cover", map[string]interface{}{
+		"covered_until": coveredUntil.Format(time.RFC3339),
+		"note":          "Known deploy window",
+	}, "")
+	if coverResp.Code != http.StatusOK {
+		t.Fatalf("cover incident status = %d, body = %s", coverResp.Code, coverResp.Body.String())
+	}
+	incident = db.Incident{}
+	if err := server.db.Where("id = ?", incidentID).First(&incident).Error; err != nil {
+		t.Fatalf("reload covered incident: %v", err)
+	}
+	if incident.Status != "covered" || incident.CoveredAt == nil || incident.CoveredUntil == nil || incident.CoverageNote != "Known deploy window" || incident.LatestEvent != "Incident marked covered" {
+		t.Fatalf("covered incident = %+v, want covered lifecycle fields", incident)
+	}
+	assertIncidentEvent(t, server, incident.ID, "incident_covered", "Incident marked covered")
+	assertMonitorIncidentState(t, server, registeredMonitor.Data.MonitorID, incident.ID, "down")
+
+	reopenCoveredResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/reopen", nil, "")
+	if reopenCoveredResp.Code != http.StatusOK {
+		t.Fatalf("reopen covered incident status = %d, body = %s", reopenCoveredResp.Code, reopenCoveredResp.Body.String())
+	}
+	incident = db.Incident{}
+	if err := server.db.Where("id = ?", incidentID).First(&incident).Error; err != nil {
+		t.Fatalf("reload reopened covered incident: %v", err)
+	}
+	if incident.Status != "open" || incident.CoveredAt != nil || incident.CoveredUntil != nil || incident.CoverageNote != "" || incident.ReopenedAt == nil || incident.ReopenCount != 1 || incident.LatestEvent != "Incident reopened" {
+		t.Fatalf("reopened covered incident = %+v, want open with cleared coverage fields", incident)
+	}
+	assertIncidentEvent(t, server, incident.ID, "incident_reopened", "Incident reopened")
+	assertMonitorIncidentState(t, server, registeredMonitor.Data.MonitorID, incident.ID, "down")
 
 	ackResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/acknowledge", nil, "")
 	if ackResp.Code != http.StatusOK {
 		t.Fatalf("acknowledge incident status = %d, body = %s", ackResp.Code, ackResp.Body.String())
 	}
-	if err := server.db.Where("id = ?", incident.ID).First(&incident).Error; err != nil {
+	incident = db.Incident{}
+	if err := server.db.Where("id = ?", incidentID).First(&incident).Error; err != nil {
 		t.Fatalf("reload acknowledged incident: %v", err)
 	}
 	if incident.Status != "acknowledged" || incident.LatestEvent != "Incident manually acknowledged" {
@@ -1880,18 +1914,42 @@ func TestManualIncidentActionsAcknowledgeAndResolve(t *testing.T) {
 	if resolveResp.Code != http.StatusOK {
 		t.Fatalf("resolve incident status = %d, body = %s", resolveResp.Code, resolveResp.Body.String())
 	}
-	if err := server.db.Where("id = ?", incident.ID).First(&incident).Error; err != nil {
+	incident = db.Incident{}
+	if err := server.db.Where("id = ?", incidentID).First(&incident).Error; err != nil {
 		t.Fatalf("reload resolved incident: %v", err)
 	}
-	if incident.Status != "resolved" || incident.ResolvedAt == nil || incident.LatestEvent != "Incident manually resolved" {
+	if incident.Status != "resolved" || incident.ResolvedAt == nil || incident.ResolutionKind != "manual" || incident.LatestEvent != "Incident manually resolved" {
 		t.Fatalf("resolved incident = %+v, want resolved manual latest event", incident)
 	}
 	assertIncidentEvent(t, server, incident.ID, "incident_resolved", "Incident manually resolved")
 	assertMonitorIncidentState(t, server, registeredMonitor.Data.MonitorID, "", "up")
 
+	reopenResolvedResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/reopen", nil, "")
+	if reopenResolvedResp.Code != http.StatusOK {
+		t.Fatalf("reopen resolved incident status = %d, body = %s", reopenResolvedResp.Code, reopenResolvedResp.Body.String())
+	}
+	incident = db.Incident{}
+	if err := server.db.Where("id = ?", incidentID).First(&incident).Error; err != nil {
+		t.Fatalf("reload reopened resolved incident: %v", err)
+	}
+	if incident.Status != "open" || incident.ResolvedAt != nil || incident.ResolutionKind != "" || incident.ReopenCount != 2 {
+		t.Fatalf("reopened resolved incident = %+v, want open with cleared resolution fields", incident)
+	}
+	assertMonitorIncidentState(t, server, registeredMonitor.Data.MonitorID, incident.ID, "down")
+
+	resolveAgainResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/resolve", nil, "")
+	if resolveAgainResp.Code != http.StatusOK {
+		t.Fatalf("resolve reopened incident status = %d, body = %s", resolveAgainResp.Code, resolveAgainResp.Body.String())
+	}
+
 	ackResolvedResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/acknowledge", nil, "")
 	if ackResolvedResp.Code != http.StatusBadRequest {
 		t.Fatalf("acknowledge resolved incident status = %d, want 400, body = %s", ackResolvedResp.Code, ackResolvedResp.Body.String())
+	}
+
+	coverResolvedResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/cover", map[string]interface{}{}, "")
+	if coverResolvedResp.Code != http.StatusBadRequest {
+		t.Fatalf("cover resolved incident status = %d, want 400, body = %s", coverResolvedResp.Code, coverResolvedResp.Body.String())
 	}
 }
 

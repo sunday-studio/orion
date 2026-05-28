@@ -378,13 +378,99 @@ func (s *IncidentService) ResolveIncident(incidentID string) (db.Incident, error
 	}
 
 	message := "Incident manually resolved"
-	if err := s.resolveIncidentRecord(&incident, message, "", "up", true); err != nil {
+	if err := s.resolveIncidentRecord(&incident, message, "", "up", "manual", true); err != nil {
 		return db.Incident{}, err
 	}
 	if err := s.db.Where("id = ?", incident.ID).First(&incident).Error; err != nil {
 		return db.Incident{}, err
 	}
 	return incident, nil
+}
+
+func (s *IncidentService) CoverIncident(incidentID string, coveredUntil *time.Time, note string) (db.Incident, error) {
+	var incident db.Incident
+	if err := s.db.Where("id = ?", incidentID).First(&incident).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return db.Incident{}, ErrIncidentNotFound
+		}
+		return db.Incident{}, err
+	}
+	if incident.Status == "resolved" {
+		return db.Incident{}, ErrIncidentAlreadyResolved
+	}
+
+	now := time.Now().UTC()
+	message := "Incident marked covered"
+	updates := map[string]interface{}{
+		"status":          "covered",
+		"covered_at":      &now,
+		"covered_until":   coveredUntil,
+		"coverage_note":   strings.TrimSpace(note),
+		"last_event_at":   now,
+		"latest_event":    message,
+		"resolution_kind": "",
+	}
+	if err := s.db.Model(&incident).
+		Updates(updates).Error; err != nil {
+		return db.Incident{}, err
+	}
+	if err := s.db.Exec("UPDATE incidents SET resolved_at = NULL WHERE id = ?", incident.ID).Error; err != nil {
+		return db.Incident{}, err
+	}
+	if err := s.createIncidentEvent(incident.ID, "incident_covered", message, ""); err != nil {
+		return db.Incident{}, err
+	}
+	var reloaded db.Incident
+	if err := s.db.Where("id = ?", incident.ID).First(&reloaded).Error; err != nil {
+		return db.Incident{}, err
+	}
+	return reloaded, nil
+}
+
+func (s *IncidentService) ReopenIncident(incidentID string) (db.Incident, error) {
+	var incident db.Incident
+	if err := s.db.Where("id = ?", incidentID).First(&incident).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return db.Incident{}, ErrIncidentNotFound
+		}
+		return db.Incident{}, err
+	}
+	if incident.Status == "open" || incident.Status == "acknowledged" {
+		return incident, nil
+	}
+
+	now := time.Now().UTC()
+	message := "Incident reopened"
+	updates := map[string]interface{}{
+		"status":          "open",
+		"coverage_note":   "",
+		"resolution_kind": "",
+		"reopened_at":     &now,
+		"reopen_count":    gorm.Expr("reopen_count + ?", 1),
+		"last_event_at":   now,
+		"latest_event":    message,
+	}
+	if err := s.db.Model(&incident).
+		Updates(updates).Error; err != nil {
+		return db.Incident{}, err
+	}
+	if err := s.db.Exec("UPDATE incidents SET resolved_at = NULL, covered_at = NULL, covered_until = NULL WHERE id = ?", incident.ID).Error; err != nil {
+		return db.Incident{}, err
+	}
+	if err := s.updateMonitorIncidentState(incident.MonitorID, incident.ID, s.reopenedIncidentState(incident.MonitorID)); err != nil {
+		return db.Incident{}, err
+	}
+	if err := s.createIncidentEvent(incident.ID, "incident_reopened", message, ""); err != nil {
+		return db.Incident{}, err
+	}
+	if err := NewAlertService(s.db, s.logger, s.cfg).QueueIncidentNotifications(incident.ID, "incident_opened"); err != nil {
+		return db.Incident{}, err
+	}
+	var reloaded db.Incident
+	if err := s.db.Where("id = ?", incident.ID).First(&reloaded).Error; err != nil {
+		return db.Incident{}, err
+	}
+	return reloaded, nil
 }
 
 func (s *IncidentService) ResolveMonitorRemoved(monitorID string) error {
@@ -396,7 +482,7 @@ func (s *IncidentService) ResolveMonitorRemoved(monitorID string) error {
 		return s.updateMonitorIncidentState(monitorID, "", "unknown")
 	}
 	message := "Monitor removed; active incident resolved"
-	return s.resolveIncidentRecord(incident, message, "", "unknown", true)
+	return s.resolveIncidentRecord(incident, message, "", "unknown", "monitor_removed", true)
 }
 
 func (s *IncidentService) openOrUpdateIncident(agent db.Agent, monitor db.Monitor, monitorReportID string, health string, incidentState string) error {
@@ -486,10 +572,11 @@ func (s *IncidentService) resolveActiveIncident(monitor db.Monitor, monitorRepor
 	}
 
 	updates := map[string]interface{}{
-		"status":        "resolved",
-		"resolved_at":   &now,
-		"last_event_at": now,
-		"latest_event":  message,
+		"status":          "resolved",
+		"resolved_at":     &now,
+		"last_event_at":   now,
+		"latest_event":    message,
+		"resolution_kind": "recovered",
 	}
 	if err := s.db.Model(incident).Updates(updates).Error; err != nil {
 		return err
@@ -508,15 +595,16 @@ func (s *IncidentService) resolveActiveIncident(monitor db.Monitor, monitorRepor
 	return NewAlertService(s.db, s.logger, s.cfg).QueueIncidentNotifications(incident.ID, "incident_resolved")
 }
 
-func (s *IncidentService) resolveIncidentRecord(incident *db.Incident, message string, monitorReportID string, incidentState string, notify bool) error {
+func (s *IncidentService) resolveIncidentRecord(incident *db.Incident, message string, monitorReportID string, incidentState string, resolutionKind string, notify bool) error {
 	now := time.Now().UTC()
 	updates := map[string]interface{}{
-		"status":        "resolved",
-		"resolved_at":   &now,
-		"last_event_at": now,
-		"latest_event":  message,
+		"status":          "resolved",
+		"resolved_at":     &now,
+		"last_event_at":   now,
+		"latest_event":    message,
+		"resolution_kind": resolutionKind,
 	}
-	if err := s.db.Model(incident).Where("status IN ?", []string{"open", "acknowledged"}).Updates(updates).Error; err != nil {
+	if err := s.db.Model(incident).Where("status IN ?", activeIncidentStatuses()).Updates(updates).Error; err != nil {
 		return err
 	}
 	if err := s.updateMonitorIncidentState(incident.MonitorID, "", incidentState); err != nil {
@@ -534,7 +622,7 @@ func (s *IncidentService) resolveIncidentRecord(incident *db.Incident, message s
 func (s *IncidentService) findActiveIncident(monitorID string) (*db.Incident, bool, error) {
 	startedAt := time.Now()
 	var incident db.Incident
-	result := s.db.Where("monitor_id = ? AND status IN ?", monitorID, []string{"open", "acknowledged"}).
+	result := s.db.Where("monitor_id = ? AND status IN ?", monitorID, activeIncidentStatuses()).
 		Order("opened_at DESC").
 		Limit(1).
 		Find(&incident)
@@ -565,7 +653,7 @@ func (s *IncidentService) updateActiveIncidentByID(incidentID string, monitorID 
 		updates["impacted_components"] = encodeIncidentComponentImpacts(impactedComponents)
 	}
 	result := s.db.Model(&db.Incident{}).
-		Where("id = ? AND monitor_id = ? AND status IN ?", incidentID, monitorID, []string{"open", "acknowledged"}).
+		Where("id = ? AND monitor_id = ? AND status IN ?", incidentID, monitorID, activeIncidentStatuses()).
 		Updates(updates)
 	if result.Error != nil {
 		return false, result.Error
@@ -585,13 +673,14 @@ func (s *IncidentService) updateActiveIncidentByID(incidentID string, monitorID 
 func (s *IncidentService) resolveActiveIncidentByID(incidentID string, monitorID string, monitorReportID string, message string, incidentState string) (bool, error) {
 	now := time.Now().UTC()
 	updates := map[string]interface{}{
-		"status":        "resolved",
-		"resolved_at":   &now,
-		"last_event_at": now,
-		"latest_event":  message,
+		"status":          "resolved",
+		"resolved_at":     &now,
+		"last_event_at":   now,
+		"latest_event":    message,
+		"resolution_kind": "recovered",
 	}
 	result := s.db.Model(&db.Incident{}).
-		Where("id = ? AND monitor_id = ? AND status IN ?", incidentID, monitorID, []string{"open", "acknowledged"}).
+		Where("id = ? AND monitor_id = ? AND status IN ?", incidentID, monitorID, activeIncidentStatuses()).
 		Updates(updates)
 	if result.Error != nil {
 		return false, result.Error
@@ -756,6 +845,27 @@ func incidentMessage(agent db.Agent, monitor db.Monitor, health string) string {
 
 func isCoreOwnerAgent(agent db.Agent) bool {
 	return agent.MachineId == coreOwnerMachineID
+}
+
+func activeIncidentStatuses() []string {
+	return []string{"open", "acknowledged", "covered"}
+}
+
+func (s *IncidentService) reopenedIncidentState(monitorID string) string {
+	var monitor db.Monitor
+	if err := s.db.Where("id = ?", monitorID).First(&monitor).Error; err != nil {
+		return "unknown"
+	}
+	health := monitor.ComputedHealth
+	if health == "" || health == "unknown" {
+		health = monitor.Health
+	}
+	switch health {
+	case "down", "degraded", "stale":
+		return health
+	default:
+		return "unknown"
+	}
 }
 
 func (s *IncidentService) impactedComponentsForMonitorIncident(agent db.Agent, monitor db.Monitor, impact string) ([]db.IncidentComponentImpact, error) {

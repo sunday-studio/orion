@@ -251,6 +251,12 @@ type Incident struct {
 	AgentID            string     `json:"agent_id" gorm:"index:idx_incidents_agent_id;not null"`
 	MonitorID          string     `json:"monitor_id" gorm:"index:idx_incidents_monitor_id;not null"`
 	ImpactedComponents string     `json:"impacted_components" gorm:"type:text;not null;default:'[]'"`
+	CoveredAt          *time.Time `json:"covered_at"`
+	CoveredUntil       *time.Time `json:"covered_until" gorm:"index:idx_incidents_covered_until"`
+	CoverageNote       string     `json:"coverage_note" gorm:"type:text"`
+	ResolutionKind     string     `json:"resolution_kind" gorm:"not null;default:''"`
+	ReopenedAt         *time.Time `json:"reopened_at"`
+	ReopenCount        int        `json:"reopen_count" gorm:"not null;default:0"`
 	OpenedAt           time.Time  `json:"opened_at" gorm:"not null;index:idx_incidents_opened_at"`
 	ResolvedAt         *time.Time `json:"resolved_at"`
 	LastEventAt        time.Time  `json:"last_event_at" gorm:"not null"`

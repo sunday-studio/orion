@@ -1,12 +1,19 @@
 import type { ApiIncidentResponse } from "@/orion-sdk";
 import { cn } from "@/lib/utils";
 
-export type IncidentSummaryStatus = "all" | "open" | "acknowledged" | "resolved" | "errors";
+export type IncidentSummaryStatus =
+  | "all"
+  | "open"
+  | "acknowledged"
+  | "covered"
+  | "resolved"
+  | "errors";
 
 type IncidentSummaryProps = {
   totalCount: number;
   openCount: number;
   acknowledgedCount: number;
+  coveredCount: number;
   resolvedCount: number;
   visibleIncidents: ApiIncidentResponse[];
   selectedStatus: IncidentSummaryStatus;
@@ -31,6 +38,7 @@ export const IncidentSummary = ({
   totalCount,
   openCount,
   acknowledgedCount,
+  coveredCount,
   resolvedCount,
   visibleIncidents,
   selectedStatus,
@@ -73,6 +81,15 @@ export const IncidentSummary = ({
         "after:h-20 after:w-28 after:[clip-path:polygon(24%_0,100%_0,100%_42%,38%_42%,38%_100%,0_100%,0_58%,62%_58%,62%_0)]",
     },
     {
+      status: "covered",
+      label: "covered",
+      value: coveredCount,
+      selectedClassName: "bg-cyan-200",
+      selectedTextClassName: "text-cyan-900",
+      ditherClassName:
+        "after:h-20 after:w-24 after:[clip-path:polygon(50%_0,100%_22%,86%_82%,50%_100%,14%_82%,0_22%)]",
+    },
+    {
       status: "resolved",
       label: "resolved",
       value: resolvedCount,
@@ -93,7 +110,7 @@ export const IncidentSummary = ({
   ];
 
   return (
-    <div className="grid gap-1 py-2 text-sm sm:grid-cols-5">
+    <div className="grid gap-1 py-2 text-sm sm:grid-cols-6">
       {items.map((item) => {
         const isSelected = selectedStatus === item.status;
 

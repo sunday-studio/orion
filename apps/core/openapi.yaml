@@ -474,6 +474,12 @@ definitions:
         type: string
       agent_name:
         type: string
+      coverage_note:
+        type: string
+      covered_at:
+        type: string
+      covered_until:
+        type: string
       created_at:
         type: string
       id:
@@ -495,6 +501,12 @@ definitions:
       notification_status:
         type: string
       opened_at:
+        type: string
+      reopen_count:
+        type: integer
+      reopened_at:
+        type: string
+      resolution_kind:
         type: string
       resolved_at:
         type: string
@@ -1190,6 +1202,13 @@ definitions:
       port:
         type: integer
       username:
+        type: string
+    type: object
+  api.incidentCoverageRequest:
+    properties:
+      covered_until:
+        type: string
+      note:
         type: string
     type: object
   api.statusPageComponentMappingRequest:
@@ -4473,7 +4492,7 @@ paths:
         incidents.
       operationId: getIncidents
       parameters:
-      - default: open,acknowledged
+      - default: open,acknowledged,covered
         description: Comma-separated incident statuses
         in: query
         name: status
@@ -4634,6 +4653,93 @@ paths:
           schema:
             $ref: '#/definitions/utils.APIResponse'
       summary: Acknowledge incident
+      tags:
+      - incidents
+  /v1/incidents/{id}/cover:
+    post:
+      consumes:
+      - application/json
+      description: Mark an active incident as covered, optionally until a future timestamp,
+        and record a manual incident event
+      operationId: coverIncident
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Coverage payload
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/api.incidentCoverageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    incident:
+                      $ref: '#/definitions/api.IncidentResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Cover incident
+      tags:
+      - incidents
+  /v1/incidents/{id}/reopen:
+    post:
+      consumes:
+      - application/json
+      description: Reopen a covered or resolved incident, restore its monitor active
+        incident path, and record a manual incident event
+      operationId: reopenIncident
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    incident:
+                      $ref: '#/definitions/api.IncidentResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Reopen incident
       tags:
       - incidents
   /v1/incidents/{id}/resolve:

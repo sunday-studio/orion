@@ -249,7 +249,7 @@ export const MonitorDetailPage = () => {
   });
   const incidentsResponse = useGetIncidents({
     monitor_id: monitorId,
-    status: "open,acknowledged,resolved",
+    status: "open,acknowledged,covered,resolved",
     limit: 50,
   });
   const highlightedIncidentResponse = useGetIncident(highlightedIncidentId);

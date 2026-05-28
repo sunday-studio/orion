@@ -289,7 +289,7 @@ func (s *MonitorService) GetMonitorSummary() (MonitorSummary, error) {
 		}
 		if err := s.db.Model(&db.Incident{}).
 			Select("monitor_id").
-			Where("monitor_id IN ? AND status IN ?", monitorIDs, []string{"open", "acknowledged"}).
+			Where("monitor_id IN ? AND status IN ?", monitorIDs, activeIncidentStatuses()).
 			Group("monitor_id").
 			Find(&rows).Error; err != nil {
 			s.logger.Error("Failed to load monitor incident summary", "error", err)
@@ -396,7 +396,7 @@ func (s *MonitorService) applyAllMonitorListFilters(query *gorm.DB, opts ListAll
 	if opts.HasIncidents {
 		query = query.Where(
 			"id IN (?)",
-			s.db.Model(&db.Incident{}).Select("monitor_id").Where("status IN ?", []string{"open", "acknowledged"}),
+			s.db.Model(&db.Incident{}).Select("monitor_id").Where("status IN ?", activeIncidentStatuses()),
 		)
 	}
 

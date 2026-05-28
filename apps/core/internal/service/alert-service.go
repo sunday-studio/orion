@@ -826,7 +826,7 @@ func (s *AlertService) activeAlertGroupIncidentCount(groupID string) (int64, err
 	var count int64
 	err := s.db.Table("alert_group_members").
 		Joins("JOIN incidents ON incidents.id = alert_group_members.incident_id").
-		Where("alert_group_members.alert_group_id = ? AND incidents.status IN ?", groupID, []string{"open", "acknowledged"}).
+		Where("alert_group_members.alert_group_id = ? AND incidents.status IN ?", groupID, activeIncidentStatuses()).
 		Count(&count).Error
 	return count, err
 }

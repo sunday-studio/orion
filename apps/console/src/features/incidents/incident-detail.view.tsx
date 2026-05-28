@@ -9,7 +9,16 @@ import {
   toStatus,
 } from "@/components/status-badges";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { TabCount, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { ReportInspectionDrawer } from "@/features/report-inspection/report-inspection-drawer";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import {
@@ -20,13 +29,15 @@ import {
   getGetIncidentQueryKey,
   getGetIncidentTimelineQueryKey,
   useAcknowledgeIncident,
+  useCoverIncident,
   useGetIncident,
+  useReopenIncident,
   useResolveIncident,
 } from "@/orion-sdk";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { CheckIcon, CircleCheckIcon } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { CheckIcon, CircleCheckIcon, RotateCcwIcon, ShieldCheckIcon } from "lucide-react";
+import { type FormEvent, type ReactNode, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
 const DetailItem = ({ label, value }: { label: string; value: ReactNode }) => (
@@ -54,6 +65,18 @@ const durationLabel = (incident: ApiIncidentResponse) => {
   if (days > 0) return `${days}d ${hours}h`;
   if (hours > 0) return `${hours}h ${minutes}m`;
   return `${minutes}m`;
+};
+
+const coverageUntilInputValue = () => {
+  const value = new Date(Date.now() + 60 * 60 * 1000);
+  const offset = value.getTimezoneOffset() * 60000;
+  return new Date(value.getTime() - offset).toISOString().slice(0, 16);
+};
+
+const coverageUntilPayload = (value: string) => {
+  if (!value) return undefined;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString();
 };
 
 type IncidentComponentImpact = NonNullable<ApiIncidentResponse["impacted_components"]>[number];
@@ -229,6 +252,61 @@ const monitorReportColumns: ColumnDef<ApiMonitorReportResponse>[] = [
   },
 ];
 
+type CoverIncidentDialogProps = {
+  open: boolean;
+  pending: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (payload: { covered_until?: string; note?: string }) => void;
+};
+
+const CoverIncidentDialog = ({
+  open,
+  pending,
+  onOpenChange,
+  onSubmit,
+}: CoverIncidentDialogProps) => {
+  const [coveredUntil, setCoveredUntil] = useState(coverageUntilInputValue);
+  const [note, setNote] = useState("");
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    onSubmit({
+      covered_until: coverageUntilPayload(coveredUntil),
+      note: note.trim() || undefined,
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <DialogHeader>
+            <DialogTitle>Cover incident</DialogTitle>
+          </DialogHeader>
+          <label className="block space-y-1">
+            <span className="text-sm font-medium">covered until</span>
+            <Input
+              type="datetime-local"
+              value={coveredUntil}
+              onChange={(event) => setCoveredUntil(event.target.value)}
+            />
+          </label>
+          <label className="block space-y-1">
+            <span className="text-sm font-medium">note</span>
+            <Textarea value={note} onChange={(event) => setNote(event.target.value)} />
+          </label>
+          <DialogFooter showCloseButton>
+            <Button type="submit" disabled={pending}>
+              <ShieldCheckIcon />
+              Cover
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 export const IncidentDetailPage = () => {
   const { incidentId = "" } = useParams();
   const queryClient = useQueryClient();
@@ -241,12 +319,15 @@ export const IncidentDetailPage = () => {
   const incidentResponse = useGetIncident(incidentId);
   const acknowledgeIncident = useAcknowledgeIncident({ mutation: { onSuccess: refreshIncident } });
   const resolveIncident = useResolveIncident({ mutation: { onSuccess: refreshIncident } });
+  const coverIncident = useCoverIncident({ mutation: { onSuccess: refreshIncident } });
+  const reopenIncident = useReopenIncident({ mutation: { onSuccess: refreshIncident } });
   const incident = incidentResponse.data?.incident;
   const impactedComponents = incident?.impacted_components ?? [];
   const timeline = incidentResponse.data?.timeline ?? [];
   const alertDeliveries = incidentResponse.data?.alert_deliveries ?? [];
   const monitorReports = incidentResponse.data?.monitor_reports ?? [];
   const [selectedMonitorReport, setSelectedMonitorReport] = useState<ApiMonitorReportResponse>();
+  const [coverDialogOpen, setCoverDialogOpen] = useState(false);
   const sortedMonitorReports = [...monitorReports].sort(
     (a, b) => reportSortTime(a) - reportSortTime(b),
   );
@@ -262,7 +343,13 @@ export const IncidentDetailPage = () => {
   const activeTab: DetailTab = isDetailTab(requestedTab) ? requestedTab : "timeline";
   const canAcknowledge = incident?.status === "open";
   const canResolve = incident?.status !== "resolved";
-  const actionPending = acknowledgeIncident.isPending || resolveIncident.isPending;
+  const canCover = incident?.status === "open" || incident?.status === "acknowledged";
+  const canReopen = incident?.status === "resolved" || incident?.status === "covered";
+  const actionPending =
+    acknowledgeIncident.isPending ||
+    resolveIncident.isPending ||
+    coverIncident.isPending ||
+    reopenIncident.isPending;
 
   const handleTabChange = (tab: string) => {
     if (!isDetailTab(tab)) return;
@@ -306,7 +393,7 @@ export const IncidentDetailPage = () => {
               {incident.latest_event ?? "No latest event recorded."}
             </p>
           </div>
-          {canResolve && (
+          {(canResolve || canReopen) && (
             <div className="flex flex-wrap gap-2">
               {canAcknowledge && (
                 <Button
@@ -318,17 +405,42 @@ export const IncidentDetailPage = () => {
                   Acknowledge
                 </Button>
               )}
-              <Button
-                disabled={actionPending}
-                onClick={() => resolveIncident.mutate({ id: incident.id ?? "" })}
-              >
-                <CircleCheckIcon />
-                Resolve
-              </Button>
+              {canCover && (
+                <Button
+                  variant="outline"
+                  disabled={actionPending}
+                  onClick={() => setCoverDialogOpen(true)}
+                >
+                  <ShieldCheckIcon />
+                  Cover
+                </Button>
+              )}
+              {canResolve && (
+                <Button
+                  disabled={actionPending}
+                  onClick={() => resolveIncident.mutate({ id: incident.id ?? "" })}
+                >
+                  <CircleCheckIcon />
+                  Resolve
+                </Button>
+              )}
+              {canReopen && (
+                <Button
+                  variant="outline"
+                  disabled={actionPending}
+                  onClick={() => reopenIncident.mutate({ id: incident.id ?? "" })}
+                >
+                  <RotateCcwIcon />
+                  Reopen
+                </Button>
+              )}
             </div>
           )}
         </div>
-        {(acknowledgeIncident.error || resolveIncident.error) && (
+        {(acknowledgeIncident.error ||
+          resolveIncident.error ||
+          coverIncident.error ||
+          reopenIncident.error) && (
           <div className="text-sm text-rose-700">Unable to update incident.</div>
         )}
 
@@ -349,6 +461,10 @@ export const IncidentDetailPage = () => {
               }
             />
             <DetailItem label="duration" value={durationLabel(incident)} />
+            <DetailItem
+              label="resolution"
+              value={incident.resolution_kind || (incident.status === "covered" ? "covered" : "—")}
+            />
           </DetailGroup>
 
           <DetailGroup title="Affected">
@@ -388,6 +504,10 @@ export const IncidentDetailPage = () => {
             <DetailItem
               label="resolved"
               value={formatDate(incident.resolved_at, DATE_TIME_FORMAT)}
+            />
+            <DetailItem
+              label="covered until"
+              value={formatDate(incident.covered_until, DATE_TIME_FORMAT)}
             />
           </DetailGroup>
         </div>
@@ -484,6 +604,17 @@ export const IncidentDetailPage = () => {
         onOpenChange={(open) => {
           if (!open) setSelectedMonitorReport(undefined);
         }}
+      />
+      <CoverIncidentDialog
+        open={coverDialogOpen}
+        pending={coverIncident.isPending}
+        onOpenChange={setCoverDialogOpen}
+        onSubmit={(payload) =>
+          coverIncident.mutate(
+            { id: incident.id ?? "", data: payload },
+            { onSuccess: () => setCoverDialogOpen(false) },
+          )
+        }
       />
     </div>
   );

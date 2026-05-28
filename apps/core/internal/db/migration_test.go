@@ -80,6 +80,11 @@ func TestMigrateAppliesEmbeddedMigrations(t *testing.T) {
 	if !database.Migrator().HasColumn(&Incident{}, "impacted_components") {
 		t.Fatal("incidents.impacted_components was not created")
 	}
+	for _, column := range []string{"covered_at", "covered_until", "coverage_note", "resolution_kind", "reopened_at", "reopen_count"} {
+		if !database.Migrator().HasColumn(&Incident{}, column) {
+			t.Fatalf("incidents.%s was not created", column)
+		}
+	}
 	if !database.Migrator().HasTable(&AuditEvent{}) {
 		t.Fatal("audit_events table was not created")
 	}
@@ -237,6 +242,21 @@ func TestMigrateRepairsLegacyAgentReportMetadataColumns(t *testing.T) {
 	}
 	if impactedComponents != "[]" {
 		t.Fatalf("legacy incident impacted_components = %q, want []", impactedComponents)
+	}
+	for _, column := range []string{"covered_at", "covered_until", "coverage_note", "resolution_kind", "reopened_at", "reopen_count"} {
+		if !database.Migrator().HasColumn(&Incident{}, column) {
+			t.Fatalf("incidents.%s was not added", column)
+		}
+	}
+	var lifecycleDefaults struct {
+		ResolutionKind string
+		ReopenCount    int
+	}
+	if err := database.Table("incidents").Select("resolution_kind, reopen_count").Where("id = ?", "incident-legacy").Scan(&lifecycleDefaults).Error; err != nil {
+		t.Fatalf("read legacy incident lifecycle defaults: %v", err)
+	}
+	if lifecycleDefaults.ResolutionKind != "" || lifecycleDefaults.ReopenCount != 0 {
+		t.Fatalf("legacy lifecycle defaults = %+v, want empty resolution kind and zero reopen count", lifecycleDefaults)
 	}
 }
 

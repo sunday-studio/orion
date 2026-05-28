@@ -388,7 +388,7 @@ func (s *AgentService) applyAgentListDatabaseFilters(query *gorm.DB, opts ListAg
 	if opts.HasIncidents {
 		query = query.Where(
 			"id IN (?)",
-			s.db.Model(&db.Incident{}).Select("agent_id").Where("status IN ?", []string{"open", "acknowledged"}),
+			s.db.Model(&db.Incident{}).Select("agent_id").Where("status IN ?", activeIncidentStatuses()),
 		)
 	}
 

@@ -10,10 +10,16 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
+
+type incidentCoverageRequest struct {
+	CoveredUntil *time.Time `json:"covered_until"`
+	Note         string     `json:"note"`
+}
 
 // listIncidents retrieves persisted incidents.
 // @Summary      List incidents
@@ -22,7 +28,7 @@ import (
 // @Accept       json
 // @Produce      json
 // @ID           getIncidents
-// @Param        status  query     string  false  "Comma-separated incident statuses" default(open,acknowledged)
+// @Param        status  query     string  false  "Comma-separated incident statuses" default(open,acknowledged,covered)
 // @Param        agent_id  query   string  false  "Filter incidents by agent ID"
 // @Param        monitor_id  query  string  false  "Filter incidents by monitor ID"
 // @Param        needs_review  query  bool  false  "Filter to incidents with failed notifications or high/critical/error severity"
@@ -34,7 +40,7 @@ import (
 func (s *Server) listIncidents(c *gin.Context) {
 	limit := queryInt(c, "limit", 50)
 	offset := queryInt(c, "offset", 0)
-	statuses := queryStatuses(c.DefaultQuery("status", "open,acknowledged"))
+	statuses := queryStatuses(c.DefaultQuery("status", "open,acknowledged,covered"))
 	agentID := strings.TrimSpace(c.Query("agent_id"))
 	monitorID := strings.TrimSpace(c.Query("monitor_id"))
 	needsReview := queryBool(c, "needs_review", false)
@@ -222,6 +228,57 @@ func (s *Server) resolveIncident(c *gin.Context) {
 		return
 	}
 	s.writeIncidentActionResponse(c, "Incident resolved successfully", incident)
+}
+
+// coverIncident marks an active incident as covered.
+// @Summary      Cover incident
+// @Description  Mark an active incident as covered, optionally until a future timestamp, and record a manual incident event
+// @Tags         incidents
+// @Accept       json
+// @Produce      json
+// @ID           coverIncident
+// @Param        id       path      string                   true   "Incident ID"
+// @Param        request  body      incidentCoverageRequest  false  "Coverage payload"
+// @Success      200      {object}  utils.APIResponse{data=object{incident=IncidentResponse}}
+// @Failure      400      {object}  utils.APIResponse
+// @Failure      404      {object}  utils.APIResponse
+// @Failure      500      {object}  utils.APIResponse
+// @Router       /v1/incidents/{id}/cover [post]
+func (s *Server) coverIncident(c *gin.Context) {
+	var request incidentCoverageRequest
+	if c.Request.Body != nil && c.Request.ContentLength != 0 {
+		if err := c.ShouldBindJSON(&request); err != nil {
+			utils.BadRequest(c, "Invalid incident coverage payload")
+			return
+		}
+	}
+	incident, err := service.NewIncidentService(s.db, s.logger, s.cfg).CoverIncident(c.Param("id"), request.CoveredUntil, request.Note)
+	if err != nil {
+		s.handleIncidentActionError(c, err, "Failed to cover incident")
+		return
+	}
+	s.writeIncidentActionResponse(c, "Incident covered successfully", incident)
+}
+
+// reopenIncident reopens a resolved or covered incident.
+// @Summary      Reopen incident
+// @Description  Reopen a covered or resolved incident, restore its monitor active incident path, and record a manual incident event
+// @Tags         incidents
+// @Accept       json
+// @Produce      json
+// @ID           reopenIncident
+// @Param        id   path      string  true  "Incident ID"
+// @Success      200  {object}  utils.APIResponse{data=object{incident=IncidentResponse}}
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/incidents/{id}/reopen [post]
+func (s *Server) reopenIncident(c *gin.Context) {
+	incident, err := service.NewIncidentService(s.db, s.logger, s.cfg).ReopenIncident(c.Param("id"))
+	if err != nil {
+		s.handleIncidentActionError(c, err, "Failed to reopen incident")
+		return
+	}
+	s.writeIncidentActionResponse(c, "Incident reopened successfully", incident)
 }
 
 func (s *Server) handleIncidentActionError(c *gin.Context, err error, message string) {
@@ -424,7 +481,7 @@ func queryStatuses(value string) []string {
 		}
 	}
 	if len(statuses) == 0 {
-		return []string{"open", "acknowledged"}
+		return []string{"open", "acknowledged", "covered"}
 	}
 	return statuses
 }

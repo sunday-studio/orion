@@ -42,7 +42,7 @@ export const AgentDetailPage = () => {
   const uptimeResponse = useGetAgentUptime(currentAgentId, { period: "90d" });
   const incidentsResponse = useGetIncidents({
     agent_id: currentAgentId,
-    status: "open,acknowledged",
+    status: "open,acknowledged,covered",
     limit: 20,
   });
   const highlightedIncidentResponse = useGetIncident(highlightedIncidentId);

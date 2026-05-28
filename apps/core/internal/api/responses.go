@@ -144,6 +144,12 @@ type IncidentResponse struct {
 	MonitorName        string                            `json:"monitor_name"`
 	MonitorType        string                            `json:"monitor_type"`
 	ImpactedComponents []IncidentComponentImpactResponse `json:"impacted_components"`
+	CoveredAt          *time.Time                        `json:"covered_at,omitempty"`
+	CoveredUntil       *time.Time                        `json:"covered_until,omitempty"`
+	CoverageNote       string                            `json:"coverage_note,omitempty"`
+	ResolutionKind     string                            `json:"resolution_kind,omitempty"`
+	ReopenedAt         *time.Time                        `json:"reopened_at,omitempty"`
+	ReopenCount        int                               `json:"reopen_count"`
 	OpenedAt           time.Time                         `json:"opened_at"`
 	ResolvedAt         *time.Time                        `json:"resolved_at"`
 	LastEventAt        time.Time                         `json:"last_event_at"`
@@ -614,6 +620,12 @@ func incidentResponse(incident db.Incident, agent db.Agent, monitor db.Monitor) 
 		MonitorName:        monitor.Name,
 		MonitorType:        monitor.Type,
 		ImpactedComponents: incidentComponentImpactResponses(incident.ImpactedComponents),
+		CoveredAt:          incident.CoveredAt,
+		CoveredUntil:       incident.CoveredUntil,
+		CoverageNote:       incident.CoverageNote,
+		ResolutionKind:     incident.ResolutionKind,
+		ReopenedAt:         incident.ReopenedAt,
+		ReopenCount:        incident.ReopenCount,
 		OpenedAt:           incident.OpenedAt,
 		ResolvedAt:         incident.ResolvedAt,
 		LastEventAt:        incident.LastEventAt,

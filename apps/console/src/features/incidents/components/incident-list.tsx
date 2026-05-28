@@ -16,8 +16,8 @@ import { type ColumnDef } from "@tanstack/react-table";
 import { parseAsInteger, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 
 const INCIDENT_LIMIT = 20;
-const incidentStatuses = ["all", "open", "acknowledged", "resolved", "errors"] as const;
-const allIncidentStatuses = "open,acknowledged,resolved";
+const incidentStatuses = ["all", "open", "acknowledged", "covered", "resolved", "errors"] as const;
+const allIncidentStatuses = "open,acknowledged,covered,resolved";
 
 const incidentAgentPath = (incident: ApiIncidentResponse) =>
   incident.agent_id
@@ -176,6 +176,12 @@ export const IncidentList = () => {
     limit: 1,
     offset: 0,
   });
+  const coveredIncidentsResponse = useGetIncidents({
+    agent_id: agent || undefined,
+    status: "covered",
+    limit: 1,
+    offset: 0,
+  });
   const responseIncidents = filteredIncidentsResponse.data?.incidents ?? [];
   const incidents = responseIncidents;
   const count = filteredIncidentsResponse.data?.count ?? incidents.length;
@@ -203,6 +209,7 @@ export const IncidentList = () => {
         totalCount={incidentsResponse.data?.count ?? count}
         openCount={openIncidentsResponse.data?.count ?? 0}
         acknowledgedCount={acknowledgedIncidentsResponse.data?.count ?? 0}
+        coveredCount={coveredIncidentsResponse.data?.count ?? 0}
         resolvedCount={resolvedIncidentsResponse.data?.count ?? 0}
         visibleIncidents={incidents}
         selectedStatus={status}

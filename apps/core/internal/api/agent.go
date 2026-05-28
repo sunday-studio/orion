@@ -194,7 +194,7 @@ func (s *Server) getAgentSummary(c *gin.Context) {
 		}
 		if err := s.db.Model(&db.Incident{}).
 			Select("agent_id").
-			Where("agent_id IN ? AND status IN ?", agentIDs, []string{"open", "acknowledged"}).
+			Where("agent_id IN ? AND status IN ?", agentIDs, []string{"open", "acknowledged", "covered"}).
 			Group("agent_id").
 			Find(&rows).Error; err != nil {
 			s.logger.Error("Failed to load agent incident summary", "error", err)

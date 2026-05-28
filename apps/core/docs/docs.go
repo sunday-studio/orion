@@ -4107,7 +4107,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "default": "open,acknowledged",
+                        "default": "open,acknowledged,covered",
                         "description": "Comma-separated incident statuses",
                         "name": "status",
                         "in": "query"
@@ -4390,6 +4390,144 @@ const docTemplate = `{
                         "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/incidents/{id}/cover": {
+            "post": {
+                "description": "Mark an active incident as covered, optionally until a future timestamp, and record a manual incident event",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "incidents"
+                ],
+                "summary": "Cover incident",
+                "operationId": "coverIncident",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Incident ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Coverage payload",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/api.incidentCoverageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "incident": {
+                                                    "$ref": "#/definitions/api.IncidentResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/incidents/{id}/reopen": {
+            "post": {
+                "description": "Reopen a covered or resolved incident, restore its monitor active incident path, and record a manual incident event",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "incidents"
+                ],
+                "summary": "Reopen incident",
+                "operationId": "reopenIncident",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Incident ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "incident": {
+                                                    "$ref": "#/definitions/api.IncidentResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "404": {
@@ -8134,6 +8272,15 @@ const docTemplate = `{
                 "agent_name": {
                     "type": "string"
                 },
+                "coverage_note": {
+                    "type": "string"
+                },
+                "covered_at": {
+                    "type": "string"
+                },
+                "covered_until": {
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
                 },
@@ -8165,6 +8312,15 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "opened_at": {
+                    "type": "string"
+                },
+                "reopen_count": {
+                    "type": "integer"
+                },
+                "reopened_at": {
+                    "type": "string"
+                },
+                "resolution_kind": {
                     "type": "string"
                 },
                 "resolved_at": {
@@ -9226,6 +9382,17 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.incidentCoverageRequest": {
+            "type": "object",
+            "properties": {
+                "covered_until": {
+                    "type": "string"
+                },
+                "note": {
                     "type": "string"
                 }
             }
