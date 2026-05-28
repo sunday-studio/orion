@@ -26,6 +26,8 @@ Useful environment variables:
 - `ORION_WORKER_ID`: Core monitor worker diagnostics identity.
 - `ORION_WORKER_HEARTBEAT_SECONDS`: worker heartbeat interval.
 - `ORION_WORKER_STALE_SECONDS`: stale threshold used by diagnostics.
+- `ORION_PLAYWRIGHT_RUNNER`: optional executable path for Playwright transaction monitors. Leave
+  unset on workers without a browser runtime; those monitors report `runtime_unavailable` explicitly.
 - `ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS`: API-side data lifecycle archive/rollup scheduler interval.
 - `ORION_ADMIN_USERNAME`, `ORION_ADMIN_PASSWORD`, `ORION_JWT_SECRET`: enable Console login.
 

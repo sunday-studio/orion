@@ -170,6 +170,7 @@ func (s *Server) resumeCoreMonitor(c *gin.Context) {
 // @ID           testCoreMonitor
 // @Param        id   path      string true "Monitor ID"
 // @Success      200  {object}  utils.APIResponse{data=CoreMonitorManagementResponse}
+// @Failure      400  {object}  utils.APIResponse
 // @Failure      404  {object}  utils.APIResponse
 // @Failure      500  {object}  utils.APIResponse
 // @Router       /v1/monitors/{id}/test [post]
@@ -177,6 +178,10 @@ func (s *Server) testCoreMonitor(c *gin.Context) {
 	record, err := s.coreMonitorManagementService.GetCoreMonitorConfig(c.Param("id"))
 	if err != nil {
 		s.handleCoreMonitorManagementError(c, err, "Failed to load core monitor")
+		return
+	}
+	if err := service.ValidateCoreManagedMonitorConfig(record.Config.Kind, record.Config.ConfigJSON, record.Config.SecretRefJSON); err != nil {
+		s.handleCoreMonitorManagementError(c, err, "Failed to validate core monitor")
 		return
 	}
 

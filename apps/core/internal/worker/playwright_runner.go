@@ -327,7 +327,7 @@ func playwrightHeadless(cfg playwrightTransactionConfig) bool {
 func defaultPlaywrightRun(ctx context.Context, request playwrightTransactionRequest) (playwrightTransactionRunResult, error) {
 	runnerPath := strings.TrimSpace(os.Getenv(playwrightRunnerEnv))
 	if runnerPath == "" {
-		return playwrightTransactionRunResult{FailureStage: "runtime_unavailable"}, fmt.Errorf("%s is not configured", playwrightRunnerEnv)
+		return playwrightTransactionRunResult{FailureStage: "runtime_unavailable"}, fmt.Errorf("%s is not configured; set it to an executable Playwright runner on the Core worker host", playwrightRunnerEnv)
 	}
 	input, err := json.Marshal(request)
 	if err != nil {

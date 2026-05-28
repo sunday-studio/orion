@@ -28,6 +28,7 @@ This milestone covers the Core worker monitor runner catalog, not the Console cr
 - Kept runner behavior bounded: response samples are capped, Playwright artifacts are capped, synthetic variables are limited, UDP requires an expected response, and browser execution is behind an explicit runtime boundary.
 - Preserved safe secret handling: API request secret headers and Playwright secret variables are applied through secret config but only redacted key names are reported.
 - Documented first-release behavior and known fallbacks in `docs/plans/core-managed-monitors.md`.
+- Resolved first-release Playwright packaging as an explicit `ORION_PLAYWRIGHT_RUNNER` install or mount path on worker hosts; the default Core image remains browser-free.
 
 ## Evidence
 
@@ -55,11 +56,9 @@ This milestone covers the Core worker monitor runner catalog, not the Console cr
 
 - ICMP ping is explicit unsupported/permission behavior until the worker has privileged raw-socket support.
 - Domain expiration uses RDAP first and reports unavailable data clearly; WHOIS fallback remains deferred.
-- Playwright transactions require an explicit `ORION_PLAYWRIGHT_RUNNER` runtime on the worker host; the default Core image does not silently bundle browsers.
+- Playwright transactions require an explicit `ORION_PLAYWRIGHT_RUNNER` runtime on the worker host; the default Core image does not silently bundle browsers, and official optional browser packaging remains a later runtime-contract decision.
 - Mail monitors intentionally do not authenticate in this milestone.
 
 ## Next
 
 - Wire the full catalog into Console creation and edit flows.
-- Add Core monitor type-specific API validation if the admin API still accepts only generic config blobs.
-- Decide packaging and deployment for an optional Playwright runtime image or sidecar.

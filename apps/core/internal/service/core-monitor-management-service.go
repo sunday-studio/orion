@@ -20,6 +20,13 @@ import (
 
 const defaultCoreManagedMonitorIntervalSeconds = 60
 const defaultCoreManagedMonitorTimeoutSeconds = 10
+const maxCoreSyntheticSteps = 10
+const maxCoreSyntheticVariables = 10
+const maxCoreSyntheticVariableLength = 1024
+const maxCorePlaywrightSteps = 30
+const maxCorePlaywrightArtifactBytes = 256 * 1024
+const maxCorePlaywrightSelectorLength = 2048
+const maxCorePlaywrightValueLength = 4096
 
 var (
 	ErrCoreManagedMonitorNotFound        = errors.New("core monitor not found")
@@ -535,7 +542,7 @@ func validateCoreManagedMonitorConfig(kind string, configJSON string, secretRefJ
 	case "heartbeat":
 		return validateCoreHeartbeatMonitorConfig(configJSON)
 	case "http", "http_keyword", "expected_status":
-		return validateCoreHTTPMonitorConfig(configJSON)
+		return validateCoreHTTPMonitorConfig(kind, configJSON)
 	case "api_request":
 		return validateCoreAPIRequestMonitorConfig(configJSON)
 	case "tcp":
@@ -561,6 +568,10 @@ func validateCoreManagedMonitorConfig(kind string, configJSON string, secretRefJ
 	}
 }
 
+func ValidateCoreManagedMonitorConfig(kind string, configJSON string, secretRefJSON string) error {
+	return validateCoreManagedMonitorConfig(kind, configJSON, secretRefJSON)
+}
+
 func HashHeartbeatMonitorToken(token string) string {
 	sum := sha256.Sum256([]byte(strings.TrimSpace(token)))
 	return hex.EncodeToString(sum[:])
@@ -579,12 +590,14 @@ func validateCoreHeartbeatMonitorConfig(configJSON string) error {
 	return nil
 }
 
-func validateCoreHTTPMonitorConfig(configJSON string) error {
+func validateCoreHTTPMonitorConfig(kind string, configJSON string) error {
 	var cfg struct {
-		URL              string `json:"url"`
-		Method           string `json:"method"`
-		ExpectedStatus   int    `json:"expected_status"`
-		ExpectedStatuses []int  `json:"expected_statuses"`
+		URL               string   `json:"url"`
+		Method            string   `json:"method"`
+		ExpectedStatus    int      `json:"expected_status"`
+		ExpectedStatuses  []int    `json:"expected_statuses"`
+		RequiredContains  []string `json:"required_contains"`
+		ForbiddenContains []string `json:"forbidden_contains"`
 	}
 	if err := json.Unmarshal([]byte(configJSON), &cfg); err != nil {
 		return fmt.Errorf("%w: parse config json: %v", ErrCoreManagedMonitorValidation, err)
@@ -598,6 +611,13 @@ func validateCoreHTTPMonitorConfig(configJSON string) error {
 	}
 	if method != http.MethodGet && method != http.MethodHead {
 		return fmt.Errorf("%w: method must be GET or HEAD", ErrCoreManagedMonitorValidation)
+	}
+	normalizedKind := normalizeCoreManagedMonitorKind(kind)
+	if normalizedKind == "http_keyword" && !hasNonEmptyString(cfg.RequiredContains) && !hasNonEmptyString(cfg.ForbiddenContains) {
+		return fmt.Errorf("%w: required_contains or forbidden_contains is required", ErrCoreManagedMonitorValidation)
+	}
+	if normalizedKind == "expected_status" && cfg.ExpectedStatus == 0 && len(cfg.ExpectedStatuses) == 0 {
+		return fmt.Errorf("%w: expected_status or expected_statuses is required", ErrCoreManagedMonitorValidation)
 	}
 	return validateCoreExpectedStatuses(cfg.ExpectedStatus, cfg.ExpectedStatuses)
 }
@@ -619,9 +639,7 @@ func validateCoreAPIRequestMonitorConfig(configJSON string) error {
 	if method == "" {
 		method = http.MethodGet
 	}
-	switch method {
-	case http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodHead, http.MethodOptions:
-	default:
+	if !coreMonitorAPIRequestMethodAllowed(method) {
 		return fmt.Errorf("%w: method must be GET, POST, PUT, PATCH, DELETE, HEAD, or OPTIONS", ErrCoreManagedMonitorValidation)
 	}
 	return validateCoreExpectedStatuses(cfg.ExpectedStatus, cfg.ExpectedStatuses)
@@ -837,10 +855,19 @@ func validateCoreMailMonitorConfig(kind string, configJSON string) error {
 
 func validateCoreSyntheticMonitorConfig(configJSON string) error {
 	var cfg struct {
-		Steps []struct {
-			Type   string `json:"type"`
-			URL    string `json:"url"`
-			Method string `json:"method"`
+		Variables map[string]string `json:"variables"`
+		Steps     []struct {
+			Type             string `json:"type"`
+			URL              string `json:"url"`
+			Method           string `json:"method"`
+			ExpectedStatus   int    `json:"expected_status"`
+			ExpectedStatuses []int  `json:"expected_statuses"`
+			Request          *struct {
+				URL              string `json:"url"`
+				Method           string `json:"method"`
+				ExpectedStatus   int    `json:"expected_status"`
+				ExpectedStatuses []int  `json:"expected_statuses"`
+			} `json:"request"`
 		} `json:"steps"`
 	}
 	if err := json.Unmarshal([]byte(configJSON), &cfg); err != nil {
@@ -849,16 +876,66 @@ func validateCoreSyntheticMonitorConfig(configJSON string) error {
 	if len(cfg.Steps) == 0 {
 		return fmt.Errorf("%w: steps are required", ErrCoreManagedMonitorValidation)
 	}
+	if len(cfg.Steps) > maxCoreSyntheticSteps {
+		return fmt.Errorf("%w: steps must contain at most %d items", ErrCoreManagedMonitorValidation, maxCoreSyntheticSteps)
+	}
+	if len(cfg.Variables) > maxCoreSyntheticVariables {
+		return fmt.Errorf("%w: variables must contain at most %d entries", ErrCoreManagedMonitorValidation, maxCoreSyntheticVariables)
+	}
+	for key, value := range cfg.Variables {
+		if !coreMonitorVariableNameValid(key) {
+			return fmt.Errorf("%w: variable %q has invalid name", ErrCoreManagedMonitorValidation, key)
+		}
+		if len(value) > maxCoreSyntheticVariableLength {
+			return fmt.Errorf("%w: variable %q exceeds %d bytes", ErrCoreManagedMonitorValidation, key, maxCoreSyntheticVariableLength)
+		}
+	}
 	for index, step := range cfg.Steps {
 		stepType := strings.ToLower(strings.TrimSpace(step.Type))
 		if stepType == "" || stepType == "http" {
 			stepType = "api"
 		}
-		if stepType != "api" {
-			return fmt.Errorf("%w: step %d type must be api", ErrCoreManagedMonitorValidation, index+1)
-		}
-		if err := validateCoreHTTPURL(step.URL, fmt.Sprintf("step %d url", index+1)); err != nil {
-			return err
+		switch stepType {
+		case "api":
+			targetURL := strings.TrimSpace(step.URL)
+			method := strings.ToUpper(strings.TrimSpace(step.Method))
+			expectedStatus := step.ExpectedStatus
+			expectedStatuses := step.ExpectedStatuses
+			if step.Request != nil {
+				if strings.TrimSpace(step.Request.URL) != "" {
+					targetURL = strings.TrimSpace(step.Request.URL)
+				}
+				if strings.TrimSpace(step.Request.Method) != "" {
+					method = strings.ToUpper(strings.TrimSpace(step.Request.Method))
+				}
+				if step.Request.ExpectedStatus != 0 {
+					expectedStatus = step.Request.ExpectedStatus
+				}
+				if len(step.Request.ExpectedStatuses) > 0 {
+					expectedStatuses = step.Request.ExpectedStatuses
+				}
+			}
+			if strings.TrimSpace(targetURL) == "" {
+				return fmt.Errorf("%w: step %d url is required", ErrCoreManagedMonitorValidation, index+1)
+			}
+			if !strings.Contains(targetURL, "{{") {
+				if err := validateCoreHTTPURL(targetURL, fmt.Sprintf("step %d url", index+1)); err != nil {
+					return err
+				}
+			}
+			if method == "" {
+				method = http.MethodGet
+			}
+			if !coreMonitorAPIRequestMethodAllowed(method) {
+				return fmt.Errorf("%w: step %d method must be GET, POST, PUT, PATCH, DELETE, HEAD, or OPTIONS", ErrCoreManagedMonitorValidation, index+1)
+			}
+			if err := validateCoreExpectedStatuses(expectedStatus, expectedStatuses); err != nil {
+				return err
+			}
+		case "browser":
+			continue
+		default:
+			return fmt.Errorf("%w: step %d type must be api, http, or browser", ErrCoreManagedMonitorValidation, index+1)
 		}
 	}
 	return nil
@@ -866,11 +943,21 @@ func validateCoreSyntheticMonitorConfig(configJSON string) error {
 
 func validateCorePlaywrightMonitorConfig(configJSON string) error {
 	var cfg struct {
-		URL      string        `json:"url"`
-		StartURL string        `json:"start_url"`
-		Browser  string        `json:"browser"`
-		Steps    []interface{} `json:"steps"`
-		Viewport struct {
+		URL      string `json:"url"`
+		StartURL string `json:"start_url"`
+		Browser  string `json:"browser"`
+		Steps    []struct {
+			Name      string `json:"name"`
+			Action    string `json:"action"`
+			URL       string `json:"url"`
+			Selector  string `json:"selector"`
+			Value     string `json:"value"`
+			Text      string `json:"text"`
+			Contains  string `json:"contains"`
+			TimeoutMS int    `json:"timeout_ms"`
+		} `json:"steps"`
+		ArtifactLimitBytes int `json:"artifact_limit_bytes"`
+		Viewport           struct {
 			Width  int `json:"width"`
 			Height int `json:"height"`
 		} `json:"viewport"`
@@ -903,7 +990,92 @@ func validateCorePlaywrightMonitorConfig(configJSON string) error {
 			return fmt.Errorf("%w: viewport must be between 320x240 and 3840x2160", ErrCoreManagedMonitorValidation)
 		}
 	}
+	if cfg.ArtifactLimitBytes < 0 || cfg.ArtifactLimitBytes > maxCorePlaywrightArtifactBytes {
+		return fmt.Errorf("%w: artifact_limit_bytes must be between 0 and %d", ErrCoreManagedMonitorValidation, maxCorePlaywrightArtifactBytes)
+	}
+	if len(cfg.Steps) > maxCorePlaywrightSteps {
+		return fmt.Errorf("%w: steps must contain at most %d items", ErrCoreManagedMonitorValidation, maxCorePlaywrightSteps)
+	}
+	for index, step := range cfg.Steps {
+		action := strings.ToLower(strings.TrimSpace(step.Action))
+		if action == "" {
+			action = "goto"
+		}
+		switch action {
+		case "goto", "click", "fill", "select", "check", "wait_for_selector", "text_contains", "assert_text", "assert_url", "screenshot":
+		default:
+			return fmt.Errorf("%w: step %d action is unsupported", ErrCoreManagedMonitorValidation, index+1)
+		}
+		if step.TimeoutMS < 0 || step.TimeoutMS > 60000 {
+			return fmt.Errorf("%w: step %d timeout_ms must be between 0 and 60000", ErrCoreManagedMonitorValidation, index+1)
+		}
+		if action == "goto" {
+			if strings.TrimSpace(step.URL) == "" {
+				return fmt.Errorf("%w: step %d url is required", ErrCoreManagedMonitorValidation, index+1)
+			}
+			if !strings.Contains(step.URL, "{{") {
+				if err := validateCoreHTTPURL(step.URL, fmt.Sprintf("step %d url", index+1)); err != nil {
+					return err
+				}
+			}
+		}
+		if corePlaywrightActionRequiresSelector(action) && strings.TrimSpace(step.Selector) == "" {
+			return fmt.Errorf("%w: step %d selector is required", ErrCoreManagedMonitorValidation, index+1)
+		}
+		if len(step.Selector) > maxCorePlaywrightSelectorLength {
+			return fmt.Errorf("%w: step %d selector exceeds %d bytes", ErrCoreManagedMonitorValidation, index+1, maxCorePlaywrightSelectorLength)
+		}
+		if len(step.Value) > maxCorePlaywrightValueLength || len(step.Text) > maxCorePlaywrightValueLength || len(step.Contains) > maxCorePlaywrightValueLength {
+			return fmt.Errorf("%w: step %d value exceeds %d bytes", ErrCoreManagedMonitorValidation, index+1, maxCorePlaywrightValueLength)
+		}
+	}
 	return nil
+}
+
+func coreMonitorAPIRequestMethodAllowed(method string) bool {
+	switch method {
+	case http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodHead, http.MethodOptions:
+		return true
+	default:
+		return false
+	}
+}
+
+func hasNonEmptyString(values []string) bool {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func corePlaywrightActionRequiresSelector(action string) bool {
+	switch action {
+	case "click", "fill", "select", "check", "wait_for_selector", "text_contains", "assert_text":
+		return true
+	default:
+		return false
+	}
+}
+
+func coreMonitorVariableNameValid(name string) bool {
+	if name == "" {
+		return false
+	}
+	for index, char := range name {
+		if index == 0 {
+			if (char >= 'A' && char <= 'Z') || (char >= 'a' && char <= 'z') || char == '_' {
+				continue
+			}
+			return false
+		}
+		if (char >= 'A' && char <= 'Z') || (char >= 'a' && char <= 'z') || (char >= '0' && char <= '9') || char == '_' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func validateCoreExpectedStatuses(expectedStatus int, expectedStatuses []int) error {

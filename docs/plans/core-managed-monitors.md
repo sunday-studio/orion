@@ -245,10 +245,13 @@ Minimum options:
 - interval.
 
 First release behavior: Core treats Playwright transactions as bounded browser step lists executed
-through an external Node/Playwright runtime. The worker enforces step count, timeout, viewport, and
-artifact-size limits, redacts configured secret variable names in reports, captures bounded
+through an explicit Node/Playwright runner configured with `ORION_PLAYWRIGHT_RUNNER` on the worker
+host. The default Core image stays browser-free. The worker enforces step count, timeout, viewport,
+and artifact-size limits, redacts configured secret variable names in reports, captures bounded
 screenshot artifacts on failure, and reports `runtime_unavailable` clearly when Playwright is not
-configured on the worker host.
+configured on the worker host. Operators that need browser checks should install or mount a trusted
+runner executable and set `ORION_PLAYWRIGHT_RUNNER`; an official optional browser worker image or
+sidecar is deferred until Orion versions the browser sandbox and artifact-retention contract.
 
 14. Synthetic multi-step API/browser flows
 
@@ -566,7 +569,7 @@ MVP guardrails:
 - disable redirects to blocked hosts;
 - record the final URL/host after redirects;
 - avoid arbitrary command execution;
-- avoid Playwright until sandboxing is designed.
+- keep Playwright behind an explicit runner executable until sandboxing is versioned.
 
 Open security decision: Orion is self-hosted, so some users will want to monitor internal hosts from Core. The safest default is to allow private targets only behind an explicit Core config flag or Console setting.
 
