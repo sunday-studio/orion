@@ -906,6 +906,8 @@ func (s *AlertService) deliver(channel db.AlertChannel, incidentID string, event
 	switch channel.Type {
 	case "webhook":
 		return s.deliverWebhook(channel, incident, eventType)
+	case "slack", "discord":
+		return s.deliverChat(channel, incident, eventType)
 	case "email":
 		return s.deliverEmail(channel, incident, eventType)
 	default:
@@ -921,6 +923,8 @@ func (s *AlertService) deliverGroupSummary(channel db.AlertChannel, groupID stri
 	switch channel.Type {
 	case "webhook":
 		return s.deliverWebhookPayload(channel, payload)
+	case "slack", "discord":
+		return s.deliverChatPayload(channel, payload)
 	case "email":
 		return s.deliverEmailPayload(channel, payload)
 	default:
@@ -967,6 +971,8 @@ func (s *AlertService) deliverTest(channel db.AlertChannel) error {
 	switch channel.Type {
 	case "webhook":
 		return s.deliverWebhook(channel, incident, "test")
+	case "slack", "discord":
+		return s.deliverChat(channel, incident, "test")
 	case "email":
 		return s.deliverEmail(channel, incident, "test")
 	default:
@@ -1009,6 +1015,39 @@ func (s *AlertService) deliverWebhookPayload(channel db.AlertChannel, payload Al
 
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		return newAlertDeliveryError("http_response", fmt.Errorf("webhook returned status %d", resp.StatusCode))
+	}
+	return nil
+}
+
+func (s *AlertService) deliverChat(channel db.AlertChannel, incident db.Incident, eventType string) error {
+	payload := s.buildAlertPayload(incident, eventType, time.Now().UTC())
+	return s.deliverChatPayload(channel, payload)
+}
+
+func (s *AlertService) deliverChatPayload(channel db.AlertChannel, payload AlertPayload) error {
+	if channel.WebhookURL == "" {
+		return newAlertDeliveryError("configure", fmt.Errorf("%s webhook URL is not configured", channel.Type))
+	}
+	body, contentType, err := RenderChatAlert(ChatDestination(channel.Type), payload)
+	if err != nil {
+		return newAlertDeliveryError("serialize", err)
+	}
+
+	request, err := http.NewRequest(http.MethodPost, channel.WebhookURL, bytes.NewReader(body))
+	if err != nil {
+		return newAlertDeliveryError("http_request", err)
+	}
+	request.Header.Set("Content-Type", contentType)
+	request.Header.Set("User-Agent", "orion-core-alerts/1")
+
+	resp, err := s.httpClient.Do(request)
+	if err != nil {
+		return newAlertDeliveryError("http_request", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return newAlertDeliveryError("http_response", fmt.Errorf("%s webhook returned status %d", channel.Type, resp.StatusCode))
 	}
 	return nil
 }

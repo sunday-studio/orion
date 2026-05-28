@@ -433,6 +433,94 @@ func TestAlertServiceUsesMatchingAlertRoute(t *testing.T) {
 	}
 }
 
+func TestAlertServiceRoutesAndRetriesChatChannels(t *testing.T) {
+	database := setupAlertServiceDatabase(t)
+	createTestIncident(t, database, "incident-1")
+	createTestAlertChannel(t, database, db.AlertChannel{Name: "ops-slack", Type: "slack", Enabled: true, WebhookURL: "https://alerts.example.com/slack"})
+	createTestAlertChannel(t, database, db.AlertChannel{Name: "ops-discord", Type: "discord", Enabled: true, WebhookURL: "https://alerts.example.com/discord"})
+	createTestAlertRoute(t, database, db.AlertRoute{
+		ID:         "route-chat",
+		Name:       "chat route",
+		Enabled:    true,
+		Priority:   10,
+		EventTypes: db.EncodeAlertEvents([]string{db.AlertEventIncidentOpened}),
+		ChannelIDs: encodeTestStringList([]string{"channel-ops-slack", "channel-ops-discord"}),
+	})
+
+	slackRequests := 0
+	discordRequests := 0
+	var slackPayload map[string]interface{}
+	var discordPayload map[string]interface{}
+	transport := roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		if got := r.Header.Get("Content-Type"); got != "application/json" {
+			t.Fatalf("chat content type = %q, want application/json", got)
+		}
+		if got := r.Header.Get("X-Orion-Signature"); got != "" {
+			t.Fatalf("chat signature header = %q, want none", got)
+		}
+
+		switch r.URL.Path {
+		case "/slack":
+			slackRequests++
+			if err := json.NewDecoder(r.Body).Decode(&slackPayload); err != nil {
+				t.Fatalf("decode slack payload: %v", err)
+			}
+			if slackRequests == 1 {
+				return &http.Response{StatusCode: http.StatusInternalServerError, Body: http.NoBody, Header: make(http.Header)}, nil
+			}
+		case "/discord":
+			discordRequests++
+			if err := json.NewDecoder(r.Body).Decode(&discordPayload); err != nil {
+				t.Fatalf("decode discord payload: %v", err)
+			}
+		default:
+			t.Fatalf("unexpected chat webhook path %q", r.URL.Path)
+		}
+		return &http.Response{StatusCode: http.StatusNoContent, Body: http.NoBody, Header: make(http.Header)}, nil
+	})
+	service := NewAlertService(database, logging.NewLogger(), &config.Config{})
+	service.httpClient.Transport = transport
+
+	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentOpened); err != nil {
+		t.Fatalf("QueueIncidentNotifications() error = %v", err)
+	}
+
+	var deliveries []db.AlertDelivery
+	if err := database.Order("channel ASC").Find(&deliveries).Error; err != nil {
+		t.Fatalf("find deliveries: %v", err)
+	}
+	if len(deliveries) != 2 {
+		t.Fatalf("delivery count = %d, want 2", len(deliveries))
+	}
+	if deliveries[0].Channel != "ops-discord" || deliveries[0].Type != "discord" || deliveries[0].Status != "sent" {
+		t.Fatalf("discord delivery = %+v, want sent discord delivery", deliveries[0])
+	}
+	if deliveries[1].Channel != "ops-slack" || deliveries[1].Type != "slack" || deliveries[1].Status != "failed" || deliveries[1].NextAttemptAt == nil {
+		t.Fatalf("slack delivery = %+v, want failed slack delivery queued for retry", deliveries[1])
+	}
+	assertSlackChatPayload(t, slackPayload, "homepage is down", db.AlertEventIncidentOpened)
+	assertDiscordChatPayload(t, discordPayload, "homepage is down", db.AlertEventIncidentOpened)
+
+	past := time.Now().UTC().Add(-time.Minute)
+	if err := database.Model(&db.AlertDelivery{}).Where("id = ?", deliveries[1].ID).Update("next_attempt_at", past).Error; err != nil {
+		t.Fatalf("force chat retry due: %v", err)
+	}
+	processed, err := service.ProcessDueDeliveries(10)
+	if err != nil {
+		t.Fatalf("ProcessDueDeliveries() error = %v", err)
+	}
+	if processed != 1 {
+		t.Fatalf("processed = %d, want 1 chat retry", processed)
+	}
+	var retried db.AlertDelivery
+	if err := database.Where("id = ?", deliveries[1].ID).First(&retried).Error; err != nil {
+		t.Fatalf("find retried chat delivery: %v", err)
+	}
+	if retried.Status != "sent" || retried.AttemptCount != 2 || retried.Type != "slack" || slackRequests != 2 || discordRequests != 1 {
+		t.Fatalf("retried delivery = %+v slackRequests=%d discordRequests=%d, want sent slack retry only", retried, slackRequests, discordRequests)
+	}
+}
+
 func TestAlertServiceDryRunExplainsRouteSuppression(t *testing.T) {
 	database := setupAlertServiceDatabase(t)
 	createTestIncident(t, database, "incident-1")
@@ -741,6 +829,57 @@ func TestAlertServiceTestsConfiguredWebhookChannel(t *testing.T) {
 	}
 }
 
+func TestAlertServiceTestsConfiguredChatChannels(t *testing.T) {
+	database := setupAlertServiceDatabase(t)
+	createTestAlertChannel(t, database, db.AlertChannel{Name: "ops-slack", Type: "slack", Enabled: true, WebhookURL: "https://alerts.example.com/slack"})
+	createTestAlertChannel(t, database, db.AlertChannel{Name: "ops-discord", Type: "discord", Enabled: true, WebhookURL: "https://alerts.example.com/discord"})
+
+	var slackPayload map[string]interface{}
+	var discordPayload map[string]interface{}
+	transport := roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("chat method = %s, want POST", r.Method)
+		}
+		switch r.URL.Path {
+		case "/slack":
+			if err := json.NewDecoder(r.Body).Decode(&slackPayload); err != nil {
+				t.Fatalf("decode slack test payload: %v", err)
+			}
+		case "/discord":
+			if err := json.NewDecoder(r.Body).Decode(&discordPayload); err != nil {
+				t.Fatalf("decode discord test payload: %v", err)
+			}
+		default:
+			t.Fatalf("unexpected chat webhook path %q", r.URL.Path)
+		}
+		return &http.Response{
+			StatusCode: http.StatusNoContent,
+			Body:       http.NoBody,
+			Header:     make(http.Header),
+		}, nil
+	})
+	service := NewAlertService(database, logging.NewLogger(), &config.Config{})
+	service.httpClient.Transport = transport
+
+	slackDelivery, err := service.TestChannel("channel-ops-slack")
+	if err != nil {
+		t.Fatalf("TestChannel(slack) error = %v", err)
+	}
+	discordDelivery, err := service.TestChannel("channel-ops-discord")
+	if err != nil {
+		t.Fatalf("TestChannel(discord) error = %v", err)
+	}
+
+	if slackDelivery.EventType != "test" || slackDelivery.Channel != "ops-slack" || slackDelivery.Type != "slack" || slackDelivery.Status != "sent" {
+		t.Fatalf("slack test delivery = %+v, want sent slack test delivery", slackDelivery)
+	}
+	if discordDelivery.EventType != "test" || discordDelivery.Channel != "ops-discord" || discordDelivery.Type != "discord" || discordDelivery.Status != "sent" {
+		t.Fatalf("discord test delivery = %+v, want sent discord test delivery", discordDelivery)
+	}
+	assertSlackChatPayload(t, slackPayload, "Alert channel test", "test")
+	assertDiscordChatPayload(t, discordPayload, "Alert channel test", "test")
+}
+
 func TestAlertServiceTestsConfiguredEmailChannel(t *testing.T) {
 	database := setupAlertServiceDatabase(t)
 	smtpAddress, messages := startTestSMTPServer(t)
@@ -969,6 +1108,70 @@ func TestAlertServiceQueuesReusableEmailDestinations(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for reusable destination email")
+	}
+}
+
+func assertSlackChatPayload(t *testing.T, payload map[string]interface{}, wantTitle string, wantEvent string) {
+	t.Helper()
+
+	if text, ok := payload["text"].(string); !ok || !strings.Contains(text, "Orion alert: "+wantTitle) {
+		t.Fatalf("slack text = %#v, want Orion alert title %q", payload["text"], wantTitle)
+	}
+	blocks, ok := payload["blocks"].([]interface{})
+	if !ok || len(blocks) != 3 {
+		t.Fatalf("slack blocks = %#v, want header, section, context", payload["blocks"])
+	}
+	header, ok := blocks[0].(map[string]interface{})
+	if !ok || header["type"] != "header" {
+		t.Fatalf("slack header block = %#v, want header", blocks[0])
+	}
+	headerText, ok := header["text"].(map[string]interface{})
+	if !ok || headerText["type"] != "plain_text" || headerText["text"] != wantTitle {
+		t.Fatalf("slack header text = %#v, want plain title %q", header["text"], wantTitle)
+	}
+	section, ok := blocks[1].(map[string]interface{})
+	if !ok || section["type"] != "section" {
+		t.Fatalf("slack section block = %#v, want section", blocks[1])
+	}
+	sectionText, ok := section["text"].(map[string]interface{})
+	if !ok || sectionText["type"] != "mrkdwn" || !strings.Contains(fmt.Sprint(sectionText["text"]), wantEvent) {
+		t.Fatalf("slack section text = %#v, want event %q", section["text"], wantEvent)
+	}
+	context, ok := blocks[2].(map[string]interface{})
+	if !ok || context["type"] != "context" {
+		t.Fatalf("slack context block = %#v, want context", blocks[2])
+	}
+	elements, ok := context["elements"].([]interface{})
+	if !ok || len(elements) != 1 || !strings.Contains(fmt.Sprint(elements[0]), "version: "+AlertPayloadVersion) {
+		t.Fatalf("slack context elements = %#v, want payload version", context["elements"])
+	}
+}
+
+func assertDiscordChatPayload(t *testing.T, payload map[string]interface{}, wantTitle string, wantEvent string) {
+	t.Helper()
+
+	if content, ok := payload["content"].(string); !ok || !strings.Contains(content, "Orion alert: "+wantTitle) {
+		t.Fatalf("discord content = %#v, want Orion alert title %q", payload["content"], wantTitle)
+	}
+	embeds, ok := payload["embeds"].([]interface{})
+	if !ok || len(embeds) != 1 {
+		t.Fatalf("discord embeds = %#v, want one embed", payload["embeds"])
+	}
+	embed, ok := embeds[0].(map[string]interface{})
+	if !ok || embed["title"] != wantTitle || !strings.Contains(fmt.Sprint(embed["description"]), wantEvent) {
+		t.Fatalf("discord embed = %#v, want title %q and event %q", embeds[0], wantTitle, wantEvent)
+	}
+	footer, ok := embed["footer"].(map[string]interface{})
+	if !ok || footer["text"] != AlertPayloadVersion {
+		t.Fatalf("discord footer = %#v, want payload version", embed["footer"])
+	}
+	fields, ok := embed["fields"].([]interface{})
+	if !ok || len(fields) < 3 {
+		t.Fatalf("discord fields = %#v, want event/severity/incident fields", embed["fields"])
+	}
+	firstField, ok := fields[0].(map[string]interface{})
+	if !ok || firstField["name"] != "Event" || firstField["value"] != wantEvent {
+		t.Fatalf("discord first field = %#v, want event %q", fields[0], wantEvent)
 	}
 }
 
