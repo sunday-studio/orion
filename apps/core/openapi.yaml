@@ -468,6 +468,52 @@ definitions:
       type:
         type: string
     type: object
+  api.IncidentInsightsResponse:
+    properties:
+      lifecycle_timing:
+        $ref: '#/definitions/api.IncidentLifecycleTimingResponse'
+      notification_reliability:
+        $ref: '#/definitions/api.IncidentNotificationReliabilityStats'
+      recurring_failures:
+        items:
+          $ref: '#/definitions/api.IncidentRecurringFailureResponse'
+        type: array
+    type: object
+  api.IncidentLifecycleTimingResponse:
+    properties:
+      acknowledged_count:
+        type: integer
+      mean_time_to_acknowledge_seconds:
+        type: integer
+      mean_time_to_resolve_seconds:
+        type: integer
+      resolved_count:
+        type: integer
+    type: object
+  api.IncidentNotificationReliabilityStats:
+    properties:
+      failed_deliveries:
+        type: integer
+      sent_deliveries:
+        type: integer
+      success_rate_percent:
+        type: number
+      suppressed_deliveries:
+        type: integer
+      total_deliveries:
+        type: integer
+    type: object
+  api.IncidentRecurringFailureResponse:
+    properties:
+      incident_count:
+        type: integer
+      last_incident_at:
+        type: string
+      monitor_id:
+        type: string
+      monitor_name:
+        type: string
+    type: object
   api.IncidentResponse:
     properties:
       agent_id:
@@ -4505,6 +4551,22 @@ paths:
         in: query
         name: monitor_id
         type: string
+      - description: Filter incidents by resolution kind
+        in: query
+        name: resolution_kind
+        type: string
+      - description: 'Filter incidents by lifecycle actor: manual or system'
+        in: query
+        name: actor
+        type: string
+      - description: Filter incidents by covered lifecycle state
+        in: query
+        name: covered
+        type: boolean
+      - description: Filter incidents by notification status
+        in: query
+        name: notification_status
+        type: string
       - description: Filter to incidents with failed notifications or high/critical/error
           severity
         in: query
@@ -4538,6 +4600,8 @@ paths:
                       items:
                         $ref: '#/definitions/api.IncidentResponse'
                       type: array
+                    insights:
+                      $ref: '#/definitions/api.IncidentInsightsResponse'
                     limit:
                       type: integer
                     offset:

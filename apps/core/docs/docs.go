@@ -4125,6 +4125,30 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "string",
+                        "description": "Filter incidents by resolution kind",
+                        "name": "resolution_kind",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter incidents by lifecycle actor: manual or system",
+                        "name": "actor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter incidents by covered lifecycle state",
+                        "name": "covered",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter incidents by notification status",
+                        "name": "notification_status",
+                        "in": "query"
+                    },
+                    {
                         "type": "boolean",
                         "description": "Filter to incidents with failed notifications or high/critical/error severity",
                         "name": "needs_review",
@@ -4168,6 +4192,9 @@ const docTemplate = `{
                                                     "items": {
                                                         "$ref": "#/definitions/api.IncidentResponse"
                                                     }
+                                                },
+                                                "insights": {
+                                                    "$ref": "#/definitions/api.IncidentInsightsResponse"
                                                 },
                                                 "limit": {
                                                     "type": "integer"
@@ -8259,6 +8286,77 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.IncidentInsightsResponse": {
+            "type": "object",
+            "properties": {
+                "lifecycle_timing": {
+                    "$ref": "#/definitions/api.IncidentLifecycleTimingResponse"
+                },
+                "notification_reliability": {
+                    "$ref": "#/definitions/api.IncidentNotificationReliabilityStats"
+                },
+                "recurring_failures": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.IncidentRecurringFailureResponse"
+                    }
+                }
+            }
+        },
+        "api.IncidentLifecycleTimingResponse": {
+            "type": "object",
+            "properties": {
+                "acknowledged_count": {
+                    "type": "integer"
+                },
+                "mean_time_to_acknowledge_seconds": {
+                    "type": "integer"
+                },
+                "mean_time_to_resolve_seconds": {
+                    "type": "integer"
+                },
+                "resolved_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "api.IncidentNotificationReliabilityStats": {
+            "type": "object",
+            "properties": {
+                "failed_deliveries": {
+                    "type": "integer"
+                },
+                "sent_deliveries": {
+                    "type": "integer"
+                },
+                "success_rate_percent": {
+                    "type": "number"
+                },
+                "suppressed_deliveries": {
+                    "type": "integer"
+                },
+                "total_deliveries": {
+                    "type": "integer"
+                }
+            }
+        },
+        "api.IncidentRecurringFailureResponse": {
+            "type": "object",
+            "properties": {
+                "incident_count": {
+                    "type": "integer"
+                },
+                "last_incident_at": {
+                    "type": "string"
+                },
+                "monitor_id": {
+                    "type": "string"
+                },
+                "monitor_name": {
                     "type": "string"
                 }
             }

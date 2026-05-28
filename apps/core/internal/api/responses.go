@@ -159,6 +159,38 @@ type IncidentResponse struct {
 	UpdatedAt          time.Time                         `json:"updated_at"`
 }
 
+// IncidentInsightsResponse represents aggregate incident metrics for the current incident filters.
+type IncidentInsightsResponse struct {
+	RecurringFailures       []IncidentRecurringFailureResponse   `json:"recurring_failures"`
+	LifecycleTiming         IncidentLifecycleTimingResponse      `json:"lifecycle_timing"`
+	NotificationReliability IncidentNotificationReliabilityStats `json:"notification_reliability"`
+}
+
+// IncidentRecurringFailureResponse highlights monitors with repeated incidents.
+type IncidentRecurringFailureResponse struct {
+	MonitorID      string    `json:"monitor_id"`
+	MonitorName    string    `json:"monitor_name"`
+	IncidentCount  int64     `json:"incident_count"`
+	LastIncidentAt time.Time `json:"last_incident_at"`
+}
+
+// IncidentLifecycleTimingResponse summarizes incident acknowledgement and resolution timing.
+type IncidentLifecycleTimingResponse struct {
+	AcknowledgedCount            int64 `json:"acknowledged_count"`
+	ResolvedCount                int64 `json:"resolved_count"`
+	MeanTimeToAcknowledgeSeconds int64 `json:"mean_time_to_acknowledge_seconds"`
+	MeanTimeToResolveSeconds     int64 `json:"mean_time_to_resolve_seconds"`
+}
+
+// IncidentNotificationReliabilityStats summarizes alert delivery outcomes for incidents.
+type IncidentNotificationReliabilityStats struct {
+	TotalDeliveries      int64   `json:"total_deliveries"`
+	SentDeliveries       int64   `json:"sent_deliveries"`
+	FailedDeliveries     int64   `json:"failed_deliveries"`
+	SuppressedDeliveries int64   `json:"suppressed_deliveries"`
+	SuccessRatePercent   float64 `json:"success_rate_percent"`
+}
+
 // IncidentComponentImpactResponse represents one affected public-facing component snapshot.
 type IncidentComponentImpactResponse struct {
 	ComponentID   string `json:"component_id,omitempty"`

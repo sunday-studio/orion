@@ -509,6 +509,9 @@ export const IncidentDetailPage = () => {
               label="covered until"
               value={formatDate(incident.covered_until, DATE_TIME_FORMAT)}
             />
+            {incident.coverage_note && (
+              <DetailItem label="coverage note" value={incident.coverage_note} />
+            )}
           </DetailGroup>
         </div>
       </section>

@@ -869,6 +869,10 @@ func TestMonitorReportInvalidatesComputedHealthCache(t *testing.T) {
 	if reportResp.Code != http.StatusOK {
 		t.Fatalf("monitor report status = %d, body = %s", reportResp.Code, reportResp.Body.String())
 	}
+	var incident db.Incident
+	if err := server.db.Where("monitor_id = ?", registeredMonitor.Data.MonitorID).First(&incident).Error; err != nil {
+		t.Fatalf("find list incident: %v", err)
+	}
 
 	var monitor db.Monitor
 	if err := server.db.Where("id = ?", registeredMonitor.Data.MonitorID).First(&monitor).Error; err != nil {
@@ -2973,6 +2977,10 @@ func TestListIncidentsReturnsPersistedActiveIncidents(t *testing.T) {
 	if reportResp.Code != http.StatusOK {
 		t.Fatalf("monitor report status = %d, body = %s", reportResp.Code, reportResp.Body.String())
 	}
+	var incident db.Incident
+	if err := server.db.Where("monitor_id = ?", registeredMonitor.Data.MonitorID).First(&incident).Error; err != nil {
+		t.Fatalf("find list incident: %v", err)
+	}
 
 	incidentsResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents", nil, "")
 	if incidentsResp.Code != http.StatusOK {
@@ -3101,6 +3109,127 @@ func TestListIncidentsReturnsPersistedActiveIncidents(t *testing.T) {
 	decodeResponse(t, needsReviewResp, &needsReview)
 	if needsReview.Data.Count != 1 || needsReview.Data.Incidents[0].NotificationStatus != "failed" {
 		t.Fatalf("needs review incidents = %+v, want failed notification incident", needsReview)
+	}
+
+	ackResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/acknowledge", nil, "")
+	if ackResp.Code != http.StatusOK {
+		t.Fatalf("acknowledge list incident status = %d, body = %s", ackResp.Code, ackResp.Body.String())
+	}
+	resolveResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/resolve", nil, "")
+	if resolveResp.Code != http.StatusOK {
+		t.Fatalf("resolve list incident status = %d, body = %s", resolveResp.Code, resolveResp.Body.String())
+	}
+
+	secondReportResp := performJSONRequest(t, server, http.MethodPost, reportPath, map[string]interface{}{
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"health":    "down",
+		"metrics":   map[string]interface{}{"status_code": 503},
+	}, registered.Data.Token)
+	if secondReportResp.Code != http.StatusOK {
+		t.Fatalf("second monitor report status = %d, body = %s", secondReportResp.Code, secondReportResp.Body.String())
+	}
+	var coveredIncident db.Incident
+	if err := server.db.Where("monitor_id = ? AND status = ?", registeredMonitor.Data.MonitorID, "open").First(&coveredIncident).Error; err != nil {
+		t.Fatalf("find second list incident: %v", err)
+	}
+	coverResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+coveredIncident.ID+"/cover", map[string]interface{}{
+		"note": "Known recurring outage",
+	}, "")
+	if coverResp.Code != http.StatusOK {
+		t.Fatalf("cover list incident status = %d, body = %s", coverResp.Code, coverResp.Body.String())
+	}
+
+	manualFilterResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents?status=open,acknowledged,covered,resolved&resolution_kind=manual", nil, "")
+	if manualFilterResp.Code != http.StatusOK {
+		t.Fatalf("manual resolution filter status = %d, body = %s", manualFilterResp.Code, manualFilterResp.Body.String())
+	}
+	var manualFilter struct {
+		Data struct {
+			Count     int64 `json:"count"`
+			Incidents []struct {
+				ResolutionKind string `json:"resolution_kind"`
+			} `json:"incidents"`
+		} `json:"data"`
+	}
+	decodeResponse(t, manualFilterResp, &manualFilter)
+	if manualFilter.Data.Count != 1 || manualFilter.Data.Incidents[0].ResolutionKind != "manual" {
+		t.Fatalf("manual resolution filter = %+v, want one manual incident", manualFilter)
+	}
+
+	actorFilterResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents?status=open,acknowledged,covered,resolved&actor=manual", nil, "")
+	if actorFilterResp.Code != http.StatusOK {
+		t.Fatalf("manual actor filter status = %d, body = %s", actorFilterResp.Code, actorFilterResp.Body.String())
+	}
+	var actorFilter struct {
+		Data struct {
+			Count int64 `json:"count"`
+		} `json:"data"`
+	}
+	decodeResponse(t, actorFilterResp, &actorFilter)
+	if actorFilter.Data.Count != 2 {
+		t.Fatalf("manual actor filter count = %d, want 2 acknowledged/covered incidents", actorFilter.Data.Count)
+	}
+
+	coveredFilterResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents?covered=true", nil, "")
+	if coveredFilterResp.Code != http.StatusOK {
+		t.Fatalf("covered filter status = %d, body = %s", coveredFilterResp.Code, coveredFilterResp.Body.String())
+	}
+	var coveredFilter struct {
+		Data struct {
+			Count     int64 `json:"count"`
+			Incidents []struct {
+				Status string `json:"status"`
+			} `json:"incidents"`
+		} `json:"data"`
+	}
+	decodeResponse(t, coveredFilterResp, &coveredFilter)
+	if coveredFilter.Data.Count != 1 || coveredFilter.Data.Incidents[0].Status != "covered" {
+		t.Fatalf("covered filter = %+v, want one covered incident", coveredFilter)
+	}
+
+	insightsResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents?status=open,acknowledged,covered,resolved", nil, "")
+	if insightsResp.Code != http.StatusOK {
+		t.Fatalf("incident insights status = %d, body = %s", insightsResp.Code, insightsResp.Body.String())
+	}
+	var insights struct {
+		Data struct {
+			Insights struct {
+				RecurringFailures []struct {
+					MonitorID     string `json:"monitor_id"`
+					MonitorName   string `json:"monitor_name"`
+					IncidentCount int64  `json:"incident_count"`
+				} `json:"recurring_failures"`
+				LifecycleTiming struct {
+					AcknowledgedCount            int64 `json:"acknowledged_count"`
+					ResolvedCount                int64 `json:"resolved_count"`
+					MeanTimeToAcknowledgeSeconds int64 `json:"mean_time_to_acknowledge_seconds"`
+					MeanTimeToResolveSeconds     int64 `json:"mean_time_to_resolve_seconds"`
+				} `json:"lifecycle_timing"`
+				NotificationReliability struct {
+					TotalDeliveries      int64   `json:"total_deliveries"`
+					SuppressedDeliveries int64   `json:"suppressed_deliveries"`
+					SuccessRatePercent   float64 `json:"success_rate_percent"`
+				} `json:"notification_reliability"`
+			} `json:"insights"`
+		} `json:"data"`
+	}
+	decodeResponse(t, insightsResp, &insights)
+	if len(insights.Data.Insights.RecurringFailures) != 1 ||
+		insights.Data.Insights.RecurringFailures[0].MonitorID != registeredMonitor.Data.MonitorID ||
+		insights.Data.Insights.RecurringFailures[0].MonitorName != "homepage" ||
+		insights.Data.Insights.RecurringFailures[0].IncidentCount != 2 {
+		t.Fatalf("recurring failure insights = %+v, want homepage with two incidents", insights.Data.Insights.RecurringFailures)
+	}
+	if insights.Data.Insights.LifecycleTiming.AcknowledgedCount != 1 ||
+		insights.Data.Insights.LifecycleTiming.ResolvedCount != 1 ||
+		insights.Data.Insights.LifecycleTiming.MeanTimeToAcknowledgeSeconds < 0 ||
+		insights.Data.Insights.LifecycleTiming.MeanTimeToResolveSeconds < 0 {
+		t.Fatalf("lifecycle insights = %+v, want acknowledgement and resolution timing", insights.Data.Insights.LifecycleTiming)
+	}
+	if insights.Data.Insights.NotificationReliability.TotalDeliveries == 0 ||
+		insights.Data.Insights.NotificationReliability.SuppressedDeliveries == 0 ||
+		insights.Data.Insights.NotificationReliability.SuccessRatePercent != 0 {
+		t.Fatalf("notification insights = %+v, want suppressed delivery reliability stats", insights.Data.Insights.NotificationReliability)
 	}
 }
 
