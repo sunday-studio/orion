@@ -45,6 +45,11 @@ func (a *App) runTCPCheck(ctx context.Context, monitorConfig db.CoreMonitorConfi
 	result.Host = runnerConfig.Host
 	result.Port = runnerConfig.Port
 	result.Address = net.JoinHostPort(runnerConfig.Host, strconv.Itoa(runnerConfig.Port))
+	if err := a.targetPolicy.ValidateHost(runnerConfig.Host, "host"); err != nil {
+		result.Error = err
+		result.FailureStage = "config"
+		return result
+	}
 
 	timeout := time.Duration(monitorConfig.TimeoutSeconds) * time.Second
 	if timeout <= 0 {

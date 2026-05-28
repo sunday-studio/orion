@@ -55,6 +55,11 @@ func (a *App) runUDPCheck(ctx context.Context, monitorConfig db.CoreMonitorConfi
 	result.Address = net.JoinHostPort(runnerConfig.Host, strconv.Itoa(runnerConfig.Port))
 	result.PayloadBytes = len([]byte(runnerConfig.Payload))
 	result.ExpectedResponse = runnerConfig.ExpectedResponse
+	if err := a.targetPolicy.ValidateHost(runnerConfig.Host, "host"); err != nil {
+		result.Error = err
+		result.FailureStage = "config"
+		return result
+	}
 
 	timeout := time.Duration(monitorConfig.TimeoutSeconds) * time.Second
 	if timeout <= 0 {

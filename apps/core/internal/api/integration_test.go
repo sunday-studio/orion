@@ -2408,7 +2408,11 @@ func TestCoreMonitorMaintenanceWindowsSuppressIncidents(t *testing.T) {
 }
 
 func TestCoreMonitorManagementLifecycle(t *testing.T) {
-	server := setupTestServer(t)
+	server := setupTestServerWithConfig(t, &config.Config{
+		AlertRecoveryNotifications:     true,
+		AlertTLSExpiryDays:             14,
+		CoreMonitorAllowPrivateTargets: true,
+	})
 	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/health" {
 			http.NotFound(w, r)
@@ -2630,6 +2634,86 @@ func TestCoreMonitorManagementRejectsInvalidConfig(t *testing.T) {
 	testResp := performJSONRequest(t, server, http.MethodPost, "/v1/monitors/"+created.Data.Monitor.ID+"/test", nil, "")
 	if testResp.Code != http.StatusBadRequest {
 		t.Fatalf("invalid test-now status = %d, body = %s", testResp.Code, testResp.Body.String())
+	}
+}
+
+func TestCoreMonitorManagementEnforcesTargetPolicy(t *testing.T) {
+	server := setupTestServer(t)
+
+	createResp := performJSONRequest(t, server, http.MethodPost, "/v1/monitors", map[string]interface{}{
+		"name": "Metadata Target",
+		"kind": "http",
+		"config": map[string]interface{}{
+			"url": "http://169.254.169.254/latest/meta-data?token=secret",
+		},
+	}, "")
+	if createResp.Code != http.StatusBadRequest {
+		t.Fatalf("blocked create status = %d, body = %s", createResp.Code, createResp.Body.String())
+	}
+	if strings.Contains(createResp.Body.String(), "token=secret") {
+		t.Fatalf("blocked create leaked query secret: %s", createResp.Body.String())
+	}
+
+	validResp := performJSONRequest(t, server, http.MethodPost, "/v1/monitors", map[string]interface{}{
+		"name": "Public Target",
+		"kind": "http",
+		"config": map[string]interface{}{
+			"url": "https://example.com/health?token=secret",
+		},
+	}, "")
+	if validResp.Code != http.StatusCreated {
+		t.Fatalf("valid create status = %d, body = %s", validResp.Code, validResp.Body.String())
+	}
+	var created struct {
+		Data struct {
+			Monitor struct {
+				ID string `json:"id"`
+			} `json:"monitor"`
+		} `json:"data"`
+	}
+	decodeResponse(t, validResp, &created)
+
+	configResp := performJSONRequest(t, server, http.MethodGet, "/v1/monitors/"+created.Data.Monitor.ID+"/config", nil, "")
+	if configResp.Code != http.StatusOK {
+		t.Fatalf("config status = %d, body = %s", configResp.Code, configResp.Body.String())
+	}
+	if strings.Contains(configResp.Body.String(), "token=secret") {
+		t.Fatalf("config response leaked query secret: %s", configResp.Body.String())
+	}
+
+	updateResp := performJSONRequest(t, server, http.MethodPatch, "/v1/monitors/"+created.Data.Monitor.ID, map[string]interface{}{
+		"config": map[string]interface{}{
+			"url": "http://127.0.0.1:8080/health",
+		},
+	}, "")
+	if updateResp.Code != http.StatusBadRequest {
+		t.Fatalf("blocked update status = %d, body = %s", updateResp.Code, updateResp.Body.String())
+	}
+
+	if err := server.db.Model(&db.CoreMonitorConfig{}).
+		Where("monitor_id = ?", created.Data.Monitor.ID).
+		Update("config_json", `{"url":"http://169.254.169.254/latest/meta-data"}`).Error; err != nil {
+		t.Fatalf("poison core monitor config: %v", err)
+	}
+	testResp := performJSONRequest(t, server, http.MethodPost, "/v1/monitors/"+created.Data.Monitor.ID+"/test", nil, "")
+	if testResp.Code != http.StatusBadRequest {
+		t.Fatalf("blocked test-now status = %d, body = %s", testResp.Code, testResp.Body.String())
+	}
+}
+
+func TestCoreMonitorManagementAllowsPrivateTargetsWhenConfigured(t *testing.T) {
+	server := setupTestServerWithConfig(t, &config.Config{CoreMonitorAllowPrivateTargets: true})
+
+	createResp := performJSONRequest(t, server, http.MethodPost, "/v1/monitors", map[string]interface{}{
+		"name": "Private Target",
+		"kind": "tcp",
+		"config": map[string]interface{}{
+			"host": "10.0.0.5",
+			"port": 443,
+		},
+	}, "")
+	if createResp.Code != http.StatusCreated {
+		t.Fatalf("private create status = %d, body = %s", createResp.Code, createResp.Body.String())
 	}
 }
 
@@ -3823,6 +3907,10 @@ func TestDataLifecycleSettingsFlow(t *testing.T) {
 }
 
 func setupTestServer(t *testing.T) *Server {
+	return setupTestServerWithConfig(t, &config.Config{AlertRecoveryNotifications: true, AlertTLSExpiryDays: 14})
+}
+
+func setupTestServerWithConfig(t *testing.T, cfg *config.Config) *Server {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
@@ -3835,7 +3923,7 @@ func setupTestServer(t *testing.T) *Server {
 		t.Fatalf("migrate database: %v", err)
 	}
 
-	return NewServer(database, logging.NewLogger(), &config.Config{AlertRecoveryNotifications: true, AlertTLSExpiryDays: 14})
+	return NewServer(database, logging.NewLogger(), cfg)
 }
 
 func TestDataLifecycleActionsFlow(t *testing.T) {

@@ -211,3 +211,40 @@ func TestRunDueChecksStoresDownReportForPlaywrightInvalidConfig(t *testing.T) {
 		t.Fatalf("payload = %+v, want config failure payload", payload)
 	}
 }
+
+func TestRunDueChecksRejectsPlaywrightPrivateTarget(t *testing.T) {
+	database := openWorkerMigratedTestDatabase(t)
+	called := false
+	playwrightRun := func(ctx context.Context, request playwrightTransactionRequest) (playwrightTransactionRunResult, error) {
+		called = true
+		return playwrightTransactionRunResult{Ok: true}, nil
+	}
+
+	insertWorkerCoreOwner(t, database)
+	insertWorkerMonitor(t, database, "monitor-playwright-private")
+	insertWorkerCoreMonitorConfig(t, database, db.CoreMonitorConfig{
+		MonitorID:       "monitor-playwright-private",
+		Kind:            "playwright",
+		ConfigJSON:      `{"url":"http://10.0.0.5/login"}`,
+		IntervalSeconds: 60,
+		TimeoutSeconds:  5,
+		NextRunAt:       time.Now().UTC().Add(-time.Minute),
+	})
+
+	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-playwright-test", PlaywrightRun: playwrightRun})
+	if err := app.runDueChecks(context.Background()); err != nil {
+		t.Fatalf("runDueChecks() error = %v", err)
+	}
+	if called {
+		t.Fatal("playwright runner was called for blocked target")
+	}
+
+	report := loadWorkerMonitorReport(t, database, "monitor-playwright-private")
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
+		t.Fatalf("unmarshal report payload: %v", err)
+	}
+	if payload["failure_stage"] != "config" || payload["target_url"] != "http://10.0.0.5/login" || payload["ok"] != false {
+		t.Fatalf("payload = %+v, want blocked target config failure", payload)
+	}
+}

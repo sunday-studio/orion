@@ -47,7 +47,7 @@ func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *S
 	reportService := service.NewReportService(database, logger, cfg)
 	serviceLogService := service.NewServiceLogService(database, logger)
 	monitorService := service.NewMonitorService(database, logger)
-	coreMonitorManagementService := service.NewCoreMonitorManagementService(database, logger)
+	coreMonitorManagementService := service.NewCoreMonitorManagementService(database, logger, cfg)
 	settingsService := service.NewSettingsService(database, logger, cfg.DataDir)
 	rollupService := service.NewRollupService(database, logger)
 	archiveService := service.NewArchiveService(database, logger, cfg.DataDir)

@@ -79,6 +79,8 @@ type syntheticStepResult struct {
 	Type              string      `json:"type"`
 	Method            string      `json:"method,omitempty"`
 	TargetURL         string      `json:"target_url,omitempty"`
+	FinalURL          string      `json:"final_url,omitempty"`
+	FinalHost         string      `json:"final_host,omitempty"`
 	StatusCode        int         `json:"status_code,omitempty"`
 	ExpectedStatus    int         `json:"expected_status,omitempty"`
 	ExpectedStatuses  []int       `json:"expected_statuses,omitempty"`
@@ -330,7 +332,11 @@ func (a *App) runSyntheticStep(ctx context.Context, step syntheticStepConfig, va
 		result.FailureStage = "variable_substitution"
 		return err
 	}
-	result.TargetURL = targetURL
+	result.TargetURL = service.SanitizeCoreMonitorURL(targetURL)
+	if err := a.targetPolicy.ValidateURL(targetURL, "step url"); err != nil {
+		result.FailureStage = "config"
+		return err
+	}
 	result.RequestHeaders = sortedHeaderKeys(headers)
 
 	request, err := http.NewRequestWithContext(ctx, step.Method, targetURL, bytes.NewBufferString(body))
@@ -353,6 +359,10 @@ func (a *App) runSyntheticStep(ctx context.Context, step syntheticStepConfig, va
 	}
 	defer response.Body.Close()
 	result.StatusCode = response.StatusCode
+	if response.Request != nil && response.Request.URL != nil {
+		result.FinalURL = service.SanitizeCoreMonitorURL(response.Request.URL.String())
+		result.FinalHost = service.CoreMonitorURLHost(response.Request.URL.String())
+	}
 	result.ExpectedStatus = step.ExpectedStatus
 	result.ExpectedStatuses = step.ExpectedStatuses
 

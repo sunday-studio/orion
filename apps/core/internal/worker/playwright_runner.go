@@ -149,6 +149,14 @@ func (a *App) runPlaywrightCheck(ctx context.Context, monitorConfig db.CoreMonit
 	result.ScreenshotOnFailure = runnerConfig.ScreenshotOnFailure
 	result.RedactedVariables = sortedStringKeys(playwrightSecretValues(secrets))
 	result.RedactedHeaders = sortedHeaderKeys(secrets.Headers)
+	if err := a.validatePlaywrightTargets(runnerConfig); err != nil {
+		result.TargetURL = service.SanitizeCoreMonitorURL(result.TargetURL)
+		result.Error = err
+		result.FailureStage = "config"
+		return result
+	}
+	runnerConfig.URL = service.SanitizeCoreMonitorURL(runnerConfig.URL)
+	result.TargetURL = runnerConfig.URL
 
 	timeout := time.Duration(monitorConfig.TimeoutSeconds) * time.Second
 	if timeout <= 0 {
@@ -317,6 +325,23 @@ func validatePlaywrightURL(rawURL string) error {
 	return nil
 }
 
+func (a *App) validatePlaywrightTargets(cfg playwrightTransactionConfig) error {
+	if strings.TrimSpace(cfg.URL) != "" {
+		if err := a.targetPolicy.ValidateURL(cfg.URL, "url"); err != nil {
+			return err
+		}
+	}
+	for index, step := range cfg.Steps {
+		if step.Action != "goto" || strings.Contains(step.URL, "{{") {
+			continue
+		}
+		if err := a.targetPolicy.ValidateURL(step.URL, fmt.Sprintf("step %d url", index+1)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func playwrightHeadless(cfg playwrightTransactionConfig) bool {
 	if cfg.Headless == nil {
 		return true
@@ -452,7 +477,7 @@ func playwrightPayload(result playwrightResult, resultErr error) map[string]inte
 	payload := map[string]interface{}{
 		"runner":                "core",
 		"type":                  "playwright_transaction",
-		"target_url":            result.TargetURL,
+		"target_url":            service.SanitizeCoreMonitorURL(result.TargetURL),
 		"browser":               result.Browser,
 		"headless":              result.Headless,
 		"viewport":              result.Viewport,

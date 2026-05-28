@@ -84,6 +84,7 @@ type App struct {
 	tlsWarningDays int
 	udpDialContext dialContextFunc
 	playwrightRun  playwrightRunFunc
+	targetPolicy   service.CoreMonitorTargetPolicy
 	scheduler      *service.CoreMonitorSchedulerService
 	reports        *service.ReportService
 }
@@ -116,10 +117,11 @@ func NewApp(database *gorm.DB, logger *logging.Logger, opts Options) *App {
 	if httpClient == nil {
 		httpClient = &http.Client{}
 	}
+	targetPolicy := service.NewCoreMonitorTargetPolicy(opts.Config)
+	httpClient = targetPolicy.HTTPClient(httpClient)
 	tcpDialContext := opts.TCPDialContext
 	if tcpDialContext == nil {
-		tcpDialer := &net.Dialer{}
-		tcpDialContext = tcpDialer.DialContext
+		tcpDialContext = targetPolicy.DialContext
 	}
 	dnsResolver := opts.DNSResolver
 	if dnsResolver == nil {
@@ -127,7 +129,7 @@ func NewApp(database *gorm.DB, logger *logging.Logger, opts Options) *App {
 	}
 	tlsCheck := opts.TLSCheck
 	if tlsCheck == nil {
-		tlsCheck = defaultTLSCheck
+		tlsCheck = defaultTLSCheckWithDialContext(targetPolicy.DialContext)
 	}
 	tlsWarningDays := defaultTLSWarningDays
 	if opts.Config != nil && opts.Config.AlertTLSExpiryDays > 0 {
@@ -135,8 +137,7 @@ func NewApp(database *gorm.DB, logger *logging.Logger, opts Options) *App {
 	}
 	udpDialContext := opts.UDPDialContext
 	if udpDialContext == nil {
-		udpDialer := &net.Dialer{}
-		udpDialContext = udpDialer.DialContext
+		udpDialContext = targetPolicy.DialContext
 	}
 	playwrightRun := opts.PlaywrightRun
 	if playwrightRun == nil {
@@ -157,6 +158,7 @@ func NewApp(database *gorm.DB, logger *logging.Logger, opts Options) *App {
 		tlsWarningDays: tlsWarningDays,
 		udpDialContext: udpDialContext,
 		playwrightRun:  playwrightRun,
+		targetPolicy:   targetPolicy,
 		scheduler:      service.NewCoreMonitorSchedulerService(database, logger),
 		reports:        service.NewReportService(database, logger, opts.Config),
 	}

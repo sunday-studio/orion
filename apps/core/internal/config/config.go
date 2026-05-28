@@ -12,32 +12,33 @@ import (
 
 // Config holds runtime configuration from environment.
 type Config struct {
-	DataDir                       string
-	Port                          string
-	CORSOrigins                   []string
-	CoreWorkerID                  string
-	CoreWorkerHeartbeatSeconds    int
-	CoreWorkerStaleSeconds        int
-	DataLifecycleSchedulerSeconds int
-	AdminUsername                 string
-	AdminPassword                 string
-	JWTSecret                     string
-	FrontendAuthOn                bool
-	LoginRateLimitAttempts        int
-	LoginRateLimitWindowSecs      int
-	AlertCooldownSeconds          int
-	AlertRecoveryNotifications    bool
-	AlertTLSExpiryDays            int
-	PublicStatusMailEnabled       bool
-	PublicStatusMailHost          string
-	PublicStatusMailPort          int
-	PublicStatusMailUsername      string
-	PublicStatusMailPassword      string
-	PublicStatusMailFromEmail     string
-	PublicStatusMailFromName      string
-	PublicStatusMailReplyTo       string
-	PublicStatusURLOrigin         string
-	PublicStatusSubscriberSecret  string
+	DataDir                        string
+	Port                           string
+	CORSOrigins                    []string
+	CoreWorkerID                   string
+	CoreWorkerHeartbeatSeconds     int
+	CoreWorkerStaleSeconds         int
+	CoreMonitorAllowPrivateTargets bool
+	DataLifecycleSchedulerSeconds  int
+	AdminUsername                  string
+	AdminPassword                  string
+	JWTSecret                      string
+	FrontendAuthOn                 bool
+	LoginRateLimitAttempts         int
+	LoginRateLimitWindowSecs       int
+	AlertCooldownSeconds           int
+	AlertRecoveryNotifications     bool
+	AlertTLSExpiryDays             int
+	PublicStatusMailEnabled        bool
+	PublicStatusMailHost           string
+	PublicStatusMailPort           int
+	PublicStatusMailUsername       string
+	PublicStatusMailPassword       string
+	PublicStatusMailFromEmail      string
+	PublicStatusMailFromName       string
+	PublicStatusMailReplyTo        string
+	PublicStatusURLOrigin          string
+	PublicStatusSubscriberSecret   string
 }
 
 // Load reads configuration from environment variables.
@@ -51,32 +52,33 @@ func Load() *Config {
 	frontendAuthOn := adminUser != "" && adminPass != ""
 
 	return &Config{
-		DataDir:                       getEnv("ORION_DATA_DIR", "data"),
-		Port:                          getEnv("ORION_PORT", "8999"),
-		CORSOrigins:                   getEnvList("ORION_CORS_ORIGINS", []string{"http://localhost:5173", "http://127.0.0.1:5173"}),
-		CoreWorkerID:                  getEnv("ORION_WORKER_ID", "core-monitor-worker"),
-		CoreWorkerHeartbeatSeconds:    getEnvInt("ORION_WORKER_HEARTBEAT_SECONDS", 15),
-		CoreWorkerStaleSeconds:        getEnvInt("ORION_WORKER_STALE_SECONDS", 60),
-		DataLifecycleSchedulerSeconds: getEnvInt("ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS", 3600),
-		AdminUsername:                 adminUser,
-		AdminPassword:                 adminPass,
-		JWTSecret:                     jwtSecret,
-		FrontendAuthOn:                frontendAuthOn,
-		LoginRateLimitAttempts:        getEnvInt("ORION_LOGIN_RATE_LIMIT_ATTEMPTS", 5),
-		LoginRateLimitWindowSecs:      getEnvInt("ORION_LOGIN_RATE_LIMIT_WINDOW_SECONDS", 60),
-		AlertCooldownSeconds:          getEnvInt("ORION_ALERT_COOLDOWN_SECONDS", 300),
-		AlertRecoveryNotifications:    getEnvBool("ORION_ALERT_RECOVERY_NOTIFICATIONS", true),
-		AlertTLSExpiryDays:            getEnvInt("ORION_ALERT_TLS_EXPIRY_DAYS", 14),
-		PublicStatusMailEnabled:       getEnvBool("ORION_PUBLIC_STATUS_MAIL_ENABLED", false),
-		PublicStatusMailHost:          getEnv("ORION_PUBLIC_STATUS_MAIL_HOST", ""),
-		PublicStatusMailPort:          getEnvInt("ORION_PUBLIC_STATUS_MAIL_PORT", 587),
-		PublicStatusMailUsername:      getEnv("ORION_PUBLIC_STATUS_MAIL_USERNAME", ""),
-		PublicStatusMailPassword:      getEnv("ORION_PUBLIC_STATUS_MAIL_PASSWORD", ""),
-		PublicStatusMailFromEmail:     getEnv("ORION_PUBLIC_STATUS_MAIL_FROM_EMAIL", ""),
-		PublicStatusMailFromName:      getEnv("ORION_PUBLIC_STATUS_MAIL_FROM_NAME", "Orion Status"),
-		PublicStatusMailReplyTo:       getEnv("ORION_PUBLIC_STATUS_MAIL_REPLY_TO", ""),
-		PublicStatusURLOrigin:         getEnv("ORION_PUBLIC_STATUS_URL_ORIGIN", ""),
-		PublicStatusSubscriberSecret:  getEnv("ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET", ""),
+		DataDir:                        getEnv("ORION_DATA_DIR", "data"),
+		Port:                           getEnv("ORION_PORT", "8999"),
+		CORSOrigins:                    getEnvList("ORION_CORS_ORIGINS", []string{"http://localhost:5173", "http://127.0.0.1:5173"}),
+		CoreWorkerID:                   getEnv("ORION_WORKER_ID", "core-monitor-worker"),
+		CoreWorkerHeartbeatSeconds:     getEnvInt("ORION_WORKER_HEARTBEAT_SECONDS", 15),
+		CoreWorkerStaleSeconds:         getEnvInt("ORION_WORKER_STALE_SECONDS", 60),
+		CoreMonitorAllowPrivateTargets: getEnvBool("ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS", false),
+		DataLifecycleSchedulerSeconds:  getEnvInt("ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS", 3600),
+		AdminUsername:                  adminUser,
+		AdminPassword:                  adminPass,
+		JWTSecret:                      jwtSecret,
+		FrontendAuthOn:                 frontendAuthOn,
+		LoginRateLimitAttempts:         getEnvInt("ORION_LOGIN_RATE_LIMIT_ATTEMPTS", 5),
+		LoginRateLimitWindowSecs:       getEnvInt("ORION_LOGIN_RATE_LIMIT_WINDOW_SECONDS", 60),
+		AlertCooldownSeconds:           getEnvInt("ORION_ALERT_COOLDOWN_SECONDS", 300),
+		AlertRecoveryNotifications:     getEnvBool("ORION_ALERT_RECOVERY_NOTIFICATIONS", true),
+		AlertTLSExpiryDays:             getEnvInt("ORION_ALERT_TLS_EXPIRY_DAYS", 14),
+		PublicStatusMailEnabled:        getEnvBool("ORION_PUBLIC_STATUS_MAIL_ENABLED", false),
+		PublicStatusMailHost:           getEnv("ORION_PUBLIC_STATUS_MAIL_HOST", ""),
+		PublicStatusMailPort:           getEnvInt("ORION_PUBLIC_STATUS_MAIL_PORT", 587),
+		PublicStatusMailUsername:       getEnv("ORION_PUBLIC_STATUS_MAIL_USERNAME", ""),
+		PublicStatusMailPassword:       getEnv("ORION_PUBLIC_STATUS_MAIL_PASSWORD", ""),
+		PublicStatusMailFromEmail:      getEnv("ORION_PUBLIC_STATUS_MAIL_FROM_EMAIL", ""),
+		PublicStatusMailFromName:       getEnv("ORION_PUBLIC_STATUS_MAIL_FROM_NAME", "Orion Status"),
+		PublicStatusMailReplyTo:        getEnv("ORION_PUBLIC_STATUS_MAIL_REPLY_TO", ""),
+		PublicStatusURLOrigin:          getEnv("ORION_PUBLIC_STATUS_URL_ORIGIN", ""),
+		PublicStatusSubscriberSecret:   getEnv("ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET", ""),
 	}
 }
 

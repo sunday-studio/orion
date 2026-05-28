@@ -67,6 +67,16 @@ func (a *App) runDomainExpirationCheck(ctx context.Context, monitorConfig db.Cor
 	result.RDAPURL = runnerConfig.RDAPURL
 	result.WHOISServer = runnerConfig.WHOISServer
 	result.WarningDays = runnerConfig.WarningDays
+	if err := a.targetPolicy.ValidateHost(runnerConfig.Domain, "domain"); err != nil {
+		result.Error = err
+		result.FailureStage = "config"
+		return result
+	}
+	if err := a.targetPolicy.ValidateURL(runnerConfig.RDAPURL, "rdap_url"); err != nil {
+		result.Error = err
+		result.FailureStage = "config"
+		return result
+	}
 
 	timeout := time.Duration(monitorConfig.TimeoutSeconds) * time.Second
 	if timeout <= 0 {

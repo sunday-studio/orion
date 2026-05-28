@@ -248,6 +248,45 @@ func TestRunDueChecksStoresDownReportForSyntheticMissingVariable(t *testing.T) {
 	}
 }
 
+func TestRunDueChecksRejectsSyntheticSubstitutedPrivateTarget(t *testing.T) {
+	database := openWorkerMigratedTestDatabase(t)
+	calls := 0
+	httpClient := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		calls++
+		return workerHTTPResponse(http.StatusOK, `{}`), nil
+	})}
+
+	insertWorkerCoreOwner(t, database)
+	insertWorkerMonitor(t, database, "monitor-synthetic-private")
+	insertWorkerCoreMonitorConfig(t, database, db.CoreMonitorConfig{
+		MonitorID:       "monitor-synthetic-private",
+		Kind:            "synthetic",
+		ConfigJSON:      `{"variables":{"host":"10.0.0.5"},"steps":[{"name":"private","url":"http://{{host}}/health"}]}`,
+		IntervalSeconds: 60,
+		TimeoutSeconds:  5,
+		NextRunAt:       time.Now().UTC().Add(-time.Minute),
+	})
+
+	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-synthetic-test", HTTPClient: httpClient})
+	if err := app.runDueChecks(context.Background()); err != nil {
+		t.Fatalf("runDueChecks() error = %v", err)
+	}
+	if calls != 0 {
+		t.Fatalf("HTTP calls = %d, want none for blocked substituted target", calls)
+	}
+
+	report := loadWorkerMonitorReport(t, database, "monitor-synthetic-private")
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
+		t.Fatalf("unmarshal report payload: %v", err)
+	}
+	steps := payload["steps"].([]interface{})
+	first := steps[0].(map[string]interface{})
+	if payload["failure_stage"] != "config" || first["failure_stage"] != "config" || first["target_url"] != "http://10.0.0.5/health" {
+		t.Fatalf("payload = %+v, want blocked substituted target", payload)
+	}
+}
+
 func TestRunDueChecksStoresTruncatedSyntheticResponseSample(t *testing.T) {
 	database := openWorkerMigratedTestDatabase(t)
 	body := `{"data":"` + strings.Repeat("x", maxHTTPBodyCaptureLen+128) + `"}`

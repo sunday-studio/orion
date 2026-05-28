@@ -81,6 +81,16 @@ curl http://localhost:8999/v1/diagnostics/core-worker
 The plain `/health` endpoint only reports API and database availability. It does not fail because
 the worker is paused, stale, or stopped.
 
+## Core Monitor Target Policy
+
+Core-managed monitors reject localhost, loopback, private RFC1918, link-local, multicast,
+unspecified, and known cloud metadata targets by default. Private and loopback targets are allowed
+only when the worker is running in a trusted internal deployment and
+`ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS=true` is set explicitly. Link-local, multicast,
+unspecified, and cloud metadata targets stay blocked. Redirects are checked with the same policy
+before the worker follows them, and report payloads strip URL user info, query strings, and fragments
+from recorded target URLs.
+
 ## Playwright Transaction Runtime
 
 Playwright transaction monitors use an explicit runner executable on the Core worker host. The
@@ -153,6 +163,7 @@ docker run -d \
   -e ORION_WORKER_ID=core-monitor-worker \
   -e ORION_WORKER_HEARTBEAT_SECONDS=15 \
   -e ORION_WORKER_STALE_SECONDS=60 \
+  -e ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS=false \
   -e ORION_ADMIN_USERNAME=admin \
   -e ORION_ADMIN_PASSWORD='change-me' \
   -e ORION_JWT_SECRET='change-me-to-a-long-random-value' \

@@ -59,6 +59,11 @@ func (a *App) runPingCheck(ctx context.Context, monitorConfig db.CoreMonitorConf
 	result.Host = runnerConfig.Host
 	result.Method = runnerConfig.Method
 	result.Port = runnerConfig.Port
+	if err := a.targetPolicy.ValidateHost(runnerConfig.Host, "host"); err != nil {
+		result.Error = err
+		result.FailureStage = "config"
+		return result
+	}
 
 	timeout := time.Duration(monitorConfig.TimeoutSeconds) * time.Second
 	if timeout <= 0 {

@@ -180,7 +180,7 @@ func (s *Server) testCoreMonitor(c *gin.Context) {
 		s.handleCoreMonitorManagementError(c, err, "Failed to load core monitor")
 		return
 	}
-	if err := service.ValidateCoreManagedMonitorConfig(record.Config.Kind, record.Config.ConfigJSON, record.Config.SecretRefJSON); err != nil {
+	if err := s.coreMonitorManagementService.ValidateCoreMonitorConfig(record.Config.Kind, record.Config.ConfigJSON, record.Config.SecretRefJSON); err != nil {
 		s.handleCoreMonitorManagementError(c, err, "Failed to validate core monitor")
 		return
 	}

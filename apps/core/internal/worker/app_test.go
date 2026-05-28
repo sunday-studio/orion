@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"orion/core/internal/config"
 	"orion/core/internal/db"
 	"orion/core/internal/logging"
 	"orion/core/internal/service"
@@ -98,6 +99,118 @@ func TestRunDueChecksStoresUpReportAndCompletesLease(t *testing.T) {
 	}
 	if !completed.NextRunAt.After(*completed.LastRunAt) {
 		t.Fatalf("next_run_at = %v, want after last_run_at %v", completed.NextRunAt, completed.LastRunAt)
+	}
+}
+
+func TestRunDueChecksRecordsSanitizedFinalTarget(t *testing.T) {
+	database := openWorkerMigratedTestDatabase(t)
+	httpClient := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		response := workerHTTPResponse(http.StatusOK, "ok")
+		response.Request = r
+		return response, nil
+	})}
+
+	insertWorkerCoreOwner(t, database)
+	insertWorkerMonitor(t, database, "monitor-http-final")
+	insertWorkerCoreMonitorConfig(t, database, db.CoreMonitorConfig{
+		MonitorID:       "monitor-http-final",
+		Kind:            "http",
+		ConfigJSON:      `{"url":"https://example.com/health?token=secret","expected_status":200}`,
+		IntervalSeconds: 60,
+		TimeoutSeconds:  5,
+		NextRunAt:       time.Now().UTC().Add(-time.Minute),
+	})
+
+	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
+	if err := app.runDueChecks(context.Background()); err != nil {
+		t.Fatalf("runDueChecks() error = %v", err)
+	}
+
+	report := loadWorkerMonitorReport(t, database, "monitor-http-final")
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
+		t.Fatalf("unmarshal report payload: %v", err)
+	}
+	if payload["target_url"] != "https://example.com/health" || payload["final_url"] != "https://example.com/health" || payload["final_host"] != "example.com" {
+		t.Fatalf("payload = %+v, want sanitized target and final host", payload)
+	}
+	if strings.Contains(report.Payload, "token=secret") {
+		t.Fatalf("payload leaked query secret: %s", report.Payload)
+	}
+}
+
+func TestRunDueChecksRejectsBlockedHTTPRedirect(t *testing.T) {
+	database := openWorkerMigratedTestDatabase(t)
+	calls := 0
+	httpClient := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		calls++
+		response := workerHTTPResponse(http.StatusFound)
+		response.Header.Set("Location", "http://169.254.169.254/latest/meta-data")
+		response.Request = r
+		return response, nil
+	})}
+
+	insertWorkerCoreOwner(t, database)
+	insertWorkerMonitor(t, database, "monitor-http-redirect")
+	insertWorkerCoreMonitorConfig(t, database, db.CoreMonitorConfig{
+		MonitorID:       "monitor-http-redirect",
+		Kind:            "http",
+		ConfigJSON:      `{"url":"https://example.com/start","expected_status":200}`,
+		IntervalSeconds: 60,
+		TimeoutSeconds:  5,
+		NextRunAt:       time.Now().UTC().Add(-time.Minute),
+	})
+
+	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
+	if err := app.runDueChecks(context.Background()); err != nil {
+		t.Fatalf("runDueChecks() error = %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("transport calls = %d, want only initial request before blocked redirect", calls)
+	}
+
+	report := loadWorkerMonitorReport(t, database, "monitor-http-redirect")
+	if report.Health != "down" {
+		t.Fatalf("report health = %q, want down", report.Health)
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
+		t.Fatalf("unmarshal report payload: %v", err)
+	}
+	if payload["failure_stage"] != "http_request" || payload["ok"] != false {
+		t.Fatalf("payload = %+v, want blocked redirect failure", payload)
+	}
+}
+
+func TestRunDueChecksAllowsPrivateHTTPWhenConfigured(t *testing.T) {
+	database := openWorkerMigratedTestDatabase(t)
+	httpClient := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		return workerHTTPResponse(http.StatusOK, "ok"), nil
+	})}
+
+	insertWorkerCoreOwner(t, database)
+	insertWorkerMonitor(t, database, "monitor-http-private")
+	insertWorkerCoreMonitorConfig(t, database, db.CoreMonitorConfig{
+		MonitorID:       "monitor-http-private",
+		Kind:            "http",
+		ConfigJSON:      `{"url":"http://10.0.0.5/health","expected_status":200}`,
+		IntervalSeconds: 60,
+		TimeoutSeconds:  5,
+		NextRunAt:       time.Now().UTC().Add(-time.Minute),
+	})
+
+	app := NewApp(database, logging.NewLogger(), Options{
+		WorkerID:   "worker-http-test",
+		HTTPClient: httpClient,
+		Config:     &config.Config{CoreMonitorAllowPrivateTargets: true},
+	})
+	if err := app.runDueChecks(context.Background()); err != nil {
+		t.Fatalf("runDueChecks() error = %v", err)
+	}
+
+	report := loadWorkerMonitorReport(t, database, "monitor-http-private")
+	if report.Health != "up" {
+		t.Fatalf("report health = %q, want up", report.Health)
 	}
 }
 
@@ -408,7 +521,7 @@ func TestRunDueChecksStoresDownReportForTCPRefusedConnection(t *testing.T) {
 	insertWorkerCoreMonitorConfig(t, database, db.CoreMonitorConfig{
 		MonitorID:       "monitor-tcp-refused",
 		Kind:            "tcp_port",
-		ConfigJSON:      `{"host":"127.0.0.1","port":65535}`,
+		ConfigJSON:      `{"host":"example.com","port":65535}`,
 		IntervalSeconds: 60,
 		TimeoutSeconds:  5,
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
@@ -425,6 +538,38 @@ func TestRunDueChecksStoresDownReportForTCPRefusedConnection(t *testing.T) {
 	}
 
 	assertTCPFailurePayload(t, database, "monitor-tcp-refused", "connect")
+}
+
+func TestRunDueChecksRejectsBlockedTCPHost(t *testing.T) {
+	database := openWorkerMigratedTestDatabase(t)
+	calls := 0
+
+	insertWorkerCoreOwner(t, database)
+	insertWorkerMonitor(t, database, "monitor-tcp-blocked")
+	insertWorkerCoreMonitorConfig(t, database, db.CoreMonitorConfig{
+		MonitorID:       "monitor-tcp-blocked",
+		Kind:            "tcp",
+		ConfigJSON:      `{"host":"169.254.169.254","port":80}`,
+		IntervalSeconds: 60,
+		TimeoutSeconds:  5,
+		NextRunAt:       time.Now().UTC().Add(-time.Minute),
+	})
+
+	app := NewApp(database, logging.NewLogger(), Options{
+		WorkerID: "worker-tcp-test",
+		TCPDialContext: func(ctx context.Context, network string, address string) (net.Conn, error) {
+			calls++
+			return fakeNetConn{}, nil
+		},
+	})
+	if err := app.runDueChecks(context.Background()); err != nil {
+		t.Fatalf("runDueChecks() error = %v", err)
+	}
+	if calls != 0 {
+		t.Fatalf("dial calls = %d, want none for blocked TCP target", calls)
+	}
+
+	assertTCPFailurePayload(t, database, "monitor-tcp-blocked", "config")
 }
 
 func TestRunDueChecksStoresDownReportForTCPDNSFailure(t *testing.T) {
@@ -462,7 +607,7 @@ func TestRunDueChecksStoresDownReportForTCPTimeout(t *testing.T) {
 	insertWorkerCoreMonitorConfig(t, database, db.CoreMonitorConfig{
 		MonitorID:       "monitor-tcp-timeout",
 		Kind:            "tcp",
-		ConfigJSON:      `{"host":"10.0.0.1","port":443}`,
+		ConfigJSON:      `{"host":"example.com","port":443}`,
 		IntervalSeconds: 60,
 		TimeoutSeconds:  1,
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),

@@ -44,6 +44,8 @@ type apiRequestResult struct {
 	ExpectedStatus    int
 	ExpectedStatuses  []int
 	StatusCode        int
+	FinalURL          string
+	FinalHost         string
 	RequestHeaders    []string
 	RedactedHeaders   []string
 	ResponseSample    string
@@ -75,6 +77,12 @@ func (a *App) runAPIRequestCheck(ctx context.Context, monitorConfig db.CoreMonit
 	result.ExpectedStatuses = runnerConfig.ExpectedStatuses
 	result.RequestHeaders = sortedHeaderKeys(runnerConfig.Headers)
 	result.RedactedHeaders = sortedHeaderKeys(secrets.Headers)
+	if err := a.targetPolicy.ValidateURL(runnerConfig.URL, "url"); err != nil {
+		result.TargetURL = service.SanitizeCoreMonitorURL(runnerConfig.URL)
+		result.Error = err
+		result.FailureStage = "config"
+		return result
+	}
 
 	timeout := time.Duration(monitorConfig.TimeoutSeconds) * time.Second
 	if timeout <= 0 {
@@ -111,6 +119,10 @@ func (a *App) runAPIRequestCheck(ctx context.Context, monitorConfig db.CoreMonit
 	defer response.Body.Close()
 
 	result.StatusCode = response.StatusCode
+	if response.Request != nil && response.Request.URL != nil {
+		result.FinalURL = service.SanitizeCoreMonitorURL(response.Request.URL.String())
+		result.FinalHost = service.CoreMonitorURLHost(response.Request.URL.String())
+	}
 	responseSample, truncated, err := captureHTTPBodySample(response.Body)
 	if err != nil {
 		result.Error = err
@@ -328,7 +340,7 @@ func apiRequestPayload(result apiRequestResult, resultErr error) map[string]inte
 		"runner":             "core",
 		"type":               "api_request",
 		"method":             result.Method,
-		"target_url":         result.TargetURL,
+		"target_url":         service.SanitizeCoreMonitorURL(result.TargetURL),
 		"status_code":        result.StatusCode,
 		"expected_status":    result.ExpectedStatus,
 		"expected_statuses":  result.ExpectedStatuses,
@@ -345,6 +357,12 @@ func apiRequestPayload(result apiRequestResult, resultErr error) map[string]inte
 		payload["assertion_path"] = result.AssertionPath
 		payload["assertion_expected"] = result.AssertionExpected
 		payload["assertion_actual"] = result.AssertionActual
+	}
+	if result.FinalURL != "" {
+		payload["final_url"] = result.FinalURL
+	}
+	if result.FinalHost != "" {
+		payload["final_host"] = result.FinalHost
 	}
 	if resultErr != nil {
 		payload["error"] = resultErr.Error()

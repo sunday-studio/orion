@@ -71,6 +71,11 @@ func (a *App) runTLSCheck(ctx context.Context, monitorConfig db.CoreMonitorConfi
 	result.ServerName = runnerConfig.ServerName
 	result.WarningDays = runnerConfig.WarningDays
 	result.Address = net.JoinHostPort(runnerConfig.Host, strconv.Itoa(runnerConfig.Port))
+	if err := a.targetPolicy.ValidateHost(runnerConfig.Host, "host"); err != nil {
+		result.Error = err
+		result.FailureStage = "config"
+		return result
+	}
 
 	timeout := time.Duration(monitorConfig.TimeoutSeconds) * time.Second
 	if timeout <= 0 {
@@ -151,22 +156,29 @@ func parseTLSConfig(raw string, defaultWarningDays int) (tlsConfig, error) {
 }
 
 func defaultTLSCheck(ctx context.Context, target tlsTarget) (tls.ConnectionState, error) {
-	dialer := tls.Dialer{
-		NetDialer: &net.Dialer{},
-		Config: &tls.Config{
-			MinVersion: tls.VersionTLS12,
-			ServerName: target.ServerName,
-		},
+	dialer := &net.Dialer{}
+	return tlsCheckWithDialContext(ctx, target, dialer.DialContext)
+}
+
+func defaultTLSCheckWithDialContext(dialContext dialContextFunc) tlsCheckFunc {
+	return func(ctx context.Context, target tlsTarget) (tls.ConnectionState, error) {
+		return tlsCheckWithDialContext(ctx, target, dialContext)
 	}
-	conn, err := dialer.DialContext(ctx, "tcp", target.Address)
+}
+
+func tlsCheckWithDialContext(ctx context.Context, target tlsTarget, dialContext dialContextFunc) (tls.ConnectionState, error) {
+	rawConn, err := dialContext(ctx, "tcp", target.Address)
 	if err != nil {
 		return tls.ConnectionState{}, err
 	}
-	defer conn.Close()
+	defer rawConn.Close()
 
-	tlsConn, ok := conn.(*tls.Conn)
-	if !ok {
-		return tls.ConnectionState{}, fmt.Errorf("connection did not return TLS state")
+	tlsConn := tls.Client(rawConn, &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		ServerName: target.ServerName,
+	})
+	if err := tlsConn.HandshakeContext(ctx); err != nil {
+		return tls.ConnectionState{}, err
 	}
 	return tlsConn.ConnectionState(), nil
 }

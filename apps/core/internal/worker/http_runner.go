@@ -27,6 +27,8 @@ type httpStatusResult struct {
 	FinishedAt       time.Time
 	Duration         time.Duration
 	TargetURL        string
+	FinalURL         string
+	FinalHost        string
 	Method           string
 	ExpectedStatus   int
 	ExpectedStatuses []int
@@ -56,6 +58,12 @@ func (a *App) runHTTPStatusCheck(ctx context.Context, monitorConfig db.CoreMonit
 	result.Method = runnerConfig.Method
 	result.ExpectedStatus = runnerConfig.ExpectedStatus
 	result.ExpectedStatuses = runnerConfig.ExpectedStatuses
+	if err := a.targetPolicy.ValidateURL(runnerConfig.URL, "url"); err != nil {
+		result.TargetURL = service.SanitizeCoreMonitorURL(runnerConfig.URL)
+		result.Error = err
+		result.FailureStage = "config"
+		return result
+	}
 
 	timeout := time.Duration(monitorConfig.TimeoutSeconds) * time.Second
 	if timeout <= 0 {
@@ -84,6 +92,10 @@ func (a *App) runHTTPStatusCheck(ctx context.Context, monitorConfig db.CoreMonit
 	defer response.Body.Close()
 
 	result.StatusCode = response.StatusCode
+	if response.Request != nil && response.Request.URL != nil {
+		result.FinalURL = service.SanitizeCoreMonitorURL(response.Request.URL.String())
+		result.FinalHost = service.CoreMonitorURLHost(response.Request.URL.String())
+	}
 	bodySample, truncated, err := captureHTTPBodySample(response.Body)
 	if err != nil {
 		result.Error = err
@@ -241,7 +253,7 @@ func httpStatusPayload(result httpStatusResult, resultErr error) map[string]inte
 		"runner":        "core",
 		"type":          "http",
 		"method":        result.Method,
-		"target_url":    result.TargetURL,
+		"target_url":    service.SanitizeCoreMonitorURL(result.TargetURL),
 		"status_code":   result.StatusCode,
 		"duration_ms":   result.Duration.Milliseconds(),
 		"ok":            result.Health == "up",
@@ -250,6 +262,12 @@ func httpStatusPayload(result httpStatusResult, resultErr error) map[string]inte
 	}
 	if result.ExpectedStatus > 0 {
 		payload["expected_status"] = result.ExpectedStatus
+	}
+	if result.FinalURL != "" {
+		payload["final_url"] = result.FinalURL
+	}
+	if result.FinalHost != "" {
+		payload["final_host"] = result.FinalHost
 	}
 	if len(result.ExpectedStatuses) > 0 {
 		payload["expected_statuses"] = result.ExpectedStatuses
