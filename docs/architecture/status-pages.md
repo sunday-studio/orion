@@ -217,6 +217,8 @@ Fields:
 
 Destination values are public subscriber contact data, not internal alert secrets. They still need encryption at rest and redaction in admin APIs because they are personal or customer data.
 
+The subscriber row is also the deterministic suppression record for unsubscribe and re-subscribe behavior. Do not remove it during normal self-service unsubscribe. Hard deletion belongs to an explicit privacy erasure workflow after the retention window or a verified compliance request.
+
 ### `status_page_subscriber_components`
 
 Stores component-scoped preferences:
@@ -480,7 +482,57 @@ Unsubscribe rules:
 - Successful unsubscribe should be idempotent and return a generic success page even if the subscriber was already unsubscribed.
 - Preference management may require the current unsubscribe token or a fresh magic link sent to the destination.
 - Unsubscribe actions should not delete the subscriber immediately; keep the row with `unsubscribed_at` so future re-subscribe, suppression, and compliance behavior are deterministic.
-- Hard deletion can be a later privacy/compliance feature if data retention policy requires it.
+- Hard deletion must be an operator or retention-job action, not the default public unsubscribe action.
+
+## Subscriber Privacy Lifecycle
+
+Subscriber privacy has three distinct operations:
+
+- unsubscribe: a public, token-based suppression action that keeps the subscriber row;
+- anonymize: an authenticated operator or retention-job action that removes destination data while preserving safe audit facts;
+- hard delete: an authenticated operator or retention-job action that removes the subscriber row and dependent preference or delivery rows after audit is recorded.
+
+```mermaid
+flowchart TD
+  Pending["pending subscriber"] --> Confirmed["confirmed subscriber"]
+  Pending --> PendingExpired["confirmation expired"]
+  PendingExpired --> PendingPurge["delete after pending retention"]
+  Confirmed --> Unsubscribed["unsubscribed"]
+  Confirmed --> Bounced["bounced"]
+  Confirmed --> Disabled["disabled by operator"]
+  Unsubscribed --> Resubscribe["public re-subscribe with same destination"]
+  Resubscribe --> Pending
+  Unsubscribed --> RetentionExpired{"retention window expired?"}
+  Bounced --> RetentionExpired
+  Disabled --> Review["operator or compliance review"]
+  Review --> RetentionExpired
+  RetentionExpired -- "no" --> Suppressed["keep suppressed"]
+  RetentionExpired -- "yes" --> Erase["audit and anonymize or hard delete"]
+  Erase --> Removed["raw destination, tokens, and preferences removed"]
+```
+
+Retention policy:
+
+- Pending subscribers are kept only long enough to support confirmation retries. After the confirmation token expires, Core should retain the pending row for at most 7 days, then hard-delete it and its component preferences.
+- Confirmed subscribers are retained while active because the destination is needed for public status notifications.
+- Unsubscribed subscribers are retained as suppression records for 90 days by default. During that window, a public re-subscribe with the same normalized destination should reuse the existing row, clear `unsubscribed_at`, rotate confirmation and self-service tokens, and require confirmation before fan-out resumes.
+- Bounced subscribers are retained for 90 days after the last bounce state transition so repeated failed deliveries remain suppressed.
+- Disabled subscribers are retained until an operator resolves the abuse, support, or compliance reason. Disabled rows must not be reactivated by public self-service routes.
+- Subscriber delivery rows are retained for 180 days by default for operational audit, but must store only safe error summaries and public status page object ids.
+- Backups and exported archive files may outlive hot database retention. Any customer-facing privacy policy should state that backup erasure follows the backup expiration schedule rather than immediate in-place mutation.
+
+Privacy erasure workflow:
+
+1. Authenticate the operator or scheduled retention job.
+2. Load only the subscriber id, page id, state, timestamps, masked destination, and destination type needed to decide the action.
+3. Record an audit event before mutation with action, actor, page id, subscriber id, previous state, reason, retention basis, and deletion mode. Do not store raw destination values, destination hashes, token hashes, provider message ids, or mail error payloads in the audit metadata.
+4. For anonymization, clear `destination_value_ciphertext`, `confirmation_token_hash`, `manage_token_hash`, and `unsubscribe_token_hash`; replace `masked_destination` with a generic value such as `deleted subscriber`; remove component preferences; and redact delivery provider ids and safe summaries if they could identify the destination.
+5. For hard deletion, delete component preferences and subscriber delivery rows first, then delete the subscriber row. Keep only the audit event as the durable administrative fact.
+6. After anonymization or hard deletion, public confirmation, manage, and unsubscribe tokens must return the same generic responses used for invalid tokens.
+
+Hard deletion changes re-subscribe behavior intentionally. During the 90-day unsubscribe retention window, re-subscribe is deterministic because the unique page plus destination hash record still exists and is reused. After privacy erasure or retention purge, a future subscription request for the same destination creates a new pending subscriber with fresh tokens and no link to the erased row.
+
+Admin and retention routes that expose or mutate subscriber privacy state must be authenticated and audit logged. Admin list/detail responses may show subscriber ids, states, timestamps, destination type, masked destination, component preferences, and delivery counts. They must not return raw destinations, destination hashes, ciphertext, token hashes, or token versions.
 
 ## Public Subscriber Boundary
 
@@ -540,6 +592,8 @@ Add Console-admin routes under `/v1`:
 - `POST /v1/status-pages/:id/incidents/:incident_id/updates`
 - `GET /v1/status-pages/:id/subscribers`
 - `POST /v1/status-pages/:id/subscribers/:subscriber_id/disable`
+- `POST /v1/status-pages/:id/subscribers/:subscriber_id/anonymize`
+- `DELETE /v1/status-pages/:id/subscribers/:subscriber_id`
 - `GET /v1/status-pages/:id/subscriber-deliveries`
 
 Public routes must never use the Console API response structs directly. Return a dedicated public payload that contains only approved fields.
