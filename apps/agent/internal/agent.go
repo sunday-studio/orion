@@ -94,10 +94,16 @@ func (a *Agent) Run(ctx context.Context) error {
 		cancel()
 	}
 	workers.Wait()
-	if err := a.flushDurableSpool(context.Background()); err != nil {
-		logging.Warnf("Durable report spool flush during shutdown failed: %v", err)
+	if transport.IsAuthError(runErr) {
+		logging.Errorf("Core rejected Agent credentials; stopping reporting until a replacement token is applied")
+	} else {
+		if err := a.flushDurableSpool(context.Background()); err != nil {
+			logging.Warnf("Durable report spool flush during shutdown failed: %v", err)
+		}
+		if err := a.retryQueue.Flush(context.Background()); err != nil {
+			logging.Warnf("Retry queue flush during shutdown failed: %v", err)
+		}
 	}
-	a.retryQueue.Flush(context.Background())
 
 	logging.Infof("Agent runtime stopped")
 	return runErr
@@ -117,6 +123,9 @@ func (a *Agent) RunOnce(ctx context.Context) error {
 	// Run system metrics once
 	if err := a.runSystemMetrics(); err != nil {
 		logging.Errorf("System metrics error: %v", err)
+		if transport.IsAuthError(err) {
+			return err
+		}
 	}
 
 	// Run all monitors once
@@ -133,6 +142,9 @@ func (a *Agent) RunOnce(ctx context.Context) error {
 
 		if err := a.runMonitorMetrics(*internalMonitor, monitor); err != nil {
 			logging.Errorf("Monitor metrics error for %s: %v", monitor.Name, err)
+			if transport.IsAuthError(err) {
+				return err
+			}
 		}
 	}
 

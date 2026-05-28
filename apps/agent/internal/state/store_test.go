@@ -88,6 +88,52 @@ func TestStorePersistsRegistrationMaintenanceAndMonitors(t *testing.T) {
 	}
 }
 
+func TestStoreApplyReplacementTokenPreservesIdentityAndQueues(t *testing.T) {
+	store := openTestStore(t)
+
+	if err := store.UpdateRegistration("agent-1", "token-1", "http://core"); err != nil {
+		t.Fatalf("UpdateRegistration() error = %v", err)
+	}
+	reason := "planned work"
+	if err := store.SetMaintenanceMode(true, &reason); err != nil {
+		t.Fatalf("SetMaintenanceMode() error = %v", err)
+	}
+	checkedAt := time.Now().UTC()
+	if err := store.ReplaceMonitors([]config.InternalStateMonitor{
+		{Name: "homepage", ID: "monitor-1", Status: "running", LastChecked: checkedAt},
+	}); err != nil {
+		t.Fatalf("ReplaceMonitors() error = %v", err)
+	}
+	if _, err := store.EnqueueReport(ReportSpoolKindSystem, "agent-1", "", "", map[string]string{"timestamp": "2026-05-27T20:00:00Z"}, errors.New("offline")); err != nil {
+		t.Fatalf("EnqueueReport() error = %v", err)
+	}
+
+	if err := store.ApplyReplacementToken(" token-2 "); err != nil {
+		t.Fatalf("ApplyReplacementToken() error = %v", err)
+	}
+
+	state, err := store.Get()
+	if err != nil {
+		t.Fatalf("Get() error = %v", err)
+	}
+	if !state.IsRegistered() || state.AgentID != "agent-1" || state.Token != "token-2" || state.CoreURL != "http://core" {
+		t.Fatalf("registration = %+v, want preserved identity with replacement token", state)
+	}
+	if !state.MaintenanceMode || state.MaintenanceReason == nil || *state.MaintenanceReason != reason {
+		t.Fatalf("maintenance = %+v, want preserved", state)
+	}
+	monitor, err := store.GetMonitorByName("homepage")
+	if err != nil {
+		t.Fatalf("GetMonitorByName() error = %v", err)
+	}
+	if monitor == nil || monitor.ID != "monitor-1" || !monitor.LastChecked.Equal(checkedAt) {
+		t.Fatalf("monitor = %+v, want preserved mapping", monitor)
+	}
+	if count, err := store.CountSpooledReports(); err != nil || count != 1 {
+		t.Fatalf("CountSpooledReports() = %d, %v, want 1 nil", count, err)
+	}
+}
+
 func TestInspectReadOnlyLoadsStateWithoutChangingPermissions(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "state.db")
 	store, err := Open(path)
@@ -170,6 +216,48 @@ func TestStoreResetRegistrationKeepsMaintenance(t *testing.T) {
 	}
 	if count, err := store.CountSpooledReports(); err != nil || count != 0 {
 		t.Fatalf("CountSpooledReports() = %d, %v, want 0 nil after registration reset", count, err)
+	}
+}
+
+func TestStoreApplyReplacementTokenPreservesIdentityMonitorsAndSpool(t *testing.T) {
+	store := openTestStore(t)
+
+	if err := store.UpdateRegistration("agent-1", "token-old", "http://core"); err != nil {
+		t.Fatalf("UpdateRegistration() error = %v", err)
+	}
+	reason := "planned work"
+	if err := store.SetMaintenanceMode(true, &reason); err != nil {
+		t.Fatalf("SetMaintenanceMode() error = %v", err)
+	}
+	lastChecked := time.Now().UTC()
+	if err := store.ReplaceMonitors([]config.InternalStateMonitor{
+		{Name: "homepage", ID: "monitor-1", Status: "running", LastChecked: lastChecked},
+	}); err != nil {
+		t.Fatalf("ReplaceMonitors() error = %v", err)
+	}
+	if _, err := store.EnqueueReport(ReportSpoolKindSystem, "agent-1", "", "", map[string]string{"timestamp": "2026-05-27T20:00:00Z"}, errors.New("offline")); err != nil {
+		t.Fatalf("EnqueueReport() error = %v", err)
+	}
+
+	if err := store.ApplyReplacementToken(" token-new\n"); err != nil {
+		t.Fatalf("ApplyReplacementToken() error = %v", err)
+	}
+
+	state, err := store.Get()
+	if err != nil {
+		t.Fatalf("Get() error = %v", err)
+	}
+	if !state.IsRegistered() || state.AgentID != "agent-1" || state.Token != "token-new" || state.CoreURL != "http://core" {
+		t.Fatalf("registration = %+v, want preserved identity with new token", state)
+	}
+	if !state.MaintenanceMode || state.MaintenanceReason == nil || *state.MaintenanceReason != reason {
+		t.Fatalf("maintenance = %+v, want preserved", state)
+	}
+	if len(state.Monitors) != 1 || state.Monitors[0].ID != "monitor-1" || state.Monitors[0].Name != "homepage" {
+		t.Fatalf("monitors = %+v, want preserved mapping", state.Monitors)
+	}
+	if count, err := store.CountSpooledReports(); err != nil || count != 1 {
+		t.Fatalf("CountSpooledReports() = %d, %v, want 1 nil", count, err)
 	}
 }
 

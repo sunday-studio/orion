@@ -187,6 +187,19 @@ The existing `reconfigure` flow resets local registration and can create a new i
 not be the only recovery path for rotation because rotation is supposed to preserve Agent and
 monitor identity.
 
+Agent recovery command:
+
+```sh
+orion-agent token apply --token-file /secure/path/replacement-token
+orion-agent restart
+```
+
+`token apply` updates only the local token for the existing state row. It preserves `agent_id`,
+Core URL, monitor mappings, maintenance state, and durable report spool entries. Prefer
+`--token-file` so the one-time replacement token does not land in shell history; an inline token
+argument is acceptable for controlled automation. Use `reconfigure` only when the operator intends
+to discard the current local identity and register as a new Agent.
+
 ## Operational Guidance
 
 - Use `rotate` for routine credential hygiene or suspected local disclosure when the host is still

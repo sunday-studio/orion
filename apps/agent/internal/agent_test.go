@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -87,6 +88,89 @@ func TestAgentPersistsSystemReportDuringCoreOutage(t *testing.T) {
 	}
 }
 
+func TestAgentDoesNotSpoolReportsRejectedForAuth(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"error":"agent_token_revoked","message":"authorization: Bearer secret-token"}`))
+	}))
+	defer server.Close()
+
+	stateStore := openAgentTestStore(t)
+	if err := stateStore.UpdateRegistration("agent-1", "secret-token", server.URL); err != nil {
+		t.Fatalf("update registration: %v", err)
+	}
+	internalState, err := stateStore.Get()
+	if err != nil {
+		t.Fatalf("get state: %v", err)
+	}
+
+	agent := New(&config.UserConfig{
+		CoreURL:  server.URL,
+		Interval: "60s",
+	}, stateStore, internalState)
+	err = agent.runSystemMetrics()
+	if err == nil {
+		t.Fatal("runSystemMetrics() error = nil, want auth error")
+	}
+	if !transport.IsAuthError(err) {
+		t.Fatalf("runSystemMetrics() error = %T %[1]v, want auth error", err)
+	}
+	if got := err.Error(); got == "" || got == "secret-token" {
+		t.Fatalf("auth error = %q, want redacted visible detail", got)
+	} else if containsSecret(got, "secret-token") {
+		t.Fatalf("auth error = %q, leaked token", got)
+	}
+	count, err := stateStore.CountSpooledReports()
+	if err != nil {
+		t.Fatalf("CountSpooledReports() error = %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("spooled reports = %d, want none for rejected credentials", count)
+	}
+}
+
+func TestAgentDoesNotSpoolReportsAfterAuthFailure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"error":"agent_token_revoked"}`, http.StatusUnauthorized)
+	}))
+	defer server.Close()
+
+	stateStore := openAgentTestStore(t)
+	if err := stateStore.UpdateRegistration("agent-1", "token", server.URL); err != nil {
+		t.Fatalf("update registration: %v", err)
+	}
+	internalState, err := stateStore.Get()
+	if err != nil {
+		t.Fatalf("get state: %v", err)
+	}
+
+	agent := New(&config.UserConfig{
+		CoreURL:  server.URL,
+		Interval: "60s",
+	}, stateStore, internalState)
+	err = agent.runSystemMetrics()
+	if err == nil {
+		t.Fatal("runSystemMetrics() error = nil, want auth error")
+	}
+	if !transport.IsAuthError(err) {
+		t.Fatalf("runSystemMetrics() error = %T %[1]v, want auth error", err)
+	}
+	count, err := stateStore.CountSpooledReports()
+	if err != nil {
+		t.Fatalf("CountSpooledReports() error = %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("spooled reports = %d, want none after auth failure", count)
+	}
+	state, err := stateStore.Get()
+	if err != nil {
+		t.Fatalf("Get() error = %v", err)
+	}
+	if state.AgentID != "agent-1" || state.Token != "token" {
+		t.Fatalf("identity state = %+v, want unchanged after auth failure", state)
+	}
+}
+
 func TestAgentFlushesDurableReportSpoolAfterRestart(t *testing.T) {
 	var received bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -146,6 +230,10 @@ func TestAgentFlushesDurableReportSpoolAfterRestart(t *testing.T) {
 	if count, err := reopened.CountSpooledReports(); err != nil || count != 0 {
 		t.Fatalf("CountSpooledReports() = %d, %v, want 0 nil", count, err)
 	}
+}
+
+func containsSecret(value string, secret string) bool {
+	return len(secret) > 0 && value != "" && strings.Contains(value, secret)
 }
 
 func openAgentTestStore(t *testing.T) *agentstate.Store {

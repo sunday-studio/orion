@@ -113,6 +113,28 @@ After the service starts:
 If the service starts but nothing appears in Core, check that `core_url` is reachable from the
 monitored host and that the host clock is correct.
 
+## Token Recovery
+
+When Core rotates or reissues an Agent token, apply the replacement token to the existing state
+database instead of re-registering:
+
+```sh
+orion-agent token apply --token-file /secure/path/replacement-token
+orion-agent restart
+```
+
+`token apply` preserves `agent_id`, `core_url`, maintenance state, monitor mappings, and queued
+reports. Use it when an administrator gives you a replacement token for the same Agent identity.
+Prefer `--token-file` so the replacement token does not land in shell history. The command does
+not print the replacement token.
+
+If Core rejects the stored token, the Agent treats the authentication failure as terminal, stops
+reporting, exits with a non-zero status, and leaves local state intact for diagnostics.
+
+Use `orion-agent reconfigure` only when you intentionally need a new local registration, such as
+moving the Agent to a different Core URL or fresh Core database. Reconfigure clears local
+registration, monitor mappings, and queued reports so the Agent can register again.
+
 ## Service Commands
 
 Linux:

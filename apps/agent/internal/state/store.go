@@ -283,6 +283,27 @@ func (s *Store) UpdateRegistration(agentID string, token string, coreURL string)
 	}).Error
 }
 
+func (s *Store) ApplyReplacementToken(token string) error {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return fmt.Errorf("replacement token is required")
+	}
+
+	record, err := s.getOrCreateAgentState()
+	if err != nil {
+		return err
+	}
+	if !record.Registered || record.AgentID == "" || record.CoreURL == "" {
+		return fmt.Errorf("state is not registered; run reconfigure only when a new Agent identity is intended")
+	}
+
+	return s.db.Model(record).Updates(map[string]interface{}{
+		"token":      token,
+		"last_sync":  time.Now(),
+		"updated_at": time.Now(),
+	}).Error
+}
+
 func (s *Store) ReplaceMonitors(monitors []config.InternalStateMonitor) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&monitorStateRecord{}).Error; err != nil {
