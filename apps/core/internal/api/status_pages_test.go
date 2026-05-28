@@ -340,6 +340,85 @@ func TestStatusPageIncidentComponentSuggestionsMatchAgentAndRedactInternals(t *t
 	}
 }
 
+func TestStatusPageThemeSettingsValidationAndPublicProjection(t *testing.T) {
+	server := setupTestServer(t)
+	createPageResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages", gin.H{
+		"slug":        "branded-status",
+		"title":       "Branded Status",
+		"description": "Customer-facing availability",
+		"visibility":  statusPageVisibilityPublic,
+		"theme_settings": gin.H{
+			"accent_color":          "#2AB3C4",
+			"component_density":     "compact",
+			"header_style":          "centered",
+			"logo_alt":              "  Acme status logo  ",
+			"logo_url":              "https://cdn.acme.test/logo.svg",
+			"open_graph_site_name":  "Acme Trust",
+			"open_graph_type":       "website",
+			"show_incident_history": false,
+			"show_uptime_summary":   true,
+		},
+	}, "")
+	if createPageResp.Code != http.StatusCreated {
+		t.Fatalf("create themed page status = %d, body = %s", createPageResp.Code, createPageResp.Body.String())
+	}
+	var createdPage struct {
+		Data struct {
+			Page struct {
+				ThemeSettings map[string]interface{} `json:"theme_settings"`
+			} `json:"page"`
+		} `json:"data"`
+	}
+	decodeResponse(t, createPageResp, &createdPage)
+	if createdPage.Data.Page.ThemeSettings["accent_color"] != "#2ab3c4" ||
+		createdPage.Data.Page.ThemeSettings["logo_alt"] != "Acme status logo" ||
+		createdPage.Data.Page.ThemeSettings["header_style"] != "centered" ||
+		createdPage.Data.Page.ThemeSettings["component_density"] != "compact" ||
+		createdPage.Data.Page.ThemeSettings["show_incident_history"] != false {
+		t.Fatalf("admin theme settings = %+v, want sanitized supported values", createdPage.Data.Page.ThemeSettings)
+	}
+
+	publicResp := performJSONRequest(t, server, http.MethodGet, "/status/branded-status", nil, "")
+	if publicResp.Code != http.StatusOK {
+		t.Fatalf("public themed page status = %d, body = %s", publicResp.Code, publicResp.Body.String())
+	}
+	var publicPayload struct {
+		Data struct {
+			StatusPage struct {
+				Page struct {
+					ThemeSettings map[string]interface{} `json:"theme_settings"`
+				} `json:"page"`
+			} `json:"status_page"`
+		} `json:"data"`
+	}
+	decodeResponse(t, publicResp, &publicPayload)
+	if publicPayload.Data.StatusPage.Page.ThemeSettings["accent_color"] != "#2ab3c4" ||
+		publicPayload.Data.StatusPage.Page.ThemeSettings["logo_url"] != "https://cdn.acme.test/logo.svg" ||
+		publicPayload.Data.StatusPage.Page.ThemeSettings["open_graph_site_name"] != "Acme Trust" {
+		t.Fatalf("public theme settings = %+v, want public sanitized theme values", publicPayload.Data.StatusPage.Page.ThemeSettings)
+	}
+
+	invalidSettings := []gin.H{
+		{"accent_color": "green"},
+		{"logo_url": "javascript://status.example.test/logo.svg"},
+		{"header_style": "hero"},
+		{"component_density": "dense"},
+		{"show_uptime_summary": "true"},
+		{"open_graph_type": "article"},
+		{"accent": "green"},
+	}
+	for index, themeSettings := range invalidSettings {
+		resp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages", gin.H{
+			"slug":           fmt.Sprintf("invalid-theme-%d", index),
+			"title":          fmt.Sprintf("Invalid Theme %d", index),
+			"theme_settings": themeSettings,
+		}, "")
+		if resp.Code != http.StatusBadRequest {
+			t.Fatalf("invalid theme %d status = %d, body = %s, want 400", index, resp.Code, resp.Body.String())
+		}
+	}
+}
+
 func TestStatusPageAdminAPIFlow(t *testing.T) {
 	server := setupTestServer(t)
 	registered := registerTestAgent(t, server)
@@ -355,7 +434,7 @@ func TestStatusPageAdminAPIFlow(t *testing.T) {
 		"slug":           "main-status",
 		"title":          "Main Status",
 		"description":    "Customer-facing availability",
-		"theme_settings": gin.H{"accent": "green"},
+		"theme_settings": gin.H{"accent_color": "#10b981"},
 	}, "")
 	if createPageResp.Code != http.StatusCreated {
 		t.Fatalf("create status page status = %d, body = %s", createPageResp.Code, createPageResp.Body.String())
@@ -375,8 +454,8 @@ func TestStatusPageAdminAPIFlow(t *testing.T) {
 	if createdPage.Data.Page.ID == "" || createdPage.Data.Page.Slug != "main-status" || createdPage.Data.Page.Visibility != "draft" {
 		t.Fatalf("created page = %+v, want draft main-status page", createdPage.Data.Page)
 	}
-	if createdPage.Data.Page.ThemeSettings["accent"] != "green" {
-		t.Fatalf("theme settings = %+v, want accent green", createdPage.Data.Page.ThemeSettings)
+	if createdPage.Data.Page.ThemeSettings["accent_color"] != "#10b981" {
+		t.Fatalf("theme settings = %+v, want accent color", createdPage.Data.Page.ThemeSettings)
 	}
 
 	createSectionResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+createdPage.Data.Page.ID+"/sections", gin.H{

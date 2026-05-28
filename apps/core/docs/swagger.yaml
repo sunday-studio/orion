@@ -1043,6 +1043,9 @@ definitions:
         type: string
       slug:
         type: string
+      theme_settings:
+        additionalProperties: true
+        type: object
       title:
         type: string
       visibility:

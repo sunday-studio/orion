@@ -9177,6 +9177,10 @@ const docTemplate = `{
                 "slug": {
                     "type": "string"
                 },
+                "theme_settings": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
                 "title": {
                     "type": "string"
                 },

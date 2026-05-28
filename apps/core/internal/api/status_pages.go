@@ -204,10 +204,11 @@ type StatusPagePublicOpenGraphResponse struct {
 }
 
 type StatusPagePublicPageResponse struct {
-	Slug        string `json:"slug"`
-	Title       string `json:"title"`
-	Description string `json:"description,omitempty"`
-	Visibility  string `json:"visibility"`
+	Slug          string                 `json:"slug"`
+	Title         string                 `json:"title"`
+	Description   string                 `json:"description,omitempty"`
+	Visibility    string                 `json:"visibility"`
+	ThemeSettings map[string]interface{} `json:"theme_settings"`
 }
 
 type StatusPagePublicSectionResponse struct {
@@ -1570,10 +1571,11 @@ func (s *Server) statusPagePreview(detail StatusPageDetailResponse, includeDraft
 
 	return StatusPagePreviewResponse{
 		Page: StatusPagePublicPageResponse{
-			Slug:        detail.Page.Slug,
-			Title:       detail.Page.Title,
-			Description: detail.Page.Description,
-			Visibility:  detail.Page.Visibility,
+			Slug:          detail.Page.Slug,
+			Title:         detail.Page.Title,
+			Description:   detail.Page.Description,
+			Visibility:    detail.Page.Visibility,
+			ThemeSettings: detail.Page.ThemeSettings,
 		},
 		Metadata:             statusPagePublicMetadata(detail.Page),
 		Sections:             sections,
@@ -1761,7 +1763,11 @@ func (s *Server) applyStatusPageRequest(page *db.StatusPage, request statusPageR
 		page.Visibility = strings.TrimSpace(*request.Visibility)
 	}
 	if request.ThemeSettings != nil {
-		body, err := json.Marshal(request.ThemeSettings)
+		settings, err := sanitizeStatusPageThemeSettings(request.ThemeSettings)
+		if err != nil {
+			return err
+		}
+		body, err := json.Marshal(settings)
 		if err != nil {
 			return &requestValidationError{message: "theme_settings must be valid JSON"}
 		}
@@ -1807,6 +1813,107 @@ func (s *Server) applyStatusPageRequest(page *db.StatusPage, request statusPageR
 		return err
 	}
 	return nil
+}
+
+func sanitizeStatusPageThemeSettings(settings map[string]interface{}) (map[string]interface{}, error) {
+	sanitized := map[string]interface{}{}
+	for key, value := range settings {
+		if value == nil {
+			continue
+		}
+		switch key {
+		case "accent_color":
+			text, err := statusPageThemeString(value, "theme_settings.accent_color", 32)
+			if err != nil {
+				return nil, err
+			}
+			if !validStatusPageThemeHexColor(text) {
+				return nil, &requestValidationError{message: "theme_settings.accent_color must be a 6-digit hex color"}
+			}
+			sanitized[key] = strings.ToLower(text)
+		case "logo_url":
+			text, err := statusPageThemeString(value, "theme_settings.logo_url", 2048)
+			if err != nil {
+				return nil, err
+			}
+			if text == "" {
+				continue
+			}
+			if err := validateOptionalURL(text, "theme_settings.logo_url"); err != nil {
+				return nil, err
+			}
+			sanitized[key] = text
+		case "logo_alt", "open_graph_title", "open_graph_description", "open_graph_site_name":
+			text, err := statusPageThemeString(value, "theme_settings."+key, 280)
+			if err != nil {
+				return nil, err
+			}
+			if text != "" {
+				sanitized[key] = text
+			}
+		case "header_style":
+			text, err := statusPageThemeString(value, "theme_settings.header_style", 64)
+			if err != nil {
+				return nil, err
+			}
+			if text != "standard" && text != "compact" && text != "centered" {
+				return nil, &requestValidationError{message: "theme_settings.header_style is unsupported"}
+			}
+			sanitized[key] = text
+		case "component_density":
+			text, err := statusPageThemeString(value, "theme_settings.component_density", 64)
+			if err != nil {
+				return nil, err
+			}
+			if text != "comfortable" && text != "compact" {
+				return nil, &requestValidationError{message: "theme_settings.component_density is unsupported"}
+			}
+			sanitized[key] = text
+		case "show_uptime_summary", "show_incident_history":
+			boolean, ok := value.(bool)
+			if !ok {
+				return nil, &requestValidationError{message: "theme_settings." + key + " must be a boolean"}
+			}
+			sanitized[key] = boolean
+		case "open_graph_type":
+			text, err := statusPageThemeString(value, "theme_settings.open_graph_type", 64)
+			if err != nil {
+				return nil, err
+			}
+			if text != "website" {
+				return nil, &requestValidationError{message: "theme_settings.open_graph_type is unsupported"}
+			}
+			sanitized[key] = text
+		default:
+			return nil, &requestValidationError{message: "theme_settings." + key + " is unsupported"}
+		}
+	}
+	return sanitized, nil
+}
+
+func statusPageThemeString(value interface{}, field string, maxRunes int) (string, error) {
+	text, ok := value.(string)
+	if !ok {
+		return "", &requestValidationError{message: field + " must be a string"}
+	}
+	text = strings.TrimSpace(text)
+	if len([]rune(text)) > maxRunes {
+		return "", &requestValidationError{message: field + " is too long"}
+	}
+	return text, nil
+}
+
+func validStatusPageThemeHexColor(value string) bool {
+	if len(value) != 7 || value[0] != '#' {
+		return false
+	}
+	for _, r := range value[1:] {
+		if (r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F') {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func (s *Server) ensureStatusPageCustomDomainAvailable(pageID string, domain string) error {
@@ -2316,7 +2423,11 @@ func validateOptionalURL(value string, field string) error {
 	}
 	parsed, err := url.ParseRequestURI(value)
 	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-		return &requestValidationError{message: field + " must be an absolute URL"}
+		return &requestValidationError{message: field + " must be an absolute http or https URL"}
+	}
+	scheme := strings.ToLower(parsed.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return &requestValidationError{message: field + " must be an absolute http or https URL"}
 	}
 	return nil
 }
