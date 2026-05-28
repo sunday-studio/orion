@@ -16,6 +16,7 @@ import { AgentHealthSummary } from "./components/agent-health-summary";
 import { AgentLogsTab } from "./components/agent-logs-tab";
 import { AgentMonitorsTab } from "./components/agent-monitors-tab";
 import { AgentServiceLogsTab } from "./components/agent-service-logs-tab";
+import { AgentTokenPanel } from "./components/agent-token-panel";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge, toStatus } from "@/components/status-badges";
 
@@ -146,6 +147,8 @@ export const AgentDetailPage = () => {
         uptimePercent={uptimeResponse.data?.uptime_percent}
         uptimeBuckets={uptimeResponse.data?.daily_buckets ?? []}
       />
+
+      <AgentTokenPanel agentId={currentAgentId} />
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList>
