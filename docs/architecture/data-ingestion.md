@@ -56,6 +56,11 @@ On reconnect:
 - Core refreshes `last_seen`.
 - Core updates changed name, OS, arch, reporting interval, and meta.
 
+After Agent token lifecycle controls are implemented, revoked Agents must not receive a token
+through unauthenticated re-registration. Rotation and reissue preserve the existing `agent_id` and
+monitor IDs; operators apply the replacement token to local Agent state instead of resetting state
+when identity continuity matters. See [agent-token-lifecycle.md](agent-token-lifecycle.md).
+
 ```mermaid
 flowchart TD
   Register["POST /v1/register"] --> Lookup{"machine_id exists?"}

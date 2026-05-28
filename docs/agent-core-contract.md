@@ -84,6 +84,7 @@ availability only; Core worker state is exposed through `/v1/diagnostics/core-wo
 - Protected agent routes require `Authorization: Bearer <token>`.
 - Frontend diagnostics routes use frontend/admin auth when configured.
 - Core validates that the token belongs to the `agent_id` in the path.
+- Agent token rotation, revocation, and reissue are frontend/admin authenticated actions; Agent-scoped bearer tokens must not authorize their own lifecycle changes.
 - `X-Request-ID` may be supplied by callers; Core echoes or generates one.
 - Path IDs and body IDs must agree on agent-scoped routes.
 - Agent-scoped monitor registration routes are only for Agent-owned monitors.
@@ -110,6 +111,17 @@ availability only; Core worker state is exposed through `/v1/diagnostics/core-wo
   Returns paginated service logs for one Agent. Requires frontend/admin auth when configured.
 - `GET /v1/diagnostics/core-worker`
   Returns Core monitor worker heartbeat status. Requires frontend/admin auth when configured.
+
+Planned Agent token lifecycle endpoints:
+
+- `POST /v1/agents/:agent_id/token/rotate`
+  Replaces the active Agent token, preserves Agent identity and monitor IDs, and returns the new token once. Frontend/admin auth.
+- `POST /v1/agents/:agent_id/token/revoke`
+  Immediately rejects existing Agent-scoped tokens for the Agent and records optional revocation context. Frontend/admin auth.
+- `POST /v1/agents/:agent_id/token/reissue`
+  Issues a replacement token for a revoked Agent while preserving Agent identity and monitor IDs. Frontend/admin auth.
+- `GET /v1/agents/:agent_id/token/status`
+  Returns non-secret token lifecycle metadata. Frontend/admin auth.
 
 Core monitor admin endpoints:
 
@@ -138,6 +150,8 @@ Core monitor admin endpoints:
 - Agent sends `reporting_interval_seconds` from its global config interval.
 - Core stores the reporting interval on create and updates it on re-registration.
 - Agent metadata from config may be stored as stringified JSON.
+- Once token lifecycle controls are implemented, revoked Agents must not recover a token through unauthenticated re-registration by `machine_id`.
+- Rotation and reissue preserve the existing `agent_id`, `machine_id`, Agent-owned monitor IDs, reports, incidents, maintenance state, and status page component mappings.
 
 ### Monitor Registration
 
@@ -270,7 +284,7 @@ Core behavior:
 
 ## Security
 
-- Tokens are permanent until explicit rotation/revocation exists.
+- Agent token lifecycle semantics live in `docs/architecture/agent-token-lifecycle.md`.
 - Agent stores token in local SQLite state; file permissions must protect it.
 - Agent location lookup is opt-in through `geo_location: true`.
 - Command monitors execute direct processes by default; shell behavior requires explicitly invoking a shell command.
@@ -283,6 +297,5 @@ Core behavior:
 ## Open Contract Decisions
 
 - Whether Agent should send all monitor reports individually or support batch reporting.
-- Token rotation and revocation flow.
 - Whether the Core monitor worker writes reports through direct shared services and SQLite access, or through an internal Core API.
 - Whether Core monitor private network targets are allowed by default or require an explicit setting.
