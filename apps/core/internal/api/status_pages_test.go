@@ -873,6 +873,116 @@ func TestPublicStatusPageMetadataProjectionUsesSafeDefaultsAndConfiguredFields(t
 	}
 }
 
+func TestPublicStatusPageHTMLRendersSafeMetadataAndTheme(t *testing.T) {
+	server := setupTestServer(t)
+	now := time.Date(2026, 5, 28, 3, 30, 0, 0, time.UTC)
+	page := db.StatusPage{
+		ID:                        "status-page-html",
+		Slug:                      "html-status",
+		CustomDomain:              "status.acme.test",
+		Title:                     "Acme Public Status",
+		Description:               "Customer-facing availability",
+		SEOTitle:                  "Acme Status",
+		SEODescription:            "Public availability for Acme",
+		OpenGraphImageURL:         "https://cdn.acme.test/status.png",
+		CanonicalURL:              "https://status.acme.test/",
+		Visibility:                statusPageVisibilityPublic,
+		ThemeSettings:             `{"accent_color":"#10b981","component_density":"compact","header_style":"centered","logo_alt":"Acme logo","logo_url":"https://cdn.acme.test/logo.svg","open_graph_site_name":"Acme Trust","open_graph_title":"Acme Status Updates","open_graph_description":"Realtime public availability","open_graph_type":"website"}`,
+		DefaultIncidentVisibility: statusPageIncidentVisibilityDraft,
+		PublishedAt:               &now,
+		CreatedAt:                 now,
+		UpdatedAt:                 now,
+	}
+	section := db.StatusPageSection{
+		ID:           "status-page-html-section",
+		StatusPageID: page.ID,
+		Name:         "Public services",
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+	component := db.StatusPageComponent{
+		ID:                 "status-page-html-component",
+		StatusPageID:       page.ID,
+		SectionID:          section.ID,
+		PublicName:         "Checkout API",
+		PublicDescription:  "Customer checkout traffic",
+		DisplayMode:        "manual",
+		ManualStatus:       "degraded",
+		ManualStatusReason: "Elevated latency",
+		Visible:            true,
+		CreatedAt:          now,
+		UpdatedAt:          now,
+	}
+	incident := db.StatusPageIncident{
+		ID:                   "status-page-html-incident",
+		StatusPageID:         page.ID,
+		Title:                "Checkout latency",
+		PublicStatus:         "identified",
+		Severity:             "medium",
+		ImpactSummary:        "Some checkouts are slower than usual.",
+		Visibility:           statusPageIncidentVisibilityPublished,
+		AffectedComponentIDs: `["status-page-html-component"]`,
+		PublishedAt:          &now,
+		CreatedAt:            now,
+		UpdatedAt:            now,
+	}
+	if err := server.db.Create(&page).Error; err != nil {
+		t.Fatalf("create status page: %v", err)
+	}
+	if err := server.db.Create(&section).Error; err != nil {
+		t.Fatalf("create section: %v", err)
+	}
+	if err := server.db.Create(&component).Error; err != nil {
+		t.Fatalf("create component: %v", err)
+	}
+	if err := server.db.Create(&incident).Error; err != nil {
+		t.Fatalf("create incident: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/status/html-status", nil)
+	req.Header.Set("Accept", "text/html")
+	resp := httptest.NewRecorder()
+	server.router.ServeHTTP(resp, req)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("HTML status = %d, body = %s", resp.Code, resp.Body.String())
+	}
+	body := resp.Body.String()
+	assertContains(t, resp.Header().Get("Content-Type"), "text/html")
+	assertContains(t, body, "<title>Acme Status</title>")
+	assertContains(t, body, `<meta name="description" content="Public availability for Acme">`)
+	assertContains(t, body, `<link rel="canonical" href="https://status.acme.test">`)
+	assertContains(t, body, `<meta property="og:title" content="Acme Status Updates">`)
+	assertContains(t, body, `<meta property="og:description" content="Realtime public availability">`)
+	assertContains(t, body, `<meta property="og:image" content="https://cdn.acme.test/status.png">`)
+	assertContains(t, body, `<img src="https://cdn.acme.test/logo.svg" alt="Acme logo">`)
+	assertContains(t, body, "Checkout API")
+	assertContains(t, body, "Elevated latency")
+	assertContains(t, body, "Checkout latency")
+	assertContains(t, body, "Identified")
+	assertNotContains(t, body, "Private monitor name must not leak")
+	assertNotContains(t, body, "10.0.0.7")
+
+	jsonReq := httptest.NewRequest(http.MethodGet, "/status/html-status", nil)
+	jsonReq.Header.Set("Accept", "application/json")
+	jsonResp := httptest.NewRecorder()
+	server.router.ServeHTTP(jsonResp, jsonReq)
+	if jsonResp.Code != http.StatusOK {
+		t.Fatalf("JSON status = %d, body = %s", jsonResp.Code, jsonResp.Body.String())
+	}
+	assertContains(t, jsonResp.Header().Get("Content-Type"), "application/json")
+	assertContains(t, jsonResp.Body.String(), `"status_page"`)
+
+	customDomainReq := httptest.NewRequest(http.MethodGet, "/", nil)
+	customDomainReq.Host = "status.acme.test"
+	customDomainReq.Header.Set("Accept", "text/html")
+	customDomainResp := httptest.NewRecorder()
+	server.router.ServeHTTP(customDomainResp, customDomainReq)
+	if customDomainResp.Code != http.StatusOK {
+		t.Fatalf("custom domain HTML status = %d, body = %s", customDomainResp.Code, customDomainResp.Body.String())
+	}
+	assertContains(t, customDomainResp.Body.String(), `<a href="http://status.acme.test/feed.atom">Atom feed</a>`)
+}
+
 func TestPublicStatusPageMetadataDoesNotUseMappedInternalResources(t *testing.T) {
 	server := setupTestServer(t)
 	registered := registerTestAgent(t, server)

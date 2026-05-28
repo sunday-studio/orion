@@ -531,6 +531,10 @@ func (s *Server) getPublicStatusPage(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if publicStatusPageRequestWantsHTML(c) {
+		s.writePublicStatusPageHTML(c, preview)
+		return
+	}
 	s.writePublicStatusPageJSON(c, http.StatusOK, "Status page retrieved successfully", gin.H{
 		"status_page": preview,
 	})
