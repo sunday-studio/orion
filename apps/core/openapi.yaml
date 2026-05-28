@@ -468,6 +468,13 @@ definitions:
       type:
         type: string
     type: object
+  api.IncidentEvidenceResponse:
+    properties:
+      latest_report:
+        $ref: '#/definitions/api.MonitorReportResponse'
+      triggering_report:
+        $ref: '#/definitions/api.MonitorReportResponse'
+    type: object
   api.IncidentInsightsResponse:
     properties:
       lifecycle_timing:
@@ -512,6 +519,29 @@ definitions:
       monitor_id:
         type: string
       monitor_name:
+        type: string
+    type: object
+  api.IncidentRelatedIncidentResponse:
+    properties:
+      id:
+        type: string
+      last_event_at:
+        type: string
+      latest_event:
+        type: string
+      notification_status:
+        type: string
+      opened_at:
+        type: string
+      resolution_kind:
+        type: string
+      resolved_at:
+        type: string
+      severity:
+        type: string
+      status:
+        type: string
+      title:
         type: string
     type: object
   api.IncidentResponse:
@@ -4653,11 +4683,17 @@ paths:
                       items:
                         $ref: '#/definitions/api.IncidentEventResponse'
                       type: array
+                    evidence:
+                      $ref: '#/definitions/api.IncidentEvidenceResponse'
                     incident:
                       $ref: '#/definitions/api.IncidentResponse'
                     monitor_reports:
                       items:
                         $ref: '#/definitions/api.MonitorReportResponse'
+                      type: array
+                    related_incidents:
+                      items:
+                        $ref: '#/definitions/api.IncidentRelatedIncidentResponse'
                       type: array
                     timeline:
                       items:

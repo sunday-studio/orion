@@ -3253,6 +3253,32 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 	if err := server.db.Where("monitor_id = ?", registeredMonitor.Data.MonitorID).First(&incident).Error; err != nil {
 		t.Fatalf("find incident: %v", err)
 	}
+	relatedIncident := db.Incident{
+		ID:                 "incident-related-detail",
+		Status:             "resolved",
+		Severity:           "medium",
+		Title:              "Prior homepage failure",
+		AgentID:            registered.Data.AgentID,
+		MonitorID:          registeredMonitor.Data.MonitorID,
+		OpenedAt:           incident.OpenedAt.Add(-2 * time.Hour),
+		ResolvedAt:         &incident.OpenedAt,
+		LastEventAt:        incident.OpenedAt,
+		LatestEvent:        "Prior incident resolved",
+		NotificationStatus: "suppressed",
+		ResolutionKind:     "recovered",
+	}
+	if err := server.db.Create(&relatedIncident).Error; err != nil {
+		t.Fatalf("create related incident: %v", err)
+	}
+
+	latestResp := performJSONRequest(t, server, http.MethodPost, reportPath, map[string]interface{}{
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"health":    "degraded",
+		"metrics":   map[string]interface{}{"status_code": 503, "message": "slow checkout"},
+	}, registered.Data.Token)
+	if latestResp.Code != http.StatusOK {
+		t.Fatalf("latest report status = %d, body = %s", latestResp.Code, latestResp.Body.String())
+	}
 
 	detailResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents/"+incident.ID, nil, "")
 	if detailResp.Code != http.StatusOK {
@@ -3272,9 +3298,28 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 					Impact        string `json:"impact"`
 				} `json:"impacted_components"`
 			} `json:"incident"`
+			Evidence struct {
+				TriggeringReport *struct {
+					ID      string `json:"id"`
+					Health  string `json:"health"`
+					Payload string `json:"payload"`
+				} `json:"triggering_report"`
+				LatestReport *struct {
+					ID      string `json:"id"`
+					Health  string `json:"health"`
+					Payload string `json:"payload"`
+				} `json:"latest_report"`
+			} `json:"evidence"`
+			RelatedIncidents []struct {
+				ID             string `json:"id"`
+				ResolutionKind string `json:"resolution_kind"`
+			} `json:"related_incidents"`
 			Timeline []struct {
-				Type   string `json:"type"`
-				Source string `json:"source"`
+				Type            string `json:"type"`
+				Source          string `json:"source"`
+				Evidence        string `json:"evidence"`
+				MonitorReportID string `json:"monitor_report_id"`
+				AlertDeliveryID string `json:"alert_delivery_id"`
 			} `json:"timeline"`
 			AlertDeliveries []struct {
 				Status string `json:"status"`
@@ -3294,12 +3339,40 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 	if len(detail.Data.Incident.ImpactedComponents) != 1 ||
 		detail.Data.Incident.ImpactedComponents[0].ComponentID != "incident-detail-component" ||
 		detail.Data.Incident.ImpactedComponents[0].ComponentName != "Checkout" ||
-		detail.Data.Incident.ImpactedComponents[0].Status != "major_outage" ||
-		detail.Data.Incident.ImpactedComponents[0].Impact != "down" {
-		t.Fatalf("incident detail component impact = %+v, want Checkout down impact", detail.Data.Incident.ImpactedComponents)
+		detail.Data.Incident.ImpactedComponents[0].Status != "degraded" ||
+		detail.Data.Incident.ImpactedComponents[0].Impact != "degraded" {
+		t.Fatalf("incident detail component impact = %+v, want Checkout degraded impact", detail.Data.Incident.ImpactedComponents)
 	}
 	if len(detail.Data.Timeline) < 2 || len(detail.Data.AlertDeliveries) == 0 || len(detail.Data.MonitorReports) == 0 {
 		t.Fatalf("incident detail linked data missing: %+v", detail.Data)
+	}
+	if detail.Data.Evidence.TriggeringReport == nil ||
+		detail.Data.Evidence.TriggeringReport.Health != "down" ||
+		!strings.Contains(detail.Data.Evidence.TriggeringReport.Payload, `"status_code":500`) {
+		t.Fatalf("triggering evidence = %+v, want down report with safe payload", detail.Data.Evidence.TriggeringReport)
+	}
+	if detail.Data.Evidence.LatestReport == nil ||
+		detail.Data.Evidence.LatestReport.Health != "degraded" ||
+		!strings.Contains(detail.Data.Evidence.LatestReport.Payload, "slow checkout") {
+		t.Fatalf("latest evidence = %+v, want latest degraded report", detail.Data.Evidence.LatestReport)
+	}
+	if len(detail.Data.RelatedIncidents) != 1 ||
+		detail.Data.RelatedIncidents[0].ID != relatedIncident.ID ||
+		detail.Data.RelatedIncidents[0].ResolutionKind != "recovered" {
+		t.Fatalf("related incidents = %+v, want prior same-monitor incident", detail.Data.RelatedIncidents)
+	}
+	var reportLinked bool
+	var deliveryLinked bool
+	for _, item := range detail.Data.Timeline {
+		if item.MonitorReportID != "" && item.Evidence != "" {
+			reportLinked = true
+		}
+		if item.AlertDeliveryID != "" {
+			deliveryLinked = true
+		}
+	}
+	if !reportLinked || !deliveryLinked {
+		t.Fatalf("timeline links = %+v, want report evidence and alert delivery links", detail.Data.Timeline)
 	}
 
 	timelineResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents/"+incident.ID+"/timeline", nil, "")

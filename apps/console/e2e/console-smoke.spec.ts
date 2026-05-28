@@ -201,6 +201,11 @@ test("exercises incident detail tabs and lifecycle actions", async ({ page }) =>
   await page.goto("/incidents/seed-incident-seed-monitor-seed-agent-03-down-http");
   await expect(page.getByRole("heading", { name: "Down Server HTTP API is down" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Acknowledge" })).toBeVisible();
+  await expect(page.getByText("Cause / Evidence")).toBeVisible();
+  await page.getByRole("button", { name: "Inspect report" }).first().click();
+  await expect(page.getByRole("dialog").getByText("Monitor Report")).toBeVisible();
+  await expect(page.getByRole("dialog").getByText("Raw JSON")).toBeVisible();
+  await page.keyboard.press("Escape");
 
   await page.getByRole("tab", { name: /Notifications/ }).click();
   await expect(page.getByText("delivery failed; check Core logs")).toBeVisible();
@@ -211,11 +216,11 @@ test("exercises incident detail tabs and lifecycle actions", async ({ page }) =>
   await page.getByRole("dialog").getByLabel("note").fill("Known maintenance");
   await page.getByRole("dialog").getByRole("button", { name: "Cover" }).click();
   await expect(page.getByRole("button", { name: "Reopen" })).toBeVisible();
-  await expect(page.getByText("Incident marked covered")).toBeVisible();
+  await expect(page.getByText("Incident marked covered").first()).toBeVisible();
 
   await page.getByRole("button", { name: "Reopen" }).click();
   await expect(page.getByRole("button", { name: "Acknowledge" })).toBeVisible();
-  await expect(page.getByText("Incident reopened")).toBeVisible();
+  await expect(page.getByText("Incident reopened").first()).toBeVisible();
 
   await page.getByRole("button", { name: "Acknowledge" }).click();
   await expect(page.getByRole("button", { name: "Acknowledge" })).toBeHidden();
@@ -223,5 +228,5 @@ test("exercises incident detail tabs and lifecycle actions", async ({ page }) =>
 
   await page.getByRole("button", { name: "Resolve" }).click();
   await expect(page.getByRole("button", { name: "Resolve" })).toBeHidden();
-  await expect(page.getByText("Incident manually resolved")).toBeVisible();
+  await expect(page.getByText("Incident manually resolved").first()).toBeVisible();
 });

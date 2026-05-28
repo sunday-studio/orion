@@ -4329,6 +4329,9 @@ const docTemplate = `{
                                                         "$ref": "#/definitions/api.IncidentEventResponse"
                                                     }
                                                 },
+                                                "evidence": {
+                                                    "$ref": "#/definitions/api.IncidentEvidenceResponse"
+                                                },
                                                 "incident": {
                                                     "$ref": "#/definitions/api.IncidentResponse"
                                                 },
@@ -4336,6 +4339,12 @@ const docTemplate = `{
                                                     "type": "array",
                                                     "items": {
                                                         "$ref": "#/definitions/api.MonitorReportResponse"
+                                                    }
+                                                },
+                                                "related_incidents": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/api.IncidentRelatedIncidentResponse"
                                                     }
                                                 },
                                                 "timeline": {
@@ -8290,6 +8299,17 @@ const docTemplate = `{
                 }
             }
         },
+        "api.IncidentEvidenceResponse": {
+            "type": "object",
+            "properties": {
+                "latest_report": {
+                    "$ref": "#/definitions/api.MonitorReportResponse"
+                },
+                "triggering_report": {
+                    "$ref": "#/definitions/api.MonitorReportResponse"
+                }
+            }
+        },
         "api.IncidentInsightsResponse": {
             "type": "object",
             "properties": {
@@ -8357,6 +8377,41 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "monitor_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.IncidentRelatedIncidentResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "last_event_at": {
+                    "type": "string"
+                },
+                "latest_event": {
+                    "type": "string"
+                },
+                "notification_status": {
+                    "type": "string"
+                },
+                "opened_at": {
+                    "type": "string"
+                },
+                "resolution_kind": {
+                    "type": "string"
+                },
+                "resolved_at": {
+                    "type": "string"
+                },
+                "severity": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "title": {
                     "type": "string"
                 }
             }

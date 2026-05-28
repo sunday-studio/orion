@@ -307,6 +307,34 @@ const CoverIncidentDialog = ({
   );
 };
 
+const EvidenceReportGroup = ({
+  title,
+  report,
+  reason,
+  onInspect,
+}: {
+  title: string;
+  report?: ApiMonitorReportResponse;
+  reason: string;
+  onInspect: () => void;
+}) => (
+  <DetailGroup title={title}>
+    <DetailItem
+      label="result"
+      value={
+        <span className="inline-flex items-center gap-2">
+          <StatusBadge value={toStatus(report?.health)} />
+          <span>{formatDate(reportTimestamp(report), DATE_TIME_FORMAT)}</span>
+        </span>
+      }
+    />
+    <DetailItem label="reason" value={reason} />
+    <Button type="button" variant="outline" size="sm" disabled={!report} onClick={onInspect}>
+      Inspect report
+    </Button>
+  </DetailGroup>
+);
+
 export const IncidentDetailPage = () => {
   const { incidentId = "" } = useParams();
   const queryClient = useQueryClient();
@@ -323,9 +351,11 @@ export const IncidentDetailPage = () => {
   const reopenIncident = useReopenIncident({ mutation: { onSuccess: refreshIncident } });
   const incident = incidentResponse.data?.incident;
   const impactedComponents = incident?.impacted_components ?? [];
+  const evidence = incidentResponse.data?.evidence;
   const timeline = incidentResponse.data?.timeline ?? [];
   const alertDeliveries = incidentResponse.data?.alert_deliveries ?? [];
   const monitorReports = incidentResponse.data?.monitor_reports ?? [];
+  const relatedIncidents = incidentResponse.data?.related_incidents ?? [];
   const [selectedMonitorReport, setSelectedMonitorReport] = useState<ApiMonitorReportResponse>();
   const [coverDialogOpen, setCoverDialogOpen] = useState(false);
   const sortedMonitorReports = [...monitorReports].sort(
@@ -335,10 +365,11 @@ export const IncidentDetailPage = () => {
     monitorReports.flatMap((report) => (report.id ? [[report.id, report] as const] : [])),
   );
   const triggeringReport =
+    evidence?.triggering_report ??
     sortedMonitorReports.find((report) => report.health && report.health !== "up") ??
     sortedMonitorReports[0];
-  const latestReport = sortedMonitorReports.at(-1);
-  const latestTimelineItem = timeline[0];
+  const latestReport = evidence?.latest_report ?? sortedMonitorReports.at(-1);
+  const latestTimelineItem = timeline.at(-1);
   const requestedTab = searchParams.get("tab");
   const activeTab: DetailTab = isDetailTab(requestedTab) ? requestedTab : "timeline";
   const canAcknowledge = incident?.status === "open";
@@ -519,31 +550,19 @@ export const IncidentDetailPage = () => {
       <section className="space-y-3">
         <h2 className="text-sm font-medium">Cause / Evidence</h2>
         <div className="grid gap-3 lg:grid-cols-3">
-          <DetailGroup title="Trigger">
-            <DetailItem
-              label="first failing result"
-              value={
-                <span className="inline-flex items-center gap-2">
-                  <StatusBadge value={toStatus(triggeringReport?.health)} />
-                  <span>{formatDate(reportTimestamp(triggeringReport), DATE_TIME_FORMAT)}</span>
-                </span>
-              }
-            />
-            <DetailItem label="reason" value={reportReason(triggeringReport)} />
-          </DetailGroup>
+          <EvidenceReportGroup
+            title="Trigger"
+            report={triggeringReport}
+            reason={reportReason(triggeringReport)}
+            onInspect={() => setSelectedMonitorReport(triggeringReport)}
+          />
 
-          <DetailGroup title="Current Result">
-            <DetailItem
-              label="latest report"
-              value={
-                <span className="inline-flex items-center gap-2">
-                  <StatusBadge value={toStatus(latestReport?.health)} />
-                  <span>{formatDate(reportTimestamp(latestReport), DATE_TIME_FORMAT)}</span>
-                </span>
-              }
-            />
-            <DetailItem label="latest reason" value={reportReason(latestReport)} />
-          </DetailGroup>
+          <EvidenceReportGroup
+            title="Current Result"
+            report={latestReport}
+            reason={reportReason(latestReport)}
+            onInspect={() => setSelectedMonitorReport(latestReport)}
+          />
 
           <DetailGroup title="Latest Timeline Event">
             <DetailItem label="type" value={latestTimelineItem?.type ?? "—"} />
@@ -554,6 +573,27 @@ export const IncidentDetailPage = () => {
             <DetailItem label="message" value={latestTimelineItem?.message ?? "—"} />
           </DetailGroup>
         </div>
+        {relatedIncidents.length > 0 && (
+          <div className="space-y-2 bg-neutral-50 px-3 py-3">
+            <h3 className="text-sm font-medium">Related incidents</h3>
+            <div className="divide-y divide-neutral-200">
+              {relatedIncidents.slice(0, 5).map((related) => (
+                <Link
+                  key={related.id ?? related.opened_at ?? "related-incident"}
+                  to={`/incidents/${related.id ?? ""}`}
+                  className="grid gap-1 py-2 text-sm hover:text-neutral-600 sm:grid-cols-[1fr_auto]"
+                >
+                  <span className="min-w-0 truncate font-medium">
+                    {related.title ?? "Untitled incident"}
+                  </span>
+                  <span className="text-neutral-500">
+                    {formatDate(related.opened_at, DATE_TIME_FORMAT)}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="space-y-4">
@@ -577,8 +617,13 @@ export const IncidentDetailPage = () => {
               emptyMessage="No timeline events recorded."
               getRowId={(item, index) => item.id ?? `timeline-${index}`}
               onRowClick={(item) => {
-                if (item.monitor_report_id)
+                if (item.monitor_report_id) {
                   setSelectedMonitorReport(reportsByID.get(item.monitor_report_id));
+                  return;
+                }
+                if (item.alert_delivery_id) {
+                  handleTabChange("notifications");
+                }
               }}
             />
           </TabsContent>

@@ -323,7 +323,7 @@ func (s *Server) incidentNotificationReliability(incidentIDs []string) IncidentN
 // @Produce      json
 // @ID           getIncident
 // @Param        id   path      string  true  "Incident ID"
-// @Success      200  {object}  utils.APIResponse{data=object{incident=IncidentResponse,timeline=[]IncidentTimelineItemResponse,events=[]IncidentEventResponse,alert_deliveries=[]AlertDeliveryResponse,monitor_reports=[]MonitorReportResponse}}
+// @Success      200  {object}  utils.APIResponse{data=object{incident=IncidentResponse,evidence=IncidentEvidenceResponse,related_incidents=[]IncidentRelatedIncidentResponse,timeline=[]IncidentTimelineItemResponse,events=[]IncidentEventResponse,alert_deliveries=[]AlertDeliveryResponse,monitor_reports=[]MonitorReportResponse}}
 // @Failure      404  {object}  utils.APIResponse
 // @Failure      500  {object}  utils.APIResponse
 // @Router       /v1/incidents/{id} [get]
@@ -353,13 +353,27 @@ func (s *Server) getIncidentDetail(c *gin.Context) {
 		utils.InternalError(c, "Failed to get incident detail", err)
 		return
 	}
+	evidence, err := s.incidentEvidence(incident, events)
+	if err != nil {
+		s.logger.Error("Failed to load incident evidence", "incident_id", incident.ID, "error", err)
+		utils.InternalError(c, "Failed to get incident detail", err)
+		return
+	}
+	relatedIncidents, err := s.relatedIncidents(incident)
+	if err != nil {
+		s.logger.Error("Failed to load related incidents", "incident_id", incident.ID, "error", err)
+		utils.InternalError(c, "Failed to get incident detail", err)
+		return
+	}
 
 	utils.SuccessResponse(c, http.StatusOK, "Incident retrieved successfully", gin.H{
-		"incident":         incidentResponse(incident, agent, monitor),
-		"timeline":         incidentTimeline(events, deliveries, reports),
-		"events":           incidentEventResponses(events),
-		"alert_deliveries": alertDeliveryResponses(deliveries),
-		"monitor_reports":  monitorReportResponses(reports),
+		"incident":          incidentResponse(incident, agent, monitor),
+		"evidence":          evidence,
+		"related_incidents": relatedIncidents,
+		"timeline":          incidentTimeline(events, deliveries, reports),
+		"events":            incidentEventResponses(events),
+		"alert_deliveries":  alertDeliveryResponses(deliveries),
+		"monitor_reports":   monitorReportResponses(reports),
 	})
 }
 
@@ -590,6 +604,74 @@ func (s *Server) incidentMonitorReports(monitorID string, events []db.IncidentEv
 
 	err := s.db.Where("monitor_id = ?", monitorID).Order("created_at DESC").Limit(10).Find(&reports).Error
 	return reports, err
+}
+
+func (s *Server) incidentEvidence(incident db.Incident, events []db.IncidentEvent) (IncidentEvidenceResponse, error) {
+	var response IncidentEvidenceResponse
+
+	triggeringReportID := ""
+	for _, event := range events {
+		if event.MonitorReportID == "" {
+			continue
+		}
+		if event.Type == "incident_opened" {
+			triggeringReportID = event.MonitorReportID
+			break
+		}
+		if triggeringReportID == "" {
+			triggeringReportID = event.MonitorReportID
+		}
+	}
+	if triggeringReportID != "" {
+		var report db.MonitorReport
+		err := s.db.Where("id = ? AND monitor_id = ?", triggeringReportID, incident.MonitorID).First(&report).Error
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return response, err
+		}
+		if err == nil {
+			reportResponse := monitorReportResponse(report)
+			response.TriggeringReport = &reportResponse
+		}
+	}
+
+	var latestReport db.MonitorReport
+	err := s.db.Where("monitor_id = ?", incident.MonitorID).Order("created_at DESC").First(&latestReport).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return response, err
+	}
+	if err == nil {
+		reportResponse := monitorReportResponse(latestReport)
+		response.LatestReport = &reportResponse
+	}
+	return response, nil
+}
+
+func (s *Server) relatedIncidents(incident db.Incident) ([]IncidentRelatedIncidentResponse, error) {
+	var incidents []db.Incident
+	if err := s.db.
+		Where("monitor_id = ? AND id <> ?", incident.MonitorID, incident.ID).
+		Order("opened_at DESC").
+		Limit(5).
+		Find(&incidents).Error; err != nil {
+		return nil, err
+	}
+
+	responses := make([]IncidentRelatedIncidentResponse, 0, len(incidents))
+	for _, related := range incidents {
+		responses = append(responses, IncidentRelatedIncidentResponse{
+			ID:                 related.ID,
+			Status:             related.Status,
+			Severity:           related.Severity,
+			Title:              related.Title,
+			ResolutionKind:     related.ResolutionKind,
+			OpenedAt:           related.OpenedAt,
+			ResolvedAt:         related.ResolvedAt,
+			LastEventAt:        related.LastEventAt,
+			LatestEvent:        related.LatestEvent,
+			NotificationStatus: related.NotificationStatus,
+		})
+	}
+	return responses, nil
 }
 
 func incidentTimeline(events []db.IncidentEvent, deliveries []db.AlertDelivery, reports []db.MonitorReport) []IncidentTimelineItemResponse {

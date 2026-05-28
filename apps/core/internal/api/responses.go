@@ -93,6 +93,26 @@ type MonitorReportResponse struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+// IncidentEvidenceResponse summarizes report evidence for an incident detail page.
+type IncidentEvidenceResponse struct {
+	TriggeringReport *MonitorReportResponse `json:"triggering_report,omitempty"`
+	LatestReport     *MonitorReportResponse `json:"latest_report,omitempty"`
+}
+
+// IncidentRelatedIncidentResponse summarizes a nearby incident on the same monitor.
+type IncidentRelatedIncidentResponse struct {
+	ID                 string     `json:"id"`
+	Status             string     `json:"status"`
+	Severity           string     `json:"severity"`
+	Title              string     `json:"title"`
+	ResolutionKind     string     `json:"resolution_kind,omitempty"`
+	OpenedAt           time.Time  `json:"opened_at"`
+	ResolvedAt         *time.Time `json:"resolved_at,omitempty"`
+	LastEventAt        time.Time  `json:"last_event_at"`
+	LatestEvent        string     `json:"latest_event"`
+	NotificationStatus string     `json:"notification_status"`
+}
+
 // AgentReportResponse represents a system report in frontend API responses.
 type AgentReportResponse struct {
 	ID            string                      `json:"id"`
