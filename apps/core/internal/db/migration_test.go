@@ -88,6 +88,14 @@ func TestMigrateAppliesEmbeddedMigrations(t *testing.T) {
 	if !database.Migrator().HasTable(&AuditEvent{}) {
 		t.Fatal("audit_events table was not created")
 	}
+	if !database.Migrator().HasColumn(&AuditEvent{}, "metadata_json") {
+		t.Fatal("audit_events.metadata_json was not created")
+	}
+	for _, column := range []string{"token_hash", "token_version", "token_rotated_at", "token_revoked_at", "token_revocation_reason"} {
+		if !database.Migrator().HasColumn(&Agent{}, column) {
+			t.Fatalf("agents.%s was not created", column)
+		}
+	}
 	if !database.Migrator().HasTable(&StatusPageSubscriber{}) {
 		t.Fatal("status_page_subscribers table was not created")
 	}
@@ -162,6 +170,17 @@ func TestMigrateRepairsLegacyAgentReportMetadataColumns(t *testing.T) {
 			(2, '000002_data_lifecycle_settings.up.sql', CURRENT_TIMESTAMP),
 			(3, '000003_monitor_uptime_rollups.up.sql', CURRENT_TIMESTAMP),
 			(4, '000004_incident_reconciliation_state.up.sql', CURRENT_TIMESTAMP);
+		CREATE TABLE agents (
+			id TEXT PRIMARY KEY,
+			machine_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			os TEXT NOT NULL,
+			arch TEXT NOT NULL,
+			token TEXT NOT NULL,
+			reporting_interval_seconds INTEGER DEFAULT 60,
+			created_at DATETIME,
+			last_seen DATETIME
+		);
 		CREATE TABLE agent_reports (
 			id VARCHAR(255) PRIMARY KEY,
 			agent_id TEXT NOT NULL,

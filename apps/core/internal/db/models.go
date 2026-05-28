@@ -113,6 +113,11 @@ type Agent struct {
 	KernelVersion            string                          `json:"kernel_version"`
 	Arch                     string                          `json:"arch" gorm:"not null"`
 	Token                    string                          `json:"token" gorm:"uniqueIndex;not null"`
+	TokenHash                string                          `json:"token_hash" gorm:"not null;default:'';index:idx_agents_token_hash"`
+	TokenVersion             int                             `json:"token_version" gorm:"not null;default:1"`
+	TokenRotatedAt           *time.Time                      `json:"token_rotated_at"`
+	TokenRevokedAt           *time.Time                      `json:"token_revoked_at" gorm:"index:idx_agents_token_revoked_at"`
+	TokenRevocationReason    string                          `json:"token_revocation_reason" gorm:"type:text;not null;default:''"`
 	MaintenanceMode          bool                            `json:"maintenance_mode" gorm:"default:false"`
 	ReportingIntervalSeconds int                             `json:"reporting_interval_seconds" gorm:"default:60"` // System metrics reporting interval
 	CreatedAt                time.Time                       `json:"created_at"`
@@ -283,6 +288,7 @@ type AuditEvent struct {
 	AffectedObjectID   string    `json:"affected_object_id" gorm:"not null;index:idx_audit_events_affected_object"`
 	ActorType          string    `json:"actor_type" gorm:"not null"`
 	ActorID            string    `json:"actor_id" gorm:"not null"`
+	MetadataJSON       string    `json:"metadata_json" gorm:"type:text;not null;default:'{}'"`
 	CreatedAt          time.Time `json:"created_at" gorm:"not null;index:idx_audit_events_created_at"`
 }
 

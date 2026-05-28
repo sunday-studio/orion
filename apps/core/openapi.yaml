@@ -119,6 +119,37 @@ definitions:
       up:
         type: integer
     type: object
+  api.AgentTokenActionRequest:
+    properties:
+      reason:
+        type: string
+    type: object
+  api.AgentTokenIssuedResponse:
+    properties:
+      status:
+        $ref: '#/definitions/api.AgentTokenStatusResponse'
+      token:
+        type: string
+    type: object
+  api.AgentTokenStatusResponse:
+    properties:
+      agent_id:
+        type: string
+      request_id:
+        type: string
+      state:
+        type: string
+      token_exists:
+        type: boolean
+      token_revocation_reason:
+        type: string
+      token_revoked_at:
+        type: string
+      token_rotated_at:
+        type: string
+      token_version:
+        type: integer
+    type: object
   api.AlertChannelResponse:
     properties:
       created_at:
@@ -2943,6 +2974,174 @@ paths:
       summary: Receive agent report
       tags:
       - reports
+  /v1/agents/{agent_id}/token/reissue:
+    post:
+      consumes:
+      - application/json
+      description: Create a replacement token for a revoked agent and return it once
+      operationId: reissueAgentToken
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agent_id
+        required: true
+        type: string
+      - description: Token action request
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/api.AgentTokenActionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.AgentTokenIssuedResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Reissue agent token
+      tags:
+      - agents
+  /v1/agents/{agent_id}/token/revoke:
+    post:
+      consumes:
+      - application/json
+      description: Revoke the active token for an agent without deleting the agent
+        or monitors
+      operationId: revokeAgentToken
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agent_id
+        required: true
+        type: string
+      - description: Token action request
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/api.AgentTokenActionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.AgentTokenStatusResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Revoke agent token
+      tags:
+      - agents
+  /v1/agents/{agent_id}/token/rotate:
+    post:
+      consumes:
+      - application/json
+      description: Create a replacement token for an active agent and return it once
+      operationId: rotateAgentToken
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agent_id
+        required: true
+        type: string
+      - description: Token action request
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/api.AgentTokenActionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.AgentTokenIssuedResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Rotate agent token
+      tags:
+      - agents
+  /v1/agents/{agent_id}/token/status:
+    get:
+      consumes:
+      - application/json
+      description: Get non-secret token lifecycle metadata for an agent
+      operationId: getAgentTokenStatus
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agent_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.AgentTokenStatusResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get agent token status
+      tags:
+      - agents
   /v1/agents/{agent_id}/unregister-monitor:
     post:
       consumes:

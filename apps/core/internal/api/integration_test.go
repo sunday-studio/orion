@@ -148,6 +148,160 @@ func TestRegisterReportListFlow(t *testing.T) {
 	}
 }
 
+func TestAgentTokenLifecycleFlow(t *testing.T) {
+	server := setupTestServer(t)
+	registered := registerTestAgent(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+
+	var storedAgent db.Agent
+	if err := server.db.Where("id = ?", registered.Data.AgentID).First(&storedAgent).Error; err != nil {
+		t.Fatalf("find stored agent: %v", err)
+	}
+	if storedAgent.Token == registered.Data.Token || storedAgent.TokenHash == "" || storedAgent.TokenVersion != 1 {
+		t.Fatalf("stored agent token lifecycle fields = token:%q hash:%q version:%d", storedAgent.Token, storedAgent.TokenHash, storedAgent.TokenVersion)
+	}
+
+	statusResp := performJSONRequest(t, server, http.MethodGet, "/v1/agents/"+registered.Data.AgentID+"/token/status", nil, "")
+	if statusResp.Code != http.StatusOK {
+		t.Fatalf("token status = %d, body = %s", statusResp.Code, statusResp.Body.String())
+	}
+	assertNotContains(t, statusResp.Body.String(), registered.Data.Token)
+
+	reissueActiveResp := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+registered.Data.AgentID+"/token/reissue", nil, "")
+	if reissueActiveResp.Code != http.StatusConflict || !strings.Contains(reissueActiveResp.Body.String(), "agent_token_not_revoked") {
+		t.Fatalf("active reissue status = %d, body = %s", reissueActiveResp.Code, reissueActiveResp.Body.String())
+	}
+
+	rotateResp := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+registered.Data.AgentID+"/token/rotate", nil, "")
+	if rotateResp.Code != http.StatusOK {
+		t.Fatalf("rotate status = %d, body = %s", rotateResp.Code, rotateResp.Body.String())
+	}
+	if rotateResp.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("rotate Cache-Control = %q, want no-store", rotateResp.Header().Get("Cache-Control"))
+	}
+	var rotated struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Token  string `json:"token"`
+			Status struct {
+				State        string `json:"state"`
+				TokenVersion int    `json:"token_version"`
+				TokenExists  bool   `json:"token_exists"`
+			} `json:"status"`
+		} `json:"data"`
+	}
+	decodeResponse(t, rotateResp, &rotated)
+	if !rotated.Success || rotated.Data.Token == "" || rotated.Data.Token == registered.Data.Token ||
+		rotated.Data.Status.State != service.AgentTokenStateActive || rotated.Data.Status.TokenVersion != 2 || !rotated.Data.Status.TokenExists {
+		t.Fatalf("rotate response = %+v", rotated)
+	}
+
+	oldTokenResp := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+registered.Data.AgentID+"/report", map[string]interface{}{
+		"uptime_seconds": 300,
+		"timestamp":      time.Now().UTC().Format(time.RFC3339),
+	}, registered.Data.Token)
+	if oldTokenResp.Code != http.StatusUnauthorized {
+		t.Fatalf("old token report status = %d, body = %s", oldTokenResp.Code, oldTokenResp.Body.String())
+	}
+
+	newTokenResp := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+registered.Data.AgentID+"/report", map[string]interface{}{
+		"uptime_seconds": 301,
+		"timestamp":      time.Now().UTC().Format(time.RFC3339),
+	}, rotated.Data.Token)
+	if newTokenResp.Code != http.StatusOK {
+		t.Fatalf("new token report status = %d, body = %s", newTokenResp.Code, newTokenResp.Body.String())
+	}
+
+	revokeResp := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+registered.Data.AgentID+"/token/revoke", map[string]interface{}{
+		"reason": "lost host",
+	}, "")
+	if revokeResp.Code != http.StatusOK {
+		t.Fatalf("revoke status = %d, body = %s", revokeResp.Code, revokeResp.Body.String())
+	}
+	var revoked struct {
+		Success bool `json:"success"`
+		Data    struct {
+			State        string `json:"state"`
+			TokenVersion int    `json:"token_version"`
+			TokenExists  bool   `json:"token_exists"`
+		} `json:"data"`
+	}
+	decodeResponse(t, revokeResp, &revoked)
+	if !revoked.Success || revoked.Data.State != service.AgentTokenStateRevoked || revoked.Data.TokenVersion != 3 || revoked.Data.TokenExists {
+		t.Fatalf("revoke response = %+v", revoked)
+	}
+
+	revokedTokenResp := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+registered.Data.AgentID+"/report", map[string]interface{}{
+		"uptime_seconds": 302,
+		"timestamp":      time.Now().UTC().Format(time.RFC3339),
+	}, rotated.Data.Token)
+	if revokedTokenResp.Code != http.StatusUnauthorized || !strings.Contains(revokedTokenResp.Body.String(), "agent_token_revoked") {
+		t.Fatalf("revoked token report status = %d, body = %s", revokedTokenResp.Code, revokedTokenResp.Body.String())
+	}
+
+	registerAgainResp := performJSONRequest(t, server, http.MethodPost, "/v1/register", map[string]interface{}{
+		"machine_id":                 "test-machine-" + t.Name(),
+		"name":                       "test-server",
+		"os":                         "linux",
+		"arch":                       "arm64",
+		"reporting_interval_seconds": 60,
+	}, "")
+	if registerAgainResp.Code != http.StatusConflict || !strings.Contains(registerAgainResp.Body.String(), "agent_token_revoked") {
+		t.Fatalf("revoked register status = %d, body = %s", registerAgainResp.Code, registerAgainResp.Body.String())
+	}
+	assertNotContains(t, registerAgainResp.Body.String(), rotated.Data.Token)
+
+	reissueResp := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+registered.Data.AgentID+"/token/reissue", nil, "")
+	if reissueResp.Code != http.StatusOK {
+		t.Fatalf("reissue status = %d, body = %s", reissueResp.Code, reissueResp.Body.String())
+	}
+	if reissueResp.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("reissue Cache-Control = %q, want no-store", reissueResp.Header().Get("Cache-Control"))
+	}
+	var reissued struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Token  string `json:"token"`
+			Status struct {
+				AgentID      string `json:"agent_id"`
+				State        string `json:"state"`
+				TokenVersion int    `json:"token_version"`
+				TokenExists  bool   `json:"token_exists"`
+			} `json:"status"`
+		} `json:"data"`
+	}
+	decodeResponse(t, reissueResp, &reissued)
+	if !reissued.Success || reissued.Data.Token == "" || reissued.Data.Token == rotated.Data.Token ||
+		reissued.Data.Status.AgentID != registered.Data.AgentID || reissued.Data.Status.State != service.AgentTokenStateActive ||
+		reissued.Data.Status.TokenVersion != 4 || !reissued.Data.Status.TokenExists {
+		t.Fatalf("reissue response = %+v", reissued)
+	}
+
+	reissuedTokenResp := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+registered.Data.AgentID+"/report", map[string]interface{}{
+		"uptime_seconds": 303,
+		"timestamp":      time.Now().UTC().Format(time.RFC3339),
+	}, reissued.Data.Token)
+	if reissuedTokenResp.Code != http.StatusOK {
+		t.Fatalf("reissued token report status = %d, body = %s", reissuedTokenResp.Code, reissuedTokenResp.Body.String())
+	}
+
+	var preservedMonitor db.Monitor
+	if err := server.db.Where("id = ?", registeredMonitor.Data.MonitorID).First(&preservedMonitor).Error; err != nil {
+		t.Fatalf("find preserved monitor: %v", err)
+	}
+	if preservedMonitor.AgentID != registered.Data.AgentID {
+		t.Fatalf("preserved monitor agent id = %q, want %q", preservedMonitor.AgentID, registered.Data.AgentID)
+	}
+
+	var auditCount int64
+	if err := server.db.Model(&db.AuditEvent{}).Where("affected_object_type = ? AND affected_object_id = ?", "agent", registered.Data.AgentID).Count(&auditCount).Error; err != nil {
+		t.Fatalf("count token audit events: %v", err)
+	}
+	if auditCount != 3 {
+		t.Fatalf("token audit event count = %d, want 3", auditCount)
+	}
+}
+
 func TestAgentServiceLogBatchFlow(t *testing.T) {
 	server := setupTestServer(t)
 	registered := registerTestAgent(t, server)
