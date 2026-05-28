@@ -16,13 +16,12 @@ import type {
 import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal, Pencil, Send, Trash2 } from "lucide-react";
 import { useMemo } from "react";
-import { boolLabel, eventLabel } from "./alert-constants";
-
-const channelTypeLabel = (type?: string) => {
-  if (type === "webhook") return "Webhook";
-  if (type === "email") return "Email";
-  return type ?? "unknown";
-};
+import {
+  alertChannelTypeLabel,
+  boolLabel,
+  eventLabel,
+  manageableAlertChannelTypes,
+} from "./alert-constants";
 
 const configuredParts = (
   channel: Pick<
@@ -303,7 +302,7 @@ export const WebhookChannelsTab = ({
       {
         accessorKey: "type",
         header: "Type",
-        cell: ({ row }) => channelTypeLabel(row.original.type),
+        cell: ({ row }) => alertChannelTypeLabel(row.original.type),
       },
       {
         accessorKey: "enabled",
@@ -338,11 +337,13 @@ export const WebhookChannelsTab = ({
         id: "actions",
         header: "",
         cell: ({ row }) => {
-          const canManageWebhook = row.original.type === "webhook";
-          const canTest = row.original.type === "webhook" || row.original.type === "email";
+          const canManageChannel = manageableAlertChannelTypes.some(
+            (type) => type === row.original.type,
+          );
+          const canTest = canManageChannel || row.original.type === "email";
           const isTestingThisChannel = isTesting && testingChannelId === row.original.id;
 
-          return canManageWebhook || canTest ? (
+          return canManageChannel || canTest ? (
             <DropdownMenu>
               <DropdownMenuTrigger
                 aria-label={`Open actions for ${row.original.name ?? "channel"}`}
@@ -360,8 +361,8 @@ export const WebhookChannelsTab = ({
                     {isTestingThisChannel ? "Sending test..." : "Send test"}
                   </DropdownMenuItem>
                 )}
-                {canTest && canManageWebhook && <DropdownMenuSeparator />}
-                {canManageWebhook && (
+                {canTest && canManageChannel && <DropdownMenuSeparator />}
+                {canManageChannel && (
                   <>
                     <DropdownMenuItem onClick={() => onEdit(row.original)}>
                       <Pencil className="size-4" />
@@ -463,12 +464,12 @@ export const WebhookChannelsTab = ({
           <div>
             <h2 className="text-sm font-medium">Channels</h2>
             <p className="text-sm text-neutral-600">
-              Review alert destinations Core can deliver to. Webhook destinations can be managed
-              here.
+              Review alert destinations Core can deliver to. Webhook-backed destinations can be
+              managed here.
             </p>
           </div>
           <Button size="sm" onClick={onCreate}>
-            New webhook
+            New destination
           </Button>
         </div>
         {testFeedback && (

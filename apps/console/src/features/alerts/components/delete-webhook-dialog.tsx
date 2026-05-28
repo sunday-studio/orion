@@ -27,9 +27,9 @@ export const DeleteWebhookDialog = ({
   <Dialog open={Boolean(channel)} onOpenChange={(open) => !open && onClose()}>
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
-        <DialogTitle>Delete webhook</DialogTitle>
+        <DialogTitle>Delete alert destination</DialogTitle>
         <DialogDescription>
-          Delete {channel?.name ?? "this webhook"} from future alert deliveries. Existing
+          Delete {channel?.name ?? "this destination"} from future alert deliveries. Existing
           notification history stays in the log.
         </DialogDescription>
       </DialogHeader>
@@ -39,7 +39,7 @@ export const DeleteWebhookDialog = ({
           Cancel
         </Button>
         <Button variant="destructive" disabled={!channel?.id || isPending} onClick={onDelete}>
-          {isPending ? "Deleting..." : "Delete webhook"}
+          {isPending ? "Deleting..." : "Delete destination"}
         </Button>
       </DialogFooter>
     </DialogContent>

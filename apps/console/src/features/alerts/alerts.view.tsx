@@ -31,6 +31,7 @@ import {
   defaultAlertEvents,
   deliveryStatuses,
   getMutationErrorMessage,
+  manageableAlertChannelTypes,
 } from "./components/alert-constants";
 import { DeleteEmailDestinationDialog } from "./components/delete-email-destination-dialog";
 import { DeleteSMTPServiceDialog } from "./components/delete-smtp-service-dialog";
@@ -45,6 +46,7 @@ export const AlertsPage = () => {
   const [isWebhookDialogOpen, setIsWebhookDialogOpen] = useState(false);
   const [editingChannel, setEditingChannel] = useState<ApiAlertChannelResponse | null>(null);
   const [deletingChannel, setDeletingChannel] = useState<ApiAlertChannelResponse | null>(null);
+  const [webhookType, setWebhookType] = useState("webhook");
   const [webhookName, setWebhookName] = useState("");
   const [webhookUrl, setWebhookUrl] = useState("");
   const [webhookEnabled, setWebhookEnabled] = useState(true);
@@ -136,6 +138,7 @@ export const AlertsPage = () => {
     void rulesResponse.refetch();
   };
   const closeWebhookDialog = () => {
+    setWebhookType("webhook");
     setWebhookName("");
     setWebhookUrl("");
     setWebhookEnabled(true);
@@ -389,6 +392,7 @@ export const AlertsPage = () => {
 
   const openCreateWebhookDialog = () => {
     setEditingChannel(null);
+    setWebhookType("webhook");
     setWebhookName("");
     setWebhookUrl("");
     setWebhookEnabled(true);
@@ -397,6 +401,11 @@ export const AlertsPage = () => {
   };
   const openEditWebhookDialog = (channel: ApiAlertChannelResponse) => {
     setEditingChannel(channel);
+    setWebhookType(
+      manageableAlertChannelTypes.some((type) => type === channel.type)
+        ? (channel.type ?? "webhook")
+        : "webhook",
+    );
     setWebhookName(channel.name ?? "");
     setWebhookUrl(channel.webhook_url ?? "");
     setWebhookEnabled(channel.enabled ?? true);
@@ -499,6 +508,9 @@ export const AlertsPage = () => {
     event.preventDefault();
     const name = webhookName.trim();
     const url = webhookUrl.trim();
+    const type = manageableAlertChannelTypes.some((item) => item === webhookType)
+      ? webhookType
+      : "webhook";
     if (!name || isWebhookPending) return;
     if (!url) return;
     if (webhookEvents.length === 0) return;
@@ -507,7 +519,7 @@ export const AlertsPage = () => {
         id: editingChannel.id,
         data: {
           name,
-          type: "webhook",
+          type,
           enabled: webhookEnabled,
           subscribed_events: webhookEvents,
           webhook_url: url,
@@ -518,7 +530,7 @@ export const AlertsPage = () => {
     createWebhook.mutate({
       data: {
         name,
-        type: "webhook",
+        type,
         enabled: webhookEnabled,
         webhook_url: url,
         subscribed_events: webhookEvents,
@@ -671,6 +683,7 @@ export const AlertsPage = () => {
       </Tabs>
 
       <WebhookDialog
+        channelType={webhookType}
         enabled={webhookEnabled}
         events={webhookEvents}
         isEditing={isEditingWebhook}
@@ -684,6 +697,7 @@ export const AlertsPage = () => {
         onNameChange={setWebhookName}
         onOpenChange={setIsWebhookDialogOpen}
         onSubmit={handleWebhookSubmit}
+        onTypeChange={setWebhookType}
         onUrlChange={setWebhookUrl}
         url={webhookUrl}
       />
