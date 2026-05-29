@@ -25,3 +25,4 @@ apps/agent/tmp/
 
 # core
 apps/core/.env
+apps/core/web/
