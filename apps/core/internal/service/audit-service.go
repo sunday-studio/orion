@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"fmt"
 	"orion/core/internal/db"
 	"orion/core/internal/logging"
@@ -20,6 +21,11 @@ const (
 	StatusPageAuditActionPublicIncidentUpdated       = "status_page_public_incident_updated"
 	StatusPageAuditActionPublicIncidentUpdateCreated = "status_page_public_incident_update_created"
 	StatusPageAuditActionPublicIncidentResolved      = "status_page_public_incident_resolved"
+	StatusPageAuditActionSubscriberUnsubscribed      = "status_page_subscriber_unsubscribed"
+	StatusPageAuditActionSubscriberAnonymized        = "status_page_subscriber_anonymized"
+	StatusPageAuditActionSubscriberHardDeleted       = "status_page_subscriber_hard_deleted"
+	StatusPageAuditActionSubscriberPendingPurged     = "status_page_subscriber_pending_purged"
+	StatusPageAuditActionSubscriberDeliveriesPurged  = "status_page_subscriber_deliveries_purged"
 )
 
 type StatusPageAuditEventInput struct {
@@ -29,6 +35,7 @@ type StatusPageAuditEventInput struct {
 	AffectedObjectID   string
 	ActorType          string
 	ActorID            string
+	Metadata           map[string]interface{}
 }
 
 type AuditService struct {
@@ -48,6 +55,10 @@ func (s *AuditService) RecordStatusPageEvent(input StatusPageAuditEventInput) (*
 	if err := validateStatusPageAuditEventInput(normalized); err != nil {
 		return nil, err
 	}
+	metadataJSON, err := statusPageAuditMetadataJSON(input.Metadata)
+	if err != nil {
+		return nil, err
+	}
 
 	event := db.AuditEvent{
 		ID:                 utils.GenerateID("audit_event"),
@@ -57,6 +68,7 @@ func (s *AuditService) RecordStatusPageEvent(input StatusPageAuditEventInput) (*
 		AffectedObjectID:   normalized.AffectedObjectID,
 		ActorType:          normalized.ActorType,
 		ActorID:            normalized.ActorID,
+		MetadataJSON:       metadataJSON,
 		CreatedAt:          time.Now().UTC(),
 	}
 	if err := s.db.Create(&event).Error; err != nil {
@@ -108,10 +120,26 @@ func validStatusPageAuditAction(action string) bool {
 		StatusPageAuditActionPublicIncidentUpdated,
 		StatusPageAuditActionPublicIncidentUpdateCreated,
 		StatusPageAuditActionPublicIncidentResolved,
+		StatusPageAuditActionSubscriberUnsubscribed,
+		StatusPageAuditActionSubscriberAnonymized,
+		StatusPageAuditActionSubscriberHardDeleted,
+		StatusPageAuditActionSubscriberPendingPurged,
+		StatusPageAuditActionSubscriberDeliveriesPurged,
 	} {
 		if action == supported {
 			return true
 		}
 	}
 	return false
+}
+
+func statusPageAuditMetadataJSON(metadata map[string]interface{}) (string, error) {
+	if len(metadata) == 0 {
+		return "{}", nil
+	}
+	encoded, err := json.Marshal(metadata)
+	if err != nil {
+		return "", err
+	}
+	return string(encoded), nil
 }

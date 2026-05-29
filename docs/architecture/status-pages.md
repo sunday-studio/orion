@@ -521,6 +521,13 @@ Retention policy:
 - Subscriber delivery rows are retained for 180 days by default for operational audit, but must store only safe error summaries and public status page object ids.
 - Backups and exported archive files may outlive hot database retention. Any customer-facing privacy policy should state that backup erasure follows the backup expiration schedule rather than immediate in-place mutation.
 
+Core enforces the default hot-database policy through the API-side data lifecycle scheduler:
+
+- expired pending subscribers are hard-deleted 7 days after their confirmation token expires;
+- expired unsubscribed and bounced subscribers are anonymized after 90 days, which clears raw destination ciphertext, destination hash, token hashes, component preferences, and identifying delivery error fields while preserving a non-deliverable audit-safe row;
+- subscriber delivery rows older than 180 days are hard-deleted after a page-scoped aggregate audit event is recorded;
+- privacy cleanup still runs when raw report archiving is set to manual mode, because subscriber retention is not an operator-triggered archival task.
+
 Privacy erasure workflow:
 
 1. Authenticate the operator or scheduled retention job.

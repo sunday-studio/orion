@@ -12,9 +12,11 @@ import (
 const defaultDataLifecycleSchedulerInterval = time.Hour
 
 type DataLifecycleScheduleResult struct {
-	RollupRan     bool `json:"rollup_ran"`
-	ArchiveRan    bool `json:"archive_ran"`
-	SkippedManual bool `json:"skipped_manual"`
+	RollupRan                       bool `json:"rollup_ran"`
+	ArchiveRan                      bool `json:"archive_ran"`
+	SubscriberPrivacyRetentionRan   bool `json:"subscriber_privacy_retention_ran"`
+	SubscriberPrivacyRetentionCount int  `json:"subscriber_privacy_retention_count"`
+	SkippedManual                   bool `json:"skipped_manual"`
 }
 
 type DataLifecycleSchedulerService struct {
@@ -57,14 +59,11 @@ func (s *DataLifecycleSchedulerService) RunDue(now time.Time) (*DataLifecycleSch
 		return nil, err
 	}
 
+	var runErrors []error
 	result := &DataLifecycleScheduleResult{}
 	if settings.ArchiveSchedule == "manual" {
 		result.SkippedManual = true
-		return result, nil
-	}
-
-	var runErrors []error
-	if settings.RollupsEnabled && shouldRunDailyJob(settings.LastRollupRunAt, now) {
+	} else if settings.RollupsEnabled && shouldRunDailyJob(settings.LastRollupRunAt, now) {
 		if _, err := NewRollupService(s.db, s.logger).RunDailyMonitorUptimeRollup(now); err != nil {
 			runErrors = append(runErrors, err)
 		} else {
@@ -72,12 +71,20 @@ func (s *DataLifecycleSchedulerService) RunDue(now time.Time) (*DataLifecycleSch
 		}
 	}
 
-	if settings.ArchiveRawReports && shouldRunDailyJob(settings.LastArchiveRunAt, now) {
+	if settings.ArchiveSchedule != "manual" && settings.ArchiveRawReports && shouldRunDailyJob(settings.LastArchiveRunAt, now) {
 		if _, err := NewArchiveService(s.db, s.logger, s.dataDir).RunRawReportArchive(now); err != nil {
 			runErrors = append(runErrors, err)
 		} else {
 			result.ArchiveRan = true
 		}
+	}
+
+	retentionResult, err := NewStatusPageSubscriberLifecycleService(s.db, s.logger).RunRetentionCleanup(now, StatusPageSubscriberRetentionOptions{})
+	if err != nil {
+		runErrors = append(runErrors, err)
+	} else {
+		result.SubscriberPrivacyRetentionCount = retentionResult.PendingSubscribersDeleted + retentionResult.SubscribersAnonymized + retentionResult.SubscriberDeliveriesDeleted
+		result.SubscriberPrivacyRetentionRan = result.SubscriberPrivacyRetentionCount > 0
 	}
 
 	return result, errors.Join(runErrors...)
@@ -89,8 +96,8 @@ func (s *DataLifecycleSchedulerService) runAndLog(now time.Time) {
 		s.logger.Error("Scheduled data lifecycle run failed", "error", err)
 		return
 	}
-	if result.RollupRan || result.ArchiveRan {
-		s.logger.Info("Scheduled data lifecycle run completed", "rollup_ran", result.RollupRan, "archive_ran", result.ArchiveRan)
+	if result.RollupRan || result.ArchiveRan || result.SubscriberPrivacyRetentionRan {
+		s.logger.Info("Scheduled data lifecycle run completed", "rollup_ran", result.RollupRan, "archive_ran", result.ArchiveRan, "subscriber_privacy_retention_ran", result.SubscriberPrivacyRetentionRan, "subscriber_privacy_retention_count", result.SubscriberPrivacyRetentionCount)
 	}
 }
 
