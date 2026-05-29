@@ -295,7 +295,7 @@ type AuditEvent struct {
 type StatusPage struct {
 	ID                        string     `json:"id" gorm:"primaryKey;type:varchar(255)"`
 	Slug                      string     `json:"slug" gorm:"uniqueIndex;not null"`
-	CustomDomain              string     `json:"custom_domain" gorm:"index:idx_status_pages_custom_domain"`
+	CustomDomain              string     `json:"custom_domain" gorm:"not null;default:'';index:idx_status_pages_custom_domain,unique,where:custom_domain <> ''"`
 	Title                     string     `json:"title" gorm:"not null"`
 	Description               string     `json:"description" gorm:"type:text"`
 	SEOTitle                  string     `json:"seo_title"`

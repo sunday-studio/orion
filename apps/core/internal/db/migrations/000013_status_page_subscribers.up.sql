@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS status_page_subscribers (
-    id TEXT PRIMARY KEY,
+    id VARCHAR(255) PRIMARY KEY,
     status_page_id TEXT NOT NULL,
     destination_type TEXT NOT NULL,
     destination_hash TEXT NOT NULL,
@@ -35,7 +35,7 @@ CREATE INDEX IF NOT EXISTS idx_status_page_subscribers_unsubscribe_token
     ON status_page_subscribers(unsubscribe_token_hash);
 
 CREATE TABLE IF NOT EXISTS status_page_subscriber_components (
-    id TEXT PRIMARY KEY,
+    id VARCHAR(255) PRIMARY KEY,
     subscriber_id TEXT NOT NULL,
     component_id TEXT NOT NULL,
     event_scope TEXT NOT NULL DEFAULT 'all_updates',
@@ -51,7 +51,7 @@ CREATE INDEX IF NOT EXISTS idx_status_page_subscriber_components_component
     ON status_page_subscriber_components(component_id);
 
 CREATE TABLE IF NOT EXISTS status_page_subscriber_deliveries (
-    id TEXT PRIMARY KEY,
+    id VARCHAR(255) PRIMARY KEY,
     subscriber_id TEXT NOT NULL,
     status_page_id TEXT NOT NULL,
     public_incident_id TEXT NOT NULL DEFAULT '',
