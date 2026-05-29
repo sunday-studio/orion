@@ -8,7 +8,7 @@ The status page is not a mirror of the Console. It is a curated publication laye
 
 ## Product Goals
 
-- Create one or more status pages from the Console.
+- Create multiple top-level status pages from the Console.
 - Group public-facing components into sections, such as `API`, `Website`, `Database`, or `Region`.
 - Map each public component to one or more internal monitors or servers.
 - Show current component health, active incidents, maintenance, and uptime history.
@@ -792,7 +792,7 @@ Resolved status page architecture decisions are recorded in:
 
 Build status pages as a publication layer over Core, not as a second monitoring system. Keep the Server/Core contract unchanged. Store public configuration and public incident copy separately from internal incidents, then project safe public DTOs through unauthenticated status routes.
 
-Serve public status pages from the Core main binary with a dedicated public status page bundle packaged through the existing static asset path. The first release supports one status page per Core instance while preserving plural schema, slug routes, and APIs so multiple pages can be enabled later without a data migration.
+Serve public status pages from the Core main binary with a dedicated public status page bundle packaged through the existing static asset path. The first release supports multiple top-level status pages per Core instance, with slug routes and page-scoped child records. Customer-specific sub-pages, regional sub-pages, and a default `/status` page remain future product decisions.
 
 Use a separate public subscriber system for status page subscriptions. Public subscriber records, tokens, preferences, deliveries, templates, and public mail credentials must stay separate from internal alert channel records and secrets. Shared transport helpers are acceptable only behind a public DTO adapter that cannot read or mutate internal alert channels.
 
