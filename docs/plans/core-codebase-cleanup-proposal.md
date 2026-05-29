@@ -36,6 +36,7 @@ focused tests.
 4. Apply Go modernization where it improves safety or readability.
 5. Add tooling so modernization does not depend on manual review memory.
 6. Keep speed high by avoiding framework churn and avoiding broad package reshapes.
+7. Bring every backend functionality area under an explicit automated test plan.
 
 ## Non-Goals
 
@@ -200,6 +201,125 @@ Avoid:
 - using `sync.WaitGroup.Go` unless a file already has a clear WaitGroup pattern and Go 1.25+ is
   guaranteed in every supported build path.
 
+## Backend Functionality Test Plan
+
+The backend should not rely on one giant integration file as proof that everything works. The target
+state is a test inventory where each Core behavior has at least one owner, one expected test level,
+and one CI gate. "Every functionality" means every route group, service behavior, worker runner,
+persistence rule, scheduler, security boundary, and public/private projection path that Core owns.
+
+### Test Taxonomy
+
+- Unit tests: pure validation, normalization, redaction, payload shaping, sorting, and small helper
+  behavior.
+- Service tests: database-backed service behavior with SQLite test databases and no HTTP router.
+- API integration tests: route, auth, request validation, response shape, generated-contract-facing
+  behavior, and cross-service flows.
+- Worker tests: Core monitor worker claim, execution, result persistence, incident reconciliation,
+  and missed-heartbeat behavior.
+- Migration tests: schema ordering, forward migration, default values, indexes, and compatibility
+  with existing rows.
+- Contract tests: OpenAPI generation, generated SDK drift, and response redaction for public and
+  frontend routes.
+- Security tests: auth boundaries, token lifecycle, target policy, secret redaction, public status
+  data isolation, rate limits, and unsafe-input rejection.
+- Operational tests: diagnostics, lifecycle scheduler, archive, rollup, worker heartbeat, service
+  logs, and backup-sensitive persistence paths.
+
+### Coverage Matrix
+
+| Area | Minimum coverage | Current direction |
+| --- | --- | --- |
+| Auth and frontend sessions | API integration plus service tests | Login, configured auth, JWT, expired/missing token, and rate-limit behavior should be split out of the monolithic integration test. |
+| Agent registration and token lifecycle | API integration plus service tests | Cover register, report auth, rotate, revoke, reissue, revoked-token rejection, and machine identity preservation. |
+| Agent report ingestion | API integration plus service tests | Cover system reports, config summary redaction, stale monitor reconciliation, diagnostics recording, and bad payload rejection. |
+| Monitor registration and reports | API integration plus service tests | Cover register, unregister, report ownership, stale state, computed health cache invalidation, and incident opening/resolution. |
+| Core monitor management | API integration plus service tests | Cover create, edit, pause, resume, delete, test-now, redaction, kind aliases, validation, target policy, and unsupported kinds. |
+| Core monitor scheduler | Service tests plus worker tests | Cover lease claiming, lease expiry, completion, next-run scheduling, paused monitors, and multiple-worker safety. |
+| Core worker runners | Worker tests per runner | Keep one focused file per runner covering success, failure, invalid config, timeout, payload shape, redaction, and target-policy behavior. |
+| Heartbeats | API integration plus worker tests | Cover token generation, success/failure ingest, payload truncation/redaction, pending state, missed-check reconciliation, recovery, and incident behavior. |
+| Incident lifecycle | API integration plus service tests | Cover open, acknowledge, resolve, cover, reopen, unregister cleanup, event timeline, filters, candidates, recurrence, and public-impact fields. |
+| Alerts | Service tests plus API integration tests | Cover channels, SMTP services, email destinations, routes, dry runs, grouping, cooldowns, maintenance suppression, test actions, delivery attempts, and secret redaction. |
+| Status pages admin | API integration tests | Cover page CRUD, sections, components, mappings, incidents, updates, publish validation, audit events, metadata, custom domains, and theme settings. |
+| Status pages public | API integration plus contract tests | Cover public payloads, HTML, Atom feed, badges, history, uptime, cache headers, ETags, custom-domain routing, and internal data isolation. |
+| Public subscribers | API integration plus service tests | Cover subscribe, confirm, preferences, unsubscribe, fan-out scoping, public mail sender config, token secrecy, and abuse controls. |
+| Settings and data lifecycle | Service tests plus API integration tests | Cover read/update settings, manual archive, manual rollup, scheduled archive/rollup, last-run metadata, disabled jobs, and failure visibility. |
+| Runtime diagnostics | Service tests plus API integration tests | Cover request counts, ingestion latency, report writes, DB stats, slow operations, SQLite busy counts, and frontend auth boundary. |
+| Worker diagnostics | Service tests plus API integration tests | Cover heartbeat recording, stale worker status, API health separation, and worker status response shape. |
+| Service logs | API integration plus service tests | Cover batch ingest, dedupe/fingerprint, filters, levels, truncation, redaction, source separation, and pagination. |
+| Events and audit logs | API integration plus service tests | Cover event creation, source/type/search filters, pagination, audit actor fields, and sensitive-field minimization. |
+| Persistence and migrations | Migration tests | Cover migration ordering, status page migration ordering, default values, index assumptions, and old-row compatibility for changed schemas. |
+| Config and startup | Unit plus startup tests | Cover env parsing, defaults, required auth settings, CORS, mail config, target policy flags, data paths, and invalid config errors. |
+| Generated contracts | Contract tests | Cover OpenAPI generation, generated SDK drift, route annotations for changed API handlers, and no hand-edited generated outputs. |
+
+### Coverage Execution Plan
+
+1. Inventory before adding tests:
+   - generate a route list from `setupRoutes`;
+   - list service public methods;
+   - list worker runner kinds;
+   - list migrations and operational jobs;
+   - map each item to an existing test or mark it as missing.
+2. Split before expanding:
+   - move existing tests into feature files first;
+   - add `api_test_helpers.go` so new tests are shorter and less brittle;
+   - avoid adding more scenarios to `integration_test.go`.
+3. Fill high-risk gaps first:
+   - auth and token lifecycle;
+   - Core monitor target policy and secret redaction;
+   - public status page privacy boundary;
+   - alert delivery side effects;
+   - migrations and data lifecycle jobs.
+4. Add functionality gates:
+   - every new Core route must include API integration coverage;
+   - every new service method with branching logic must include service tests;
+   - every new worker runner must include success, failure, invalid config, timeout, and redaction tests;
+   - every migration must include a migration or compatibility test when it changes defaults,
+     indexes, or existing rows.
+5. Add coverage reporting without chasing vanity metrics:
+   - start with package-level coverage visibility in CI;
+   - require explicit review notes for untested backend behavior;
+   - later set package thresholds only after generated docs and integration-heavy packages are
+     excluded or interpreted correctly.
+
+### Backend Test CI Gates
+
+Minimum CI commands:
+
+```sh
+cd apps/core && go test ./...
+cd apps/core && go test -race ./internal/service ./internal/worker
+make generate-openapi
+git diff --exit-code -- apps/core/docs apps/core/openapi.yaml apps/console/src/orion-sdk
+```
+
+Optional but recommended once tooling is installed:
+
+```sh
+cd apps/core && govulncheck ./...
+cd apps/core && golangci-lint run
+```
+
+The race detector should start on service and worker packages because they carry scheduling,
+leasing, diagnostics, and background-job behavior. Running `-race ./...` can be added later if CI
+time stays acceptable.
+
+### Backend Test Completion Definition
+
+A backend area counts as covered only when:
+
+- the happy path is tested;
+- at least one invalid input path is tested;
+- auth or ownership boundaries are tested when the area exposes HTTP routes;
+- secret redaction is tested when payloads can include credentials, tokens, headers, URLs, or raw
+  output;
+- persistence side effects are asserted in the database when the behavior writes state;
+- public routes prove they do not expose internal-only fields;
+- generated contract drift is checked when route annotations or response shapes move.
+
+This is intentionally stricter than line coverage. A high line-coverage number is not enough if the
+security boundary, persistence side effect, or public/private projection is untested.
+
 ## Proposed Execution Phases
 
 ### Phase 0: Guardrails
@@ -209,10 +329,12 @@ Deliverables:
 - add this plan;
 - create cleanup tickets with file ownership;
 - define CI commands to run for every cleanup PR.
+- create the backend functionality test inventory.
 
 Exit criteria:
 
 - Core cleanup work has a visible sequence and does not compete with active feature delivery.
+- Every Core backend area has an owner row in the testing matrix.
 
 ### Phase 1: Test Surface Split
 
@@ -232,6 +354,26 @@ cd apps/core && go test ./...
 Exit criteria:
 
 - no single API test file owns unrelated incident, monitor, alert, status page, and settings flows.
+
+### Phase 1b: Backend Test Inventory And Gaps
+
+Deliverables:
+
+- create a route-to-test inventory for Core API routes;
+- create a service-method-to-test inventory for Core services;
+- create a runner-kind-to-test inventory for Core worker runners;
+- create a migration-to-test inventory for persistence changes;
+- mark each item as covered, partial, missing, or intentionally deferred.
+
+Verification:
+
+```sh
+cd apps/core && go test ./...
+```
+
+Exit criteria:
+
+- missing backend test coverage is visible as discrete tickets, not hidden inside the cleanup plan.
 
 ### Phase 2: Status Page Handler Split
 
@@ -325,24 +467,36 @@ Exit criteria:
    - Acceptance: `go test ./internal/api` and `go test ./...` pass, and no handler/service behavior
      changes are included.
 
-2. Split status page handlers by responsibility
+2. Inventory backend functionality test coverage
+   - Description: Build a route, service, worker, migration, diagnostics, and operational-job
+     coverage inventory for Core.
+   - Acceptance: Every Core backend area is marked covered, partial, missing, or intentionally
+     deferred, and missing/partial rows have follow-up tickets with acceptance criteria.
+
+3. Add high-risk backend coverage gaps
+   - Description: Add tests for any missing auth, token lifecycle, target-policy, public/private
+     status page, alert side-effect, migration, or data lifecycle behavior found by the inventory.
+   - Acceptance: High-risk missing rows are covered by focused service, API integration, worker, or
+     migration tests, and `go test ./...` passes in `apps/core`.
+
+4. Split status page handlers by responsibility
    - Description: Move status page admin, component, incident, validation, projection, metadata,
      and helper code into separate files under `internal/api`.
    - Acceptance: Status page tests pass, OpenAPI generation is unchanged except for deterministic
      formatting, and public payload tests still prove internal data is redacted.
 
-3. Extract Core monitor config validation
+5. Extract Core monitor config validation
    - Description: Move kind normalization, per-kind validation, and redaction helpers into a focused
      internal package.
    - Acceptance: Existing Core monitor lifecycle, target-policy, and catalog validation tests pass;
      API response shape does not change.
 
-4. Add Core modernization tooling
+6. Add Core modernization tooling
    - Description: Add `golangci-lint` v2.6+ modernize and `govulncheck` checks for Core.
    - Acceptance: CI or make targets run both tools, current failures are either fixed or recorded
      as explicit tracked follow-ups.
 
-5. Apply first Core modernization batch
+7. Apply first Core modernization batch
    - Description: Replace obvious `interface{}` with `any`, modernize simple `sort.Slice` usage,
      and convert eligible tests to `t.Context()`.
    - Acceptance: `go test ./...` passes in `apps/core`, generated files are untouched unless
@@ -355,6 +509,9 @@ Exit criteria:
 - Are OpenAPI annotations still attached to route handlers?
 - Did generated files change only through the approved generation commands?
 - Are tests split by feature rather than by incidental helper ownership?
+- Does each backend behavior touched by the PR have unit, service, API, worker, migration, or
+  contract coverage at the right level?
+- Are missing backend tests converted into tracked follow-up tickets before merge?
 - Did modernization reduce code or clarify intent?
 - Did modernization avoid experimental APIs and generated-file churn?
 - Can the PR be reverted without blocking unrelated feature work?
