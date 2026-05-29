@@ -2,6 +2,12 @@
 
 The Core Docker image is the default deployable unit for a self-hosted Orion Core.
 
+Docker Compose is the recommended first deployment path. It gives small teams and homelab operators
+a repeatable Core install with a persistent SQLite volume, without requiring Kubernetes, a managed
+database, or a separate web server. Run Core somewhere the monitored Servers can reliably reach. For
+home networks, that can mean a small VPS, a Tailscale-accessible machine, or the most reliable host
+inside the network.
+
 It builds:
 
 - the Console with Vite;
@@ -226,4 +232,5 @@ Image publishing is manually triggered from GitHub Actions. Run the `Docker Imag
 provide the version tag to publish.
 
 Servers should be installed separately on each monitored machine. They do not run inside the Core API
-or Core worker containers.
+or Core worker containers. The installed binary and CLI are still named `orion-agent` for
+compatibility.

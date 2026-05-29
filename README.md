@@ -1,11 +1,25 @@
 # Orion
 
+[![CI](https://github.com/sunday-studio/orion/actions/workflows/ci.yml/badge.svg)](https://github.com/sunday-studio/orion/actions/workflows/ci.yml)
+
 Orion is a self-hosted monitoring app for small server setups.
 
-A Server runs on each machine, collects system metrics and monitor results, and sends them to Core.
+An Orion Server runs on each machine, collects system metrics and monitor results, and sends them to Core.
 Core stores the data in SQLite, computes health, opens incidents, sends alerts, and serves the
 Console UI. Core-managed monitors run in a separate Core monitor worker process so API health stays
 separate from monitor execution health.
+
+## Why Orion?
+
+Orion is for people who want useful server monitoring without handing their home lab, small fleet, or
+side-project infrastructure to an external SaaS. Most uptime tools run checks from outside your
+network. That is useful, but it cannot see local service state, Docker containers, systemd units, PM2
+processes, command checks, or the machine's own resource pressure.
+
+Orion keeps that local context on the monitored host. Each Server runs near the services it watches
+and pushes reports to a Core instance you control. Core is intentionally small: one API process,
+SQLite storage, and the bundled Console. You can back it up as ordinary files and run it from Docker
+Compose without adopting Prometheus, Postgres, Kubernetes, or a hosted observability stack first.
 
 ## Preview
 
@@ -43,6 +57,10 @@ flowchart LR
 - **Core monitor worker** executes Core-managed checks and records worker heartbeat diagnostics.
 - **Console** is the web UI for incidents, servers, monitors, alerts, logs, and settings.
 
+Core's HTTP API is the boundary between the backend and user interfaces. The bundled Console is the
+supported UI today. A TUI, automation script, or alternative UI can be built against the API later,
+but Orion does not yet ship a supported headless or alternate-UI distribution.
+
 ## Deploy
 
 ### Core
@@ -50,6 +68,11 @@ flowchart LR
 Deploy Core API, Core monitor worker, and Console from the published Docker image. Core stores data
 in `/data`, so mount that path to persistent storage. The Compose file starts the API and worker as
 separate services that share the same SQLite volume.
+
+Docker Compose is the default deployment path because it keeps Core, Console, and the SQLite volume
+easy to run on a reliable self-hosted machine. Put Core somewhere the monitored Servers can always
+reach. For home networks, that can be a small VPS, a Tailscale-reachable host, or a home server that
+is more reliable than the services being monitored.
 
 With Docker Compose:
 
@@ -252,7 +275,7 @@ Run the bundled Core and Console example from this repository:
 
 ```sh
 cd deploy/examples
-docker compose -f ./core-console-compose up -d
+docker compose -f ./core-console-compose.yaml up -d
 curl http://localhost:8999/health
 curl http://localhost:8999/v1/diagnostics/core-worker
 ```
@@ -309,6 +332,7 @@ CI coverage and release-only workflow notes live in [CI baseline](docs/ci.md).
 - [Incident reconciliation](docs/architecture/incident-reconciliation-flow.md)
 - [Deployment guide](docs/deployment/README.md)
 - [Core Docker deployment](docs/deployment/core-docker.md)
+- [Kubernetes position](docs/deployment/kubernetes-position.md)
 - [Server install and upgrade](docs/deployment/agent-install-upgrade.md)
 - [Seed demo data](docs/development/seed-demo-data.md)
 - [CI baseline](docs/ci.md)
@@ -319,7 +343,7 @@ CI coverage and release-only workflow notes live in [CI baseline](docs/ci.md).
 ```txt
 orion/
 ├── apps/
-│   ├── agent/    # Go server daemon and CLI
+│   ├── agent/    # Go Server daemon and orion-agent compatibility CLI
 │   ├── core/     # Go API server, SQLite, OpenAPI, embedded Console
 │   └── console/  # React/Vite UI source
 ├── deploy/       # Docker Compose, systemd, launchd, install scripts
