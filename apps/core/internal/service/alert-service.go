@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
-	"net/smtp"
 	"orion/core/internal/config"
 	"orion/core/internal/db"
 	"orion/core/internal/logging"
@@ -58,15 +56,6 @@ type AlertDestinationDecision struct {
 	ChannelType string `json:"channel_type"`
 	Status      string `json:"status"`
 	Reason      string `json:"reason"`
-}
-
-type AlertSMTPServiceTestResult struct {
-	SMTPServiceID   string    `json:"smtp_service_id"`
-	SMTPServiceName string    `json:"smtp_service_name"`
-	Status          string    `json:"status"`
-	Stage           string    `json:"stage"`
-	Error           string    `json:"error,omitempty"`
-	TestedAt        time.Time `json:"tested_at"`
 }
 
 type alertDeliveryError struct {
@@ -402,6 +391,9 @@ func (s *AlertService) TestChannel(channelID string) (*db.AlertDelivery, error) 
 	if err := s.db.Where("id = ?", channelID).First(&channel).Error; err != nil {
 		return nil, err
 	}
+	if channel.Type != "webhook" {
+		return nil, gorm.ErrRecordNotFound
+	}
 
 	delivery, err := s.createDelivery(db.AlertDelivery{
 		IncidentID: "alert-channel-test",
@@ -424,61 +416,6 @@ func (s *AlertService) TestChannel(channelID string) (*db.AlertDelivery, error) 
 	return delivery, nil
 }
 
-func (s *AlertService) TestSMTPService(smtpServiceID string) (*AlertSMTPServiceTestResult, error) {
-	var smtpService db.AlertSMTPService
-	if err := s.db.Where("id = ?", smtpServiceID).First(&smtpService).Error; err != nil {
-		return nil, err
-	}
-
-	result := &AlertSMTPServiceTestResult{
-		SMTPServiceID:   smtpService.ID,
-		SMTPServiceName: smtpService.Name,
-		Status:          "ok",
-		Stage:           "connected",
-		TestedAt:        time.Now().UTC(),
-	}
-	if err := s.testSMTPConnectivity(smtpService); err != nil {
-		result.Status = "failed"
-		result.Stage = alertDeliveryErrorStage(err)
-		result.Error = "smtp connectivity failed; check Core logs"
-		s.logger.Error("Alert SMTP service test failed", "smtp_service_id", smtpService.ID, "stage", result.Stage, "error", err)
-	}
-	return result, nil
-}
-
-func (s *AlertService) TestEmailDestination(destinationID string) (*db.AlertDelivery, error) {
-	var destination db.AlertEmailDestination
-	if err := s.db.Where("id = ?", destinationID).First(&destination).Error; err != nil {
-		return nil, err
-	}
-
-	var smtpService db.AlertSMTPService
-	if err := s.db.Where("id = ?", destination.SMTPServiceID).First(&smtpService).Error; err != nil {
-		return nil, err
-	}
-
-	channel := alertChannelFromEmailDestination(destination, smtpService)
-	delivery, err := s.createDelivery(db.AlertDelivery{
-		IncidentID: "alert-email-destination-test",
-		EventType:  "test",
-		Channel:    destination.Name,
-		Type:       "email",
-		Status:     "pending",
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	if err := s.attemptDelivery(delivery, func() error {
-		return s.deliverTest(channel)
-	}); err != nil {
-		s.logger.Error("Alert email destination test failed", "destination", destination.Name, "error", err)
-		return delivery, nil
-	}
-
-	return delivery, nil
-}
-
 func subscribesToAlertEvent(channel db.AlertChannel, eventType string) bool {
 	for _, event := range db.DecodeAlertEvents(channel.SubscribedEvents) {
 		if event == eventType {
@@ -490,15 +427,10 @@ func subscribesToAlertEvent(channel db.AlertChannel, eventType string) bool {
 
 func (s *AlertService) deliveryChannels() ([]db.AlertChannel, error) {
 	var channels []db.AlertChannel
-	if err := s.db.Order("name ASC").Find(&channels).Error; err != nil {
+	if err := s.db.Where("type = ?", "webhook").Order("name ASC").Find(&channels).Error; err != nil {
 		s.logger.Error("Failed to load alert channels", "error", err)
 		return nil, err
 	}
-	destinationChannels, err := s.emailDestinationChannels()
-	if err != nil {
-		return nil, err
-	}
-	channels = append(channels, destinationChannels...)
 	return channels, nil
 }
 
@@ -576,73 +508,6 @@ func (s *AlertService) channelForDelivery(delivery db.AlertDelivery) (db.AlertCh
 		}
 	}
 	return db.AlertChannel{}, gorm.ErrRecordNotFound
-}
-
-func (s *AlertService) emailDestinationChannels() ([]db.AlertChannel, error) {
-	if !s.db.Migrator().HasTable(&db.AlertEmailDestination{}) {
-		return nil, nil
-	}
-
-	var destinations []db.AlertEmailDestination
-	if err := s.db.Order("name ASC").Find(&destinations).Error; err != nil {
-		s.logger.Error("Failed to load alert email destinations", "error", err)
-		return nil, err
-	}
-	if len(destinations) == 0 {
-		return nil, nil
-	}
-
-	serviceIDs := make([]string, 0, len(destinations))
-	seen := map[string]bool{}
-	for _, destination := range destinations {
-		if destination.SMTPServiceID == "" || seen[destination.SMTPServiceID] {
-			continue
-		}
-		seen[destination.SMTPServiceID] = true
-		serviceIDs = append(serviceIDs, destination.SMTPServiceID)
-	}
-	if len(serviceIDs) == 0 {
-		return nil, nil
-	}
-	if !s.db.Migrator().HasTable(&db.AlertSMTPService{}) {
-		return nil, nil
-	}
-
-	var smtpServices []db.AlertSMTPService
-	if err := s.db.Where("id IN ?", serviceIDs).Find(&smtpServices).Error; err != nil {
-		s.logger.Error("Failed to load alert SMTP services", "error", err)
-		return nil, err
-	}
-	servicesByID := make(map[string]db.AlertSMTPService, len(smtpServices))
-	for _, smtpService := range smtpServices {
-		servicesByID[smtpService.ID] = smtpService
-	}
-
-	channels := make([]db.AlertChannel, 0, len(destinations))
-	for _, destination := range destinations {
-		smtpService, ok := servicesByID[destination.SMTPServiceID]
-		if !ok {
-			continue
-		}
-		channels = append(channels, alertChannelFromEmailDestination(destination, smtpService))
-	}
-	return channels, nil
-}
-
-func alertChannelFromEmailDestination(destination db.AlertEmailDestination, smtpService db.AlertSMTPService) db.AlertChannel {
-	return db.AlertChannel{
-		ID:               destination.ID,
-		Name:             destination.Name,
-		Type:             "email",
-		Enabled:          destination.Enabled && smtpService.Enabled,
-		EmailTo:          destination.EmailTo,
-		EmailFrom:        smtpService.FromEmail,
-		SMTPHost:         smtpService.Host,
-		SMTPPort:         smtpService.Port,
-		SMTPUsername:     smtpService.Username,
-		SMTPPassword:     smtpService.Password,
-		SubscribedEvents: destination.SubscribedEvents,
-	}
 }
 
 func (s *AlertService) createDelivery(delivery db.AlertDelivery) (*db.AlertDelivery, error) {
@@ -906,10 +771,6 @@ func (s *AlertService) deliver(channel db.AlertChannel, incidentID string, event
 	switch channel.Type {
 	case "webhook":
 		return s.deliverWebhook(channel, incident, eventType)
-	case "slack", "discord":
-		return s.deliverChat(channel, incident, eventType)
-	case "email":
-		return s.deliverEmail(channel, incident, eventType)
 	default:
 		return newAlertDeliveryError("channel_type", fmt.Errorf("unsupported alert channel type: %s", channel.Type))
 	}
@@ -923,10 +784,6 @@ func (s *AlertService) deliverGroupSummary(channel db.AlertChannel, groupID stri
 	switch channel.Type {
 	case "webhook":
 		return s.deliverWebhookPayload(channel, payload)
-	case "slack", "discord":
-		return s.deliverChatPayload(channel, payload)
-	case "email":
-		return s.deliverEmailPayload(channel, payload)
 	default:
 		return newAlertDeliveryError("channel_type", fmt.Errorf("unsupported alert channel type: %s", channel.Type))
 	}
@@ -971,10 +828,6 @@ func (s *AlertService) deliverTest(channel db.AlertChannel) error {
 	switch channel.Type {
 	case "webhook":
 		return s.deliverWebhook(channel, incident, "test")
-	case "slack", "discord":
-		return s.deliverChat(channel, incident, "test")
-	case "email":
-		return s.deliverEmail(channel, incident, "test")
 	default:
 		return newAlertDeliveryError("channel_type", fmt.Errorf("unsupported alert channel type: %s", channel.Type))
 	}
@@ -1017,115 +870,6 @@ func (s *AlertService) deliverWebhookPayload(channel db.AlertChannel, payload Al
 		return newAlertDeliveryError("http_response", fmt.Errorf("webhook returned status %d", resp.StatusCode))
 	}
 	return nil
-}
-
-func (s *AlertService) deliverChat(channel db.AlertChannel, incident db.Incident, eventType string) error {
-	payload := s.buildAlertPayload(incident, eventType, time.Now().UTC())
-	return s.deliverChatPayload(channel, payload)
-}
-
-func (s *AlertService) deliverChatPayload(channel db.AlertChannel, payload AlertPayload) error {
-	if channel.WebhookURL == "" {
-		return newAlertDeliveryError("configure", fmt.Errorf("%s webhook URL is not configured", channel.Type))
-	}
-	body, contentType, err := RenderChatAlert(ChatDestination(channel.Type), payload)
-	if err != nil {
-		return newAlertDeliveryError("serialize", err)
-	}
-
-	request, err := http.NewRequest(http.MethodPost, channel.WebhookURL, bytes.NewReader(body))
-	if err != nil {
-		return newAlertDeliveryError("http_request", err)
-	}
-	request.Header.Set("Content-Type", contentType)
-	request.Header.Set("User-Agent", "orion-core-alerts/1")
-
-	resp, err := s.httpClient.Do(request)
-	if err != nil {
-		return newAlertDeliveryError("http_request", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return newAlertDeliveryError("http_response", fmt.Errorf("%s webhook returned status %d", channel.Type, resp.StatusCode))
-	}
-	return nil
-}
-
-func (s *AlertService) deliverEmail(channel db.AlertChannel, incident db.Incident, eventType string) error {
-	address := fmt.Sprintf("%s:%d", channel.SMTPHost, channel.SMTPPort)
-	payload := s.buildAlertPayload(incident, eventType, time.Now().UTC())
-	return s.deliverEmailPayloadAtAddress(channel, payload, address)
-}
-
-func (s *AlertService) deliverEmailPayload(channel db.AlertChannel, payload AlertPayload) error {
-	address := fmt.Sprintf("%s:%d", channel.SMTPHost, channel.SMTPPort)
-	return s.deliverEmailPayloadAtAddress(channel, payload, address)
-}
-
-func (s *AlertService) deliverEmailPayloadAtAddress(channel db.AlertChannel, payload AlertPayload, address string) error {
-	email := RenderAlertEmail(payload)
-	message := alertEmailMessage(channel.EmailTo, channel.EmailFrom, email)
-
-	var auth smtp.Auth
-	if channel.SMTPUsername != "" || channel.SMTPPassword != "" {
-		auth = smtp.PlainAuth("", channel.SMTPUsername, channel.SMTPPassword, channel.SMTPHost)
-	}
-	if err := smtp.SendMail(address, auth, channel.EmailFrom, []string{channel.EmailTo}, message); err != nil {
-		return newAlertDeliveryError("smtp_send", err)
-	}
-	return nil
-}
-
-func (s *AlertService) testSMTPConnectivity(smtpService db.AlertSMTPService) error {
-	address := fmt.Sprintf("%s:%d", smtpService.Host, smtpService.Port)
-	dialer := net.Dialer{Timeout: 10 * time.Second}
-	conn, err := dialer.Dial("tcp", address)
-	if err != nil {
-		return newAlertDeliveryError("smtp_connect", err)
-	}
-	defer conn.Close()
-
-	client, err := smtp.NewClient(conn, smtpService.Host)
-	if err != nil {
-		return newAlertDeliveryError("smtp_connect", err)
-	}
-	defer client.Close()
-
-	if err := client.Hello("localhost"); err != nil {
-		return newAlertDeliveryError("smtp_hello", err)
-	}
-	if smtpService.Username != "" || smtpService.Password != "" {
-		auth := smtp.PlainAuth("", smtpService.Username, smtpService.Password, smtpService.Host)
-		if err := client.Auth(auth); err != nil {
-			return newAlertDeliveryError("smtp_auth", err)
-		}
-	}
-	if err := client.Quit(); err != nil {
-		return newAlertDeliveryError("smtp_quit", err)
-	}
-	return nil
-}
-
-func alertEmailMessage(to string, from string, email AlertEmailTemplate) []byte {
-	const boundary = "orion-alert-boundary-v1"
-	message := strings.Builder{}
-	message.WriteString("To: " + sanitizeEmailHeader(to) + "\r\n")
-	message.WriteString("From: " + sanitizeEmailHeader(from) + "\r\n")
-	message.WriteString("Subject: " + email.Subject + "\r\n")
-	message.WriteString("MIME-Version: 1.0\r\n")
-	message.WriteString("Content-Type: multipart/alternative; boundary=\"" + boundary + "\"\r\n")
-	message.WriteString("\r\n")
-	message.WriteString("--" + boundary + "\r\n")
-	message.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
-	message.WriteString("Content-Transfer-Encoding: 8bit\r\n\r\n")
-	message.WriteString(email.Body)
-	message.WriteString("\r\n--" + boundary + "\r\n")
-	message.WriteString("Content-Type: text/html; charset=UTF-8\r\n")
-	message.WriteString("Content-Transfer-Encoding: 8bit\r\n\r\n")
-	message.WriteString(email.HTMLBody)
-	message.WriteString("\r\n--" + boundary + "--\r\n")
-	return []byte(message.String())
 }
 
 func (s *AlertService) LoadAlertRouteContext(incidentID string, eventType string) (*AlertRouteContext, error) {

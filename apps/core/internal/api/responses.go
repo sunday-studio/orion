@@ -305,11 +305,6 @@ type AlertChannelResponse struct {
 	WebhookURL                 string     `json:"webhook_url,omitempty"`
 	WebhookConfigured          bool       `json:"webhook_configured,omitempty"`
 	WebhookSignatureConfigured bool       `json:"webhook_signature_configured,omitempty"`
-	EmailToConfigured          bool       `json:"email_to_configured,omitempty"`
-	EmailFromConfigured        bool       `json:"email_from_configured,omitempty"`
-	SMTPHostConfigured         bool       `json:"smtp_host_configured,omitempty"`
-	SMTPPortConfigured         bool       `json:"smtp_port_configured,omitempty"`
-	SMTPUsernameConfigured     bool       `json:"smtp_username_configured,omitempty"`
 	SubscribedEvents           []string   `json:"subscribed_events"`
 	LastDeliveryStatus         string     `json:"last_delivery_status,omitempty"`
 	LastDeliveryAt             *time.Time `json:"last_delivery_at,omitempty"`
@@ -317,45 +312,23 @@ type AlertChannelResponse struct {
 	UpdatedAt                  time.Time  `json:"updated_at"`
 }
 
-// AlertSMTPServiceResponse represents a reusable SMTP service without secrets.
-type AlertSMTPServiceResponse struct {
-	ID                 string    `json:"id"`
-	Name               string    `json:"name"`
-	Enabled            bool      `json:"enabled"`
-	Host               string    `json:"host"`
-	Port               int       `json:"port"`
-	FromEmail          string    `json:"from_email"`
-	UsernameConfigured bool      `json:"username_configured,omitempty"`
-	PasswordConfigured bool      `json:"password_configured,omitempty"`
-	CreatedAt          time.Time `json:"created_at"`
-	UpdatedAt          time.Time `json:"updated_at"`
-}
-
-// AlertEmailDestinationResponse represents a reusable email destination.
-type AlertEmailDestinationResponse struct {
-	ID                 string     `json:"id"`
-	SMTPServiceID      string     `json:"smtp_service_id"`
-	SMTPServiceName    string     `json:"smtp_service_name,omitempty"`
-	Name               string     `json:"name"`
-	Enabled            bool       `json:"enabled"`
-	EmailTo            string     `json:"email_to"`
-	SubscribedEvents   []string   `json:"subscribed_events"`
-	LastDeliveryStatus string     `json:"last_delivery_status,omitempty"`
-	LastDeliveryAt     *time.Time `json:"last_delivery_at,omitempty"`
-	CreatedAt          time.Time  `json:"created_at"`
-	UpdatedAt          time.Time  `json:"updated_at"`
-}
-
-// AlertRuleResponse represents an effective Core alert rule.
+// AlertRuleResponse represents a webhook alert rule.
 type AlertRuleResponse struct {
-	Name                          string   `json:"name"`
-	TriggerCondition              string   `json:"trigger_condition"`
-	Severity                      string   `json:"severity"`
-	Enabled                       bool     `json:"enabled"`
-	CooldownSeconds               int      `json:"cooldown_seconds"`
-	RecoveryNotificationEnabled   bool     `json:"recovery_notification_enabled"`
-	MaintenanceSuppressionEnabled bool     `json:"maintenance_suppression_enabled"`
-	TargetChannels                []string `json:"target_channels"`
+	ID                   string    `json:"id"`
+	Name                 string    `json:"name"`
+	Enabled              bool      `json:"enabled"`
+	Priority             int       `json:"priority"`
+	EventTypes           []string  `json:"event_types"`
+	Severities           []string  `json:"severities"`
+	AgentIDs             []string  `json:"agent_ids"`
+	MonitorIDs           []string  `json:"monitor_ids"`
+	MonitorTypes         []string  `json:"monitor_types"`
+	ChannelIDs           []string  `json:"channel_ids"`
+	Suppress             bool      `json:"suppress"`
+	GroupingPolicy       string    `json:"grouping_policy"`
+	GroupingDelaySeconds int       `json:"grouping_delay_seconds"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
 }
 
 // AlertRouteDryRunResponse explains route matching and destination decisions.
@@ -374,6 +347,24 @@ type AlertRouteEvaluationResponse struct {
 	Matched    bool               `json:"matched"`
 	Suppressed bool               `json:"suppressed"`
 	Reasons    []string           `json:"reasons"`
+}
+
+// AlertRuleDryRunResponse explains rule matching and destination decisions.
+type AlertRuleDryRunResponse struct {
+	Event                service.AlertRouteContext          `json:"event"`
+	LegacyFallback       bool                               `json:"legacy_fallback"`
+	Suppressed           bool                               `json:"suppressed"`
+	SuppressionReason    string                             `json:"suppression_reason,omitempty"`
+	RuleEvaluations      []AlertRuleEvaluationResponse      `json:"rule_evaluations"`
+	DestinationDecisions []service.AlertDestinationDecision `json:"destination_decisions"`
+}
+
+// AlertRuleEvaluationResponse explains one rule's match result.
+type AlertRuleEvaluationResponse struct {
+	Rule       AlertRuleResponse `json:"rule"`
+	Matched    bool              `json:"matched"`
+	Suppressed bool              `json:"suppressed"`
+	Reasons    []string          `json:"reasons"`
 }
 
 // IncidentTimelineItemResponse represents a normalized incident timeline item.
@@ -784,6 +775,36 @@ func alertRouteResponses(routes []db.AlertRoute) []AlertRouteResponse {
 	return responses
 }
 
+func alertRuleResponse(rule db.AlertRoute) AlertRuleResponse {
+	return AlertRuleResponse{
+		ID:           rule.ID,
+		Name:         rule.Name,
+		Enabled:      rule.Enabled,
+		Priority:     rule.Priority,
+		EventTypes:   decodeResponseList(rule.EventTypes, db.DefaultAlertEvents()),
+		Severities:   decodeResponseList(rule.Severities, nil),
+		AgentIDs:     decodeResponseList(rule.AgentIDs, nil),
+		MonitorIDs:   decodeResponseList(rule.MonitorIDs, nil),
+		MonitorTypes: decodeResponseList(rule.MonitorTypes, nil),
+		ChannelIDs:   decodeResponseList(rule.ChannelIDs, nil),
+		Suppress:     rule.Suppress,
+		GroupingPolicy: normalizeAlertGroupingPolicy(
+			rule.GroupingPolicy,
+		),
+		GroupingDelaySeconds: normalizeAlertGroupingDelaySeconds(rule.GroupingDelaySeconds),
+		CreatedAt:            rule.CreatedAt,
+		UpdatedAt:            rule.UpdatedAt,
+	}
+}
+
+func alertRuleResponses(rules []db.AlertRoute) []AlertRuleResponse {
+	responses := make([]AlertRuleResponse, 0, len(rules))
+	for _, rule := range rules {
+		responses = append(responses, alertRuleResponse(rule))
+	}
+	return responses
+}
+
 func alertRouteDryRunResponse(result *service.AlertRouteDryRunResult) AlertRouteDryRunResponse {
 	evaluations := make([]AlertRouteEvaluationResponse, 0, len(result.RouteEvaluations))
 	for _, evaluation := range result.RouteEvaluations {
@@ -800,6 +821,26 @@ func alertRouteDryRunResponse(result *service.AlertRouteDryRunResult) AlertRoute
 		Suppressed:           result.Suppressed,
 		SuppressionReason:    result.SuppressionReason,
 		RouteEvaluations:     evaluations,
+		DestinationDecisions: result.DestinationDecisions,
+	}
+}
+
+func alertRuleDryRunResponse(result *service.AlertRouteDryRunResult) AlertRuleDryRunResponse {
+	evaluations := make([]AlertRuleEvaluationResponse, 0, len(result.RouteEvaluations))
+	for _, evaluation := range result.RouteEvaluations {
+		evaluations = append(evaluations, AlertRuleEvaluationResponse{
+			Rule:       alertRuleResponse(evaluation.Route),
+			Matched:    evaluation.Matched,
+			Suppressed: evaluation.Suppressed,
+			Reasons:    evaluation.Reasons,
+		})
+	}
+	return AlertRuleDryRunResponse{
+		Event:                result.Event,
+		LegacyFallback:       result.LegacyFallback,
+		Suppressed:           result.Suppressed,
+		SuppressionReason:    result.SuppressionReason,
+		RuleEvaluations:      evaluations,
 		DestinationDecisions: result.DestinationDecisions,
 	}
 }

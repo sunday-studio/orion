@@ -1,0 +1,1 @@
+-- Reserved after removing user-managed SMTP alert services and email destinations.

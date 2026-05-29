@@ -2,6 +2,7 @@ import { type Page, expect, test } from "@playwright/test";
 
 const username = "admin";
 const password = "change-me";
+const webhookReceiverURL = "http://127.0.0.1:19080";
 
 test.describe.configure({ mode: "serial" });
 
@@ -11,6 +12,19 @@ const signIn = async (page: Page) => {
   await page.getByPlaceholder("Password").fill(password);
   await page.getByRole("button", { name: "Enter" }).click();
   await expect(page.getByRole("heading", { name: "Incidents" })).toBeVisible();
+};
+
+const createWebhookDestination = async (page: Page, name: string, url: string) => {
+  await page.getByRole("button", { name: "New webhook" }).click();
+  await page.getByRole("dialog").getByLabel("Name").fill(name);
+  await page.getByRole("dialog").getByLabel("Webhook URL").fill(url);
+  await page.getByRole("dialog").getByRole("button", { name: "Create destination" }).click();
+  await expect(page.getByRole("row", { name: new RegExp(name) })).toBeVisible();
+};
+
+const sendWebhookTest = async (page: Page, name: string) => {
+  await page.getByLabel(`Open actions for ${name}`).click();
+  await page.getByRole("menuitem", { name: "Send test" }).click();
 };
 
 test("signs in, rejects bad credentials, and signs out", async ({ page }) => {
@@ -111,6 +125,83 @@ test("creates and manages a Core HTTP monitor", async ({ page }) => {
   await page.getByRole("button", { name: "Delete" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Delete" }).click();
   await expect(page.getByRole("heading", { name: "Monitors" })).toBeVisible();
+});
+
+test("creates webhook alert destinations and records sanitized delivery logs", async ({ page }) => {
+  const stamp = Date.now();
+  const sentDestination = `e2e-webhook-sent-${stamp}`;
+  const failedDestination = `e2e-webhook-failed-${stamp}`;
+  const secretToken = "super-secret-failure-token";
+
+  await signIn(page);
+  await page.request.delete(`${webhookReceiverURL}/captures`);
+
+  await page.getByRole("link", { name: "Alerts" }).click();
+  await page.getByRole("tab", { name: "Channels" }).click();
+  await expect(page.getByRole("heading", { name: "Webhook Destinations" })).toBeVisible();
+
+  await createWebhookDestination(
+    page,
+    sentDestination,
+    `${webhookReceiverURL}/webhook/success`,
+  );
+  await createWebhookDestination(
+    page,
+    failedDestination,
+    `${webhookReceiverURL}/webhook/failure?token=${secretToken}`,
+  );
+
+  await page.getByRole("tab", { name: "Rules" }).click();
+  await expect(page.getByRole("heading", { name: "Rules" })).toBeVisible();
+  await expect(page.getByRole("row", { name: /monitor failure/ })).toContainText(sentDestination);
+  await expect(page.getByRole("row", { name: /monitor failure/ })).toContainText(
+    failedDestination,
+  );
+
+  await page.getByRole("tab", { name: "Channels" }).click();
+  await sendWebhookTest(page, sentDestination);
+  await expect(
+    page.getByText(`Test sent to ${sentDestination}. Delivery status: sent.`),
+  ).toBeVisible();
+
+  const capturesResponse = await page.request.get(`${webhookReceiverURL}/captures`);
+  expect(capturesResponse.ok()).toBeTruthy();
+  const captures = (await capturesResponse.json()) as {
+    captures: { body: string; path: string }[];
+  };
+  expect(captures.captures.some((capture) => capture.path === "/webhook/success")).toBeTruthy();
+  expect(captures.captures.map((capture) => capture.body).join("\n")).toContain(
+    "Alert channel test",
+  );
+
+  await page.goto(
+    `/alerts?tab=logs&status=sent&type=webhook&event_type=test&channel=${encodeURIComponent(
+      sentDestination,
+    )}`,
+  );
+  await expect(page.getByRole("heading", { name: "Notification Log" })).toBeVisible();
+  await expect(page.getByRole("row", { name: new RegExp(sentDestination) })).toContainText("sent");
+  await expect(page.getByRole("row", { name: new RegExp(sentDestination) })).toContainText(
+    "webhook",
+  );
+  await expect(page.getByRole("row", { name: new RegExp(sentDestination) })).toContainText("test");
+
+  await page.getByRole("tab", { name: "Channels" }).click();
+  await sendWebhookTest(page, failedDestination);
+  await expect(
+    page.getByText(`Test sent to ${failedDestination}. Delivery status: failed.`),
+  ).toBeVisible();
+
+  await page.goto(
+    `/alerts?tab=logs&status=failed&type=webhook&event_type=test&channel=${encodeURIComponent(
+      failedDestination,
+    )}`,
+  );
+  await expect(page.getByRole("heading", { name: "Notification Log" })).toBeVisible();
+  await expect(page.getByRole("row", { name: new RegExp(failedDestination) })).toContainText(
+    "delivery failed; check Core logs",
+  );
+  await expect(page.locator("body")).not.toContainText(secretToken);
 });
 
 test("creates a Core heartbeat monitor and shows setup affordances", async ({ page }) => {

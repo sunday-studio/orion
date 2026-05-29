@@ -738,10 +738,10 @@ func seedIncidents(database *gorm.DB, monitors []db.Monitor, monitorToAgent map[
 				ID:         fmt.Sprintf("seed-alert-delivery-%s-%s", incidentID, alertStatus),
 				IncidentID: incidentID,
 				EventType:  choose(i%2 == 0, "incident_opened", "incident_resolved"),
-				Channel:    choose(i%2 == 0, "seed-webhook", "seed-email"),
-				Type:       choose(i%2 == 0, "webhook", "email"),
+				Channel:    choose(i%2 == 0, "seed-webhook-primary", "seed-webhook-secondary"),
+				Type:       "webhook",
 				Status:     alertStatus,
-				Error:      choose(alertStatus == "failed", "seeded delivery failure: connection refused", ""),
+				Error:      choose(alertStatus == "failed", "seeded webhook delivery failure: connection refused", ""),
 				CreatedAt:  openedAt.Add(time.Duration(i) * time.Minute),
 				UpdatedAt:  openedAt.Add(time.Duration(i+1) * time.Minute),
 			}

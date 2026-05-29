@@ -18,34 +18,25 @@ type alertChannelRequest struct {
 	Enabled              *bool    `json:"enabled"`
 	WebhookURL           string   `json:"webhook_url"`
 	WebhookSigningSecret *string  `json:"webhook_signing_secret"`
-	EmailTo              string   `json:"email_to"`
-	EmailFrom            string   `json:"email_from"`
-	SMTPHost             string   `json:"smtp_host"`
-	SMTPPort             int      `json:"smtp_port"`
-	SMTPUsername         string   `json:"smtp_username"`
-	SMTPPassword         string   `json:"smtp_password"`
 	SubscribedEvents     []string `json:"subscribed_events"`
 }
 
-type alertSMTPServiceRequest struct {
-	Name      string `json:"name"`
-	Enabled   *bool  `json:"enabled"`
-	Host      string `json:"host"`
-	Port      int    `json:"port"`
-	Username  string `json:"username"`
-	Password  string `json:"password"`
-	FromEmail string `json:"from_email"`
-}
-
-type alertEmailDestinationRequest struct {
-	SMTPServiceID    string   `json:"smtp_service_id"`
-	Name             string   `json:"name"`
-	Enabled          *bool    `json:"enabled"`
-	EmailTo          string   `json:"email_to"`
-	SubscribedEvents []string `json:"subscribed_events"`
-}
-
 type alertRouteRequest struct {
+	Name                 string   `json:"name"`
+	Enabled              *bool    `json:"enabled"`
+	Priority             *int     `json:"priority"`
+	EventTypes           []string `json:"event_types"`
+	Severities           []string `json:"severities"`
+	AgentIDs             []string `json:"agent_ids"`
+	MonitorIDs           []string `json:"monitor_ids"`
+	MonitorTypes         []string `json:"monitor_types"`
+	ChannelIDs           []string `json:"channel_ids"`
+	Suppress             *bool    `json:"suppress"`
+	GroupingPolicy       string   `json:"grouping_policy"`
+	GroupingDelaySeconds *int     `json:"grouping_delay_seconds"`
+}
+
+type alertRuleRequest struct {
 	Name                 string   `json:"name"`
 	Enabled              *bool    `json:"enabled"`
 	Priority             *int     `json:"priority"`
@@ -150,7 +141,7 @@ func (s *Server) listAlertDeliveries(c *gin.Context) {
 // @Router       /v1/alerts/channels [get]
 func (s *Server) listAlertChannels(c *gin.Context) {
 	var dbChannels []db.AlertChannel
-	if err := s.db.Order("name ASC").Find(&dbChannels).Error; err != nil {
+	if err := s.db.Where("type = ?", "webhook").Order("name ASC").Find(&dbChannels).Error; err != nil {
 		s.logger.Error("Failed to list alert channels", "error", err)
 		utils.InternalError(c, "Failed to list alert channels", err)
 		return
@@ -169,7 +160,7 @@ func (s *Server) listAlertChannels(c *gin.Context) {
 
 // createAlertChannel creates a persisted alert channel.
 // @Summary      Create alert channel
-// @Description  Create a webhook, Slack, Discord, or email alert channel. Secret values are stored but never returned by the API.
+// @Description  Create a generic webhook alert channel. Secret values are stored but never returned by the API.
 // @Tags         alerts
 // @Accept       json
 // @Produce      json
@@ -194,12 +185,6 @@ func (s *Server) createAlertChannel(c *gin.Context) {
 		Enabled:              true,
 		WebhookURL:           strings.TrimSpace(request.WebhookURL),
 		WebhookSigningSecret: alertOptionalSecret(request.WebhookSigningSecret),
-		EmailTo:              strings.TrimSpace(request.EmailTo),
-		EmailFrom:            strings.TrimSpace(request.EmailFrom),
-		SMTPHost:             strings.TrimSpace(request.SMTPHost),
-		SMTPPort:             request.SMTPPort,
-		SMTPUsername:         strings.TrimSpace(request.SMTPUsername),
-		SMTPPassword:         request.SMTPPassword,
 		SubscribedEvents:     db.EncodeAlertEvents(normalizeAlertEvents(request.SubscribedEvents)),
 	}
 	if request.Enabled != nil {
@@ -241,7 +226,7 @@ func (s *Server) createAlertChannel(c *gin.Context) {
 
 // updateAlertChannel updates a persisted alert channel.
 // @Summary      Update alert channel
-// @Description  Update an alert channel. Omit email secret values to keep existing stored values.
+// @Description  Update a generic webhook alert channel.
 // @Tags         alerts
 // @Accept       json
 // @Produce      json
@@ -287,24 +272,6 @@ func (s *Server) updateAlertChannel(c *gin.Context) {
 	if request.WebhookSigningSecret != nil {
 		channel.WebhookSigningSecret = strings.TrimSpace(*request.WebhookSigningSecret)
 	}
-	if strings.TrimSpace(request.EmailTo) != "" {
-		channel.EmailTo = strings.TrimSpace(request.EmailTo)
-	}
-	if strings.TrimSpace(request.EmailFrom) != "" {
-		channel.EmailFrom = strings.TrimSpace(request.EmailFrom)
-	}
-	if strings.TrimSpace(request.SMTPHost) != "" {
-		channel.SMTPHost = strings.TrimSpace(request.SMTPHost)
-	}
-	if request.SMTPPort > 0 {
-		channel.SMTPPort = request.SMTPPort
-	}
-	if strings.TrimSpace(request.SMTPUsername) != "" {
-		channel.SMTPUsername = strings.TrimSpace(request.SMTPUsername)
-	}
-	if request.SMTPPassword != "" {
-		channel.SMTPPassword = request.SMTPPassword
-	}
 	if request.SubscribedEvents != nil {
 		if err := validateAlertEvents(request.SubscribedEvents); err != nil {
 			utils.BadRequest(c, err.Error())
@@ -341,7 +308,7 @@ func (s *Server) updateAlertChannel(c *gin.Context) {
 
 // testAlertChannel sends a manual test notification through a persisted alert channel.
 // @Summary      Test alert channel
-// @Description  Send a manual test notification through a configured webhook or email alert channel.
+// @Description  Send a manual test notification through a configured generic webhook alert channel.
 // @Tags         alerts
 // @Accept       json
 // @Produce      json
@@ -392,465 +359,6 @@ func (s *Server) deleteAlertChannel(c *gin.Context) {
 		return
 	}
 	utils.SuccessResponse(c, http.StatusOK, "Alert channel deleted successfully", gin.H{})
-}
-
-// listAlertSMTPServices retrieves reusable SMTP service records.
-// @Summary      List alert SMTP services
-// @Description  Get reusable SMTP services without secret values
-// @Tags         alerts
-// @Accept       json
-// @Produce      json
-// @ID           getAlertSMTPServices
-// @Success      200  {object}  utils.APIResponse{data=object{smtp_services=[]AlertSMTPServiceResponse,count=int}}
-// @Failure      500  {object}  utils.APIResponse
-// @Router       /v1/alerts/smtp-services [get]
-func (s *Server) listAlertSMTPServices(c *gin.Context) {
-	var services []db.AlertSMTPService
-	if err := s.db.Order("name ASC").Find(&services).Error; err != nil {
-		s.logger.Error("Failed to list alert SMTP services", "error", err)
-		utils.InternalError(c, "Failed to list alert SMTP services", err)
-		return
-	}
-
-	responses := make([]AlertSMTPServiceResponse, 0, len(services))
-	for _, service := range services {
-		responses = append(responses, alertSMTPServiceResponse(service))
-	}
-
-	utils.SuccessResponse(c, http.StatusOK, "Alert SMTP services retrieved successfully", gin.H{
-		"smtp_services": responses,
-		"count":         len(responses),
-	})
-}
-
-// createAlertSMTPService creates a reusable SMTP service.
-// @Summary      Create alert SMTP service
-// @Description  Create a reusable SMTP service. Secret values are stored but never returned by the API.
-// @Tags         alerts
-// @Accept       json
-// @Produce      json
-// @ID           createAlertSMTPService
-// @Param        request  body      alertSMTPServiceRequest  true  "SMTP service payload"
-// @Success      201      {object}  utils.APIResponse{data=object{smtp_service=AlertSMTPServiceResponse}}
-// @Failure      400      {object}  utils.APIResponse
-// @Failure      409      {object}  utils.APIResponse
-// @Failure      500      {object}  utils.APIResponse
-// @Router       /v1/alerts/smtp-services [post]
-func (s *Server) createAlertSMTPService(c *gin.Context) {
-	var request alertSMTPServiceRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
-		utils.BadRequest(c, "Invalid alert SMTP service payload")
-		return
-	}
-
-	smtpService := db.AlertSMTPService{
-		ID:        utils.GenerateID("alert_smtp_service"),
-		Name:      strings.TrimSpace(request.Name),
-		Enabled:   true,
-		Host:      strings.TrimSpace(request.Host),
-		Port:      request.Port,
-		Username:  strings.TrimSpace(request.Username),
-		Password:  request.Password,
-		FromEmail: strings.TrimSpace(request.FromEmail),
-	}
-	if request.Enabled != nil {
-		smtpService.Enabled = *request.Enabled
-	}
-	if err := validateAlertSMTPService(smtpService); err != nil {
-		utils.BadRequest(c, err.Error())
-		return
-	}
-	if err := s.ensureUniqueAlertSMTPServiceName(smtpService.Name, ""); err != nil {
-		writeAlertNameConflict(c, err, "Alert SMTP service name already exists")
-		return
-	}
-
-	if err := s.db.Create(&smtpService).Error; err != nil {
-		s.logger.Error("Failed to create alert SMTP service", "error", err)
-		utils.InternalError(c, "Failed to create alert SMTP service", err)
-		return
-	}
-
-	utils.SuccessResponse(c, http.StatusCreated, "Alert SMTP service created successfully", gin.H{
-		"smtp_service": alertSMTPServiceResponse(smtpService),
-	})
-}
-
-// updateAlertSMTPService updates a reusable SMTP service.
-// @Summary      Update alert SMTP service
-// @Description  Update a reusable SMTP service. Omit password to keep the existing stored value.
-// @Tags         alerts
-// @Accept       json
-// @Produce      json
-// @ID           updateAlertSMTPService
-// @Param        id       path      string                   true  "SMTP service ID"
-// @Param        request  body      alertSMTPServiceRequest  true  "SMTP service payload"
-// @Success      200      {object}  utils.APIResponse{data=object{smtp_service=AlertSMTPServiceResponse}}
-// @Failure      400      {object}  utils.APIResponse
-// @Failure      404      {object}  utils.APIResponse
-// @Failure      409      {object}  utils.APIResponse
-// @Failure      500      {object}  utils.APIResponse
-// @Router       /v1/alerts/smtp-services/{id} [patch]
-func (s *Server) updateAlertSMTPService(c *gin.Context) {
-	var smtpService db.AlertSMTPService
-	if err := s.db.Where("id = ?", c.Param("id")).First(&smtpService).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			utils.NotFound(c, "Alert SMTP service not found")
-			return
-		}
-		s.logger.Error("Failed to load alert SMTP service", "error", err)
-		utils.InternalError(c, "Failed to update alert SMTP service", err)
-		return
-	}
-
-	var request alertSMTPServiceRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
-		utils.BadRequest(c, "Invalid alert SMTP service payload")
-		return
-	}
-	if strings.TrimSpace(request.Name) != "" {
-		smtpService.Name = strings.TrimSpace(request.Name)
-	}
-	if request.Enabled != nil {
-		smtpService.Enabled = *request.Enabled
-	}
-	if strings.TrimSpace(request.Host) != "" {
-		smtpService.Host = strings.TrimSpace(request.Host)
-	}
-	if request.Port > 0 {
-		smtpService.Port = request.Port
-	}
-	if strings.TrimSpace(request.Username) != "" {
-		smtpService.Username = strings.TrimSpace(request.Username)
-	}
-	if request.Password != "" {
-		smtpService.Password = request.Password
-	}
-	if strings.TrimSpace(request.FromEmail) != "" {
-		smtpService.FromEmail = strings.TrimSpace(request.FromEmail)
-	}
-	if err := validateAlertSMTPService(smtpService); err != nil {
-		utils.BadRequest(c, err.Error())
-		return
-	}
-	if err := s.ensureUniqueAlertSMTPServiceName(smtpService.Name, smtpService.ID); err != nil {
-		writeAlertNameConflict(c, err, "Alert SMTP service name already exists")
-		return
-	}
-
-	if err := s.db.Save(&smtpService).Error; err != nil {
-		s.logger.Error("Failed to update alert SMTP service", "error", err)
-		utils.InternalError(c, "Failed to update alert SMTP service", err)
-		return
-	}
-
-	utils.SuccessResponse(c, http.StatusOK, "Alert SMTP service updated successfully", gin.H{
-		"smtp_service": alertSMTPServiceResponse(smtpService),
-	})
-}
-
-// deleteAlertSMTPService deletes a reusable SMTP service when no destinations reference it.
-// @Summary      Delete alert SMTP service
-// @Description  Delete a reusable SMTP service. Existing delivery history is preserved.
-// @Tags         alerts
-// @Accept       json
-// @Produce      json
-// @ID           deleteAlertSMTPService
-// @Param        id   path      string  true  "SMTP service ID"
-// @Success      200  {object}  utils.APIResponse
-// @Failure      404  {object}  utils.APIResponse
-// @Failure      409  {object}  utils.APIResponse
-// @Failure      500  {object}  utils.APIResponse
-// @Router       /v1/alerts/smtp-services/{id} [delete]
-func (s *Server) deleteAlertSMTPService(c *gin.Context) {
-	var destinationCount int64
-	if err := s.db.Model(&db.AlertEmailDestination{}).Where("smtp_service_id = ?", c.Param("id")).Count(&destinationCount).Error; err != nil {
-		s.logger.Error("Failed to count alert email destinations", "error", err)
-		utils.InternalError(c, "Failed to delete alert SMTP service", err)
-		return
-	}
-	if destinationCount > 0 {
-		utils.ErrorResponse(c, http.StatusConflict, "Alert SMTP service is used by email destinations", nil)
-		return
-	}
-
-	result := s.db.Where("id = ?", c.Param("id")).Delete(&db.AlertSMTPService{})
-	if result.Error != nil {
-		s.logger.Error("Failed to delete alert SMTP service", "error", result.Error)
-		utils.InternalError(c, "Failed to delete alert SMTP service", result.Error)
-		return
-	}
-	if result.RowsAffected == 0 {
-		utils.NotFound(c, "Alert SMTP service not found")
-		return
-	}
-	utils.SuccessResponse(c, http.StatusOK, "Alert SMTP service deleted successfully", gin.H{})
-}
-
-// testAlertSMTPService verifies direct SMTP service connectivity.
-// @Summary      Test alert SMTP service
-// @Description  Connect to a reusable SMTP service and return a sanitized connectivity result without secret values.
-// @Tags         alerts
-// @Accept       json
-// @Produce      json
-// @ID           testAlertSMTPService
-// @Param        id   path      string  true  "SMTP service ID"
-// @Success      200  {object}  utils.APIResponse{data=object{test=service.AlertSMTPServiceTestResult}}
-// @Failure      404  {object}  utils.APIResponse
-// @Failure      500  {object}  utils.APIResponse
-// @Router       /v1/alerts/smtp-services/{id}/test [post]
-func (s *Server) testAlertSMTPService(c *gin.Context) {
-	result, err := service.NewAlertService(s.db, s.logger, s.cfg).TestSMTPService(c.Param("id"))
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			utils.NotFound(c, "Alert SMTP service not found")
-			return
-		}
-		s.logger.Error("Failed to test alert SMTP service", "error", err)
-		utils.InternalError(c, "Failed to test alert SMTP service", err)
-		return
-	}
-
-	utils.SuccessResponse(c, http.StatusOK, "Alert SMTP service test completed", gin.H{
-		"test": result,
-	})
-}
-
-// listAlertEmailDestinations retrieves reusable email alert destinations.
-// @Summary      List alert email destinations
-// @Description  Get reusable email destinations and their last delivery status
-// @Tags         alerts
-// @Accept       json
-// @Produce      json
-// @ID           getAlertEmailDestinations
-// @Success      200  {object}  utils.APIResponse{data=object{email_destinations=[]AlertEmailDestinationResponse,count=int}}
-// @Failure      500  {object}  utils.APIResponse
-// @Router       /v1/alerts/email-destinations [get]
-func (s *Server) listAlertEmailDestinations(c *gin.Context) {
-	var destinations []db.AlertEmailDestination
-	if err := s.db.Order("name ASC").Find(&destinations).Error; err != nil {
-		s.logger.Error("Failed to list alert email destinations", "error", err)
-		utils.InternalError(c, "Failed to list alert email destinations", err)
-		return
-	}
-	servicesByID, err := s.alertSMTPServicesByID(destinations)
-	if err != nil {
-		s.logger.Error("Failed to load alert SMTP services", "error", err)
-		utils.InternalError(c, "Failed to list alert email destinations", err)
-		return
-	}
-
-	responses := make([]AlertEmailDestinationResponse, 0, len(destinations))
-	for _, destination := range destinations {
-		responses = append(responses, s.alertEmailDestinationResponse(destination, servicesByID[destination.SMTPServiceID]))
-	}
-
-	utils.SuccessResponse(c, http.StatusOK, "Alert email destinations retrieved successfully", gin.H{
-		"email_destinations": responses,
-		"count":              len(responses),
-	})
-}
-
-// createAlertEmailDestination creates a reusable email destination.
-// @Summary      Create alert email destination
-// @Description  Create a reusable email destination that sends through an SMTP service.
-// @Tags         alerts
-// @Accept       json
-// @Produce      json
-// @ID           createAlertEmailDestination
-// @Param        request  body      alertEmailDestinationRequest  true  "Email destination payload"
-// @Success      201      {object}  utils.APIResponse{data=object{email_destination=AlertEmailDestinationResponse}}
-// @Failure      400      {object}  utils.APIResponse
-// @Failure      404      {object}  utils.APIResponse
-// @Failure      409      {object}  utils.APIResponse
-// @Failure      500      {object}  utils.APIResponse
-// @Router       /v1/alerts/email-destinations [post]
-func (s *Server) createAlertEmailDestination(c *gin.Context) {
-	var request alertEmailDestinationRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
-		utils.BadRequest(c, "Invalid alert email destination payload")
-		return
-	}
-	if err := validateAlertEvents(request.SubscribedEvents); err != nil {
-		utils.BadRequest(c, err.Error())
-		return
-	}
-
-	destination := db.AlertEmailDestination{
-		ID:               utils.GenerateID("alert_email_destination"),
-		SMTPServiceID:    strings.TrimSpace(request.SMTPServiceID),
-		Name:             strings.TrimSpace(request.Name),
-		Enabled:          true,
-		EmailTo:          strings.TrimSpace(request.EmailTo),
-		SubscribedEvents: db.EncodeAlertEvents(normalizeAlertEvents(request.SubscribedEvents)),
-	}
-	if request.Enabled != nil {
-		destination.Enabled = *request.Enabled
-	}
-	if err := validateAlertEmailDestination(destination); err != nil {
-		utils.BadRequest(c, err.Error())
-		return
-	}
-	smtpService, ok, err := s.findAlertSMTPService(destination.SMTPServiceID)
-	if err != nil {
-		s.logger.Error("Failed to load alert SMTP service", "error", err)
-		utils.InternalError(c, "Failed to create alert email destination", err)
-		return
-	}
-	if !ok {
-		utils.NotFound(c, "Alert SMTP service not found")
-		return
-	}
-	if err := s.ensureUniqueAlertEmailDestinationName(destination.Name, ""); err != nil {
-		writeAlertNameConflict(c, err, "Alert email destination name already exists")
-		return
-	}
-
-	if err := s.db.Create(&destination).Error; err != nil {
-		s.logger.Error("Failed to create alert email destination", "error", err)
-		utils.InternalError(c, "Failed to create alert email destination", err)
-		return
-	}
-
-	utils.SuccessResponse(c, http.StatusCreated, "Alert email destination created successfully", gin.H{
-		"email_destination": s.alertEmailDestinationResponse(destination, smtpService),
-	})
-}
-
-// updateAlertEmailDestination updates a reusable email destination.
-// @Summary      Update alert email destination
-// @Description  Update a reusable email destination.
-// @Tags         alerts
-// @Accept       json
-// @Produce      json
-// @ID           updateAlertEmailDestination
-// @Param        id       path      string                         true  "Email destination ID"
-// @Param        request  body      alertEmailDestinationRequest   true  "Email destination payload"
-// @Success      200      {object}  utils.APIResponse{data=object{email_destination=AlertEmailDestinationResponse}}
-// @Failure      400      {object}  utils.APIResponse
-// @Failure      404      {object}  utils.APIResponse
-// @Failure      409      {object}  utils.APIResponse
-// @Failure      500      {object}  utils.APIResponse
-// @Router       /v1/alerts/email-destinations/{id} [patch]
-func (s *Server) updateAlertEmailDestination(c *gin.Context) {
-	var destination db.AlertEmailDestination
-	if err := s.db.Where("id = ?", c.Param("id")).First(&destination).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			utils.NotFound(c, "Alert email destination not found")
-			return
-		}
-		s.logger.Error("Failed to load alert email destination", "error", err)
-		utils.InternalError(c, "Failed to update alert email destination", err)
-		return
-	}
-
-	var request alertEmailDestinationRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
-		utils.BadRequest(c, "Invalid alert email destination payload")
-		return
-	}
-	if strings.TrimSpace(request.SMTPServiceID) != "" {
-		destination.SMTPServiceID = strings.TrimSpace(request.SMTPServiceID)
-	}
-	if strings.TrimSpace(request.Name) != "" {
-		destination.Name = strings.TrimSpace(request.Name)
-	}
-	if request.Enabled != nil {
-		destination.Enabled = *request.Enabled
-	}
-	if strings.TrimSpace(request.EmailTo) != "" {
-		destination.EmailTo = strings.TrimSpace(request.EmailTo)
-	}
-	if request.SubscribedEvents != nil {
-		if err := validateAlertEvents(request.SubscribedEvents); err != nil {
-			utils.BadRequest(c, err.Error())
-			return
-		}
-		destination.SubscribedEvents = db.EncodeAlertEvents(normalizeAlertEvents(request.SubscribedEvents))
-	}
-	if err := validateAlertEmailDestination(destination); err != nil {
-		utils.BadRequest(c, err.Error())
-		return
-	}
-	smtpService, ok, err := s.findAlertSMTPService(destination.SMTPServiceID)
-	if err != nil {
-		s.logger.Error("Failed to load alert SMTP service", "error", err)
-		utils.InternalError(c, "Failed to update alert email destination", err)
-		return
-	}
-	if !ok {
-		utils.NotFound(c, "Alert SMTP service not found")
-		return
-	}
-	if err := s.ensureUniqueAlertEmailDestinationName(destination.Name, destination.ID); err != nil {
-		writeAlertNameConflict(c, err, "Alert email destination name already exists")
-		return
-	}
-
-	if err := s.db.Save(&destination).Error; err != nil {
-		s.logger.Error("Failed to update alert email destination", "error", err)
-		utils.InternalError(c, "Failed to update alert email destination", err)
-		return
-	}
-
-	utils.SuccessResponse(c, http.StatusOK, "Alert email destination updated successfully", gin.H{
-		"email_destination": s.alertEmailDestinationResponse(destination, smtpService),
-	})
-}
-
-// deleteAlertEmailDestination deletes a reusable email destination.
-// @Summary      Delete alert email destination
-// @Description  Delete a reusable email destination. Existing delivery history is preserved.
-// @Tags         alerts
-// @Accept       json
-// @Produce      json
-// @ID           deleteAlertEmailDestination
-// @Param        id   path      string  true  "Email destination ID"
-// @Success      200  {object}  utils.APIResponse
-// @Failure      404  {object}  utils.APIResponse
-// @Failure      500  {object}  utils.APIResponse
-// @Router       /v1/alerts/email-destinations/{id} [delete]
-func (s *Server) deleteAlertEmailDestination(c *gin.Context) {
-	result := s.db.Where("id = ?", c.Param("id")).Delete(&db.AlertEmailDestination{})
-	if result.Error != nil {
-		s.logger.Error("Failed to delete alert email destination", "error", result.Error)
-		utils.InternalError(c, "Failed to delete alert email destination", result.Error)
-		return
-	}
-	if result.RowsAffected == 0 {
-		utils.NotFound(c, "Alert email destination not found")
-		return
-	}
-	utils.SuccessResponse(c, http.StatusOK, "Alert email destination deleted successfully", gin.H{})
-}
-
-// testAlertEmailDestination sends a manual test email through a reusable destination.
-// @Summary      Test alert email destination
-// @Description  Send a manual test notification through a reusable email destination. Delivery errors are sanitized in the response.
-// @Tags         alerts
-// @Accept       json
-// @Produce      json
-// @ID           testAlertEmailDestination
-// @Param        id   path      string  true  "Email destination ID"
-// @Success      200  {object}  utils.APIResponse{data=object{delivery=AlertDeliveryResponse}}
-// @Failure      404  {object}  utils.APIResponse
-// @Failure      500  {object}  utils.APIResponse
-// @Router       /v1/alerts/email-destinations/{id}/test [post]
-func (s *Server) testAlertEmailDestination(c *gin.Context) {
-	delivery, err := service.NewAlertService(s.db, s.logger, s.cfg).TestEmailDestination(c.Param("id"))
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			utils.NotFound(c, "Alert email destination not found")
-			return
-		}
-		s.logger.Error("Failed to test alert email destination", "error", err)
-		utils.InternalError(c, "Failed to test alert email destination", err)
-		return
-	}
-
-	utils.SuccessResponse(c, http.StatusOK, "Alert email destination test completed", gin.H{
-		"delivery": alertDeliveryResponse(*delivery),
-	})
 }
 
 // listAlertRoutes retrieves explicit alert routes.
@@ -1134,63 +642,246 @@ func (s *Server) dryRunAlertRoutes(c *gin.Context) {
 	})
 }
 
-// listAlertRules retrieves effective alert behavior.
+// listAlertRules retrieves webhook alert rules.
 // @Summary      List alert rules
-// @Description  Get effective built-in alert rules derived from Core configuration
+// @Description  Get persisted webhook alert rules ordered by priority
 // @Tags         alerts
 // @Accept       json
 // @Produce      json
 // @ID           getAlertRules
 // @Success      200  {object}  utils.APIResponse{data=object{rules=[]AlertRuleResponse,count=int}}
+// @Failure      500  {object}  utils.APIResponse
 // @Router       /v1/alerts/rules [get]
 func (s *Server) listAlertRules(c *gin.Context) {
-	var channels []db.AlertChannel
-	if err := s.db.Order("name ASC").Find(&channels).Error; err != nil {
-		s.logger.Error("Failed to list alert channels for rules", "error", err)
+	var rules []db.AlertRoute
+	if err := s.db.Order("priority ASC, name ASC").Find(&rules).Error; err != nil {
+		s.logger.Error("Failed to list alert rules", "error", err)
 		utils.InternalError(c, "Failed to list alert rules", err)
 		return
 	}
 
-	targetChannels := make([]string, 0, len(channels))
-	for _, channel := range channels {
-		if channel.Enabled {
-			targetChannels = append(targetChannels, channel.Name)
-		}
-	}
-	var destinations []db.AlertEmailDestination
-	if err := s.db.Order("name ASC").Find(&destinations).Error; err != nil {
-		s.logger.Error("Failed to list alert email destinations for rules", "error", err)
-		utils.InternalError(c, "Failed to list alert rules", err)
-		return
-	}
-	servicesByID, err := s.alertSMTPServicesByID(destinations)
-	if err != nil {
-		s.logger.Error("Failed to load alert SMTP services for rules", "error", err)
-		utils.InternalError(c, "Failed to list alert rules", err)
-		return
-	}
-	for _, destination := range destinations {
-		if smtpService, ok := servicesByID[destination.SMTPServiceID]; ok && destination.Enabled && smtpService.Enabled {
-			targetChannels = append(targetChannels, destination.Name)
-		}
-	}
-
-	rules := []AlertRuleResponse{
-		{
-			Name:                          "monitor failure",
-			TriggerCondition:              "Monitor reports down, degraded, stale, or TLS expiry threshold breach",
-			Severity:                      "derived from monitor health",
-			Enabled:                       len(targetChannels) > 0,
-			CooldownSeconds:               s.cfg.AlertCooldownSeconds,
-			RecoveryNotificationEnabled:   s.cfg.AlertRecoveryNotifications,
-			MaintenanceSuppressionEnabled: true,
-			TargetChannels:                targetChannels,
-		},
-	}
-
+	responses := alertRuleResponses(rules)
 	utils.SuccessResponse(c, http.StatusOK, "Alert rules retrieved successfully", gin.H{
-		"rules": rules,
-		"count": len(rules),
+		"rules": responses,
+		"count": len(responses),
+	})
+}
+
+// createAlertRule creates a webhook alert rule.
+// @Summary      Create alert rule
+// @Description  Create a priority-ordered alert rule that targets webhook channels or suppresses matching events
+// @Tags         alerts
+// @Accept       json
+// @Produce      json
+// @ID           createAlertRule
+// @Param        request  body      alertRuleRequest  true  "Alert rule payload"
+// @Success      201      {object}  utils.APIResponse{data=object{rule=AlertRuleResponse}}
+// @Failure      400      {object}  utils.APIResponse
+// @Failure      409      {object}  utils.APIResponse
+// @Failure      500      {object}  utils.APIResponse
+// @Router       /v1/alerts/rules [post]
+func (s *Server) createAlertRule(c *gin.Context) {
+	var request alertRuleRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		utils.BadRequest(c, "Invalid alert rule payload")
+		return
+	}
+
+	rule := alertRouteFromRuleRequest(request)
+	rule.ID = utils.GenerateID("alert_rule")
+	if err := validateAlertEvents(request.EventTypes); err != nil {
+		utils.BadRequest(c, err.Error())
+		return
+	}
+	if err := validateAlertRule(rule); err != nil {
+		utils.BadRequest(c, err.Error())
+		return
+	}
+	if err := s.ensureAlertRuleWebhookChannelsExist(rule); err != nil {
+		utils.BadRequest(c, err.Error())
+		return
+	}
+	if err := s.ensureUniqueAlertRouteName(rule.Name, rule.ID); err != nil {
+		writeAlertNameConflict(c, err, "Alert rule name already exists")
+		return
+	}
+
+	if err := s.db.Create(&rule).Error; err != nil {
+		s.logger.Error("Failed to create alert rule", "error", err)
+		utils.InternalError(c, "Failed to create alert rule", err)
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusCreated, "Alert rule created successfully", gin.H{
+		"rule": alertRuleResponse(rule),
+	})
+}
+
+// updateAlertRule updates a webhook alert rule.
+// @Summary      Update alert rule
+// @Description  Update alert rule match filters, webhook channels, or suppression behavior
+// @Tags         alerts
+// @Accept       json
+// @Produce      json
+// @ID           updateAlertRule
+// @Param        id       path      string            true  "Alert rule ID"
+// @Param        request  body      alertRuleRequest  true  "Alert rule payload"
+// @Success      200      {object}  utils.APIResponse{data=object{rule=AlertRuleResponse}}
+// @Failure      400      {object}  utils.APIResponse
+// @Failure      404      {object}  utils.APIResponse
+// @Failure      409      {object}  utils.APIResponse
+// @Failure      500      {object}  utils.APIResponse
+// @Router       /v1/alerts/rules/{id} [patch]
+func (s *Server) updateAlertRule(c *gin.Context) {
+	var rule db.AlertRoute
+	if err := s.db.Where("id = ?", c.Param("id")).First(&rule).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			utils.NotFound(c, "Alert rule not found")
+			return
+		}
+		s.logger.Error("Failed to load alert rule", "error", err)
+		utils.InternalError(c, "Failed to update alert rule", err)
+		return
+	}
+
+	var request alertRuleRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		utils.BadRequest(c, "Invalid alert rule payload")
+		return
+	}
+
+	mergeAlertRuleRequest(&rule, request)
+	if err := validateAlertRule(rule); err != nil {
+		utils.BadRequest(c, err.Error())
+		return
+	}
+	if err := s.ensureAlertRuleWebhookChannelsExist(rule); err != nil {
+		utils.BadRequest(c, err.Error())
+		return
+	}
+	if err := s.ensureUniqueAlertRouteName(rule.Name, rule.ID); err != nil {
+		writeAlertNameConflict(c, err, "Alert rule name already exists")
+		return
+	}
+
+	if err := s.db.Save(&rule).Error; err != nil {
+		s.logger.Error("Failed to update alert rule", "error", err)
+		utils.InternalError(c, "Failed to update alert rule", err)
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, "Alert rule updated successfully", gin.H{
+		"rule": alertRuleResponse(rule),
+	})
+}
+
+// deleteAlertRule deletes a webhook alert rule.
+// @Summary      Delete alert rule
+// @Description  Delete an alert rule. Existing delivery history is preserved.
+// @Tags         alerts
+// @Accept       json
+// @Produce      json
+// @ID           deleteAlertRule
+// @Param        id   path      string  true  "Alert rule ID"
+// @Success      200  {object}  utils.APIResponse
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/alerts/rules/{id} [delete]
+func (s *Server) deleteAlertRule(c *gin.Context) {
+	result := s.db.Where("id = ?", c.Param("id")).Delete(&db.AlertRoute{})
+	if result.Error != nil {
+		s.logger.Error("Failed to delete alert rule", "error", result.Error)
+		utils.InternalError(c, "Failed to delete alert rule", result.Error)
+		return
+	}
+	if result.RowsAffected == 0 {
+		utils.NotFound(c, "Alert rule not found")
+		return
+	}
+	utils.SuccessResponse(c, http.StatusOK, "Alert rule deleted successfully", gin.H{})
+}
+
+// enableAlertRule enables a webhook alert rule.
+// @Summary      Enable alert rule
+// @Description  Enable an alert rule without changing its filters or webhook destinations.
+// @Tags         alerts
+// @Accept       json
+// @Produce      json
+// @ID           enableAlertRule
+// @Param        id   path      string  true  "Alert rule ID"
+// @Success      200  {object}  utils.APIResponse{data=object{rule=AlertRuleResponse}}
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/alerts/rules/{id}/enable [post]
+func (s *Server) enableAlertRule(c *gin.Context) {
+	s.setAlertRuleEnabled(c, true)
+}
+
+// disableAlertRule disables a webhook alert rule.
+// @Summary      Disable alert rule
+// @Description  Disable an alert rule without changing its filters or webhook destinations.
+// @Tags         alerts
+// @Accept       json
+// @Produce      json
+// @ID           disableAlertRule
+// @Param        id   path      string  true  "Alert rule ID"
+// @Success      200  {object}  utils.APIResponse{data=object{rule=AlertRuleResponse}}
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/alerts/rules/{id}/disable [post]
+func (s *Server) disableAlertRule(c *gin.Context) {
+	s.setAlertRuleEnabled(c, false)
+}
+
+func (s *Server) setAlertRuleEnabled(c *gin.Context, enabled bool) {
+	var rule db.AlertRoute
+	if err := s.db.Where("id = ?", c.Param("id")).First(&rule).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			utils.NotFound(c, "Alert rule not found")
+			return
+		}
+		s.logger.Error("Failed to load alert rule", "error", err)
+		utils.InternalError(c, "Failed to update alert rule", err)
+		return
+	}
+	rule.Enabled = enabled
+	if err := s.db.Save(&rule).Error; err != nil {
+		s.logger.Error("Failed to update alert rule", "error", err)
+		utils.InternalError(c, "Failed to update alert rule", err)
+		return
+	}
+	utils.SuccessResponse(c, http.StatusOK, "Alert rule updated successfully", gin.H{
+		"rule": alertRuleResponse(rule),
+	})
+}
+
+// dryRunAlertRules evaluates webhook alert rules without sending notifications.
+// @Summary      Dry-run alert rules
+// @Description  Explain rule event matching, suppression, cooldown, grouping, and webhook destination decisions without creating deliveries or sending notifications
+// @Tags         alerts
+// @Accept       json
+// @Produce      json
+// @ID           dryRunAlertRules
+// @Param        request  body      alertRouteDryRunRequest  true  "Alert rule dry-run payload"
+// @Success      200      {object}  utils.APIResponse{data=object{dry_run=AlertRuleDryRunResponse}}
+// @Failure      400      {object}  utils.APIResponse
+// @Failure      404      {object}  utils.APIResponse
+// @Failure      500      {object}  utils.APIResponse
+// @Router       /v1/alerts/rules/dry-run [post]
+func (s *Server) dryRunAlertRules(c *gin.Context) {
+	event, ok := s.alertDryRunEventFromRequest(c, "rule")
+	if !ok {
+		return
+	}
+	result, err := service.NewAlertService(s.db, s.logger, s.cfg).DryRunRoutes(event)
+	if err != nil {
+		s.logger.Error("Failed to dry-run alert rules", "error", err)
+		utils.InternalError(c, "Failed to dry-run alert rules", err)
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, "Alert rules dry-run evaluated successfully", gin.H{
+		"dry_run": alertRuleDryRunResponse(result),
 	})
 }
 
@@ -1203,11 +894,6 @@ func (s *Server) alertChannelResponse(channel db.AlertChannel) AlertChannelRespo
 		WebhookURL:                 channel.WebhookURL,
 		WebhookConfigured:          channel.WebhookURL != "",
 		WebhookSignatureConfigured: channel.WebhookSigningSecret != "",
-		EmailToConfigured:          channel.EmailTo != "",
-		EmailFromConfigured:        channel.EmailFrom != "",
-		SMTPHostConfigured:         channel.SMTPHost != "",
-		SMTPPortConfigured:         channel.SMTPPort > 0,
-		SMTPUsernameConfigured:     channel.SMTPUsername != "",
 		SubscribedEvents:           db.DecodeAlertEvents(channel.SubscribedEvents),
 		CreatedAt:                  channel.CreatedAt,
 		UpdatedAt:                  channel.UpdatedAt,
@@ -1221,112 +907,6 @@ func (s *Server) alertChannelResponse(channel db.AlertChannel) AlertChannelRespo
 	}
 
 	return response
-}
-
-func alertSMTPServiceResponse(smtpService db.AlertSMTPService) AlertSMTPServiceResponse {
-	return AlertSMTPServiceResponse{
-		ID:                 smtpService.ID,
-		Name:               smtpService.Name,
-		Enabled:            smtpService.Enabled,
-		Host:               smtpService.Host,
-		Port:               smtpService.Port,
-		FromEmail:          smtpService.FromEmail,
-		UsernameConfigured: smtpService.Username != "",
-		PasswordConfigured: smtpService.Password != "",
-		CreatedAt:          smtpService.CreatedAt,
-		UpdatedAt:          smtpService.UpdatedAt,
-	}
-}
-
-func (s *Server) alertEmailDestinationResponse(destination db.AlertEmailDestination, smtpService db.AlertSMTPService) AlertEmailDestinationResponse {
-	response := AlertEmailDestinationResponse{
-		ID:               destination.ID,
-		SMTPServiceID:    destination.SMTPServiceID,
-		SMTPServiceName:  smtpService.Name,
-		Name:             destination.Name,
-		Enabled:          destination.Enabled,
-		EmailTo:          destination.EmailTo,
-		SubscribedEvents: db.DecodeAlertEvents(destination.SubscribedEvents),
-		CreatedAt:        destination.CreatedAt,
-		UpdatedAt:        destination.UpdatedAt,
-	}
-
-	var delivery db.AlertDelivery
-	result := s.db.Where("channel = ?", destination.Name).Order("created_at DESC").Limit(1).Find(&delivery)
-	if result.Error == nil && result.RowsAffected > 0 {
-		response.LastDeliveryStatus = delivery.Status
-		response.LastDeliveryAt = &delivery.CreatedAt
-	}
-
-	return response
-}
-
-func (s *Server) alertSMTPServicesByID(destinations []db.AlertEmailDestination) (map[string]db.AlertSMTPService, error) {
-	ids := make([]string, 0, len(destinations))
-	seen := map[string]bool{}
-	for _, destination := range destinations {
-		if destination.SMTPServiceID == "" || seen[destination.SMTPServiceID] {
-			continue
-		}
-		seen[destination.SMTPServiceID] = true
-		ids = append(ids, destination.SMTPServiceID)
-	}
-	servicesByID := map[string]db.AlertSMTPService{}
-	if len(ids) == 0 {
-		return servicesByID, nil
-	}
-
-	var services []db.AlertSMTPService
-	if err := s.db.Where("id IN ?", ids).Find(&services).Error; err != nil {
-		return nil, err
-	}
-	for _, service := range services {
-		servicesByID[service.ID] = service
-	}
-	return servicesByID, nil
-}
-
-func (s *Server) findAlertSMTPService(id string) (db.AlertSMTPService, bool, error) {
-	var smtpService db.AlertSMTPService
-	if err := s.db.Where("id = ?", id).First(&smtpService).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return db.AlertSMTPService{}, false, nil
-		}
-		return db.AlertSMTPService{}, false, err
-	}
-	return smtpService, true, nil
-}
-
-func (s *Server) ensureUniqueAlertSMTPServiceName(name string, excludedID string) error {
-	query := s.db.Model(&db.AlertSMTPService{}).Where("name = ?", name)
-	if excludedID != "" {
-		query = query.Where("id <> ?", excludedID)
-	}
-	var existing int64
-	if err := query.Count(&existing).Error; err != nil {
-		s.logger.Error("Failed to check alert SMTP service name", "error", err)
-		return err
-	}
-	if existing > 0 {
-		return gorm.ErrDuplicatedKey
-	}
-	return nil
-}
-
-func (s *Server) ensureUniqueAlertEmailDestinationName(name string, excludedID string) error {
-	query := s.db.Model(&db.AlertEmailDestination{}).Where("name = ?", name)
-	if excludedID != "" {
-		query = query.Where("id <> ?", excludedID)
-	}
-	var existing int64
-	if err := query.Count(&existing).Error; err != nil {
-		s.logger.Error("Failed to check alert email destination name", "error", err)
-		return err
-	}
-	if existing > 0 {
-		return gorm.ErrDuplicatedKey
-	}
-	return nil
 }
 
 func (s *Server) ensureUniqueAlertRouteName(name string, excludedID string) error {
@@ -1352,17 +932,133 @@ func (s *Server) ensureAlertRouteChannelsExist(route db.AlertRoute) error {
 	}
 
 	var channelCount int64
-	if err := s.db.Model(&db.AlertChannel{}).Where("id IN ?", channelIDs).Count(&channelCount).Error; err != nil {
+	if err := s.db.Model(&db.AlertChannel{}).Where("id IN ? AND type = ?", channelIDs, "webhook").Count(&channelCount).Error; err != nil {
 		return err
 	}
-	var destinationCount int64
-	if err := s.db.Model(&db.AlertEmailDestination{}).Where("id IN ?", channelIDs).Count(&destinationCount).Error; err != nil {
-		return err
-	}
-	if int(channelCount+destinationCount) != len(channelIDs) {
-		return &requestValidationError{message: "alert route channel_ids must reference existing alert channels or email destinations"}
+	if int(channelCount) != len(channelIDs) {
+		return &requestValidationError{message: "alert route channel_ids must reference existing webhook alert channels"}
 	}
 	return nil
+}
+
+func (s *Server) ensureAlertRuleWebhookChannelsExist(rule db.AlertRoute) error {
+	channelIDs := decodeResponseList(rule.ChannelIDs, nil)
+	if len(channelIDs) == 0 || rule.Suppress {
+		return nil
+	}
+
+	var channelCount int64
+	if err := s.db.Model(&db.AlertChannel{}).Where("id IN ? AND type = ?", channelIDs, "webhook").Count(&channelCount).Error; err != nil {
+		return err
+	}
+	if int(channelCount) != len(channelIDs) {
+		return &requestValidationError{message: "alert rule channel_ids must reference existing webhook alert channels"}
+	}
+	return nil
+}
+
+func alertRouteFromRuleRequest(request alertRuleRequest) db.AlertRoute {
+	rule := db.AlertRoute{
+		Name:                 strings.TrimSpace(request.Name),
+		Enabled:              true,
+		Priority:             100,
+		EventTypes:           encodeStringList(normalizeAlertEvents(request.EventTypes)),
+		Severities:           encodeStringList(normalizeStringList(request.Severities)),
+		AgentIDs:             encodeStringList(normalizeStringList(request.AgentIDs)),
+		MonitorIDs:           encodeStringList(normalizeStringList(request.MonitorIDs)),
+		MonitorTypes:         encodeStringList(normalizeStringList(request.MonitorTypes)),
+		ChannelIDs:           encodeStringList(normalizeStringList(request.ChannelIDs)),
+		GroupingPolicy:       normalizeAlertGroupingPolicy(request.GroupingPolicy),
+		GroupingDelaySeconds: db.DefaultAlertGroupingDelaySeconds,
+	}
+	if request.Enabled != nil {
+		rule.Enabled = *request.Enabled
+	}
+	if request.Priority != nil {
+		rule.Priority = *request.Priority
+	}
+	if request.Suppress != nil {
+		rule.Suppress = *request.Suppress
+	}
+	if request.GroupingDelaySeconds != nil {
+		rule.GroupingDelaySeconds = *request.GroupingDelaySeconds
+	}
+	return rule
+}
+
+func mergeAlertRuleRequest(rule *db.AlertRoute, request alertRuleRequest) {
+	if strings.TrimSpace(request.Name) != "" {
+		rule.Name = strings.TrimSpace(request.Name)
+	}
+	if request.Enabled != nil {
+		rule.Enabled = *request.Enabled
+	}
+	if request.Priority != nil {
+		rule.Priority = *request.Priority
+	}
+	if request.EventTypes != nil {
+		rule.EventTypes = encodeStringList(normalizeAlertEvents(request.EventTypes))
+	}
+	if request.Severities != nil {
+		rule.Severities = encodeStringList(normalizeStringList(request.Severities))
+	}
+	if request.AgentIDs != nil {
+		rule.AgentIDs = encodeStringList(normalizeStringList(request.AgentIDs))
+	}
+	if request.MonitorIDs != nil {
+		rule.MonitorIDs = encodeStringList(normalizeStringList(request.MonitorIDs))
+	}
+	if request.MonitorTypes != nil {
+		rule.MonitorTypes = encodeStringList(normalizeStringList(request.MonitorTypes))
+	}
+	if request.ChannelIDs != nil {
+		rule.ChannelIDs = encodeStringList(normalizeStringList(request.ChannelIDs))
+	}
+	if request.Suppress != nil {
+		rule.Suppress = *request.Suppress
+	}
+	if strings.TrimSpace(request.GroupingPolicy) != "" {
+		rule.GroupingPolicy = normalizeAlertGroupingPolicy(request.GroupingPolicy)
+	}
+	if request.GroupingDelaySeconds != nil {
+		rule.GroupingDelaySeconds = *request.GroupingDelaySeconds
+	}
+}
+
+func (s *Server) alertDryRunEventFromRequest(c *gin.Context, resourceName string) (service.AlertRouteContext, bool) {
+	var request alertRouteDryRunRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		utils.BadRequest(c, "Invalid alert "+resourceName+" dry-run payload")
+		return service.AlertRouteContext{}, false
+	}
+	if !db.ValidAlertEvent(strings.TrimSpace(request.EventType)) {
+		utils.BadRequest(c, "unsupported alert "+resourceName+" event")
+		return service.AlertRouteContext{}, false
+	}
+
+	alertService := service.NewAlertService(s.db, s.logger, s.cfg)
+	event := service.AlertRouteContext{
+		IncidentID:  strings.TrimSpace(request.IncidentID),
+		EventType:   strings.TrimSpace(request.EventType),
+		Severity:    strings.TrimSpace(request.Severity),
+		AgentID:     strings.TrimSpace(request.AgentID),
+		MonitorID:   strings.TrimSpace(request.MonitorID),
+		MonitorType: strings.TrimSpace(request.MonitorType),
+	}
+	if event.IncidentID != "" {
+		loaded, err := alertService.LoadAlertRouteContext(event.IncidentID, event.EventType)
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				utils.NotFound(c, "Incident not found")
+				return service.AlertRouteContext{}, false
+			}
+			s.logger.Error("Failed to load incident for alert "+resourceName+" dry-run", "incident_id", event.IncidentID, "error", err)
+			utils.InternalError(c, "Failed to dry-run alert "+resourceName+"s", err)
+			return service.AlertRouteContext{}, false
+		}
+		event = mergeAlertRouteContext(*loaded, event)
+	}
+	return event, true
 }
 
 func writeAlertNameConflict(c *gin.Context, err error, message string) {
@@ -1384,50 +1080,11 @@ func validateAlertChannel(channel db.AlertChannel) error {
 	if strings.TrimSpace(channel.Name) == "" {
 		return &requestValidationError{message: "alert channel name is required"}
 	}
-	switch channel.Type {
-	case "webhook", "slack", "discord":
-		if strings.TrimSpace(channel.WebhookURL) == "" {
-			return &requestValidationError{message: channel.Type + " alert channel requires webhook_url"}
-		}
-	case "email":
-		if strings.TrimSpace(channel.EmailTo) == "" || strings.TrimSpace(channel.EmailFrom) == "" || strings.TrimSpace(channel.SMTPHost) == "" || channel.SMTPPort <= 0 {
-			return &requestValidationError{message: "email alert channel requires email_to, email_from, smtp_host, and smtp_port"}
-		}
-	default:
+	if channel.Type != "webhook" {
 		return &requestValidationError{message: "unsupported alert channel type"}
 	}
-	for _, event := range db.DecodeAlertEvents(channel.SubscribedEvents) {
-		if !db.ValidAlertEvent(event) {
-			return &requestValidationError{message: "unsupported alert channel event"}
-		}
-	}
-	return nil
-}
-
-func validateAlertSMTPService(smtpService db.AlertSMTPService) error {
-	if strings.TrimSpace(smtpService.Name) == "" {
-		return &requestValidationError{message: "alert SMTP service name is required"}
-	}
-	if strings.TrimSpace(smtpService.Host) == "" || smtpService.Port <= 0 || strings.TrimSpace(smtpService.FromEmail) == "" {
-		return &requestValidationError{message: "alert SMTP service requires host, port, and from_email"}
-	}
-	return nil
-}
-
-func validateAlertEmailDestination(destination db.AlertEmailDestination) error {
-	if strings.TrimSpace(destination.Name) == "" {
-		return &requestValidationError{message: "alert email destination name is required"}
-	}
-	if strings.TrimSpace(destination.SMTPServiceID) == "" {
-		return &requestValidationError{message: "alert email destination requires smtp_service_id"}
-	}
-	if strings.TrimSpace(destination.EmailTo) == "" {
-		return &requestValidationError{message: "alert email destination requires email_to"}
-	}
-	for _, event := range db.DecodeAlertEvents(destination.SubscribedEvents) {
-		if !db.ValidAlertEvent(event) {
-			return &requestValidationError{message: "unsupported alert email destination event"}
-		}
+	if strings.TrimSpace(channel.WebhookURL) == "" {
+		return &requestValidationError{message: "webhook alert channel requires webhook_url"}
 	}
 	return nil
 }
@@ -1457,6 +1114,16 @@ func validateAlertRoute(route db.AlertRoute) error {
 	}
 	if !route.Suppress && len(decodeResponseList(route.ChannelIDs, nil)) == 0 {
 		return &requestValidationError{message: "alert route requires channel_ids unless suppress is true"}
+	}
+	return nil
+}
+
+func validateAlertRule(rule db.AlertRoute) error {
+	if err := validateAlertRoute(rule); err != nil {
+		if validationErr, ok := err.(*requestValidationError); ok {
+			return &requestValidationError{message: strings.ReplaceAll(validationErr.message, "alert route", "alert rule")}
+		}
+		return err
 	}
 	return nil
 }

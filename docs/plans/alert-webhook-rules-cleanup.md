@@ -46,3 +46,13 @@ The main conflict risk is in Core alert service and API files, because destinati
 The main product risk is replacing a scattered alert model with another scattered model if route, rule, destination, and delivery language are not normalized together. [Likely]
 
 The main security risk is treating generic webhooks as harmless after removing provider-specific integrations. [Likely]
+
+## Contract Reconciliation
+
+Generated OpenAPI must come from Core route annotations, not from the route table alone. [Certain]
+
+Rule write endpoints should appear in generated contracts only after their handlers and annotations exist. [Certain]
+
+Until the Core implementation lands, the generated contract can truthfully expose only annotated alert APIs. [Certain]
+
+Demo alert delivery seed data should use `type = webhook` only; public status page subscriber email seed data remains separate from internal alerting. [Certain]
