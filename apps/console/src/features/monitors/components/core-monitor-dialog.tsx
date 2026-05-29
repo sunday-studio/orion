@@ -371,7 +371,11 @@ export const CoreMonitorDialog = ({
             </label>
           </div>
 
-          {error && <p className="text-sm text-rose-700">{error}</p>}
+          {error && (
+            <div className="border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+              {error}
+            </div>
+          )}
 
           <DialogFooter>
             <Button variant="outline" onClick={() => onOpenChange(false)}>

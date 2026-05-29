@@ -14,10 +14,14 @@ curl -fsSL -o orion-compose.yaml \
 - [ ] Edit `orion-compose.yaml` and set real values for:
 
 ```txt
+ORION_REQUIRE_FRONTEND_AUTH=true
 ORION_ADMIN_USERNAME
 ORION_ADMIN_PASSWORD
 ORION_JWT_SECRET
 ```
+
+Core should not be exposed without the auth guard and all three admin auth values, because Console
+monitor admin APIs are otherwise unauthenticated.
 
 - [ ] Start Core:
 

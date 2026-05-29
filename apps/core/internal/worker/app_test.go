@@ -182,6 +182,88 @@ func TestRunDueChecksRejectsBlockedHTTPRedirect(t *testing.T) {
 	}
 }
 
+func TestRunDueChecksRejectsBlockedPrivateHTTPRedirect(t *testing.T) {
+	database := openWorkerMigratedTestDatabase(t)
+	calls := 0
+	httpClient := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		calls++
+		response := workerHTTPResponse(http.StatusFound)
+		response.Header.Set("Location", "http://10.0.0.5/admin")
+		response.Request = r
+		return response, nil
+	})}
+
+	insertWorkerCoreOwner(t, database)
+	insertWorkerMonitor(t, database, "monitor-http-private-redirect")
+	insertWorkerCoreMonitorConfig(t, database, db.CoreMonitorConfig{
+		MonitorID:       "monitor-http-private-redirect",
+		Kind:            "http",
+		ConfigJSON:      `{"url":"https://example.com/start","expected_status":200}`,
+		IntervalSeconds: 60,
+		TimeoutSeconds:  5,
+		NextRunAt:       time.Now().UTC().Add(-time.Minute),
+	})
+
+	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
+	if err := app.runDueChecks(context.Background()); err != nil {
+		t.Fatalf("runDueChecks() error = %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("transport calls = %d, want only initial request before blocked redirect", calls)
+	}
+
+	report := loadWorkerMonitorReport(t, database, "monitor-http-private-redirect")
+	if report.Health != "down" {
+		t.Fatalf("report health = %q, want down", report.Health)
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
+		t.Fatalf("unmarshal report payload: %v", err)
+	}
+	if payload["failure_stage"] != "http_request" || payload["ok"] != false {
+		t.Fatalf("payload = %+v, want blocked private redirect failure", payload)
+	}
+}
+
+func TestRunDueChecksRejectsBlockedHTTPConfigBeforeTransport(t *testing.T) {
+	database := openWorkerMigratedTestDatabase(t)
+	httpClient := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		t.Fatalf("transport called for blocked target %s", r.URL.String())
+		return workerHTTPResponse(http.StatusOK), nil
+	})}
+
+	insertWorkerCoreOwner(t, database)
+	insertWorkerMonitor(t, database, "monitor-http-metadata")
+	insertWorkerCoreMonitorConfig(t, database, db.CoreMonitorConfig{
+		MonitorID:       "monitor-http-metadata",
+		Kind:            "http",
+		ConfigJSON:      `{"url":"http://169.254.169.254/latest/meta-data?token=secret","expected_status":200}`,
+		IntervalSeconds: 60,
+		TimeoutSeconds:  5,
+		NextRunAt:       time.Now().UTC().Add(-time.Minute),
+	})
+
+	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
+	if err := app.runDueChecks(context.Background()); err != nil {
+		t.Fatalf("runDueChecks() error = %v", err)
+	}
+
+	report := loadWorkerMonitorReport(t, database, "monitor-http-metadata")
+	if report.Health != "down" {
+		t.Fatalf("report health = %q, want down", report.Health)
+	}
+	if strings.Contains(report.Payload, "token=secret") {
+		t.Fatalf("blocked report leaked query secret: %s", report.Payload)
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
+		t.Fatalf("unmarshal report payload: %v", err)
+	}
+	if payload["failure_stage"] != "config" || payload["ok"] != false {
+		t.Fatalf("payload = %+v, want config failure before transport", payload)
+	}
+}
+
 func TestRunDueChecksAllowsPrivateHTTPWhenConfigured(t *testing.T) {
 	database := openWorkerMigratedTestDatabase(t)
 	httpClient := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {

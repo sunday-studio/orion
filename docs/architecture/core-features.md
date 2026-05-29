@@ -59,6 +59,8 @@ Frontend auth:
 
 - Enabled only when `ORION_ADMIN_USERNAME` and `ORION_ADMIN_PASSWORD` are set.
 - `ORION_JWT_SECRET` is required when frontend auth is enabled.
+- Exposed deployments should set `ORION_REQUIRE_FRONTEND_AUTH=true`; startup then fails unless
+  username, password, and JWT secret are all configured.
 - Login uses constant-time username/password comparison.
 - Failed login attempts are rate limited per client IP.
 - Successful login returns a 24-hour JWT.
