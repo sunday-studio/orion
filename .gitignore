@@ -1,5 +1,6 @@
 todo.md
 .DS_Store
+.maat/
 
 # Local databases and runtime state
 app/core/data
@@ -14,6 +15,7 @@ apps/*/node_modules/
 # Frontend build outputs
 apps/console/dist/
 apps/console/src/orion-sdk/
+apps/console/test-results/
 
 # agent
 apps/agent/orion-agent
