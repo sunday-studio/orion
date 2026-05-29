@@ -67,6 +67,12 @@ ORION_PUBLIC_STATUS_URL_ORIGIN=https://status.example.com
 ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET=replace-with-a-long-random-secret
 ```
 
+Subscriber privacy retention runs inside the Core data lifecycle scheduler. The current hot-database
+defaults are 7 days after pending confirmation expiry, 90 days for unsubscribed or bounced
+subscriber suppression records, and 180 days for subscriber delivery rows. The job records audit
+events before anonymization or hard deletion, and it still runs when raw report archiving is set to
+manual mode.
+
 Start Core. If you skip the `.env` file, Compose uses the defaults in `orion-compose.yaml`.
 Compose starts two services:
 
