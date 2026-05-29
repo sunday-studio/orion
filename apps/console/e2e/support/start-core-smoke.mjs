@@ -126,6 +126,7 @@ start("go", ["run", "."], {
     ...process.env,
     ORION_ADMIN_USERNAME: adminUsername,
     ORION_ADMIN_PASSWORD: adminPassword,
+    ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS: "true",
     ORION_JWT_SECRET: jwtSecret,
     ORION_CORS_ORIGINS: consoleURL,
     ORION_PORT: corePort,
