@@ -1,0 +1,13 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - modernize
+  settings:
+    modernize:
+      disable:
+        - newexpr
+
+run:
+  timeout: 5m

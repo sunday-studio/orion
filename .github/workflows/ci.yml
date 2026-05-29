@@ -57,6 +57,7 @@ jobs:
               - 'Makefile'
               - '.github/workflows/ci.yml'
             core:
+              - '.golangci.yml'
               - 'apps/core/**'
               - 'deploy/docker-compose.yml'
               - 'deploy/examples/core-console-compose.yaml'
@@ -111,10 +112,54 @@ jobs:
         run: go test ./...
         working-directory: apps/core
 
+      - name: Race test Core concurrency packages
+        run: go test -race ./internal/service ./internal/worker
+        working-directory: apps/core
+
       - name: Build Core binaries
         run: |
           make core-build CORE_OUTPUT=/tmp/orion-core
           make core-worker-build CORE_WORKER_OUTPUT=/tmp/orion-core-worker
+
+  core-modernize:
+    name: Core modernize lint
+    runs-on: ubuntu-24.04
+    needs: changes
+    if: needs.changes.outputs.core == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/core/go.mod
+          cache-dependency-path: apps/core/go.sum
+
+      - name: Modernize lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.12.2
+          working-directory: apps/core
+          args: --config=../../.golangci.yml ./...
+          only-new-issues: true
+
+  core-vulncheck:
+    name: Core govulncheck
+    runs-on: ubuntu-24.04
+    needs: changes
+    if: needs.changes.outputs.core == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Govulncheck
+        uses: golang/govulncheck-action@v1
+        with:
+          go-version-file: apps/core/go.mod
+          cache-dependency-path: apps/core/go.sum
+          work-dir: apps/core
+          repo-checkout: false
 
   console:
     name: Console build
@@ -143,6 +188,10 @@ jobs:
 
       - name: Install Console dependencies
         run: pnpm install --frozen-lockfile
+        working-directory: apps/console
+
+      - name: Generate Console API client
+        run: pnpm run generate:api
         working-directory: apps/console
 
       - name: Build Console
@@ -196,8 +245,8 @@ jobs:
         run: |
           git diff --exit-code -- \
             apps/core/docs \
-            apps/core/openapi.yaml \
-            apps/console/src/orion-sdk
+            apps/core/openapi.yaml
+          test -s apps/console/src/orion-sdk/index.ts
 
   repository-smoke:
     name: Repository smoke
