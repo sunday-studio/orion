@@ -1,0 +1,34 @@
+meta:
+  title: python-sleep-compose
+  description: Local Orion example server
+
+core_url: http://localhost:8999
+interval: 30s
+geo_location: false
+
+monitors:
+  - name: python-health
+    description: Python example HTTP health
+    type: http-healthcheck
+    interval: 30s
+    http:
+      url: http://localhost:8080/health
+      timeout: 3s
+      expected_status: 200
+      expected_body: '"status": "up"'
+
+  - name: python-port
+    description: Python example TCP port
+    type: tcp
+    interval: 30s
+    tcp:
+      host: 127.0.0.1
+      port: 8080
+      timeout: 3s
+
+  - name: example-disk
+    description: Local disk pressure on the machine running orion-agent
+    type: resource-threshold
+    interval: 60s
+    resource:
+      max_disk_percent: 95
