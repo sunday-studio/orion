@@ -756,6 +756,171 @@ func TestStatusPageAdminAPIFlow(t *testing.T) {
 	}
 }
 
+func TestStatusPageAdminDeleteRoutesRemoveNestedRecords(t *testing.T) {
+	server := setupTestServer(t)
+	registered := registerTestAgent(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+
+	createPageResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages", gin.H{
+		"slug":  "delete-status",
+		"title": "Delete Status",
+	}, "")
+	if createPageResp.Code != http.StatusCreated {
+		t.Fatalf("create status page status = %d, body = %s", createPageResp.Code, createPageResp.Body.String())
+	}
+	var createdPage struct {
+		Data struct {
+			Page struct {
+				ID string `json:"id"`
+			} `json:"page"`
+		} `json:"data"`
+	}
+	decodeResponse(t, createPageResp, &createdPage)
+
+	createSection := func(name string) string {
+		resp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+createdPage.Data.Page.ID+"/sections", gin.H{
+			"name": name,
+		}, "")
+		if resp.Code != http.StatusCreated {
+			t.Fatalf("create section status = %d, body = %s", resp.Code, resp.Body.String())
+		}
+		var payload struct {
+			Data struct {
+				Section struct {
+					ID string `json:"id"`
+				} `json:"section"`
+			} `json:"data"`
+		}
+		decodeResponse(t, resp, &payload)
+		return payload.Data.Section.ID
+	}
+
+	createComponent := func(sectionID string, name string) string {
+		resp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+createdPage.Data.Page.ID+"/components", gin.H{
+			"section_id":   sectionID,
+			"public_name":  name,
+			"display_mode": "single_resource",
+			"visible":      true,
+		}, "")
+		if resp.Code != http.StatusCreated {
+			t.Fatalf("create component status = %d, body = %s", resp.Code, resp.Body.String())
+		}
+		var payload struct {
+			Data struct {
+				Component struct {
+					ID string `json:"id"`
+				} `json:"component"`
+			} `json:"data"`
+		}
+		decodeResponse(t, resp, &payload)
+		return payload.Data.Component.ID
+	}
+
+	createMapping := func(componentID string) string {
+		resp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+createdPage.Data.Page.ID+"/components/"+componentID+"/mappings", gin.H{
+			"resource_type": "monitor",
+			"resource_id":   registeredMonitor.Data.MonitorID,
+		}, "")
+		if resp.Code != http.StatusCreated {
+			t.Fatalf("create mapping status = %d, body = %s", resp.Code, resp.Body.String())
+		}
+		var payload struct {
+			Data struct {
+				Mapping struct {
+					ID string `json:"id"`
+				} `json:"mapping"`
+			} `json:"data"`
+		}
+		decodeResponse(t, resp, &payload)
+		return payload.Data.Mapping.ID
+	}
+
+	countRows := func(model interface{}, query string, args ...interface{}) int64 {
+		var count int64
+		if err := server.db.Model(model).Where(query, args...).Count(&count).Error; err != nil {
+			t.Fatalf("count rows for %T: %v", model, err)
+		}
+		return count
+	}
+
+	sectionID := createSection("API")
+	componentID := createComponent(sectionID, "REST API")
+	mappingID := createMapping(componentID)
+	deleteMappingResp := performJSONRequest(t, server, http.MethodDelete, "/v1/status-pages/"+createdPage.Data.Page.ID+"/components/"+componentID+"/mappings/"+mappingID, nil, "")
+	if deleteMappingResp.Code != http.StatusOK {
+		t.Fatalf("delete mapping status = %d, body = %s", deleteMappingResp.Code, deleteMappingResp.Body.String())
+	}
+	if countRows(&db.StatusPageComponentMapping{}, "id = ?", mappingID) != 0 {
+		t.Fatalf("mapping %q still exists after delete", mappingID)
+	}
+
+	mappingID = createMapping(componentID)
+	now := time.Now().UTC()
+	createIncidentResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+createdPage.Data.Page.ID+"/incidents", gin.H{
+		"title":                  "Customer API issue",
+		"affected_component_ids": []string{componentID},
+	}, "")
+	if createIncidentResp.Code != http.StatusCreated {
+		t.Fatalf("create public incident status = %d, body = %s", createIncidentResp.Code, createIncidentResp.Body.String())
+	}
+	var createdIncident struct {
+		Data struct {
+			Incident struct {
+				ID string `json:"id"`
+			} `json:"incident"`
+		} `json:"data"`
+	}
+	decodeResponse(t, createIncidentResp, &createdIncident)
+	createUpdateResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+createdPage.Data.Page.ID+"/incidents/"+createdIncident.Data.Incident.ID+"/updates", gin.H{
+		"status":       "investigating",
+		"message":      "We are investigating.",
+		"published_at": now,
+	}, "")
+	if createUpdateResp.Code != http.StatusCreated {
+		t.Fatalf("create public incident update status = %d, body = %s", createUpdateResp.Code, createUpdateResp.Body.String())
+	}
+	deleteIncidentResp := performJSONRequest(t, server, http.MethodDelete, "/v1/status-pages/"+createdPage.Data.Page.ID+"/incidents/"+createdIncident.Data.Incident.ID, nil, "")
+	if deleteIncidentResp.Code != http.StatusOK {
+		t.Fatalf("delete incident status = %d, body = %s", deleteIncidentResp.Code, deleteIncidentResp.Body.String())
+	}
+	if countRows(&db.StatusPageIncident{}, "id = ?", createdIncident.Data.Incident.ID) != 0 ||
+		countRows(&db.StatusPageIncidentUpdate{}, "incident_id = ?", createdIncident.Data.Incident.ID) != 0 {
+		t.Fatalf("incident %q or its updates still exist after delete", createdIncident.Data.Incident.ID)
+	}
+
+	deleteComponentResp := performJSONRequest(t, server, http.MethodDelete, "/v1/status-pages/"+createdPage.Data.Page.ID+"/components/"+componentID, nil, "")
+	if deleteComponentResp.Code != http.StatusOK {
+		t.Fatalf("delete component status = %d, body = %s", deleteComponentResp.Code, deleteComponentResp.Body.String())
+	}
+	if countRows(&db.StatusPageComponent{}, "id = ?", componentID) != 0 ||
+		countRows(&db.StatusPageComponentMapping{}, "id = ?", mappingID) != 0 {
+		t.Fatalf("component %q or mapping %q still exists after delete", componentID, mappingID)
+	}
+
+	componentID = createComponent(sectionID, "GraphQL API")
+	deleteSectionResp := performJSONRequest(t, server, http.MethodDelete, "/v1/status-pages/"+createdPage.Data.Page.ID+"/sections/"+sectionID, nil, "")
+	if deleteSectionResp.Code != http.StatusOK {
+		t.Fatalf("delete section status = %d, body = %s", deleteSectionResp.Code, deleteSectionResp.Body.String())
+	}
+	if countRows(&db.StatusPageSection{}, "id = ?", sectionID) != 0 ||
+		countRows(&db.StatusPageComponent{}, "id = ?", componentID) != 0 {
+		t.Fatalf("section %q or component %q still exists after delete", sectionID, componentID)
+	}
+
+	sectionID = createSection("Web")
+	componentID = createComponent(sectionID, "Web App")
+	_ = createMapping(componentID)
+	deletePageResp := performJSONRequest(t, server, http.MethodDelete, "/v1/status-pages/"+createdPage.Data.Page.ID, nil, "")
+	if deletePageResp.Code != http.StatusOK {
+		t.Fatalf("delete page status = %d, body = %s", deletePageResp.Code, deletePageResp.Body.String())
+	}
+	if countRows(&db.StatusPage{}, "id = ?", createdPage.Data.Page.ID) != 0 ||
+		countRows(&db.StatusPageSection{}, "status_page_id = ?", createdPage.Data.Page.ID) != 0 ||
+		countRows(&db.StatusPageComponent{}, "status_page_id = ?", createdPage.Data.Page.ID) != 0 {
+		t.Fatalf("status page %q or nested rows still exist after delete", createdPage.Data.Page.ID)
+	}
+}
+
 func TestPublicStatusPageMetadataProjectionUsesSafeDefaultsAndConfiguredFields(t *testing.T) {
 	server := setupTestServer(t)
 	now := time.Now().UTC()
