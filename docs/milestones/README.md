@@ -10,6 +10,7 @@ This directory stores milestone snapshots: what shipped, what changed, what was 
 - [M4: Console Release Pass](m4-console-release-pass.md)
 - [M5: First Deploy Candidate](m5-first-deploy-candidate.md)
 - [M6: Core Monitor Catalog Expansion](m6-core-monitor-catalog.md)
+- [Monitor Readiness Reconciliation - 2026-05-29](monitor-readiness-reconciliation-2026-05-29.md)
 
 ## Template
 
