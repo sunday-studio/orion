@@ -9,7 +9,6 @@ import { HeartbeatSetupPanel } from "@/features/monitors/components/heartbeat-se
 import { MonitorList } from "@/features/monitors/components/monitor-list";
 import {
   type ApiCoreMonitorConfigResponse,
-  type ApiMonitorReportResponse,
   type ApiMonitorResponse,
   type ServiceCoreManagedMonitorCreateRequest,
   getMonitorHistory,
@@ -19,33 +18,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useState } from "react";
-
-const parseReportPayload = (report?: ApiMonitorReportResponse) => {
-  if (!report?.payload) return {};
-  try {
-    const parsed = JSON.parse(report.payload);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : {};
-  } catch {
-    return {};
-  }
-};
-
-const describeTestResult = (health: string, report?: ApiMonitorReportResponse) => {
-  const payload = parseReportPayload(report);
-  const statusCode = payload.status_code;
-  const expectedStatus = payload.expected_status;
-  const error = payload.error;
-  if (health === "up") return "Core monitor test reported up.";
-  if (typeof statusCode === "number" && expectedStatus !== undefined) {
-    return `Core monitor test reported ${health}: received HTTP ${statusCode}, expected ${String(expectedStatus)}.`;
-  }
-  if (typeof error === "string" && error.trim() !== "") {
-    return `Core monitor test reported ${health}: ${error}`;
-  }
-  return `Core monitor test reported ${health}. Review the latest check history row.`;
-};
+import { explainMonitorFailure } from "./monitor-result-summary";
 
 export const MonitorsPage = () => {
   const [createOpen, setCreateOpen] = useState(false);
@@ -92,8 +65,16 @@ export const MonitorsPage = () => {
         const tested = await testCoreMonitor(created.monitor.id);
         const history = await getMonitorHistory(created.monitor.id, { limit: 1, offset: 0 });
         const health =
-          tested.monitor?.computed_health ?? tested.monitor?.health ?? tested.result?.status ?? "unknown";
-        setCreateFeedback(describeTestResult(health, history.reports?.[0]));
+          tested.monitor?.computed_health ??
+          tested.monitor?.health ??
+          tested.result?.status ??
+          "unknown";
+        const explanation = explainMonitorFailure(history.reports?.[0], created.config?.kind);
+        setCreateFeedback(
+          health === "up"
+            ? "Core monitor test reported up."
+            : `Core monitor test reported ${health}: ${explanation}`,
+        );
         setCreateFeedbackTone(health === "up" ? "neutral" : "error");
       } finally {
         setIsTestingCreatedMonitor(false);
@@ -115,7 +96,11 @@ export const MonitorsPage = () => {
         </Button>
       </div>
       {createFeedback && (
-        <p className={createFeedbackTone === "error" ? "text-sm text-rose-700" : "text-sm text-neutral-600"}>
+        <p
+          className={
+            createFeedbackTone === "error" ? "text-sm text-rose-700" : "text-sm text-neutral-600"
+          }
+        >
           {createFeedback}
         </p>
       )}
