@@ -170,8 +170,8 @@ func (a *App) storePingReport(monitorID string, result pingResult) error {
 	return err
 }
 
-func pingPayload(result pingResult, resultErr error) map[string]interface{} {
-	payload := map[string]interface{}{
+func pingPayload(result pingResult, resultErr error) map[string]any {
+	payload := map[string]any{
 		"runner":             "core",
 		"type":               "ping",
 		"host":               result.Host,

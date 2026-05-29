@@ -207,7 +207,7 @@ func nearestExistingPath(path string) (string, error) {
 }
 
 func (s *ArchiveService) recordArchiveRun(now time.Time, status string, message string) error {
-	return s.db.Model(&db.DataLifecycleSettings{}).Where("id = ?", 1).Updates(map[string]interface{}{
+	return s.db.Model(&db.DataLifecycleSettings{}).Where("id = ?", 1).Updates(map[string]any{
 		"last_archive_run_at": now,
 		"last_archive_status": status,
 		"last_archive_error":  message,

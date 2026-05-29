@@ -193,6 +193,16 @@ Use the `golang-modernize` priority order, but apply it to Core in this order:
      Docker-image paths pass;
    - do not require Go 1.26 syntax until release CI and local contributor tooling are ready.
 
+Worker 7 readiness check, 2026-05-29:
+
+- Go 1.26.3 is the current Go 1.26 patch release in the official Go release history.
+- Core already targets `go 1.25.3`, so `any`, `slices`, `cmp`, and `t.Context()` are available
+  without raising the module directive.
+- This first modernization batch intentionally avoids Go 1.26-only syntax and experimental
+  `encoding/json/v2`, so it should remain compatible with the current Core module target.
+- A module upgrade to Go 1.26 should wait until Core tests, Agent tests, Console build, generated
+  OpenAPI/SDK checks, Docker image build, `govulncheck`, and the modernize linter all pass in CI.
+
 Avoid:
 
 - changing JSON semantics just to use newer APIs;

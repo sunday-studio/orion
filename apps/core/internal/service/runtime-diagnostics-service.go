@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -420,7 +420,7 @@ func percentiles(samples []int64) RuntimeLatencyPercentiles {
 		return RuntimeLatencyPercentiles{}
 	}
 	sorted := append([]int64(nil), samples...)
-	sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+	slices.Sort(sorted)
 	return RuntimeLatencyPercentiles{
 		Count: int64(len(samples)),
 		P50:   percentile(sorted, 50),

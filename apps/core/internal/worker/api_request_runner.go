@@ -10,7 +10,7 @@ import (
 	"orion/core/internal/db"
 	"orion/core/internal/service"
 	"reflect"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -31,8 +31,8 @@ type apiRequestSecrets struct {
 }
 
 type apiJSONAssertion struct {
-	Path   string      `json:"path"`
-	Equals interface{} `json:"equals"`
+	Path   string `json:"path"`
+	Equals any    `json:"equals"`
 }
 
 type apiRequestResult struct {
@@ -51,8 +51,8 @@ type apiRequestResult struct {
 	ResponseSample    string
 	ResponseTruncated bool
 	AssertionPath     string
-	AssertionExpected interface{}
-	AssertionActual   interface{}
+	AssertionExpected any
+	AssertionActual   any
 	Error             error
 	FailureStage      string
 }
@@ -239,12 +239,12 @@ func sortedHeaderKeys(headers map[string]string) []string {
 	for key := range headers {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 
 func evaluateAPIJSONAssertions(body string, assertions []apiJSONAssertion, result *apiRequestResult) error {
-	var decoded interface{}
+	var decoded any
 	if err := json.Unmarshal([]byte(body), &decoded); err != nil {
 		return fmt.Errorf("parse response json: %w", err)
 	}
@@ -266,7 +266,7 @@ func evaluateAPIJSONAssertions(body string, assertions []apiJSONAssertion, resul
 	return nil
 }
 
-func valueAtJSONPath(root interface{}, path string) (interface{}, bool) {
+func valueAtJSONPath(root any, path string) (any, bool) {
 	path = strings.TrimSpace(path)
 	if path == "" || path == "$" {
 		return root, true
@@ -281,13 +281,13 @@ func valueAtJSONPath(root interface{}, path string) (interface{}, bool) {
 			return nil, false
 		}
 		switch value := current.(type) {
-		case map[string]interface{}:
+		case map[string]any:
 			next, ok := value[segment]
 			if !ok {
 				return nil, false
 			}
 			current = next
-		case []interface{}:
+		case []any:
 			index, err := strconv.Atoi(segment)
 			if err != nil || index < 0 || index >= len(value) {
 				return nil, false
@@ -300,13 +300,13 @@ func valueAtJSONPath(root interface{}, path string) (interface{}, bool) {
 	return current, true
 }
 
-func jsonValuesEqual(actual interface{}, expected interface{}) bool {
+func jsonValuesEqual(actual any, expected any) bool {
 	actual = normalizeJSONScalar(actual)
 	expected = normalizeJSONScalar(expected)
 	return reflect.DeepEqual(actual, expected)
 }
 
-func normalizeJSONScalar(value interface{}) interface{} {
+func normalizeJSONScalar(value any) any {
 	switch typed := value.(type) {
 	case int:
 		return float64(typed)
@@ -335,8 +335,8 @@ func (a *App) storeAPIRequestReport(monitorID string, result apiRequestResult) e
 	return err
 }
 
-func apiRequestPayload(result apiRequestResult, resultErr error) map[string]interface{} {
-	payload := map[string]interface{}{
+func apiRequestPayload(result apiRequestResult, resultErr error) map[string]any {
+	payload := map[string]any{
 		"runner":             "core",
 		"type":               "api_request",
 		"method":             result.Method,

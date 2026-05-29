@@ -147,7 +147,7 @@ func TestMigrateAppliesStatusPageSchema(t *testing.T) {
 
 	for _, table := range []struct {
 		name  string
-		model interface{}
+		model any
 	}{
 		{name: "status_pages", model: &StatusPage{}},
 		{name: "status_page_sections", model: &StatusPageSection{}},
@@ -192,7 +192,7 @@ func TestMigrateAppliesStatusPageSchema(t *testing.T) {
 	}
 
 	for _, index := range []struct {
-		model interface{}
+		model any
 		name  string
 	}{
 		{model: &StatusPage{}, name: "idx_status_pages_slug"},

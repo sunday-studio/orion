@@ -99,7 +99,7 @@ func (s *Server) frontendAuthMiddleware() gin.HandlerFunc {
 		}
 		tokenStr := auth[7:]
 
-		t, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
+		t, err := jwt.Parse(tokenStr, func(t *jwt.Token) (any, error) {
 			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, jwt.ErrSignatureInvalid
 			}

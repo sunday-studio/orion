@@ -399,7 +399,7 @@ func makeAgent(index int, sc scenario, now time.Time) db.Agent {
 		Org:      "Orion Seed",
 		Timezone: "UTC",
 	}
-	meta := mustJSON(map[string]interface{}{
+	meta := mustJSON(map[string]any{
 		"seed":     true,
 		"scenario": sc.key,
 		"status":   sc.status,
@@ -445,7 +445,7 @@ func makeMonitors(agent db.Agent, sc scenario, now time.Time) []db.Monitor {
 			Lifecycle:                "active",
 			Health:                   health,
 			IncidentState:            incidentState(health),
-			Meta: mustJSON(map[string]interface{}{
+			Meta: mustJSON(map[string]any{
 				"seed":      true,
 				"scenario":  sc.key,
 				"monitor":   tpl.key,
@@ -467,7 +467,7 @@ func makeMonitors(agent db.Agent, sc scenario, now time.Time) []db.Monitor {
 			AgentID:     agent.ID,
 			Lifecycle:   "disabled",
 			Health:      "unknown",
-			Meta:        mustJSON(map[string]interface{}{"seed": true, "scenario": sc.key, "lifecycle": "disabled"}),
+			Meta:        mustJSON(map[string]any{"seed": true, "scenario": sc.key, "lifecycle": "disabled"}),
 			CreatedAt:   now.AddDate(0, 0, -80),
 			UpdatedAt:   now.AddDate(0, 0, -10),
 		},
@@ -479,7 +479,7 @@ func makeMonitors(agent db.Agent, sc scenario, now time.Time) []db.Monitor {
 			AgentID:     agent.ID,
 			Lifecycle:   "deleted",
 			Health:      "unknown",
-			Meta:        mustJSON(map[string]interface{}{"seed": true, "scenario": sc.key, "lifecycle": "deleted"}),
+			Meta:        mustJSON(map[string]any{"seed": true, "scenario": sc.key, "lifecycle": "deleted"}),
 			CreatedAt:   now.AddDate(0, 0, -70),
 			UpdatedAt:   now.AddDate(0, 0, -20),
 			DeletedAt:   now.AddDate(0, 0, -20),
@@ -496,7 +496,7 @@ func makeMonitors(agent db.Agent, sc scenario, now time.Time) []db.Monitor {
 			AgentID:     agent.ID,
 			Lifecycle:   "active",
 			Health:      "unknown",
-			Meta:        mustJSON(map[string]interface{}{"seed": true, "scenario": sc.key, "edge_case": "never_reported"}),
+			Meta:        mustJSON(map[string]any{"seed": true, "scenario": sc.key, "edge_case": "never_reported"}),
 			CreatedAt:   now.AddDate(0, 0, -20),
 			UpdatedAt:   now.AddDate(0, 0, -20),
 		})
@@ -517,7 +517,7 @@ func makeCoreOwner(now time.Time) db.Agent {
 		ReportingIntervalSeconds: 60,
 		CreatedAt:                now.AddDate(0, 0, -120),
 		LastSeen:                 now,
-		Meta: mustJSON(map[string]interface{}{
+		Meta: mustJSON(map[string]any{
 			"seed":  true,
 			"owner": "core",
 		}),
@@ -540,7 +540,7 @@ func makeCoreMonitor(agent db.Agent, now time.Time) db.Monitor {
 		Lifecycle:                "active",
 		Health:                   "up",
 		IncidentState:            "unknown",
-		Meta: mustJSON(map[string]interface{}{
+		Meta: mustJSON(map[string]any{
 			"seed":    true,
 			"owner":   "core",
 			"monitor": "core-http",
@@ -554,7 +554,7 @@ func seedCoreMonitorConfig(database *gorm.DB, monitorID string, now time.Time) e
 	return database.Create(&db.CoreMonitorConfig{
 		MonitorID:       monitorID,
 		Kind:            "http",
-		ConfigJSON:      mustJSON(map[string]interface{}{"url": "https://status.example.test/health", "expected_status": 200}),
+		ConfigJSON:      mustJSON(map[string]any{"url": "https://status.example.test/health", "expected_status": 200}),
 		SecretRefJSON:   "{}",
 		IntervalSeconds: 60,
 		TimeoutSeconds:  10,
@@ -577,7 +577,7 @@ func seedAgentReports(database *gorm.DB, agent db.Agent, sc scenario, cfg seedCo
 			AgentID:       agent.ID,
 			CreatedAt:     t,
 			AgentVersion:  fmt.Sprintf("seed-%s", sc.key),
-			ConfigSummary: mustJSON(map[string]interface{}{"monitor_count": len(monitorTemplates), "reporting_interval": cfg.reportInterval.String(), "scenario": sc.key}),
+			ConfigSummary: mustJSON(map[string]any{"monitor_count": len(monitorTemplates), "reporting_interval": cfg.reportInterval.String(), "scenario": sc.key}),
 			UptimeSeconds: uint64(math.Max(0, now.Sub(t).Seconds())) + 3600,
 			Timestamp:     t.Format(time.RFC3339),
 			CPU:           datatypes.NewJSONType(cpu),
@@ -781,7 +781,7 @@ func seedIncidents(database *gorm.DB, monitors []db.Monitor, monitorToAgent map[
 			stats.alertDeliveries++
 		}
 		if incident.Status != "resolved" {
-			if err := database.Model(&db.Monitor{}).Where("id = ?", monitor.ID).Updates(map[string]interface{}{
+			if err := database.Model(&db.Monitor{}).Where("id = ?", monitor.ID).Updates(map[string]any{
 				"active_incident_id": incident.ID,
 				"incident_state":     incidentState(health),
 			}).Error; err != nil {
@@ -823,7 +823,7 @@ func seedStatusPages(database *gorm.DB, monitors []db.Monitor, now time.Time) (s
 		OpenGraphImageURL:         "https://status.example.test/og/seed-orion-status.png",
 		CanonicalURL:              "https://status.example.test/status/seed-orion-status",
 		Visibility:                "public",
-		ThemeSettings:             mustJSON(map[string]interface{}{"accent_color": "#2563eb", "mode": "system", "logo_url": "https://status.example.test/logo.svg"}),
+		ThemeSettings:             mustJSON(map[string]any{"accent_color": "#2563eb", "mode": "system", "logo_url": "https://status.example.test/logo.svg"}),
 		DefaultIncidentVisibility: "published",
 		PublishedAt:               &publishedAt,
 		CreatedAt:                 publishedAt,
@@ -1330,9 +1330,9 @@ func reportHealth(sc scenario, tpl monitorTemplate, t time.Time, now time.Time) 
 	}
 }
 
-func reportPayload(sc scenario, tpl monitorTemplate, health string, t time.Time, now time.Time) map[string]interface{} {
+func reportPayload(sc scenario, tpl monitorTemplate, health string, t time.Time, now time.Time) map[string]any {
 	baseKey := scenarioBaseKey(sc)
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"seed":        true,
 		"scenario":    sc.key,
 		"monitor_key": tpl.key,
@@ -1503,7 +1503,7 @@ func bulkCreate[T any](database *gorm.DB, rows []T, batchSize int) (int, error) 
 	return len(rows), nil
 }
 
-func mustJSON(value interface{}) string {
+func mustJSON(value any) string {
 	data, err := json.Marshal(value)
 	if err != nil {
 		panic(err)

@@ -43,7 +43,7 @@ func (s *AlertService) attemptDelivery(delivery *db.AlertDelivery, deliver func(
 		}
 	}
 
-	if updateErr := s.db.Model(&db.AlertDeliveryAttempt{}).Where("id = ?", attempt.ID).Updates(map[string]interface{}{
+	if updateErr := s.db.Model(&db.AlertDeliveryAttempt{}).Where("id = ?", attempt.ID).Updates(map[string]any{
 		"status":       status,
 		"stage":        stage,
 		"error":        message,
@@ -52,7 +52,7 @@ func (s *AlertService) attemptDelivery(delivery *db.AlertDelivery, deliver func(
 		return errors.Join(deliverErr, updateErr)
 	}
 
-	if updateErr := s.db.Model(&db.AlertDelivery{}).Where("id = ?", delivery.ID).Updates(map[string]interface{}{
+	if updateErr := s.db.Model(&db.AlertDelivery{}).Where("id = ?", delivery.ID).Updates(map[string]any{
 		"status":          status,
 		"error":           message,
 		"attempt_count":   attemptNumber,

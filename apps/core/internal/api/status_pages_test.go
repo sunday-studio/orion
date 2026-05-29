@@ -412,7 +412,7 @@ func TestStatusPageThemeSettingsValidationAndPublicProjection(t *testing.T) {
 	var createdPage struct {
 		Data struct {
 			Page struct {
-				ThemeSettings map[string]interface{} `json:"theme_settings"`
+				ThemeSettings map[string]any `json:"theme_settings"`
 			} `json:"page"`
 		} `json:"data"`
 	}
@@ -433,7 +433,7 @@ func TestStatusPageThemeSettingsValidationAndPublicProjection(t *testing.T) {
 		Data struct {
 			StatusPage struct {
 				Page struct {
-					ThemeSettings map[string]interface{} `json:"theme_settings"`
+					ThemeSettings map[string]any `json:"theme_settings"`
 				} `json:"page"`
 			} `json:"status_page"`
 		} `json:"data"`
@@ -648,7 +648,7 @@ func TestStatusPageAdminAPIFlow(t *testing.T) {
 	server := setupTestServer(t)
 	registered := registerTestAgent(t, server)
 	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
-	if err := server.db.Model(&db.Monitor{}).Where("id = ?", registeredMonitor.Data.MonitorID).Updates(map[string]interface{}{
+	if err := server.db.Model(&db.Monitor{}).Where("id = ?", registeredMonitor.Data.MonitorID).Updates(map[string]any{
 		"health":          "down",
 		"computed_health": "down",
 	}).Error; err != nil {
@@ -667,11 +667,11 @@ func TestStatusPageAdminAPIFlow(t *testing.T) {
 	var createdPage struct {
 		Data struct {
 			Page struct {
-				ID            string                 `json:"id"`
-				Slug          string                 `json:"slug"`
-				Title         string                 `json:"title"`
-				Visibility    string                 `json:"visibility"`
-				ThemeSettings map[string]interface{} `json:"theme_settings"`
+				ID            string         `json:"id"`
+				Slug          string         `json:"slug"`
+				Title         string         `json:"title"`
+				Visibility    string         `json:"visibility"`
+				ThemeSettings map[string]any `json:"theme_settings"`
 			} `json:"page"`
 		} `json:"data"`
 	}
@@ -1212,7 +1212,7 @@ func TestPublicStatusPageMetadataDoesNotUseMappedInternalResources(t *testing.T)
 	server := setupTestServer(t)
 	registered := registerTestAgent(t, server)
 	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
-	if err := server.db.Model(&db.Monitor{}).Where("id = ?", registeredMonitor.Data.MonitorID).Updates(map[string]interface{}{
+	if err := server.db.Model(&db.Monitor{}).Where("id = ?", registeredMonitor.Data.MonitorID).Updates(map[string]any{
 		"name":            "internal-db-01.local",
 		"computed_health": "up",
 		"health":          "up",
