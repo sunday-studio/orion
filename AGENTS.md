@@ -79,6 +79,15 @@ storage changes when allowed; if remote push is blocked, say so explicitly.
 - Follow existing generated-file names when editing generated outputs.
 - Do not rename existing files or folders just for style unless the task asks for it.
 
+## App Code Size Rules
+
+- App source files under `apps/` must stay at or below 500 lines.
+- This rule applies to product and test code in `apps/agent/`, `apps/core/`, and `apps/console/`.
+- This rule does not apply to docs, config files, generated SDK/OpenAPI/Swagger output, built web assets, public assets, or database migrations.
+- Before adding a new oversized file or expanding an existing oversized file, split it by responsibility instead.
+- Run `make code-line-limit` before handing off app source changes.
+- Use `docs/plans/app-code-breakdown.md` as the migration map for existing oversized app files.
+
 ## Contract Rules
 
 - Core route or response changes must update route annotations and regenerate `apps/core/openapi.yaml`.
