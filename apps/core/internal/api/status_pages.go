@@ -527,12 +527,13 @@ func (s *Server) previewStatusPage(c *gin.Context) {
 // @Failure      500   {object}  utils.APIResponse
 // @Router       /status/{slug} [get]
 func (s *Server) getPublicStatusPage(c *gin.Context) {
-	preview, ok := s.loadPublicStatusPageProjection(c, c.Param("slug"))
+	detail, ok := s.loadPublicStatusPageDetail(c, c.Param("slug"))
 	if !ok {
 		return
 	}
+	preview := s.statusPagePreview(detail, false)
 	if publicStatusPageRequestWantsHTML(c) {
-		s.writePublicStatusPageHTML(c, preview)
+		s.writePublicStatusPageHTML(c, detail, preview)
 		return
 	}
 	s.writePublicStatusPageJSON(c, http.StatusOK, "Status page retrieved successfully", gin.H{
