@@ -1,6 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import {
+  CoreWorkerDiagnosticsPanel,
+  coreWorkerDiagnosticsFromPayload,
+} from "@/features/monitors/components/core-worker-diagnostics";
+import {
   CoreMonitorDialog,
   type CoreMonitorSubmitAction,
 } from "@/features/monitors/components/core-monitor-dialog";
@@ -14,6 +18,7 @@ import {
   getMonitorHistory,
   testCoreMonitor,
   useCreateCoreMonitor,
+  useGetCoreWorkerDiagnostics,
 } from "@/orion-sdk";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
@@ -31,6 +36,10 @@ export const MonitorsPage = () => {
   }>();
   const [isTestingCreatedMonitor, setIsTestingCreatedMonitor] = useState(false);
   const queryClient = useQueryClient();
+  const workerDiagnosticsResponse = useGetCoreWorkerDiagnostics({
+    query: { refetchInterval: 30_000 },
+  });
+  const workerDiagnostics = coreWorkerDiagnosticsFromPayload(workerDiagnosticsResponse.data);
   const refreshMonitors = () => {
     void queryClient.invalidateQueries({ queryKey: ["/v1/monitors"] });
     void queryClient.invalidateQueries({ queryKey: ["/v1/monitors/summary"] });
@@ -111,7 +120,12 @@ export const MonitorsPage = () => {
           token={heartbeatSetup.token}
         />
       )}
-      <MonitorList />
+      <CoreWorkerDiagnosticsPanel
+        data={workerDiagnosticsResponse.data}
+        error={workerDiagnosticsResponse.error}
+        isLoading={workerDiagnosticsResponse.isLoading}
+      />
+      <MonitorList workerDiagnostics={workerDiagnostics} />
       <CoreMonitorDialog
         error={coreMonitorMutationErrorMessage(
           createMonitor.error,

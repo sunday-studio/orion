@@ -8,6 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import {
+  type CoreWorkerDiagnostics,
+  CoreWorkerWarning,
+  shouldWarnForCoreWorker,
+} from "@/features/monitors/components/core-worker-diagnostics";
+import {
   type ApiMonitorResponse,
   type GetMonitorsParams,
   useGetMonitorSummary,
@@ -126,17 +131,25 @@ const ownerLabel = (monitor: ApiMonitorResponse) => {
   return "Server";
 };
 
-const columns: ColumnDef<ApiMonitorResponse>[] = [
+const isCoreOwnedMonitor = (monitor: ApiMonitorResponse) =>
+  monitor.owner_kind === "core" || monitor.source === "core";
+
+const monitorColumns = (
+  workerDiagnostics?: CoreWorkerDiagnostics,
+): ColumnDef<ApiMonitorResponse>[] => [
   {
     accessorKey: "name",
     header: "Monitor",
     cell: ({ row }) => {
       const monitor = row.original;
       return (
-        <div className="min-w-56">
+        <div className="min-w-56 space-y-1">
           <DataTableLink to={`/monitors/${monitor.id}`} truncate>
             {monitor.name ?? monitor.id ?? "Unknown monitor"}
           </DataTableLink>
+          {isCoreOwnedMonitor(monitor) && shouldWarnForCoreWorker(workerDiagnostics) && (
+            <div className="text-xs font-medium text-amber-800">Worker attention needed</div>
+          )}
         </div>
       );
     },
@@ -171,11 +184,13 @@ const columns: ColumnDef<ApiMonitorResponse>[] = [
         </div>
       );
 
-      if (monitor.owner_kind === "core" || monitor.source === "core" || !monitor.agent_id) {
+      if (isCoreOwnedMonitor(monitor) || !monitor.agent_id) {
         return owner;
       }
 
-      return <DataTableLink to={`/servers/${monitor.agent_id}?tab=monitors`}>{owner}</DataTableLink>;
+      return (
+        <DataTableLink to={`/servers/${monitor.agent_id}?tab=monitors`}>{owner}</DataTableLink>
+      );
     },
   },
   {
@@ -203,7 +218,11 @@ const columns: ColumnDef<ApiMonitorResponse>[] = [
   },
 ];
 
-export const MonitorList = () => {
+type MonitorListProps = {
+  workerDiagnostics?: CoreWorkerDiagnostics;
+};
+
+export const MonitorList = ({ workerDiagnostics }: MonitorListProps) => {
   const [{ search, status, type, owner, ownerName, source, incidents, page }, setMonitorQuery] =
     useQueryStates({
       search: parseAsString.withDefault(""),
@@ -236,6 +255,7 @@ export const MonitorList = () => {
   const summaryResponse = useGetMonitorSummary();
   const monitors = monitorsResponse.data?.monitors ?? [];
   const count = monitorsResponse.data?.count ?? monitors.length;
+  const hasCoreMonitors = monitors.some(isCoreOwnedMonitor);
   const selectedSummaryFilter: MonitorSummaryFilter = incidents ? "incidents" : status;
   const hasFilters =
     Boolean(search.trim()) ||
@@ -321,6 +341,9 @@ export const MonitorList = () => {
         onFilterChange={setSummaryFilter}
       />
       {summaryResponse.error && <div className="py-3 text-sm">Unable to load monitor summary.</div>}
+      {hasCoreMonitors && shouldWarnForCoreWorker(workerDiagnostics) && (
+        <CoreWorkerWarning worker={workerDiagnostics} className="mt-4" />
+      )}
       <div className="mt-6 flex flex-wrap items-center gap-2">
         <div className="relative w-full max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-400" />
@@ -405,7 +428,7 @@ export const MonitorList = () => {
       {!monitorsResponse.isLoading && !monitorsResponse.error && monitors.length > 0 && (
         <div className="mt-2">
           <DataTable
-            columns={columns}
+            columns={monitorColumns(workerDiagnostics)}
             data={monitors}
             emptyMessage="No monitors registered."
             getRowId={(monitor) => monitor.id ?? ""}
