@@ -16,9 +16,10 @@ const signIn = async (page: Page) => {
 
 const createWebhookDestination = async (page: Page, name: string, url: string) => {
   await page.getByRole("button", { name: "New webhook" }).click();
-  await page.getByRole("dialog").getByLabel("Name").fill(name);
-  await page.getByRole("dialog").getByLabel("Webhook URL").fill(url);
-  await page.getByRole("dialog").getByRole("button", { name: "Create destination" }).click();
+  const dialog = page.getByRole("dialog", { name: "New webhook" });
+  await dialog.getByPlaceholder("ops-webhook").fill(name);
+  await dialog.getByPlaceholder("https://example.com/webhook").fill(url);
+  await dialog.getByRole("button", { name: "Create destination" }).click();
   await expect(page.getByRole("row", { name: new RegExp(name) })).toBeVisible();
 };
 
@@ -45,8 +46,8 @@ test("signs in, rejects bad credentials, and signs out", async ({ page }) => {
 test("renders primary operations pages with seeded Core data", async ({ page }) => {
   await signIn(page);
 
-  await page.getByRole("link", { name: "Agents" }).click();
-  await expect(page.getByRole("heading", { name: "Agents" })).toBeVisible();
+  await page.getByRole("link", { name: "Servers" }).click();
+  await expect(page.getByRole("heading", { name: "Servers" })).toBeVisible();
   await expect(page.getByText("Healthy Server", { exact: true })).toBeVisible();
   await expect(page.getByText("9 monitors").first()).toBeVisible();
 
@@ -138,7 +139,7 @@ test("creates webhook alert destinations and records sanitized delivery logs", a
 
   await page.getByRole("link", { name: "Alerts" }).click();
   await page.getByRole("tab", { name: "Channels" }).click();
-  await expect(page.getByRole("heading", { name: "Webhook Destinations" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Webhook Channels" })).toBeVisible();
 
   await createWebhookDestination(
     page,
@@ -153,10 +154,20 @@ test("creates webhook alert destinations and records sanitized delivery logs", a
 
   await page.getByRole("tab", { name: "Rules" }).click();
   await expect(page.getByRole("heading", { name: "Rules" })).toBeVisible();
-  await expect(page.getByRole("row", { name: /monitor failure/ })).toContainText(sentDestination);
-  await expect(page.getByRole("row", { name: /monitor failure/ })).toContainText(
-    failedDestination,
-  );
+  const ruleName = `e2e monitor failure ${stamp}`;
+  await page.getByRole("button", { name: "New rule" }).click();
+  const ruleDialog = page.getByRole("dialog", { name: "New alert rule" });
+  await ruleDialog.getByLabel("Name", { exact: true }).fill(ruleName);
+  for (const destination of [sentDestination, failedDestination]) {
+    const checkbox = ruleDialog.getByRole("checkbox", { name: destination });
+    if ((await checkbox.getAttribute("aria-checked")) !== "true") {
+      await checkbox.click();
+    }
+  }
+  await ruleDialog.getByRole("button", { name: "Create rule" }).click();
+  const ruleRow = page.getByRole("row", { name: new RegExp(ruleName) });
+  await expect(ruleRow).toContainText(sentDestination);
+  await expect(ruleRow).toContainText(failedDestination);
 
   await page.getByRole("tab", { name: "Channels" }).click();
   await sendWebhookTest(page, sentDestination);
