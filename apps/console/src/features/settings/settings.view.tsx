@@ -1,5 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/page-header";
 import {
@@ -19,6 +27,7 @@ import {
   useUpdateDataLifecycleSettings,
 } from "@/orion-sdk";
 import { useQueryClient } from "@tanstack/react-query";
+import { Archive, BarChart3 } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 
 type SettingsFormState = {
@@ -46,6 +55,36 @@ const asNumber = (value: string) => {
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
+const formatCount = (value: number | null | undefined, label: string) =>
+  `${value ?? 0} ${(value ?? 0) === 1 ? label : `${label}s`}`;
+
+const formatArchiveCutoff = (hotDays: number | null | undefined) => {
+  const days = hotDays ?? 90;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  return `${formatDate(cutoff, DATE_TIME_FORMAT)} (${days} hot ${days === 1 ? "day" : "days"})`;
+};
+
+const maintenanceErrorMessage = (action: "archive" | "rollup", error: unknown) => {
+  const status =
+    typeof (error as { status?: unknown })?.status === "number"
+      ? (error as { status: number }).status
+      : undefined;
+  if (status && status < 500) {
+    return action === "archive"
+      ? "Archive could not start. Check the saved archive settings and try again."
+      : "Rollup could not start. Check the request and try again.";
+  }
+  return action === "archive"
+    ? "Archive could not complete. Verify Core can write to the saved archive directory, then try again."
+    : "Rollup could not complete. Try again after Core is healthy.";
+};
+
+const archiveHistoryErrorMessage = (error: string | null | undefined) =>
+  error
+    ? "Previous archive failed. Verify Core can write to the saved archive directory."
+    : undefined;
+
 const Field = ({
   label,
   children,
@@ -67,17 +106,34 @@ export const SettingsPage = () => {
   const refreshSettings = () => {
     void queryClient.invalidateQueries({ queryKey: getGetDataLifecycleSettingsQueryKey() });
   };
+  const [formState, setFormState] = useState(defaultFormState);
+  const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
+  const [lastArchiveCompletedAt, setLastArchiveCompletedAt] = useState<string | null>(null);
+  const [lastRollupCompletedAt, setLastRollupCompletedAt] = useState<string | null>(null);
   const settingsResponse = useGetDataLifecycleSettings();
   const updateSettings = useUpdateDataLifecycleSettings({
     mutation: {
       onSuccess: refreshSettings,
     },
   });
-  const archiveRun = useRunDataLifecycleArchive({ mutation: { onSuccess: refreshSettings } });
-  const rollupRun = useRunDataLifecycleRollup({ mutation: { onSuccess: refreshSettings } });
+  const archiveRun = useRunDataLifecycleArchive({
+    mutation: {
+      onSuccess: () => {
+        setLastArchiveCompletedAt(new Date().toISOString());
+        refreshSettings();
+      },
+    },
+  });
+  const rollupRun = useRunDataLifecycleRollup({
+    mutation: {
+      onSuccess: () => {
+        setLastRollupCompletedAt(new Date().toISOString());
+        refreshSettings();
+      },
+    },
+  });
 
   const settings = settingsResponse.data?.settings;
-  const [formState, setFormState] = useState(defaultFormState);
 
   useEffect(() => {
     if (!settings) return;
@@ -112,12 +168,21 @@ export const SettingsPage = () => {
   };
 
   const runRollup = () => {
+    if (rollupRun.isPending || archiveRun.isPending) return;
     rollupRun.mutate({ data: undefined });
   };
 
   const runArchive = () => {
-    archiveRun.mutate(undefined);
+    if (archiveRun.isPending || rollupRun.isPending) return;
+    archiveRun.mutate(undefined, { onSuccess: () => setArchiveConfirmOpen(false) });
   };
+
+  const lifecycleActionPending = rollupRun.isPending || archiveRun.isPending;
+  const savedArchiveDir = settings?.archive_dir?.trim() || "No archive directory saved";
+  const archiveCutoff = formatArchiveCutoff(settings?.raw_report_hot_days);
+  const archiveResult = archiveRun.data?.result;
+  const rollupResult = rollupRun.data?.result;
+  const lastArchiveErrorMessage = archiveHistoryErrorMessage(settings?.last_archive_error);
 
   return (
     <div className="space-y-7">
@@ -205,28 +270,86 @@ export const SettingsPage = () => {
         <h2 className="text-sm font-medium">Manual Maintenance</h2>
 
         <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={runRollup} disabled={rollupRun.isPending}>
+          <Button onClick={runRollup} disabled={lifecycleActionPending || !settings}>
+            <BarChart3 />
             {rollupRun.isPending ? "Running..." : "Run rollup"}
           </Button>
-          <Button variant="outline" onClick={runArchive} disabled={archiveRun.isPending}>
+          <Button
+            variant="outline"
+            onClick={() => setArchiveConfirmOpen(true)}
+            disabled={lifecycleActionPending || !settings}
+          >
+            <Archive />
             {archiveRun.isPending ? "Running..." : "Run archive"}
           </Button>
-          {rollupRun.data?.result && (
-            <span className="text-sm text-neutral-600">
-              Rolled up {rollupRun.data.result.report_count ?? 0} reports.
-            </span>
-          )}
-          {archiveRun.data?.result && (
-            <span className="text-sm text-neutral-600">
-              Archived{" "}
-              {(archiveRun.data.result.agent_reports_archived ?? 0) +
-                (archiveRun.data.result.monitor_reports_archived ?? 0)}{" "}
-              reports.
-            </span>
-          )}
-          {(rollupRun.isError || archiveRun.isError) && (
-            <span className="text-sm">Unable to run maintenance.</span>
-          )}
+        </div>
+        <div className="grid gap-3 text-sm sm:grid-cols-2">
+          <div className="border border-neutral-200 p-3">
+            <div className="font-medium">Rollup result</div>
+            {rollupRun.isPending && <div className="text-neutral-600">Running rollup...</div>}
+            {rollupResult && (
+              <div className="mt-2 space-y-1 text-neutral-600">
+                <div>
+                  {rollupResult.skipped_today
+                    ? "Skipped because the current day is still in progress."
+                    : `Processed ${formatCount(rollupResult.report_count, "report")} across ${formatCount(rollupResult.monitor_days, "monitor day")}.`}
+                </div>
+                <div>Rollup date: {rollupResult.date ?? "Not reported"}</div>
+                <div>Completed: {formatDate(lastRollupCompletedAt, DATE_TIME_FORMAT)}</div>
+              </div>
+            )}
+            {rollupRun.isError && (
+              <div className="mt-2 text-neutral-900">
+                {maintenanceErrorMessage("rollup", rollupRun.error)}
+              </div>
+            )}
+            {!rollupRun.isPending && !rollupResult && !rollupRun.isError && (
+              <div className="mt-2 text-neutral-600">No manual rollup has run in this session.</div>
+            )}
+          </div>
+          <div className="border border-neutral-200 p-3">
+            <div className="font-medium">Archive result</div>
+            {archiveRun.isPending && <div className="text-neutral-600">Running archive...</div>}
+            {archiveResult && (
+              <div className="mt-2 space-y-1 text-neutral-600">
+                {archiveResult.skipped_because_disabled && (
+                  <div>Skipped because raw report archiving is disabled.</div>
+                )}
+                {archiveResult.skipped_because_no_reports && (
+                  <div>Skipped because no reports were older than the cutoff.</div>
+                )}
+                {!archiveResult.skipped_because_disabled &&
+                  !archiveResult.skipped_because_no_reports && (
+                    <div>
+                      Archived{" "}
+                      {formatCount(
+                        (archiveResult.agent_reports_archived ?? 0) +
+                          (archiveResult.monitor_reports_archived ?? 0),
+                        "report",
+                      )}
+                      .
+                    </div>
+                  )}
+                <div>
+                  Server reports: {archiveResult.agent_reports_archived ?? 0}; monitor reports:{" "}
+                  {archiveResult.monitor_reports_archived ?? 0}
+                </div>
+                <div>Cutoff: {formatDate(archiveResult.cutoff, DATE_TIME_FORMAT)}</div>
+                <div>Destination: {archiveResult.archive_path || savedArchiveDir}</div>
+                <div>Completed: {formatDate(lastArchiveCompletedAt, DATE_TIME_FORMAT)}</div>
+              </div>
+            )}
+            {archiveRun.isError && (
+              <div className="mt-2 text-neutral-900">
+                {maintenanceErrorMessage("archive", archiveRun.error)}
+              </div>
+            )}
+            {!archiveRun.isPending && !archiveResult && !archiveRun.isError && (
+              <div className="mt-2 text-neutral-600">
+                No manual archive has run in this session.
+              </div>
+            )}
+          </div>
         </div>
         {settings && (
           <div className="grid gap-3 text-sm sm:grid-cols-2">
@@ -244,11 +367,53 @@ export const SettingsPage = () => {
               {settings.last_archive_status && (
                 <div className="text-neutral-600">{settings.last_archive_status}</div>
               )}
-              {settings.last_archive_error && <div>{settings.last_archive_error}</div>}
+              {lastArchiveErrorMessage && <div>{lastArchiveErrorMessage}</div>}
             </div>
           </div>
         )}
       </section>
+
+      <Dialog open={archiveConfirmOpen} onOpenChange={setArchiveConfirmOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Confirm manual archive</DialogTitle>
+            <DialogDescription>
+              This runs against saved lifecycle settings and can move raw reports out of the hot
+              Core database.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 text-sm">
+            <div className="border border-neutral-200 p-3">
+              <div className="text-neutral-600">Cutoff</div>
+              <div className="font-medium">{archiveCutoff}</div>
+            </div>
+            <div className="border border-neutral-200 p-3">
+              <div className="text-neutral-600">Destination</div>
+              <div className="break-all font-medium">{savedArchiveDir}</div>
+            </div>
+            <div className="border border-neutral-200 p-3">
+              <div className="text-neutral-600">Hot database impact</div>
+              <div className="font-medium">
+                Matching raw Server and Monitor reports are copied to the archive database, then
+                removed from the hot Core database.
+              </div>
+            </div>
+            {settings?.archive_raw_reports === false && (
+              <div className="border border-neutral-200 p-3 text-neutral-600">
+                Raw report archiving is disabled, so Core will record this manual run as skipped.
+              </div>
+            )}
+          </div>
+
+          <DialogFooter showCloseButton>
+            <Button onClick={runArchive} disabled={lifecycleActionPending || !settings}>
+              <Archive />
+              {archiveRun.isPending ? "Archiving..." : "Confirm archive"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
