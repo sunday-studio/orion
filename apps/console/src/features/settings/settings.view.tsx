@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { EmptyState } from "@/components/empty-state";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/page-header";
 import {
@@ -130,7 +131,21 @@ export const SettingsPage = () => {
           <div className="text-sm text-neutral-600">Loading data lifecycle settings...</div>
         )}
         {settingsResponse.error && (
-          <div className="text-sm">Unable to load data lifecycle settings.</div>
+          <EmptyState
+            className="min-h-40"
+            title="Unable to load settings"
+            description="Retry after Core is reachable before changing retention policy."
+            tone="error"
+            action={
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => void settingsResponse.refetch()}
+              >
+                Retry
+              </Button>
+            }
+          />
         )}
 
         <div className="grid gap-3 sm:grid-cols-3">

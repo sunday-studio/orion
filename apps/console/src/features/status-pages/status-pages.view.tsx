@@ -28,7 +28,16 @@ import {
   useUpdateStatusPage,
   useUpdateStatusPageIncident,
 } from "@/orion-sdk";
-import { CheckCircle2, ExternalLink, Eye, Globe2, Link2, Plus, RadioTower } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ExternalLink,
+  Eye,
+  Globe2,
+  Link2,
+  Plus,
+  RadioTower,
+} from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
@@ -498,6 +507,42 @@ export const StatusPagesPage = () => {
           label: monitor.name ?? monitor.id ?? "",
         }))
       : agents.map((agent) => ({ id: agent.id ?? "", label: agent.name ?? agent.id ?? "" }));
+  const sections = detail?.sections ?? [];
+  const components = detail?.components ?? [];
+  const visibleComponents = components.filter((component) => component.visible !== false);
+  const unmappedVisibleComponents = visibleComponents.filter(
+    (component) => component.display_mode !== "manual" && (component.mappings ?? []).length === 0,
+  );
+  const publishedIncidents = incidents.filter((incident) => incident.visibility === "published");
+  const unpublishedIncidents = incidents.filter((incident) => incident.visibility !== "published");
+  const previewSections = preview?.sections ?? [];
+  const previewComponentCount = previewSections.reduce(
+    (total, section) => total + (section.components?.length ?? 0),
+    0,
+  );
+  const publishBlockers = [
+    ...(sections.length === 0 ? ["Add at least one section."] : []),
+    ...(visibleComponents.length === 0 ? ["Add at least one visible component."] : []),
+    ...unmappedVisibleComponents.map(
+      (component) =>
+        `Map ${component.public_name ?? "the component"} to a monitor or server, or set a manual status.`,
+    ),
+  ];
+  const publishWarnings = [
+    ...(unpublishedIncidents.length > 0
+      ? [`${unpublishedIncidents.length} public incident draft will not appear on the public page.`]
+      : []),
+    ...(publishedIncidents.length === 0
+      ? ["No public incidents are published. This is fine for a healthy page."]
+      : []),
+    ...(previewResponse.error ? ["Public preview could not be loaded before publishing."] : []),
+    ...(!previewResponse.isLoading && preview && previewComponentCount === 0
+      ? ["Public preview has no visible components."]
+      : []),
+  ];
+  const canPublish = Boolean(
+    selectedPage?.id && publishBlockers.length === 0 && selectedPage.visibility !== "public",
+  );
 
   const selectPage = (page: ApiStatusPageResponse) => {
     if (page.id) setSearchParams({ page: page.id });
@@ -830,7 +875,7 @@ export const StatusPagesPage = () => {
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button
-                  disabled={publishPage.isPending || selectedPage.visibility === "public"}
+                  disabled={publishPage.isPending || !canPublish}
                   onClick={() => selectedPage.id && publishPage.mutate({ id: selectedPage.id })}
                 >
                   <Globe2 className="size-4" />
@@ -849,6 +894,39 @@ export const StatusPagesPage = () => {
                   Unable to publish. Check visible components and mappings.
                 </div>
               )}
+              <div className="basis-full space-y-2 border border-neutral-200 px-3 py-3 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="font-medium">Publish readiness</div>
+                  <span className="text-neutral-600">
+                    {selectedPage.visibility === "public" ? "Public" : "Draft"}
+                  </span>
+                </div>
+                {publishBlockers.length === 0 ? (
+                  <div className="flex items-center gap-2 text-emerald-700">
+                    <CheckCircle2 className="size-4" />
+                    Ready to publish.
+                  </div>
+                ) : (
+                  <div className="space-y-1 text-rose-700">
+                    {publishBlockers.map((blocker) => (
+                      <div className="flex gap-2" key={blocker}>
+                        <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                        <span>{blocker}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {publishWarnings.length > 0 && (
+                  <div className="space-y-1 text-neutral-600">
+                    {publishWarnings.map((warning) => (
+                      <div className="flex gap-2" key={warning}>
+                        <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                        <span>{warning}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </section>
 
             <form className="space-y-4" onSubmit={submitPageSettings}>
@@ -1775,6 +1853,9 @@ export const StatusPagesPage = () => {
                 {previewResponse.isLoading && (
                   <div className="text-sm text-neutral-600">Loading...</div>
                 )}
+                {previewResponse.error && (
+                  <div className="text-sm">Unable to load public preview.</div>
+                )}
                 {preview && (
                   <div className="border border-neutral-200 p-3">
                     <div className="flex items-center justify-between gap-2">
@@ -1788,6 +1869,13 @@ export const StatusPagesPage = () => {
                       />
                     </div>
                     <div className="mt-4 space-y-3">
+                      {previewComponentCount === 0 && (
+                        <EmptyState
+                          className="min-h-32"
+                          title="Public preview is empty"
+                          description="Add visible mapped components or manual components before publishing."
+                        />
+                      )}
                       {(preview.sections ?? []).map((section) => (
                         <div key={section.id}>
                           <div className="text-sm font-medium">{section.name}</div>

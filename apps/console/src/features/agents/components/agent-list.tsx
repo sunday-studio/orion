@@ -1,6 +1,7 @@
 import { type GetAgentsParams, useGetAgentSummary, useGetAgents } from "@/orion-sdk";
 import { AgentRow } from "./agent-row";
 import { AgentSummary, type AgentSummaryFilter } from "./agent-summary";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/empty-state";
 import { ListPagination } from "@/components/list-pagination";
 import { parseAsBoolean, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
@@ -75,11 +76,34 @@ export const AgentList = () => {
         selectedFilter={selectedSummaryFilter}
         onFilterChange={setSummaryFilter}
       />
-      {summaryResponse.error && <div className="py-3 text-sm">Unable to load server summary.</div>}
+      {summaryResponse.error && (
+        <EmptyState
+          className="min-h-32"
+          title="Unable to load server summary"
+          description="The server list can still load, but summary filters may be stale."
+          tone="error"
+          action={
+            <Button size="sm" variant="outline" onClick={() => void summaryResponse.refetch()}>
+              Retry
+            </Button>
+          }
+        />
+      )}
       {agentsResponse.isLoading && (
         <div className="py-3 text-sm text-neutral-600">Loading servers...</div>
       )}
-      {agentsResponse.error && <div className="py-3 text-sm">Unable to load servers.</div>}
+      {agentsResponse.error && (
+        <EmptyState
+          title="Unable to load servers"
+          description="Retry after Core is reachable."
+          tone="error"
+          action={
+            <Button size="sm" variant="outline" onClick={() => void agentsResponse.refetch()}>
+              Retry
+            </Button>
+          }
+        />
+      )}
       {!agentsResponse.isLoading && !agentsResponse.error && agents.length === 0 && (
         <EmptyState
           title="No servers found"
