@@ -2,6 +2,7 @@ import { type Page, expect, test } from "@playwright/test";
 
 const username = "admin";
 const password = "change-me";
+const coreURL = `http://127.0.0.1:${process.env.ORION_CORE_E2E_PORT ?? 48999}`;
 
 test.describe.configure({ mode: "serial" });
 
@@ -12,6 +13,9 @@ const signIn = async (page: Page) => {
   await page.getByRole("button", { name: "Enter" }).click();
   await expect(page.getByRole("heading", { name: "Incidents" })).toBeVisible();
 };
+
+const primaryNavLink = (page: Page, name: string) =>
+  page.getByLabel("Primary navigation").getByRole("link", { name });
 
 test("signs in, rejects bad credentials, and signs out", async ({ page }) => {
   await page.goto("/login");
@@ -31,12 +35,20 @@ test("signs in, rejects bad credentials, and signs out", async ({ page }) => {
 test("renders primary operations pages with seeded Core data", async ({ page }) => {
   await signIn(page);
 
-  await page.getByRole("link", { name: "Agents" }).click();
-  await expect(page.getByRole("heading", { name: "Agents" })).toBeVisible();
+  await page.goto("/agents");
+  await expect(page).toHaveURL(/\/servers$/);
+  await expect(page.getByRole("heading", { name: "Servers" })).toBeVisible();
+
+  await page.goto("/agents/seed-agent-01-healthy");
+  await expect(page).toHaveURL(/\/servers\/seed-agent-01-healthy$/);
+  await expect(page.getByRole("heading", { name: "Healthy Server" })).toBeVisible();
+
+  await primaryNavLink(page, "Servers").click();
+  await expect(page.getByRole("heading", { name: "Servers" })).toBeVisible();
   await expect(page.getByText("Healthy Server", { exact: true })).toBeVisible();
   await expect(page.getByText("9 monitors").first()).toBeVisible();
 
-  await page.getByRole("link", { name: "Monitors" }).click();
+  await primaryNavLink(page, "Monitors").click();
   await expect(page.getByRole("heading", { name: "Monitors" })).toBeVisible();
   await page.getByPlaceholder("Search monitors").fill("Healthy Server HTTP API");
   await expect(page.getByText("Healthy Server HTTP API")).toBeVisible();
@@ -50,20 +62,20 @@ test("renders primary operations pages with seeded Core data", async ({ page }) 
   await expect(page.getByText("Type: HTTP")).toBeVisible();
   await expect(page.getByText("Source: Core")).toBeVisible();
 
-  await page.getByRole("link", { name: "Alerts" }).click();
+  await primaryNavLink(page, "Alerts").click();
   await expect(page.getByRole("heading", { name: "Alerts" })).toBeVisible();
   await expect(page.getByRole("tab", { name: "Notification Log" })).toBeVisible();
   await page.getByRole("tab", { name: "Rules" }).click();
   await expect(page.getByRole("heading", { name: "Rules" })).toBeVisible();
 
-  await page.getByRole("link", { name: "Status" }).click();
+  await primaryNavLink(page, "Status").click();
   await expect(page.getByRole("heading", { name: "Status Pages" })).toBeVisible();
 
-  await page.getByRole("link", { name: "Logs" }).click();
+  await primaryNavLink(page, "Logs").click();
   await expect(page.getByRole("heading", { name: "Logs" })).toBeVisible();
   await expect(page.getByPlaceholder("Search events")).toBeVisible();
 
-  await page.getByRole("link", { name: "Settings" }).click();
+  await primaryNavLink(page, "Settings").click();
   await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
   await expect(page.getByLabel("Raw report days")).toHaveValue("30");
 });
@@ -74,10 +86,10 @@ test("creates and manages a Core HTTP monitor", async ({ page }) => {
 
   await signIn(page);
 
-  await page.getByRole("link", { name: "Monitors" }).click();
+  await primaryNavLink(page, "Monitors").click();
   await page.getByRole("button", { name: "Core monitor" }).click();
   await page.getByLabel("Name").fill(monitorName);
-  await page.getByLabel("URL").fill("http://127.0.0.1:18999/health");
+  await page.getByLabel("URL").fill(`${coreURL}/health`);
   await page.getByLabel("Expected status").fill("503");
   await page.getByLabel("Interval seconds").fill("45");
   await page.getByRole("button", { name: "Create and test" }).click();
@@ -90,7 +102,7 @@ test("creates and manages a Core HTTP monitor", async ({ page }) => {
   await expect(page.getByText("Core · http")).toBeVisible();
 
   await page.getByRole("tab", { name: "Configuration" }).click();
-  await expect(page.getByText("http://127.0.0.1:18999/health")).toBeVisible();
+  await expect(page.getByText(`${coreURL}/health`)).toBeVisible();
   await expect(page.getByLabel("Configuration").getByText("45s")).toBeVisible();
 
   await page.getByRole("button", { name: "Test" }).click();
@@ -118,7 +130,7 @@ test("creates a Core heartbeat monitor and shows setup affordances", async ({ pa
 
   await signIn(page);
 
-  await page.getByRole("link", { name: "Monitors" }).click();
+  await primaryNavLink(page, "Monitors").click();
   await page.getByRole("button", { name: "Core monitor" }).click();
   await page.getByLabel("Name").fill(monitorName);
   await page.getByLabel("Core monitor type").selectOption("heartbeat");

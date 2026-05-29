@@ -8,8 +8,16 @@ import { fileURLToPath } from "node:url";
 const consoleDir = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const repoDir = resolve(consoleDir, "../..");
 const coreDir = join(repoDir, "apps/core");
-const coreURL = "http://127.0.0.1:18999";
-const consoleURL = "http://127.0.0.1:5173";
+const readOption = (name, fallback) => {
+  const index = process.argv.indexOf(`--${name}`);
+  if (index >= 0 && process.argv[index + 1]) return process.argv[index + 1];
+  return fallback;
+};
+
+const corePort = readOption("core-port", process.env.ORION_CORE_E2E_PORT ?? "48999");
+const consolePort = readOption("console-port", process.env.ORION_CONSOLE_E2E_PORT ?? "45173");
+const coreURL = `http://127.0.0.1:${corePort}`;
+const consoleURL = `http://127.0.0.1:${consolePort}`;
 const adminUsername = "admin";
 const adminPassword = "change-me";
 const jwtSecret = "console-browser-smoke-secret-at-least-long-enough";
@@ -108,6 +116,10 @@ await run(
   },
 );
 
+await run("pnpm", ["run", "generate:api"], {
+  cwd: consoleDir,
+});
+
 start("go", ["run", "."], {
   cwd: coreDir,
   env: {
@@ -115,14 +127,16 @@ start("go", ["run", "."], {
     ORION_ADMIN_USERNAME: adminUsername,
     ORION_ADMIN_PASSWORD: adminPassword,
     ORION_JWT_SECRET: jwtSecret,
-    ORION_PORT: "18999",
+    ORION_CORS_ORIGINS: consoleURL,
+    ORION_PORT: corePort,
+    ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS: "true",
     ORION_DATA_DIR: dataDir,
     ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS: "3600",
   },
 });
 await waitFor(`${coreURL}/health`, 60_000);
 
-start("pnpm", ["dev", "--host", "127.0.0.1", "--port", "5173"], {
+start("pnpm", ["dev", "--host", "127.0.0.1", "--port", consolePort], {
   cwd: consoleDir,
   env: {
     ...process.env,
