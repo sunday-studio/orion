@@ -130,6 +130,135 @@ func TestMigrateAppliesEmbeddedMigrations(t *testing.T) {
 	}
 }
 
+func TestEmbeddedMigrationVersionsAreContiguous(t *testing.T) {
+	migrations, err := loadMigrations("migrations")
+	if err != nil {
+		t.Fatalf("load migrations: %v", err)
+	}
+
+	for index, migration := range migrations {
+		want := index + 1
+		if migration.version != want {
+			t.Fatalf("migration %s has version %d, want %d", migration.name, migration.version, want)
+		}
+	}
+}
+
+func TestMigrateAppliesStatusPageSchema(t *testing.T) {
+	database := openMigrationTestDatabase(t)
+
+	if err := Migrate(database); err != nil {
+		t.Fatalf("Migrate() error = %v", err)
+	}
+
+	for _, table := range []struct {
+		name  string
+		model interface{}
+	}{
+		{name: "status_pages", model: &StatusPage{}},
+		{name: "status_page_sections", model: &StatusPageSection{}},
+		{name: "status_page_components", model: &StatusPageComponent{}},
+		{name: "status_page_component_mappings", model: &StatusPageComponentMapping{}},
+		{name: "status_page_incidents", model: &StatusPageIncident{}},
+		{name: "status_page_incident_updates", model: &StatusPageIncidentUpdate{}},
+		{name: "audit_events", model: &AuditEvent{}},
+		{name: "status_page_subscribers", model: &StatusPageSubscriber{}},
+		{name: "status_page_subscriber_components", model: &StatusPageSubscriberComponent{}},
+		{name: "status_page_subscriber_deliveries", model: &StatusPageSubscriberDelivery{}},
+	} {
+		if !database.Migrator().HasTable(table.model) {
+			t.Fatalf("%s table was not created", table.name)
+		}
+	}
+
+	for _, column := range []string{
+		"custom_domain",
+		"seo_title",
+		"seo_description",
+		"open_graph_image_url",
+		"canonical_url",
+		"default_incident_visibility",
+	} {
+		if !database.Migrator().HasColumn(&StatusPage{}, column) {
+			t.Fatalf("status_pages.%s was not created", column)
+		}
+	}
+
+	for _, column := range []string{
+		"destination_value_ciphertext",
+		"confirmation_token_hash",
+		"manage_token_hash",
+		"unsubscribe_token_hash",
+		"bounce_count",
+		"last_delivery_status",
+	} {
+		if !database.Migrator().HasColumn(&StatusPageSubscriber{}, column) {
+			t.Fatalf("status_page_subscribers.%s was not created", column)
+		}
+	}
+
+	for _, index := range []struct {
+		model interface{}
+		name  string
+	}{
+		{model: &StatusPage{}, name: "idx_status_pages_slug"},
+		{model: &StatusPage{}, name: "idx_status_pages_custom_domain"},
+		{model: &StatusPageComponent{}, name: "idx_status_page_components_page_visible_sort"},
+		{model: &StatusPageComponentMapping{}, name: "idx_status_page_component_mappings_resource"},
+		{model: &StatusPageIncident{}, name: "idx_status_page_incidents_page_visibility"},
+		{model: &StatusPageIncidentUpdate{}, name: "idx_status_page_incident_updates_incident_published"},
+		{model: &AuditEvent{}, name: "idx_audit_events_affected_object"},
+		{model: &StatusPageSubscriber{}, name: "idx_status_page_subscribers_destination"},
+		{model: &StatusPageSubscriberComponent{}, name: "idx_status_page_subscriber_components_unique"},
+		{model: &StatusPageSubscriberDelivery{}, name: "idx_status_page_subscriber_deliveries_page_state"},
+	} {
+		if !database.Migrator().HasIndex(index.model, index.name) {
+			t.Fatalf("%s index was not created", index.name)
+		}
+	}
+}
+
+func TestStatusPageUniqueIndexesMatchSeedAssumptions(t *testing.T) {
+	database := openMigrationTestDatabase(t)
+
+	if err := Migrate(database); err != nil {
+		t.Fatalf("Migrate() error = %v", err)
+	}
+
+	sqlDB, err := database.DB()
+	if err != nil {
+		t.Fatalf("get database handle: %v", err)
+	}
+	if _, err := sqlDB.Exec(`
+		INSERT INTO status_pages (id, slug, custom_domain, title) VALUES
+			('page-empty-domain-a', 'empty-domain-a', '', 'Empty domain A'),
+			('page-empty-domain-b', 'empty-domain-b', '', 'Empty domain B'),
+			('page-custom-domain-a', 'custom-domain-a', 'status.example.test', 'Custom domain A');
+	`); err != nil {
+		t.Fatalf("insert status pages: %v", err)
+	}
+	if _, err := sqlDB.Exec(`
+		INSERT INTO status_pages (id, slug, custom_domain, title)
+		VALUES ('page-custom-domain-b', 'custom-domain-b', 'status.example.test', 'Custom domain B');
+	`); err == nil {
+		t.Fatal("duplicate non-empty custom domain insert succeeded")
+	}
+
+	if _, err := sqlDB.Exec(`
+		INSERT INTO status_page_subscribers (id, status_page_id, destination_type, destination_hash, masked_destination) VALUES
+			('subscriber-a', 'page-empty-domain-a', 'email', 'hash-a', 'a@example.test'),
+			('subscriber-b', 'page-empty-domain-a', 'email', 'hash-b', 'b@example.test');
+	`); err != nil {
+		t.Fatalf("insert status page subscribers: %v", err)
+	}
+	if _, err := sqlDB.Exec(`
+		INSERT INTO status_page_subscribers (id, status_page_id, destination_type, destination_hash, masked_destination)
+		VALUES ('subscriber-c', 'page-empty-domain-a', 'email', 'hash-a', 'c@example.test');
+	`); err == nil {
+		t.Fatal("duplicate status page subscriber destination insert succeeded")
+	}
+}
+
 func TestMigrateIsIdempotent(t *testing.T) {
 	database := openMigrationTestDatabase(t)
 
