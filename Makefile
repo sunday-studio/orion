@@ -1,4 +1,4 @@
-.PHONY: generate-openapi generate-sdk build-static docker-build docker-up docker-down core-build core-worker-build agent-build seed-demo-data
+.PHONY: generate-openapi generate-sdk build-static docker-build docker-up docker-down core-build core-worker-build core-coverage agent-build seed-demo-data
 
 VERSION ?= latest
 CORE_IMAGE ?= ghcr.io/sunday-studio/orion-core
@@ -7,6 +7,8 @@ GOARCH ?= $(shell go env GOARCH)
 AGENT_OUTPUT ?= orion-agent
 CORE_OUTPUT ?= orion-core
 CORE_WORKER_OUTPUT ?= orion-core-worker
+CORE_COVERAGE_PROFILE ?= /tmp/orion-core-coverage.out
+CORE_COVERAGE_SUMMARY ?= /tmp/orion-core-coverage.txt
 AGENT_CGO_ENABLED ?= 1
 
 generate-openapi:
@@ -32,6 +34,11 @@ core-build:
 # Build Core monitor worker for local/package validation.
 core-worker-build:
 	cd apps/core && go build -trimpath -ldflags "-s -w -X main.version=$(VERSION)" -o $(CORE_WORKER_OUTPUT) ./cmd/worker
+
+# Run Core tests with package/function coverage output.
+core-coverage:
+	cd apps/core && go test -coverprofile=$(CORE_COVERAGE_PROFILE) ./...
+	cd apps/core && go tool cover -func=$(CORE_COVERAGE_PROFILE) | tee $(CORE_COVERAGE_SUMMARY)
 
 # Build Orion Agent for the requested platform.
 agent-build:
