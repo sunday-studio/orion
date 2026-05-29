@@ -68,6 +68,38 @@ test("renders primary operations pages with seeded Core data", async ({ page }) 
   await expect(page.getByLabel("Raw report days")).toHaveValue("30");
 });
 
+test("renders the public status page IA on desktop and mobile", async ({ page }) => {
+  await page.goto("http://127.0.0.1:18999/status/seed-orion-status");
+  await expect(page.getByRole("navigation", { name: "Status page navigation" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Status", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Events", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Components", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Get updates", exact: true })).toBeVisible();
+  await expect(page.getByLabel("Current status")).toContainText(
+    /systems|outage|degraded|Maintenance/i,
+  );
+  await expect(page.getByRole("heading", { name: "Components" })).toBeVisible();
+  await expect(page.locator(".uptime-bars").first()).toBeVisible();
+  await expect(page.locator(".bar").first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Get updates" })).toBeVisible();
+  await expect(page.locator("body")).not.toContainText("seed-monitor");
+  await expect(page.locator("body")).not.toContainText("seed-agent");
+
+  const desktopOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+  );
+  expect(desktopOverflow).toBe(false);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
+  await expect(page.getByLabel("Current status")).toBeVisible();
+  await expect(page.locator(".uptime-bars").first()).toBeVisible();
+  const mobileOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+  );
+  expect(mobileOverflow).toBe(false);
+});
+
 test("creates and manages a Core HTTP monitor", async ({ page }) => {
   const monitorName = `Core E2E HTTP ${Date.now()}`;
   const updatedName = `${monitorName} updated`;

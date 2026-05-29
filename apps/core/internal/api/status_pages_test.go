@@ -357,6 +357,7 @@ func TestStatusPageThemeSettingsValidationAndPublicProjection(t *testing.T) {
 			"open_graph_type":       "website",
 			"show_incident_history": false,
 			"show_uptime_summary":   true,
+			"theme_mode":            "dark",
 		},
 	}, "")
 	if createPageResp.Code != http.StatusCreated {
@@ -374,7 +375,8 @@ func TestStatusPageThemeSettingsValidationAndPublicProjection(t *testing.T) {
 		createdPage.Data.Page.ThemeSettings["logo_alt"] != "Acme status logo" ||
 		createdPage.Data.Page.ThemeSettings["header_style"] != "centered" ||
 		createdPage.Data.Page.ThemeSettings["component_density"] != "compact" ||
-		createdPage.Data.Page.ThemeSettings["show_incident_history"] != false {
+		createdPage.Data.Page.ThemeSettings["show_incident_history"] != false ||
+		createdPage.Data.Page.ThemeSettings["theme_mode"] != "dark" {
 		t.Fatalf("admin theme settings = %+v, want sanitized supported values", createdPage.Data.Page.ThemeSettings)
 	}
 
@@ -403,6 +405,7 @@ func TestStatusPageThemeSettingsValidationAndPublicProjection(t *testing.T) {
 		{"logo_url": "javascript://status.example.test/logo.svg"},
 		{"header_style": "hero"},
 		{"component_density": "dense"},
+		{"theme_mode": "sepia"},
 		{"show_uptime_summary": "true"},
 		{"open_graph_type": "article"},
 		{"accent": "green"},
@@ -696,9 +699,11 @@ func TestStatusPageAdminAPIFlow(t *testing.T) {
 				OverallStatus string `json:"overall_status"`
 				Sections      []struct {
 					Components []struct {
-						ID     string `json:"id"`
-						Name   string `json:"name"`
-						Status string `json:"status"`
+						ID            string                                 `json:"id"`
+						Name          string                                 `json:"name"`
+						Status        string                                 `json:"status"`
+						Uptime        *StatusPagePublicUptimeResponse        `json:"uptime"`
+						UptimeHistory []StatusPagePublicUptimeBucketResponse `json:"uptime_history"`
 					} `json:"components"`
 				} `json:"sections"`
 				Incidents []struct {
@@ -718,6 +723,11 @@ func TestStatusPageAdminAPIFlow(t *testing.T) {
 		len(publicPage.Data.StatusPage.Sections[0].Components) != 1 ||
 		len(publicPage.Data.StatusPage.Incidents) != 1 {
 		t.Fatalf("public page = %+v, want public-safe status projection", publicPage.Data.StatusPage)
+	}
+	componentProjection := publicPage.Data.StatusPage.Sections[0].Components[0]
+	if componentProjection.Uptime == nil || componentProjection.Uptime.Window != statusPagePublicDefaultUptimeWindow ||
+		len(componentProjection.UptimeHistory) != publicWindowDays(statusPagePublicDefaultUptimeWindow) {
+		t.Fatalf("public component uptime = %+v/%d, want default window history", componentProjection.Uptime, len(componentProjection.UptimeHistory))
 	}
 	if publicPage.Data.StatusPage.Incidents[0].ScheduledStartAt == "" ||
 		publicPage.Data.StatusPage.Incidents[0].ScheduledEndAt == "" {
@@ -887,7 +897,7 @@ func TestPublicStatusPageHTMLRendersSafeMetadataAndTheme(t *testing.T) {
 		OpenGraphImageURL:         "https://cdn.acme.test/status.png",
 		CanonicalURL:              "https://status.acme.test/",
 		Visibility:                statusPageVisibilityPublic,
-		ThemeSettings:             `{"accent_color":"#10b981","component_density":"compact","header_style":"centered","logo_alt":"Acme logo","logo_url":"https://cdn.acme.test/logo.svg","open_graph_site_name":"Acme Trust","open_graph_title":"Acme Status Updates","open_graph_description":"Realtime public availability","open_graph_type":"website"}`,
+		ThemeSettings:             `{"accent_color":"#10b981","component_density":"compact","header_style":"centered","logo_alt":"Acme logo","logo_url":"https://cdn.acme.test/logo.svg","open_graph_site_name":"Acme Trust","open_graph_title":"Acme Status Updates","open_graph_description":"Realtime public availability","open_graph_type":"website","theme_mode":"dark"}`,
 		DefaultIncidentVisibility: statusPageIncidentVisibilityDraft,
 		PublishedAt:               &now,
 		CreatedAt:                 now,
@@ -955,6 +965,9 @@ func TestPublicStatusPageHTMLRendersSafeMetadataAndTheme(t *testing.T) {
 	assertContains(t, body, `<meta property="og:description" content="Realtime public availability">`)
 	assertContains(t, body, `<meta property="og:image" content="https://cdn.acme.test/status.png">`)
 	assertContains(t, body, `<img src="https://cdn.acme.test/logo.svg" alt="Acme logo">`)
+	assertContains(t, body, `<body class="theme-dark">`)
+	assertContains(t, body, `data-subscribe-form`)
+	assertContains(t, body, `class="uptime-bars"`)
 	assertContains(t, body, "Checkout API")
 	assertContains(t, body, "Elevated latency")
 	assertContains(t, body, "Checkout latency")

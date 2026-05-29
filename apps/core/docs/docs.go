@@ -9314,6 +9314,9 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/api.StatusPagePublicSectionResponse"
                     }
+                },
+                "uptime_window": {
+                    "type": "string"
                 }
             }
         },
@@ -9357,6 +9360,15 @@ const docTemplate = `{
                 },
                 "status_reason": {
                     "type": "string"
+                },
+                "uptime": {
+                    "$ref": "#/definitions/api.StatusPagePublicUptimeResponse"
+                },
+                "uptime_history": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.StatusPagePublicUptimeBucketResponse"
+                    }
                 }
             }
         },
@@ -9539,6 +9551,9 @@ const docTemplate = `{
                 "date": {
                     "type": "string"
                 },
+                "status": {
+                    "type": "string"
+                },
                 "uptime_display": {
                     "type": "string"
                 },
@@ -9550,6 +9565,9 @@ const docTemplate = `{
         "api.StatusPagePublicUptimeResponse": {
             "type": "object",
             "properties": {
+                "status": {
+                    "type": "string"
+                },
                 "uptime_display": {
                     "type": "string"
                 },
