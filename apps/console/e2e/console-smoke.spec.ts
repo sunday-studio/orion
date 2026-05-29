@@ -31,8 +31,8 @@ test("signs in, rejects bad credentials, and signs out", async ({ page }) => {
 test("renders primary operations pages with seeded Core data", async ({ page }) => {
   await signIn(page);
 
-  await page.getByRole("link", { name: "Agents" }).click();
-  await expect(page.getByRole("heading", { name: "Agents" })).toBeVisible();
+  await page.getByRole("link", { name: "Servers" }).click();
+  await expect(page.getByRole("heading", { name: "Servers" })).toBeVisible();
   await expect(page.getByText("Healthy Server", { exact: true })).toBeVisible();
   await expect(page.getByText("9 monitors").first()).toBeVisible();
 
@@ -78,8 +78,8 @@ test("creates and manages a Core HTTP monitor", async ({ page }) => {
   await page.getByRole("button", { name: "Core monitor" }).click();
   await page.getByLabel("Name").fill(monitorName);
   await page.getByLabel("URL").fill("http://127.0.0.1:18999/health");
-  await page.getByLabel("Expected status").fill("503");
-  await page.getByLabel("Interval seconds").fill("45");
+  await page.getByRole("spinbutton", { name: "Expected status" }).fill("503");
+  await page.getByRole("spinbutton", { name: "Interval seconds" }).fill("45");
   await page.getByRole("button", { name: "Create and test" }).click();
   await expect(page.getByText("received HTTP 200, expected 503")).toBeVisible();
 
@@ -123,8 +123,8 @@ test("creates a Core heartbeat monitor and shows setup affordances", async ({ pa
   await page.getByLabel("Name").fill(monitorName);
   await page.getByLabel("Core monitor type").selectOption("heartbeat");
   await expect(page.getByLabel("URL")).toBeHidden();
-  await page.getByLabel("Interval seconds").fill("90");
-  await page.getByLabel("Grace seconds").fill("30");
+  await page.getByRole("spinbutton", { name: "Interval seconds" }).fill("90");
+  await page.getByRole("spinbutton", { name: "Grace seconds" }).fill("30");
   await page.getByRole("button", { name: "Create" }).click();
 
   await expect(page.getByText("Heartbeat monitor created.")).toBeVisible();
