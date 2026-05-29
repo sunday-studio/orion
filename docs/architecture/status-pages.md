@@ -6,6 +6,17 @@ Status pages give Orion a public, shareable view of service health. They should 
 
 The status page is not a mirror of the Console. It is a curated publication layer over existing Core data: servers, monitors, derived health, incidents, and uptime rollups. Administrators decide which operational resources are exposed, how they are named, and which incident details are public.
 
+## Readiness State
+
+The first status page foundation is implemented enough to treat this document as an architecture boundary, not only a future plan. Core and Console now support status pages, sections, components, internal resource mappings, public page payloads, public incidents, public incident updates, feeds, badges, custom domains, and subscriber lifecycle operations.
+
+Incident-related readiness still has important gaps:
+
+- internal incidents remain private unless an administrator creates public incident content;
+- Core does not yet provide a dedicated "create public draft from this internal incident" helper;
+- safe default public copy, affected component suggestions, and browser coverage for the internal-to-public draft path are tracked as incident readiness follow-up work;
+- public incident payloads must continue to omit internal incident ids, private timeline text, raw report payloads, alert delivery internals, and operator notes.
+
 ## Product Goals
 
 - Create one or more status pages from the Console.
@@ -109,7 +120,7 @@ flowchart LR
 
 ## Data Model
 
-Add publication tables rather than changing Server/Core reporting behavior.
+Publication tables sit alongside Server/Core reporting behavior rather than replacing it.
 
 ### `status_pages`
 
