@@ -473,6 +473,24 @@ definitions:
       report_id:
         type: string
     type: object
+  api.IncidentActionStateResponse:
+    properties:
+      allowed:
+        type: boolean
+      reason:
+        type: string
+    type: object
+  api.IncidentAllowedActionsResponse:
+    properties:
+      acknowledge:
+        $ref: '#/definitions/api.IncidentActionStateResponse'
+      cover:
+        $ref: '#/definitions/api.IncidentActionStateResponse'
+      reopen:
+        $ref: '#/definitions/api.IncidentActionStateResponse'
+      resolve:
+        $ref: '#/definitions/api.IncidentActionStateResponse'
+    type: object
   api.IncidentComponentImpactResponse:
     properties:
       component_id:
@@ -486,6 +504,10 @@ definitions:
     type: object
   api.IncidentEventResponse:
     properties:
+      actor_id:
+        type: string
+      actor_type:
+        type: string
       created_at:
         type: string
       id:
@@ -495,6 +517,8 @@ definitions:
       message:
         type: string
       monitor_report_id:
+        type: string
+      note:
         type: string
       type:
         type: string
@@ -581,6 +605,8 @@ definitions:
         type: string
       agent_name:
         type: string
+      allowed_actions:
+        $ref: '#/definitions/api.IncidentAllowedActionsResponse'
       coverage_note:
         type: string
       covered_at:
@@ -628,6 +654,10 @@ definitions:
     type: object
   api.IncidentTimelineItemResponse:
     properties:
+      actor_id:
+        type: string
+      actor_type:
+        type: string
       alert_delivery_id:
         type: string
       channel:
@@ -641,6 +671,8 @@ definitions:
       message:
         type: string
       monitor_report_id:
+        type: string
+      note:
         type: string
       source:
         type: string
@@ -1318,6 +1350,11 @@ definitions:
     properties:
       covered_until:
         type: string
+      note:
+        type: string
+    type: object
+  api.incidentLifecycleActionRequest:
+    properties:
       note:
         type: string
     type: object
@@ -4927,6 +4964,11 @@ paths:
         name: id
         required: true
         type: string
+      - description: Lifecycle action metadata
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/api.incidentLifecycleActionRequest'
       produces:
       - application/json
       responses:
@@ -5018,6 +5060,11 @@ paths:
         name: id
         required: true
         type: string
+      - description: Lifecycle action metadata
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/api.incidentLifecycleActionRequest'
       produces:
       - application/json
       responses:
@@ -5057,6 +5104,11 @@ paths:
         name: id
         required: true
         type: string
+      - description: Lifecycle action metadata
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/api.incidentLifecycleActionRequest'
       produces:
       - application/json
       responses:

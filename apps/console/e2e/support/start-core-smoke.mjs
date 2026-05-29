@@ -118,6 +118,7 @@ start("go", ["run", "."], {
     ORION_PORT: "18999",
     ORION_DATA_DIR: dataDir,
     ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS: "3600",
+    ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS: "true",
   },
 });
 await waitFor(`${coreURL}/health`, 60_000);

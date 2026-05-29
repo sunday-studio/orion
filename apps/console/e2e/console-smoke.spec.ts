@@ -31,8 +31,8 @@ test("signs in, rejects bad credentials, and signs out", async ({ page }) => {
 test("renders primary operations pages with seeded Core data", async ({ page }) => {
   await signIn(page);
 
-  await page.getByRole("link", { name: "Agents" }).click();
-  await expect(page.getByRole("heading", { name: "Agents" })).toBeVisible();
+  await page.getByRole("link", { name: "Servers" }).click();
+  await expect(page.getByRole("heading", { name: "Servers" })).toBeVisible();
   await expect(page.getByText("Healthy Server", { exact: true })).toBeVisible();
   await expect(page.getByText("9 monitors").first()).toBeVisible();
 
@@ -219,14 +219,24 @@ test("exercises incident detail tabs and lifecycle actions", async ({ page }) =>
   await expect(page.getByText("Incident marked covered").first()).toBeVisible();
 
   await page.getByRole("button", { name: "Reopen" }).click();
+  await page.getByRole("dialog").getByLabel("note").fill("Maintenance completed");
+  await page.getByRole("dialog").getByRole("button", { name: "Reopen" }).click();
   await expect(page.getByRole("button", { name: "Acknowledge" })).toBeVisible();
   await expect(page.getByText("Incident reopened").first()).toBeVisible();
 
   await page.getByRole("button", { name: "Acknowledge" }).click();
+  await page.getByRole("dialog").getByLabel("note").fill("On-call is investigating");
+  await page.getByRole("dialog").getByRole("button", { name: "Acknowledge" }).click();
   await expect(page.getByRole("button", { name: "Acknowledge" })).toBeHidden();
   await expect(page.getByRole("button", { name: "Resolve" })).toBeVisible();
+  await page.getByRole("tab", { name: /Timeline/ }).click();
+  await expect(page.getByText("user / admin").first()).toBeVisible();
+  await expect(page.getByText("On-call is investigating").first()).toBeVisible();
 
   await page.getByRole("button", { name: "Resolve" }).click();
+  await page.getByRole("dialog").getByLabel("note").fill("Service recovered");
+  await page.getByRole("dialog").getByRole("button", { name: "Resolve" }).click();
   await expect(page.getByRole("button", { name: "Resolve" })).toBeHidden();
   await expect(page.getByText("Incident manually resolved").first()).toBeVisible();
+  await expect(page.getByText("Service recovered").first()).toBeVisible();
 });

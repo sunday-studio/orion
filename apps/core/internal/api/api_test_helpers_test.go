@@ -156,6 +156,18 @@ func assertIncidentEvent(t *testing.T, server *Server, incidentID string, eventT
 	}
 }
 
+func assertIncidentEventMetadata(t *testing.T, server *Server, incidentID string, eventType string, wantActorType string, wantActorID string, wantNote string) {
+	t.Helper()
+
+	var event db.IncidentEvent
+	if err := server.db.Where("incident_id = ? AND type = ?", incidentID, eventType).Order("created_at DESC").First(&event).Error; err != nil {
+		t.Fatalf("find incident event %s: %v", eventType, err)
+	}
+	if event.ActorType != wantActorType || event.ActorID != wantActorID || event.Note != wantNote {
+		t.Fatalf("incident event metadata = actor_type:%q actor_id:%q note:%q, want actor_type:%q actor_id:%q note:%q", event.ActorType, event.ActorID, event.Note, wantActorType, wantActorID, wantNote)
+	}
+}
+
 func assertMonitorIncidentState(t *testing.T, server *Server, monitorID string, wantActiveIncidentID string, wantIncidentState string) {
 	t.Helper()
 

@@ -4666,6 +4666,14 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "Lifecycle action metadata",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/api.incidentLifecycleActionRequest"
+                        }
                     }
                 ],
                 "responses": {
@@ -4810,6 +4818,14 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "Lifecycle action metadata",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/api.incidentLifecycleActionRequest"
+                        }
                     }
                 ],
                 "responses": {
@@ -4872,6 +4888,14 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "Lifecycle action metadata",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/api.incidentLifecycleActionRequest"
+                        }
                     }
                 ],
                 "responses": {
@@ -8583,6 +8607,34 @@ const docTemplate = `{
                 }
             }
         },
+        "api.IncidentActionStateResponse": {
+            "type": "object",
+            "properties": {
+                "allowed": {
+                    "type": "boolean"
+                },
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.IncidentAllowedActionsResponse": {
+            "type": "object",
+            "properties": {
+                "acknowledge": {
+                    "$ref": "#/definitions/api.IncidentActionStateResponse"
+                },
+                "cover": {
+                    "$ref": "#/definitions/api.IncidentActionStateResponse"
+                },
+                "reopen": {
+                    "$ref": "#/definitions/api.IncidentActionStateResponse"
+                },
+                "resolve": {
+                    "$ref": "#/definitions/api.IncidentActionStateResponse"
+                }
+            }
+        },
         "api.IncidentComponentImpactResponse": {
             "type": "object",
             "properties": {
@@ -8603,6 +8655,12 @@ const docTemplate = `{
         "api.IncidentEventResponse": {
             "type": "object",
             "properties": {
+                "actor_id": {
+                    "type": "string"
+                },
+                "actor_type": {
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
                 },
@@ -8616,6 +8674,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "monitor_report_id": {
+                    "type": "string"
+                },
+                "note": {
                     "type": "string"
                 },
                 "type": {
@@ -8749,6 +8810,9 @@ const docTemplate = `{
                 "agent_name": {
                     "type": "string"
                 },
+                "allowed_actions": {
+                    "$ref": "#/definitions/api.IncidentAllowedActionsResponse"
+                },
                 "coverage_note": {
                     "type": "string"
                 },
@@ -8820,6 +8884,12 @@ const docTemplate = `{
         "api.IncidentTimelineItemResponse": {
             "type": "object",
             "properties": {
+                "actor_id": {
+                    "type": "string"
+                },
+                "actor_type": {
+                    "type": "string"
+                },
                 "alert_delivery_id": {
                     "type": "string"
                 },
@@ -8839,6 +8909,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "monitor_report_id": {
+                    "type": "string"
+                },
+                "note": {
                     "type": "string"
                 },
                 "source": {
@@ -9873,6 +9946,14 @@ const docTemplate = `{
                 "covered_until": {
                     "type": "string"
                 },
+                "note": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.incidentLifecycleActionRequest": {
+            "type": "object",
+            "properties": {
                 "note": {
                     "type": "string"
                 }
