@@ -39,17 +39,26 @@ curl -fsSL -o orion-compose.yaml \
   https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/examples/core-console-compose.yaml
 ```
 
-Optionally pin a release image and set stronger admin credentials in the same directory:
+Pin a release image and set admin credentials in the same directory:
 
 ```sh
+ADMIN_PASSWORD="$(openssl rand -base64 24)"
+JWT_SECRET="$(openssl rand -base64 32)"
+
 cat > .env <<'EOF'
 ORION_CORE_IMAGE=ghcr.io/sunday-studio/orion-core:<version>
 ORION_HTTP_PORT=8999
+ORION_REQUIRE_FRONTEND_AUTH=true
 ORION_ADMIN_USERNAME=admin
-ORION_ADMIN_PASSWORD=replace-with-a-strong-password
-ORION_JWT_SECRET=replace-with-a-long-random-secret
 EOF
+
+printf 'ORION_ADMIN_PASSWORD=%s\nORION_JWT_SECRET=%s\n' "$ADMIN_PASSWORD" "$JWT_SECRET" >> .env
 ```
+
+The Compose file sets `ORION_REQUIRE_FRONTEND_AUTH=true`, so Core and the worker refuse startup
+unless `ORION_ADMIN_USERNAME`, `ORION_ADMIN_PASSWORD`, and `ORION_JWT_SECRET` are all present.
+Required-auth mode also rejects placeholder auth values, admin passwords shorter than 12 characters,
+and JWT secrets shorter than 32 characters.
 
 Public status page subscriber email is disabled by default. To send confirmation and public incident
 update mail, configure a dedicated sender for public subscribers:
@@ -67,8 +76,7 @@ ORION_PUBLIC_STATUS_URL_ORIGIN=https://status.example.com
 ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET=replace-with-a-long-random-secret
 ```
 
-Start Core. If you skip the `.env` file, Compose uses the defaults in `orion-compose.yaml`.
-Compose starts two services:
+Start Core after creating the `.env` file. Compose starts two services:
 
 - `orion-core`: API, Console, incidents, alerts, and diagnostics;
 - `orion-core-worker`: Core-managed monitor worker heartbeat and check execution.
@@ -81,7 +89,13 @@ Core listens on `http://localhost:8999`.
 Worker state is exposed through the API diagnostics route:
 
 ```sh
-curl http://localhost:8999/v1/diagnostics/core-worker
+TOKEN="$(
+  curl -fsS http://localhost:8999/v1/auth/login \
+    -H 'Content-Type: application/json' \
+    -d "{\"username\":\"admin\",\"password\":\"$ADMIN_PASSWORD\"}" |
+    jq -r '.data.token'
+)"
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8999/v1/diagnostics/core-worker
 ```
 
 The plain `/health` endpoint only reports API and database availability. It does not fail because
@@ -156,9 +170,10 @@ docker run -d \
   -v orion-data:/data \
   -e ORION_DATA_DIR=/data \
   -e ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS=3600 \
+  -e ORION_REQUIRE_FRONTEND_AUTH=true \
   -e ORION_ADMIN_USERNAME=admin \
-  -e ORION_ADMIN_PASSWORD='change-me' \
-  -e ORION_JWT_SECRET='change-me-to-a-long-random-value' \
+  -e ORION_ADMIN_PASSWORD='replace-with-a-strong-password' \
+  -e ORION_JWT_SECRET='replace-with-at-least-32-random-characters' \
   ghcr.io/sunday-studio/orion-core:<version>
 
 docker run -d \
@@ -170,9 +185,10 @@ docker run -d \
   -e ORION_WORKER_HEARTBEAT_SECONDS=15 \
   -e ORION_WORKER_STALE_SECONDS=60 \
   -e ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS=false \
+  -e ORION_REQUIRE_FRONTEND_AUTH=true \
   -e ORION_ADMIN_USERNAME=admin \
-  -e ORION_ADMIN_PASSWORD='change-me' \
-  -e ORION_JWT_SECRET='change-me-to-a-long-random-value' \
+  -e ORION_ADMIN_PASSWORD='replace-with-a-strong-password' \
+  -e ORION_JWT_SECRET='replace-with-at-least-32-random-characters' \
   ghcr.io/sunday-studio/orion-core:<version> \
   ./orion-core-worker
 ```
