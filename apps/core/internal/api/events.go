@@ -1,6 +1,8 @@
 package api
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"orion/core/internal/db"
 	"orion/core/internal/service"
@@ -171,7 +173,9 @@ func (s *Server) orionEvents(fetchLimit int, filters orionEventFilters) ([]Orion
 	}
 	for _, event := range auditEvents {
 		source := "audit"
-		if event.AffectedObjectType != "" {
+		if event.AffectedObjectType == "data_lifecycle" {
+			source = "data_lifecycle"
+		} else if event.AffectedObjectType != "" {
 			source = event.AffectedObjectType + "_lifecycle"
 		}
 		events = append(events, OrionEventResponse{
@@ -229,6 +233,20 @@ func auditEventMessage(event db.AuditEvent) string {
 		return "Agent token revoked"
 	case service.AgentTokenAuditActionReissued:
 		return "Agent token reissued"
+	case service.DataLifecycleAuditActionSettingsUpdated:
+		return "Data lifecycle settings updated"
+	case service.DataLifecycleAuditActionRollupRun:
+		metadata := auditEventMetadata(event)
+		status := auditEventMetadataString(metadata, "result_status", "unknown")
+		reportCount := auditEventMetadataInt(metadata, "report_count")
+		monitorDays := auditEventMetadataInt(metadata, "monitor_days")
+		return fmt.Sprintf("Manual data lifecycle rollup finished with %s status (%d reports across %d monitor days)", status, reportCount, monitorDays)
+	case service.DataLifecycleAuditActionArchiveRun:
+		metadata := auditEventMetadata(event)
+		status := auditEventMetadataString(metadata, "result_status", "unknown")
+		agentReports := auditEventMetadataInt(metadata, "agent_reports_archived")
+		monitorReports := auditEventMetadataInt(metadata, "monitor_reports_archived")
+		return fmt.Sprintf("Manual data lifecycle archive finished with %s status (%d agent reports, %d monitor reports)", status, agentReports, monitorReports)
 	default:
 		return strings.ReplaceAll(event.Action, "_", " ")
 	}
@@ -281,4 +299,33 @@ func orionEventMatchesSearch(event OrionEventResponse, search string) bool {
 		}
 	}
 	return false
+}
+
+func auditEventMetadata(event db.AuditEvent) map[string]interface{} {
+	metadata := map[string]interface{}{}
+	if strings.TrimSpace(event.MetadataJSON) == "" {
+		return metadata
+	}
+	if err := json.Unmarshal([]byte(event.MetadataJSON), &metadata); err != nil {
+		return map[string]interface{}{}
+	}
+	return metadata
+}
+
+func auditEventMetadataString(metadata map[string]interface{}, key string, fallback string) string {
+	if value, ok := metadata[key].(string); ok && strings.TrimSpace(value) != "" {
+		return strings.TrimSpace(value)
+	}
+	return fallback
+}
+
+func auditEventMetadataInt(metadata map[string]interface{}, key string) int {
+	switch value := metadata[key].(type) {
+	case float64:
+		return int(value)
+	case int:
+		return value
+	default:
+		return 0
+	}
 }
