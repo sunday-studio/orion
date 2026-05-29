@@ -4611,6 +4611,12 @@ const docTemplate = `{
                                                         "$ref": "#/definitions/api.MonitorReportResponse"
                                                     }
                                                 },
+                                                "next_actions": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/api.IncidentNextActionResponse"
+                                                    }
+                                                },
                                                 "related_incidents": {
                                                     "type": "array",
                                                     "items": {
@@ -8665,6 +8671,38 @@ const docTemplate = `{
                 },
                 "resolved_count": {
                     "type": "integer"
+                }
+            }
+        },
+        "api.IncidentNextActionResponse": {
+            "type": "object",
+            "properties": {
+                "action_type": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "filter_status": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "priority": {
+                    "type": "integer"
+                },
+                "target_id": {
+                    "type": "string"
+                },
+                "target_kind": {
+                    "type": "string"
+                },
+                "target_tab": {
+                    "type": "string"
                 }
             }
         },

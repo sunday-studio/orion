@@ -99,6 +99,19 @@ type IncidentEvidenceResponse struct {
 	LatestReport     *MonitorReportResponse `json:"latest_report,omitempty"`
 }
 
+// IncidentNextActionResponse represents an operator action suggested by incident detail context.
+type IncidentNextActionResponse struct {
+	ID           string `json:"id"`
+	Label        string `json:"label"`
+	Description  string `json:"description"`
+	ActionType   string `json:"action_type"`
+	Priority     int    `json:"priority"`
+	TargetKind   string `json:"target_kind,omitempty"`
+	TargetID     string `json:"target_id,omitempty"`
+	TargetTab    string `json:"target_tab,omitempty"`
+	FilterStatus string `json:"filter_status,omitempty"`
+}
+
 // IncidentRelatedIncidentResponse summarizes a nearby incident on the same monitor.
 type IncidentRelatedIncidentResponse struct {
 	ID                 string     `json:"id"`

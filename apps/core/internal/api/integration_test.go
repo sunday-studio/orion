@@ -3642,6 +3642,24 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 	if latestResp.Code != http.StatusOK {
 		t.Fatalf("latest report status = %d, body = %s", latestResp.Code, latestResp.Body.String())
 	}
+	now := time.Now().UTC()
+	failedDelivery := db.AlertDelivery{
+		ID:            "delivery-failed-incident-detail",
+		IncidentID:    incident.ID,
+		EventType:     "incident_opened",
+		Channel:       "Primary webhook",
+		Type:          "webhook",
+		Status:        "failed",
+		Error:         "context deadline exceeded",
+		AttemptCount:  1,
+		MaxAttempts:   3,
+		LastAttemptAt: &now,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	if err := server.db.Create(&failedDelivery).Error; err != nil {
+		t.Fatalf("create failed delivery: %v", err)
+	}
 
 	detailResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents/"+incident.ID, nil, "")
 	if detailResp.Code != http.StatusOK {
@@ -3677,6 +3695,14 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 				ID             string `json:"id"`
 				ResolutionKind string `json:"resolution_kind"`
 			} `json:"related_incidents"`
+			NextActions []struct {
+				ID           string `json:"id"`
+				ActionType   string `json:"action_type"`
+				TargetKind   string `json:"target_kind"`
+				TargetID     string `json:"target_id"`
+				TargetTab    string `json:"target_tab"`
+				FilterStatus string `json:"filter_status"`
+			} `json:"next_actions"`
 			Timeline []struct {
 				Type            string `json:"type"`
 				Source          string `json:"source"`
@@ -3723,6 +3749,25 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 		detail.Data.RelatedIncidents[0].ID != relatedIncident.ID ||
 		detail.Data.RelatedIncidents[0].ResolutionKind != "recovered" {
 		t.Fatalf("related incidents = %+v, want prior same-monitor incident", detail.Data.RelatedIncidents)
+	}
+	var hasMonitorTuningAction bool
+	var hasNotificationRecoveryAction bool
+	for _, action := range detail.Data.NextActions {
+		if action.ActionType == "review_monitor_tuning" &&
+			action.TargetKind == "monitor" &&
+			action.TargetID == registeredMonitor.Data.MonitorID &&
+			action.TargetTab == "config" {
+			hasMonitorTuningAction = true
+		}
+		if action.ActionType == "review_failed_notifications" &&
+			action.TargetKind == "alert_deliveries" &&
+			action.TargetID == incident.ID &&
+			action.FilterStatus == "failed" {
+			hasNotificationRecoveryAction = true
+		}
+	}
+	if !hasMonitorTuningAction || !hasNotificationRecoveryAction {
+		t.Fatalf("next actions = %+v, want monitor tuning and notification recovery actions", detail.Data.NextActions)
 	}
 	var reportLinked bool
 	var deliveryLinked bool
