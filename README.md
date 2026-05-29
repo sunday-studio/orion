@@ -335,6 +335,7 @@ CI coverage and release-only workflow notes live in [CI baseline](docs/ci.md).
 - [Core Docker deployment](docs/deployment/core-docker.md)
 - [Kubernetes position](docs/deployment/kubernetes-position.md)
 - [Server install and upgrade](docs/deployment/agent-install-upgrade.md)
+- [Release readiness gate](docs/deployment/release-readiness.md)
 - [Seed demo data](docs/development/seed-demo-data.md)
 - [CI baseline](docs/ci.md)
 - [Milestones](docs/milestones/README.md)

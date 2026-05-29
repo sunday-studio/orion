@@ -11,6 +11,8 @@ The workflow is path-aware:
   files are not committed.
 - Deploy and documentation changes run repository smoke checks, including shell syntax and Docker
   Compose config validation.
+- The release readiness job aggregates path-aware job results and fails when any required gate fails
+  or is cancelled.
 
 Release-only jobs stay separate:
 
@@ -19,6 +21,14 @@ Release-only jobs stay separate:
 
 Those release jobs are intentionally manual because they publish external artifacts and require
 explicit version inputs.
+
+## Release Readiness
+
+`make release-readiness` runs the local blocking gate for Server tests, Core tests, Console build,
+and repository smoke checks. Contract-changing PRs must also run `make generated-contracts-check`.
+
+The full matrix and warning classification rules live in
+[Release readiness gate](deployment/release-readiness.md).
 
 ## Coverage
 

@@ -146,8 +146,7 @@ jobs:
         working-directory: apps/console
 
       - name: Build Console
-        run: pnpm run build
-        working-directory: apps/console
+        run: make console-build
 
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
@@ -223,3 +222,47 @@ jobs:
           ORION_ADMIN_USERNAME: ci-admin
           ORION_ADMIN_PASSWORD: ci-password
           ORION_JWT_SECRET: ci-secret-at-least-long-enough
+
+  release-readiness:
+    name: Release readiness
+    runs-on: ubuntu-24.04
+    needs:
+      - changes
+      - agent
+      - core
+      - console
+      - generated-contracts
+      - repository-smoke
+    if: always()
+    steps:
+      - name: Check gate results
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          AGENT_RESULT: ${{ needs.agent.result }}
+          CORE_RESULT: ${{ needs.core.result }}
+          CONSOLE_RESULT: ${{ needs.console.result }}
+          CONTRACTS_RESULT: ${{ needs.generated-contracts.result }}
+          REPOSITORY_SMOKE_RESULT: ${{ needs.repository-smoke.result }}
+        run: |
+          failed=0
+          for gate in \
+            "Changed area detection:${CHANGES_RESULT}" \
+            "Server tests:${AGENT_RESULT}" \
+            "Core tests:${CORE_RESULT}" \
+            "Console build:${CONSOLE_RESULT}" \
+            "Generated contracts:${CONTRACTS_RESULT}" \
+            "Repository smoke:${REPOSITORY_SMOKE_RESULT}"
+          do
+            name="${gate%%:*}"
+            result="${gate#*:}"
+            case "${result}" in
+              success|skipped)
+                printf '%s: %s\n' "${name}" "${result}"
+                ;;
+              *)
+                printf '%s: %s\n' "${name}" "${result}"
+                failed=1
+                ;;
+            esac
+          done
+          exit "${failed}"
