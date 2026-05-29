@@ -6,14 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
-	"net/http"
-	"net/url"
 	"orion/core/internal/config"
 	"orion/core/internal/db"
 	"orion/core/internal/logging"
+	"orion/core/internal/monitorvalidation"
 	"orion/core/internal/utils"
-	"strconv"
 	"strings"
 	"time"
 
@@ -22,18 +19,11 @@ import (
 
 const defaultCoreManagedMonitorIntervalSeconds = 60
 const defaultCoreManagedMonitorTimeoutSeconds = 10
-const maxCoreSyntheticSteps = 10
-const maxCoreSyntheticVariables = 10
-const maxCoreSyntheticVariableLength = 1024
-const maxCorePlaywrightSteps = 30
-const maxCorePlaywrightArtifactBytes = 256 * 1024
-const maxCorePlaywrightSelectorLength = 2048
-const maxCorePlaywrightValueLength = 4096
 
 var (
 	ErrCoreManagedMonitorNotFound        = errors.New("core monitor not found")
-	ErrCoreManagedMonitorUnsupportedKind = errors.New("unsupported core monitor kind")
-	ErrCoreManagedMonitorValidation      = errors.New("invalid core monitor")
+	ErrCoreManagedMonitorUnsupportedKind = monitorvalidation.ErrUnsupportedKind
+	ErrCoreManagedMonitorValidation      = monitorvalidation.ErrValidation
 )
 
 type CoreManagedMonitorCreateRequest struct {
@@ -486,47 +476,11 @@ func ensureCoreMonitorExists(tx *gorm.DB, monitorID string) error {
 }
 
 func normalizeCoreManagedMonitorKind(kind string) string {
-	switch strings.ToLower(strings.TrimSpace(kind)) {
-	case "heartbeat":
-		return "heartbeat"
-	case "http", "http_status":
-		return "http"
-	case "http_keyword":
-		return "http_keyword"
-	case "expected_status":
-		return "expected_status"
-	case "tcp", "tcp_port":
-		return "tcp"
-	case "dns":
-		return "dns"
-	case "tls", "tls_certificate":
-		return "tls"
-	case "udp":
-		return "udp"
-	case "api_request":
-		return "api_request"
-	case "domain_expiration":
-		return "domain_expiration"
-	case "ping":
-		return "ping"
-	case "mail", "smtp", "imap", "pop", "pop3":
-		return strings.ToLower(strings.TrimSpace(kind))
-	case "synthetic", "synthetic_multi_step":
-		return "synthetic"
-	case "playwright", "playwright_transaction":
-		return "playwright"
-	default:
-		return strings.ToLower(strings.TrimSpace(kind))
-	}
+	return monitorvalidation.NormalizeKind(kind)
 }
 
 func isSupportedCoreManagedMonitorKind(kind string) bool {
-	switch normalizeCoreManagedMonitorKind(kind) {
-	case "heartbeat", "http", "http_keyword", "expected_status", "tcp", "dns", "tls", "udp", "api_request", "domain_expiration", "ping", "mail", "smtp", "imap", "pop", "pop3", "synthetic", "playwright":
-		return true
-	default:
-		return false
-	}
+	return monitorvalidation.IsSupportedKind(kind)
 }
 
 func marshalJSONObject(value map[string]interface{}) (string, error) {
@@ -545,38 +499,7 @@ func validateCoreManagedMonitorConfig(kind string, configJSON string, secretRefJ
 }
 
 func validateCoreManagedMonitorConfigWithPolicy(kind string, configJSON string, secretRefJSON string, targetPolicy CoreMonitorTargetPolicy) error {
-	if strings.TrimSpace(secretRefJSON) != "" && strings.TrimSpace(secretRefJSON) != "{}" && !json.Valid([]byte(secretRefJSON)) {
-		return fmt.Errorf("%w: secret refs must be valid JSON", ErrCoreManagedMonitorValidation)
-	}
-
-	switch normalizeCoreManagedMonitorKind(kind) {
-	case "heartbeat":
-		return validateCoreHeartbeatMonitorConfig(configJSON)
-	case "http", "http_keyword", "expected_status":
-		return validateCoreHTTPMonitorConfigWithPolicy(kind, configJSON, targetPolicy)
-	case "api_request":
-		return validateCoreAPIRequestMonitorConfigWithPolicy(configJSON, targetPolicy)
-	case "tcp":
-		return validateCoreHostPortConfigWithPolicy(configJSON, true, targetPolicy)
-	case "udp":
-		return validateCoreUDPMonitorConfigWithPolicy(configJSON, targetPolicy)
-	case "dns":
-		return validateCoreDNSMonitorConfigWithPolicy(configJSON, targetPolicy)
-	case "tls":
-		return validateCoreTLSMonitorConfigWithPolicy(configJSON, targetPolicy)
-	case "domain_expiration":
-		return validateCoreDomainExpirationMonitorConfigWithPolicy(configJSON, targetPolicy)
-	case "ping":
-		return validateCorePingMonitorConfigWithPolicy(configJSON, targetPolicy)
-	case "mail", "smtp", "imap", "pop", "pop3":
-		return validateCoreMailMonitorConfigWithPolicy(kind, configJSON, targetPolicy)
-	case "synthetic":
-		return validateCoreSyntheticMonitorConfigWithPolicy(configJSON, targetPolicy)
-	case "playwright":
-		return validateCorePlaywrightMonitorConfigWithPolicy(configJSON, targetPolicy)
-	default:
-		return ErrCoreManagedMonitorUnsupportedKind
-	}
+	return monitorvalidation.ValidateConfigWithPolicy(kind, configJSON, secretRefJSON, targetPolicy)
 }
 
 func ValidateCoreManagedMonitorConfig(kind string, configJSON string, secretRefJSON string) error {
@@ -593,16 +516,7 @@ func HashHeartbeatMonitorToken(token string) string {
 }
 
 func validateCoreHeartbeatMonitorConfig(configJSON string) error {
-	var cfg struct {
-		GraceSeconds int `json:"grace_seconds"`
-	}
-	if err := json.Unmarshal([]byte(configJSON), &cfg); err != nil {
-		return fmt.Errorf("%w: parse config json: %v", ErrCoreManagedMonitorValidation, err)
-	}
-	if cfg.GraceSeconds < 0 {
-		return fmt.Errorf("%w: grace_seconds must be zero or greater", ErrCoreManagedMonitorValidation)
-	}
-	return nil
+	return monitorvalidation.ValidateHeartbeatConfig(configJSON)
 }
 
 func validateCoreHTTPMonitorConfig(kind string, configJSON string) error {
@@ -610,35 +524,7 @@ func validateCoreHTTPMonitorConfig(kind string, configJSON string) error {
 }
 
 func validateCoreHTTPMonitorConfigWithPolicy(kind string, configJSON string, targetPolicy CoreMonitorTargetPolicy) error {
-	var cfg struct {
-		URL               string   `json:"url"`
-		Method            string   `json:"method"`
-		ExpectedStatus    int      `json:"expected_status"`
-		ExpectedStatuses  []int    `json:"expected_statuses"`
-		RequiredContains  []string `json:"required_contains"`
-		ForbiddenContains []string `json:"forbidden_contains"`
-	}
-	if err := json.Unmarshal([]byte(configJSON), &cfg); err != nil {
-		return fmt.Errorf("%w: parse config json: %v", ErrCoreManagedMonitorValidation, err)
-	}
-	if err := targetPolicy.ValidateURL(cfg.URL, "url"); err != nil {
-		return err
-	}
-	method := strings.ToUpper(strings.TrimSpace(cfg.Method))
-	if method == "" {
-		method = http.MethodGet
-	}
-	if method != http.MethodGet && method != http.MethodHead {
-		return fmt.Errorf("%w: method must be GET or HEAD", ErrCoreManagedMonitorValidation)
-	}
-	normalizedKind := normalizeCoreManagedMonitorKind(kind)
-	if normalizedKind == "http_keyword" && !hasNonEmptyString(cfg.RequiredContains) && !hasNonEmptyString(cfg.ForbiddenContains) {
-		return fmt.Errorf("%w: required_contains or forbidden_contains is required", ErrCoreManagedMonitorValidation)
-	}
-	if normalizedKind == "expected_status" && cfg.ExpectedStatus == 0 && len(cfg.ExpectedStatuses) == 0 {
-		return fmt.Errorf("%w: expected_status or expected_statuses is required", ErrCoreManagedMonitorValidation)
-	}
-	return validateCoreExpectedStatuses(cfg.ExpectedStatus, cfg.ExpectedStatuses)
+	return monitorvalidation.ValidateHTTPConfigWithPolicy(kind, configJSON, targetPolicy)
 }
 
 func validateCoreAPIRequestMonitorConfig(configJSON string) error {
@@ -646,26 +532,7 @@ func validateCoreAPIRequestMonitorConfig(configJSON string) error {
 }
 
 func validateCoreAPIRequestMonitorConfigWithPolicy(configJSON string, targetPolicy CoreMonitorTargetPolicy) error {
-	var cfg struct {
-		URL              string `json:"url"`
-		Method           string `json:"method"`
-		ExpectedStatus   int    `json:"expected_status"`
-		ExpectedStatuses []int  `json:"expected_statuses"`
-	}
-	if err := json.Unmarshal([]byte(configJSON), &cfg); err != nil {
-		return fmt.Errorf("%w: parse config json: %v", ErrCoreManagedMonitorValidation, err)
-	}
-	if err := targetPolicy.ValidateURL(cfg.URL, "url"); err != nil {
-		return err
-	}
-	method := strings.ToUpper(strings.TrimSpace(cfg.Method))
-	if method == "" {
-		method = http.MethodGet
-	}
-	if !coreMonitorAPIRequestMethodAllowed(method) {
-		return fmt.Errorf("%w: method must be GET, POST, PUT, PATCH, DELETE, HEAD, or OPTIONS", ErrCoreManagedMonitorValidation)
-	}
-	return validateCoreExpectedStatuses(cfg.ExpectedStatus, cfg.ExpectedStatuses)
+	return monitorvalidation.ValidateAPIRequestConfigWithPolicy(configJSON, targetPolicy)
 }
 
 func validateCoreHostPortConfig(configJSON string, portRequired bool) error {
@@ -673,23 +540,7 @@ func validateCoreHostPortConfig(configJSON string, portRequired bool) error {
 }
 
 func validateCoreHostPortConfigWithPolicy(configJSON string, portRequired bool, targetPolicy CoreMonitorTargetPolicy) error {
-	var cfg struct {
-		Host string `json:"host"`
-		Port int    `json:"port"`
-	}
-	if err := json.Unmarshal([]byte(configJSON), &cfg); err != nil {
-		return fmt.Errorf("%w: parse config json: %v", ErrCoreManagedMonitorValidation, err)
-	}
-	if strings.TrimSpace(cfg.Host) == "" {
-		return fmt.Errorf("%w: host is required", ErrCoreManagedMonitorValidation)
-	}
-	if err := targetPolicy.ValidateHost(cfg.Host, "host"); err != nil {
-		return err
-	}
-	if portRequired && (cfg.Port < 1 || cfg.Port > 65535) {
-		return fmt.Errorf("%w: port must be between 1 and 65535", ErrCoreManagedMonitorValidation)
-	}
-	return nil
+	return monitorvalidation.ValidateHostPortConfigWithPolicy(configJSON, portRequired, targetPolicy)
 }
 
 func validateCoreUDPMonitorConfig(configJSON string) error {
@@ -697,31 +548,7 @@ func validateCoreUDPMonitorConfig(configJSON string) error {
 }
 
 func validateCoreUDPMonitorConfigWithPolicy(configJSON string, targetPolicy CoreMonitorTargetPolicy) error {
-	var cfg struct {
-		Host             string `json:"host"`
-		Port             int    `json:"port"`
-		Payload          string `json:"payload"`
-		ExpectedResponse string `json:"expected_response"`
-	}
-	if err := json.Unmarshal([]byte(configJSON), &cfg); err != nil {
-		return fmt.Errorf("%w: parse config json: %v", ErrCoreManagedMonitorValidation, err)
-	}
-	if strings.TrimSpace(cfg.Host) == "" {
-		return fmt.Errorf("%w: host is required", ErrCoreManagedMonitorValidation)
-	}
-	if err := targetPolicy.ValidateHost(cfg.Host, "host"); err != nil {
-		return err
-	}
-	if cfg.Port < 1 || cfg.Port > 65535 {
-		return fmt.Errorf("%w: port must be between 1 and 65535", ErrCoreManagedMonitorValidation)
-	}
-	if cfg.Payload == "" {
-		return fmt.Errorf("%w: payload is required", ErrCoreManagedMonitorValidation)
-	}
-	if cfg.ExpectedResponse == "" {
-		return fmt.Errorf("%w: expected_response is required", ErrCoreManagedMonitorValidation)
-	}
-	return nil
+	return monitorvalidation.ValidateUDPConfigWithPolicy(configJSON, targetPolicy)
 }
 
 func validateCoreDNSMonitorConfig(configJSON string) error {
@@ -729,29 +556,7 @@ func validateCoreDNSMonitorConfig(configJSON string) error {
 }
 
 func validateCoreDNSMonitorConfigWithPolicy(configJSON string, targetPolicy CoreMonitorTargetPolicy) error {
-	var cfg struct {
-		Host       string `json:"host"`
-		RecordType string `json:"record_type"`
-	}
-	if err := json.Unmarshal([]byte(configJSON), &cfg); err != nil {
-		return fmt.Errorf("%w: parse config json: %v", ErrCoreManagedMonitorValidation, err)
-	}
-	if strings.TrimSpace(cfg.Host) == "" {
-		return fmt.Errorf("%w: host is required", ErrCoreManagedMonitorValidation)
-	}
-	if err := targetPolicy.ValidateHost(cfg.Host, "host"); err != nil {
-		return err
-	}
-	recordType := strings.ToUpper(strings.TrimSpace(cfg.RecordType))
-	if recordType == "" {
-		recordType = "A"
-	}
-	switch recordType {
-	case "A", "AAAA", "CNAME", "TXT", "MX", "NS":
-		return nil
-	default:
-		return fmt.Errorf("%w: record_type must be one of A, AAAA, CNAME, TXT, MX, NS", ErrCoreManagedMonitorValidation)
-	}
+	return monitorvalidation.ValidateDNSConfigWithPolicy(configJSON, targetPolicy)
 }
 
 func validateCoreTLSMonitorConfig(configJSON string) error {
@@ -759,27 +564,7 @@ func validateCoreTLSMonitorConfig(configJSON string) error {
 }
 
 func validateCoreTLSMonitorConfigWithPolicy(configJSON string, targetPolicy CoreMonitorTargetPolicy) error {
-	var cfg struct {
-		Host        string `json:"host"`
-		Port        int    `json:"port"`
-		WarningDays int    `json:"warning_days"`
-	}
-	if err := json.Unmarshal([]byte(configJSON), &cfg); err != nil {
-		return fmt.Errorf("%w: parse config json: %v", ErrCoreManagedMonitorValidation, err)
-	}
-	if strings.TrimSpace(cfg.Host) == "" {
-		return fmt.Errorf("%w: host is required", ErrCoreManagedMonitorValidation)
-	}
-	if err := targetPolicy.ValidateHost(cfg.Host, "host"); err != nil {
-		return err
-	}
-	if cfg.Port != 0 && (cfg.Port < 1 || cfg.Port > 65535) {
-		return fmt.Errorf("%w: port must be between 1 and 65535", ErrCoreManagedMonitorValidation)
-	}
-	if cfg.WarningDays < 0 {
-		return fmt.Errorf("%w: warning_days must be zero or greater", ErrCoreManagedMonitorValidation)
-	}
-	return nil
+	return monitorvalidation.ValidateTLSConfigWithPolicy(configJSON, targetPolicy)
 }
 
 func validateCoreDomainExpirationMonitorConfig(configJSON string) error {
@@ -787,36 +572,7 @@ func validateCoreDomainExpirationMonitorConfig(configJSON string) error {
 }
 
 func validateCoreDomainExpirationMonitorConfigWithPolicy(configJSON string, targetPolicy CoreMonitorTargetPolicy) error {
-	var cfg struct {
-		Domain      string `json:"domain"`
-		RDAPURL     string `json:"rdap_url"`
-		WHOISServer string `json:"whois_server"`
-		WarningDays int    `json:"warning_days"`
-	}
-	if err := json.Unmarshal([]byte(configJSON), &cfg); err != nil {
-		return fmt.Errorf("%w: parse config json: %v", ErrCoreManagedMonitorValidation, err)
-	}
-	if strings.TrimSpace(cfg.Domain) == "" {
-		return fmt.Errorf("%w: domain is required", ErrCoreManagedMonitorValidation)
-	}
-	if strings.ContainsAny(cfg.Domain, "/:@") {
-		return fmt.Errorf("%w: domain must be a hostname, not a URL", ErrCoreManagedMonitorValidation)
-	}
-	if err := targetPolicy.ValidateHost(cfg.Domain, "domain"); err != nil {
-		return err
-	}
-	if cfg.WarningDays < 0 {
-		return fmt.Errorf("%w: warning_days must be zero or greater", ErrCoreManagedMonitorValidation)
-	}
-	if strings.TrimSpace(cfg.RDAPURL) != "" {
-		if err := targetPolicy.ValidateURL(cfg.RDAPURL, "rdap_url"); err != nil {
-			return err
-		}
-	}
-	if strings.TrimSpace(cfg.WHOISServer) != "" {
-		return validateCoreWHOISServerWithPolicy(cfg.WHOISServer, targetPolicy)
-	}
-	return nil
+	return monitorvalidation.ValidateDomainExpirationConfigWithPolicy(configJSON, targetPolicy)
 }
 
 func validateCoreWHOISServer(value string) error {
@@ -824,37 +580,7 @@ func validateCoreWHOISServer(value string) error {
 }
 
 func validateCoreWHOISServerWithPolicy(value string, targetPolicy CoreMonitorTargetPolicy) error {
-	value = strings.TrimSpace(value)
-	if strings.ContainsAny(value, "/@") {
-		return fmt.Errorf("%w: whois_server must be a hostname with optional port", ErrCoreManagedMonitorValidation)
-	}
-	host := value
-	port := ""
-	if strings.HasPrefix(value, "[") {
-		var err error
-		host, port, err = net.SplitHostPort(value)
-		if err != nil {
-			return fmt.Errorf("%w: whois_server must be a hostname with optional port", ErrCoreManagedMonitorValidation)
-		}
-	}
-	if strings.Count(value, ":") == 1 {
-		parts := strings.SplitN(value, ":", 2)
-		host = parts[0]
-		port = parts[1]
-	}
-	if strings.TrimSpace(host) == "" {
-		return fmt.Errorf("%w: whois_server host is required", ErrCoreManagedMonitorValidation)
-	}
-	if err := targetPolicy.ValidateHost(host, "whois_server host"); err != nil {
-		return err
-	}
-	if port != "" {
-		parsedPort, err := strconv.Atoi(port)
-		if err != nil || parsedPort < 1 || parsedPort > 65535 {
-			return fmt.Errorf("%w: whois_server port must be between 1 and 65535", ErrCoreManagedMonitorValidation)
-		}
-	}
-	return nil
+	return monitorvalidation.ValidateWHOISServerWithPolicy(value, targetPolicy)
 }
 
 func validateCorePingMonitorConfig(configJSON string) error {
@@ -862,37 +588,7 @@ func validateCorePingMonitorConfig(configJSON string) error {
 }
 
 func validateCorePingMonitorConfigWithPolicy(configJSON string, targetPolicy CoreMonitorTargetPolicy) error {
-	var cfg struct {
-		Host   string `json:"host"`
-		Method string `json:"method"`
-		Port   int    `json:"port"`
-	}
-	if err := json.Unmarshal([]byte(configJSON), &cfg); err != nil {
-		return fmt.Errorf("%w: parse config json: %v", ErrCoreManagedMonitorValidation, err)
-	}
-	if strings.TrimSpace(cfg.Host) == "" {
-		return fmt.Errorf("%w: host is required", ErrCoreManagedMonitorValidation)
-	}
-	if err := targetPolicy.ValidateHost(cfg.Host, "host"); err != nil {
-		return err
-	}
-	method := strings.ToLower(strings.TrimSpace(cfg.Method))
-	if method == "" {
-		method = "tcp"
-	}
-	switch method {
-	case "tcp":
-		if cfg.Port != 0 && (cfg.Port < 1 || cfg.Port > 65535) {
-			return fmt.Errorf("%w: port must be between 1 and 65535", ErrCoreManagedMonitorValidation)
-		}
-	case "icmp":
-		if cfg.Port != 0 {
-			return fmt.Errorf("%w: port is unsupported for icmp ping", ErrCoreManagedMonitorValidation)
-		}
-	default:
-		return fmt.Errorf("%w: method must be one of tcp, icmp", ErrCoreManagedMonitorValidation)
-	}
-	return nil
+	return monitorvalidation.ValidatePingConfigWithPolicy(configJSON, targetPolicy)
 }
 
 func validateCoreMailMonitorConfig(kind string, configJSON string) error {
@@ -900,45 +596,7 @@ func validateCoreMailMonitorConfig(kind string, configJSON string) error {
 }
 
 func validateCoreMailMonitorConfigWithPolicy(kind string, configJSON string, targetPolicy CoreMonitorTargetPolicy) error {
-	var cfg struct {
-		Protocol    string `json:"protocol"`
-		Host        string `json:"host"`
-		Port        int    `json:"port"`
-		TLSMode     string `json:"tls_mode"`
-		AuthEnabled bool   `json:"auth_enabled"`
-	}
-	if err := json.Unmarshal([]byte(configJSON), &cfg); err != nil {
-		return fmt.Errorf("%w: parse config json: %v", ErrCoreManagedMonitorValidation, err)
-	}
-	protocol := normalizeCoreMailProtocol(cfg.Protocol)
-	if protocol == "" {
-		protocol = normalizeCoreMailProtocol(kind)
-	}
-	if protocol == "" || protocol == "mail" {
-		return fmt.Errorf("%w: protocol must be one of smtp, imap, pop", ErrCoreManagedMonitorValidation)
-	}
-	if strings.TrimSpace(cfg.Host) == "" {
-		return fmt.Errorf("%w: host is required", ErrCoreManagedMonitorValidation)
-	}
-	if err := targetPolicy.ValidateHost(cfg.Host, "host"); err != nil {
-		return err
-	}
-	tlsMode := strings.ToLower(strings.TrimSpace(cfg.TLSMode))
-	if tlsMode == "" {
-		tlsMode = "none"
-	}
-	switch tlsMode {
-	case "none", "implicit", "starttls":
-	default:
-		return fmt.Errorf("%w: tls_mode must be one of none, implicit, starttls", ErrCoreManagedMonitorValidation)
-	}
-	if cfg.Port != 0 && (cfg.Port < 1 || cfg.Port > 65535) {
-		return fmt.Errorf("%w: port must be between 1 and 65535", ErrCoreManagedMonitorValidation)
-	}
-	if cfg.AuthEnabled {
-		return fmt.Errorf("%w: auth_enabled is not supported for mail monitors yet", ErrCoreManagedMonitorValidation)
-	}
-	return nil
+	return monitorvalidation.ValidateMailConfigWithPolicy(kind, configJSON, targetPolicy)
 }
 
 func validateCoreSyntheticMonitorConfig(configJSON string) error {
@@ -946,91 +604,7 @@ func validateCoreSyntheticMonitorConfig(configJSON string) error {
 }
 
 func validateCoreSyntheticMonitorConfigWithPolicy(configJSON string, targetPolicy CoreMonitorTargetPolicy) error {
-	var cfg struct {
-		Variables map[string]string `json:"variables"`
-		Steps     []struct {
-			Type             string `json:"type"`
-			URL              string `json:"url"`
-			Method           string `json:"method"`
-			ExpectedStatus   int    `json:"expected_status"`
-			ExpectedStatuses []int  `json:"expected_statuses"`
-			Request          *struct {
-				URL              string `json:"url"`
-				Method           string `json:"method"`
-				ExpectedStatus   int    `json:"expected_status"`
-				ExpectedStatuses []int  `json:"expected_statuses"`
-			} `json:"request"`
-		} `json:"steps"`
-	}
-	if err := json.Unmarshal([]byte(configJSON), &cfg); err != nil {
-		return fmt.Errorf("%w: parse config json: %v", ErrCoreManagedMonitorValidation, err)
-	}
-	if len(cfg.Steps) == 0 {
-		return fmt.Errorf("%w: steps are required", ErrCoreManagedMonitorValidation)
-	}
-	if len(cfg.Steps) > maxCoreSyntheticSteps {
-		return fmt.Errorf("%w: steps must contain at most %d items", ErrCoreManagedMonitorValidation, maxCoreSyntheticSteps)
-	}
-	if len(cfg.Variables) > maxCoreSyntheticVariables {
-		return fmt.Errorf("%w: variables must contain at most %d entries", ErrCoreManagedMonitorValidation, maxCoreSyntheticVariables)
-	}
-	for key, value := range cfg.Variables {
-		if !coreMonitorVariableNameValid(key) {
-			return fmt.Errorf("%w: variable %q has invalid name", ErrCoreManagedMonitorValidation, key)
-		}
-		if len(value) > maxCoreSyntheticVariableLength {
-			return fmt.Errorf("%w: variable %q exceeds %d bytes", ErrCoreManagedMonitorValidation, key, maxCoreSyntheticVariableLength)
-		}
-	}
-	for index, step := range cfg.Steps {
-		stepType := strings.ToLower(strings.TrimSpace(step.Type))
-		if stepType == "" || stepType == "http" {
-			stepType = "api"
-		}
-		switch stepType {
-		case "api":
-			targetURL := strings.TrimSpace(step.URL)
-			method := strings.ToUpper(strings.TrimSpace(step.Method))
-			expectedStatus := step.ExpectedStatus
-			expectedStatuses := step.ExpectedStatuses
-			if step.Request != nil {
-				if strings.TrimSpace(step.Request.URL) != "" {
-					targetURL = strings.TrimSpace(step.Request.URL)
-				}
-				if strings.TrimSpace(step.Request.Method) != "" {
-					method = strings.ToUpper(strings.TrimSpace(step.Request.Method))
-				}
-				if step.Request.ExpectedStatus != 0 {
-					expectedStatus = step.Request.ExpectedStatus
-				}
-				if len(step.Request.ExpectedStatuses) > 0 {
-					expectedStatuses = step.Request.ExpectedStatuses
-				}
-			}
-			if strings.TrimSpace(targetURL) == "" {
-				return fmt.Errorf("%w: step %d url is required", ErrCoreManagedMonitorValidation, index+1)
-			}
-			if !strings.Contains(targetURL, "{{") {
-				if err := targetPolicy.ValidateURL(targetURL, fmt.Sprintf("step %d url", index+1)); err != nil {
-					return err
-				}
-			}
-			if method == "" {
-				method = http.MethodGet
-			}
-			if !coreMonitorAPIRequestMethodAllowed(method) {
-				return fmt.Errorf("%w: step %d method must be GET, POST, PUT, PATCH, DELETE, HEAD, or OPTIONS", ErrCoreManagedMonitorValidation, index+1)
-			}
-			if err := validateCoreExpectedStatuses(expectedStatus, expectedStatuses); err != nil {
-				return err
-			}
-		case "browser":
-			continue
-		default:
-			return fmt.Errorf("%w: step %d type must be api, http, or browser", ErrCoreManagedMonitorValidation, index+1)
-		}
-	}
-	return nil
+	return monitorvalidation.ValidateSyntheticConfigWithPolicy(configJSON, targetPolicy)
 }
 
 func validateCorePlaywrightMonitorConfig(configJSON string) error {
@@ -1038,183 +612,7 @@ func validateCorePlaywrightMonitorConfig(configJSON string) error {
 }
 
 func validateCorePlaywrightMonitorConfigWithPolicy(configJSON string, targetPolicy CoreMonitorTargetPolicy) error {
-	var cfg struct {
-		URL      string `json:"url"`
-		StartURL string `json:"start_url"`
-		Browser  string `json:"browser"`
-		Steps    []struct {
-			Name      string `json:"name"`
-			Action    string `json:"action"`
-			URL       string `json:"url"`
-			Selector  string `json:"selector"`
-			Value     string `json:"value"`
-			Text      string `json:"text"`
-			Contains  string `json:"contains"`
-			TimeoutMS int    `json:"timeout_ms"`
-		} `json:"steps"`
-		ArtifactLimitBytes int `json:"artifact_limit_bytes"`
-		Viewport           struct {
-			Width  int `json:"width"`
-			Height int `json:"height"`
-		} `json:"viewport"`
-	}
-	if err := json.Unmarshal([]byte(configJSON), &cfg); err != nil {
-		return fmt.Errorf("%w: parse config json: %v", ErrCoreManagedMonitorValidation, err)
-	}
-	targetURL := strings.TrimSpace(cfg.URL)
-	if targetURL == "" {
-		targetURL = strings.TrimSpace(cfg.StartURL)
-	}
-	if targetURL == "" && len(cfg.Steps) == 0 {
-		return fmt.Errorf("%w: url or steps are required", ErrCoreManagedMonitorValidation)
-	}
-	if targetURL != "" {
-		if err := targetPolicy.ValidateURL(targetURL, "url"); err != nil {
-			return err
-		}
-	}
-	browser := strings.ToLower(strings.TrimSpace(cfg.Browser))
-	if browser != "" {
-		switch browser {
-		case "chromium", "firefox", "webkit":
-		default:
-			return fmt.Errorf("%w: browser must be chromium, firefox, or webkit", ErrCoreManagedMonitorValidation)
-		}
-	}
-	if cfg.Viewport.Width != 0 || cfg.Viewport.Height != 0 {
-		if cfg.Viewport.Width < 320 || cfg.Viewport.Width > 3840 || cfg.Viewport.Height < 240 || cfg.Viewport.Height > 2160 {
-			return fmt.Errorf("%w: viewport must be between 320x240 and 3840x2160", ErrCoreManagedMonitorValidation)
-		}
-	}
-	if cfg.ArtifactLimitBytes < 0 || cfg.ArtifactLimitBytes > maxCorePlaywrightArtifactBytes {
-		return fmt.Errorf("%w: artifact_limit_bytes must be between 0 and %d", ErrCoreManagedMonitorValidation, maxCorePlaywrightArtifactBytes)
-	}
-	if len(cfg.Steps) > maxCorePlaywrightSteps {
-		return fmt.Errorf("%w: steps must contain at most %d items", ErrCoreManagedMonitorValidation, maxCorePlaywrightSteps)
-	}
-	for index, step := range cfg.Steps {
-		action := strings.ToLower(strings.TrimSpace(step.Action))
-		if action == "" {
-			action = "goto"
-		}
-		switch action {
-		case "goto", "click", "fill", "select", "check", "wait_for_selector", "text_contains", "assert_text", "assert_url", "screenshot":
-		default:
-			return fmt.Errorf("%w: step %d action is unsupported", ErrCoreManagedMonitorValidation, index+1)
-		}
-		if step.TimeoutMS < 0 || step.TimeoutMS > 60000 {
-			return fmt.Errorf("%w: step %d timeout_ms must be between 0 and 60000", ErrCoreManagedMonitorValidation, index+1)
-		}
-		if action == "goto" {
-			if strings.TrimSpace(step.URL) == "" {
-				return fmt.Errorf("%w: step %d url is required", ErrCoreManagedMonitorValidation, index+1)
-			}
-			if !strings.Contains(step.URL, "{{") {
-				if err := targetPolicy.ValidateURL(step.URL, fmt.Sprintf("step %d url", index+1)); err != nil {
-					return err
-				}
-			}
-		}
-		if corePlaywrightActionRequiresSelector(action) && strings.TrimSpace(step.Selector) == "" {
-			return fmt.Errorf("%w: step %d selector is required", ErrCoreManagedMonitorValidation, index+1)
-		}
-		if len(step.Selector) > maxCorePlaywrightSelectorLength {
-			return fmt.Errorf("%w: step %d selector exceeds %d bytes", ErrCoreManagedMonitorValidation, index+1, maxCorePlaywrightSelectorLength)
-		}
-		if len(step.Value) > maxCorePlaywrightValueLength || len(step.Text) > maxCorePlaywrightValueLength || len(step.Contains) > maxCorePlaywrightValueLength {
-			return fmt.Errorf("%w: step %d value exceeds %d bytes", ErrCoreManagedMonitorValidation, index+1, maxCorePlaywrightValueLength)
-		}
-	}
-	return nil
-}
-
-func coreMonitorAPIRequestMethodAllowed(method string) bool {
-	switch method {
-	case http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodHead, http.MethodOptions:
-		return true
-	default:
-		return false
-	}
-}
-
-func hasNonEmptyString(values []string) bool {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return true
-		}
-	}
-	return false
-}
-
-func corePlaywrightActionRequiresSelector(action string) bool {
-	switch action {
-	case "click", "fill", "select", "check", "wait_for_selector", "text_contains", "assert_text":
-		return true
-	default:
-		return false
-	}
-}
-
-func coreMonitorVariableNameValid(name string) bool {
-	if name == "" {
-		return false
-	}
-	for index, char := range name {
-		if index == 0 {
-			if (char >= 'A' && char <= 'Z') || (char >= 'a' && char <= 'z') || char == '_' {
-				continue
-			}
-			return false
-		}
-		if (char >= 'A' && char <= 'Z') || (char >= 'a' && char <= 'z') || (char >= '0' && char <= '9') || char == '_' {
-			continue
-		}
-		return false
-	}
-	return true
-}
-
-func validateCoreExpectedStatuses(expectedStatus int, expectedStatuses []int) error {
-	if expectedStatus != 0 && (expectedStatus < 100 || expectedStatus > 599) {
-		return fmt.Errorf("%w: expected_status must be between 100 and 599", ErrCoreManagedMonitorValidation)
-	}
-	for _, status := range expectedStatuses {
-		if status < 100 || status > 599 {
-			return fmt.Errorf("%w: expected_statuses must contain values between 100 and 599", ErrCoreManagedMonitorValidation)
-		}
-	}
-	return nil
-}
-
-func validateCoreHTTPURL(rawURL string, field string) error {
-	rawURL = strings.TrimSpace(rawURL)
-	if rawURL == "" {
-		return fmt.Errorf("%w: %s is required", ErrCoreManagedMonitorValidation, field)
-	}
-	parsedURL, err := url.ParseRequestURI(rawURL)
-	if err != nil {
-		return fmt.Errorf("%w: %s is invalid: %v", ErrCoreManagedMonitorValidation, field, err)
-	}
-	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
-		return fmt.Errorf("%w: %s scheme must be http or https", ErrCoreManagedMonitorValidation, field)
-	}
-	if parsedURL.Host == "" {
-		return fmt.Errorf("%w: %s host is required", ErrCoreManagedMonitorValidation, field)
-	}
-	return nil
-}
-
-func normalizeCoreMailProtocol(protocol string) string {
-	switch strings.ToLower(strings.TrimSpace(protocol)) {
-	case "smtp", "smtps":
-		return "smtp"
-	case "imap", "imaps":
-		return "imap"
-	case "pop", "pop3", "pop3s":
-		return "pop"
-	default:
-		return strings.ToLower(strings.TrimSpace(protocol))
-	}
+	return monitorvalidation.ValidatePlaywrightConfigWithPolicy(configJSON, targetPolicy)
 }
 
 func boundedPositive(value int, fallback int) int {
@@ -1232,85 +630,9 @@ func nonNegative(value int) int {
 }
 
 func RedactCoreMonitorConfigJSON(configJSON string) map[string]interface{} {
-	var value map[string]interface{}
-	if err := json.Unmarshal([]byte(configJSON), &value); err != nil {
-		return map[string]interface{}{}
-	}
-	return redactCoreMonitorValue(value).(map[string]interface{})
+	return monitorvalidation.RedactConfigJSON(configJSON)
 }
 
 func RedactCoreMonitorSecretRefJSON(secretRefJSON string) map[string]interface{} {
-	var value map[string]interface{}
-	if err := json.Unmarshal([]byte(secretRefJSON), &value); err != nil {
-		return map[string]interface{}{}
-	}
-	return redactCoreMonitorSecretRefValue(value).(map[string]interface{})
-}
-
-func redactCoreMonitorValue(value interface{}) interface{} {
-	switch typed := value.(type) {
-	case map[string]interface{}:
-		redacted := make(map[string]interface{}, len(typed))
-		for key, nested := range typed {
-			if isSensitiveCoreMonitorConfigKey(key) {
-				redacted[key] = "[redacted]"
-				continue
-			}
-			if isCoreMonitorURLConfigKey(key) {
-				if rawURL, ok := nested.(string); ok {
-					redacted[key] = SanitizeCoreMonitorURL(rawURL)
-					continue
-				}
-			}
-			redacted[key] = redactCoreMonitorValue(nested)
-		}
-		return redacted
-	case []interface{}:
-		redacted := make([]interface{}, 0, len(typed))
-		for _, nested := range typed {
-			redacted = append(redacted, redactCoreMonitorValue(nested))
-		}
-		return redacted
-	default:
-		return typed
-	}
-}
-
-func isSensitiveCoreMonitorConfigKey(key string) bool {
-	key = strings.ToLower(strings.TrimSpace(key))
-	for _, token := range []string{"secret", "token", "password", "api_key", "apikey", "authorization", "auth_header", "private_key"} {
-		if strings.Contains(key, token) {
-			return true
-		}
-	}
-	return false
-}
-
-func isCoreMonitorURLConfigKey(key string) bool {
-	key = strings.ToLower(strings.TrimSpace(key))
-	switch key {
-	case "url", "start_url", "rdap_url", "target_url":
-		return true
-	default:
-		return false
-	}
-}
-
-func redactCoreMonitorSecretRefValue(value interface{}) interface{} {
-	switch typed := value.(type) {
-	case map[string]interface{}:
-		redacted := make(map[string]interface{}, len(typed))
-		for key, nested := range typed {
-			redacted[key] = redactCoreMonitorSecretRefValue(nested)
-		}
-		return redacted
-	case []interface{}:
-		redacted := make([]interface{}, 0, len(typed))
-		for _, nested := range typed {
-			redacted = append(redacted, redactCoreMonitorSecretRefValue(nested))
-		}
-		return redacted
-	default:
-		return "[redacted]"
-	}
+	return monitorvalidation.RedactSecretRefJSON(secretRefJSON)
 }
