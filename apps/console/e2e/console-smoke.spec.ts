@@ -3,6 +3,7 @@ import { type Page, expect, test } from "@playwright/test";
 const username = "admin";
 const password = "change-me";
 const webhookReceiverURL = "http://127.0.0.1:19080";
+const coreURL = "http://127.0.0.1:18999";
 
 test.describe.configure({ mode: "serial" });
 
@@ -463,13 +464,38 @@ test("creates a Core heartbeat monitor and shows setup affordances", async ({ pa
 test("exercises incident detail tabs and lifecycle actions", async ({ page }) => {
   await signIn(page);
 
+  const secretReport = await page.request.post(
+    `${coreURL}/v1/agents/seed-agent-03-down/seed-monitor-seed-agent-03-down-http/report`,
+    {
+      headers: { Authorization: "Bearer seed-token-03-down" },
+      data: {
+        timestamp: new Date().toISOString(),
+        health: "degraded",
+        metrics: {
+          status_code: 503,
+          message: "checkout degraded token=console-token-value",
+          authorization: "Bearer console-secret-value",
+        },
+      },
+    },
+  );
+  expect(secretReport.ok()).toBeTruthy();
+
   await page.goto("/incidents/seed-incident-seed-monitor-seed-agent-03-down-http");
   await expect(page.getByRole("heading", { name: "Down Server HTTP API is down" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Acknowledge" })).toBeVisible();
   await expect(page.getByText("Cause / Evidence")).toBeVisible();
+  await expect(page.locator("body")).not.toContainText("console-token-value");
+  await expect(page.locator("body")).not.toContainText("console-secret-value");
   await page.getByRole("button", { name: "Inspect report" }).first().click();
   await expect(page.getByRole("dialog").getByText("Monitor Report")).toBeVisible();
   await expect(page.getByRole("dialog").getByText("Raw JSON")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Inspect report" }).nth(1).click();
+  await expect(page.getByRole("dialog").getByText("Monitor Report")).toBeVisible();
+  await expect(page.getByRole("dialog").getByText("[redacted]").first()).toBeVisible();
+  await expect(page.getByRole("dialog")).not.toContainText("console-token-value");
+  await expect(page.getByRole("dialog")).not.toContainText("console-secret-value");
   await page.keyboard.press("Escape");
 
   await page.getByRole("tab", { name: /Notifications/ }).click();
