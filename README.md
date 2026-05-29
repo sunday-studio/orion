@@ -252,7 +252,7 @@ rollback, Docker monitor permissions, and local network notes.
 
 ## Monitor Types
 
-Supported checks:
+Server monitor config supports host-local checks:
 
 - HTTP health checks
 - Websites
@@ -265,6 +265,22 @@ Supported checks:
 - Internal services
 
 See [Server monitors](docs/architecture/agent-monitors.md) for config details.
+
+Core-managed first-release product scope is narrower than the backend runner catalog. Supported
+Console workflows are:
+
+- HTTP status
+- HTTP keyword
+- Heartbeat
+- TCP port
+- DNS
+- TLS certificate
+- API request
+
+Ping, domain expiration, UDP, mail protocol, synthetic multi-step, and Playwright/browser
+transaction monitors are deferred or removed from first-release product scope. Historical backend
+runner code does not make those types supported Console workflows. See
+[Core-managed monitors](docs/plans/core-managed-monitors.md) for the support matrix.
 
 ## Running Locally
 

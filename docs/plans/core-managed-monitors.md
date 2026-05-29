@@ -58,17 +58,22 @@ Core monitor detail pages should show:
 
 ## Monitor Types
 
-### Now-Scope Types
+The first release should use "supported" to mean a user can create and operate the monitor from
+Console without editing the database or depending on an undocumented worker-only path. Backend runner
+history is useful implementation evidence, but it is not a product promise by itself.
+
+### First-Release Product Scope
 
 1. HTTP status monitor
 
-Checks an HTTP/HTTPS URL, follows optional redirects, records status code and latency, and passes when the response matches the configured success rule.
+Checks an HTTP/HTTPS URL, follows optional redirects, records status code and latency, and passes
+when the response matches the configured success rule.
 
 Minimum options:
 
 - URL;
 - method: GET or HEAD;
-- expected status: default 2xx, optional exact status list later;
+- expected status: default 2xx or an exact status;
 - timeout;
 - follow redirects;
 - check interval;
@@ -81,35 +86,14 @@ Extends HTTP status with body expectations.
 Minimum options:
 
 - required substring;
-- forbidden substring;
+- forbidden substring later;
 - optional regex later;
 - response body capture limit for debugging.
 
-3. TCP port monitor
+3. Heartbeat monitor
 
-Checks whether Core can open a TCP connection to host and port.
-
-Minimum options:
-
-- host;
-- port;
-- timeout;
-- interval.
-
-4. TLS certificate monitor
-
-Checks HTTPS certificate validity and days remaining.
-
-Minimum options:
-
-- hostname or URL;
-- expiration threshold, such as 30, 14, 7, 3, or 1 day;
-- verify chain;
-- interval.
-
-5. Heartbeat monitor
-
-Creates a unique endpoint that an external cron job, backup, script, or serverless task calls after it runs.
+Creates a unique endpoint that an external cron job, backup, script, or serverless task calls after
+it runs.
 
 Minimum options:
 
@@ -120,76 +104,50 @@ Minimum options:
 - failure endpoint with optional exit code and output payload;
 - last heartbeat and last failure details.
 
-6. DNS monitor
+4. TCP port monitor
+
+Checks whether Core can open a TCP connection to host and port.
+
+Minimum options:
+
+- host;
+- port;
+- timeout;
+- interval.
+
+5. DNS monitor
 
 Checks name resolution or a specific record value.
 
 Minimum options:
 
 - hostname;
-- record type: A, AAAA, CNAME, TXT, MX, NS;
+- record type: A, AAAA, CNAME, TXT, MX, or NS;
 - expected values;
-- resolver selection later;
 - timeout;
 - interval.
 
-7. Ping monitor
+6. TLS certificate monitor
 
-Useful if Core runs with ICMP permissions, otherwise this may need a TCP or HTTP substitute.
-
-Minimum options:
-
-- host;
-- timeout;
-- interval;
-- packet count later;
-- fallback TCP probe if ICMP is unavailable.
-
-First release behavior: Core treats ping as a reachability check with `method: tcp` by default,
-probing a configured port and reporting `reachable`, `latency_ms`, and
-`fallback_strategy: tcp_connect`. `method: icmp` is accepted as an explicit unsupported path that
-fails with `failure_stage: permission` until the Core worker has a privileged ICMP implementation.
-
-8. Domain expiration monitor
-
-Checks RDAP/WHOIS domain expiration where provider data is available.
+Checks HTTPS certificate validity and days remaining.
 
 Minimum options:
 
-- domain;
-- expiration threshold;
-- RDAP first;
-- WHOIS fallback later;
+- hostname or URL;
+- expiration threshold, such as 30, 14, 7, 3, or 1 day;
+- verify chain;
 - interval.
 
-First release behavior: Core queries RDAP for the domain expiration event and reports `expires_at`,
-`days_remaining`, `lookup_strategy: rdap`, and `fallback_strategy: none`. If RDAP does not expose
-usable expiration data, the monitor fails clearly with an unavailable-data payload instead of
-guessing from WHOIS text. WHOIS fallback stays deferred because registry formats, throttling, and
-privacy redaction make it a separate reliability problem.
+7. API request monitor
 
-9. Expected status code monitor
-
-Can be a variant of HTTP status, but deserves a UI path because it is common for APIs.
-
-Minimum options:
-
-- URL;
-- method;
-- exact expected status code or status code set;
-- timeout;
-- interval.
-
-10. API request monitor
-
-Adds method, headers, auth, body, response JSON checks, and stricter debugging output.
+Adds method, headers, auth, body, response checks, and stricter debugging output.
 
 Minimum options:
 
 - method;
 - URL;
-- headers;
-- body;
+- headers with secret redaction;
+- optional body;
 - auth header or token secret;
 - expected status;
 - JSON path assertions;
@@ -197,91 +155,38 @@ Minimum options:
 - timeout;
 - interval.
 
-11. UDP monitor
+### Deferred Or Removed Types
 
-Needs careful semantics because UDP "success" is service-specific.
+The worker may have historical or experimental runner code for additional kinds, but these are not
+first-release product workflows and should not appear as creatable Console options until their
+runtime contract, validation, redaction, result summaries, and incident semantics are versioned.
 
-Minimum options:
+Deferred:
 
-- host;
-- port;
-- payload;
-- expected response bytes or text;
-- timeout;
-- interval.
+- `ping`: deferred until ICMP permissions and fallback semantics are a documented worker contract.
+- `domain_expiration`: deferred until RDAP/WHOIS coverage and unavailable-data semantics are proven.
+- `udp`: deferred because UDP success semantics are service-specific and need stronger validation.
+- `smtp`, `imap`, `pop`, and `pop3`: deferred until credential, TLS, and mailbox boundary behavior is
+  designed.
+- `synthetic` and `synthetic_multi_step`: deferred until step artifacts, variable redaction, and
+  browser/API step boundaries are versioned.
 
-12. SMTP, IMAP, POP monitors
+Removed from first release:
 
-Checks mail server availability and TLS behavior without becoming a mailbox workflow product.
-
-Minimum options:
-
-- protocol: SMTP, IMAP, POP;
-- host;
-- port;
-- TLS mode;
-- expected banner or login capability;
-- optional credentials later;
-- timeout;
-- interval.
-
-First release behavior: Core opens the configured mail endpoint, reads the protocol banner, and
-optionally checks advertised capabilities without sending login credentials. `auth_enabled: true`
-fails configuration validation until credentialed mailbox checks are designed. Reports include the
-protocol, banner, capabilities, `tls_mode`, `tls_negotiated`, and missing-capability context.
-
-13. Playwright transaction monitor
-
-Runs a browser transaction from the Core monitor worker.
-
-Minimum options:
-
-- script or recorded steps;
-- timeout;
-- viewport;
-- screenshot on failure;
-- artifact retention;
-- secrets for login flows;
-- interval.
-
-First release behavior: Core treats Playwright transactions as bounded browser step lists executed
-through an explicit Node/Playwright runner configured with `ORION_PLAYWRIGHT_RUNNER` on the worker
-host. The default Core image stays browser-free. The worker enforces step count, timeout, viewport,
-and artifact-size limits, redacts configured secret variable names in reports, captures bounded
-screenshot artifacts on failure, and reports `runtime_unavailable` clearly when Playwright is not
-configured on the worker host. Operators that need browser checks should install or mount a trusted
-runner executable and set `ORION_PLAYWRIGHT_RUNNER`; an official optional browser worker image or
-sidecar is deferred until Orion versions the browser sandbox and artifact-retention contract.
-
-14. Synthetic multi-step API/browser flows
-
-Runs a sequence of API or browser checks as one monitor with step-level results.
-
-Minimum options:
-
-- ordered steps;
-- shared variables;
-- per-step assertions;
-- stop-on-failure behavior;
-- timeout budget;
-- artifact capture;
-- interval.
-
-First release behavior: Core supports ordered API steps with shared `{{variable}}` substitution,
-JSON-path assertions, JSON response extraction into later steps, stop-on-failure behavior, and
-bounded response samples as step artifacts. Browser steps are preserved as an explicit
-`unsupported_step` result until the Playwright transaction runner owns browser execution.
+- `playwright` and `playwright_transaction`: removed from first-release scope. Browser automation
+  needs a separate sandbox, browser packaging, artifact retention, and secret-handling contract
+  before Orion should present it as a supported monitor workflow.
 
 ### Implementation Order
 
-All types above are in the target product scope now. Implementation should still land in controlled slices:
+Product support should land in controlled slices:
 
-1. HTTP status, expected status, keyword, TCP, TLS, and heartbeat.
-2. DNS, ping, domain expiration, and API request assertions.
-3. UDP and mail protocol checks.
-4. Playwright transactions and synthetic multi-step flows.
+1. HTTP status, HTTP keyword, and heartbeat creation and operation.
+2. TCP, DNS, TLS certificate, and API request creation and operation.
+3. Deferred catalog decisions after first-release workflows are reliable.
 
-This keeps the product ambition broad without forcing the first worker release to carry the browser sandbox, protocol edge cases, and artifact retention all at once.
+This keeps the first release honest while preserving a path to the broader catalog after Console,
+docs, and operational evidence catch up to the worker implementation.
 
 ### Explicit Non-Goals
 
@@ -355,7 +260,7 @@ Compatibility rules:
 Use a separate table instead of stuffing runtime config into `monitors.meta`:
 
 - `core_monitor_configs.monitor_id`;
-- `kind`: http, tcp, tls, dns, heartbeat;
+- `kind`: http, http_keyword, heartbeat, tcp, dns, tls, api_request;
 - `config_json`: redacted on read;
 - `secret_ref_json` or future secret references;
 - `interval_seconds`;
@@ -445,7 +350,8 @@ Worker responsibilities:
 
 - scan for due Core monitor configs;
 - claim work using DB leases so multiple workers can run later;
-- execute HTTP, TCP, TLS, DNS, ping, domain, API, UDP, mail, heartbeat, Playwright, and synthetic checks;
+- execute supported first-release checks: HTTP status, HTTP keyword, heartbeat, TCP, DNS, TLS, and API request;
+- keep deferred runner kinds out of Console creation until their runtime contracts are versioned;
 - write monitor reports and update schedule timestamps;
 - call shared health and incident services after reports are written;
 - expose health/metrics for the worker process itself;
@@ -560,7 +466,8 @@ Core-managed monitors create new risk because Core will initiate network request
 MVP guardrails:
 
 - require admin authentication for create/edit/delete/test;
-- restrict methods to GET/HEAD for first release;
+- restrict HTTP status and keyword monitors to GET/HEAD;
+- allow API request methods only through explicit validation and redacted request metadata;
 - set strict timeouts;
 - cap request body, response capture, headers, and error payload sizes;
 - redact secrets in API responses, reports, logs, and event payloads;
@@ -569,7 +476,8 @@ MVP guardrails:
 - disable redirects to blocked hosts;
 - record the final URL/host after redirects;
 - avoid arbitrary command execution;
-- keep Playwright behind an explicit runner executable until sandboxing is versioned.
+- keep Playwright out of first-release product scope until sandboxing, packaging, and artifact
+  retention are versioned.
 
 Open security decision: Orion is self-hosted, so some users will want to monitor internal hosts from Core. The safest default is to allow private targets only behind an explicit Core config flag or Console setting.
 
@@ -598,7 +506,7 @@ Milestones map directly to Maat goals. Ticket rows under each milestone map to M
 | M3: Heartbeats | Core supports cron, backup, script, and scheduled-job monitoring through generated heartbeat endpoints and worker-side missed-heartbeat reconciliation. | Add heartbeat token and ingest routes; Add heartbeat missed-check reconciliation worker; Add heartbeat Console copy and setup affordances; Add heartbeat failure payload inspection. |
 | M4: Better incident controls | Core monitors have enough noise controls to be useful in production without opening incidents for short transient failures. | Add monitor confirmation periods; Add monitor recovery periods; Add Core monitor flapping handling; Add Core monitor severity defaults; Add Core monitor maintenance windows. |
 | M5: Components and status page groundwork | Core and Server monitors can be mapped to service/status-page components so incidents identify impacted components and future status pages can consume monitor health. | Design component data model; Add monitor-to-component mapping; Add incident component fields; Update status page architecture for monitor components. |
-| M6: Full monitor catalog expansion | Orion implements the full now-scope monitor catalog through the Core monitor worker with clear safety limits, report shapes, and incident behavior. | Add HTTP keyword monitor; Add expected status code monitor; Add TCP port monitor; Add TLS certificate monitor; Add DNS monitor; Add ping monitor; Add domain expiration monitor; Add API request monitor; Add UDP monitor; Add SMTP IMAP and POP monitors; Add Playwright transaction monitor; Add synthetic multi-step monitor. |
+| M6: Backend monitor catalog expansion | Orion records the broader backend runner catalog as implementation history while first-release product support stays limited to HTTP status, HTTP keyword, heartbeat, TCP, DNS, TLS, and API request workflows. | Add HTTP keyword monitor; Add expected status code monitor; Add TCP port monitor; Add TLS certificate monitor; Add DNS monitor; Add API request monitor; mark ping, domain expiration, UDP, mail, Playwright, and synthetic runners as deferred or removed from first-release product scope. |
 
 ## Maat Loading Rows
 
@@ -611,7 +519,7 @@ Loaded into Maat on 2026-05-27. Each milestone row is a Maat goal. Each ticket r
 | M3: Heartbeats | `G-20260527-111553-dcc5` | `T-20260527-111856-87f6`, `T-20260527-111907-416e`, `T-20260527-111918-7ad7`, `T-20260527-111931-a4dc` |
 | M4: Better incident controls | `G-20260527-111602-3269` | `T-20260527-111943-73e5`, `T-20260527-111956-14f8`, `T-20260527-112007-e8ac`, `T-20260527-112022-51a5`, `T-20260527-112035-ca71` |
 | M5: Components and status page groundwork | `G-20260527-111616-a92c` | `T-20260527-112050-0cfb`, `T-20260527-112103-2087`, `T-20260527-112118-7764`, `T-20260527-112139-910e` |
-| M6: Full monitor catalog expansion | `G-20260527-111626-e3b0` | `T-20260527-112154-d351`, `T-20260527-112209-1875`, `T-20260527-112220-3115`, `T-20260527-112232-63ef`, `T-20260527-112242-b01d`, `T-20260527-112250-8206`, `T-20260527-112259-4dfc`, `T-20260527-112313-2c00`, `T-20260527-112337-7951`, `T-20260527-112346-811e`, `T-20260527-112401-3ba3`, `T-20260527-112412-1f05` |
+| M6: Backend monitor catalog expansion | `G-20260527-111626-e3b0` | `T-20260527-112154-d351`, `T-20260527-112209-1875`, `T-20260527-112220-3115`, `T-20260527-112232-63ef`, `T-20260527-112242-b01d`, `T-20260527-112250-8206`, `T-20260527-112259-4dfc`, `T-20260527-112313-2c00`, `T-20260527-112337-7951`, `T-20260527-112346-811e`, `T-20260527-112401-3ba3`, `T-20260527-112412-1f05` |
 
 ## Review Questions
 
@@ -620,12 +528,17 @@ Loaded into Maat on 2026-05-27. Each milestone row is a Maat goal. Each ticket r
 - Should the first worker live under `apps/core/cmd/worker`, or should it be a separate `apps/core-worker` app from day one?
 - How should Docker Compose and local development start the API and worker together?
 - Should private network targets be allowed by default for self-hosted users, or require an explicit setting?
-- Should MVP include only HTTP status, or should TCP and TLS ship alongside it?
-- Should heartbeats be part of the first release or the second?
+- Resolved for first release: product-supported Core monitor workflows are HTTP status, HTTP keyword,
+  heartbeat, TCP, DNS, TLS, and API request.
 - Do we want monitor incident routing now, or keep current alert channels until status pages and components are further along?
 
 ## Recommendation
 
 Start small but make the ownership model explicit.
 
-The best first release is: Core owner, separate Core monitor worker, HTTP status checks, Console creation, test now, pause/resume, and existing incident reconciliation. Then add TCP/TLS, heartbeats, and the rest of the now-scope monitor catalog in type-focused slices. Status page components and incident grouping should follow after Core monitors are producing reliable history.
+The best first release is: Core owner, separate Core monitor worker, HTTP status, HTTP keyword,
+heartbeat, TCP, DNS, TLS, and API request workflows, Console creation, test now, pause/resume, and
+existing incident reconciliation. Defer ping, domain expiration, UDP, mail, synthetic, and
+Playwright-style browser checks until their operational contracts are good enough to present as
+supported product workflows. Status page components and incident grouping should follow after Core
+monitors are producing reliable history.

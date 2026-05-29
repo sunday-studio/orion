@@ -9,7 +9,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+  SelectTrigger,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type {
   ApiCoreMonitorConfigResponse,
@@ -72,6 +80,13 @@ const coreMonitorKindOptions = [
   { value: "http", label: "HTTP status" },
   { value: "http_keyword", label: "HTTP keyword" },
   { value: "heartbeat", label: "Heartbeat" },
+] as const;
+
+const pendingCoreMonitorKindOptions = [
+  { value: "tcp", label: "TCP (form pending)" },
+  { value: "dns", label: "DNS (form pending)" },
+  { value: "tls", label: "TLS (form pending)" },
+  { value: "api_request", label: "API request (form pending)" },
 ] as const;
 
 const readConfigString = (config: ApiCoreMonitorConfigResponse | undefined, key: string) => {
@@ -191,7 +206,7 @@ export const CoreMonitorDialog = ({
   const title = mode === "create" ? "Create Core Monitor" : "Edit Core Monitor";
   const description =
     mode === "create"
-      ? "Add a check that runs from Orion Core."
+      ? "Create a currently available Core workflow: HTTP status, HTTP keyword, or heartbeat."
       : "Update the Core-owned check configuration.";
   const isHeartbeat = form.kind === "heartbeat";
   const canSubmit = form.name.trim() && (isHeartbeat || form.url.trim());
@@ -231,11 +246,27 @@ export const CoreMonitorDialog = ({
                   </span>
                 </SelectTrigger>
                 <SelectContent>
-                  {coreMonitorKindOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    <SelectLabel>Available now</SelectLabel>
+                    {coreMonitorKindOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                  {mode === "create" && (
+                    <>
+                      <SelectSeparator />
+                      <SelectGroup>
+                        <SelectLabel>First-release scope</SelectLabel>
+                        {pendingCoreMonitorKindOptions.map((option) => (
+                          <SelectItem disabled key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </>
+                  )}
                 </SelectContent>
               </Select>
               <select

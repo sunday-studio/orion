@@ -11,7 +11,7 @@ This folder documents the implemented backend and Server system, plus product ar
 - [alert-chat-destinations.md](alert-chat-destinations.md): planned Slack and Discord destination model, adapter payloads, and rollout slices.
 - [status-pages.md](status-pages.md): planned public status page publishing model, data boundaries, workflows, and rollout phases.
 - [performance-observability.md](performance-observability.md): growth assumptions, backend performance risks, and Core self-metrics.
-- [agent-monitors.md](agent-monitors.md): every implemented monitor type and what it collects.
+- [agent-monitors.md](agent-monitors.md): Server-owned monitor config types and what they collect.
 - [core-features.md](core-features.md): Core services for health, incidents, alerts, auth, settings, and API routes.
 - [persistence-and-lifecycle.md](persistence-and-lifecycle.md): SQLite schema, migrations, rollups, archives, and generated API contract.
 

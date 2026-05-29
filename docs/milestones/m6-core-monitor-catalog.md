@@ -6,19 +6,25 @@ Make Core-managed monitors cover the first broad service-check catalog from `doc
 
 ## Scope
 
-This milestone covers the Core worker monitor runner catalog, not the Console creation workflow or public status page mapping. The worker now dispatches these Core monitor kinds:
+This milestone covers the Core worker monitor runner catalog, not the Console creation workflow,
+public status page mapping, or first-release product support. First-release product support is
+limited to HTTP status, HTTP keyword, heartbeat, TCP, DNS, TLS, and API request workflows. The worker
+history includes additional kinds, but those are backend-only, deferred, or removed from
+first-release scope until their Console workflows and runtime contracts are versioned.
+
+The worker now dispatches these Core monitor kinds:
 
 - `http`, `http_status`, `http_keyword`, and `expected_status`;
 - `tcp` and `tcp_port`;
 - `dns`;
 - `tls` and `tls_certificate`;
-- `udp`;
+- `udp` (deferred product workflow);
 - `api_request`;
-- `domain_expiration`;
-- `ping`;
-- `mail`, `smtp`, `imap`, `pop`, and `pop3`;
-- `synthetic` and `synthetic_multi_step`;
-- `playwright` and `playwright_transaction`.
+- `domain_expiration` (deferred product workflow);
+- `ping` (deferred product workflow);
+- `mail`, `smtp`, `imap`, `pop`, and `pop3` (deferred product workflows);
+- `synthetic` and `synthetic_multi_step` (deferred product workflows);
+- `playwright` and `playwright_transaction` (removed from first-release product scope).
 
 ## Completed
 
@@ -27,8 +33,8 @@ This milestone covers the Core worker monitor runner catalog, not the Console cr
 - Added TCP, DNS, TLS certificate, UDP, API request, domain expiration, ping-style reachability, mail protocol, synthetic multi-step, and Playwright transaction runners.
 - Kept runner behavior bounded: response samples are capped, Playwright artifacts are capped, synthetic variables are limited, UDP requires an expected response, and browser execution is behind an explicit runtime boundary.
 - Preserved safe secret handling: API request secret headers and Playwright secret variables are applied through secret config but only redacted key names are reported.
-- Documented first-release behavior and known fallbacks in `docs/plans/core-managed-monitors.md`.
-- Resolved first-release Playwright packaging as an explicit `ORION_PLAYWRIGHT_RUNNER` install or mount path on worker hosts; the default Core image remains browser-free.
+- Documented first-release product scope, deferred runner kinds, and known fallbacks in `docs/plans/core-managed-monitors.md`.
+- Recorded Playwright as removed from first-release product scope; the default Core image remains browser-free.
 
 ## Evidence
 
@@ -54,11 +60,11 @@ This milestone covers the Core worker monitor runner catalog, not the Console cr
 
 ## Open Risks
 
-- ICMP ping is explicit unsupported/permission behavior until the worker has privileged raw-socket support.
-- Domain expiration uses RDAP first and reports unavailable data clearly; WHOIS fallback remains deferred.
-- Playwright transactions require an explicit `ORION_PLAYWRIGHT_RUNNER` runtime on the worker host; the default Core image does not silently bundle browsers, and official optional browser packaging remains a later runtime-contract decision.
-- Mail monitors intentionally do not authenticate in this milestone.
+- ICMP ping is not a supported first-release product workflow.
+- Domain expiration remains deferred until RDAP/WHOIS coverage and unavailable-data semantics are proven.
+- Playwright transactions are removed from first-release product scope until browser sandboxing, browser packaging, secret handling, and artifact retention are versioned.
+- Mail monitors remain deferred and intentionally do not authenticate in this milestone.
 
 ## Next
 
-- Wire the full catalog into Console creation and edit flows.
+- Wire only the first-release product scope into Console creation and edit flows.

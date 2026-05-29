@@ -97,39 +97,21 @@ unspecified, and cloud metadata targets stay blocked. Redirects are checked with
 before the worker follows them, and report payloads strip URL user info, query strings, and fragments
 from recorded target URLs.
 
-## Playwright Transaction Runtime
+## Deferred Browser Transaction Runtime
 
-Playwright transaction monitors use an explicit runner executable on the Core worker host. The
-default `ghcr.io/sunday-studio/orion-core` image intentionally does not bundle Node, Playwright, or
-browser binaries. That keeps the standard Core image small and avoids silently adding a browser
-sandbox to every self-hosted install.
+Playwright transaction monitors are not a supported first-release product workflow. The default
+`ghcr.io/sunday-studio/orion-core` image intentionally does not bundle Node, Playwright, or browser
+binaries. That keeps the standard Core image small and avoids silently adding a browser sandbox to
+every self-hosted install.
 
-Supported first-release model:
+First-release Core monitor support is limited to HTTP status, HTTP keyword, heartbeat, TCP, DNS,
+TLS, and API request workflows. Leave `ORION_PLAYWRIGHT_RUNNER` unset in normal deployments.
 
-- keep the default Core API and Core worker image browser-free;
-- install or mount a trusted Node/Playwright runner executable on worker hosts that need browser
-  transaction checks;
-- set `ORION_PLAYWRIGHT_RUNNER` on the `orion-core-worker` process to the executable path;
-- leave `ORION_PLAYWRIGHT_RUNNER` unset on workers that should not run browser checks.
-
-The runner contract is stdin/stdout JSON: Core passes the validated transaction request on stdin and
-expects a bounded JSON result on stdout. If `ORION_PLAYWRIGHT_RUNNER` is unset, Playwright monitors
-fail explicitly with `failure_stage: runtime_unavailable`; other Core monitor types keep running.
-
-Docker users can either build a derived worker image that includes the runner and browsers, or mount
-the runner into the worker container and point the environment variable at it:
-
-```yaml
-services:
-  orion-core-worker:
-    environment:
-      ORION_PLAYWRIGHT_RUNNER: /opt/orion/playwright-runner
-    volumes:
-      - ./playwright-runner:/opt/orion/playwright-runner:ro
-```
-
-An official optional Playwright worker image or sidecar is intentionally deferred until the browser
-sandbox, browser set, and artifact retention policy are versioned as a separate runtime contract.
+Historical or experimental Playwright rows may fail explicitly with
+`failure_stage: runtime_unavailable` when no runner is configured. Do not treat that as a supported
+deployment gap. Browser checks need a separately versioned sandbox, browser set, secret-handling
+model, and artifact retention policy before Orion should document them as installable runtime
+features.
 
 From this repository, you can run the example directly:
 

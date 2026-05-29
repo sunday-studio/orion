@@ -5,7 +5,15 @@ import { ListPagination } from "@/components/list-pagination";
 import { StatusBadge, toStatus } from "@/components/status-badges";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+  SelectTrigger,
+} from "@/components/ui/select";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import {
   type ApiMonitorResponse,
@@ -41,6 +49,7 @@ const monitorTypeFilters = [
   "internal-service",
   "http",
   "http_keyword",
+  "heartbeat",
   "expected_status",
   "dns",
   "tls",
@@ -57,30 +66,60 @@ const monitorTypeFilters = [
 
 const monitorTypeOptions: Array<{ value: (typeof monitorTypeFilters)[number]; label: string }> = [
   { value: "all", label: "All types" },
+  { value: "http", label: "HTTP status" },
+  { value: "http_keyword", label: "HTTP keyword" },
+  { value: "heartbeat", label: "Heartbeat" },
+  { value: "tcp", label: "TCP port" },
+  { value: "dns", label: "DNS" },
+  { value: "tls", label: "TLS certificate" },
+  { value: "api_request", label: "API request" },
   { value: "http-healthcheck", label: "HTTP healthcheck" },
   { value: "website", label: "Website" },
-  { value: "tcp", label: "TCP" },
   { value: "command", label: "Command" },
   { value: "pm2", label: "PM2" },
   { value: "resource-threshold", label: "Resource threshold" },
   { value: "docker-container", label: "Docker" },
   { value: "systemd-service", label: "Systemd" },
   { value: "internal-service", label: "Internal service" },
-  { value: "http", label: "HTTP" },
-  { value: "http_keyword", label: "HTTP keyword" },
-  { value: "expected_status", label: "Expected status" },
-  { value: "dns", label: "DNS" },
-  { value: "tls", label: "TLS" },
-  { value: "udp", label: "UDP" },
-  { value: "api_request", label: "API request" },
-  { value: "domain_expiration", label: "Domain expiration" },
-  { value: "ping", label: "Ping" },
-  { value: "smtp", label: "SMTP" },
-  { value: "imap", label: "IMAP" },
-  { value: "pop", label: "POP" },
-  { value: "synthetic", label: "Synthetic" },
-  { value: "playwright", label: "Playwright" },
+  { value: "expected_status", label: "Expected status (HTTP alias)" },
+  { value: "udp", label: "UDP (deferred)" },
+  { value: "domain_expiration", label: "Domain expiration (deferred)" },
+  { value: "ping", label: "Ping (deferred)" },
+  { value: "smtp", label: "SMTP (deferred)" },
+  { value: "imap", label: "IMAP (deferred)" },
+  { value: "pop", label: "POP (deferred)" },
+  { value: "synthetic", label: "Synthetic (deferred)" },
+  { value: "playwright", label: "Playwright (removed)" },
 ];
+
+const firstReleaseCoreMonitorTypeOptions = monitorTypeOptions.filter((option) =>
+  ["http", "http_keyword", "heartbeat", "tcp", "dns", "tls", "api_request"].includes(option.value),
+);
+const serverMonitorTypeOptions = monitorTypeOptions.filter((option) =>
+  [
+    "http-healthcheck",
+    "website",
+    "command",
+    "pm2",
+    "resource-threshold",
+    "docker-container",
+    "systemd-service",
+    "internal-service",
+  ].includes(option.value),
+);
+const historicalMonitorTypeOptions = monitorTypeOptions.filter((option) =>
+  [
+    "expected_status",
+    "udp",
+    "domain_expiration",
+    "ping",
+    "smtp",
+    "imap",
+    "pop",
+    "synthetic",
+    "playwright",
+  ].includes(option.value),
+);
 
 const monitorStatusOptions: Array<{
   value: (typeof monitorStatusFilters)[number];
@@ -175,7 +214,9 @@ const columns: ColumnDef<ApiMonitorResponse>[] = [
         return owner;
       }
 
-      return <DataTableLink to={`/servers/${monitor.agent_id}?tab=monitors`}>{owner}</DataTableLink>;
+      return (
+        <DataTableLink to={`/servers/${monitor.agent_id}?tab=monitors`}>{owner}</DataTableLink>
+      );
     },
   },
   {
@@ -349,11 +390,34 @@ export const MonitorList = () => {
             <span data-slot="select-value">Type: {typeLabel}</span>
           </SelectTrigger>
           <SelectContent>
-            {monitorTypeOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
+            <SelectItem value="all">All types</SelectItem>
+            <SelectSeparator />
+            <SelectGroup>
+              <SelectLabel>First-release Core scope</SelectLabel>
+              {firstReleaseCoreMonitorTypeOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+            <SelectSeparator />
+            <SelectGroup>
+              <SelectLabel>Server monitor config</SelectLabel>
+              {serverMonitorTypeOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+            <SelectSeparator />
+            <SelectGroup>
+              <SelectLabel>Historical or deferred Core rows</SelectLabel>
+              {historicalMonitorTypeOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
           </SelectContent>
         </Select>
         <Select value={owner} onValueChange={setOwner}>
