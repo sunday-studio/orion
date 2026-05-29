@@ -269,7 +269,8 @@ See [Server monitors](docs/architecture/agent-monitors.md) for config details.
 ## Running Locally
 
 Runtime examples live under `deploy/examples/`. Use them for local smoke tests or as a starting
-point for your own Compose file.
+point for your own Compose file. A fuller first-run example with a tiny monitored Python app lives
+under `examples/python-sleep-compose/`.
 
 Run the bundled Core and Console example from this repository:
 
