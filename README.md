@@ -321,8 +321,6 @@ make agent-build VERSION=0.1.2
 OpenAPI is generated from Core route annotations. Do not edit `apps/core/openapi.yaml` or the
 generated Console SDK by hand.
 
-CI coverage and release-only workflow notes live in [CI baseline](docs/ci.md).
-
 ## Documentation
 
 - [System design](docs/system-design.md)
@@ -337,7 +335,6 @@ CI coverage and release-only workflow notes live in [CI baseline](docs/ci.md).
 - [Server install and upgrade](docs/deployment/agent-install-upgrade.md)
 - [Release readiness gate](docs/deployment/release-readiness.md)
 - [Seed demo data](docs/development/seed-demo-data.md)
-- [CI baseline](docs/ci.md)
 - [Milestones](docs/milestones/README.md)
 
 ## Project Layout

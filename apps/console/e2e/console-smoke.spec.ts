@@ -119,8 +119,8 @@ test("creates a Core heartbeat monitor and shows setup affordances", async ({ pa
   await page.getByLabel("Name").fill(monitorName);
   await page.getByLabel("Core monitor type").selectOption("heartbeat");
   await expect(page.getByLabel("URL")).toBeHidden();
-  await page.getByLabel("Interval seconds").fill("90");
-  await page.getByLabel("Grace seconds").fill("30");
+  await page.getByRole("spinbutton", { name: "Interval seconds" }).fill("90");
+  await page.getByRole("spinbutton", { name: "Grace seconds" }).fill("30");
   await page.getByRole("button", { name: "Create" }).click();
 
   await expect(page.getByText("Heartbeat monitor created.")).toBeVisible();
