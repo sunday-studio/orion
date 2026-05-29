@@ -6,7 +6,6 @@ CREATE TABLE IF NOT EXISTS audit_events (
     affected_object_id TEXT NOT NULL,
     actor_type TEXT NOT NULL,
     actor_id TEXT NOT NULL,
-    metadata_json TEXT NOT NULL DEFAULT '{}',
     created_at DATETIME NOT NULL
 );
 
