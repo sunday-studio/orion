@@ -1,5 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/page-header";
 import {
@@ -19,7 +27,8 @@ import {
   useUpdateDataLifecycleSettings,
 } from "@/orion-sdk";
 import { useQueryClient } from "@tanstack/react-query";
-import { type ReactNode, useEffect, useState } from "react";
+import { ArchiveIcon, RotateCwIcon } from "lucide-react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
 type SettingsFormState = {
   rawReportHotDays: string;
@@ -44,6 +53,18 @@ const asNumber = (value: string) => {
   if (trimmed === "") return undefined;
   const parsed = Number(trimmed);
   return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const getArchiveCutoff = (hotDays?: number) => {
+  if (!hotDays) return null;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - hotDays);
+  return cutoff.toISOString();
+};
+
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error && error.message) return error.message;
+  return "The maintenance action could not be completed.";
 };
 
 const Field = ({
@@ -79,6 +100,8 @@ export const SettingsPage = () => {
   const settings = settingsResponse.data?.settings;
   const [formState, setFormState] = useState(defaultFormState);
   const archiveScheduleLabel = formState.archiveSchedule === "manual" ? "Manual only" : "Daily";
+  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+  const maintenanceActionInFlight = useRef(false);
 
   useEffect(() => {
     if (!settings) return;
@@ -112,13 +135,37 @@ export const SettingsPage = () => {
     updateSettings.mutate({ data: payload });
   };
 
+  const maintenancePending = rollupRun.isPending || archiveRun.isPending;
+
   const runRollup = () => {
-    rollupRun.mutate({ data: undefined });
+    if (maintenanceActionInFlight.current) return;
+    maintenanceActionInFlight.current = true;
+    rollupRun.mutate(
+      { data: undefined },
+      {
+        onSettled: () => {
+          maintenanceActionInFlight.current = false;
+        },
+      },
+    );
   };
 
   const runArchive = () => {
-    archiveRun.mutate(undefined);
+    if (maintenanceActionInFlight.current) return;
+    maintenanceActionInFlight.current = true;
+    archiveRun.mutate(undefined, {
+      onSettled: () => {
+        maintenanceActionInFlight.current = false;
+        setArchiveDialogOpen(false);
+      },
+    });
   };
+
+  const archiveCutoff = getArchiveCutoff(settings?.raw_report_hot_days);
+  const archiveResult = archiveRun.data?.result;
+  const archiveTotal =
+    (archiveResult?.agent_reports_archived ?? 0) + (archiveResult?.monitor_reports_archived ?? 0);
+  const rollupResult = rollupRun.data?.result;
 
   return (
     <div className="space-y-7">
@@ -206,29 +253,124 @@ export const SettingsPage = () => {
         <h2 className="text-sm font-medium">Manual Maintenance</h2>
 
         <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={runRollup} disabled={rollupRun.isPending}>
-            {rollupRun.isPending ? "Running..." : "Run rollup"}
+          <Button onClick={runRollup} disabled={maintenancePending}>
+            <RotateCwIcon />
+            {rollupRun.isPending ? "Running rollup..." : "Run rollup"}
           </Button>
-          <Button variant="outline" onClick={runArchive} disabled={archiveRun.isPending}>
-            {archiveRun.isPending ? "Running..." : "Run archive"}
+          <Button
+            variant="outline"
+            onClick={() => setArchiveDialogOpen(true)}
+            disabled={maintenancePending || !settings}
+          >
+            <ArchiveIcon />
+            Run archive
           </Button>
-          {rollupRun.data?.result && (
-            <span className="text-sm text-neutral-600">
-              Rolled up {rollupRun.data.result.report_count ?? 0} reports.
-            </span>
+        </div>
+
+        <Dialog open={archiveDialogOpen} onOpenChange={setArchiveDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Archive raw reports</DialogTitle>
+              <DialogDescription>
+                Confirm before old raw reports move out of the hot Core database.
+              </DialogDescription>
+            </DialogHeader>
+            <dl className="grid gap-3 text-sm">
+              <div className="bg-neutral-100 p-3">
+                <dt className="text-neutral-600">Reports older than</dt>
+                <dd className="font-medium">
+                  {formatDate(archiveCutoff, DATE_TIME_FORMAT)} ({settings?.raw_report_hot_days}{" "}
+                  days)
+                </dd>
+              </div>
+              <div className="bg-neutral-100 p-3">
+                <dt className="text-neutral-600">Archive destination</dt>
+                <dd className="break-all font-medium">{settings?.archive_dir}</dd>
+              </div>
+              {!settings?.archive_raw_reports && (
+                <div className="border border-neutral-300 p-3 text-neutral-700">
+                  Raw report archiving is disabled, so this run will record a skipped archive.
+                </div>
+              )}
+            </dl>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setArchiveDialogOpen(false)}
+                disabled={archiveRun.isPending}
+              >
+                Cancel
+              </Button>
+              <Button onClick={runArchive} disabled={maintenancePending || !settings}>
+                <ArchiveIcon />
+                {archiveRun.isPending ? "Running archive..." : "Run archive"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <div className="grid gap-3 text-sm lg:grid-cols-2">
+          {rollupResult && (
+            <div className="border border-neutral-200 p-3">
+              <div className="font-medium">
+                Rolled up {rollupResult.report_count ?? 0} reports for {rollupResult.date}.
+              </div>
+              <div className="mt-1 text-neutral-600">
+                {rollupResult.monitor_days ?? 0} monitor days updated.
+              </div>
+              {rollupResult.report_count === 0 && (
+                <div className="mt-1 text-neutral-600">
+                  No monitor reports matched this rollup day.
+                </div>
+              )}
+              {rollupResult.skipped_today && (
+                <div className="mt-1 text-neutral-600">
+                  Skipped because rollups only run after a day is complete.
+                </div>
+              )}
+            </div>
           )}
-          {archiveRun.data?.result && (
-            <span className="text-sm text-neutral-600">
-              Archived{" "}
-              {(archiveRun.data.result.agent_reports_archived ?? 0) +
-                (archiveRun.data.result.monitor_reports_archived ?? 0)}{" "}
-              reports.
-            </span>
+          {archiveResult && (
+            <div className="border border-neutral-200 p-3">
+              <div className="font-medium">Archived {archiveTotal} reports.</div>
+              <div className="mt-1 text-neutral-600">
+                {archiveResult.agent_reports_archived ?? 0} server reports and{" "}
+                {archiveResult.monitor_reports_archived ?? 0} monitor reports moved.
+              </div>
+              {archiveResult.cutoff && (
+                <div className="mt-1 text-neutral-600">
+                  Cutoff {formatDate(archiveResult.cutoff, DATE_TIME_FORMAT)}.
+                </div>
+              )}
+              {archiveResult.archive_path && (
+                <div className="mt-1 break-all text-neutral-600">
+                  Destination {archiveResult.archive_path}.
+                </div>
+              )}
+              {archiveResult.skipped_because_disabled && (
+                <div className="mt-1 text-neutral-600">
+                  Skipped because raw report archiving is disabled.
+                </div>
+              )}
+              {archiveResult.skipped_because_no_reports && (
+                <div className="mt-1 text-neutral-600">No raw reports matched the cutoff.</div>
+              )}
+            </div>
           )}
-          {(rollupRun.isError || archiveRun.isError) && (
-            <span className="text-sm">Unable to run maintenance.</span>
+          {rollupRun.isError && (
+            <div className="border border-neutral-300 p-3">
+              <div className="font-medium">Rollup failed</div>
+              <div className="mt-1 text-neutral-600">{getErrorMessage(rollupRun.error)}</div>
+            </div>
+          )}
+          {archiveRun.isError && (
+            <div className="border border-neutral-300 p-3">
+              <div className="font-medium">Archive failed</div>
+              <div className="mt-1 text-neutral-600">{getErrorMessage(archiveRun.error)}</div>
+            </div>
           )}
         </div>
+
         {settings && (
           <div className="grid gap-3 text-sm sm:grid-cols-2">
             <div className="bg-neutral-100 p-3">
