@@ -93,6 +93,51 @@ func TestRecordStatusPageEventRequiresActor(t *testing.T) {
 	}
 }
 
+func TestRecordDataLifecycleEventStoresMetadata(t *testing.T) {
+	database := openAuditServiceTestDatabase(t)
+	service := NewAuditService(database, logging.NewLogger())
+
+	event, err := service.RecordDataLifecycleEvent(DataLifecycleAuditEventInput{
+		Action:           " " + DataLifecycleAuditActionSettingsUpdated + " ",
+		AffectedObjectID: " settings ",
+		ActorType:        " user ",
+		ActorID:          " admin ",
+		Metadata: map[string]interface{}{
+			"changed_fields": []string{"raw_report_hot_days"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("RecordDataLifecycleEvent() error = %v", err)
+	}
+
+	if event.Action != DataLifecycleAuditActionSettingsUpdated {
+		t.Fatalf("Action = %q, want %q", event.Action, DataLifecycleAuditActionSettingsUpdated)
+	}
+	if event.AffectedObjectType != "data_lifecycle" || event.AffectedObjectID != "settings" {
+		t.Fatalf("affected object = %s/%s, want data_lifecycle/settings", event.AffectedObjectType, event.AffectedObjectID)
+	}
+	if event.ActorType != "user" || event.ActorID != "admin" {
+		t.Fatalf("actor = %s/%s, want user/admin", event.ActorType, event.ActorID)
+	}
+	if !strings.Contains(event.MetadataJSON, "raw_report_hot_days") {
+		t.Fatalf("MetadataJSON = %q, want changed field", event.MetadataJSON)
+	}
+}
+
+func TestRecordDataLifecycleEventRejectsUnsupportedAction(t *testing.T) {
+	database := openAuditServiceTestDatabase(t)
+	service := NewAuditService(database, logging.NewLogger())
+
+	_, err := service.RecordDataLifecycleEvent(DataLifecycleAuditEventInput{
+		Action:    "data_lifecycle_unknown",
+		ActorType: "user",
+		ActorID:   "admin",
+	})
+	if err == nil || !strings.Contains(err.Error(), "unsupported data lifecycle audit action") {
+		t.Fatalf("RecordDataLifecycleEvent() error = %v, want unsupported action error", err)
+	}
+}
+
 func openAuditServiceTestDatabase(t *testing.T) *gorm.DB {
 	t.Helper()
 

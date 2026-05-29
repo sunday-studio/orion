@@ -174,6 +174,9 @@ func (s *Server) orionEvents(fetchLimit int, filters orionEventFilters) ([]Orion
 		if event.AffectedObjectType != "" {
 			source = event.AffectedObjectType + "_lifecycle"
 		}
+		if event.AffectedObjectType == "data_lifecycle" {
+			source = "data_lifecycle"
+		}
 		events = append(events, OrionEventResponse{
 			ID:        event.ID,
 			Type:      event.Action,
@@ -229,6 +232,16 @@ func auditEventMessage(event db.AuditEvent) string {
 		return "Agent token revoked"
 	case service.AgentTokenAuditActionReissued:
 		return "Agent token reissued"
+	case service.DataLifecycleAuditActionSettingsUpdated:
+		return "Data lifecycle settings updated"
+	case service.DataLifecycleAuditActionRollupRan:
+		return "Data lifecycle rollup ran"
+	case service.DataLifecycleAuditActionRollupFailed:
+		return "Data lifecycle rollup failed"
+	case service.DataLifecycleAuditActionArchiveRan:
+		return "Data lifecycle archive ran"
+	case service.DataLifecycleAuditActionArchiveFailed:
+		return "Data lifecycle archive failed"
 	default:
 		return strings.ReplaceAll(event.Action, "_", " ")
 	}

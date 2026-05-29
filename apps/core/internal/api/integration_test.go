@@ -4058,6 +4058,29 @@ func TestDataLifecycleSettingsFlow(t *testing.T) {
 	if settingsResp.Data.Settings.RawReportHotDays != 120 || settingsResp.Data.Settings.ArchiveSchedule != "manual" {
 		t.Fatalf("updated settings = %+v, want updated values", settingsResp.Data.Settings)
 	}
+
+	var auditEvent db.AuditEvent
+	if err := server.db.Where("action = ? AND affected_object_type = ? AND affected_object_id = ?", service.DataLifecycleAuditActionSettingsUpdated, "data_lifecycle", "settings").First(&auditEvent).Error; err != nil {
+		t.Fatalf("find settings audit event: %v", err)
+	}
+	if auditEvent.ActorType != "system" || auditEvent.ActorID != "console" || !strings.Contains(auditEvent.MetadataJSON, "raw_report_hot_days") {
+		t.Fatalf("settings audit event = %+v, want system actor and changed field metadata", auditEvent)
+	}
+
+	eventsResp := performJSONRequest(t, server, http.MethodGet, "/v1/events?source=data_lifecycle&type="+service.DataLifecycleAuditActionSettingsUpdated, nil, "")
+	if eventsResp.Code != http.StatusOK {
+		t.Fatalf("settings audit events status = %d, body = %s", eventsResp.Code, eventsResp.Body.String())
+	}
+	var events struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Events []OrionEventResponse `json:"events"`
+		} `json:"data"`
+	}
+	decodeResponse(t, eventsResp, &events)
+	if len(events.Data.Events) != 1 || events.Data.Events[0].Message != "Data lifecycle settings updated" {
+		t.Fatalf("settings audit events = %+v, want lifecycle settings event", events.Data.Events)
+	}
 }
 
 func setupTestServer(t *testing.T) *Server {
@@ -4143,6 +4166,17 @@ func TestDataLifecycleActionsFlow(t *testing.T) {
 	archiveResp := performJSONRequest(t, server, http.MethodPost, "/v1/settings/data-lifecycle/actions/archive", nil, "")
 	if archiveResp.Code != http.StatusOK {
 		t.Fatalf("archive status = %d, body = %s", archiveResp.Code, archiveResp.Body.String())
+	}
+
+	var actionAuditCount int64
+	if err := server.db.Model(&db.AuditEvent{}).Where("affected_object_type = ? AND action IN ?", "data_lifecycle", []string{
+		service.DataLifecycleAuditActionRollupRan,
+		service.DataLifecycleAuditActionArchiveRan,
+	}).Count(&actionAuditCount).Error; err != nil {
+		t.Fatalf("count lifecycle action audit events: %v", err)
+	}
+	if actionAuditCount != 2 {
+		t.Fatalf("lifecycle action audit event count = %d, want 2", actionAuditCount)
 	}
 }
 
