@@ -2,6 +2,7 @@ import { type Page, expect, test } from "@playwright/test";
 
 const username = "admin";
 const password = "change-me";
+const coreApiURL = "http://127.0.0.1:18999/v1";
 
 test.describe.configure({ mode: "serial" });
 
@@ -11,6 +12,15 @@ const signIn = async (page: Page) => {
   await page.getByPlaceholder("Password").fill(password);
   await page.getByRole("button", { name: "Enter" }).click();
   await expect(page.getByRole("heading", { name: "Incidents" })).toBeVisible();
+};
+
+const authHeaders = async (page: Page) => {
+  const token = await page.evaluate(() => localStorage.getItem("orion_token"));
+  expect(token).toBeTruthy();
+  return {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
 };
 
 test("signs in, rejects bad credentials, and signs out", async ({ page }) => {
@@ -31,8 +41,8 @@ test("signs in, rejects bad credentials, and signs out", async ({ page }) => {
 test("renders primary operations pages with seeded Core data", async ({ page }) => {
   await signIn(page);
 
-  await page.getByRole("link", { name: "Agents" }).click();
-  await expect(page.getByRole("heading", { name: "Agents" })).toBeVisible();
+  await page.getByRole("link", { name: "Servers" }).click();
+  await expect(page.getByRole("heading", { name: "Servers" })).toBeVisible();
   await expect(page.getByText("Healthy Server", { exact: true })).toBeVisible();
   await expect(page.getByText("9 monitors").first()).toBeVisible();
 
@@ -96,6 +106,22 @@ test("creates and manages a Core HTTP monitor", async ({ page }) => {
   await page.getByRole("button", { name: "Test" }).click();
   await expect(page.getByText("Core monitor test reported down.")).toBeVisible();
 
+  await page.reload();
+  await expect(page.getByRole("heading", { name: monitorName })).toBeVisible();
+  await page.getByRole("tab", { name: "Check history" }).click();
+  const failedHistoryRow = page
+    .getByRole("row", { name: /unexpected HTTP status 200|expected 503|down/ })
+    .first();
+  await expect(failedHistoryRow).toBeVisible();
+  await failedHistoryRow.click();
+  await expect(page.getByRole("dialog")).toContainText("Monitor Report");
+  await expect(page.getByRole("dialog")).toContainText("expected_status");
+  await expect(page.getByRole("dialog")).toContainText("503");
+  await page.keyboard.press("Escape");
+
+  await page.getByRole("tab", { name: "Incidents" }).click();
+  await expect(page.getByRole("link", { name: new RegExp(monitorName) })).toBeVisible();
+
   await page.getByRole("button", { name: "Pause" }).click();
   await expect(page.getByText("Core monitor paused.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Resume" })).toBeVisible();
@@ -105,12 +131,39 @@ test("creates and manages a Core HTTP monitor", async ({ page }) => {
 
   await page.getByRole("button", { name: "Edit" }).click();
   await page.getByLabel("Name").fill(updatedName);
+  await page.getByLabel("Expected status").fill("200");
   await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByRole("heading", { name: updatedName })).toBeVisible();
+
+  await page.getByRole("button", { name: "Test" }).click();
+  await expect(page.getByText("Core monitor test reported up.")).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: updatedName })).toBeVisible();
+  await page.getByRole("link", { name: "View latest incident" }).click();
+  await expect(page.getByRole("heading", { name: new RegExp(monitorName) })).toBeVisible();
+  await expect(page.getByText("resolved").first()).toBeVisible();
+  await page.getByRole("link", { name: "View monitor" }).click();
   await expect(page.getByRole("heading", { name: updatedName })).toBeVisible();
 
   await page.getByRole("button", { name: "Delete" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Delete" }).click();
   await expect(page.getByRole("heading", { name: "Monitors" })).toBeVisible();
+});
+
+test("rejects unsupported Core monitor types through the browser API harness", async ({ page }) => {
+  await signIn(page);
+
+  const response = await page.request.post(`${coreApiURL}/monitors`, {
+    data: {
+      config: {},
+      kind: "coffee",
+      name: `Unsupported Core E2E ${Date.now()}`,
+      type: "coffee",
+    },
+    headers: await authHeaders(page),
+  });
+  expect(response.status()).toBe(400);
+  expect(await response.text()).toContain("Unsupported core monitor type");
 });
 
 test("creates a Core heartbeat monitor and shows setup affordances", async ({ page }) => {
