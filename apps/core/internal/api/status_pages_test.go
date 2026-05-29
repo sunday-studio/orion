@@ -387,6 +387,122 @@ func TestStatusPageIncidentComponentSuggestionsMatchAgentAndRedactInternals(t *t
 	}
 }
 
+func TestStatusPageIncidentDraftFromInternalIncidentUsesSafePublicCopy(t *testing.T) {
+	server := setupTestServer(t)
+	now := time.Now().UTC()
+
+	fixtures := createStatusPageSuggestionFixtures(t, server, now)
+	incident := db.Incident{
+		ID:                 "incident-public-draft-source",
+		Status:             "open",
+		Severity:           "critical",
+		Title:              "private checkout host db.internal.example failed",
+		AgentID:            "unmapped-agent-for-public-draft",
+		MonitorID:          fixtures.Monitor.ID,
+		OpenedAt:           now,
+		LastEventAt:        now,
+		LatestEvent:        "raw report payload token=super-secret host=db.internal.example monitor-private-suggestions",
+		NotificationStatus: "pending",
+		CreatedAt:          now,
+		UpdatedAt:          now,
+	}
+	if err := server.db.Create(&incident).Error; err != nil {
+		t.Fatalf("create incident: %v", err)
+	}
+	if err := server.db.Create(&db.MonitorReport{
+		ID:          "report-public-draft-secret",
+		MonitorID:   fixtures.Monitor.ID,
+		Payload:     `{"hostname":"db.internal.example","token":"super-secret"}`,
+		CollectedAt: now.Format(time.RFC3339),
+		Health:      "down",
+		CreatedAt:   now,
+	}).Error; err != nil {
+		t.Fatalf("create report: %v", err)
+	}
+
+	previewResp := performJSONRequest(t, server, http.MethodGet, "/v1/status-pages/"+fixtures.Page.ID+"/incidents/draft?incident_id="+incident.ID, nil, "")
+	if previewResp.Code != http.StatusOK {
+		t.Fatalf("draft preview status = %d, body = %s", previewResp.Code, previewResp.Body.String())
+	}
+
+	var preview struct {
+		Data struct {
+			Draft StatusPageIncidentDraftResponse `json:"draft"`
+		} `json:"data"`
+	}
+	decodeResponse(t, previewResp, &preview)
+	assertSafePublicDraftCopy(t, preview.Data.Draft, []string{
+		incident.Title,
+		incident.LatestEvent,
+		fixtures.Agent.Name,
+		fixtures.Agent.Token,
+		fixtures.Monitor.Name,
+		fixtures.Monitor.ID,
+		fixtures.Agent.ID,
+		"db.internal.example",
+		"super-secret",
+		"report-public-draft-secret",
+		fixtures.HiddenComponent.PublicName,
+	})
+	if preview.Data.Draft.PublicStatus != "investigating" || preview.Data.Draft.Severity != "critical" {
+		t.Fatalf("draft status/severity = %+v, want investigating critical", preview.Data.Draft)
+	}
+	if len(preview.Data.Draft.AffectedComponentIDs) != 1 || preview.Data.Draft.AffectedComponentIDs[0] != fixtures.MonitorComponent.ID {
+		t.Fatalf("draft affected components = %+v, want monitor component", preview.Data.Draft.AffectedComponentIDs)
+	}
+
+	createResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+fixtures.Page.ID+"/incidents/draft", gin.H{
+		"internal_incident_id":   incident.ID,
+		"affected_component_ids": []string{fixtures.MonitorComponent.ID},
+	}, "")
+	if createResp.Code != http.StatusCreated {
+		t.Fatalf("draft create status = %d, body = %s", createResp.Code, createResp.Body.String())
+	}
+
+	var created struct {
+		Data struct {
+			Draft    StatusPageIncidentDraftResponse  `json:"draft"`
+			Incident StatusPageIncidentResponse       `json:"incident"`
+			Update   StatusPageIncidentUpdateResponse `json:"update"`
+		} `json:"data"`
+	}
+	decodeResponse(t, createResp, &created)
+	assertSafePublicDraftCopy(t, created.Data.Draft, []string{
+		incident.Title,
+		incident.LatestEvent,
+		fixtures.Agent.Name,
+		fixtures.Agent.Token,
+		fixtures.Monitor.Name,
+		fixtures.Monitor.ID,
+		"db.internal.example",
+		"super-secret",
+	})
+	if created.Data.Incident.InternalIncidentID != incident.ID || created.Data.Incident.Visibility != statusPageIncidentVisibilityDraft {
+		t.Fatalf("created incident = %+v, want linked draft", created.Data.Incident)
+	}
+	if created.Data.Update.PublishedAt != nil || created.Data.Update.Message != created.Data.Draft.InitialUpdateMessage {
+		t.Fatalf("created update = %+v, want unpublished generated update", created.Data.Update)
+	}
+
+	if err := server.db.Model(&db.StatusPage{}).Where("id = ?", fixtures.Page.ID).Updates(map[string]interface{}{
+		"visibility":   statusPageVisibilityPublic,
+		"published_at": &now,
+	}).Error; err != nil {
+		t.Fatalf("publish status page fixture: %v", err)
+	}
+	publicDetailResp := performJSONRequest(t, server, http.MethodGet, "/status/"+fixtures.Page.Slug+"/incidents/"+created.Data.Incident.ID, nil, "")
+	if publicDetailResp.Code != http.StatusNotFound {
+		t.Fatalf("public draft incident status = %d, body = %s, want 404", publicDetailResp.Code, publicDetailResp.Body.String())
+	}
+	publicListResp := performJSONRequest(t, server, http.MethodGet, "/status/"+fixtures.Page.Slug+"/incidents", nil, "")
+	if publicListResp.Code != http.StatusOK {
+		t.Fatalf("public incident list status = %d, body = %s", publicListResp.Code, publicListResp.Body.String())
+	}
+	if strings.Contains(publicListResp.Body.String(), created.Data.Incident.Title) {
+		t.Fatalf("public incident list exposed draft incident: %s", publicListResp.Body.String())
+	}
+}
+
 func TestStatusPageThemeSettingsValidationAndPublicProjection(t *testing.T) {
 	server := setupTestServer(t)
 	createPageResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages", gin.H{
@@ -1776,5 +1892,26 @@ func createStatusPageSuggestionFixtures(t *testing.T, server *Server, now time.T
 		MonitorComponent: monitorComponent,
 		AgentComponent:   agentComponent,
 		HiddenComponent:  hiddenComponent,
+	}
+}
+
+func assertSafePublicDraftCopy(t *testing.T, draft StatusPageIncidentDraftResponse, privateValues []string) {
+	t.Helper()
+
+	copyText := strings.Join([]string{
+		draft.Title,
+		draft.ImpactSummary,
+		draft.InitialUpdateMessage,
+	}, " ")
+	if !strings.Contains(copyText, "Checkout API") {
+		t.Fatalf("draft copy = %q, want public component name", copyText)
+	}
+	for _, privateValue := range privateValues {
+		if privateValue == "" {
+			continue
+		}
+		if strings.Contains(copyText, privateValue) {
+			t.Fatalf("draft copy leaked %q in %q", privateValue, copyText)
+		}
 	}
 }

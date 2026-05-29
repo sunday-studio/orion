@@ -926,6 +926,27 @@ definitions:
           $ref: '#/definitions/api.StatusPageIncidentComponentSuggestionMatchResponse'
         type: array
     type: object
+  api.StatusPageIncidentDraftResponse:
+    properties:
+      affected_component_ids:
+        items:
+          type: string
+        type: array
+      impact_summary:
+        type: string
+      initial_update_message:
+        type: string
+      public_status:
+        type: string
+      severity:
+        type: string
+      suggestions:
+        items:
+          $ref: '#/definitions/api.StatusPageIncidentComponentSuggestionResponse'
+        type: array
+      title:
+        type: string
+    type: object
   api.StatusPageIncidentResponse:
     properties:
       affected_component_ids:
@@ -1409,6 +1430,15 @@ definitions:
         type: integer
       visible:
         type: boolean
+    type: object
+  api.statusPageIncidentDraftRequest:
+    properties:
+      affected_component_ids:
+        items:
+          type: string
+        type: array
+      internal_incident_id:
+        type: string
     type: object
   api.statusPageIncidentRequest:
     properties:
@@ -6516,6 +6546,117 @@ paths:
       security:
       - BearerAuth: []
       summary: Create status page incident update
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/incidents/draft:
+    get:
+      consumes:
+      - application/json
+      description: Generate safe public incident draft copy from an internal incident
+        using visible public component names and approved templates only
+      operationId: previewStatusPageIncidentDraft
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Internal incident ID
+        in: query
+        name: incident_id
+        required: true
+        type: string
+      - collectionFormat: csv
+        description: Visible public component IDs to include
+        in: query
+        items:
+          type: string
+        name: component_id
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    draft:
+                      $ref: '#/definitions/api.StatusPageIncidentDraftResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Preview public incident draft
+      tags:
+      - status-pages
+    post:
+      consumes:
+      - application/json
+      description: Create a draft public incident and draft initial update from an
+        internal incident without copying internal details
+      operationId: createStatusPageIncidentDraft
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Draft source payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.statusPageIncidentDraftRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    draft:
+                      $ref: '#/definitions/api.StatusPageIncidentDraftResponse'
+                    incident:
+                      $ref: '#/definitions/api.StatusPageIncidentResponse'
+                    update:
+                      $ref: '#/definitions/api.StatusPageIncidentUpdateResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create public incident draft
       tags:
       - status-pages
   /v1/status-pages/{id}/incidents/suggestions:

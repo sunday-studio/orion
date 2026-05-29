@@ -6916,6 +6916,182 @@
                 }
             }
         },
+        "/v1/status-pages/{id}/incidents/draft": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Generate safe public incident draft copy from an internal incident using visible public component names and approved templates only",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Preview public incident draft",
+                "operationId": "previewStatusPageIncidentDraft",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Internal incident ID",
+                        "name": "incident_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Visible public component IDs to include",
+                        "name": "component_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "draft": {
+                                                    "$ref": "#/definitions/api.StatusPageIncidentDraftResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a draft public incident and draft initial update from an internal incident without copying internal details",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Create public incident draft",
+                "operationId": "createStatusPageIncidentDraft",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Draft source payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.statusPageIncidentDraftRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "draft": {
+                                                    "$ref": "#/definitions/api.StatusPageIncidentDraftResponse"
+                                                },
+                                                "incident": {
+                                                    "$ref": "#/definitions/api.StatusPageIncidentResponse"
+                                                },
+                                                "update": {
+                                                    "$ref": "#/definitions/api.StatusPageIncidentUpdateResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/status-pages/{id}/incidents/suggestions": {
             "get": {
                 "security": [
@@ -9039,6 +9215,38 @@
                 }
             }
         },
+        "api.StatusPageIncidentDraftResponse": {
+            "type": "object",
+            "properties": {
+                "affected_component_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "impact_summary": {
+                    "type": "string"
+                },
+                "initial_update_message": {
+                    "type": "string"
+                },
+                "public_status": {
+                    "type": "string"
+                },
+                "severity": {
+                    "type": "string"
+                },
+                "suggestions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.StatusPageIncidentComponentSuggestionResponse"
+                    }
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
         "api.StatusPageIncidentResponse": {
             "type": "object",
             "properties": {
@@ -9775,6 +9983,20 @@
                 },
                 "visible": {
                     "type": "boolean"
+                }
+            }
+        },
+        "api.statusPageIncidentDraftRequest": {
+            "type": "object",
+            "properties": {
+                "affected_component_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "internal_incident_id": {
+                    "type": "string"
                 }
             }
         },
