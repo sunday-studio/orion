@@ -23,6 +23,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Filter paths
         id: filter
@@ -74,8 +76,8 @@ jobs:
               - 'AGENTS.md'
               - '.github/workflows/ci.yml'
 
-  agent:
-    name: Server tests
+  server-agent-format:
+    name: Server Agent format
     runs-on: ubuntu-24.04
     needs: changes
     if: needs.changes.outputs.agent == 'true'
@@ -89,11 +91,53 @@ jobs:
           go-version-file: apps/agent/go.mod
           cache-dependency-path: apps/agent/go.sum
 
-      - name: Test Server
+      - name: Check Server Agent formatting
+        run: |
+          gofmt -l . | tee /tmp/orion-agent-gofmt.txt
+          test ! -s /tmp/orion-agent-gofmt.txt
+        working-directory: apps/agent
+
+  server-agent-test:
+    name: Server Agent tests
+    runs-on: ubuntu-24.04
+    needs: changes
+    if: needs.changes.outputs.agent == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/agent/go.mod
+          cache-dependency-path: apps/agent/go.sum
+
+      - name: Test Server Agent
         run: go test ./...
         working-directory: apps/agent
 
-  core:
+  core-format:
+    name: Core format
+    runs-on: ubuntu-24.04
+    needs: changes
+    if: needs.changes.outputs.core == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/core/go.mod
+          cache-dependency-path: apps/core/go.sum
+
+      - name: Check Core formatting
+        run: |
+          gofmt -l . | tee /tmp/orion-core-gofmt.txt
+          test ! -s /tmp/orion-core-gofmt.txt
+        working-directory: apps/core
+
+  core-test:
     name: Core tests
     runs-on: ubuntu-24.04
     needs: changes
@@ -161,11 +205,59 @@ jobs:
           work-dir: apps/core
           repo-checkout: false
 
-  console:
-    name: Console build
+  console-quality:
+    name: Console quality
     runs-on: ubuntu-24.04
     needs: changes
     if: needs.changes.outputs.console == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.23.0 --activate
+
+      - name: Install Console dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: apps/console
+
+      - name: Check Console formatting
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            pnpm run format:check
+            exit 0
+          fi
+
+          changed_files="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" -- apps/console | grep -E '\.(ts|tsx|js|jsx|mjs|css|json)$' || true)"
+          if [ -z "$changed_files" ]; then
+            echo "No changed Console files need formatting checks."
+            exit 0
+          fi
+
+          printf '%s\n' "$changed_files" | sed 's#^apps/console/##' | (
+            cd apps/console
+            xargs pnpm exec oxfmt --check
+          )
+
+      - name: Lint Console
+        run: pnpm run lint
+        working-directory: apps/console
+
+  console-build:
+    name: Console build
+    runs-on: ubuntu-24.04
+    needs: changes
+    if: needs.changes.outputs.console == 'true' || needs.changes.outputs.contracts == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -190,12 +282,61 @@ jobs:
         run: pnpm install --frozen-lockfile
         working-directory: apps/console
 
-      - name: Generate Console API client
+      - name: Install Swagger generator
+        if: needs.changes.outputs.contracts == 'true'
+        run: go install github.com/swaggo/swag/cmd/swag@latest
+
+      - name: Regenerate OpenAPI
+        if: needs.changes.outputs.contracts == 'true'
+        run: make generate-openapi
+
+      - name: Generate Console SDK
         run: pnpm run generate:api
         working-directory: apps/console
 
       - name: Build Console
         run: pnpm run build
+        working-directory: apps/console
+
+  console-e2e:
+    name: Console E2E
+    runs-on: ubuntu-24.04
+    needs: changes
+    if: needs.changes.outputs.console == 'true' || needs.changes.outputs.contracts == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/core/go.mod
+          cache-dependency-path: apps/core/go.sum
+
+      - name: Set up pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.23.0 --activate
+
+      - name: Install Console dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: apps/console
+
+      - name: Install Swagger generator
+        if: needs.changes.outputs.contracts == 'true'
+        run: go install github.com/swaggo/swag/cmd/swag@latest
+
+      - name: Regenerate OpenAPI
+        if: needs.changes.outputs.contracts == 'true'
+        run: make generate-openapi
+
+      - name: Generate Console SDK
+        run: pnpm run generate:api
         working-directory: apps/console
 
       - name: Install Playwright browsers
