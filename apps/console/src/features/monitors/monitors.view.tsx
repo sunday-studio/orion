@@ -116,7 +116,7 @@ export const MonitorsPage = () => {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <PageHeader title="Monitors" description="Registered checks across all agents and Core." />
+        <PageHeader title="Monitors" description="Registered checks across all servers and Core." />
         <Button onClick={() => setCreateOpen(true)}>
           <Plus />
           Core monitor

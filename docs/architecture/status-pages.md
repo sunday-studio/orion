@@ -4,7 +4,7 @@
 
 Status pages give Orion a public, shareable view of service health. They should answer one question quickly: "Is the service working, and what is affected if it is not?"
 
-The status page is not a mirror of the Console. It is a curated publication layer over existing Core data: agents, monitors, derived health, incidents, and uptime rollups. Administrators decide which operational resources are exposed, how they are named, and which incident details are public.
+The status page is not a mirror of the Console. It is a curated publication layer over existing Core data: servers, monitors, derived health, incidents, and uptime rollups. Administrators decide which operational resources are exposed, how they are named, and which incident details are public.
 
 ## Product Goals
 
@@ -44,7 +44,7 @@ Public component states should use the existing status vocabulary where possible
 
 Never expose by default:
 
-- Agent ids, monitor ids, bearer tokens, JWTs, webhook URLs, or secrets.
+- Server ids, monitor ids, bearer tokens, JWTs, webhook URLs, or secrets.
 - Raw monitor payloads, command output, stack traces, or internal error text.
 - Internal hostnames, IP addresses, exact filesystem paths, kernel details, or location metadata.
 - Console-only diagnostics, ingestion latency, SQLite metrics, or archive settings.
@@ -66,7 +66,7 @@ Status pages are projections. Core remains the source of truth for monitor healt
 ```mermaid
 flowchart LR
   subgraph Internal["Internal Orion data"]
-    Agents["agents"]
+    Servers["servers"]
     Monitors["monitors"]
     Reports["monitor_reports"]
     Rollups["monitor_uptime_rollups"]
@@ -92,7 +92,7 @@ flowchart LR
     Subscribe["subscriber preferences"]
   end
 
-  Agents --> Mappings
+  Servers --> Mappings
   Monitors --> Mappings
   Reports --> Uptime
   Rollups --> Uptime
@@ -109,7 +109,7 @@ flowchart LR
 
 ## Data Model
 
-Add publication tables rather than changing Agent/Core reporting behavior.
+Add publication tables rather than changing Server/Core reporting behavior.
 
 ### `status_pages`
 
@@ -228,7 +228,7 @@ Stores component-scoped preferences:
 - event scope: `all_updates`, `incidents_only`, or future `maintenance_only`;
 - created and updated timestamps.
 
-An empty component preference set means the subscriber wants all visible components on the page. Component ids in this table are public status page component ids only. Do not store monitor ids, agent ids, incident ids, or internal component mapping ids here.
+An empty component preference set means the subscriber wants all visible components on the page. Component ids in this table are public status page component ids only. Do not store monitor ids, server ids, incident ids, or internal component mapping ids here.
 
 ### `status_page_subscriber_deliveries`
 
@@ -279,7 +279,7 @@ flowchart TD
   LoadPage --> LoadComponents["Load visible components and mappings"]
   LoadComponents --> Override{"Manual override active?"}
   Override -- "yes" --> Manual["Use manual public status"]
-  Override -- "no" --> Resources["Load mapped agent and monitor health"]
+  Override -- "no" --> Resources["Load mapped server and monitor health"]
   Resources --> Strategy{"Rollup strategy"}
   Strategy -- "worst" --> Worst["Use highest impact state"]
   Strategy -- "average" --> Average["Compute aggregate uptime/status"]
@@ -310,7 +310,7 @@ flowchart TD
   Create --> Basics["Set slug, title, and description"]
   Basics --> Sections["Create sections"]
   Sections --> Components["Create public components"]
-  Components --> Map["Map components to agents or monitors"]
+  Components --> Map["Map components to servers or monitors"]
   Map --> Preview["Preview public page"]
   Preview --> Validate{"Safe to publish?"}
   Validate -- "no" --> Edit["Revise labels, mappings, or visibility"]
@@ -391,7 +391,7 @@ Display rules:
 
 ## Scheduled Maintenance Flow
 
-Scheduled maintenance is public communication, not necessarily the same as Agent maintenance mode. It should be able to exist before any monitor changes.
+Scheduled maintenance is public communication, not necessarily the same as Server maintenance mode. It should be able to exist before any monitor changes.
 
 ```mermaid
 flowchart TD
@@ -407,7 +407,7 @@ flowchart TD
   Ended -- "yes" --> Resolved["Move to recent resolved incidents"]
 ```
 
-Do not require Agent maintenance mode for scheduled maintenance. Agent maintenance mode controls collection and incident suppression; status page maintenance controls public communication.
+Do not require Server maintenance mode for scheduled maintenance. Server maintenance mode controls collection and incident suppression; status page maintenance controls public communication.
 
 ## Subscriber Confirmation Flow
 
@@ -456,7 +456,7 @@ Scoping rules:
 - Subscribers with no component rows receive updates for all visible components on that status page.
 - Page-wide announcements and scheduled maintenance can either target selected public components or all subscribers on the page.
 
-Component-scoped subscriptions must use the same public component ids that appear in public DTOs. They must never expose or persist internal monitor ids, agent ids, hostnames, or component mapping ids in subscriber preferences.
+Component-scoped subscriptions must use the same public component ids that appear in public DTOs. They must never expose or persist internal monitor ids, server ids, hostnames, or component mapping ids in subscriber preferences.
 
 ## Unsubscribe And Preference Flow
 
@@ -611,7 +611,7 @@ flowchart LR
 
 Public DTO rules:
 
-- use public component ids, not internal monitor or agent ids;
+- use public component ids, not internal monitor or server ids;
 - use public labels, not internal resource names;
 - include rounded timestamps when configured;
 - include public incident text only;
@@ -622,7 +622,7 @@ Public DTO rules:
 
 Published status pages should expose safe browser and social sharing metadata without expanding the public data boundary.
 
-Metadata should be projected from the status page publication layer, not from mapped agents, monitors, raw incidents, reports, or internal Console DTOs. The public metadata projector should return:
+Metadata should be projected from the status page publication layer, not from mapped servers, monitors, raw incidents, reports, or internal Console DTOs. The public metadata projector should return:
 
 - document title;
 - meta description;
@@ -642,7 +642,7 @@ Safe defaults:
 - canonical URL is built from the published public origin and page slug, or from a configured custom domain when custom domains exist;
 - Open Graph site name defaults to the public status page title.
 
-Do not derive metadata from internal resource names, agent names, monitor names, hostnames, IP addresses, report payloads, private incident titles, or internal incident events. Component names may only appear in metadata when they are already public component labels and an administrator explicitly configures metadata that includes them.
+Do not derive metadata from internal resource names, server names, monitor names, hostnames, IP addresses, report payloads, private incident titles, or internal incident events. Component names may only appear in metadata when they are already public component labels and an administrator explicitly configures metadata that includes them.
 
 Metadata should only render for `public` and `unlisted` pages that resolve through the public status page route. Draft previews may show metadata in the Console, but draft metadata must not be indexable and must not be exposed through unauthenticated public routes.
 
@@ -654,7 +654,7 @@ Console should treat status pages as a configuration workflow:
 
 - list pages with draft/published state and public URL;
 - page editor with tabs for basics, components, incidents, subscribers, and settings;
-- component mapper that searches agents and monitors;
+- component mapper that searches servers and monitors;
 - preview mode that uses the public DTO before publishing;
 - incident composer that can link an internal incident to public copy;
 - validation panel before publish;
@@ -790,7 +790,7 @@ Resolved status page architecture decisions are recorded in:
 
 ## Decision
 
-Build status pages as a publication layer over Core, not as a second monitoring system. Keep the Agent/Core contract unchanged. Store public configuration and public incident copy separately from internal incidents, then project safe public DTOs through unauthenticated status routes.
+Build status pages as a publication layer over Core, not as a second monitoring system. Keep the Server/Core contract unchanged. Store public configuration and public incident copy separately from internal incidents, then project safe public DTOs through unauthenticated status routes.
 
 Serve public status pages from the Core main binary with a dedicated public status page bundle packaged through the existing static asset path. The first release supports one status page per Core instance while preserving plural schema, slug routes, and APIs so multiple pages can be enabled later without a data migration.
 

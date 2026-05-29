@@ -84,7 +84,7 @@ Both providers should carry the same information from `AlertPayload`:
 - event type;
 - severity;
 - incident id and status;
-- agent name or id when present;
+- server name or id when present;
 - monitor name, id, and type when present;
 - delivery timestamp;
 - payload version `orion.alert.v1`;
@@ -151,7 +151,7 @@ The implementation should add focused Core tests:
   records delivery `type` as `slack` or `discord`.
 - Incident notification routing can target Slack and Discord channel IDs and
   records sent deliveries through the existing route path.
-- Renderer tests cover test payloads, incident payloads with agent and monitor
+- Renderer tests cover test payloads, incident payloads with server and monitor
   context, and provider field truncation.
 
 ## Phased Implementation Tickets

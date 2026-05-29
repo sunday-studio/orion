@@ -2007,7 +2007,7 @@ info:
     email: support@swagger.io
     name: API Support
     url: http://www.swagger.io/support
-  description: Orion Core API for agent management and monitoring
+  description: Orion Core API for server management and monitoring
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html

@@ -24,9 +24,9 @@ const SERVICE_LOG_LIMIT = 40;
 
 const sourceOptions = [
   { value: "all", label: "All sources" },
-  { value: "agent", label: "Agents" },
+  { value: "agent", label: "Servers" },
   { value: "monitor", label: "Monitors" },
-  { value: "agent_report", label: "Agent reports" },
+  { value: "agent_report", label: "Server reports" },
   { value: "monitor_report", label: "Monitor reports" },
   { value: "incident_event", label: "Incidents" },
   { value: "alert_delivery", label: "Alerts" },
@@ -35,9 +35,9 @@ const sourceOptions = [
 
 const typeOptions = [
   { value: "all", label: "All types" },
-  { value: "agent_registered", label: "Agent registered" },
+  { value: "agent_registered", label: "Server registered" },
   { value: "monitor_registered", label: "Monitor registered" },
-  { value: "agent_report_received", label: "Agent report received" },
+  { value: "agent_report_received", label: "Server report received" },
   { value: "monitor_report_received", label: "Monitor report received" },
   { value: "incident_opened", label: "Incident opened" },
   { value: "incident_resolved", label: "Incident resolved" },
@@ -99,8 +99,8 @@ const columns: ColumnDef<ApiOrionEventResponse>[] = [
             </DataTableLink>
           )}
           {event.agent_id && (
-            <DataTableLink to={`/agents/${event.agent_id}`} className="font-medium">
-              agent
+            <DataTableLink to={`/servers/${event.agent_id}`} className="font-medium">
+              server
             </DataTableLink>
           )}
           {event.monitor_id && (
@@ -129,7 +129,7 @@ const serviceLogColumns: ColumnDef<ApiServiceLogEntryResponse>[] = [
   {
     accessorKey: "component",
     header: "Component",
-    cell: ({ row }) => row.original.component || "agent",
+    cell: ({ row }) => row.original.component || "server",
   },
   {
     accessorKey: "message",
@@ -140,13 +140,13 @@ const serviceLogColumns: ColumnDef<ApiServiceLogEntryResponse>[] = [
   },
   {
     id: "agent",
-    header: "Agent",
+    header: "Server",
     cell: ({ row }) => {
       const log = row.original;
       if (!log.agent_id) return "—";
       return (
-        <DataTableLink to={`/agents/${log.agent_id}?tab=service-logs`} className="font-medium">
-          {log.agent_name || "agent"}
+        <DataTableLink to={`/servers/${log.agent_id}?tab=service-logs`} className="font-medium">
+          {log.agent_name || "server"}
         </DataTableLink>
       );
     },
@@ -369,7 +369,7 @@ export const LogsPage = () => {
                 <div className="font-medium">{serviceLogs.length}</div>
               </div>
               <div className="bg-neutral-100 p-3">
-                <div className="text-neutral-600">agents</div>
+                <div className="text-neutral-600">servers</div>
                 <div className="font-medium">
                   {new Set(serviceLogs.map((log) => log.agent_id ?? "unknown")).size}
                 </div>

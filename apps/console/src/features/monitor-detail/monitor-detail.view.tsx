@@ -416,7 +416,7 @@ export const MonitorDetailPage = () => {
             description={
               <p className="text-sm text-neutral-600">
                 <StatusBadge className="px-1.5 py-0.5 text-[13px]" value={toStatus(health)} /> ·{" "}
-                {isCoreMonitor ? "Core" : "Agent"} · {monitor.type ?? "unknown"} · last checked{" "}
+                {isCoreMonitor ? "Core" : "Server"} · {monitor.type ?? "unknown"} · last checked{" "}
                 {formatDate(reportTimestamp(latestReport), DATE_TIME_FORMAT)}
               </p>
             }
@@ -514,7 +514,7 @@ export const MonitorDetailPage = () => {
               label="owner"
               value={monitor.owner_name ?? monitor.agent_name ?? "Unknown owner"}
             />
-            <DetailItem label="source" value={isCoreMonitor ? "Core" : "Agent"} />
+            <DetailItem label="source" value={isCoreMonitor ? "Core" : "Server"} />
             <DetailItem
               label="last success"
               value={formatDate(monitor.last_successful_report_at, DATE_TIME_FORMAT)}
@@ -522,9 +522,9 @@ export const MonitorDetailPage = () => {
             {!isCoreMonitor && monitor.agent_id && (
               <Link
                 className="text-sm font-medium hover:text-neutral-600"
-                to={`/agents/${monitor.agent_id}?tab=monitors`}
+                to={`/servers/${monitor.agent_id}?tab=monitors`}
               >
-                View agent
+                View server
               </Link>
             )}
           </DetailGroup>
@@ -679,7 +679,7 @@ export const MonitorDetailPage = () => {
                     value={`${monitor.reporting_interval_seconds ?? 0}s`}
                   />
                   <DetailItem label="lifecycle" value={monitor.lifecycle ?? "unknown"} />
-                  <DetailItem label="owner" value="Agent configuration" />
+                  <DetailItem label="owner" value="Server configuration" />
                 </div>
               )}
               {isCoreMonitor && coreConfigResponse.isLoading && (

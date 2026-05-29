@@ -53,7 +53,7 @@ export const AgentHealthSummary = ({
     <section className="space-y-3">
       <div className="grid gap-1 sm:grid-cols-4">
         <StatusCell
-          label="agent availability"
+          label="server availability"
           status={availabilityHealth ?? status}
           detail={statusReason}
         />
@@ -78,7 +78,7 @@ export const AgentHealthSummary = ({
           >
             <p>
               {activeIncidentCount} active incident{activeIncidentCount === 1 ? "" : "s"} on this
-              agent.
+              server.
             </p>
           </Link>
         )}

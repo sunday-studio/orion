@@ -14,7 +14,7 @@ Every monitor report is a chance to move the incident state machine forward:
 
 ```mermaid
 flowchart TD
-  A["Agent sends monitor report"] --> B["Core stores monitor_report"]
+  A["Server sends monitor report"] --> B["Core stores monitor_report"]
   B --> C["Core updates monitor.health"]
   C --> D{"Report health?"}
 
@@ -76,32 +76,32 @@ stateDiagram-v2
 
 ```mermaid
 sequenceDiagram
-  participant Agent
+  participant Server
   participant Core
   participant Reports as monitor_reports
   participant Monitors as monitors
   participant Incidents as incidents
 
-  Agent->>Core: monitor report: up
+  Server->>Core: monitor report: up
   Core->>Reports: insert raw report
   Core->>Monitors: set health = up, last_successful_report_at = now
   Core->>Incidents: find active incident for monitor
   Incidents-->>Core: no rows
-  Core-->>Agent: OK
+  Core-->>Server: OK
 ```
 
 ## Failing Report With No Incident
 
 ```mermaid
 sequenceDiagram
-  participant Agent
+  participant Server
   participant Core
   participant Reports as monitor_reports
   participant Monitors as monitors
   participant Incidents as incidents
   participant Alerts as alert_deliveries
 
-  Agent->>Core: monitor report: down
+  Server->>Core: monitor report: down
   Core->>Reports: insert raw report
   Core->>Monitors: set health = down
   Core->>Incidents: find active incident for monitor
@@ -109,48 +109,48 @@ sequenceDiagram
   Core->>Incidents: create open incident
   Core->>Incidents: create incident_opened event
   Core->>Alerts: queue notification delivery
-  Core-->>Agent: OK
+  Core-->>Server: OK
 ```
 
 ## Continued Failure
 
 ```mermaid
 sequenceDiagram
-  participant Agent
+  participant Server
   participant Core
   participant Incidents as incidents
 
-  Agent->>Core: monitor report: down
+  Server->>Core: monitor report: down
   Core->>Incidents: find active incident for monitor
   Incidents-->>Core: existing open incident
   Core->>Incidents: update latest_event and last_event_at
   Core->>Incidents: add monitor_failed event
-  Core-->>Agent: OK
+  Core-->>Server: OK
 ```
 
 ## Recovery
 
 ```mermaid
 sequenceDiagram
-  participant Agent
+  participant Server
   participant Core
   participant Incidents as incidents
   participant Alerts as alert_deliveries
 
-  Agent->>Core: monitor report: up
+  Server->>Core: monitor report: up
   Core->>Incidents: find active incident for monitor
   Incidents-->>Core: existing open incident
   Core->>Incidents: set status = resolved
   Core->>Incidents: set resolved_at
   Core->>Incidents: add incident_resolved event
   Core->>Alerts: queue recovery notification if enabled
-  Core-->>Agent: OK
+  Core-->>Server: OK
 ```
 
 ## Derived Monitor Health
 
 Incident reconciliation uses the reported health and TLS checks directly. Core also computes a derived monitor health for broader health views.
-Stale checks use the stored reporting interval for the Agent or monitor, not a single global timeout.
+Stale checks use the stored reporting interval for the Server or monitor, not a single global timeout.
 
 ```mermaid
 flowchart TD

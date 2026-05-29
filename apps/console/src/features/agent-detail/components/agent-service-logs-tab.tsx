@@ -33,7 +33,7 @@ const serviceLogColumns: ColumnDef<ApiServiceLogEntryResponse>[] = [
   {
     accessorKey: "component",
     header: "Component",
-    cell: ({ row }) => row.original.component || "agent",
+    cell: ({ row }) => row.original.component || "server",
   },
   {
     accessorKey: "message",
@@ -128,7 +128,7 @@ export const AgentServiceLogsTab = ({ agentId }: AgentServiceLogsTabProps) => {
           emptyMessage={
             hasFilters ? "No service logs match the current filters." : "No service logs recorded."
           }
-          getRowId={(log, index) => log.id ?? `${log.agent_id ?? "agent"}-${index}`}
+          getRowId={(log, index) => log.id ?? `${log.agent_id ?? "server"}-${index}`}
           isLoading={logsQuery.isLoading}
           loadingMessage="Loading service logs..."
         />

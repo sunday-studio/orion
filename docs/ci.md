@@ -4,7 +4,7 @@ Orion uses `.github/workflows/ci.yml` for pull request and `main` branch validat
 
 The workflow is path-aware:
 
-- Agent changes run `go test ./...` in `apps/agent`.
+- Server changes run `go test ./...` in `apps/agent`.
 - Core changes run `go test ./...` in `apps/core` and build the Core API and worker binaries.
 - Console changes install dependencies with pnpm and run the Console build.
 - API or generated-contract changes regenerate OpenAPI and the Console SDK, then fail if generated files are not committed.
@@ -13,7 +13,6 @@ The workflow is path-aware:
 Release-only jobs stay separate:
 
 - `.github/workflows/core-image.yml` publishes multi-architecture Core images to GHCR.
-- `.github/workflows/agent-binaries.yml` builds and publishes multi-platform Agent release assets.
+- `.github/workflows/agent-binaries.yml` builds and publishes multi-platform Server release assets.
 
 Those release jobs are intentionally manual because they publish external artifacts and require explicit version inputs.
-

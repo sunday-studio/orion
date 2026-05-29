@@ -19,7 +19,7 @@ export const AgentRow = ({ agent }: { agent: ApiAgentResponse; index: number }) 
   const statusReason = agent.status_reason;
 
   const handleOnClick = () => {
-    void navigate(`/agents/${agent.id}`);
+    void navigate(`/servers/${agent.id}`);
   };
 
   return (
@@ -47,7 +47,7 @@ export const AgentRow = ({ agent }: { agent: ApiAgentResponse; index: number }) 
           )}
         </button>
         <span className="min-w-0">
-          <span className="block truncate">{agent.name ?? agent.id ?? "Unknown agent"}</span>
+          <span className="block truncate">{agent.name ?? agent.id ?? "Unknown server"}</span>
           {statusReason && (
             <span className="block truncate text-xs text-neutral-500">{statusReason}</span>
           )}
@@ -55,7 +55,7 @@ export const AgentRow = ({ agent }: { agent: ApiAgentResponse; index: number }) 
         <span className="hidden min-w-0 flex-col gap-1 sm:inline-flex">
           <StatusBadge value={toStatus(status)} />
           <span className="truncate text-xs text-neutral-500">
-            agent {availability} / monitors {monitorHealth}
+            server {availability} / monitors {monitorHealth}
           </span>
         </span>
         <span className="hidden min-w-0 truncate text-neutral-600 sm:inline">{platform}</span>
@@ -66,9 +66,9 @@ export const AgentRow = ({ agent }: { agent: ApiAgentResponse; index: number }) 
           last seen {formatDate(agent.last_seen, DATE_TIME_FORMAT)}
         </span>
         <Link
-          to={`/agents/${agent.id}`}
+          to={`/servers/${agent.id}`}
           className="inline-flex size-6 items-center justify-center rounded-full opacity-0 transition-opacity hover:bg-neutral-100 group-hover:opacity-100"
-          aria-label={`Open ${agent.name ?? "agent"} detail`}
+          aria-label={`Open ${agent.name ?? "server"} detail`}
         >
           <ArrowRightIcon className="size-4" />
         </Link>

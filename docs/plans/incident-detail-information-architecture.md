@@ -11,7 +11,7 @@ Incident detail should answer four questions quickly:
 3. What evidence proves the current state?
 4. What should I do next?
 
-The current implementation already gives Orion a useful base: incidents have list and detail screens, related agent and monitor links, timeline events, alert deliveries, and linked monitor reports. The missing step is turning incident detail from a passive record into an operator workflow.
+The current implementation already gives Orion a useful base: incidents have list and detail screens, related server and monitor links, timeline events, alert deliveries, and linked monitor reports. The missing step is turning incident detail from a passive record into an operator workflow.
 
 The target workflow is:
 
@@ -58,19 +58,19 @@ Missing API surface:
 
 ### Console
 
-The incidents list has status filters, summary counts, server-side pagination, severity, notification state, agent links, monitor links, and incident detail navigation.
+The incidents list has status filters, summary counts, server-side pagination, severity, notification state, server links, monitor links, and incident detail navigation.
 
 The incident detail view currently shows:
 
 - incident status, severity, notification state, and duration;
-- affected agent, monitor, and monitor type;
+- affected server, monitor, and monitor type;
 - opened, latest event, and resolved timestamps;
 - first failing result, latest report, and latest timeline event;
 - tabs for timeline, notifications, and monitor reports.
 
 Related detail views already connect back to incidents:
 
-- agent detail highlights an active or requested incident;
+- server detail highlights an active or requested incident;
 - monitor detail highlights an incident, shows latest result, uptime, related incidents, history, and config.
 
 Missing Console behavior:
@@ -104,7 +104,7 @@ flowchart TD
   C --> C3["Resolve manually"]
   C --> C4["Reopen"]
 
-  D --> D1["Agent"]
+  D --> D1["Server"]
   D --> D2["Monitor"]
   D --> D3["Monitor type and target"]
   D --> D4["User-facing impact label"]
@@ -123,7 +123,7 @@ flowchart TD
   G --> G3["Retry or test action later"]
 
   H --> H1["Monitor history"]
-  H --> H2["Agent health"]
+  H --> H2["Server health"]
   H --> H3["Event log"]
   H --> H4["Related incidents"]
 ```
@@ -137,7 +137,7 @@ Primary columns:
 - incident title;
 - status;
 - severity;
-- affected agent;
+- affected server;
 - affected monitor;
 - age or duration;
 - latest event;
@@ -149,7 +149,7 @@ Primary filters:
 - status: active, acknowledged, covered, resolved, all;
 - severity;
 - needs review;
-- agent;
+- server;
 - monitor;
 - notification failed;
 - manually handled.
@@ -166,18 +166,18 @@ Suggested sections:
 - Evidence: triggering report, latest report, payload summary, raw payload drawer.
 - Timeline: combined incident events, lifecycle actions, alert delivery attempts, and linked monitor reports.
 - Notifications: delivery attempts, failures, cooldown/suppression reasons, target channels.
-- Related context: monitor history, agent health, logs/events, similar prior incidents.
+- Related context: monitor history, server health, logs/events, similar prior incidents.
 
-### Agent And Monitor Detail IA
+### Server And Monitor Detail IA
 
-Agent detail should show incidents as context for agent health, not as the whole reason the agent is unhealthy.
+Server detail should show incidents as context for server health, not as the whole reason the server is unhealthy.
 
 Monitor detail should show incidents as the lifecycle wrapper around monitor reports.
 
 Cross-navigation should preserve context:
 
 - incident to monitor: `/monitors/{monitor_id}?incident={incident_id}`;
-- incident to agent: `/agents/{agent_id}?tab=monitors&incident={incident_id}`;
+- incident to server: `/agents/{agent_id}?tab=monitors&incident={incident_id}`;
 - monitor to incident: latest active or highlighted incident;
 - event log to incident: event rows link to incident detail.
 
@@ -222,7 +222,7 @@ stateDiagram-v2
 
 ```mermaid
 flowchart TD
-  A["Agent monitor report"] --> B["Core stores monitor_report"]
+  A["Server monitor report"] --> B["Core stores monitor_report"]
   B --> C["Update monitor health and timestamps"]
   C --> D["IncidentService reconciles monitor state"]
   D --> E{"Active incident?"}
@@ -389,7 +389,7 @@ Console:
 - add incident action bar;
 - add confirmation dialogs with note fields;
 - add lifecycle summary on detail;
-- invalidate incident list/detail, monitor detail, and agent detail queries after actions.
+- invalidate incident list/detail, monitor detail, and server detail queries after actions.
 
 ### Phase 2: Coverage Semantics
 
@@ -420,7 +420,7 @@ Core:
 
 Console:
 
-- add raw payload drawers from incident, monitor history, and agent logs;
+- add raw payload drawers from incident, monitor history, and server logs;
 - show trigger versus latest report side by side;
 - link timeline rows to their report or delivery detail.
 
@@ -475,5 +475,5 @@ This plan is successful when a user can:
 - mark an incident acknowledged, covered, or resolved from the detail page;
 - see who or what closed the incident and why;
 - avoid duplicate incident noise after a covered still-failing monitor;
-- navigate cleanly between incident, monitor, agent, logs, and notifications;
+- navigate cleanly between incident, monitor, server, logs, and notifications;
 - use incident history to improve monitors, alerts, and future status-page behavior.

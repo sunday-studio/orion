@@ -209,9 +209,9 @@ This includes:
 
 Backups should include the Docker volume. See [SQLite backup and restore](../sqlite-backup-restore.md).
 
-## Agent Connection URL
+## Server Connection URL
 
-Agents need a stable `core_url` that points at this Core deployment.
+Servers need a stable `core_url` that points at this Core deployment.
 
 Common examples:
 
@@ -225,5 +225,5 @@ Common examples:
 Image publishing is manually triggered from GitHub Actions. Run the `Docker Images` workflow and
 provide the version tag to publish.
 
-Agents should be installed separately on each monitored machine. They do not run inside the Core API
+Servers should be installed separately on each monitored machine. They do not run inside the Core API
 or Core worker containers.

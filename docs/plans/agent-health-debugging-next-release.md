@@ -1,54 +1,54 @@
-# Agent Health And Debugging Next Release Plan
+# Server Health And Debugging Next Release Plan
 
 This is a living issue plan for the next Orion release. It captures what feels wrong while using the app and keeps implementation decisions out until the release scope is ready to build.
 
-## Phase 1: Agent Status Is Misleading
+## Phase 1: Server Status Is Misleading
 
-### Issue 1: Monitor failures can make the whole agent look down
+### Issue 1: Monitor failures can make the whole server look down
 
-Right now, one or a few failing monitors can cause the agent itself to show as `down`, even when the agent is alive and reporting normally.
+Right now, one or a few failing monitors can cause the server itself to show as `down`, even when the server is alive and reporting normally.
 
 This makes it hard to tell whether:
 
-- the agent process or machine is actually unreachable;
+- the server process or machine is actually unreachable;
 - one monitor is failing;
 - several monitors are failing;
-- the agent is healthy but reporting bad monitor results.
+- the server is healthy but reporting bad monitor results.
 
-### Issue 2: Agent health does not clearly separate agent availability from monitor health
+### Issue 2: Server health does not clearly separate server availability from monitor health
 
 The app needs a clearer distinction between:
 
-- the agent itself reporting system metrics;
-- monitors owned by that agent reporting check results;
+- the server itself reporting system metrics;
+- monitors owned by that server reporting check results;
 - the combined status shown in the UI.
 
 Today those concepts feel blended together, which makes the status less trustworthy.
 
-### Issue 3: Agent status needs threshold-based monitor rollup
+### Issue 3: Server status needs threshold-based monitor rollup
 
-A small number of failing monitors should not dominate the entire agent status.
+A small number of failing monitors should not dominate the entire server status.
 
-The issue to solve is that monitor health should affect the agent status only when enough monitors are unhealthy to represent a real agent-level problem. A working target is roughly 30% unhealthy monitors. Monitor health alone should not make the agent fully down.
+The issue to solve is that monitor health should affect the server status only when enough monitors are unhealthy to represent a real server-level problem. A working target is roughly 30% unhealthy monitors. Monitor health alone should not make the server fully down.
 
-## Phase 2: Missing Agent Signal
+## Phase 2: Missing Server Signal
 
-### Issue 4: If the agent itself stops reporting, that should be visible
+### Issue 4: If the server itself stops reporting, that should be visible
 
-When agent system metrics stop coming in, the app should make that obvious.
+When server system metrics stop coming in, the app should make that obvious.
 
 The important distinction is:
 
-- if monitor reports are still arriving but agent system metrics are missing, the agent is degraded;
-- if neither agent metrics nor monitor reports are arriving, the agent is down.
+- if monitor reports are still arriving but server system metrics are missing, the server is degraded;
+- if neither server metrics nor monitor reports are arriving, the server is down.
 
-### Issue 5: Current status does not explain why the agent is degraded or down
+### Issue 5: Current status does not explain why the server is degraded or down
 
 The UI can show `degraded`, but it does not give enough context about what caused that state.
 
 Users need to know whether the status came from:
 
-- missing agent reports;
+- missing server reports;
 - unhealthy monitor percentage;
 - stale monitor reports;
 - monitor check failures;
@@ -66,7 +66,7 @@ Examples of missing or hard-to-find context:
 - what response, status, or error came back;
 - how long it took;
 - whether DNS, TLS, HTTP, process, command, Docker, or service checks failed;
-- what the raw result from the agent looked like.
+- what the raw result from the server looked like.
 
 ### Issue 7: Successful reports also need useful metadata
 
@@ -80,7 +80,7 @@ Successful checks should also preserve useful context, such as:
 - checked resource;
 - command, service, or container identity;
 - collected timestamp;
-- agent and monitor metadata.
+- server and monitor metadata.
 
 ## Phase 4: UI Inspection Tools
 
@@ -90,7 +90,7 @@ When clicking a report or metric row, the UI should open a drawer with the actua
 
 This should start with:
 
-- agent report rows;
+- server report rows;
 - monitor report and history rows.
 
 The drawer should make it easy to inspect:
@@ -126,7 +126,7 @@ This makes incidents feel stuck and creates confusion about whether the problem 
 
 As more issues come up while using the app over the next few days, add them under one of these buckets:
 
-- Agent status accuracy
+- Server status accuracy
 - Monitor rollup behavior
 - Missing or stale report behavior
 - Report metadata and debuggability
@@ -139,4 +139,4 @@ As more issues come up while using the app over the next few days, add them unde
 
 The next release should make Orion's health model more trustworthy and explainable.
 
-The main user-facing outcome: when an agent says `up`, `degraded`, or `down`, the app should make it clear whether the problem is the agent, the monitors, missing data, or the checks themselves.
+The main user-facing outcome: when a server says `up`, `degraded`, or `down`, the app should make it clear whether the problem is the server, the monitors, missing data, or the checks themselves.

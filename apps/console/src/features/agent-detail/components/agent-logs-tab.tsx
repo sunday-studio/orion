@@ -64,7 +64,7 @@ export const AgentLogsTab = ({ agentId }: AgentLogsTabProps) => {
           columns={agentLogColumns}
           data={reports}
           emptyMessage="No reports recorded"
-          getRowId={(report, index) => report.id ?? `${report.agent_id ?? "agent"}-${index}`}
+          getRowId={(report, index) => report.id ?? `${report.agent_id ?? "server"}-${index}`}
           isLoading={reportsQuery.isLoading}
           loadingMessage="Loading reports..."
           onRowClick={setSelectedReport}

@@ -22,7 +22,7 @@ By default this writes to `apps/core/data/orion.db` and generates:
 - 90 days of data;
 - 10 seeded servers;
 - all implemented monitor types per server;
-- hourly agent reports;
+- hourly server reports;
 - hourly monitor reports;
 - daily uptime rollups;
 - open, acknowledged, and resolved incidents;
@@ -82,7 +82,7 @@ The generated status page data covers:
   fields populated;
 - public sections for customer-facing systems, infrastructure, and internal services;
 - visible mapped components, manual components, and a hidden private component;
-- monitor and agent mappings so public component health and uptime can aggregate from seeded
+- monitor and server mappings so public component health and uptime can aggregate from seeded
   monitors and rollups;
 - published active, resolved, and scheduled public incidents;
 - private and draft incidents for Console editor and public-boundary checks;

@@ -17,7 +17,7 @@ before the public surface gets larger.
 - The project should state why someone would choose Orion instead of an external uptime SaaS or a
   heavier observability stack.
 - Repository hygiene needs a pass for committed `.DS_Store` files and public planning material.
-- Product terminology should avoid confusing modern "agent" expectations where possible.
+- Product terminology should avoid confusing modern "server" expectations where possible.
 
 ## Priorities
 
@@ -49,7 +49,7 @@ These items reduce future confusion and protect project history as Orion matures
 
 | Action | Area | Acceptance |
 | --- | --- | --- |
-| Decide whether to rename Agent to Server or Node in product copy | `docs/architecture/`, `README.md`, Console copy | A decision record names the term, migration scope, and whether binary/config names stay as `orion-agent` for compatibility. |
+| Record the Server terminology decision | `docs/architecture/`, `README.md`, Console copy | A decision record names the term, migration scope, and confirms binary/config names stay as `orion-agent` for compatibility. |
 | Audit public planning and agent instruction files | `AGENTS.md`, `docs/plans/`, Maat storage | Private strategy, credentials, sensitive operational notes, and non-public planning details are either removed from the repo or intentionally documented as public. |
 | Add Maat support for publishable plans | Maat project | Orion can keep private working memory while exporting curated public plans or milestones when useful. |
 
@@ -59,7 +59,7 @@ The first example should stay intentionally small:
 
 - `python-app`: a tiny Python process or HTTP service that can be made healthy/unhealthy on demand;
 - `docker-compose.yml`: runs the Python service and Orion Core locally, or documents how to point a
-  local Orion Agent at the service;
+  local Orion Server at the service;
 - `README.md`: includes setup, expected result, reset instructions, and screenshots only if they are
   stable enough to maintain;
 - no Kubernetes, cloud provider, or alert-provider setup in the first example.
@@ -81,7 +81,7 @@ Until then, describe Kubernetes as plausible but not the recommended first insta
 
 ## Terminology Decision
 
-The current "Agent" term is technically accurate, but it now carries AI-product expectations. The
+The current "Server" term is technically accurate, but it now carries AI-product expectations. The
 candidate public terms are:
 
 - `Server`: clearest for homelab and infrastructure users, but less accurate for laptops or worker
@@ -101,7 +101,7 @@ Create follow-up tickets from this plan in this order:
 3. Add CI and coverage badges.
 4. Remove tracked `.DS_Store` files.
 5. Draft Kubernetes/minikube decision note.
-6. Decide Agent-to-Server terminology.
+6. Record Server terminology compatibility boundaries.
 7. Audit public planning and AGENTS material.
 
 Each ticket should include an explicit verification command or review check so the work does not

@@ -75,15 +75,15 @@ export const AgentList = () => {
         selectedFilter={selectedSummaryFilter}
         onFilterChange={setSummaryFilter}
       />
-      {summaryResponse.error && <div className="py-3 text-sm">Unable to load agent summary.</div>}
+      {summaryResponse.error && <div className="py-3 text-sm">Unable to load server summary.</div>}
       {agentsResponse.isLoading && (
-        <div className="py-3 text-sm text-neutral-600">Loading agents...</div>
+        <div className="py-3 text-sm text-neutral-600">Loading servers...</div>
       )}
-      {agentsResponse.error && <div className="py-3 text-sm">Unable to load agents.</div>}
+      {agentsResponse.error && <div className="py-3 text-sm">Unable to load servers.</div>}
       {!agentsResponse.isLoading && !agentsResponse.error && agents.length === 0 && (
         <EmptyState
-          title="No agents found"
-          description="No installed agents match the current filters."
+          title="No servers found"
+          description="No installed servers match the current filters."
         />
       )}
       <div className=" my-6">

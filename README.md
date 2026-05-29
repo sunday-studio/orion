@@ -2,16 +2,16 @@
 
 Orion is a self-hosted monitoring app for small server setups.
 
-An Agent runs on each machine, collects system metrics and monitor results, and sends them to Core.
+A Server runs on each machine, collects system metrics and monitor results, and sends them to Core.
 Core stores the data in SQLite, computes health, opens incidents, sends alerts, and serves the
 Console UI. Core-managed monitors run in a separate Core monitor worker process so API health stays
 separate from monitor execution health.
 
 ## Preview
 
-| Incidents | Agents |
+| Incidents | Servers |
 |---|---|
-| ![Incidents list](assets/incidents-list.png) | ![Agents list](assets/agents-list.png) |
+| ![Incidents list](assets/incidents-list.png) | ![Servers list](assets/agents-list.png) |
 
 | Monitors | Monitor detail |
 |---|---|
@@ -22,8 +22,8 @@ separate from monitor execution health.
 ```mermaid
 flowchart LR
     subgraph servers [Servers]
-        A1[Orion Agent]
-        A2[Orion Agent]
+        A1[Orion Server]
+        A2[Orion Server]
     end
     subgraph core [Core host]
         C[Orion Core API]
@@ -38,10 +38,10 @@ flowchart LR
     UI --> C
 ```
 
-- **Agent** runs on Linux/macOS hosts and reports system metrics plus monitor checks.
+- **Server** runs on Linux/macOS hosts and reports system metrics plus monitor checks.
 - **Core** receives reports, stores data, derives health, manages incidents, and serves the API.
 - **Core monitor worker** executes Core-managed checks and records worker heartbeat diagnostics.
-- **Console** is the web UI for incidents, agents, monitors, alerts, logs, and settings.
+- **Console** is the web UI for incidents, servers, monitors, alerts, logs, and settings.
 
 ## Deploy
 
@@ -110,13 +110,13 @@ docker run -d \
   ./orion-core-worker
 ```
 
-Expose Core through a stable URL that Agents can reach, then open that URL in the browser. See
+Expose Core through a stable URL that Servers can reach, then open that URL in the browser. See
 [Core Docker deployment](docs/deployment/core-docker.md) for backup, CORS, and upgrade details.
 
-### Agent
+### Server
 
-Install the Agent on each Linux or macOS host you want to monitor. Use the Core URL that host can
-reach:
+Install the Server process on each Linux or macOS host you want to monitor. The installed CLI and
+service binary are still named `orion-agent` for compatibility. Use the Core URL that host can reach:
 
 ```sh
 curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash -s -- \
@@ -143,7 +143,7 @@ monitors: []
 
 Add monitor checks to the installed config when you are ready to track services.
 
-The Agent keeps local runtime state in SQLite:
+The Server keeps local runtime state in SQLite:
 
 - Linux config: `/etc/orion/config.yaml`
 - Linux state: `/var/lib/orion/state.db`
@@ -152,12 +152,12 @@ The Agent keeps local runtime state in SQLite:
 - macOS state: `/usr/local/var/lib/orion/state.db`
 - macOS log: `/usr/local/var/log/orion/agent.log`
 
-Do not delete `state.db` during a normal upgrade. It contains the Agent identity, token,
+Do not delete `state.db` during a normal upgrade. It contains the Server identity, token,
 maintenance state, and monitor mapping.
 
 ## Operate
 
-Check the installed Agent:
+Check the installed Server with the `orion-agent` CLI:
 
 ```sh
 orion-agent version
@@ -194,7 +194,7 @@ orion-agent doctor --json
 ```
 
 Normal monitor config changes do not need a new install. Edit the installed config, then restart the
-service so the Agent reconciles monitors by name.
+service so the Server reconciles monitors by name.
 
 Linux:
 
@@ -208,14 +208,14 @@ macOS:
 orion-agent restart
 ```
 
-If you change `core_url`, point the Agent at a fresh Core database, or otherwise need a new Agent
+If you change `core_url`, point the Server at a fresh Core database, or otherwise need a new Server
 identity, use reconfigure:
 
 ```sh
 orion-agent reconfigure
 ```
 
-Update the installed Agent binary while preserving config and state. The update command also resets
+Update the installed Server binary while preserving config and state. The update command also resets
 service failure throttles, starts the service again, prints service status, and shows recent service
 logs:
 
@@ -224,7 +224,7 @@ orion-agent update
 orion-agent update -version 0.1.2
 ```
 
-See [Agent install and upgrade](docs/deployment/agent-install-upgrade.md) for service logs,
+See [Server install and upgrade](docs/deployment/agent-install-upgrade.md) for service logs,
 rollback, Docker monitor permissions, and local network notes.
 
 ## Monitor Types
@@ -241,7 +241,7 @@ Supported checks:
 - Commands
 - Internal services
 
-See [Agent monitors](docs/architecture/agent-monitors.md) for config details.
+See [Server monitors](docs/architecture/agent-monitors.md) for config details.
 
 ## Running Locally
 
@@ -309,7 +309,7 @@ CI coverage and release-only workflow notes live in [CI baseline](docs/ci.md).
 - [Incident reconciliation](docs/architecture/incident-reconciliation-flow.md)
 - [Deployment guide](docs/deployment/README.md)
 - [Core Docker deployment](docs/deployment/core-docker.md)
-- [Agent install and upgrade](docs/deployment/agent-install-upgrade.md)
+- [Server install and upgrade](docs/deployment/agent-install-upgrade.md)
 - [Seed demo data](docs/development/seed-demo-data.md)
 - [CI baseline](docs/ci.md)
 - [Milestones](docs/milestones/README.md)
@@ -319,7 +319,7 @@ CI coverage and release-only workflow notes live in [CI baseline](docs/ci.md).
 ```txt
 orion/
 ├── apps/
-│   ├── agent/    # Go daemon and CLI
+│   ├── agent/    # Go server daemon and CLI
 │   ├── core/     # Go API server, SQLite, OpenAPI, embedded Console
 │   └── console/  # React/Vite UI source
 ├── deploy/       # Docker Compose, systemd, launchd, install scripts

@@ -136,7 +136,7 @@ const AgentReportInspection = ({ report }: { report: ApiAgentReportResponse }) =
       <DetailGrid
         items={[
           { label: "report", value: report.id },
-          { label: "agent", value: report.agent_id },
+          { label: "server", value: report.agent_id },
           { label: "reported", value: formatDate(report.timestamp, DATE_TIME_FORMAT) },
           { label: "created", value: formatDate(report.created_at, DATE_TIME_FORMAT) },
           { label: "version", value: report.agent_version },
@@ -270,7 +270,7 @@ export const ReportInspectionDrawer = (props: ReportInspectionDrawerProps) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="top-0 left-auto right-0 h-dvh max-h-dvh max-w-full translate-x-0 translate-y-0 overflow-y-auto p-5 sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>{props.kind === "agent" ? "Agent Report" : "Monitor Report"}</DialogTitle>
+          <DialogTitle>{props.kind === "agent" ? "Server Report" : "Monitor Report"}</DialogTitle>
         </DialogHeader>
         {report && (
           <div className="space-y-5">

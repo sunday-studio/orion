@@ -137,7 +137,7 @@ export const AgentTokenPanel = ({ agentId }: AgentTokenPanelProps) => {
         <div>
           <h2 className="flex items-center gap-2 text-sm font-medium">
             <KeyRound className="size-4" />
-            Agent Token
+            Server Token
           </h2>
           <p className="text-sm text-neutral-600">
             Non-secret lifecycle metadata and replacement-token actions.
@@ -193,7 +193,7 @@ export const AgentTokenPanel = ({ agentId }: AgentTokenPanelProps) => {
             label="revocation reason"
             value={status?.token_revocation_reason || "None"}
           />
-          <MetadataItem label="agent id" value={status?.agent_id || agentId} />
+          <MetadataItem label="server id" value={status?.agent_id || agentId} />
           <MetadataItem label="request id" value={status?.request_id || "None"} />
         </div>
       )}
@@ -207,7 +207,7 @@ export const AgentTokenPanel = ({ agentId }: AgentTokenPanelProps) => {
               {issuedToken?.action === "reissue" ? "Replacement token issued" : "Token rotated"}
             </DialogTitle>
             <DialogDescription>
-              This token is shown once. Copy it now and update the agent configuration before
+              This token is shown once. Copy it now and update the server configuration before
               closing this dialog.
             </DialogDescription>
           </DialogHeader>
@@ -235,9 +235,9 @@ export const AgentTokenPanel = ({ agentId }: AgentTokenPanelProps) => {
       <Dialog open={isRevokeOpen} onOpenChange={setIsRevokeOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Revoke agent token</DialogTitle>
+            <DialogTitle>Revoke server token</DialogTitle>
             <DialogDescription>
-              Revoking disables the active token for this agent. Enter a reason to confirm.
+              Revoking disables the active token for this server. Enter a reason to confirm.
             </DialogDescription>
           </DialogHeader>
           <Textarea

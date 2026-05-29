@@ -13,7 +13,7 @@ import (
 
 // @title           Orion Core API
 // @version         1.0
-// @description     Orion Core API for agent management and monitoring
+// @description     Orion Core API for server management and monitoring
 // @termsOfService  http://swagger.io/terms/
 
 // @contact.name   API Support

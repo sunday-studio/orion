@@ -12,7 +12,7 @@ Accepted for first release.
 
 The first release supports one status page per Orion Core instance.
 
-This page is the instance's default public status page. It can contain multiple sections and components, and those components can map to any supported internal agents or monitors. Multiple public pages, customer-specific pages, environment pages, and regional sub-pages are deferred.
+This page is the instance's default public status page. It can contain multiple sections and components, and those components can map to any supported internal servers or monitors. Multiple public pages, customer-specific pages, environment pages, and regional sub-pages are deferred.
 
 The implementation should keep the plural status page data model and route vocabulary from the architecture plan:
 

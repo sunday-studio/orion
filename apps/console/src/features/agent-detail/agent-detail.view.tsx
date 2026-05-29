@@ -84,22 +84,22 @@ export const AgentDetailPage = () => {
   );
 
   if (agentResponse.isLoading) {
-    return <div className="py-3 text-sm text-neutral-600">Loading agent...</div>;
+    return <div className="py-3 text-sm text-neutral-600">Loading server...</div>;
   }
 
   if (agentResponse.error || !agent) {
-    return <div className="py-3 text-sm">Unable to load agent.</div>;
+    return <div className="py-3 text-sm">Unable to load server.</div>;
   }
 
   return (
     <div className="space-y-7">
       <div className="space-y-2">
         <PageBreadcrumbs
-          items={[{ label: "Agents", to: "/agents" }, { label: agent.name ?? "Agent" }]}
+          items={[{ label: "Servers", to: "/servers" }, { label: agent.name ?? "Server" }]}
         />
         <div className="flex flex-wrap items-start justify-between gap-1 flex-col ">
           <PageHeader
-            title={agent.name ?? agent.id ?? "Unknown agent"}
+            title={agent.name ?? agent.id ?? "Unknown server"}
             description={
               <p className="text-sm text-neutral-600">
                 <StatusBadge
@@ -152,7 +152,7 @@ export const AgentDetailPage = () => {
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="logs">Agent Reports</TabsTrigger>
+          <TabsTrigger value="logs">Server Reports</TabsTrigger>
           <TabsTrigger value="service-logs">Service Logs</TabsTrigger>
           <TabsTrigger value="monitors">Monitors</TabsTrigger>
           <TabsTrigger value="cpu">System Metrics</TabsTrigger>

@@ -10925,7 +10925,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "Orion Core API",
-	Description:      "Orion Core API for agent management and monitoring",
+	Description:      "Orion Core API for server management and monitoring",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

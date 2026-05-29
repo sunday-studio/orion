@@ -1,17 +1,17 @@
 # Core-Managed Monitors Plan
 
-This plan captures the product and implementation path for monitors created in Console and executed by Orion Core. These are not tied to a deployed Agent. The mental model is: Core owns the configuration and history, while a separate Core monitor worker executes the checks.
+This plan captures the product and implementation path for monitors created in Console and executed by Orion Core. These are not tied to a deployed Server. The mental model is: Core owns the configuration and history, while a separate Core monitor worker executes the checks.
 
 ## Why This Matters
 
-Agent monitors are excellent for local server truth: disk, CPU, Docker, systemd, PM2, local commands, private services, and anything that only the monitored host can see.
+Server monitors are excellent for local server truth: disk, CPU, Docker, systemd, PM2, local commands, private services, and anything that only the monitored host can see.
 
 Core-managed monitors cover a different job:
 
-- check public sites, APIs, ports, DNS, TLS, and scheduled jobs without installing an Agent;
+- check public sites, APIs, ports, DNS, TLS, and scheduled jobs without installing a Server;
 - let a user register a monitor from Console and see results immediately;
 - turn Orion Core into the default monitoring node for internet-facing and Core-visible services;
-- make status pages and incident workflows possible for services that are not "servers" in the Agent sense;
+- make status pages and incident workflows possible for services that are not "servers" in the Server sense;
 - support a lightweight Better Stack style uptime workflow while keeping Orion's self-hosted shape.
 
 ## External Product Anchors
@@ -37,9 +37,9 @@ The product lesson is to keep monitor creation simple, but make the downstream e
 
 ## Product Shape
 
-Core-managed monitors should appear beside Agent monitors in the existing Monitors surface, but they need a clear owner label:
+Core-managed monitors should appear beside Server monitors in the existing Monitors surface, but they need a clear owner label:
 
-- `Agent monitor`: checked by an Orion Agent running on a server.
+- `Server monitor`: checked by an Orion Server running on a server.
 - `Core monitor`: checked by the Core monitor worker.
 - `Heartbeat`: owned by Core, but checked by receiving expected pings instead of polling.
 
@@ -287,7 +287,7 @@ This keeps the product ambition broad without forcing the first worker release t
 
 Core should not run local command monitors from Console in the first version. That would create a remote command execution surface on the Core host.
 
-Agent-only monitors should remain Agent-owned:
+Server-only monitors should remain Server-owned:
 
 - resource thresholds;
 - Docker container checks;
@@ -302,26 +302,26 @@ Current Orion tables require `monitors.agent_id` and `incidents.agent_id`. That 
 
 ### M1 Ownership Decision
 
-M1 should represent Core as a first-class owner without making `monitors.agent_id` or `incidents.agent_id` nullable. Core-managed monitors get a synthetic Core owner row in `agents`, and every monitor also gets explicit owner metadata so API and Console code do not have to infer ownership from the Agent join forever.
+M1 should represent Core as a first-class owner without making `monitors.agent_id` or `incidents.agent_id` nullable. Core-managed monitors get a synthetic Core owner row in `agents`, and every monitor also gets explicit owner metadata so API and Console code do not have to infer ownership from the Server join forever.
 
 Decision:
 
 - create or migrate one system owner row in `agents` with stable identity such as `id = core`, `machine_id = core`, `name = Orion Core`, and a new `kind` or `role` value of `core`;
-- add explicit monitor ownership fields, at minimum `monitors.owner_kind`, `monitors.owner_id`, and `monitors.runner`, where Agent-created monitors use `owner_kind = agent`, `owner_id = agent_id`, `runner = agent`, and Core-created monitors use `owner_kind = core`, `owner_id = core`, `runner = core`;
-- keep `monitors.agent_id` populated for all rows during M1, using the real Agent ID for Agent monitors and the Core owner row ID for Core monitors;
+- add explicit monitor ownership fields, at minimum `monitors.owner_kind`, `monitors.owner_id`, and `monitors.runner`, where Server-created monitors use `owner_kind = agent`, `owner_id = agent_id`, `runner = agent`, and Core-created monitors use `owner_kind = core`, `owner_id = core`, `runner = core`;
+- keep `monitors.agent_id` populated for all rows during M1, using the real Server ID for Server monitors and the Core owner row ID for Core monitors;
 - keep `incidents.agent_id` populated from `monitors.agent_id` so existing incident queries, alert payloads, uptime rollups, and Console incident links keep working;
 - add Core monitor configuration in a separate table keyed by `monitor_id`; do not overload `monitors.meta` with executable Core monitor config;
-- continue storing all check results in `monitor_reports`, regardless of whether the producer is an Agent or the Core monitor worker.
+- continue storing all check results in `monitor_reports`, regardless of whether the producer is a Server or the Core monitor worker.
 
-This gives M1 a compatible migration path while making the public model honest. The long-term cleanup can later make incident and monitor ownership fully owner-based, but M1 should not require changing every existing Agent-scoped query at once.
+This gives M1 a compatible migration path while making the public model honest. The long-term cleanup can later make incident and monitor ownership fully owner-based, but M1 should not require changing every existing Server-scoped query at once.
 
 Recommended approach:
 
-1. Add an owner concept without breaking existing Agent monitors.
+1. Add an owner concept without breaking existing Server monitors.
 
 Options:
 
-- create a system Agent row named `Orion Core`, with `machine_id = core`, and mark it as a Core owner with a new `agents.kind` or `agents.role` field;
+- create a system Server row named `Orion Core`, with `machine_id = core`, and mark it as a Core owner with a new `agents.kind` or `agents.role` field;
 - or add `monitors.owner_kind` and make `agent_id` nullable over a larger migration.
 
 The first option is easier for existing list, detail, incident, uptime, and rollup paths. The second is cleaner long-term, but touches more query and response code.
@@ -330,25 +330,25 @@ Recommendation: start with a Core owner row plus an explicit owner/source field 
 
 ### M1 Migration Sequence
 
-The ownership migration should be separate from the worker implementation so existing Agent monitors continue to work before any Core polling code ships.
+The ownership migration should be separate from the worker implementation so existing Server monitors continue to work before any Core polling code ships.
 
 1. Add `agents.kind` or `agents.role`, defaulting existing rows to `agent`.
-2. Upsert the Core owner row with a stable ID and token placeholder that is never accepted as an Agent bearer token.
+2. Upsert the Core owner row with a stable ID and token placeholder that is never accepted as a Server bearer token.
 3. Add `monitors.owner_kind`, `monitors.owner_id`, `monitors.runner`, `monitors.target_summary`, `monitors.next_run_at`, `monitors.last_checked_at`, and `monitors.paused`.
 4. Backfill existing monitor rows with `owner_kind = agent`, `owner_id = agent_id`, `runner = agent`, `target_summary` from existing name/type metadata when possible, `last_checked_at` from latest report or `last_successful_report_at`, and `paused = false`.
-5. Keep the existing Agent registration and unregistration routes writing `agent_id` exactly as they do now, plus the new owner fields for Agent monitors.
+5. Keep the existing Server registration and unregistration routes writing `agent_id` exactly as they do now, plus the new owner fields for Server monitors.
 6. Add `core_monitor_configs` and create Core monitors by inserting both a `monitors` row with `agent_id = core` and a matching config row.
 7. Update monitor list/detail responses to include the owner and schedule fields while preserving `agent_id` and `agent_name` for current Console code.
-8. Add owner filters after the response fields exist; until then all existing list, detail, health, uptime, and incident routes should return Agent monitors unchanged.
+8. Add owner filters after the response fields exist; until then all existing list, detail, health, uptime, and incident routes should return Server monitors unchanged.
 
 Compatibility rules:
 
-- Existing Agent monitors must not require re-registration after the migration.
-- Agent monitor uniqueness remains scoped to the real Agent ID and monitor name.
+- Existing Server monitors must not require re-registration after the migration.
+- Server monitor uniqueness remains scoped to the real Server ID and monitor name.
 - Core monitor uniqueness is scoped to the Core owner row for M1, then can move to workspace/project ownership later.
-- Agent-authenticated routes must reject attempts to register monitors against the Core owner row.
-- The Core owner row must not appear as a normal server in the primary Agents list unless the UI explicitly opts into runtime/system owners.
-- Agent health must not aggregate Core monitors just because Core monitors use a synthetic `agent_id`; health queries should exclude `owner_kind = core` from server health counts once owner fields exist.
+- Server-authenticated routes must reject attempts to register monitors against the Core owner row.
+- The Core owner row must not appear as a normal server in the primary Servers list unless the UI explicitly opts into runtime/system owners.
+- Server health must not aggregate Core monitors just because Core monitors use a synthetic `agent_id`; health queries should exclude `owner_kind = core` from server health counts once owner fields exist.
 
 2. Add Core monitor configuration.
 
@@ -375,7 +375,7 @@ M1 should add enough columns for HTTP status checks and leasing, but the table s
 
 3. Continue using `monitor_reports`.
 
-Core-executed checks should create the same report records Agent reports create. The payload should include:
+Core-executed checks should create the same report records Server reports create. The payload should include:
 
 - runner: `core`;
 - target summary;
@@ -391,10 +391,10 @@ Core-executed checks should create the same report records Agent reports create.
 
 Console needs to distinguish monitor owners:
 
-- `owner_kind`: agent or core;
+- `owner_kind`: server or core;
 - `owner_id`;
 - `owner_name`;
-- `runner`: agent or core;
+- `runner`: server or core;
 - `target_summary`;
 - `next_run_at`;
 - `last_checked_at`;
@@ -409,9 +409,9 @@ Future Core/API/Console response changes required:
 - `IncidentResponse`: add `owner_kind`, `owner_id`, `owner_name`, and preserve `agent_id`/`agent_name` during M1 so current incident filtering keeps working.
 - `MonitorSummary`: add owner buckets such as `agent_total`, `core_total`, and `heartbeat_total` once owner filters land.
 - `GET /v1/monitors`: add `owner_kind`, `runner`, and eventually `paused` query filters.
-- Console monitor list: replace the current Agent column with Owner, show Agent/Core/Heartbeat badges, and keep Agent links only for `owner_kind = agent`.
-- Console monitor detail: change the Owner panel to read owner fields, show schedule fields for Core monitors, and keep the Agent tab/detail links only for Agent-owned monitors.
-- Console agent detail monitor tabs: continue using `/v1/agents/{id}/monitors`, which should only return Agent-owned monitors for that Agent.
+- Console monitor list: replace the current Server column with Owner, show Server/Core/Heartbeat badges, and keep Server links only for `owner_kind = agent`.
+- Console monitor detail: change the Owner panel to read owner fields, show schedule fields for Core monitors, and keep the Server tab/detail links only for Server-owned monitors.
+- Console server detail monitor tabs: continue using `/v1/agents/{id}/monitors`, which should only return Server-owned monitors for that Server.
 
 ## Core Monitor Worker Architecture
 
@@ -481,7 +481,7 @@ Worker deployment requirements:
 
 ## API Plan
 
-Core monitor admin routes live under monitor resources, not Agent routes:
+Core monitor admin routes live under monitor resources, not Server routes:
 
 - `POST /v1/monitors`: create Core-managed monitor;
 - `PATCH /v1/monitors/{id}`: edit Core monitor config;
@@ -512,7 +512,7 @@ Internal worker contract:
 The Monitors page should become the natural entry point:
 
 - add a primary create action;
-- choose monitor source: Core monitor or Agent monitor guidance;
+- choose monitor source: Core monitor or Server monitor guidance;
 - show monitor type cards or a compact segmented type picker;
 - use type-specific forms;
 - include "test monitor" before save;
@@ -530,7 +530,7 @@ Create flow:
 5. Test.
 6. Save.
 
-This should feel closer to creating a check than configuring an Agent. The user should not have to understand Agent registration to create a Core monitor.
+This should feel closer to creating a check than configuring a Server. The user should not have to understand Server registration to create a Core monitor.
 
 ## Incidents, Alerts, And Status Pages
 
@@ -580,11 +580,11 @@ Core monitors have a built-in blind spot: if the Core monitor worker is down, Co
 Design implications:
 
 - Core monitors are best for services visible from the Core worker host.
-- Agent monitors remain the right answer for remote host-local checks.
+- Server monitors remain the right answer for remote host-local checks.
 - Core API and Core worker should have separate health states in diagnostics.
 - Core monitor rows should become stale when the worker stops checking them.
 - The worker should be restartable without impacting Console responsiveness.
-- A future "remote Core runner" or "synthetic Agent" could provide multi-location checks.
+- A future "remote Core runner" or "synthetic Server" could provide multi-location checks.
 - Multi-region checks should be future work, not MVP.
 
 ## Milestones
@@ -594,10 +594,10 @@ Milestones map directly to Maat goals. Ticket rows under each milestone map to M
 | Milestone row | Outcome | Ticket rows |
 |---|---|---|
 | M1: Core owner, worker app, and HTTP MVP | A Core-owned HTTP monitor can be created by API, claimed and executed by the Core monitor worker, reported into `monitor_reports`, and shown in the existing monitor list. | Design Core monitor ownership and migration; Build Core monitor worker app foundation; Add due-check leasing and scheduling; Add HTTP status monitor runner; Wire Core monitor reports into incident reconciliation; Add Core worker diagnostics and deployment wiring. |
-| M2: Console creation workflow | A user can create, test, pause, resume, edit, delete, filter, and inspect Core monitors from Console without editing Agent YAML. | Add Core monitor create/edit/test API; Build Console Core monitor create workflow; Add Console owner and monitor type filters; Add Core monitor detail config summary; Redact Core monitor secrets in Console and API responses. |
+| M2: Console creation workflow | A user can create, test, pause, resume, edit, delete, filter, and inspect Core monitors from Console without editing Server YAML. | Add Core monitor create/edit/test API; Build Console Core monitor create workflow; Add Console owner and monitor type filters; Add Core monitor detail config summary; Redact Core monitor secrets in Console and API responses. |
 | M3: Heartbeats | Core supports cron, backup, script, and scheduled-job monitoring through generated heartbeat endpoints and worker-side missed-heartbeat reconciliation. | Add heartbeat token and ingest routes; Add heartbeat missed-check reconciliation worker; Add heartbeat Console copy and setup affordances; Add heartbeat failure payload inspection. |
 | M4: Better incident controls | Core monitors have enough noise controls to be useful in production without opening incidents for short transient failures. | Add monitor confirmation periods; Add monitor recovery periods; Add Core monitor flapping handling; Add Core monitor severity defaults; Add Core monitor maintenance windows. |
-| M5: Components and status page groundwork | Core and Agent monitors can be mapped to service/status-page components so incidents identify impacted components and future status pages can consume monitor health. | Design component data model; Add monitor-to-component mapping; Add incident component fields; Update status page architecture for monitor components. |
+| M5: Components and status page groundwork | Core and Server monitors can be mapped to service/status-page components so incidents identify impacted components and future status pages can consume monitor health. | Design component data model; Add monitor-to-component mapping; Add incident component fields; Update status page architecture for monitor components. |
 | M6: Full monitor catalog expansion | Orion implements the full now-scope monitor catalog through the Core monitor worker with clear safety limits, report shapes, and incident behavior. | Add HTTP keyword monitor; Add expected status code monitor; Add TCP port monitor; Add TLS certificate monitor; Add DNS monitor; Add ping monitor; Add domain expiration monitor; Add API request monitor; Add UDP monitor; Add SMTP IMAP and POP monitors; Add Playwright transaction monitor; Add synthetic multi-step monitor. |
 
 ## Maat Loading Rows

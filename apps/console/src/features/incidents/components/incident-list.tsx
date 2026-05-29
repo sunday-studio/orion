@@ -39,7 +39,7 @@ const allIncidentStatuses = "open,acknowledged,covered,resolved";
 
 const incidentAgentPath = (incident: ApiIncidentResponse) =>
   incident.agent_id
-    ? `/agents/${incident.agent_id}?tab=monitors&incident=${encodeURIComponent(incident.id ?? "")}`
+    ? `/servers/${incident.agent_id}?tab=monitors&incident=${encodeURIComponent(incident.id ?? "")}`
     : undefined;
 
 const incidentMonitorPath = (incident: ApiIncidentResponse) =>
@@ -87,13 +87,13 @@ const columns: ColumnDef<ApiIncidentResponse>[] = [
   },
   {
     accessorKey: "agent_name",
-    header: "Agent",
+    header: "Server",
     cell: ({ row }) => {
       const incident = row.original;
       const path = incidentAgentPath(incident);
-      if (!path) return incident.agent_name ?? "Unknown agent";
+      if (!path) return incident.agent_name ?? "Unknown server";
 
-      return <DataTableLink to={path}>{incident.agent_name ?? "Unknown agent"}</DataTableLink>;
+      return <DataTableLink to={path}>{incident.agent_name ?? "Unknown server"}</DataTableLink>;
     },
   },
   {

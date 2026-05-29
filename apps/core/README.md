@@ -1,6 +1,6 @@
 # Orion Core
 
-Core is the Go API server for Orion. It receives Agent reports, stores runtime data in SQLite, computes health and incidents, serves alert/settings/event APIs, exposes Core worker diagnostics, and serves the built Console assets in production.
+Core is the Go API server for Orion. It receives Server reports, stores runtime data in SQLite, computes health and incidents, serves alert/settings/event APIs, exposes Core worker diagnostics, and serves the built Console assets in production.
 
 ## Run Locally
 
@@ -48,7 +48,7 @@ Do not edit `openapi.yaml` or generated Swagger files by hand.
 
 Current behavior is documented in:
 
-- [Agent/Core contract](../../docs/agent-core-contract.md)
+- [Server/Core contract](../../docs/agent-core-contract.md)
 - [Core features](../../docs/architecture/core-features.md)
 - [Data ingestion](../../docs/architecture/data-ingestion.md)
 - [Persistence and lifecycle](../../docs/architecture/persistence-and-lifecycle.md)

@@ -37,7 +37,7 @@ The public status page bundle is separate from the authenticated Console SPA. It
 ## Authentication Boundary
 
 - Public status routes are unauthenticated, read-only, and backed only by sanitized public DTOs.
-- Public payloads must not expose internal agent ids, monitor ids, alert channels, secrets, raw report payloads, internal incident notes, or Console diagnostics.
+- Public payloads must not expose internal server ids, monitor ids, alert channels, secrets, raw report payloads, internal incident notes, or Console diagnostics.
 - Admin creation, editing, preview, publish, unpublish, and incident update workflows remain behind `/v1/status-pages` and the existing frontend auth boundary when auth is configured.
 - Public preview from the Console should use an authenticated admin endpoint or a short-lived preview token; draft content is never exposed through normal public slug routes.
 
@@ -45,7 +45,7 @@ The public status page bundle is separate from the authenticated Console SPA. It
 
 - No new runtime process, port, reverse proxy upstream, database, or background worker is required for the first serving model.
 - Existing Core Docker and self-hosted deployments continue to serve one HTTP application. Operators only need to expose `/status/*` on the same Core origin.
-- Cache headers, public route rate limits, and custom-domain host routing can be added inside Core without changing the Agent/Core contract.
+- Cache headers, public route rate limits, and custom-domain host routing can be added inside Core without changing the Server/Core contract.
 - Later CDN or separate static hosting remains possible, but it would be an optimization over the same public DTO boundary rather than a first-release requirement.
 
 ## Consequences

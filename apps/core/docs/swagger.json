@@ -1,7 +1,7 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "Orion Core API for agent management and monitoring",
+        "description": "Orion Core API for server management and monitoring",
         "title": "Orion Core API",
         "termsOfService": "http://swagger.io/terms/",
         "contact": {

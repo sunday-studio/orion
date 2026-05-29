@@ -499,7 +499,7 @@ export const IncidentDetailPage = () => {
           </DetailGroup>
 
           <DetailGroup title="Affected">
-            <DetailItem label="agent" value={incident.agent_name ?? "Unknown agent"} />
+            <DetailItem label="server" value={incident.agent_name ?? "Unknown server"} />
             <DetailItem label="monitor" value={incident.monitor_name ?? "Unknown monitor"} />
             <DetailItem label="monitor type" value={incident.monitor_type ?? "unknown"} />
             <DetailItem
@@ -509,10 +509,10 @@ export const IncidentDetailPage = () => {
             <div className="flex flex-wrap gap-4 text-sm">
               {incident.agent_id && (
                 <Link
-                  to={`/agents/${incident.agent_id}?tab=monitors&incident=${encodeURIComponent(incident.id ?? "")}`}
+                  to={`/servers/${incident.agent_id}?tab=monitors&incident=${encodeURIComponent(incident.id ?? "")}`}
                   className="font-medium hover:text-neutral-600"
                 >
-                  View agent
+                  View server
                 </Link>
               )}
               {incident.monitor_id && (

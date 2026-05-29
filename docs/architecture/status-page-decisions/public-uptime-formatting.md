@@ -21,7 +21,7 @@ Use these formatting rules:
 - show two decimal places for values from `99.00%` through `99.99%`;
 - show one decimal place below `99.00%`, where the page should emphasize the incident history rather than fine-grained precision;
 - show `No data` when the component has no trustworthy samples for the selected public window;
-- never expose sample counts, monitor ids, agent ids, raw check timings, or internal error messages in the public uptime label.
+- never expose sample counts, monitor ids, server ids, raw check timings, or internal error messages in the public uptime label.
 
 The first release should default to `90 days` for public component uptime, with optional `24 hours`, `7 days`, and `30 days` windows once the history API can support them cheaply.
 
@@ -32,7 +32,7 @@ Show `Unknown` as its own public component state by default. Do not collapse it 
 Use `Unknown` when:
 
 - a visible component has mapped resources but none have recent trustworthy samples;
-- a mapped Agent or monitor has not reported inside the freshness window;
+- a mapped Server or monitor has not reported inside the freshness window;
 - Core cannot compute a reliable rollup without exposing internal details.
 
 Public pages may place unknown components below active outages in sort order, but the label stays `Unknown`. If a page owner wants a friendlier public message, they should set a manual component status and public status reason.

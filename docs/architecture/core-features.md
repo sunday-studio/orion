@@ -24,7 +24,7 @@ Core uses Gin and serves these route groups:
   - `PUT /v1/settings/data-lifecycle`
   - `POST /v1/settings/data-lifecycle/actions/rollup`
   - `POST /v1/settings/data-lifecycle/actions/archive`
-- Agent-protected:
+- Server-protected:
   - `POST /v1/agents/:agent_id/register-monitor`
   - `POST /v1/agents/:agent_id/unregister-monitor`
   - `POST /v1/agents/:agent_id/report`
@@ -40,7 +40,7 @@ Core uses Gin and serves these route groups:
 flowchart TD
   Request["HTTP request"] --> RouteType{"Route type"}
   RouteType -- "public" --> Handler["Handler"]
-  RouteType -- "agent protected" --> Bearer["Require Bearer token"]
+  RouteType -- "server protected" --> Bearer["Require Bearer token"]
   Bearer --> Validate["Validate token against agent_id"]
   Validate --> Handler
   RouteType -- "frontend" --> AuthOn{"Frontend auth enabled?"}
@@ -49,10 +49,10 @@ flowchart TD
   JWT --> Handler
 ```
 
-Agent auth:
+Server auth:
 
-- Agent receives a token at registration.
-- Protected Agent routes require `Authorization: Bearer <token>`.
+- Server receives a token at registration.
+- Protected Server routes require `Authorization: Bearer <token>`.
 - Core validates that token belongs to the route `agent_id`.
 
 Frontend auth:
@@ -93,15 +93,15 @@ flowchart TD
   Current --> Persist
 ```
 
-Server health is derived from Agent and monitor state:
+Server health is derived from Server and monitor state:
 
 - maintenance server returns `maintenance`;
-- stale `last_seen` returns `stale` based on the Agent reporting interval;
+- stale `last_seen` returns `stale` based on the Server reporting interval;
 - server with no active monitors returns `up`;
 - fresh server availability stays `up` while monitor failures are rolled up separately;
-- mixed monitor failures return `overall_health = degraded`, so one failing monitor does not make a live Agent look down;
+- mixed monitor failures return `overall_health = degraded`, so one failing monitor does not make a live Server look down;
 - `overall_health = down` is reserved for a fresh server whose active monitors are all failing;
-- stale monitor reports affect monitor rollup health and explanations, not Agent availability.
+- stale monitor reports affect monitor rollup health and explanations, not Server availability.
 
 ## Incident Management
 
@@ -136,7 +136,7 @@ Incident rules:
 - Fallback active incident lookup is matched by monitor id and status `open` or `acknowledged`.
 - New failures update the current active incident instead of creating duplicates.
 - Recovery resolves the active incident and records `resolved_at`.
-- Stale monitor incidents are checked when an Agent system report is received.
+- Stale monitor incidents are checked when a Server system report is received.
 
 ## Alerts
 
@@ -183,10 +183,10 @@ Configured behavior:
 
 There are two maintenance concepts:
 
-- Agent local state can pause report workers.
+- Server local state can pause report workers.
 - Core `agents.maintenance_mode` suppresses incident opening and makes server health return `maintenance`.
 
-The Agent CLI can call Core to set maintenance mode. The Agent also rereads local state before every report cycle so it can stop sending reports if local maintenance state changes.
+The Server CLI can call Core to set maintenance mode. The Server also rereads local state before every report cycle so it can stop sending reports if local maintenance state changes.
 
 ## Settings
 

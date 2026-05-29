@@ -1,4 +1,4 @@
-# M2: Directory Regrouping for Agent Work
+# M2: Directory Regrouping for Server Work
 
 ## Goal
 

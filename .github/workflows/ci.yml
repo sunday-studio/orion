@@ -74,7 +74,7 @@ jobs:
               - '.github/workflows/ci.yml'
 
   agent:
-    name: Agent tests
+    name: Server tests
     runs-on: ubuntu-24.04
     needs: changes
     if: needs.changes.outputs.agent == 'true'
@@ -88,7 +88,7 @@ jobs:
           go-version-file: apps/agent/go.mod
           cache-dependency-path: apps/agent/go.sum
 
-      - name: Test Agent
+      - name: Test Server
         run: go test ./...
         working-directory: apps/agent
 

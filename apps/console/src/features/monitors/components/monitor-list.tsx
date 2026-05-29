@@ -99,7 +99,7 @@ const monitorOwnerOptions: Array<{
   label: string;
 }> = [
   { value: "all", label: "All owners" },
-  { value: "agent", label: "Agent" },
+  { value: "agent", label: "Server" },
   { value: "core", label: "Core" },
 ];
 
@@ -108,7 +108,7 @@ const monitorSourceOptions: Array<{
   label: string;
 }> = [
   { value: "all", label: "All sources" },
-  { value: "agent", label: "Agent" },
+  { value: "agent", label: "Server" },
   { value: "core", label: "Core" },
 ];
 
@@ -123,7 +123,7 @@ const monitorHealth = (monitor: ApiMonitorResponse) => {
 
 const ownerLabel = (monitor: ApiMonitorResponse) => {
   if (monitor.owner_kind === "core" || monitor.source === "core") return "Core";
-  return "Agent";
+  return "Server";
 };
 
 const columns: ColumnDef<ApiMonitorResponse>[] = [
@@ -175,7 +175,7 @@ const columns: ColumnDef<ApiMonitorResponse>[] = [
         return owner;
       }
 
-      return <DataTableLink to={`/agents/${monitor.agent_id}?tab=monitors`}>{owner}</DataTableLink>;
+      return <DataTableLink to={`/servers/${monitor.agent_id}?tab=monitors`}>{owner}</DataTableLink>;
     },
   },
   {

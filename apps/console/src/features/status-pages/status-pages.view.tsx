@@ -1170,7 +1170,7 @@ export const StatusPagesPage = () => {
                     }
                   >
                     <option value="monitor">Monitor</option>
-                    <option value="agent">Agent</option>
+                    <option value="agent">Server</option>
                   </select>
                 </Field>
                 <Field label="Resource">
