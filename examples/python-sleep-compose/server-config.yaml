@@ -2,7 +2,7 @@ meta:
   title: python-sleep-compose
   description: Local Orion example server
 
-core_url: http://localhost:8999
+core_url: http://127.0.0.1:8999
 interval: 30s
 geo_location: false
 
@@ -12,7 +12,7 @@ monitors:
     type: http-healthcheck
     interval: 30s
     http:
-      url: http://localhost:8080/health
+      url: http://127.0.0.1:8080/health
       timeout: 3s
       expected_status: 200
       expected_body: '"status": "up"'
