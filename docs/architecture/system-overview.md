@@ -2,7 +2,9 @@
 
 ## Purpose
 
-Orion monitors self-hosted servers without Prometheus, Postgres, Kubernetes, or another external metrics stack. The Server does local collection and pushes data to Core. Core owns persistence, health decisions, incidents, alerts, and lifecycle management.
+Orion monitors self-hosted servers without Prometheus, Postgres, Kubernetes, or another external
+metrics stack. The Server does local collection and pushes data to Core. Core owns persistence,
+health decisions, incidents, alerts, and lifecycle management.
 
 ## Component Map
 
@@ -11,7 +13,7 @@ flowchart LR
   subgraph Server["Monitored server"]
     Config["config.yaml"]
     State["state.db"]
-    Server["Orion Server"]
+    ServerProcess["Orion Server"]
     Collectors["System and monitor collectors"]
     RetryQueue["Retry queue"]
   end
@@ -24,12 +26,12 @@ flowchart LR
     Swagger["Generated OpenAPI and Swagger docs"]
   end
 
-  Config --> Server
-  State <--> Server
-  Server --> Collectors
-  Server --> RetryQueue
-  RetryQueue --> Server
-  Server -- "HTTP /v1" --> Core
+  Config --> ServerProcess
+  State <--> ServerProcess
+  ServerProcess --> Collectors
+  ServerProcess --> RetryQueue
+  RetryQueue --> ServerProcess
+  ServerProcess -- "HTTP /v1" --> Core
   Core --> Services
   Services --> DB
   Services --> Archive
@@ -60,6 +62,16 @@ flowchart LR
 - Send or suppress alert deliveries.
 - Manage data lifecycle settings, uptime rollups, and raw report archives.
 - Expose API routes and generated OpenAPI/Swagger docs.
+
+## Distribution and UI Boundary
+
+The supported deployment shape is one Core host plus one Server process on each monitored machine.
+Core serves both the API and the bundled Console UI. Servers never require inbound network access;
+they push reports to Core over HTTP/S with a bearer token.
+
+The Core API is the product boundary for future interfaces. The bundled Console is the supported UI
+today. A TUI, automation script, or custom UI can be built against the same API later, but Orion does
+not currently ship a supported headless-only or alternative-UI distribution.
 
 ## Main Runtime Processes
 
