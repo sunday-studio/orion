@@ -97,39 +97,11 @@ unspecified, and cloud metadata targets stay blocked. Redirects are checked with
 before the worker follows them, and report payloads strip URL user info, query strings, and fragments
 from recorded target URLs.
 
-## Playwright Transaction Runtime
+## Core Monitor Runtime Scope
 
-Playwright transaction monitors use an explicit runner executable on the Core worker host. The
-default `ghcr.io/sunday-studio/orion-core` image intentionally does not bundle Node, Playwright, or
-browser binaries. That keeps the standard Core image small and avoids silently adding a browser
-sandbox to every self-hosted install.
-
-Supported first-release model:
-
-- keep the default Core API and Core worker image browser-free;
-- install or mount a trusted Node/Playwright runner executable on worker hosts that need browser
-  transaction checks;
-- set `ORION_PLAYWRIGHT_RUNNER` on the `orion-core-worker` process to the executable path;
-- leave `ORION_PLAYWRIGHT_RUNNER` unset on workers that should not run browser checks.
-
-The runner contract is stdin/stdout JSON: Core passes the validated transaction request on stdin and
-expects a bounded JSON result on stdout. If `ORION_PLAYWRIGHT_RUNNER` is unset, Playwright monitors
-fail explicitly with `failure_stage: runtime_unavailable`; other Core monitor types keep running.
-
-Docker users can either build a derived worker image that includes the runner and browsers, or mount
-the runner into the worker container and point the environment variable at it:
-
-```yaml
-services:
-  orion-core-worker:
-    environment:
-      ORION_PLAYWRIGHT_RUNNER: /opt/orion/playwright-runner
-    volumes:
-      - ./playwright-runner:/opt/orion/playwright-runner:ro
-```
-
-An official optional Playwright worker image or sidecar is intentionally deferred until the browser
-sandbox, browser set, and artifact retention policy are versioned as a separate runtime contract.
+The Core worker image runs network and API checks directly from the Go worker. Browser transaction
+checks are outside the first-release runtime scope; existing browser transaction configs are reported
+as unsupported instead of requiring an optional browser runtime.
 
 From this repository, you can run the example directly:
 

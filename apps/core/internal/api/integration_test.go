@@ -2954,11 +2954,6 @@ func TestCoreMonitorManagementValidatesCatalogConfigTypes(t *testing.T) {
 			validConfig:   map[string]interface{}{"steps": []map[string]interface{}{{"type": "api", "url": "https://example.com/api", "method": "GET"}}},
 			invalidConfig: map[string]interface{}{"steps": []map[string]interface{}{{"type": "api", "url": "https://example.com/api", "method": "TRACE"}}},
 		},
-		{
-			kind:          "playwright",
-			validConfig:   map[string]interface{}{"url": "https://example.com", "browser": "chromium", "steps": []map[string]interface{}{{"action": "goto", "url": "https://example.com"}}},
-			invalidConfig: map[string]interface{}{"steps": []map[string]interface{}{{"action": "click"}}},
-		},
 	}
 
 	for _, tc := range cases {
@@ -2981,6 +2976,24 @@ func TestCoreMonitorManagementValidatesCatalogConfigTypes(t *testing.T) {
 			}, "")
 			if invalidResp.Code != http.StatusBadRequest {
 				t.Fatalf("invalid create %s status = %d, body = %s", tc.kind, invalidResp.Code, invalidResp.Body.String())
+			}
+		})
+	}
+}
+
+func TestCoreMonitorManagementRejectsPlaywrightCatalogKinds(t *testing.T) {
+	server := setupTestServer(t)
+
+	for _, kind := range []string{"playwright", "playwright_transaction"} {
+		t.Run(kind, func(t *testing.T) {
+			resp := performJSONRequest(t, server, http.MethodPost, "/v1/monitors", map[string]interface{}{
+				"name":   "Removed " + kind,
+				"kind":   kind,
+				"type":   kind,
+				"config": map[string]interface{}{"url": "https://example.com"},
+			}, "")
+			if resp.Code != http.StatusBadRequest {
+				t.Fatalf("create %s status = %d, body = %s", kind, resp.Code, resp.Body.String())
 			}
 		})
 	}

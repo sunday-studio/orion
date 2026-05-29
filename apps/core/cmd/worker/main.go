@@ -18,8 +18,6 @@ import (
 
 var version = "dev"
 
-const playwrightRunnerEnv = "ORION_PLAYWRIGHT_RUNNER"
-
 func main() {
 	logger := logging.NewLogger()
 
@@ -36,11 +34,6 @@ func main() {
 	}
 
 	logger.Info("Starting Orion Core monitor worker", "worker_id", cfg.CoreWorkerID)
-	if strings.TrimSpace(os.Getenv(playwrightRunnerEnv)) == "" {
-		logger.Warn("Playwright transaction runtime is not configured", "env", playwrightRunnerEnv, "behavior", "playwright monitors report runtime_unavailable until a runner executable is configured", "docs", "docs/deployment/core-docker.md#playwright-transaction-runtime")
-	} else {
-		logger.Info("Playwright transaction runtime configured", "env", playwrightRunnerEnv)
-	}
 
 	database, err := startup.OpenMigratedDatabase(cfg)
 	if err != nil {

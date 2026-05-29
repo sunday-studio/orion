@@ -52,7 +52,6 @@ const monitorTypeFilters = [
   "imap",
   "pop",
   "synthetic",
-  "playwright",
 ] as const;
 
 const monitorTypeOptions: Array<{ value: (typeof monitorTypeFilters)[number]; label: string }> = [
@@ -79,7 +78,6 @@ const monitorTypeOptions: Array<{ value: (typeof monitorTypeFilters)[number]; la
   { value: "imap", label: "IMAP" },
   { value: "pop", label: "POP" },
   { value: "synthetic", label: "Synthetic" },
-  { value: "playwright", label: "Playwright" },
 ];
 
 const monitorStatusOptions: Array<{
@@ -175,7 +173,9 @@ const columns: ColumnDef<ApiMonitorResponse>[] = [
         return owner;
       }
 
-      return <DataTableLink to={`/servers/${monitor.agent_id}?tab=monitors`}>{owner}</DataTableLink>;
+      return (
+        <DataTableLink to={`/servers/${monitor.agent_id}?tab=monitors`}>{owner}</DataTableLink>
+      );
     },
   },
   {

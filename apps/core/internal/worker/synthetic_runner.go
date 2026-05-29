@@ -315,7 +315,7 @@ func normalizeSyntheticAPIStep(step *syntheticStepConfig) error {
 func (a *App) runSyntheticStep(ctx context.Context, step syntheticStepConfig, variables map[string]string, result *syntheticStepResult) error {
 	if step.Type == "browser" {
 		result.FailureStage = "unsupported_step"
-		return fmt.Errorf("browser synthetic steps require the Playwright transaction runner")
+		return fmt.Errorf("browser synthetic steps are not supported")
 	}
 	targetURL, err := substituteSyntheticVariables(step.URL, variables)
 	if err != nil {

@@ -44,8 +44,6 @@ const (
 	pop3RunnerKind           = "pop3"
 	syntheticRunnerKind      = "synthetic"
 	syntheticRunnerName      = "synthetic_multi_step"
-	playwrightRunnerKind     = "playwright"
-	playwrightRunnerName     = "playwright_transaction"
 	maxHTTPResponseDrainLen  = 512
 	maxHTTPBodyCaptureLen    = 4096
 )
@@ -64,7 +62,6 @@ type Options struct {
 	DNSResolver    dnsResolver
 	TLSCheck       tlsCheckFunc
 	UDPDialContext dialContextFunc
-	PlaywrightRun  playwrightRunFunc
 	Config         *config.Config
 }
 
@@ -83,7 +80,6 @@ type App struct {
 	tlsCheck       tlsCheckFunc
 	tlsWarningDays int
 	udpDialContext dialContextFunc
-	playwrightRun  playwrightRunFunc
 	targetPolicy   service.CoreMonitorTargetPolicy
 	scheduler      *service.CoreMonitorSchedulerService
 	reports        *service.ReportService
@@ -139,10 +135,6 @@ func NewApp(database *gorm.DB, logger *logging.Logger, opts Options) *App {
 	if udpDialContext == nil {
 		udpDialContext = targetPolicy.DialContext
 	}
-	playwrightRun := opts.PlaywrightRun
-	if playwrightRun == nil {
-		playwrightRun = defaultPlaywrightRun
-	}
 	return &App{
 		db:             database,
 		logger:         logger,
@@ -157,7 +149,6 @@ func NewApp(database *gorm.DB, logger *logging.Logger, opts Options) *App {
 		tlsCheck:       tlsCheck,
 		tlsWarningDays: tlsWarningDays,
 		udpDialContext: udpDialContext,
-		playwrightRun:  playwrightRun,
 		targetPolicy:   targetPolicy,
 		scheduler:      service.NewCoreMonitorSchedulerService(database, logger),
 		reports:        service.NewReportService(database, logger, opts.Config),
@@ -444,11 +435,9 @@ func (a *App) runCheckAndStore(ctx context.Context, monitorConfig db.CoreMonitor
 		finishedAt = result.FinishedAt
 		success = result.Health == "up"
 		reportErr = a.storeSyntheticReport(monitorConfig.MonitorID, result)
-	case playwrightRunnerKind, playwrightRunnerName:
-		result := a.runPlaywrightCheck(ctx, monitorConfig)
-		finishedAt = result.FinishedAt
-		success = result.Health == "up"
-		reportErr = a.storePlaywrightReport(monitorConfig.MonitorID, result)
+	case "playwright", "playwright_transaction":
+		finishedAt = time.Now().UTC()
+		reportErr = a.storeRemovedCoreMonitorReport(monitorConfig.MonitorID, monitorConfig.Kind, finishedAt)
 	default:
 		complete = false
 		a.logger.Warn("Skipping unsupported Core monitor kind", "monitor_id", monitorConfig.MonitorID, "kind", monitorConfig.Kind)
@@ -457,4 +446,27 @@ func (a *App) runCheckAndStore(ctx context.Context, monitorConfig db.CoreMonitor
 		return checkRunResult{}, reportErr
 	}
 	return checkRunResult{finishedAt: finishedAt, success: success, complete: complete}, nil
+}
+
+func (a *App) storeRemovedCoreMonitorReport(monitorID string, kind string, finishedAt time.Time) error {
+	normalizedKind := strings.ToLower(strings.TrimSpace(kind))
+	if normalizedKind == "" {
+		normalizedKind = "unknown"
+	}
+	message := "Playwright transaction monitors are no longer supported by the Core worker."
+	metrics := map[string]interface{}{
+		"runner":        "core",
+		"type":          normalizedKind,
+		"failure_stage": "unsupported_kind",
+		"message":       message,
+		"ok":            false,
+	}
+	payload := service.MonitorReportPayload{
+		Timestamp: finishedAt.Format(time.RFC3339),
+		Health:    "down",
+		Metrics:   metrics,
+		Error:     metrics,
+	}
+	_, err := a.reports.StoreMonitorReport(monitorID, payload)
+	return err
 }

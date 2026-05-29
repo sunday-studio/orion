@@ -1018,6 +1018,42 @@ func TestReconcileMissedHeartbeatsSkipsPausedDeletedAndNonHeartbeatMonitors(t *t
 	}
 }
 
+func TestRunDueChecksStoresDownReportForExistingPlaywrightMonitor(t *testing.T) {
+	database := openWorkerMigratedTestDatabase(t)
+
+	insertWorkerCoreOwner(t, database)
+	insertWorkerMonitor(t, database, "monitor-playwright-removed")
+	insertWorkerCoreMonitorConfig(t, database, db.CoreMonitorConfig{
+		MonitorID:       "monitor-playwright-removed",
+		Kind:            "playwright_transaction",
+		ConfigJSON:      `{"url":"https://example.com"}`,
+		IntervalSeconds: 60,
+		TimeoutSeconds:  5,
+		NextRunAt:       time.Now().UTC().Add(-time.Minute),
+	})
+
+	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-playwright-removed-test"})
+	if err := app.runDueChecks(context.Background()); err != nil {
+		t.Fatalf("runDueChecks() error = %v", err)
+	}
+
+	report := loadWorkerMonitorReport(t, database, "monitor-playwright-removed")
+	if report.Health != "down" {
+		t.Fatalf("report health = %q, want down", report.Health)
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
+		t.Fatalf("unmarshal report payload: %v", err)
+	}
+	if payload["type"] != "playwright_transaction" || payload["failure_stage"] != "unsupported_kind" || payload["ok"] != false {
+		t.Fatalf("payload = %+v, want removed Playwright monitor failure", payload)
+	}
+	completed := loadWorkerCoreMonitorConfig(t, database, "monitor-playwright-removed")
+	if completed.LeaseOwner != "" || completed.LastFailureAt == nil {
+		t.Fatalf("completed config = %+v, want failed removed Playwright completion", completed)
+	}
+}
+
 func openWorkerTestDatabase(t *testing.T) *gorm.DB {
 	t.Helper()
 	database, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})

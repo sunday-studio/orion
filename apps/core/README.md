@@ -29,8 +29,6 @@ Useful environment variables:
 - `ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS`: set to `true` only for trusted installs that need
   Core-managed monitors to probe private or loopback addresses; link-local, multicast, and cloud
   metadata targets remain blocked.
-- `ORION_PLAYWRIGHT_RUNNER`: optional executable path for Playwright transaction monitors. Leave
-  unset on workers without a browser runtime; those monitors report `runtime_unavailable` explicitly.
 - `ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS`: API-side data lifecycle archive/rollup scheduler interval.
 - `ORION_ADMIN_USERNAME`, `ORION_ADMIN_PASSWORD`, `ORION_JWT_SECRET`: enable Console login.
 

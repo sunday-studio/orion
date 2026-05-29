@@ -17,18 +17,17 @@ This milestone covers the Core worker monitor runner catalog, not the Console cr
 - `domain_expiration`;
 - `ping`;
 - `mail`, `smtp`, `imap`, `pop`, and `pop3`;
-- `synthetic` and `synthetic_multi_step`;
-- `playwright` and `playwright_transaction`.
+- `synthetic` and `synthetic_multi_step`.
 
 ## Completed
 
 - Split the Core worker loop into focused runner files so each monitor type owns its config parsing, execution result, report payload, and tests.
 - Expanded HTTP checks with expected status sets plus required and forbidden response body keywords, including dedicated dispatch aliases for keyword and expected-status monitor kinds.
-- Added TCP, DNS, TLS certificate, UDP, API request, domain expiration, ping-style reachability, mail protocol, synthetic multi-step, and Playwright transaction runners.
-- Kept runner behavior bounded: response samples are capped, Playwright artifacts are capped, synthetic variables are limited, UDP requires an expected response, and browser execution is behind an explicit runtime boundary.
-- Preserved safe secret handling: API request secret headers and Playwright secret variables are applied through secret config but only redacted key names are reported.
+- Added TCP, DNS, TLS certificate, UDP, API request, domain expiration, ping-style reachability, mail protocol, and synthetic multi-step runners.
+- Kept runner behavior bounded: response samples are capped, synthetic variables are limited, and UDP requires an expected response.
+- Preserved safe secret handling for API request secret headers.
 - Documented first-release behavior and known fallbacks in `docs/plans/core-managed-monitors.md`.
-- Resolved first-release Playwright packaging as an explicit `ORION_PLAYWRIGHT_RUNNER` install or mount path on worker hosts; the default Core image remains browser-free.
+- Removed browser transaction monitors from first-release scope; legacy configs now report an unsupported monitor result.
 
 ## Evidence
 
@@ -44,7 +43,6 @@ This milestone covers the Core worker monitor runner catalog, not the Console cr
 - `d43b00f feat(core): add ping monitor runner`
 - `2546463 feat(core): add mail protocol monitors`
 - `b3af9b7 feat(core): add synthetic monitor runner`
-- `59dfded feat(core): add Playwright transaction runner`
 
 ## Verification
 
@@ -56,7 +54,7 @@ This milestone covers the Core worker monitor runner catalog, not the Console cr
 
 - ICMP ping is explicit unsupported/permission behavior until the worker has privileged raw-socket support.
 - Domain expiration uses RDAP first and reports unavailable data clearly; WHOIS fallback remains deferred.
-- Playwright transactions require an explicit `ORION_PLAYWRIGHT_RUNNER` runtime on the worker host; the default Core image does not silently bundle browsers, and official optional browser packaging remains a later runtime-contract decision.
+- Browser transaction checks remain outside the first-release worker runtime until sandboxing and artifact retention have a versioned contract.
 - Mail monitors intentionally do not authenticate in this milestone.
 
 ## Next

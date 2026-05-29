@@ -25,10 +25,6 @@ const defaultCoreManagedMonitorTimeoutSeconds = 10
 const maxCoreSyntheticSteps = 10
 const maxCoreSyntheticVariables = 10
 const maxCoreSyntheticVariableLength = 1024
-const maxCorePlaywrightSteps = 30
-const maxCorePlaywrightArtifactBytes = 256 * 1024
-const maxCorePlaywrightSelectorLength = 2048
-const maxCorePlaywrightValueLength = 4096
 
 var (
 	ErrCoreManagedMonitorNotFound        = errors.New("core monitor not found")
@@ -513,8 +509,6 @@ func normalizeCoreManagedMonitorKind(kind string) string {
 		return strings.ToLower(strings.TrimSpace(kind))
 	case "synthetic", "synthetic_multi_step":
 		return "synthetic"
-	case "playwright", "playwright_transaction":
-		return "playwright"
 	default:
 		return strings.ToLower(strings.TrimSpace(kind))
 	}
@@ -522,7 +516,7 @@ func normalizeCoreManagedMonitorKind(kind string) string {
 
 func isSupportedCoreManagedMonitorKind(kind string) bool {
 	switch normalizeCoreManagedMonitorKind(kind) {
-	case "heartbeat", "http", "http_keyword", "expected_status", "tcp", "dns", "tls", "udp", "api_request", "domain_expiration", "ping", "mail", "smtp", "imap", "pop", "pop3", "synthetic", "playwright":
+	case "heartbeat", "http", "http_keyword", "expected_status", "tcp", "dns", "tls", "udp", "api_request", "domain_expiration", "ping", "mail", "smtp", "imap", "pop", "pop3", "synthetic":
 		return true
 	default:
 		return false
@@ -572,8 +566,6 @@ func validateCoreManagedMonitorConfigWithPolicy(kind string, configJSON string, 
 		return validateCoreMailMonitorConfigWithPolicy(kind, configJSON, targetPolicy)
 	case "synthetic":
 		return validateCoreSyntheticMonitorConfigWithPolicy(configJSON, targetPolicy)
-	case "playwright":
-		return validateCorePlaywrightMonitorConfigWithPolicy(configJSON, targetPolicy)
 	default:
 		return ErrCoreManagedMonitorUnsupportedKind
 	}
@@ -1024,105 +1016,8 @@ func validateCoreSyntheticMonitorConfigWithPolicy(configJSON string, targetPolic
 			if err := validateCoreExpectedStatuses(expectedStatus, expectedStatuses); err != nil {
 				return err
 			}
-		case "browser":
-			continue
 		default:
-			return fmt.Errorf("%w: step %d type must be api, http, or browser", ErrCoreManagedMonitorValidation, index+1)
-		}
-	}
-	return nil
-}
-
-func validateCorePlaywrightMonitorConfig(configJSON string) error {
-	return validateCorePlaywrightMonitorConfigWithPolicy(configJSON, NewCoreMonitorTargetPolicy(nil))
-}
-
-func validateCorePlaywrightMonitorConfigWithPolicy(configJSON string, targetPolicy CoreMonitorTargetPolicy) error {
-	var cfg struct {
-		URL      string `json:"url"`
-		StartURL string `json:"start_url"`
-		Browser  string `json:"browser"`
-		Steps    []struct {
-			Name      string `json:"name"`
-			Action    string `json:"action"`
-			URL       string `json:"url"`
-			Selector  string `json:"selector"`
-			Value     string `json:"value"`
-			Text      string `json:"text"`
-			Contains  string `json:"contains"`
-			TimeoutMS int    `json:"timeout_ms"`
-		} `json:"steps"`
-		ArtifactLimitBytes int `json:"artifact_limit_bytes"`
-		Viewport           struct {
-			Width  int `json:"width"`
-			Height int `json:"height"`
-		} `json:"viewport"`
-	}
-	if err := json.Unmarshal([]byte(configJSON), &cfg); err != nil {
-		return fmt.Errorf("%w: parse config json: %v", ErrCoreManagedMonitorValidation, err)
-	}
-	targetURL := strings.TrimSpace(cfg.URL)
-	if targetURL == "" {
-		targetURL = strings.TrimSpace(cfg.StartURL)
-	}
-	if targetURL == "" && len(cfg.Steps) == 0 {
-		return fmt.Errorf("%w: url or steps are required", ErrCoreManagedMonitorValidation)
-	}
-	if targetURL != "" {
-		if err := targetPolicy.ValidateURL(targetURL, "url"); err != nil {
-			return err
-		}
-	}
-	browser := strings.ToLower(strings.TrimSpace(cfg.Browser))
-	if browser != "" {
-		switch browser {
-		case "chromium", "firefox", "webkit":
-		default:
-			return fmt.Errorf("%w: browser must be chromium, firefox, or webkit", ErrCoreManagedMonitorValidation)
-		}
-	}
-	if cfg.Viewport.Width != 0 || cfg.Viewport.Height != 0 {
-		if cfg.Viewport.Width < 320 || cfg.Viewport.Width > 3840 || cfg.Viewport.Height < 240 || cfg.Viewport.Height > 2160 {
-			return fmt.Errorf("%w: viewport must be between 320x240 and 3840x2160", ErrCoreManagedMonitorValidation)
-		}
-	}
-	if cfg.ArtifactLimitBytes < 0 || cfg.ArtifactLimitBytes > maxCorePlaywrightArtifactBytes {
-		return fmt.Errorf("%w: artifact_limit_bytes must be between 0 and %d", ErrCoreManagedMonitorValidation, maxCorePlaywrightArtifactBytes)
-	}
-	if len(cfg.Steps) > maxCorePlaywrightSteps {
-		return fmt.Errorf("%w: steps must contain at most %d items", ErrCoreManagedMonitorValidation, maxCorePlaywrightSteps)
-	}
-	for index, step := range cfg.Steps {
-		action := strings.ToLower(strings.TrimSpace(step.Action))
-		if action == "" {
-			action = "goto"
-		}
-		switch action {
-		case "goto", "click", "fill", "select", "check", "wait_for_selector", "text_contains", "assert_text", "assert_url", "screenshot":
-		default:
-			return fmt.Errorf("%w: step %d action is unsupported", ErrCoreManagedMonitorValidation, index+1)
-		}
-		if step.TimeoutMS < 0 || step.TimeoutMS > 60000 {
-			return fmt.Errorf("%w: step %d timeout_ms must be between 0 and 60000", ErrCoreManagedMonitorValidation, index+1)
-		}
-		if action == "goto" {
-			if strings.TrimSpace(step.URL) == "" {
-				return fmt.Errorf("%w: step %d url is required", ErrCoreManagedMonitorValidation, index+1)
-			}
-			if !strings.Contains(step.URL, "{{") {
-				if err := targetPolicy.ValidateURL(step.URL, fmt.Sprintf("step %d url", index+1)); err != nil {
-					return err
-				}
-			}
-		}
-		if corePlaywrightActionRequiresSelector(action) && strings.TrimSpace(step.Selector) == "" {
-			return fmt.Errorf("%w: step %d selector is required", ErrCoreManagedMonitorValidation, index+1)
-		}
-		if len(step.Selector) > maxCorePlaywrightSelectorLength {
-			return fmt.Errorf("%w: step %d selector exceeds %d bytes", ErrCoreManagedMonitorValidation, index+1, maxCorePlaywrightSelectorLength)
-		}
-		if len(step.Value) > maxCorePlaywrightValueLength || len(step.Text) > maxCorePlaywrightValueLength || len(step.Contains) > maxCorePlaywrightValueLength {
-			return fmt.Errorf("%w: step %d value exceeds %d bytes", ErrCoreManagedMonitorValidation, index+1, maxCorePlaywrightValueLength)
+			return fmt.Errorf("%w: step %d type must be api or http", ErrCoreManagedMonitorValidation, index+1)
 		}
 	}
 	return nil
@@ -1144,15 +1039,6 @@ func hasNonEmptyString(values []string) bool {
 		}
 	}
 	return false
-}
-
-func corePlaywrightActionRequiresSelector(action string) bool {
-	switch action {
-	case "click", "fill", "select", "check", "wait_for_selector", "text_contains", "assert_text":
-		return true
-	default:
-		return false
-	}
 }
 
 func coreMonitorVariableNameValid(name string) bool {

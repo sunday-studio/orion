@@ -18,7 +18,7 @@ Core-managed monitors cover a different job:
 
 Research date: 2026-05-26.
 
-Better Stack Uptime is the best model for monitor creation and check execution. Their API exposes monitor types such as HTTP 2xx status checks, expected status code checks, keyword presence/absence checks, ping, TCP, UDP, DNS, SMTP, POP, IMAP, SSL expiration, domain expiration, Playwright transaction checks, regions, confirmation periods, recovery periods, check frequencies, maintenance windows, and heartbeats for cron/background jobs. Useful references:
+Better Stack Uptime is the best model for monitor creation and check execution. Their API exposes monitor types such as HTTP 2xx status checks, expected status code checks, keyword presence/absence checks, ping, TCP, UDP, DNS, SMTP, POP, IMAP, SSL expiration, domain expiration, regions, confirmation periods, recovery periods, check frequencies, maintenance windows, and heartbeats for cron/background jobs. Useful references:
 
 - Better Stack monitor API: https://betterstack.com/docs/uptime/api/create-a-new-monitor/
 - Better Stack monitor response/status model: https://betterstack.com/docs/uptime/api/get-a-single-monitor/
@@ -230,32 +230,9 @@ optionally checks advertised capabilities without sending login credentials. `au
 fails configuration validation until credentialed mailbox checks are designed. Reports include the
 protocol, banner, capabilities, `tls_mode`, `tls_negotiated`, and missing-capability context.
 
-13. Playwright transaction monitor
+13. Synthetic multi-step API flows
 
-Runs a browser transaction from the Core monitor worker.
-
-Minimum options:
-
-- script or recorded steps;
-- timeout;
-- viewport;
-- screenshot on failure;
-- artifact retention;
-- secrets for login flows;
-- interval.
-
-First release behavior: Core treats Playwright transactions as bounded browser step lists executed
-through an explicit Node/Playwright runner configured with `ORION_PLAYWRIGHT_RUNNER` on the worker
-host. The default Core image stays browser-free. The worker enforces step count, timeout, viewport,
-and artifact-size limits, redacts configured secret variable names in reports, captures bounded
-screenshot artifacts on failure, and reports `runtime_unavailable` clearly when Playwright is not
-configured on the worker host. Operators that need browser checks should install or mount a trusted
-runner executable and set `ORION_PLAYWRIGHT_RUNNER`; an official optional browser worker image or
-sidecar is deferred until Orion versions the browser sandbox and artifact-retention contract.
-
-14. Synthetic multi-step API/browser flows
-
-Runs a sequence of API or browser checks as one monitor with step-level results.
+Runs a sequence of API checks as one monitor with step-level results.
 
 Minimum options:
 
@@ -264,13 +241,12 @@ Minimum options:
 - per-step assertions;
 - stop-on-failure behavior;
 - timeout budget;
-- artifact capture;
 - interval.
 
 First release behavior: Core supports ordered API steps with shared `{{variable}}` substitution,
 JSON-path assertions, JSON response extraction into later steps, stop-on-failure behavior, and
-bounded response samples as step artifacts. Browser steps are preserved as an explicit
-`unsupported_step` result until the Playwright transaction runner owns browser execution.
+bounded response samples as step artifacts. Browser steps are rejected at API validation; legacy
+configs with browser steps report `unsupported_step`.
 
 ### Implementation Order
 
@@ -279,9 +255,9 @@ All types above are in the target product scope now. Implementation should still
 1. HTTP status, expected status, keyword, TCP, TLS, and heartbeat.
 2. DNS, ping, domain expiration, and API request assertions.
 3. UDP and mail protocol checks.
-4. Playwright transactions and synthetic multi-step flows.
+4. Synthetic multi-step API flows.
 
-This keeps the product ambition broad without forcing the first worker release to carry the browser sandbox, protocol edge cases, and artifact retention all at once.
+This keeps the product ambition broad without forcing the first worker release to carry protocol edge cases and artifact retention all at once.
 
 ### Explicit Non-Goals
 
@@ -445,7 +421,7 @@ Worker responsibilities:
 
 - scan for due Core monitor configs;
 - claim work using DB leases so multiple workers can run later;
-- execute HTTP, TCP, TLS, DNS, ping, domain, API, UDP, mail, heartbeat, Playwright, and synthetic checks;
+- execute HTTP, TCP, TLS, DNS, ping, domain, API, UDP, mail, heartbeat, and synthetic checks;
 - write monitor reports and update schedule timestamps;
 - call shared health and incident services after reports are written;
 - expose health/metrics for the worker process itself;
@@ -569,7 +545,7 @@ MVP guardrails:
 - disable redirects to blocked hosts;
 - record the final URL/host after redirects;
 - avoid arbitrary command execution;
-- keep Playwright behind an explicit runner executable until sandboxing is versioned.
+- keep browser transaction checks out of the first-release worker until sandboxing is versioned.
 
 Open security decision: Orion is self-hosted, so some users will want to monitor internal hosts from Core. The safest default is to allow private targets only behind an explicit Core config flag or Console setting.
 
@@ -598,7 +574,7 @@ Milestones map directly to Maat goals. Ticket rows under each milestone map to M
 | M3: Heartbeats | Core supports cron, backup, script, and scheduled-job monitoring through generated heartbeat endpoints and worker-side missed-heartbeat reconciliation. | Add heartbeat token and ingest routes; Add heartbeat missed-check reconciliation worker; Add heartbeat Console copy and setup affordances; Add heartbeat failure payload inspection. |
 | M4: Better incident controls | Core monitors have enough noise controls to be useful in production without opening incidents for short transient failures. | Add monitor confirmation periods; Add monitor recovery periods; Add Core monitor flapping handling; Add Core monitor severity defaults; Add Core monitor maintenance windows. |
 | M5: Components and status page groundwork | Core and Server monitors can be mapped to service/status-page components so incidents identify impacted components and future status pages can consume monitor health. | Design component data model; Add monitor-to-component mapping; Add incident component fields; Update status page architecture for monitor components. |
-| M6: Full monitor catalog expansion | Orion implements the full now-scope monitor catalog through the Core monitor worker with clear safety limits, report shapes, and incident behavior. | Add HTTP keyword monitor; Add expected status code monitor; Add TCP port monitor; Add TLS certificate monitor; Add DNS monitor; Add ping monitor; Add domain expiration monitor; Add API request monitor; Add UDP monitor; Add SMTP IMAP and POP monitors; Add Playwright transaction monitor; Add synthetic multi-step monitor. |
+| M6: Full monitor catalog expansion | Orion implements the full now-scope monitor catalog through the Core monitor worker with clear safety limits, report shapes, and incident behavior. | Add HTTP keyword monitor; Add expected status code monitor; Add TCP port monitor; Add TLS certificate monitor; Add DNS monitor; Add ping monitor; Add domain expiration monitor; Add API request monitor; Add UDP monitor; Add SMTP IMAP and POP monitors; Add synthetic multi-step monitor. |
 
 ## Maat Loading Rows
 

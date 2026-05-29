@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -13,10 +14,10 @@ func TestValidateCoreDomainExpirationMonitorConfigAcceptsWHOISServer(t *testing.
 	}
 }
 
-func TestValidateCoreSyntheticMonitorConfigAcceptsBrowserStep(t *testing.T) {
+func TestValidateCoreSyntheticMonitorConfigRejectsBrowserStep(t *testing.T) {
 	raw := `{"steps":[{"type":"browser","name":"later-browser-step"}]}`
-	if err := validateCoreSyntheticMonitorConfig(raw); err != nil {
-		t.Fatalf("validate synthetic browser step: %v", err)
+	if err := validateCoreSyntheticMonitorConfig(raw); err == nil {
+		t.Fatal("validate synthetic browser step: got nil error, want validation error")
 	}
 }
 
@@ -33,17 +34,10 @@ func TestValidateCoreSyntheticMonitorConfigRejectsWorkerConstraints(t *testing.T
 	}
 }
 
-func TestValidateCorePlaywrightMonitorConfigRejectsWorkerConstraints(t *testing.T) {
-	tests := []string{
-		`{"steps":[{"action":"hover","selector":"button"}]}`,
-		`{"steps":[{"action":"click"}]}`,
-		`{"url":"https://example.com","artifact_limit_bytes":262145}`,
-		`{"steps":[{"action":"goto","url":"ftp://example.com"}]}`,
-	}
-	for _, raw := range tests {
-		if err := validateCorePlaywrightMonitorConfig(raw); err == nil {
-			t.Fatalf("validate playwright config %s: got nil error, want validation error", raw)
-		}
+func TestValidateCoreManagedMonitorConfigRejectsPlaywrightKind(t *testing.T) {
+	err := validateCoreManagedMonitorConfig("playwright_transaction", `{"url":"https://example.com"}`, `{}`)
+	if !errors.Is(err, ErrCoreManagedMonitorUnsupportedKind) {
+		t.Fatalf("validate playwright_transaction error = %v, want unsupported kind", err)
 	}
 }
 
