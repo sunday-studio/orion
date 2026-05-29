@@ -1,6 +1,6 @@
 const AUTH_TOKEN_KEY = "orion_token";
 
-function getApiBase(): string {
+export function getApiBase(): string {
   const baseUrl =
     (import.meta as unknown as { env: { VITE_API_BASE_URL?: string } }).env.VITE_API_BASE_URL ?? "";
   const normalized = baseUrl.replace(/\/$/, "");

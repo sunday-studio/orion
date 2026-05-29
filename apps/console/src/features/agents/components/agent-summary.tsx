@@ -22,7 +22,7 @@ const ditherBackground =
 
 export const AgentSummary = ({ selectedFilter, summary, onFilterChange }: AgentSummaryProps) => {
   const total = summary?.total ?? 0;
-  const label = total === 1 ? "agent" : "agents";
+  const label = total === 1 ? "server" : "servers";
   const items: Array<{
     filter: AgentSummaryFilter;
     label: string;

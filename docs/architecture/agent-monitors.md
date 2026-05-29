@@ -1,4 +1,4 @@
-# Agent Monitors
+# Server Monitors
 
 ## Monitor Runtime Model
 
@@ -11,7 +11,7 @@ Each monitor is configured in `config.yaml` with:
 - optional `meta`
 - one type-specific config block
 
-The Agent validates config before runtime. Monitor names must be unique. Each monitor gets a Core-side id during registration and that id is stored in local `state.db`.
+The Server validates config before runtime. Monitor names must be unique. Each monitor gets a Core-side id during registration and that id is stored in local `state.db`.
 
 ```mermaid
 flowchart TD
@@ -153,7 +153,7 @@ Purpose: run a local command and use the exit code as health.
 
 Config:
 
-- `command.command`: required executable path/name, or a command line that the Agent splits into executable and args.
+- `command.command`: required executable path/name, or a command line that the Server splits into executable and args.
 - `command.args`: optional explicit argument list. When present, `command.command` must be only the executable path/name.
 - `command.timeout`: optional positive duration.
 

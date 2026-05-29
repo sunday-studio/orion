@@ -13,12 +13,50 @@ services:
     environment:
       ORION_DATA_DIR: /data
       ORION_PORT: "8999"
+      ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS: ${ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS:-3600}
       ORION_ADMIN_USERNAME: ${ORION_ADMIN_USERNAME:-admin}
       ORION_ADMIN_PASSWORD: ${ORION_ADMIN_PASSWORD:-change-me}
       ORION_JWT_SECRET: ${ORION_JWT_SECRET:-change-me-to-a-long-random-secret-before-deploying}
       ORION_CORS_ORIGINS: ${ORION_CORS_ORIGINS:-http://localhost:8999,http://127.0.0.1:8999,https://orion-core.examples.orb.local}
+      ORION_PUBLIC_STATUS_MAIL_ENABLED: ${ORION_PUBLIC_STATUS_MAIL_ENABLED:-false}
+      ORION_PUBLIC_STATUS_MAIL_HOST: ${ORION_PUBLIC_STATUS_MAIL_HOST:-}
+      ORION_PUBLIC_STATUS_MAIL_PORT: ${ORION_PUBLIC_STATUS_MAIL_PORT:-587}
+      ORION_PUBLIC_STATUS_MAIL_USERNAME: ${ORION_PUBLIC_STATUS_MAIL_USERNAME:-}
+      ORION_PUBLIC_STATUS_MAIL_PASSWORD: ${ORION_PUBLIC_STATUS_MAIL_PASSWORD:-}
+      ORION_PUBLIC_STATUS_MAIL_FROM_EMAIL: ${ORION_PUBLIC_STATUS_MAIL_FROM_EMAIL:-}
+      ORION_PUBLIC_STATUS_MAIL_FROM_NAME: ${ORION_PUBLIC_STATUS_MAIL_FROM_NAME:-Orion Status}
+      ORION_PUBLIC_STATUS_MAIL_REPLY_TO: ${ORION_PUBLIC_STATUS_MAIL_REPLY_TO:-}
+      ORION_PUBLIC_STATUS_URL_ORIGIN: ${ORION_PUBLIC_STATUS_URL_ORIGIN:-}
+      ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET: ${ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET:-}
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8999/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  orion-core-worker:
+    image: ${ORION_CORE_IMAGE:-ghcr.io/sunday-studio/orion-core:latest}
+    container_name: orion-core-worker
+    restart: unless-stopped
+    command: ["./orion-core-worker"]
+    depends_on:
+      orion-core:
+        condition: service_healthy
+    volumes:
+      - orion-data:/data
+    environment:
+      ORION_DATA_DIR: /data
+      ORION_WORKER_ID: ${ORION_WORKER_ID:-core-monitor-worker}
+      ORION_WORKER_HEARTBEAT_SECONDS: ${ORION_WORKER_HEARTBEAT_SECONDS:-15}
+      ORION_WORKER_STALE_SECONDS: ${ORION_WORKER_STALE_SECONDS:-60}
+      ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS: ${ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS:-false}
+      ORION_PLAYWRIGHT_RUNNER: ${ORION_PLAYWRIGHT_RUNNER:-}
+      ORION_ADMIN_USERNAME: ${ORION_ADMIN_USERNAME:-admin}
+      ORION_ADMIN_PASSWORD: ${ORION_ADMIN_PASSWORD:-change-me}
+      ORION_JWT_SECRET: ${ORION_JWT_SECRET:-change-me-to-a-long-random-secret-before-deploying}
+    healthcheck:
+      test: ["CMD", "./orion-core-worker", "healthcheck"]
       interval: 30s
       timeout: 5s
       retries: 3

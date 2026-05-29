@@ -94,6 +94,11 @@ func (s *Server) unregisterMonitor(c *gin.Context) {
 		utils.InternalError(c, "Failed to unregister monitor", err)
 		return
 	}
+	if err := service.NewIncidentService(s.db, s.logger, s.cfg).ResolveMonitorRemoved(req.MonitorID); err != nil {
+		s.logger.Error("Failed to resolve monitor incidents after unregister", "error", err, "monitor_id", req.MonitorID)
+		utils.InternalError(c, "Failed to unregister monitor", err)
+		return
+	}
 
 	utils.SuccessResponse(c, 200, "Monitor unregistered successfully", response)
 }
@@ -168,6 +173,9 @@ func (s *Server) listMonitors(c *gin.Context) {
 // @Param        search         query     string  false  "Search by monitor, agent, or type"
 // @Param        health         query     string  false  "Filter by health status (up|down|degraded|unknown)"
 // @Param        type           query     string  false  "Filter by monitor type"
+// @Param        owner_kind     query     string  false  "Filter by owner kind (agent|core)"
+// @Param        owner_name     query     string  false  "Filter by owner name, id, or machine id"
+// @Param        source         query     string  false  "Filter by monitor source (agent|core)"
 // @Param        lifecycle      query     string  false  "Filter by lifecycle status (active|disabled|deleted)"
 // @Param        stale_only     query     bool    false  "Only return stale monitors"
 // @Param        has_incidents  query     bool    false  "Only return monitors with active incidents"
@@ -186,6 +194,9 @@ func (s *Server) listAllMonitors(c *gin.Context) {
 		Search:       c.Query("search"),
 		Health:       c.Query("health"),
 		Type:         c.Query("type"),
+		OwnerKind:    c.Query("owner_kind"),
+		OwnerName:    c.Query("owner_name"),
+		Source:       c.Query("source"),
 		Lifecycle:    c.Query("lifecycle"),
 		StaleOnly:    c.Query("stale_only") == "true",
 		HasIncidents: c.Query("has_incidents") == "true",
@@ -198,7 +209,7 @@ func (s *Server) listAllMonitors(c *gin.Context) {
 		return
 	}
 
-	responses := monitorResponsesWithAgents(monitors, s.monitorAgentsByID(monitors))
+	responses := monitorResponsesWithAgents(monitors, s.monitorAgentsByID(monitors), s.coreMonitorIDsByID(monitors))
 	utils.SuccessResponse(c, 200, "Monitors retrieved successfully", gin.H{
 		"monitors":   responses,
 		"count":      count,
@@ -260,6 +271,36 @@ func (s *Server) monitorAgentsByID(monitors []db.Monitor) map[string]db.Agent {
 	return agentsByID
 }
 
+func (s *Server) coreMonitorIDsByID(monitors []db.Monitor) map[string]struct{} {
+	monitorIDs := make([]string, 0, len(monitors))
+	seen := make(map[string]struct{}, len(monitors))
+	for _, monitor := range monitors {
+		if monitor.ID == "" {
+			continue
+		}
+		if _, ok := seen[monitor.ID]; ok {
+			continue
+		}
+		seen[monitor.ID] = struct{}{}
+		monitorIDs = append(monitorIDs, monitor.ID)
+	}
+
+	coreIDs := make(map[string]struct{}, len(monitorIDs))
+	if len(monitorIDs) == 0 {
+		return coreIDs
+	}
+
+	var configs []db.CoreMonitorConfig
+	if err := s.db.Select("monitor_id").Where("monitor_id IN ?", monitorIDs).Find(&configs).Error; err != nil {
+		s.logger.Error("Failed to load core monitor configs", "error", err)
+		return coreIDs
+	}
+	for _, config := range configs {
+		coreIDs[config.MonitorID] = struct{}{}
+	}
+	return coreIDs
+}
+
 // getMonitorDetail retrieves detailed information about a specific monitor
 // @Summary      Get monitor details
 // @Description  Get detailed information about a specific monitor including recent reports and computed health
@@ -310,8 +351,13 @@ func (s *Server) getMonitorDetail(c *gin.Context) {
 	response := monitorResponse(*monitor)
 	if agent, err := s.agentService.GetAgent(monitor.AgentID); err == nil {
 		response.AgentName = agent.Name
+		response.OwnerName = agent.Name
 	} else {
 		s.logger.Error("Failed to load monitor agent", "error", err, "monitor_id", monitorID, "agent_id", monitor.AgentID)
+	}
+	if _, ok := s.coreMonitorIDsByID([]db.Monitor{*monitor})[monitor.ID]; ok {
+		response.OwnerKind = "core"
+		response.Source = "core"
 	}
 
 	utils.SuccessResponse(c, 200, "Monitor retrieved successfully", gin.H{

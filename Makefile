@@ -1,10 +1,12 @@
-.PHONY: generate-openapi generate-sdk build-static docker-build docker-up docker-down agent-build seed-demo-data
+.PHONY: generate-openapi generate-sdk build-static docker-build docker-up docker-down core-build core-worker-build agent-build seed-demo-data
 
 VERSION ?= latest
 CORE_IMAGE ?= ghcr.io/sunday-studio/orion-core
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 AGENT_OUTPUT ?= orion-agent
+CORE_OUTPUT ?= orion-core
+CORE_WORKER_OUTPUT ?= orion-core-worker
 AGENT_CGO_ENABLED ?= 1
 
 generate-openapi:
@@ -22,6 +24,14 @@ build-static:
 # Build orion-core Docker image (context: repo root)
 docker-build:
 	docker build -f apps/core/Dockerfile -t $(CORE_IMAGE):$(VERSION) .
+
+# Build Core API for local/package validation.
+core-build:
+	cd apps/core && go build -trimpath -ldflags "-s -w" -o $(CORE_OUTPUT) .
+
+# Build Core monitor worker for local/package validation.
+core-worker-build:
+	cd apps/core && go build -trimpath -ldflags "-s -w -X main.version=$(VERSION)" -o $(CORE_WORKER_OUTPUT) ./cmd/worker
 
 # Build Orion Agent for the requested platform.
 agent-build:

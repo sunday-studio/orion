@@ -8,6 +8,10 @@ import (
 
 func TestLoadCORSOriginsFromEnvironment(t *testing.T) {
 	t.Setenv("ORION_CORS_ORIGINS", "https://console.example.com, http://localhost:5173 ")
+	t.Setenv("ORION_WORKER_ID", "worker-a")
+	t.Setenv("ORION_WORKER_HEARTBEAT_SECONDS", "20")
+	t.Setenv("ORION_WORKER_STALE_SECONDS", "90")
+	t.Setenv("ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS", "120")
 
 	cfg := Load()
 
@@ -16,6 +20,40 @@ func TestLoadCORSOriginsFromEnvironment(t *testing.T) {
 	}
 	if cfg.CORSOrigins[0] != "https://console.example.com" || cfg.CORSOrigins[1] != "http://localhost:5173" {
 		t.Fatalf("CORSOrigins = %#v", cfg.CORSOrigins)
+	}
+	if cfg.CoreWorkerID != "worker-a" || cfg.CoreWorkerHeartbeatSeconds != 20 || cfg.CoreWorkerStaleSeconds != 90 {
+		t.Fatalf("worker config = id %q heartbeat %d stale %d", cfg.CoreWorkerID, cfg.CoreWorkerHeartbeatSeconds, cfg.CoreWorkerStaleSeconds)
+	}
+	if cfg.DataLifecycleSchedulerSeconds != 120 {
+		t.Fatalf("DataLifecycleSchedulerSeconds = %d, want 120", cfg.DataLifecycleSchedulerSeconds)
+	}
+}
+
+func TestLoadPublicStatusMailConfigFromEnvironment(t *testing.T) {
+	t.Setenv("ORION_PUBLIC_STATUS_MAIL_ENABLED", "true")
+	t.Setenv("ORION_PUBLIC_STATUS_MAIL_HOST", "smtp.example.com")
+	t.Setenv("ORION_PUBLIC_STATUS_MAIL_PORT", "2525")
+	t.Setenv("ORION_PUBLIC_STATUS_MAIL_USERNAME", "status-user")
+	t.Setenv("ORION_PUBLIC_STATUS_MAIL_PASSWORD", "status-secret")
+	t.Setenv("ORION_PUBLIC_STATUS_MAIL_FROM_EMAIL", "status@example.com")
+	t.Setenv("ORION_PUBLIC_STATUS_MAIL_FROM_NAME", "Example Status")
+	t.Setenv("ORION_PUBLIC_STATUS_MAIL_REPLY_TO", "support@example.com")
+	t.Setenv("ORION_PUBLIC_STATUS_URL_ORIGIN", "https://status.example.com")
+	t.Setenv("ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET", "subscriber-secret")
+
+	cfg := Load()
+
+	if !cfg.PublicStatusMailEnabled ||
+		cfg.PublicStatusMailHost != "smtp.example.com" ||
+		cfg.PublicStatusMailPort != 2525 ||
+		cfg.PublicStatusMailUsername != "status-user" ||
+		cfg.PublicStatusMailPassword != "status-secret" ||
+		cfg.PublicStatusMailFromEmail != "status@example.com" ||
+		cfg.PublicStatusMailFromName != "Example Status" ||
+		cfg.PublicStatusMailReplyTo != "support@example.com" ||
+		cfg.PublicStatusURLOrigin != "https://status.example.com" ||
+		cfg.PublicStatusSubscriberSecret != "subscriber-secret" {
+		t.Fatalf("public status mail config = %+v", cfg)
 	}
 }
 
@@ -52,14 +90,108 @@ func TestValidateRejectsPartialFrontendAuthConfig(t *testing.T) {
 
 func TestValidateAcceptsCompleteFrontendAuthConfig(t *testing.T) {
 	cfg := &Config{
-		AdminUsername:  "admin",
-		AdminPassword:  "secret",
-		JWTSecret:      "jwt-secret",
-		FrontendAuthOn: true,
+		AdminUsername:                 "admin",
+		AdminPassword:                 "secret",
+		JWTSecret:                     "jwt-secret",
+		FrontendAuthOn:                true,
+		CoreWorkerHeartbeatSeconds:    15,
+		CoreWorkerStaleSeconds:        60,
+		DataLifecycleSchedulerSeconds: 3600,
 	}
 
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("Validate() error = %v", err)
+	}
+}
+
+func TestValidateRejectsInvalidWorkerDiagnosticsConfig(t *testing.T) {
+	tests := []struct {
+		name             string
+		heartbeatSeconds int
+		staleSeconds     int
+	}{
+		{name: "zero heartbeat", heartbeatSeconds: 0, staleSeconds: 60},
+		{name: "negative heartbeat", heartbeatSeconds: -1, staleSeconds: 60},
+		{name: "zero stale threshold", heartbeatSeconds: 15, staleSeconds: 0},
+		{name: "negative stale threshold", heartbeatSeconds: 15, staleSeconds: -1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &Config{
+				CoreWorkerHeartbeatSeconds:    tt.heartbeatSeconds,
+				CoreWorkerStaleSeconds:        tt.staleSeconds,
+				DataLifecycleSchedulerSeconds: 3600,
+			}
+
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want invalid worker diagnostics config error")
+			}
+		})
+	}
+}
+
+func TestValidateRejectsInvalidDataLifecycleSchedulerConfig(t *testing.T) {
+	tests := []struct {
+		name             string
+		schedulerSeconds int
+	}{
+		{name: "zero interval", schedulerSeconds: 0},
+		{name: "negative interval", schedulerSeconds: -1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &Config{
+				CoreWorkerHeartbeatSeconds:    15,
+				CoreWorkerStaleSeconds:        60,
+				DataLifecycleSchedulerSeconds: tt.schedulerSeconds,
+			}
+
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want invalid data lifecycle scheduler config error")
+			}
+		})
+	}
+}
+
+func TestValidatePublicStatusMailConfig(t *testing.T) {
+	valid := Config{
+		CoreWorkerHeartbeatSeconds:    15,
+		CoreWorkerStaleSeconds:        60,
+		DataLifecycleSchedulerSeconds: 3600,
+		PublicStatusMailEnabled:       true,
+		PublicStatusMailHost:          "smtp.example.com",
+		PublicStatusMailPort:          587,
+		PublicStatusMailFromEmail:     "status@example.com",
+		PublicStatusURLOrigin:         "https://status.example.com",
+		PublicStatusSubscriberSecret:  "subscriber-secret",
+	}
+	if err := valid.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+
+	tests := []struct {
+		name   string
+		mutate func(*Config)
+	}{
+		{name: "missing host", mutate: func(cfg *Config) { cfg.PublicStatusMailHost = "" }},
+		{name: "missing from", mutate: func(cfg *Config) { cfg.PublicStatusMailFromEmail = "" }},
+		{name: "bad from", mutate: func(cfg *Config) { cfg.PublicStatusMailFromEmail = "not-email" }},
+		{name: "bad reply-to", mutate: func(cfg *Config) { cfg.PublicStatusMailReplyTo = "not-email" }},
+		{name: "missing origin", mutate: func(cfg *Config) { cfg.PublicStatusURLOrigin = "" }},
+		{name: "bad origin scheme", mutate: func(cfg *Config) { cfg.PublicStatusURLOrigin = "ftp://status.example.com" }},
+		{name: "origin path", mutate: func(cfg *Config) { cfg.PublicStatusURLOrigin = "https://status.example.com/path" }},
+		{name: "missing secret", mutate: func(cfg *Config) { cfg.PublicStatusSubscriberSecret = "" }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := valid
+			tt.mutate(&cfg)
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want invalid public status mail config error")
+			}
+		})
 	}
 }
 

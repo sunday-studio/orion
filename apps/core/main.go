@@ -2,19 +2,18 @@ package main
 
 import (
 	"context"
-	"log"
 	"orion/core/internal/api"
-	"orion/core/internal/config"
-	"orion/core/internal/db"
 	"orion/core/internal/logging"
-	"os"
+	"orion/core/internal/service"
+	"orion/core/internal/startup"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 // @title           Orion Core API
 // @version         1.0
-// @description     Orion Core API for agent management and monitoring
+// @description     Orion Core API for server management and monitoring
 // @termsOfService  http://swagger.io/terms/
 
 // @contact.name   API Support
@@ -36,31 +35,31 @@ func main() {
 	logger := logging.NewLogger()
 	logger.Info("Starting Orion Core Server")
 
-	if err := config.LoadDotEnv(".env"); err != nil && !os.IsNotExist(err) {
-		logger.Fatal("Failed to load .env", "error", err)
+	cfg, err := startup.LoadConfig(".env")
+	if err != nil {
+		logger.Fatal("Failed to load config", "error", err)
 	}
 
-	cfg := config.Load()
-	if err := cfg.Validate(); err != nil {
-		logger.Fatal("Invalid config", "error", err)
-	}
-
-	database, err := db.Initialize(cfg.DataDir)
+	database, err := startup.OpenMigratedDatabase(cfg)
 	if err != nil {
 		logger.Fatal("Failed to initialize database", "error", err)
 	}
-
-	if err := db.Migrate(database); err != nil {
-		logger.Fatal("Failed to run database migrations", "error", err)
-	}
+	defer startup.CloseDatabase(database, logger)
 
 	// Initialize and start HTTP server
 	server := api.NewServer(database, logger, cfg)
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	lifecycleScheduler := service.NewDataLifecycleSchedulerService(database, logger, cfg.DataDir, time.Duration(cfg.DataLifecycleSchedulerSeconds)*time.Second)
+	go func() {
+		if err := lifecycleScheduler.Run(ctx); err != nil {
+			logger.Error("Data lifecycle scheduler stopped", "error", err)
+		}
+	}()
+
 	logger.Info("Orion Core Server started successfully")
 	if err := server.Start(ctx, ":"+cfg.Port); err != nil {
-		log.Fatal("Failed to start server:", err)
+		logger.Fatal("Failed to start server", "error", err)
 	}
 }

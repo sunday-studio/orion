@@ -4,7 +4,7 @@
 
 Core stores runtime state in SQLite at `<ORION_DATA_DIR>/orion.db`. The default data directory is `data`.
 
-The Agent also stores its local runtime state in SQLite at `state.db`. User-facing monitor configuration remains in YAML.
+The Server also stores its local runtime state in SQLite at `state.db`. User-facing monitor configuration remains in YAML.
 
 ```mermaid
 erDiagram
@@ -29,7 +29,7 @@ Tracks embedded SQL migrations that have already run.
 
 Stores registered servers:
 
-- stable Agent id;
+- stable Server id;
 - `machine_id`;
 - display name, OS, platform, kernel, architecture;
 - bearer token;
@@ -42,7 +42,7 @@ Stores registered servers:
 
 Stores system metrics reports:
 
-- Agent version and config summary;
+- Server version and config summary;
 - uptime seconds and report timestamp;
 - CPU, memory, disk, and location JSON;
 - Core `created_at`.
@@ -67,7 +67,7 @@ Stores raw monitor report payloads:
 
 - monitor id;
 - raw JSON payload for metrics or error;
-- collected timestamp from Agent;
+- collected timestamp from Server;
 - reported health;
 - Core `created_at`.
 
@@ -156,7 +156,7 @@ flowchart TD
 
 Current migrations:
 
-- `000001_init_schema.up.sql`: base Agent, report, monitor, incident, and alert tables.
+- `000001_init_schema.up.sql`: base Server, report, monitor, incident, and alert tables.
 - `000002_data_lifecycle_settings.up.sql`: lifecycle settings.
 - `000003_monitor_uptime_rollups.up.sql`: daily uptime rollups.
 - `000004_incident_reconciliation_state.up.sql`: monitor incident-state cache and active incident lookup index.
@@ -237,7 +237,7 @@ flowchart TD
   Percent --> Response["Return daily_buckets + uptime_percent"]
 ```
 
-Agent uptime averages each active monitor uptime percentage and uses the first monitor's daily bucket shape as the current implementation.
+Server uptime averages each active monitor uptime percentage and uses the first monitor's daily bucket shape as the current implementation.
 
 ## Generated OpenAPI Contract
 
@@ -263,26 +263,26 @@ flowchart LR
 
 Do not hand-edit generated API contract or SDK files. Update route annotations, then regenerate.
 
-## Agent Local State Layer
+## Server Local State Layer
 
-The Agent's local SQLite state is intentionally not user-facing configuration. It stores data the Agent owns:
+The Server's local SQLite state is intentionally not user-facing configuration. It stores data the Server owns:
 
-- registered Agent id;
-- Agent auth token;
+- registered Server id;
+- Server auth token;
 - Core URL used for registration;
 - last sync time;
 - local maintenance flag and reason;
 - monitor name to Core monitor id mapping;
 - monitor runtime status and last checked time.
 
-Keeping this in SQLite gives the Agent an atomic state layer without making users edit a database. This product direction allows future Agent features without changing the YAML config model:
+Keeping this in SQLite gives the Server an atomic state layer without making users edit a database. This product direction allows future Server features without changing the YAML config model:
 
 - durable offline report spool;
 - retry attempts with next retry time and last error;
-- local Agent event log;
+- local Server event log;
 - last check result cache per monitor;
 - richer `orion-agent status` and future `doctor` output;
 - safer concurrent access from daemon and CLI;
-- future Agent update bookkeeping;
+- future Server update bookkeeping;
 - future token rotation or credential metadata;
 - local diagnostics without requiring Core to be reachable.

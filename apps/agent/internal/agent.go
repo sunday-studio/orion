@@ -2,6 +2,8 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"reflect"
 	"sync"
 	"time"
@@ -55,6 +57,12 @@ func (a *Agent) Run(ctx context.Context) error {
 		}
 		logging.Infof("Agent is in maintenance mode. Reporting workers will pause until maintenance clears. Reason: %s", reason)
 	}
+	if err := a.flushDurableSpool(runtimeCtx); err != nil {
+		if transport.IsAuthError(err) {
+			return err
+		}
+		logging.Warnf("Initial durable report spool flush failed: %v", err)
+	}
 
 	var workers sync.WaitGroup
 
@@ -86,7 +94,16 @@ func (a *Agent) Run(ctx context.Context) error {
 		cancel()
 	}
 	workers.Wait()
-	a.retryQueue.Flush(context.Background())
+	if transport.IsAuthError(runErr) {
+		logging.Errorf("Core rejected Agent credentials; stopping reporting until a replacement token is applied")
+	} else {
+		if err := a.flushDurableSpool(context.Background()); err != nil {
+			logging.Warnf("Durable report spool flush during shutdown failed: %v", err)
+		}
+		if err := a.retryQueue.Flush(context.Background()); err != nil {
+			logging.Warnf("Retry queue flush during shutdown failed: %v", err)
+		}
+	}
 
 	logging.Infof("Agent runtime stopped")
 	return runErr
@@ -96,10 +113,19 @@ func (a *Agent) Run(ctx context.Context) error {
 func (a *Agent) RunOnce(ctx context.Context) error {
 	logging.Infof("Running agent once (single collection cycle)")
 	logging.Debugf("run once started: monitors=%d", len(a.userConfig.Monitors))
+	if err := a.flushDurableSpool(ctx); err != nil {
+		if transport.IsAuthError(err) {
+			return err
+		}
+		logging.Warnf("Durable report spool flush failed before run once: %v", err)
+	}
 
 	// Run system metrics once
 	if err := a.runSystemMetrics(); err != nil {
 		logging.Errorf("System metrics error: %v", err)
+		if transport.IsAuthError(err) {
+			return err
+		}
 	}
 
 	// Run all monitors once
@@ -116,6 +142,9 @@ func (a *Agent) RunOnce(ctx context.Context) error {
 
 		if err := a.runMonitorMetrics(*internalMonitor, monitor); err != nil {
 			logging.Errorf("Monitor metrics error for %s: %v", monitor.Name, err)
+			if transport.IsAuthError(err) {
+				return err
+			}
 		}
 	}
 
@@ -171,6 +200,13 @@ func (a *Agent) startRetryQueueWorker(ctx context.Context, fatalErrs chan<- erro
 			logging.Infof("Retry queue worker stopped")
 			return
 		case <-ticker.C:
+			if err := a.flushDurableSpool(ctx); err != nil {
+				logging.Errorf("Durable report spool flush failed: %v", err)
+				if transport.IsAuthError(err) {
+					reportFatalError(fatalErrs, err)
+					return
+				}
+			}
 			if a.retryQueue.Len() > 0 {
 				logging.Infof("Flushing retry queue (%d pending)", a.retryQueue.Len())
 				if err := a.retryQueue.Flush(ctx); err != nil {
@@ -271,11 +307,21 @@ func (a *Agent) runSystemMetrics() error {
 		if transport.IsAuthError(err) {
 			return err
 		}
-		a.retryQueue.Push(RetryItem{Name: "system-report", Send: send})
-		logging.Debugf("system report queued for retry: queue_len=%d", a.retryQueue.Len())
+		if spoolErr := a.enqueueSystemReport(report, err); spoolErr != nil {
+			a.retryQueue.Push(RetryItem{Name: "system-report", Send: send})
+			logging.Errorf("Failed to persist system report for retry: %v", spoolErr)
+			return fmt.Errorf("%w; failed to persist retry item: %v", err, spoolErr)
+		}
 		return err
 	}
 	logging.Debugf("system report sent: agent_id=%s", a.internalState.AgentID)
+
+	if err := a.shipServiceLogs(); err != nil {
+		if transport.IsAuthError(err) {
+			return err
+		}
+		logging.Warnf("Service log shipping failed: %v", err)
+	}
 
 	return nil
 }
@@ -324,13 +370,89 @@ func (a *Agent) runMonitorMetrics(monitor config.InternalStateMonitor, userMonit
 		if transport.IsAuthError(err) {
 			return err
 		}
-		a.retryQueue.Push(RetryItem{Name: "monitor-report:" + monitor.Name, Send: send})
-		logging.Debugf("monitor report queued for retry: monitor=%s queue_len=%d", monitor.Name, a.retryQueue.Len())
+		if spoolErr := a.enqueueMonitorReport(monitor, report, err); spoolErr != nil {
+			a.retryQueue.Push(RetryItem{Name: "monitor-report:" + monitor.Name, Send: send})
+			logging.Errorf("Failed to persist monitor report for retry: monitor=%s error=%v", monitor.Name, spoolErr)
+			return fmt.Errorf("%w; failed to persist retry item: %v", err, spoolErr)
+		}
 		return err
 	}
 	logging.Debugf("monitor report sent: monitor=%s monitor_id=%s", monitor.Name, monitor.ID)
 
 	return err
+}
+
+func (a *Agent) enqueueSystemReport(report *transport.SystemReport, lastErr error) error {
+	if _, err := a.stateStore.EnqueueReport(state.ReportSpoolKindSystem, a.internalState.AgentID, "", "", report, lastErr); err != nil {
+		return err
+	}
+	logging.Debugf("system report persisted for retry")
+	return nil
+}
+
+func (a *Agent) enqueueMonitorReport(monitor config.InternalStateMonitor, report *transport.MonitorReport, lastErr error) error {
+	if _, err := a.stateStore.EnqueueReport(state.ReportSpoolKindMonitor, a.internalState.AgentID, monitor.ID, monitor.Name, report, lastErr); err != nil {
+		return err
+	}
+	logging.Debugf("monitor report persisted for retry: monitor=%s monitor_id=%s", monitor.Name, monitor.ID)
+	return nil
+}
+
+func (a *Agent) flushDurableSpool(ctx context.Context) error {
+	items, err := a.stateStore.ListDueReports(time.Now(), 100)
+	if err != nil {
+		return err
+	}
+	if len(items) == 0 {
+		return nil
+	}
+
+	logging.Infof("Flushing durable report spool (%d pending)", len(items))
+	var firstErr error
+	for _, item := range items {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		if err := a.sendSpooledReport(item); err != nil {
+			if transport.IsAuthError(err) {
+				return err
+			}
+			if markErr := a.stateStore.MarkReportFailed(item.ID, err); markErr != nil {
+				return markErr
+			}
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
+		}
+		if err := a.stateStore.MarkReportSent(item.ID); err != nil {
+			return err
+		}
+		logging.Debugf("durable report spool item sent: id=%d kind=%s", item.ID, item.Kind)
+	}
+	return firstErr
+}
+
+func (a *Agent) sendSpooledReport(item state.SpooledReport) error {
+	switch item.Kind {
+	case state.ReportSpoolKindSystem:
+		var report transport.SystemReport
+		if err := json.Unmarshal(item.PayloadJSON, &report); err != nil {
+			return fmt.Errorf("decode spooled system report: %w", err)
+		}
+		return a.transport.SendReport(report, item.AgentID)
+	case state.ReportSpoolKindMonitor:
+		var report transport.MonitorReport
+		if err := json.Unmarshal(item.PayloadJSON, &report); err != nil {
+			return fmt.Errorf("decode spooled monitor report: %w", err)
+		}
+		return a.transport.SendMonitorReport(report, item.AgentID, item.MonitorID)
+	default:
+		return fmt.Errorf("unsupported spooled report kind: %s", item.Kind)
+	}
 }
 
 func metricCount(metrics any) int {

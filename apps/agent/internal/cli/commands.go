@@ -14,6 +14,7 @@ import (
 	"orion/agent/internal/logging"
 	"orion/agent/internal/registration"
 	agentstate "orion/agent/internal/state"
+	"orion/agent/internal/transport"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -235,6 +236,32 @@ func newStateCommand(ctx context.Context, opts *Options) *cobra.Command {
 		},
 	}
 	cmd.AddCommand(init)
+	return cmd
+}
+
+func newTokenCommand(ctx context.Context, opts *Options) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "token",
+		Short: "Manage local Agent credentials",
+	}
+	apply := &cobra.Command{
+		Use:   "apply [replacement-token]",
+		Short: "Apply a replacement token without changing Agent identity",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if commandNeedsElevation("token", commandArgs(opts, "token")) {
+				if err := ensurePrivilegeFor(opts, "token"); err != nil {
+					return NewCommandError("could not elevate privileges", err)
+				}
+			}
+			if len(args) > 0 {
+				opts.TokenApply = args[0]
+			}
+			return runTokenApply(ctx, opts)
+		},
+	}
+	apply.Flags().StringVar(&opts.TokenFile, "token-file", "", "Path to a file containing the replacement token")
+	cmd.AddCommand(apply)
 	return cmd
 }
 
@@ -651,6 +678,10 @@ func runAgent(ctx context.Context, opts *Options) error {
 		PrintStep("running one collection cycle")
 		if err := agentInstance.RunOnce(ctx); err != nil {
 			logging.Errorf("Agent run failed: %v", err)
+			if transport.IsAuthError(err) {
+				PrintError("Core rejected Agent credentials; reporting stopped")
+				PrintInfo("recovery", "apply an admin-issued replacement token with orion-agent token apply")
+			}
 			return NewCommandError("agent run failed", err)
 		}
 		PrintOK("one collection cycle complete")
@@ -660,6 +691,10 @@ func runAgent(ctx context.Context, opts *Options) error {
 	PrintStep("starting continuous collection loop")
 	if err := agentInstance.Run(ctx); err != nil {
 		logging.Errorf("Agent stopped with error: %v", err)
+		if transport.IsAuthError(err) {
+			PrintError("Core rejected Agent credentials; reporting stopped")
+			PrintInfo("recovery", "apply an admin-issued replacement token with orion-agent token apply")
+		}
 		return NewCommandError("agent stopped with an error", err)
 	}
 
@@ -823,6 +858,64 @@ func runStateInit(_ context.Context, opts *Options) error {
 	PrintOK("state database initialized")
 	PrintInfo("file", stateStore.Path())
 	return nil
+}
+
+func runTokenApply(_ context.Context, opts *Options) error {
+	PrintHeader("token apply")
+	PrintInfo("state", opts.StatePath)
+
+	replacementToken, err := replacementTokenFromOptions(opts)
+	if err != nil {
+		return NewCommandError("could not apply replacement token", err)
+	}
+	if replacementToken == "" {
+		return NewCommandError("could not apply replacement token", fmt.Errorf("replacement token is required"), "use: orion-agent token apply --token-file /path/to/token")
+	}
+
+	PrintStep("opening state database")
+	stateStore, err := agentstate.Open(opts.StatePath)
+	if err != nil {
+		return NewCommandError("could not open state database", err)
+	}
+	defer stateStore.Close()
+	PrintOK("state database ready")
+
+	PrintStep("loading local agent state")
+	before, err := stateStore.Get()
+	if err != nil {
+		return NewCommandError("could not load state", err)
+	}
+	if !before.IsRegistered() || before.AgentID == "" || before.CoreURL == "" {
+		return NewCommandError("could not apply replacement token", fmt.Errorf("state is not registered"), "run: orion-agent reconfigure only if a new Agent identity is intended")
+	}
+	PrintInfo("agent_id", before.AgentID)
+	PrintInfo("core_url", before.CoreURL)
+	PrintInfo("monitor_mappings", len(before.Monitors))
+
+	PrintStep("saving replacement token")
+	if err := stateStore.ApplyReplacementToken(replacementToken); err != nil {
+		return NewCommandError("could not apply replacement token", err)
+	}
+	PrintOK("replacement token applied")
+	PrintInfo("identity", "preserved")
+	PrintInfo("next", "orion-agent restart")
+	return nil
+}
+
+func replacementTokenFromOptions(opts *Options) (string, error) {
+	inlineToken := strings.TrimSpace(opts.TokenApply)
+	tokenFile := strings.TrimSpace(opts.TokenFile)
+	if inlineToken != "" && tokenFile != "" {
+		return "", fmt.Errorf("provide either a replacement token argument or --token-file, not both")
+	}
+	if tokenFile == "" {
+		return inlineToken, nil
+	}
+	data, err := os.ReadFile(tokenFile)
+	if err != nil {
+		return "", fmt.Errorf("read token file: %w", err)
+	}
+	return strings.TrimSpace(string(data)), nil
 }
 
 func runReconfigure(_ context.Context, opts *Options) error {

@@ -11,6 +11,31 @@ definitions:
       reporting_interval:
         type: string
     type: object
+  api.AgentHealthResponse:
+    properties:
+      agent_id:
+        type: string
+      availability_health:
+        type: string
+      degraded_count:
+        type: integer
+      down_count:
+        type: integer
+      monitor_health:
+        type: string
+      overall_health:
+        type: string
+      stale_count:
+        type: integer
+      status_reason:
+        type: string
+      total_count:
+        type: integer
+      unknown_count:
+        type: integer
+      up_count:
+        type: integer
+    type: object
   api.AgentReportResponse:
     properties:
       agent_id:
@@ -40,6 +65,8 @@ definitions:
     properties:
       arch:
         type: string
+      availability_health:
+        type: string
       created_at:
         type: string
       id:
@@ -56,6 +83,8 @@ definitions:
         type: boolean
       monitor_count:
         type: integer
+      monitor_health:
+        type: string
       name:
         type: string
       os:
@@ -65,6 +94,8 @@ definitions:
       reporting_interval_seconds:
         type: integer
       status:
+        type: string
+      status_reason:
         type: string
       uptime_seconds:
         type: integer
@@ -86,6 +117,37 @@ definitions:
       unknown:
         type: integer
       up:
+        type: integer
+    type: object
+  api.AgentTokenActionRequest:
+    properties:
+      reason:
+        type: string
+    type: object
+  api.AgentTokenIssuedResponse:
+    properties:
+      status:
+        $ref: '#/definitions/api.AgentTokenStatusResponse'
+      token:
+        type: string
+    type: object
+  api.AgentTokenStatusResponse:
+    properties:
+      agent_id:
+        type: string
+      request_id:
+        type: string
+      state:
+        type: string
+      token_exists:
+        type: boolean
+      token_revocation_reason:
+        type: string
+      token_revoked_at:
+        type: string
+      token_rotated_at:
+        type: string
+      token_version:
         type: integer
     type: object
   api.AlertChannelResponse:
@@ -122,11 +184,44 @@ definitions:
         type: string
       webhook_configured:
         type: boolean
+      webhook_signature_configured:
+        type: boolean
       webhook_url:
+        type: string
+    type: object
+  api.AlertDeliveryAttemptResponse:
+    properties:
+      alert_delivery_id:
+        type: string
+      attempt_number:
+        type: integer
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      error:
+        type: string
+      id:
+        type: string
+      stage:
+        type: string
+      started_at:
+        type: string
+      status:
+        type: string
+      updated_at:
         type: string
     type: object
   api.AlertDeliveryResponse:
     properties:
+      alert_group_id:
+        type: string
+      attempt_count:
+        type: integer
+      attempts:
+        items:
+          $ref: '#/definitions/api.AlertDeliveryAttemptResponse'
+        type: array
       channel:
         type: string
       created_at:
@@ -139,10 +234,122 @@ definitions:
         type: string
       incident_id:
         type: string
+      last_attempt_at:
+        type: string
+      max_attempts:
+        type: integer
+      next_attempt_at:
+        type: string
+      route_id:
+        type: string
       status:
         type: string
       type:
         type: string
+      updated_at:
+        type: string
+    type: object
+  api.AlertEmailDestinationResponse:
+    properties:
+      created_at:
+        type: string
+      email_to:
+        type: string
+      enabled:
+        type: boolean
+      id:
+        type: string
+      last_delivery_at:
+        type: string
+      last_delivery_status:
+        type: string
+      name:
+        type: string
+      smtp_service_id:
+        type: string
+      smtp_service_name:
+        type: string
+      subscribed_events:
+        items:
+          type: string
+        type: array
+      updated_at:
+        type: string
+    type: object
+  api.AlertRouteDryRunResponse:
+    properties:
+      destination_decisions:
+        items:
+          $ref: '#/definitions/service.AlertDestinationDecision'
+        type: array
+      event:
+        $ref: '#/definitions/service.AlertRouteContext'
+      legacy_fallback:
+        type: boolean
+      route_evaluations:
+        items:
+          $ref: '#/definitions/api.AlertRouteEvaluationResponse'
+        type: array
+      suppressed:
+        type: boolean
+      suppression_reason:
+        type: string
+    type: object
+  api.AlertRouteEvaluationResponse:
+    properties:
+      matched:
+        type: boolean
+      reasons:
+        items:
+          type: string
+        type: array
+      route:
+        $ref: '#/definitions/api.AlertRouteResponse'
+      suppressed:
+        type: boolean
+    type: object
+  api.AlertRouteResponse:
+    properties:
+      agent_ids:
+        items:
+          type: string
+        type: array
+      channel_ids:
+        items:
+          type: string
+        type: array
+      created_at:
+        type: string
+      enabled:
+        type: boolean
+      event_types:
+        items:
+          type: string
+        type: array
+      grouping_delay_seconds:
+        type: integer
+      grouping_policy:
+        type: string
+      id:
+        type: string
+      monitor_ids:
+        items:
+          type: string
+        type: array
+      monitor_types:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      priority:
+        type: integer
+      severities:
+        items:
+          type: string
+        type: array
+      suppress:
+        type: boolean
       updated_at:
         type: string
     type: object
@@ -167,10 +374,114 @@ definitions:
       trigger_condition:
         type: string
     type: object
+  api.AlertSMTPServiceResponse:
+    properties:
+      created_at:
+        type: string
+      enabled:
+        type: boolean
+      from_email:
+        type: string
+      host:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      password_configured:
+        type: boolean
+      port:
+        type: integer
+      updated_at:
+        type: string
+      username_configured:
+        type: boolean
+    type: object
+  api.CoreMonitorConfigResponse:
+    properties:
+      config:
+        additionalProperties: true
+        type: object
+      confirmation_check_count:
+        type: integer
+      confirmation_period_seconds:
+        type: integer
+      heartbeat_token:
+        type: string
+      interval_seconds:
+        type: integer
+      kind:
+        type: string
+      last_failure_at:
+        type: string
+      last_run_at:
+        type: string
+      last_signal_at:
+        type: string
+      last_success_at:
+        type: string
+      lease_expires_at:
+        type: string
+      lease_owner:
+        type: string
+      monitor_id:
+        type: string
+      next_run_at:
+        type: string
+      paused:
+        type: boolean
+      recovery_period_seconds:
+        type: integer
+      secret_refs:
+        additionalProperties: true
+        type: object
+      timeout_seconds:
+        type: integer
+    type: object
+  api.CoreMonitorManagementResponse:
+    properties:
+      config:
+        $ref: '#/definitions/api.CoreMonitorConfigResponse'
+      monitor:
+        $ref: '#/definitions/api.MonitorResponse'
+      result:
+        $ref: '#/definitions/api.CoreMonitorTestNowResponse'
+    type: object
+  api.CoreMonitorTestNowResponse:
+    properties:
+      monitor_id:
+        type: string
+      status:
+        type: string
+    type: object
   api.DataLifecycleRollupRequest:
     properties:
       date:
         example: "2026-05-12"
+        type: string
+    type: object
+  api.HeartbeatSignalResponse:
+    properties:
+      health:
+        type: string
+      monitor_id:
+        type: string
+      payload_truncated:
+        type: boolean
+      received_at:
+        type: string
+      report_id:
+        type: string
+    type: object
+  api.IncidentComponentImpactResponse:
+    properties:
+      component_id:
+        type: string
+      component_name:
+        type: string
+      impact:
+        type: string
+      status:
         type: string
     type: object
   api.IncidentEventResponse:
@@ -188,16 +499,102 @@ definitions:
       type:
         type: string
     type: object
+  api.IncidentEvidenceResponse:
+    properties:
+      latest_report:
+        $ref: '#/definitions/api.MonitorReportResponse'
+      triggering_report:
+        $ref: '#/definitions/api.MonitorReportResponse'
+    type: object
+  api.IncidentInsightsResponse:
+    properties:
+      lifecycle_timing:
+        $ref: '#/definitions/api.IncidentLifecycleTimingResponse'
+      notification_reliability:
+        $ref: '#/definitions/api.IncidentNotificationReliabilityStats'
+      recurring_failures:
+        items:
+          $ref: '#/definitions/api.IncidentRecurringFailureResponse'
+        type: array
+    type: object
+  api.IncidentLifecycleTimingResponse:
+    properties:
+      acknowledged_count:
+        type: integer
+      mean_time_to_acknowledge_seconds:
+        type: integer
+      mean_time_to_resolve_seconds:
+        type: integer
+      resolved_count:
+        type: integer
+    type: object
+  api.IncidentNotificationReliabilityStats:
+    properties:
+      failed_deliveries:
+        type: integer
+      sent_deliveries:
+        type: integer
+      success_rate_percent:
+        type: number
+      suppressed_deliveries:
+        type: integer
+      total_deliveries:
+        type: integer
+    type: object
+  api.IncidentRecurringFailureResponse:
+    properties:
+      incident_count:
+        type: integer
+      last_incident_at:
+        type: string
+      monitor_id:
+        type: string
+      monitor_name:
+        type: string
+    type: object
+  api.IncidentRelatedIncidentResponse:
+    properties:
+      id:
+        type: string
+      last_event_at:
+        type: string
+      latest_event:
+        type: string
+      notification_status:
+        type: string
+      opened_at:
+        type: string
+      resolution_kind:
+        type: string
+      resolved_at:
+        type: string
+      severity:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+    type: object
   api.IncidentResponse:
     properties:
       agent_id:
         type: string
       agent_name:
         type: string
+      coverage_note:
+        type: string
+      covered_at:
+        type: string
+      covered_until:
+        type: string
       created_at:
         type: string
       id:
         type: string
+      impacted_components:
+        items:
+          $ref: '#/definitions/api.IncidentComponentImpactResponse'
+        type: array
       last_event_at:
         type: string
       latest_event:
@@ -211,6 +608,12 @@ definitions:
       notification_status:
         type: string
       opened_at:
+        type: string
+      reopen_count:
+        type: integer
+      reopened_at:
+        type: string
+      resolution_kind:
         type: string
       resolved_at:
         type: string
@@ -230,6 +633,8 @@ definitions:
       channel:
         type: string
       created_at:
+        type: string
+      evidence:
         type: string
       id:
         type: string
@@ -304,8 +709,16 @@ definitions:
         type: string
       name:
         type: string
+      owner_id:
+        type: string
+      owner_kind:
+        type: string
+      owner_name:
+        type: string
       reporting_interval_seconds:
         type: integer
+      source:
+        type: string
       type:
         type: string
       updated_at:
@@ -339,6 +752,440 @@ definitions:
       timestamp:
         type: string
       type:
+        type: string
+    type: object
+  api.ServiceLogBatchResponse:
+    properties:
+      received:
+        type: integer
+      stored:
+        type: integer
+    type: object
+  api.ServiceLogEntryResponse:
+    properties:
+      agent_id:
+        type: string
+      agent_name:
+        type: string
+      collected_at:
+        type: string
+      component:
+        type: string
+      created_at:
+        type: string
+      fields:
+        type: string
+      id:
+        type: string
+      level:
+        type: string
+      message:
+        type: string
+      monitor_id:
+        type: string
+      monitor_name:
+        type: string
+      occurred_at:
+        type: string
+      source:
+        type: string
+      stream:
+        type: string
+    type: object
+  api.StatusPageComponentMappingResponse:
+    properties:
+      component_id:
+        type: string
+      created_at:
+        type: string
+      health_rollup_strategy:
+        type: string
+      id:
+        type: string
+      resource_id:
+        type: string
+      resource_type:
+        type: string
+      updated_at:
+        type: string
+      uptime_rollup_strategy:
+        type: string
+    type: object
+  api.StatusPageComponentResponse:
+    properties:
+      created_at:
+        type: string
+      display_mode:
+        type: string
+      id:
+        type: string
+      manual_status:
+        type: string
+      manual_status_reason:
+        type: string
+      mappings:
+        items:
+          $ref: '#/definitions/api.StatusPageComponentMappingResponse'
+        type: array
+      public_description:
+        type: string
+      public_name:
+        type: string
+      section_id:
+        type: string
+      sort_order:
+        type: integer
+      status_page_id:
+        type: string
+      updated_at:
+        type: string
+      visible:
+        type: boolean
+    type: object
+  api.StatusPageDetailResponse:
+    properties:
+      components:
+        items:
+          $ref: '#/definitions/api.StatusPageComponentResponse'
+        type: array
+      incidents:
+        items:
+          $ref: '#/definitions/api.StatusPageIncidentResponse'
+        type: array
+      page:
+        $ref: '#/definitions/api.StatusPageResponse'
+      sections:
+        items:
+          $ref: '#/definitions/api.StatusPageSectionResponse'
+        type: array
+    type: object
+  api.StatusPageIncidentComponentSuggestionMatchResponse:
+    properties:
+      match_reason:
+        type: string
+      resource_type:
+        type: string
+    type: object
+  api.StatusPageIncidentComponentSuggestionResponse:
+    properties:
+      component_id:
+        type: string
+      component_name:
+        type: string
+      matches:
+        items:
+          $ref: '#/definitions/api.StatusPageIncidentComponentSuggestionMatchResponse'
+        type: array
+    type: object
+  api.StatusPageIncidentResponse:
+    properties:
+      affected_component_ids:
+        items:
+          type: string
+        type: array
+      created_at:
+        type: string
+      id:
+        type: string
+      impact_summary:
+        type: string
+      internal_incident_id:
+        type: string
+      public_status:
+        type: string
+      published_at:
+        type: string
+      resolved_at:
+        type: string
+      scheduled_end_at:
+        type: string
+      scheduled_start_at:
+        type: string
+      severity:
+        type: string
+      status_page_id:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+      updates:
+        items:
+          $ref: '#/definitions/api.StatusPageIncidentUpdateResponse'
+        type: array
+      visibility:
+        type: string
+    type: object
+  api.StatusPageIncidentUpdateResponse:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      id:
+        type: string
+      incident_id:
+        type: string
+      message:
+        type: string
+      published_at:
+        type: string
+      status:
+        type: string
+    type: object
+  api.StatusPagePreviewResponse:
+    properties:
+      incidents:
+        items:
+          $ref: '#/definitions/api.StatusPagePublicIncidentResponse'
+        type: array
+      last_updated:
+        type: string
+      metadata:
+        $ref: '#/definitions/api.StatusPagePublicMetadataResponse'
+      overall_status:
+        type: string
+      overall_status_display:
+        type: string
+      page:
+        $ref: '#/definitions/api.StatusPagePublicPageResponse'
+      sections:
+        items:
+          $ref: '#/definitions/api.StatusPagePublicSectionResponse'
+        type: array
+    type: object
+  api.StatusPagePublicComponentHistoryResponse:
+    properties:
+      component:
+        $ref: '#/definitions/api.StatusPagePublicComponentResponse'
+      history:
+        items:
+          $ref: '#/definitions/api.StatusPagePublicUptimeBucketResponse'
+        type: array
+      uptime:
+        $ref: '#/definitions/api.StatusPagePublicUptimeResponse'
+    type: object
+  api.StatusPagePublicComponentResponse:
+    properties:
+      description:
+        type: string
+      display_mode:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      status:
+        type: string
+      status_display:
+        type: string
+      status_reason:
+        type: string
+    type: object
+  api.StatusPagePublicHistoryResponse:
+    properties:
+      components:
+        items:
+          $ref: '#/definitions/api.StatusPagePublicComponentHistoryResponse'
+        type: array
+      generated_at:
+        type: string
+      incidents:
+        items:
+          $ref: '#/definitions/api.StatusPagePublicIncidentResponse'
+        type: array
+      page:
+        $ref: '#/definitions/api.StatusPagePublicPageResponse'
+    type: object
+  api.StatusPagePublicIncidentHistoryResponse:
+    properties:
+      incident:
+        $ref: '#/definitions/api.StatusPagePublicIncidentResponse'
+      updates:
+        items:
+          $ref: '#/definitions/api.StatusPagePublicIncidentUpdateHistoryResponse'
+        type: array
+    type: object
+  api.StatusPagePublicIncidentResponse:
+    properties:
+      affected_component_ids:
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      impact_summary:
+        type: string
+      public_status:
+        type: string
+      published_at:
+        type: string
+      resolved_at:
+        type: string
+      scheduled_end_at:
+        type: string
+      scheduled_start_at:
+        type: string
+      severity:
+        type: string
+      title:
+        type: string
+    type: object
+  api.StatusPagePublicIncidentUpdateHistoryResponse:
+    properties:
+      id:
+        type: string
+      message:
+        type: string
+      published_at:
+        type: string
+      status:
+        type: string
+    type: object
+  api.StatusPagePublicMetadataResponse:
+    properties:
+      canonical_url:
+        type: string
+      description:
+        type: string
+      open_graph:
+        $ref: '#/definitions/api.StatusPagePublicOpenGraphResponse'
+      title:
+        type: string
+    type: object
+  api.StatusPagePublicOpenGraphResponse:
+    properties:
+      description:
+        type: string
+      image_url:
+        type: string
+      site_name:
+        type: string
+      title:
+        type: string
+      type:
+        type: string
+      url:
+        type: string
+    type: object
+  api.StatusPagePublicPageResponse:
+    properties:
+      description:
+        type: string
+      slug:
+        type: string
+      theme_settings:
+        additionalProperties: true
+        type: object
+      title:
+        type: string
+      visibility:
+        type: string
+    type: object
+  api.StatusPagePublicSectionResponse:
+    properties:
+      collapsed_by_default:
+        type: boolean
+      components:
+        items:
+          $ref: '#/definitions/api.StatusPagePublicComponentResponse'
+        type: array
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  api.StatusPagePublicUptimeBucketResponse:
+    properties:
+      date:
+        type: string
+      uptime_display:
+        type: string
+      uptime_ratio:
+        type: number
+    type: object
+  api.StatusPagePublicUptimeResponse:
+    properties:
+      uptime_display:
+        type: string
+      uptime_ratio:
+        type: number
+      window:
+        type: string
+    type: object
+  api.StatusPageResponse:
+    properties:
+      canonical_url:
+        type: string
+      created_at:
+        type: string
+      custom_domain:
+        type: string
+      default_incident_visibility:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      open_graph_image_url:
+        type: string
+      published_at:
+        type: string
+      seo_description:
+        type: string
+      seo_title:
+        type: string
+      slug:
+        type: string
+      theme_settings:
+        additionalProperties: true
+        type: object
+      title:
+        type: string
+      updated_at:
+        type: string
+      visibility:
+        type: string
+    type: object
+  api.StatusPageSectionResponse:
+    properties:
+      collapsed_by_default:
+        type: boolean
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      sort_order:
+        type: integer
+      status_page_id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  api.StatusPageSubscriberComponentResponse:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  api.StatusPageSubscriberPublicResponse:
+    properties:
+      available_components:
+        items:
+          $ref: '#/definitions/api.StatusPageSubscriberComponentResponse'
+        type: array
+      component_ids:
+        items:
+          type: string
+        type: array
+      destination_type:
+        type: string
+      masked_destination:
+        type: string
+      state:
         type: string
     type: object
   api.UptimeDayBucketResponse:
@@ -376,7 +1223,223 @@ definitions:
         type: array
       type:
         type: string
+      webhook_signing_secret:
+        type: string
       webhook_url:
+        type: string
+    type: object
+  api.alertEmailDestinationRequest:
+    properties:
+      email_to:
+        type: string
+      enabled:
+        type: boolean
+      name:
+        type: string
+      smtp_service_id:
+        type: string
+      subscribed_events:
+        items:
+          type: string
+        type: array
+    type: object
+  api.alertRouteDryRunRequest:
+    properties:
+      agent_id:
+        type: string
+      event_type:
+        type: string
+      incident_id:
+        type: string
+      monitor_id:
+        type: string
+      monitor_type:
+        type: string
+      severity:
+        type: string
+    type: object
+  api.alertRouteRequest:
+    properties:
+      agent_ids:
+        items:
+          type: string
+        type: array
+      channel_ids:
+        items:
+          type: string
+        type: array
+      enabled:
+        type: boolean
+      event_types:
+        items:
+          type: string
+        type: array
+      grouping_delay_seconds:
+        type: integer
+      grouping_policy:
+        type: string
+      monitor_ids:
+        items:
+          type: string
+        type: array
+      monitor_types:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      priority:
+        type: integer
+      severities:
+        items:
+          type: string
+        type: array
+      suppress:
+        type: boolean
+    type: object
+  api.alertSMTPServiceRequest:
+    properties:
+      enabled:
+        type: boolean
+      from_email:
+        type: string
+      host:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+      port:
+        type: integer
+      username:
+        type: string
+    type: object
+  api.incidentCoverageRequest:
+    properties:
+      covered_until:
+        type: string
+      note:
+        type: string
+    type: object
+  api.statusPageComponentMappingRequest:
+    properties:
+      health_rollup_strategy:
+        type: string
+      resource_id:
+        type: string
+      resource_type:
+        type: string
+      uptime_rollup_strategy:
+        type: string
+    type: object
+  api.statusPageComponentRequest:
+    properties:
+      display_mode:
+        type: string
+      manual_status:
+        type: string
+      manual_status_reason:
+        type: string
+      public_description:
+        type: string
+      public_name:
+        type: string
+      section_id:
+        type: string
+      sort_order:
+        type: integer
+      visible:
+        type: boolean
+    type: object
+  api.statusPageIncidentRequest:
+    properties:
+      affected_component_ids:
+        items:
+          type: string
+        type: array
+      impact_summary:
+        type: string
+      internal_incident_id:
+        type: string
+      public_status:
+        type: string
+      published_at:
+        type: string
+      resolved_at:
+        type: string
+      scheduled_end_at:
+        type: string
+      scheduled_start_at:
+        type: string
+      severity:
+        type: string
+      title:
+        type: string
+      visibility:
+        type: string
+    type: object
+  api.statusPageIncidentUpdateRequest:
+    properties:
+      created_by:
+        type: string
+      message:
+        type: string
+      published_at:
+        type: string
+      status:
+        type: string
+    type: object
+  api.statusPageRequest:
+    properties:
+      canonical_url:
+        type: string
+      custom_domain:
+        type: string
+      default_incident_visibility:
+        type: string
+      description:
+        type: string
+      open_graph_image_url:
+        type: string
+      seo_description:
+        type: string
+      seo_title:
+        type: string
+      slug:
+        type: string
+      theme_settings:
+        additionalProperties: true
+        type: object
+      title:
+        type: string
+      visibility:
+        type: string
+    type: object
+  api.statusPageSectionRequest:
+    properties:
+      collapsed_by_default:
+        type: boolean
+      name:
+        type: string
+      sort_order:
+        type: integer
+    type: object
+  api.statusPageSubscriberPreferencesRequest:
+    properties:
+      component_ids:
+        items:
+          type: string
+        type: array
+    type: object
+  api.statusPageSubscriptionRequest:
+    properties:
+      component_ids:
+        items:
+          type: string
+        type: array
+      destination:
+        type: string
+      destination_type:
         type: string
     type: object
   db.CPUStats:
@@ -484,6 +1547,53 @@ definitions:
       uptime_seconds:
         type: integer
     type: object
+  service.AlertDestinationDecision:
+    properties:
+      channel_id:
+        type: string
+      channel_name:
+        type: string
+      channel_type:
+        type: string
+      reason:
+        type: string
+      route_id:
+        type: string
+      route_name:
+        type: string
+      status:
+        type: string
+    type: object
+  service.AlertRouteContext:
+    properties:
+      agent_id:
+        type: string
+      event_type:
+        type: string
+      incident_id:
+        type: string
+      monitor_id:
+        type: string
+      monitor_type:
+        type: string
+      severity:
+        type: string
+    type: object
+  service.AlertSMTPServiceTestResult:
+    properties:
+      error:
+        type: string
+      smtp_service_id:
+        type: string
+      smtp_service_name:
+        type: string
+      stage:
+        type: string
+      status:
+        type: string
+      tested_at:
+        type: string
+    type: object
   service.ArchiveRunResult:
     properties:
       agent_reports_archived:
@@ -500,6 +1610,68 @@ definitions:
         type: boolean
       skipped_because_no_reports:
         type: boolean
+    type: object
+  service.CoreManagedMonitorCreateRequest:
+    properties:
+      config:
+        additionalProperties: true
+        type: object
+      confirmation_check_count:
+        type: integer
+      confirmation_period_seconds:
+        type: integer
+      description:
+        type: string
+      interval_seconds:
+        type: integer
+      kind:
+        type: string
+      name:
+        type: string
+      paused:
+        type: boolean
+      recovery_period_seconds:
+        type: integer
+      secret_refs:
+        additionalProperties: true
+        type: object
+      timeout_seconds:
+        type: integer
+      type:
+        type: string
+    required:
+    - config
+    - kind
+    - name
+    type: object
+  service.CoreManagedMonitorUpdateRequest:
+    properties:
+      config:
+        additionalProperties: true
+        type: object
+      confirmation_check_count:
+        type: integer
+      confirmation_period_seconds:
+        type: integer
+      description:
+        type: string
+      interval_seconds:
+        type: integer
+      kind:
+        type: string
+      name:
+        type: string
+      paused:
+        type: boolean
+      recovery_period_seconds:
+        type: integer
+      secret_refs:
+        additionalProperties: true
+        type: object
+      timeout_seconds:
+        type: integer
+      type:
+        type: string
     type: object
   service.DataLifecycleSettingsPayload:
     properties:
@@ -613,6 +1785,164 @@ definitions:
       skipped_today:
         type: boolean
     type: object
+  service.RuntimeDiagnosticsSnapshot:
+    properties:
+      active_incident_lookup:
+        $ref: '#/definitions/service.RuntimeLookupStats'
+      incident_reconciliation:
+        $ref: '#/definitions/service.RuntimeOperationStats'
+      ingestion_latency_ms:
+        additionalProperties:
+          $ref: '#/definitions/service.RuntimeLatencyPercentiles'
+        type: object
+      report_writes:
+        additionalProperties:
+          $ref: '#/definitions/service.RuntimeReportWriteStats'
+        type: object
+      request_latency_ms:
+        additionalProperties:
+          $ref: '#/definitions/service.RuntimeLatencyPercentiles'
+        type: object
+      requests:
+        additionalProperties:
+          additionalProperties:
+            format: int64
+            type: integer
+          type: object
+        type: object
+      slow_operations:
+        items:
+          $ref: '#/definitions/service.RuntimeSlowOperation'
+        type: array
+      sqlite:
+        $ref: '#/definitions/service.RuntimeSQLiteStats'
+      started_at:
+        type: string
+      status:
+        type: string
+      uptime_seconds:
+        type: integer
+    type: object
+  service.RuntimeLatencyPercentiles:
+    properties:
+      count:
+        type: integer
+      max:
+        type: integer
+      p50:
+        type: integer
+      p95:
+        type: integer
+      p99:
+        type: integer
+    type: object
+  service.RuntimeLookupStats:
+    properties:
+      count:
+        type: integer
+      max:
+        type: integer
+      miss_count:
+        type: integer
+      p50:
+        type: integer
+      p95:
+        type: integer
+      p99:
+        type: integer
+    type: object
+  service.RuntimeOperationStats:
+    properties:
+      count:
+        type: integer
+      error_count:
+        type: integer
+      max:
+        type: integer
+      p50:
+        type: integer
+      p95:
+        type: integer
+      p99:
+        type: integer
+    type: object
+  service.RuntimeReportWriteStats:
+    properties:
+      count:
+        type: integer
+      error_count:
+        type: integer
+      max:
+        type: integer
+      p50:
+        type: integer
+      p95:
+        type: integer
+      p99:
+        type: integer
+    type: object
+  service.RuntimeSQLiteStats:
+    properties:
+      busy_total:
+        type: integer
+      database_bytes:
+        type: integer
+      freelist_count:
+        type: integer
+      page_count:
+        type: integer
+      page_size_bytes:
+        type: integer
+    type: object
+  service.RuntimeSlowOperation:
+    properties:
+      created_at:
+        type: string
+      duration_ms:
+        type: integer
+      kind:
+        type: string
+      operation:
+        type: string
+    type: object
+  service.ServiceLogBatchPayload:
+    properties:
+      entries:
+        items:
+          $ref: '#/definitions/service.ServiceLogEntryPayload'
+        type: array
+    required:
+    - entries
+    type: object
+  service.ServiceLogEntryPayload:
+    properties:
+      component:
+        type: string
+      fields:
+        additionalProperties: {}
+        type: object
+      fingerprint:
+        type: string
+      level:
+        type: string
+      message:
+        type: string
+      monitor_id:
+        type: string
+      monitor_name:
+        type: string
+      raw:
+        type: string
+      source:
+        type: string
+      stream:
+        type: string
+      timestamp:
+        type: string
+    required:
+    - fingerprint
+    - timestamp
+    type: object
   service.SetMaintenanceModeRequest:
     properties:
       maintenance_mode:
@@ -677,7 +2007,7 @@ info:
     email: support@swagger.io
     name: API Support
     url: http://www.swagger.io/support
-  description: Orion Core API for agent management and monitoring
+  description: Orion Core API for server management and monitoring
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
@@ -706,6 +2036,643 @@ paths:
       summary: Health check
       tags:
       - health
+  /status/{slug}:
+    get:
+      consumes:
+      - application/json
+      description: Get the public-safe projection of a published or unlisted status
+        page
+      operationId: getPublicStatusPage
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    status_page:
+                      $ref: '#/definitions/api.StatusPagePreviewResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get public status page
+      tags:
+      - public-status
+  /status/{slug}/badge.svg:
+    get:
+      description: Get an embeddable SVG badge for the current public-safe status
+        page state
+      operationId: getPublicStatusPageBadge
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - image/svg+xml
+      responses:
+        "200":
+          description: SVG badge
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get public status page badge
+      tags:
+      - public-status
+  /status/{slug}/components/{component_id}/badge.svg:
+    get:
+      description: Get an embeddable SVG badge for a visible public component state
+      operationId: getPublicStatusPageComponentBadge
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Public component ID
+        in: path
+        name: component_id
+        required: true
+        type: string
+      produces:
+      - image/svg+xml
+      responses:
+        "200":
+          description: SVG badge
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get public status page component badge
+      tags:
+      - public-status
+  /status/{slug}/components/{component_id}/history:
+    get:
+      consumes:
+      - application/json
+      description: Get sanitized public uptime history for one visible component
+      operationId: getPublicStatusPageComponentHistory
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Public component ID
+        in: path
+        name: component_id
+        required: true
+        type: string
+      - default: 90d
+        description: 'Uptime window: 24h, 7d, 30d, or 90d'
+        in: query
+        name: window
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    component:
+                      $ref: '#/definitions/api.StatusPagePublicComponentResponse'
+                    history:
+                      items:
+                        $ref: '#/definitions/api.StatusPagePublicUptimeBucketResponse'
+                      type: array
+                    uptime:
+                      $ref: '#/definitions/api.StatusPagePublicUptimeResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get public status page component history
+      tags:
+      - public-status
+  /status/{slug}/components/{component_id}/uptime:
+    get:
+      consumes:
+      - application/json
+      description: Get a sanitized public uptime summary for one visible component
+      operationId: getPublicStatusPageComponentUptime
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Public component ID
+        in: path
+        name: component_id
+        required: true
+        type: string
+      - default: 90d
+        description: 'Uptime window: 24h, 7d, 30d, or 90d'
+        in: query
+        name: window
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    component:
+                      $ref: '#/definitions/api.StatusPagePublicComponentResponse'
+                    uptime:
+                      $ref: '#/definitions/api.StatusPagePublicUptimeResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get public status page component uptime
+      tags:
+      - public-status
+  /status/{slug}/history:
+    get:
+      consumes:
+      - application/json
+      description: Get sanitized public history for a published or unlisted status
+        page
+      operationId: getPublicStatusPageHistory
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - default: 90d
+        description: 'Uptime window: 24h, 7d, 30d, or 90d'
+        in: query
+        name: window
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    history:
+                      $ref: '#/definitions/api.StatusPagePublicHistoryResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get public status page history
+      tags:
+      - public-status
+  /status/{slug}/incidents:
+    get:
+      consumes:
+      - application/json
+      description: Get published public incidents for a status page
+      operationId: listPublicStatusPageIncidents
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    incidents:
+                      items:
+                        $ref: '#/definitions/api.StatusPagePublicIncidentResponse'
+                      type: array
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: List public status page incidents
+      tags:
+      - public-status
+  /status/{slug}/incidents/{incident_id}:
+    get:
+      consumes:
+      - application/json
+      description: Get a published public incident for a status page
+      operationId: getPublicStatusPageIncident
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Public incident ID
+        in: path
+        name: incident_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    incident:
+                      $ref: '#/definitions/api.StatusPagePublicIncidentResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get public status page incident
+      tags:
+      - public-status
+  /status/{slug}/incidents/{incident_id}/history:
+    get:
+      consumes:
+      - application/json
+      description: Get published public updates for one public incident
+      operationId: getPublicStatusPageIncidentHistory
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Public incident ID
+        in: path
+        name: incident_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    history:
+                      $ref: '#/definitions/api.StatusPagePublicIncidentHistoryResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get public status page incident history
+      tags:
+      - public-status
+  /status/{slug}/subscribers:
+    post:
+      consumes:
+      - application/json
+      description: Create or refresh a pending public subscriber without exposing
+        confirmation tokens
+      operationId: createPublicStatusPageSubscriber
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Subscription payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.statusPageSubscriptionRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    confirmation_required:
+                      type: boolean
+                    subscriber:
+                      $ref: '#/definitions/api.StatusPageSubscriberPublicResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Request public status page subscription
+      tags:
+      - public-status
+  /status/{slug}/subscribers/confirm/{token}:
+    get:
+      consumes:
+      - application/json
+      description: Confirm a pending public subscriber by one-time token hash
+      operationId: confirmPublicStatusPageSubscriber
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Confirmation token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    subscriber:
+                      $ref: '#/definitions/api.StatusPageSubscriberPublicResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Confirm public status page subscription
+      tags:
+      - public-status
+  /status/{slug}/subscribers/manage/{token}:
+    get:
+      consumes:
+      - application/json
+      description: Get masked subscriber preferences by manage token
+      operationId: getPublicStatusPageSubscriberPreferences
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Manage token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    subscriber:
+                      $ref: '#/definitions/api.StatusPageSubscriberPublicResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get public status page subscriber preferences
+      tags:
+      - public-status
+    put:
+      consumes:
+      - application/json
+      description: Update visible component preferences by manage token
+      operationId: updatePublicStatusPageSubscriberPreferences
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Manage token
+        in: path
+        name: token
+        required: true
+        type: string
+      - description: Preference payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.statusPageSubscriberPreferencesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    subscriber:
+                      $ref: '#/definitions/api.StatusPageSubscriberPublicResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Update public status page subscriber preferences
+      tags:
+      - public-status
+  /status/{slug}/subscribers/unsubscribe/{token}:
+    post:
+      consumes:
+      - application/json
+      description: Idempotently unsubscribe a public status page subscriber by token
+      operationId: unsubscribePublicStatusPageSubscriber
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Unsubscribe token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    unsubscribed:
+                      type: boolean
+                  type: object
+              type: object
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Unsubscribe public status page subscriber
+      tags:
+      - public-status
   /v1/agents:
     get:
       consumes:
@@ -823,6 +2790,54 @@ paths:
       summary: Receive monitor report
       tags:
       - reports
+  /v1/agents/{agent_id}/logs/batch:
+    post:
+      consumes:
+      - application/json
+      description: Receive and deduplicate a bounded batch of structured Orion Agent
+        service logs
+      operationId: receiveAgentLogBatch
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agent_id
+        required: true
+        type: string
+      - description: Service log batch
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/service.ServiceLogBatchPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.ServiceLogBatchResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Receive agent service logs
+      tags:
+      - service-logs
   /v1/agents/{agent_id}/maintenance:
     put:
       consumes:
@@ -959,6 +2974,174 @@ paths:
       summary: Receive agent report
       tags:
       - reports
+  /v1/agents/{agent_id}/token/reissue:
+    post:
+      consumes:
+      - application/json
+      description: Create a replacement token for a revoked agent and return it once
+      operationId: reissueAgentToken
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agent_id
+        required: true
+        type: string
+      - description: Token action request
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/api.AgentTokenActionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.AgentTokenIssuedResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Reissue agent token
+      tags:
+      - agents
+  /v1/agents/{agent_id}/token/revoke:
+    post:
+      consumes:
+      - application/json
+      description: Revoke the active token for an agent without deleting the agent
+        or monitors
+      operationId: revokeAgentToken
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agent_id
+        required: true
+        type: string
+      - description: Token action request
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/api.AgentTokenActionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.AgentTokenStatusResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Revoke agent token
+      tags:
+      - agents
+  /v1/agents/{agent_id}/token/rotate:
+    post:
+      consumes:
+      - application/json
+      description: Create a replacement token for an active agent and return it once
+      operationId: rotateAgentToken
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agent_id
+        required: true
+        type: string
+      - description: Token action request
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/api.AgentTokenActionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.AgentTokenIssuedResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Rotate agent token
+      tags:
+      - agents
+  /v1/agents/{agent_id}/token/status:
+    get:
+      consumes:
+      - application/json
+      description: Get non-secret token lifecycle metadata for an agent
+      operationId: getAgentTokenStatus
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agent_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.AgentTokenStatusResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get agent token status
+      tags:
+      - agents
   /v1/agents/{agent_id}/unregister-monitor:
     post:
       consumes:
@@ -1051,7 +3234,8 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get computed health status for a specific agent and its monitors
+      description: Get split agent availability and monitor rollup health for a specific
+        agent
       operationId: getAgentHealth
       parameters:
       - description: Agent ID
@@ -1069,18 +3253,7 @@ paths:
             - $ref: '#/definitions/utils.APIResponse'
             - properties:
                 data:
-                  properties:
-                    agent_id:
-                      type: string
-                    degraded_count:
-                      type: integer
-                    down_count:
-                      type: integer
-                    overall_health:
-                      type: string
-                    up_count:
-                      type: integer
-                  type: object
+                  $ref: '#/definitions/api.AgentHealthResponse'
               type: object
         "400":
           description: Bad Request
@@ -1232,6 +3405,81 @@ paths:
       summary: Get agent reports
       tags:
       - agents
+  /v1/agents/{id}/service-logs:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated structured service logs for a specific Orion Agent
+      operationId: getAgentServiceLogs
+      parameters:
+      - description: Agent ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 50
+        description: Maximum number of logs to return
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of logs to skip
+        in: query
+        name: offset
+        type: integer
+      - description: Filter by level
+        in: query
+        name: level
+        type: string
+      - description: Filter by component
+        in: query
+        name: component
+        type: string
+      - description: Search message, component, monitor, and related IDs
+        in: query
+        name: q
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      format: int64
+                      type: integer
+                    limit:
+                      type: integer
+                    logs:
+                      items:
+                        $ref: '#/definitions/api.ServiceLogEntryResponse'
+                      type: array
+                    offset:
+                      type: integer
+                    pagination:
+                      $ref: '#/definitions/utils.PaginationMeta'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: List agent service logs
+      tags:
+      - service-logs
   /v1/agents/{id}/uptime:
     get:
       description: Returns daily uptime buckets and overall uptime percentage for
@@ -1337,8 +3585,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create a webhook or email alert channel. Secret values are stored
-        but never returned by the API.
+      description: Create a webhook, Slack, Discord, or email alert channel. Secret
+        values are stored but never returned by the API.
       operationId: createAlertChannel
       parameters:
       - description: Alert channel payload
@@ -1459,6 +3707,45 @@ paths:
       summary: Update alert channel
       tags:
       - alerts
+  /v1/alerts/channels/{id}/test:
+    post:
+      consumes:
+      - application/json
+      description: Send a manual test notification through a configured webhook or
+        email alert channel.
+      operationId: testAlertChannel
+      parameters:
+      - description: Alert channel ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    delivery:
+                      $ref: '#/definitions/api.AlertDeliveryResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Test alert channel
+      tags:
+      - alerts
   /v1/alerts/deliveries:
     get:
       consumes:
@@ -1473,6 +3760,18 @@ paths:
       - description: Filter by delivery status
         in: query
         name: status
+        type: string
+      - description: Filter by delivery channel type
+        in: query
+        name: type
+        type: string
+      - description: Filter by delivery channel name
+        in: query
+        name: channel
+        type: string
+      - description: Filter by alert event type
+        in: query
+        name: event_type
         type: string
       - default: 50
         description: Maximum number of deliveries to return
@@ -1517,6 +3816,407 @@ paths:
       summary: List alert deliveries
       tags:
       - alerts
+  /v1/alerts/email-destinations:
+    get:
+      consumes:
+      - application/json
+      description: Get reusable email destinations and their last delivery status
+      operationId: getAlertEmailDestinations
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    email_destinations:
+                      items:
+                        $ref: '#/definitions/api.AlertEmailDestinationResponse'
+                      type: array
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: List alert email destinations
+      tags:
+      - alerts
+    post:
+      consumes:
+      - application/json
+      description: Create a reusable email destination that sends through an SMTP
+        service.
+      operationId: createAlertEmailDestination
+      parameters:
+      - description: Email destination payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.alertEmailDestinationRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    email_destination:
+                      $ref: '#/definitions/api.AlertEmailDestinationResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Create alert email destination
+      tags:
+      - alerts
+  /v1/alerts/email-destinations/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a reusable email destination. Existing delivery history
+        is preserved.
+      operationId: deleteAlertEmailDestination
+      parameters:
+      - description: Email destination ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Delete alert email destination
+      tags:
+      - alerts
+    patch:
+      consumes:
+      - application/json
+      description: Update a reusable email destination.
+      operationId: updateAlertEmailDestination
+      parameters:
+      - description: Email destination ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Email destination payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.alertEmailDestinationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    email_destination:
+                      $ref: '#/definitions/api.AlertEmailDestinationResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Update alert email destination
+      tags:
+      - alerts
+  /v1/alerts/email-destinations/{id}/test:
+    post:
+      consumes:
+      - application/json
+      description: Send a manual test notification through a reusable email destination.
+        Delivery errors are sanitized in the response.
+      operationId: testAlertEmailDestination
+      parameters:
+      - description: Email destination ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    delivery:
+                      $ref: '#/definitions/api.AlertDeliveryResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Test alert email destination
+      tags:
+      - alerts
+  /v1/alerts/routes:
+    get:
+      consumes:
+      - application/json
+      description: Get explicit alert routes ordered by priority
+      operationId: getAlertRoutes
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    routes:
+                      items:
+                        $ref: '#/definitions/api.AlertRouteResponse'
+                      type: array
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: List alert routes
+      tags:
+      - alerts
+    post:
+      consumes:
+      - application/json
+      description: Create a priority-ordered alert route that can target channels
+        or suppress matching events
+      operationId: createAlertRoute
+      parameters:
+      - description: Alert route payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.alertRouteRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    route:
+                      $ref: '#/definitions/api.AlertRouteResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Create alert route
+      tags:
+      - alerts
+  /v1/alerts/routes/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an alert route. Existing delivery history is preserved.
+      operationId: deleteAlertRoute
+      parameters:
+      - description: Alert route ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Delete alert route
+      tags:
+      - alerts
+    patch:
+      consumes:
+      - application/json
+      description: Update alert route match filters, destination channels, or suppression
+        behavior
+      operationId: updateAlertRoute
+      parameters:
+      - description: Alert route ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Alert route payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.alertRouteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    route:
+                      $ref: '#/definitions/api.AlertRouteResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Update alert route
+      tags:
+      - alerts
+  /v1/alerts/routes/dry-run:
+    post:
+      consumes:
+      - application/json
+      description: Explain route event matching, suppression, cooldown, and destination
+        decisions without creating deliveries or sending notifications
+      operationId: dryRunAlertRoutes
+      parameters:
+      - description: Alert route dry-run payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.alertRouteDryRunRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    dry_run:
+                      $ref: '#/definitions/api.AlertRouteDryRunResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Dry-run alert routes
+      tags:
+      - alerts
   /v1/alerts/rules:
     get:
       consumes:
@@ -1543,6 +4243,206 @@ paths:
                   type: object
               type: object
       summary: List alert rules
+      tags:
+      - alerts
+  /v1/alerts/smtp-services:
+    get:
+      consumes:
+      - application/json
+      description: Get reusable SMTP services without secret values
+      operationId: getAlertSMTPServices
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    smtp_services:
+                      items:
+                        $ref: '#/definitions/api.AlertSMTPServiceResponse'
+                      type: array
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: List alert SMTP services
+      tags:
+      - alerts
+    post:
+      consumes:
+      - application/json
+      description: Create a reusable SMTP service. Secret values are stored but never
+        returned by the API.
+      operationId: createAlertSMTPService
+      parameters:
+      - description: SMTP service payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.alertSMTPServiceRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    smtp_service:
+                      $ref: '#/definitions/api.AlertSMTPServiceResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Create alert SMTP service
+      tags:
+      - alerts
+  /v1/alerts/smtp-services/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a reusable SMTP service. Existing delivery history is preserved.
+      operationId: deleteAlertSMTPService
+      parameters:
+      - description: SMTP service ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Delete alert SMTP service
+      tags:
+      - alerts
+    patch:
+      consumes:
+      - application/json
+      description: Update a reusable SMTP service. Omit password to keep the existing
+        stored value.
+      operationId: updateAlertSMTPService
+      parameters:
+      - description: SMTP service ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: SMTP service payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.alertSMTPServiceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    smtp_service:
+                      $ref: '#/definitions/api.AlertSMTPServiceResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Update alert SMTP service
+      tags:
+      - alerts
+  /v1/alerts/smtp-services/{id}/test:
+    post:
+      consumes:
+      - application/json
+      description: Connect to a reusable SMTP service and return a sanitized connectivity
+        result without secret values.
+      operationId: testAlertSMTPService
+      parameters:
+      - description: SMTP service ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    test:
+                      $ref: '#/definitions/service.AlertSMTPServiceTestResult'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Test alert SMTP service
       tags:
       - alerts
   /v1/auth/login:
@@ -1585,6 +4485,68 @@ paths:
       summary: Log in to Console
       tags:
       - auth
+  /v1/diagnostics/core:
+    get:
+      consumes:
+      - application/json
+      description: Get Core runtime request, ingestion, report write, incident reconciliation,
+        SQLite, and slow-operation diagnostics
+      operationId: getCoreDiagnostics
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    api:
+                      type: object
+                    metrics:
+                      $ref: '#/definitions/service.RuntimeDiagnosticsSnapshot'
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get Core diagnostics
+      tags:
+      - health
+  /v1/diagnostics/core-worker:
+    get:
+      consumes:
+      - application/json
+      description: Get Core monitor worker heartbeat state without affecting Core
+        API health
+      operationId: getCoreWorkerDiagnostics
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    api:
+                      type: object
+                    worker:
+                      type: object
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get Core worker diagnostics
+      tags:
+      - health
   /v1/events:
     get:
       consumes:
@@ -1728,6 +4690,78 @@ paths:
       summary: Get system health summary
       tags:
       - health
+  /v1/heartbeats/{token}/failure:
+    post:
+      consumes:
+      - application/json
+      description: Record a failure signal for a Core heartbeat monitor using its
+        generated token.
+      operationId: receiveHeartbeatFailure
+      parameters:
+      - description: Heartbeat token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.HeartbeatSignalResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Record heartbeat failure
+      tags:
+      - heartbeats
+  /v1/heartbeats/{token}/success:
+    post:
+      consumes:
+      - application/json
+      description: Record a success signal for a Core heartbeat monitor using its
+        generated token.
+      operationId: receiveHeartbeatSuccess
+      parameters:
+      - description: Heartbeat token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.HeartbeatSignalResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Record heartbeat success
+      tags:
+      - heartbeats
   /v1/incidents:
     get:
       consumes:
@@ -1736,7 +4770,7 @@ paths:
         incidents.
       operationId: getIncidents
       parameters:
-      - default: open,acknowledged
+      - default: open,acknowledged,covered
         description: Comma-separated incident statuses
         in: query
         name: status
@@ -1748,6 +4782,22 @@ paths:
       - description: Filter incidents by monitor ID
         in: query
         name: monitor_id
+        type: string
+      - description: Filter incidents by resolution kind
+        in: query
+        name: resolution_kind
+        type: string
+      - description: 'Filter incidents by lifecycle actor: manual or system'
+        in: query
+        name: actor
+        type: string
+      - description: Filter incidents by covered lifecycle state
+        in: query
+        name: covered
+        type: boolean
+      - description: Filter incidents by notification status
+        in: query
+        name: notification_status
         type: string
       - description: Filter to incidents with failed notifications or high/critical/error
           severity
@@ -1782,6 +4832,8 @@ paths:
                       items:
                         $ref: '#/definitions/api.IncidentResponse'
                       type: array
+                    insights:
+                      $ref: '#/definitions/api.IncidentInsightsResponse'
                     limit:
                       type: integer
                     offset:
@@ -1833,11 +4885,17 @@ paths:
                       items:
                         $ref: '#/definitions/api.IncidentEventResponse'
                       type: array
+                    evidence:
+                      $ref: '#/definitions/api.IncidentEvidenceResponse'
                     incident:
                       $ref: '#/definitions/api.IncidentResponse'
                     monitor_reports:
                       items:
                         $ref: '#/definitions/api.MonitorReportResponse'
+                      type: array
+                    related_incidents:
+                      items:
+                        $ref: '#/definitions/api.IncidentRelatedIncidentResponse'
                       type: array
                     timeline:
                       items:
@@ -1854,6 +4912,175 @@ paths:
           schema:
             $ref: '#/definitions/utils.APIResponse'
       summary: Get incident detail
+      tags:
+      - incidents
+  /v1/incidents/{id}/acknowledge:
+    post:
+      consumes:
+      - application/json
+      description: Mark an active incident as acknowledged and record a manual incident
+        event
+      operationId: acknowledgeIncident
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    incident:
+                      $ref: '#/definitions/api.IncidentResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Acknowledge incident
+      tags:
+      - incidents
+  /v1/incidents/{id}/cover:
+    post:
+      consumes:
+      - application/json
+      description: Mark an active incident as covered, optionally until a future timestamp,
+        and record a manual incident event
+      operationId: coverIncident
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Coverage payload
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/api.incidentCoverageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    incident:
+                      $ref: '#/definitions/api.IncidentResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Cover incident
+      tags:
+      - incidents
+  /v1/incidents/{id}/reopen:
+    post:
+      consumes:
+      - application/json
+      description: Reopen a covered or resolved incident, restore its monitor active
+        incident path, and record a manual incident event
+      operationId: reopenIncident
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    incident:
+                      $ref: '#/definitions/api.IncidentResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Reopen incident
+      tags:
+      - incidents
+  /v1/incidents/{id}/resolve:
+    post:
+      consumes:
+      - application/json
+      description: Mark an active incident as resolved, clear its monitor active incident
+        path, and record a manual incident event
+      operationId: resolveIncident
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    incident:
+                      $ref: '#/definitions/api.IncidentResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Resolve incident
       tags:
       - incidents
   /v1/incidents/{id}/timeline:
@@ -1932,6 +5159,80 @@ paths:
       summary: Get incident candidates
       tags:
       - health
+  /v1/logs/service:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated structured service logs shipped by Orion services
+      operationId: getServiceLogs
+      parameters:
+      - default: 50
+        description: Maximum number of logs to return
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of logs to skip
+        in: query
+        name: offset
+        type: integer
+      - description: Filter by agent ID
+        in: query
+        name: agent_id
+        type: string
+      - description: Filter by monitor ID
+        in: query
+        name: monitor_id
+        type: string
+      - description: Filter by service log source
+        in: query
+        name: source
+        type: string
+      - description: Filter by level
+        in: query
+        name: level
+        type: string
+      - description: Filter by component
+        in: query
+        name: component
+        type: string
+      - description: Search message, component, monitor, and related IDs
+        in: query
+        name: q
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      format: int64
+                      type: integer
+                    limit:
+                      type: integer
+                    logs:
+                      items:
+                        $ref: '#/definitions/api.ServiceLogEntryResponse'
+                      type: array
+                    offset:
+                      type: integer
+                    pagination:
+                      $ref: '#/definitions/utils.PaginationMeta'
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: List service logs
+      tags:
+      - service-logs
   /v1/monitors:
     get:
       consumes:
@@ -1960,6 +5261,18 @@ paths:
       - description: Filter by monitor type
         in: query
         name: type
+        type: string
+      - description: Filter by owner kind (agent|core)
+        in: query
+        name: owner_kind
+        type: string
+      - description: Filter by owner name, id, or machine id
+        in: query
+        name: owner_name
+        type: string
+      - description: Filter by monitor source (agent|core)
+        in: query
+        name: source
         type: string
       - description: Filter by lifecycle status (active|disabled|deleted)
         in: query
@@ -2016,7 +5329,77 @@ paths:
       summary: List monitors
       tags:
       - monitors
+    post:
+      consumes:
+      - application/json
+      description: Create a Core-managed monitor and its runner configuration.
+      operationId: createCoreMonitor
+      parameters:
+      - description: Core monitor create request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.CoreManagedMonitorCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.CoreMonitorManagementResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Create a Core monitor
+      tags:
+      - monitors
   /v1/monitors/{id}:
+    delete:
+      description: Soft delete a Core-managed monitor and pause its runner configuration.
+      operationId: deleteCoreMonitor
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    success:
+                      type: boolean
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Delete a Core monitor
+      tags:
+      - monitors
     get:
       consumes:
       - application/json
@@ -2059,6 +5442,83 @@ paths:
           schema:
             $ref: '#/definitions/utils.APIResponse'
       summary: Get monitor details
+      tags:
+      - monitors
+    patch:
+      consumes:
+      - application/json
+      description: Update a Core-managed monitor and its runner configuration.
+      operationId: updateCoreMonitor
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Core monitor update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.CoreManagedMonitorUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.CoreMonitorManagementResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Update a Core monitor
+      tags:
+      - monitors
+  /v1/monitors/{id}/config:
+    get:
+      description: Return redacted Core-managed monitor configuration.
+      operationId: getCoreMonitorConfig
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.CoreMonitorManagementResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Get Core monitor config
       tags:
       - monitors
   /v1/monitors/{id}/history:
@@ -2122,6 +5582,110 @@ paths:
           schema:
             $ref: '#/definitions/utils.APIResponse'
       summary: Get monitor history
+      tags:
+      - monitors
+  /v1/monitors/{id}/pause:
+    post:
+      description: Pause a Core-managed monitor so the worker will not claim it.
+      operationId: pauseCoreMonitor
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.CoreMonitorManagementResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Pause a Core monitor
+      tags:
+      - monitors
+  /v1/monitors/{id}/resume:
+    post:
+      description: Resume a Core-managed monitor and make it due immediately.
+      operationId: resumeCoreMonitor
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.CoreMonitorManagementResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Resume a Core monitor
+      tags:
+      - monitors
+  /v1/monitors/{id}/test:
+    post:
+      description: Execute a Core-managed monitor immediately and store the resulting
+        monitor report.
+      operationId: testCoreMonitor
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.CoreMonitorManagementResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Test a Core monitor
       tags:
       - monitors
   /v1/monitors/{id}/uptime:
@@ -2365,6 +5929,1022 @@ paths:
       summary: Run data lifecycle rollup
       tags:
       - settings
+  /v1/status-pages:
+    get:
+      consumes:
+      - application/json
+      description: Get status page publication configurations ordered by title
+      operationId: listStatusPages
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    pages:
+                      items:
+                        $ref: '#/definitions/api.StatusPageResponse'
+                      type: array
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List status pages
+      tags:
+      - status-pages
+    post:
+      consumes:
+      - application/json
+      description: Create a draft status page publication configuration
+      operationId: createStatusPage
+      parameters:
+      - description: Status page payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.statusPageRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    page:
+                      $ref: '#/definitions/api.StatusPageResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create status page
+      tags:
+      - status-pages
+  /v1/status-pages/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get a status page with sections, components, mappings, incidents,
+        and incident updates
+      operationId: getStatusPage
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.StatusPageDetailResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get status page
+      tags:
+      - status-pages
+    put:
+      consumes:
+      - application/json
+      description: Update page-level status page publication settings
+      operationId: updateStatusPage
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Status page payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.statusPageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    page:
+                      $ref: '#/definitions/api.StatusPageResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update status page
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/components:
+    get:
+      consumes:
+      - application/json
+      description: Get components and mappings for a status page
+      operationId: listStatusPageComponents
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    components:
+                      items:
+                        $ref: '#/definitions/api.StatusPageComponentResponse'
+                      type: array
+                    count:
+                      type: integer
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List status page components
+      tags:
+      - status-pages
+    post:
+      consumes:
+      - application/json
+      description: Create a public component for a status page
+      operationId: createStatusPageComponent
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Component payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.statusPageComponentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    component:
+                      $ref: '#/definitions/api.StatusPageComponentResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create status page component
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/components/{component_id}:
+    put:
+      consumes:
+      - application/json
+      description: Update a public component for a status page
+      operationId: updateStatusPageComponent
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Component ID
+        in: path
+        name: component_id
+        required: true
+        type: string
+      - description: Component payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.statusPageComponentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    component:
+                      $ref: '#/definitions/api.StatusPageComponentResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update status page component
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/components/{component_id}/mappings:
+    get:
+      consumes:
+      - application/json
+      description: Get internal resource mappings for a public component
+      operationId: listStatusPageComponentMappings
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Component ID
+        in: path
+        name: component_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    mappings:
+                      items:
+                        $ref: '#/definitions/api.StatusPageComponentMappingResponse'
+                      type: array
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List status page component mappings
+      tags:
+      - status-pages
+    post:
+      consumes:
+      - application/json
+      description: Map a public component to an internal agent or monitor
+      operationId: createStatusPageComponentMapping
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Component ID
+        in: path
+        name: component_id
+        required: true
+        type: string
+      - description: Mapping payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.statusPageComponentMappingRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    mapping:
+                      $ref: '#/definitions/api.StatusPageComponentMappingResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create status page component mapping
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/components/{component_id}/mappings/{mapping_id}:
+    put:
+      consumes:
+      - application/json
+      description: Update a public component internal resource mapping
+      operationId: updateStatusPageComponentMapping
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Component ID
+        in: path
+        name: component_id
+        required: true
+        type: string
+      - description: Mapping ID
+        in: path
+        name: mapping_id
+        required: true
+        type: string
+      - description: Mapping payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.statusPageComponentMappingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    mapping:
+                      $ref: '#/definitions/api.StatusPageComponentMappingResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update status page component mapping
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/incidents:
+    get:
+      consumes:
+      - application/json
+      description: Get manual public incident records for a status page
+      operationId: listStatusPageIncidents
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    incidents:
+                      items:
+                        $ref: '#/definitions/api.StatusPageIncidentResponse'
+                      type: array
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List status page incidents
+      tags:
+      - status-pages
+    post:
+      consumes:
+      - application/json
+      description: Create a manual public incident for a status page
+      operationId: createStatusPageIncident
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Incident payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.statusPageIncidentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    incident:
+                      $ref: '#/definitions/api.StatusPageIncidentResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create status page incident
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/incidents/{incident_id}:
+    put:
+      consumes:
+      - application/json
+      description: Update a manual public incident for a status page
+      operationId: updateStatusPageIncident
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Incident ID
+        in: path
+        name: incident_id
+        required: true
+        type: string
+      - description: Incident payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.statusPageIncidentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    incident:
+                      $ref: '#/definitions/api.StatusPageIncidentResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update status page incident
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/incidents/{incident_id}/updates:
+    post:
+      consumes:
+      - application/json
+      description: Create a public timeline update for a manual status page incident
+      operationId: createStatusPageIncidentUpdate
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Incident ID
+        in: path
+        name: incident_id
+        required: true
+        type: string
+      - description: Incident update payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.statusPageIncidentUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    incident:
+                      $ref: '#/definitions/api.StatusPageIncidentResponse'
+                    update:
+                      $ref: '#/definitions/api.StatusPageIncidentUpdateResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create status page incident update
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/incidents/suggestions:
+    get:
+      consumes:
+      - application/json
+      description: Suggest public status page components mapped to the internal incident
+        monitor or agent without exposing internal incident details
+      operationId: suggestStatusPageIncidentComponents
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Internal incident ID
+        in: query
+        name: incident_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    suggestions:
+                      items:
+                        $ref: '#/definitions/api.StatusPageIncidentComponentSuggestionResponse'
+                      type: array
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Suggest status page incident components
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/preview:
+    get:
+      consumes:
+      - application/json
+      description: Preview the public-safe projection of a status page draft or publication
+      operationId: previewStatusPage
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    preview:
+                      $ref: '#/definitions/api.StatusPagePreviewResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Preview status page
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/publish:
+    post:
+      consumes:
+      - application/json
+      description: Mark a status page as public and set published_at
+      operationId: publishStatusPage
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    page:
+                      $ref: '#/definitions/api.StatusPageResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Publish status page
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/sections:
+    get:
+      consumes:
+      - application/json
+      description: Get sections for a status page
+      operationId: listStatusPageSections
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    sections:
+                      items:
+                        $ref: '#/definitions/api.StatusPageSectionResponse'
+                      type: array
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List status page sections
+      tags:
+      - status-pages
+    post:
+      consumes:
+      - application/json
+      description: Create a section for grouping public components
+      operationId: createStatusPageSection
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Section payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.statusPageSectionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    section:
+                      $ref: '#/definitions/api.StatusPageSectionResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create status page section
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/sections/{section_id}:
+    put:
+      consumes:
+      - application/json
+      description: Update a status page section
+      operationId: updateStatusPageSection
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Section ID
+        in: path
+        name: section_id
+        required: true
+        type: string
+      - description: Section payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.statusPageSectionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    section:
+                      $ref: '#/definitions/api.StatusPageSectionResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update status page section
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/unpublish:
+    post:
+      consumes:
+      - application/json
+      description: Return a status page to draft visibility while retaining published_at
+        history
+      operationId: unpublishStatusPage
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    page:
+                      $ref: '#/definitions/api.StatusPageResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Unpublish status page
+      tags:
+      - status-pages
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.

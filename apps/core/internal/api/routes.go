@@ -21,28 +21,39 @@ import (
 )
 
 type Server struct {
-	db              *gorm.DB
-	logger          *logging.Logger
-	cfg             *config.Config
-	agentService    *service.AgentService
-	authService     *service.AuthService
-	reportService   *service.ReportService
-	monitorService  *service.MonitorService
-	settingsService *service.SettingsService
-	rollupService   *service.RollupService
-	archiveService  *service.ArchiveService
-	loginLimiter    *RateLimiter
-	router          *gin.Engine
+	db                           *gorm.DB
+	logger                       *logging.Logger
+	cfg                          *config.Config
+	agentService                 *service.AgentService
+	authService                  *service.AuthService
+	reportService                *service.ReportService
+	serviceLogService            *service.ServiceLogService
+	monitorService               *service.MonitorService
+	coreMonitorManagementService *service.CoreMonitorManagementService
+	settingsService              *service.SettingsService
+	rollupService                *service.RollupService
+	archiveService               *service.ArchiveService
+	workerDiagnosticsService     *service.WorkerDiagnosticsService
+	runtimeDiagnosticsService    *service.RuntimeDiagnosticsService
+	loginLimiter                 *RateLimiter
+	publicSubscriberLimiter      *RateLimiter
+	publicStatusMailSend         func(publicStatusMailMessage) error
+	router                       *gin.Engine
 }
 
 func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *Server {
 	agentService := service.NewAgentService(database, logger)
 	authService := service.NewAuthService(database, logger)
 	reportService := service.NewReportService(database, logger, cfg)
+	serviceLogService := service.NewServiceLogService(database, logger)
 	monitorService := service.NewMonitorService(database, logger)
+	coreMonitorManagementService := service.NewCoreMonitorManagementService(database, logger, cfg)
 	settingsService := service.NewSettingsService(database, logger, cfg.DataDir)
 	rollupService := service.NewRollupService(database, logger)
 	archiveService := service.NewArchiveService(database, logger, cfg.DataDir)
+	workerDiagnosticsService := service.NewWorkerDiagnosticsService(database, logger)
+	runtimeDiagnosticsService := service.NewRuntimeDiagnosticsService(database, logger)
+	reportService.SetDiagnostics(runtimeDiagnosticsService)
 	router := gin.Default()
 	corsOrigins := cfg.CORSOrigins
 	if len(corsOrigins) == 0 {
@@ -58,21 +69,28 @@ func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *S
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 	router.Use(RequestIDMiddleware(logger))
+	router.Use(RuntimeDiagnosticsMiddleware(runtimeDiagnosticsService))
 
 	server := &Server{
-		db:              database,
-		logger:          logger,
-		cfg:             cfg,
-		agentService:    agentService,
-		authService:     authService,
-		reportService:   reportService,
-		monitorService:  monitorService,
-		settingsService: settingsService,
-		rollupService:   rollupService,
-		archiveService:  archiveService,
-		loginLimiter:    NewRateLimiter(cfg.LoginRateLimitAttempts, time.Duration(cfg.LoginRateLimitWindowSecs)*time.Second),
-		router:          router,
+		db:                           database,
+		logger:                       logger,
+		cfg:                          cfg,
+		agentService:                 agentService,
+		authService:                  authService,
+		reportService:                reportService,
+		serviceLogService:            serviceLogService,
+		monitorService:               monitorService,
+		coreMonitorManagementService: coreMonitorManagementService,
+		settingsService:              settingsService,
+		rollupService:                rollupService,
+		archiveService:               archiveService,
+		workerDiagnosticsService:     workerDiagnosticsService,
+		runtimeDiagnosticsService:    runtimeDiagnosticsService,
+		loginLimiter:                 NewRateLimiter(cfg.LoginRateLimitAttempts, time.Duration(cfg.LoginRateLimitWindowSecs)*time.Second),
+		publicSubscriberLimiter:      NewRateLimiter(10, time.Minute),
+		router:                       router,
 	}
+	server.publicStatusMailSend = server.deliverPublicStatusMail
 
 	server.setupRoutes()
 
@@ -87,6 +105,25 @@ func (s *Server) setupRoutes() {
 	// Health check endpoint (no versioning)
 	s.router.GET("/health", s.healthCheck)
 
+	// Public status page routes
+	s.router.GET("/", s.getCustomDomainStatusPage)
+	s.router.GET("/feed.atom", s.getCustomDomainStatusPageAtomFeed)
+	s.router.GET("/status/:slug/feed.atom", s.getStatusPageAtomFeed)
+	s.router.GET("/status/:slug/badge.svg", s.getPublicStatusPageBadge)
+	s.router.GET("/status/:slug/history", s.getPublicStatusPageHistory)
+	s.router.GET("/status/:slug/components/:component_id/badge.svg", s.getPublicStatusPageComponentBadge)
+	s.router.GET("/status/:slug/components/:component_id/uptime", s.getPublicStatusPageComponentUptime)
+	s.router.GET("/status/:slug/components/:component_id/history", s.getPublicStatusPageComponentHistory)
+	s.router.GET("/status/:slug/incidents/:incident_id/history", s.getPublicStatusPageIncidentHistory)
+	s.router.POST("/status/:slug/subscribers", s.createPublicStatusPageSubscriber)
+	s.router.GET("/status/:slug/subscribers/confirm/:token", s.confirmPublicStatusPageSubscriber)
+	s.router.GET("/status/:slug/subscribers/manage/:token", s.getPublicStatusPageSubscriberPreferences)
+	s.router.PUT("/status/:slug/subscribers/manage/:token", s.updatePublicStatusPageSubscriberPreferences)
+	s.router.POST("/status/:slug/subscribers/unsubscribe/:token", s.unsubscribePublicStatusPageSubscriber)
+	s.router.GET("/status/:slug/incidents/:incident_id", s.getPublicStatusPageIncident)
+	s.router.GET("/status/:slug/incidents", s.listPublicStatusPageIncidents)
+	s.router.GET("/status/:slug", s.getPublicStatusPage)
+
 	// Version 1 API routes
 	v1 := s.router.Group("/v1")
 	{
@@ -95,6 +132,9 @@ func (s *Server) setupRoutes() {
 		{
 			public.POST("/register", s.registerAgent)
 			public.POST("/auth/login", s.login)
+			public.POST("/heartbeats/:token", s.receiveHeartbeatSuccess)
+			public.POST("/heartbeats/:token/success", s.receiveHeartbeatSuccess)
+			public.POST("/heartbeats/:token/failure", s.receiveHeartbeatFailure)
 		}
 
 		// Frontend routes (JWT when ORION_ADMIN_* and ORION_JWT_SECRET are set)
@@ -106,26 +146,62 @@ func (s *Server) setupRoutes() {
 			frontend.GET("/agents/:id", s.getAgentDetail)
 			frontend.GET("/agents/:id/health", s.getAgentHealth)
 			frontend.GET("/agents/:id/reports", s.getAgentReports)
+			frontend.GET("/agents/:id/service-logs", s.listAgentServiceLogs)
 			frontend.GET("/agents/:id/uptime", s.getAgentUptime)
 			frontend.GET("/agents/:id/monitors", s.listMonitors)
+			frontend.GET("/agents/:id/token/status", s.getAgentTokenStatus)
+			frontend.POST("/agents/:agent_id/token/rotate", s.rotateAgentToken)
+			frontend.POST("/agents/:agent_id/token/revoke", s.revokeAgentToken)
+			frontend.POST("/agents/:agent_id/token/reissue", s.reissueAgentToken)
 			frontend.GET("/monitors", s.listAllMonitors)
+			frontend.POST("/monitors", s.createCoreMonitor)
 			frontend.GET("/monitors/summary", s.getMonitorSummary)
+			frontend.PATCH("/monitors/:id", s.updateCoreMonitor)
+			frontend.DELETE("/monitors/:id", s.deleteCoreMonitor)
+			frontend.GET("/monitors/:id/config", s.getCoreMonitorConfig)
+			frontend.POST("/monitors/:id/pause", s.pauseCoreMonitor)
+			frontend.POST("/monitors/:id/resume", s.resumeCoreMonitor)
+			frontend.POST("/monitors/:id/test", s.testCoreMonitor)
 			frontend.GET("/monitors/:id", s.getMonitorDetail)
 			frontend.GET("/monitors/:id/uptime", s.getMonitorUptime)
 			frontend.GET("/monitors/:id/history", s.getMonitorHistory)
 			frontend.GET("/health/summary", s.getSystemHealth)
 			frontend.GET("/health/issues", s.getHealthIssues)
+			frontend.GET("/diagnostics/core", s.getCoreDiagnostics)
+			frontend.GET("/diagnostics/core-worker", s.getCoreWorkerDiagnostics)
 			frontend.GET("/incidents", s.listIncidents)
 			frontend.GET("/incidents/:id", s.getIncidentDetail)
 			frontend.GET("/incidents/:id/timeline", s.getIncidentTimeline)
+			frontend.POST("/incidents/:id/acknowledge", s.acknowledgeIncident)
+			frontend.POST("/incidents/:id/resolve", s.resolveIncident)
+			frontend.POST("/incidents/:id/cover", s.coverIncident)
+			frontend.POST("/incidents/:id/reopen", s.reopenIncident)
 			frontend.GET("/incidents/candidates", s.getIncidentCandidates)
 			frontend.GET("/alerts/deliveries", s.listAlertDeliveries)
 			frontend.GET("/alerts/channels", s.listAlertChannels)
 			frontend.POST("/alerts/channels", s.createAlertChannel)
 			frontend.PATCH("/alerts/channels/:id", s.updateAlertChannel)
+			frontend.POST("/alerts/channels/:id/test", s.testAlertChannel)
 			frontend.DELETE("/alerts/channels/:id", s.deleteAlertChannel)
+			frontend.GET("/alerts/smtp-services", s.listAlertSMTPServices)
+			frontend.POST("/alerts/smtp-services", s.createAlertSMTPService)
+			frontend.PATCH("/alerts/smtp-services/:id", s.updateAlertSMTPService)
+			frontend.POST("/alerts/smtp-services/:id/test", s.testAlertSMTPService)
+			frontend.DELETE("/alerts/smtp-services/:id", s.deleteAlertSMTPService)
+			frontend.GET("/alerts/email-destinations", s.listAlertEmailDestinations)
+			frontend.POST("/alerts/email-destinations", s.createAlertEmailDestination)
+			frontend.PATCH("/alerts/email-destinations/:id", s.updateAlertEmailDestination)
+			frontend.POST("/alerts/email-destinations/:id/test", s.testAlertEmailDestination)
+			frontend.DELETE("/alerts/email-destinations/:id", s.deleteAlertEmailDestination)
+			frontend.GET("/alerts/routes", s.listAlertRoutes)
+			frontend.POST("/alerts/routes", s.createAlertRoute)
+			frontend.POST("/alerts/routes/dry-run", s.dryRunAlertRoutes)
+			frontend.PATCH("/alerts/routes/:id", s.updateAlertRoute)
+			frontend.DELETE("/alerts/routes/:id", s.deleteAlertRoute)
 			frontend.GET("/alerts/rules", s.listAlertRules)
+			s.registerStatusPageAdminRoutes(frontend)
 			frontend.GET("/events", s.listOrionEvents)
+			frontend.GET("/logs/service", s.listServiceLogs)
 			frontend.GET("/settings/data-lifecycle", s.getDataLifecycleSettings)
 			frontend.PUT("/settings/data-lifecycle", s.updateDataLifecycleSettings)
 			frontend.POST("/settings/data-lifecycle/actions/rollup", s.runDataLifecycleRollup)
@@ -139,6 +215,7 @@ func (s *Server) setupRoutes() {
 			protected.POST("/:agent_id/register-monitor", ValidateAgentToken(s.agentService, s.authService), s.registerMonitor)
 			protected.POST("/:agent_id/unregister-monitor", ValidateAgentToken(s.agentService, s.authService), s.unregisterMonitor)
 			protected.POST("/:agent_id/report", ValidateAgentToken(s.agentService, s.authService), s.receiveAgentReport)
+			protected.POST("/:agent_id/logs/batch", ValidateAgentToken(s.agentService, s.authService), s.receiveAgentLogBatch)
 			protected.POST("/:agent_id/:monitor_id/report", ValidateAgentToken(s.agentService, s.authService), s.receiveMonitorReport)
 			protected.PUT("/:agent_id/maintenance", ValidateAgentToken(s.agentService, s.authService), s.setMaintenanceMode)
 		}
@@ -230,6 +307,19 @@ func RequestIDMiddleware(logger *logging.Logger) gin.HandlerFunc {
 		logger.Debug("Request received", "request_id", requestID, "method", c.Request.Method, "path", c.Request.URL.Path)
 
 		c.Next()
+	}
+}
+
+func RuntimeDiagnosticsMiddleware(diagnostics *service.RuntimeDiagnosticsService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		startedAt := time.Now()
+		c.Next()
+
+		route := c.FullPath()
+		if route == "" {
+			route = c.Request.URL.Path
+		}
+		diagnostics.RecordRequest(route, c.Writer.Status(), time.Since(startedAt))
 	}
 }
 

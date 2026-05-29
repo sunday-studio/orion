@@ -30,6 +30,8 @@ type Options struct {
 	UpdateVersion  string
 	UpdateRepo     string
 	LogLines       int
+	TokenApply     string
+	TokenFile      string
 
 	normalizedArgs []string
 }
@@ -129,6 +131,7 @@ func NewRootCommand(ctx context.Context, opts *Options, out, errOut io.Writer) *
 		newMaintenanceCommand(ctx, opts),
 		newConfigCommand(ctx, opts),
 		newStateCommand(ctx, opts),
+		newTokenCommand(ctx, opts),
 		newReconfigureCommand(ctx, opts),
 	)
 

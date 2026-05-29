@@ -155,6 +155,100 @@ func TestComputeAgentHealthCountsStoredMonitorHealthForStaleAgent(t *testing.T) 
 	}
 }
 
+func TestComputeAgentHealthSnapshotSeparatesAvailabilityFromMonitorFailures(t *testing.T) {
+	database := setupHealthTestDB(t)
+	agent := db.Agent{
+		ID:        "agent-live-partial-failure",
+		MachineId: "live-partial-failure-machine",
+		Name:      "live partial failure",
+		OS:        "linux",
+		Arch:      "arm64",
+		Token:     "live-partial-failure-token",
+		LastSeen:  time.Now(),
+	}
+	if err := database.Create(&agent).Error; err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+
+	monitors := []db.Monitor{
+		{ID: "monitor-live-up-1", AgentID: agent.ID, Name: "up one", Type: "http", Lifecycle: "active", Health: "up", ReportingIntervalSeconds: 60},
+		{ID: "monitor-live-up-2", AgentID: agent.ID, Name: "up two", Type: "http", Lifecycle: "active", Health: "up", ReportingIntervalSeconds: 60},
+		{ID: "monitor-live-down", AgentID: agent.ID, Name: "down", Type: "http", Lifecycle: "active", Health: "down", ReportingIntervalSeconds: 60},
+	}
+	if err := database.Create(&monitors).Error; err != nil {
+		t.Fatalf("create monitors: %v", err)
+	}
+
+	now := time.Now().UTC()
+	reports := []db.MonitorReport{
+		{ID: "report-live-up-1", MonitorID: "monitor-live-up-1", Payload: "{}", CollectedAt: now.Format(time.RFC3339), Health: "up", CreatedAt: now},
+		{ID: "report-live-up-2", MonitorID: "monitor-live-up-2", Payload: "{}", CollectedAt: now.Format(time.RFC3339), Health: "up", CreatedAt: now},
+		{ID: "report-live-down", MonitorID: "monitor-live-down", Payload: "{}", CollectedAt: now.Format(time.RFC3339), Health: "down", CreatedAt: now},
+	}
+	if err := database.Create(&reports).Error; err != nil {
+		t.Fatalf("create reports: %v", err)
+	}
+
+	service := NewHealthService(database, logging.NewLogger())
+	snapshot, err := service.ComputeAgentHealthSnapshot(agent.ID, DefaultHealthConfig())
+	if err != nil {
+		t.Fatalf("ComputeAgentHealthSnapshot() error = %v", err)
+	}
+
+	if snapshot.AgentHealth != "up" {
+		t.Fatalf("agent health = %q, want up", snapshot.AgentHealth)
+	}
+	if snapshot.MonitorHealth != "degraded" || snapshot.OverallHealth != "degraded" {
+		t.Fatalf("snapshot = %+v, want degraded monitor and overall health", snapshot)
+	}
+	if snapshot.UpCount != 2 || snapshot.DownCount != 1 || snapshot.TotalCount != 3 {
+		t.Fatalf("counts = %+v, want two up and one down", snapshot)
+	}
+}
+
+func TestComputeAgentHealthSnapshotDownOnlyWhenAllMonitorsFail(t *testing.T) {
+	database := setupHealthTestDB(t)
+	agent := db.Agent{
+		ID:        "agent-live-all-down",
+		MachineId: "live-all-down-machine",
+		Name:      "live all down",
+		OS:        "linux",
+		Arch:      "arm64",
+		Token:     "live-all-down-token",
+		LastSeen:  time.Now(),
+	}
+	if err := database.Create(&agent).Error; err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+
+	monitors := []db.Monitor{
+		{ID: "monitor-all-down-1", AgentID: agent.ID, Name: "down one", Type: "http", Lifecycle: "active", Health: "down", ReportingIntervalSeconds: 60},
+		{ID: "monitor-all-down-2", AgentID: agent.ID, Name: "down two", Type: "http", Lifecycle: "active", Health: "down", ReportingIntervalSeconds: 60},
+	}
+	if err := database.Create(&monitors).Error; err != nil {
+		t.Fatalf("create monitors: %v", err)
+	}
+
+	now := time.Now().UTC()
+	reports := []db.MonitorReport{
+		{ID: "report-all-down-1", MonitorID: "monitor-all-down-1", Payload: "{}", CollectedAt: now.Format(time.RFC3339), Health: "down", CreatedAt: now},
+		{ID: "report-all-down-2", MonitorID: "monitor-all-down-2", Payload: "{}", CollectedAt: now.Format(time.RFC3339), Health: "down", CreatedAt: now},
+	}
+	if err := database.Create(&reports).Error; err != nil {
+		t.Fatalf("create reports: %v", err)
+	}
+
+	service := NewHealthService(database, logging.NewLogger())
+	snapshot, err := service.ComputeAgentHealthSnapshot(agent.ID, DefaultHealthConfig())
+	if err != nil {
+		t.Fatalf("ComputeAgentHealthSnapshot() error = %v", err)
+	}
+
+	if snapshot.AgentHealth != "up" || snapshot.MonitorHealth != "down" || snapshot.OverallHealth != "down" {
+		t.Fatalf("snapshot = %+v, want live agent with down monitor rollup", snapshot)
+	}
+}
+
 func TestDetectStaleMonitorsUsesReportingInterval(t *testing.T) {
 	database := setupHealthTestDB(t)
 	agent := db.Agent{
@@ -341,6 +435,64 @@ func TestMonitorWithoutReportsBecomesStaleAfterReportingWindow(t *testing.T) {
 	}
 	if len(staleMonitors) != 1 || staleMonitors[0].ID != staleMonitor.ID {
 		t.Fatalf("stale monitors = %+v, want only stale no-report monitor", staleMonitors)
+	}
+}
+
+func TestComputeMonitorHealthDetectsFlappingTransitions(t *testing.T) {
+	database := setupHealthTestDB(t)
+	agent := db.Agent{
+		ID:        "agent-flapping",
+		MachineId: "flapping-machine",
+		Name:      "flapping",
+		OS:        "linux",
+		Arch:      "arm64",
+		Token:     "flapping-token",
+		LastSeen:  time.Now(),
+	}
+	if err := database.Create(&agent).Error; err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+
+	monitor := db.Monitor{
+		ID:                       "monitor-flapping",
+		AgentID:                  agent.ID,
+		Name:                     "flapping",
+		Type:                     "http",
+		Lifecycle:                "active",
+		Health:                   "up",
+		ReportingIntervalSeconds: 60,
+		CreatedAt:                time.Now(),
+	}
+	if err := database.Create(&monitor).Error; err != nil {
+		t.Fatalf("create monitor: %v", err)
+	}
+
+	now := time.Now().UTC()
+	reports := []db.MonitorReport{
+		{ID: "report-flap-1", MonitorID: monitor.ID, Payload: "{}", CollectedAt: now.Format(time.RFC3339), Health: "up", CreatedAt: now},
+		{ID: "report-flap-2", MonitorID: monitor.ID, Payload: "{}", CollectedAt: now.Add(-1 * time.Minute).Format(time.RFC3339), Health: "down", CreatedAt: now.Add(-1 * time.Minute)},
+		{ID: "report-flap-3", MonitorID: monitor.ID, Payload: "{}", CollectedAt: now.Add(-2 * time.Minute).Format(time.RFC3339), Health: "up", CreatedAt: now.Add(-2 * time.Minute)},
+		{ID: "report-flap-4", MonitorID: monitor.ID, Payload: "{}", CollectedAt: now.Add(-3 * time.Minute).Format(time.RFC3339), Health: "down", CreatedAt: now.Add(-3 * time.Minute)},
+	}
+	if err := database.Create(&reports).Error; err != nil {
+		t.Fatalf("create reports: %v", err)
+	}
+
+	service := NewHealthService(database, logging.NewLogger())
+	health, err := service.ComputeMonitorHealth(monitor.ID, DefaultHealthConfig())
+	if err != nil {
+		t.Fatalf("ComputeMonitorHealth() error = %v", err)
+	}
+	if health != "degraded" {
+		t.Fatalf("ComputeMonitorHealth() = %q, want degraded flapping health", health)
+	}
+
+	var stored db.Monitor
+	if err := database.Where("id = ?", monitor.ID).First(&stored).Error; err != nil {
+		t.Fatalf("reload monitor: %v", err)
+	}
+	if stored.Health != "up" || stored.ComputedHealth != "degraded" {
+		t.Fatalf("stored monitor health = %q computed = %q, want raw up and computed degraded", stored.Health, stored.ComputedHealth)
 	}
 }
 

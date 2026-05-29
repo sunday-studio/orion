@@ -26,6 +26,23 @@ type MonitorReport struct {
 	Error     *collector.MonitorError `json:"error,omitempty"`
 }
 
+type ServiceLogBatch struct {
+	Entries []ServiceLogEntry `json:"entries"`
+}
+
+type ServiceLogEntry struct {
+	Timestamp   string         `json:"timestamp"`
+	Source      string         `json:"source,omitempty"`
+	Stream      string         `json:"stream,omitempty"`
+	Level       string         `json:"level,omitempty"`
+	Component   string         `json:"component,omitempty"`
+	MonitorName string         `json:"monitor_name,omitempty"`
+	MonitorID   string         `json:"monitor_id,omitempty"`
+	Message     string         `json:"message,omitempty"`
+	Fields      map[string]any `json:"fields,omitempty"`
+	Fingerprint string         `json:"fingerprint"`
+}
+
 type AgentRegistrationRequest struct {
 	MachineId                string `json:"machine_id" binding:"required"`
 	Name                     string `json:"name" binding:"required"`

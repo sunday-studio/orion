@@ -6,21 +6,21 @@ Finish the checklist needed to test Orion as a first self-hosted deploy candidat
 
 ## Completed
 
-- Interval-based stale detection for agents and monitors.
-- Agent registration sends the Agent reporting interval.
+- Interval-based stale detection for servers and monitors.
+- Server registration sends the Server reporting interval.
 - Monitor registration sends each monitor reporting interval.
 - Core Docker build and Docker Compose smoke path.
 - Core serves Console static assets from the runtime image.
 - Docker Compose requires frontend auth environment variables.
 - Core health endpoint and Console login smoke checks.
 - SQLite Docker volume persistence check.
-- Agent install smoke checks for local state, stable Agent registration, monitor registration, reporting intervals, restart behavior, and uninstall behavior.
+- Server install smoke checks for local state, stable Server registration, monitor registration, reporting intervals, restart behavior, and uninstall behavior.
 - Frontend auth sign-in/sign-out and expired session behavior.
-- Frontend-facing Agent responses avoid sensitive Agent tokens.
-- Agent runtime risk cleanup for maintenance updates, geolocation timeout, Docker monitor permissions, macOS uninstall paths, and retry queue decision.
-- UI release pass for incidents, agents, monitors, alerts, event logs, settings, page states, and URL state.
-- Agent install/upgrade docs, first-run checklist, backup/restore docs, and deployment docs.
-- Release packaging commands for tagged Core images and Agent binaries.
+- Frontend-facing Server responses avoid sensitive Server tokens.
+- Server runtime risk cleanup for maintenance updates, geolocation timeout, Docker monitor permissions, macOS uninstall paths, and retry queue decision.
+- UI release pass for incidents, servers, monitors, alerts, event logs, settings, page states, and URL state.
+- Server install/upgrade docs, first-run checklist, backup/restore docs, and deployment docs.
+- Release packaging commands for tagged Core images and Server binaries.
 
 ## Release Packaging
 
@@ -31,13 +31,13 @@ Finish the checklist needed to test Orion as a first self-hosted deploy candidat
 VERSION=v0.1.0 make docker-build
 ```
 
-- Agent binary build:
+- Server binary build:
 
 ```sh
 VERSION=v0.1.0 make agent-build
 ```
 
-- Core and Agent should run the same release tag for the first deploy.
+- Core and Server should run the same release tag for the first deploy.
 
 ## Verification
 
@@ -55,8 +55,8 @@ VERSION=v0.1.0 make agent-build
 - Alert channel test action.
 - Core runtime metrics for report write rate, ingestion latency, DB size, and slow requests.
 - Automated archive/rollup scheduling.
-- Agent update bookkeeping in local state.
-- Durable Agent report spool if real usage shows unacceptable report gaps.
+- Server update bookkeeping in local state.
+- Durable Server report spool if real usage shows unacceptable report gaps.
 
 ## Next
 

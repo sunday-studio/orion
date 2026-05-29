@@ -56,6 +56,1009 @@ const docTemplate = `{
                 }
             }
         },
+        "/status/{slug}": {
+            "get": {
+                "description": "Get the public-safe projection of a published or unlisted status page",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Get public status page",
+                "operationId": "getPublicStatusPage",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "status_page": {
+                                                    "$ref": "#/definitions/api.StatusPagePreviewResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/status/{slug}/badge.svg": {
+            "get": {
+                "description": "Get an embeddable SVG badge for the current public-safe status page state",
+                "produces": [
+                    "image/svg+xml"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Get public status page badge",
+                "operationId": "getPublicStatusPageBadge",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SVG badge",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/status/{slug}/components/{component_id}/badge.svg": {
+            "get": {
+                "description": "Get an embeddable SVG badge for a visible public component state",
+                "produces": [
+                    "image/svg+xml"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Get public status page component badge",
+                "operationId": "getPublicStatusPageComponentBadge",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Public component ID",
+                        "name": "component_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SVG badge",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/status/{slug}/components/{component_id}/history": {
+            "get": {
+                "description": "Get sanitized public uptime history for one visible component",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Get public status page component history",
+                "operationId": "getPublicStatusPageComponentHistory",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Public component ID",
+                        "name": "component_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "90d",
+                        "description": "Uptime window: 24h, 7d, 30d, or 90d",
+                        "name": "window",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "component": {
+                                                    "$ref": "#/definitions/api.StatusPagePublicComponentResponse"
+                                                },
+                                                "history": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/api.StatusPagePublicUptimeBucketResponse"
+                                                    }
+                                                },
+                                                "uptime": {
+                                                    "$ref": "#/definitions/api.StatusPagePublicUptimeResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/status/{slug}/components/{component_id}/uptime": {
+            "get": {
+                "description": "Get a sanitized public uptime summary for one visible component",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Get public status page component uptime",
+                "operationId": "getPublicStatusPageComponentUptime",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Public component ID",
+                        "name": "component_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "90d",
+                        "description": "Uptime window: 24h, 7d, 30d, or 90d",
+                        "name": "window",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "component": {
+                                                    "$ref": "#/definitions/api.StatusPagePublicComponentResponse"
+                                                },
+                                                "uptime": {
+                                                    "$ref": "#/definitions/api.StatusPagePublicUptimeResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/status/{slug}/history": {
+            "get": {
+                "description": "Get sanitized public history for a published or unlisted status page",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Get public status page history",
+                "operationId": "getPublicStatusPageHistory",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "90d",
+                        "description": "Uptime window: 24h, 7d, 30d, or 90d",
+                        "name": "window",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "history": {
+                                                    "$ref": "#/definitions/api.StatusPagePublicHistoryResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/status/{slug}/incidents": {
+            "get": {
+                "description": "Get published public incidents for a status page",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "List public status page incidents",
+                "operationId": "listPublicStatusPageIncidents",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "incidents": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/api.StatusPagePublicIncidentResponse"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/status/{slug}/incidents/{incident_id}": {
+            "get": {
+                "description": "Get a published public incident for a status page",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Get public status page incident",
+                "operationId": "getPublicStatusPageIncident",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Public incident ID",
+                        "name": "incident_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "incident": {
+                                                    "$ref": "#/definitions/api.StatusPagePublicIncidentResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/status/{slug}/incidents/{incident_id}/history": {
+            "get": {
+                "description": "Get published public updates for one public incident",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Get public status page incident history",
+                "operationId": "getPublicStatusPageIncidentHistory",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Public incident ID",
+                        "name": "incident_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "history": {
+                                                    "$ref": "#/definitions/api.StatusPagePublicIncidentHistoryResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/status/{slug}/subscribers": {
+            "post": {
+                "description": "Create or refresh a pending public subscriber without exposing confirmation tokens",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Request public status page subscription",
+                "operationId": "createPublicStatusPageSubscriber",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Subscription payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.statusPageSubscriptionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "confirmation_required": {
+                                                    "type": "boolean"
+                                                },
+                                                "subscriber": {
+                                                    "$ref": "#/definitions/api.StatusPageSubscriberPublicResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/status/{slug}/subscribers/confirm/{token}": {
+            "get": {
+                "description": "Confirm a pending public subscriber by one-time token hash",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Confirm public status page subscription",
+                "operationId": "confirmPublicStatusPageSubscriber",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Confirmation token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "subscriber": {
+                                                    "$ref": "#/definitions/api.StatusPageSubscriberPublicResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/status/{slug}/subscribers/manage/{token}": {
+            "get": {
+                "description": "Get masked subscriber preferences by manage token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Get public status page subscriber preferences",
+                "operationId": "getPublicStatusPageSubscriberPreferences",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Manage token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "subscriber": {
+                                                    "$ref": "#/definitions/api.StatusPageSubscriberPublicResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Update visible component preferences by manage token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Update public status page subscriber preferences",
+                "operationId": "updatePublicStatusPageSubscriberPreferences",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Manage token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Preference payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.statusPageSubscriberPreferencesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "subscriber": {
+                                                    "$ref": "#/definitions/api.StatusPageSubscriberPublicResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/status/{slug}/subscribers/unsubscribe/{token}": {
+            "post": {
+                "description": "Idempotently unsubscribe a public status page subscriber by token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Unsubscribe public status page subscriber",
+                "operationId": "unsubscribePublicStatusPageSubscriber",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Unsubscribe token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "unsubscribed": {
+                                                    "type": "boolean"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/agents": {
             "get": {
                 "description": "Get a paginated list of all registered agents",
@@ -196,6 +1199,83 @@ const docTemplate = `{
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/agents/{agent_id}/logs/batch": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Receive and deduplicate a bounded batch of structured Orion Agent service logs",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "service-logs"
+                ],
+                "summary": "Receive agent service logs",
+                "operationId": "receiveAgentLogBatch",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent ID",
+                        "name": "agent_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Service log batch",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.ServiceLogBatchPayload"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/api.ServiceLogBatchResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
                         }
                     },
                     "500": {
@@ -426,6 +1506,276 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/agents/{agent_id}/token/reissue": {
+            "post": {
+                "description": "Create a replacement token for a revoked agent and return it once",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "Reissue agent token",
+                "operationId": "reissueAgentToken",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent ID",
+                        "name": "agent_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Token action request",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/api.AgentTokenActionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/api.AgentTokenIssuedResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/agents/{agent_id}/token/revoke": {
+            "post": {
+                "description": "Revoke the active token for an agent without deleting the agent or monitors",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "Revoke agent token",
+                "operationId": "revokeAgentToken",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent ID",
+                        "name": "agent_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Token action request",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/api.AgentTokenActionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/api.AgentTokenStatusResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/agents/{agent_id}/token/rotate": {
+            "post": {
+                "description": "Create a replacement token for an active agent and return it once",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "Rotate agent token",
+                "operationId": "rotateAgentToken",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent ID",
+                        "name": "agent_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Token action request",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/api.AgentTokenActionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/api.AgentTokenIssuedResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/agents/{agent_id}/token/status": {
+            "get": {
+                "description": "Get non-secret token lifecycle metadata for an agent",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "Get agent token status",
+                "operationId": "getAgentTokenStatus",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent ID",
+                        "name": "agent_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/api.AgentTokenStatusResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/agents/{agent_id}/unregister-monitor": {
             "post": {
                 "security": [
@@ -642,7 +1992,7 @@ const docTemplate = `{
         },
         "/v1/agents/{id}/health": {
             "get": {
-                "description": "Get computed health status for a specific agent and its monitors",
+                "description": "Get split agent availability and monitor rollup health for a specific agent",
                 "consumes": [
                     "application/json"
                 ],
@@ -675,24 +2025,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "agent_id": {
-                                                    "type": "string"
-                                                },
-                                                "degraded_count": {
-                                                    "type": "integer"
-                                                },
-                                                "down_count": {
-                                                    "type": "integer"
-                                                },
-                                                "overall_health": {
-                                                    "type": "string"
-                                                },
-                                                "up_count": {
-                                                    "type": "integer"
-                                                }
-                                            }
+                                            "$ref": "#/definitions/api.AgentHealthResponse"
                                         }
                                     }
                                 }
@@ -928,6 +2261,122 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/agents/{id}/service-logs": {
+            "get": {
+                "description": "Get paginated structured service logs for a specific Orion Agent",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "service-logs"
+                ],
+                "summary": "List agent service logs",
+                "operationId": "getAgentServiceLogs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Maximum number of logs to return",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Number of logs to skip",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by level",
+                        "name": "level",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by component",
+                        "name": "component",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search message, component, monitor, and related IDs",
+                        "name": "q",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer",
+                                                    "format": "int64"
+                                                },
+                                                "limit": {
+                                                    "type": "integer"
+                                                },
+                                                "logs": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/api.ServiceLogEntryResponse"
+                                                    }
+                                                },
+                                                "offset": {
+                                                    "type": "integer"
+                                                },
+                                                "pagination": {
+                                                    "$ref": "#/definitions/utils.PaginationMeta"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/agents/{id}/uptime": {
             "get": {
                 "description": "Returns daily uptime buckets and overall uptime percentage for an agent.",
@@ -1046,7 +2495,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Create a webhook or email alert channel. Secret values are stored but never returned by the API.",
+                "description": "Create a webhook, Slack, Discord, or email alert channel. Secret values are stored but never returned by the API.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1240,6 +2689,68 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/alerts/channels/{id}/test": {
+            "post": {
+                "description": "Send a manual test notification through a configured webhook or email alert channel.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Test alert channel",
+                "operationId": "testAlertChannel",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Alert channel ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "delivery": {
+                                                    "$ref": "#/definitions/api.AlertDeliveryResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/alerts/deliveries": {
             "get": {
                 "description": "Get a paginated list of alert delivery attempts",
@@ -1265,6 +2776,24 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Filter by delivery status",
                         "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by delivery channel type",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by delivery channel name",
+                        "name": "channel",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by alert event type",
+                        "name": "event_type",
                         "in": "query"
                     },
                     {
@@ -1331,6 +2860,638 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/alerts/email-destinations": {
+            "get": {
+                "description": "Get reusable email destinations and their last delivery status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "List alert email destinations",
+                "operationId": "getAlertEmailDestinations",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "email_destinations": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/api.AlertEmailDestinationResponse"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a reusable email destination that sends through an SMTP service.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Create alert email destination",
+                "operationId": "createAlertEmailDestination",
+                "parameters": [
+                    {
+                        "description": "Email destination payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.alertEmailDestinationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "email_destination": {
+                                                    "$ref": "#/definitions/api.AlertEmailDestinationResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/alerts/email-destinations/{id}": {
+            "delete": {
+                "description": "Delete a reusable email destination. Existing delivery history is preserved.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Delete alert email destination",
+                "operationId": "deleteAlertEmailDestination",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Email destination ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "description": "Update a reusable email destination.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Update alert email destination",
+                "operationId": "updateAlertEmailDestination",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Email destination ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Email destination payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.alertEmailDestinationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "email_destination": {
+                                                    "$ref": "#/definitions/api.AlertEmailDestinationResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/alerts/email-destinations/{id}/test": {
+            "post": {
+                "description": "Send a manual test notification through a reusable email destination. Delivery errors are sanitized in the response.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Test alert email destination",
+                "operationId": "testAlertEmailDestination",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Email destination ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "delivery": {
+                                                    "$ref": "#/definitions/api.AlertDeliveryResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/alerts/routes": {
+            "get": {
+                "description": "Get explicit alert routes ordered by priority",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "List alert routes",
+                "operationId": "getAlertRoutes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "routes": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/api.AlertRouteResponse"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a priority-ordered alert route that can target channels or suppress matching events",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Create alert route",
+                "operationId": "createAlertRoute",
+                "parameters": [
+                    {
+                        "description": "Alert route payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.alertRouteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "route": {
+                                                    "$ref": "#/definitions/api.AlertRouteResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/alerts/routes/dry-run": {
+            "post": {
+                "description": "Explain route event matching, suppression, cooldown, and destination decisions without creating deliveries or sending notifications",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Dry-run alert routes",
+                "operationId": "dryRunAlertRoutes",
+                "parameters": [
+                    {
+                        "description": "Alert route dry-run payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.alertRouteDryRunRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "dry_run": {
+                                                    "$ref": "#/definitions/api.AlertRouteDryRunResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/alerts/routes/{id}": {
+            "delete": {
+                "description": "Delete an alert route. Existing delivery history is preserved.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Delete alert route",
+                "operationId": "deleteAlertRoute",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Alert route ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "description": "Update alert route match filters, destination channels, or suppression behavior",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Update alert route",
+                "operationId": "updateAlertRoute",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Alert route ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Alert route payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.alertRouteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "route": {
+                                                    "$ref": "#/definitions/api.AlertRouteResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/alerts/rules": {
             "get": {
                 "description": "Get effective built-in alert rules derived from Core configuration",
@@ -1373,6 +3534,321 @@ const docTemplate = `{
                                     }
                                 }
                             ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/alerts/smtp-services": {
+            "get": {
+                "description": "Get reusable SMTP services without secret values",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "List alert SMTP services",
+                "operationId": "getAlertSMTPServices",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "smtp_services": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/api.AlertSMTPServiceResponse"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a reusable SMTP service. Secret values are stored but never returned by the API.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Create alert SMTP service",
+                "operationId": "createAlertSMTPService",
+                "parameters": [
+                    {
+                        "description": "SMTP service payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.alertSMTPServiceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "smtp_service": {
+                                                    "$ref": "#/definitions/api.AlertSMTPServiceResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/alerts/smtp-services/{id}": {
+            "delete": {
+                "description": "Delete a reusable SMTP service. Existing delivery history is preserved.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Delete alert SMTP service",
+                "operationId": "deleteAlertSMTPService",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "SMTP service ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "description": "Update a reusable SMTP service. Omit password to keep the existing stored value.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Update alert SMTP service",
+                "operationId": "updateAlertSMTPService",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "SMTP service ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "SMTP service payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.alertSMTPServiceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "smtp_service": {
+                                                    "$ref": "#/definitions/api.AlertSMTPServiceResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/alerts/smtp-services/{id}/test": {
+            "post": {
+                "description": "Connect to a reusable SMTP service and return a sanitized connectivity result without secret values.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Test alert SMTP service",
+                "operationId": "testAlertSMTPService",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "SMTP service ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "test": {
+                                                    "$ref": "#/definitions/service.AlertSMTPServiceTestResult"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
                         }
                     }
                 }
@@ -1432,6 +3908,106 @@ const docTemplate = `{
                         "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/diagnostics/core": {
+            "get": {
+                "description": "Get Core runtime request, ingestion, report write, incident reconciliation, SQLite, and slow-operation diagnostics",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "health"
+                ],
+                "summary": "Get Core diagnostics",
+                "operationId": "getCoreDiagnostics",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "api": {
+                                                    "type": "object"
+                                                },
+                                                "metrics": {
+                                                    "$ref": "#/definitions/service.RuntimeDiagnosticsSnapshot"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/diagnostics/core-worker": {
+            "get": {
+                "description": "Get Core monitor worker heartbeat state without affecting Core API health",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "health"
+                ],
+                "summary": "Get Core worker diagnostics",
+                "operationId": "getCoreWorkerDiagnostics",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "api": {
+                                                    "type": "object"
+                                                },
+                                                "worker": {
+                                                    "type": "object"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "500": {
@@ -1670,6 +4246,120 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/heartbeats/{token}/failure": {
+            "post": {
+                "description": "Record a failure signal for a Core heartbeat monitor using its generated token.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "heartbeats"
+                ],
+                "summary": "Record heartbeat failure",
+                "operationId": "receiveHeartbeatFailure",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Heartbeat token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/api.HeartbeatSignalResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/heartbeats/{token}/success": {
+            "post": {
+                "description": "Record a success signal for a Core heartbeat monitor using its generated token.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "heartbeats"
+                ],
+                "summary": "Record heartbeat success",
+                "operationId": "receiveHeartbeatSuccess",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Heartbeat token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/api.HeartbeatSignalResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/incidents": {
             "get": {
                 "description": "Get a paginated list of persisted incidents. Defaults to active incidents.",
@@ -1687,7 +4377,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "default": "open,acknowledged",
+                        "default": "open,acknowledged,covered",
                         "description": "Comma-separated incident statuses",
                         "name": "status",
                         "in": "query"
@@ -1702,6 +4392,30 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Filter incidents by monitor ID",
                         "name": "monitor_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter incidents by resolution kind",
+                        "name": "resolution_kind",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter incidents by lifecycle actor: manual or system",
+                        "name": "actor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter incidents by covered lifecycle state",
+                        "name": "covered",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter incidents by notification status",
+                        "name": "notification_status",
                         "in": "query"
                     },
                     {
@@ -1748,6 +4462,9 @@ const docTemplate = `{
                                                     "items": {
                                                         "$ref": "#/definitions/api.IncidentResponse"
                                                     }
+                                                },
+                                                "insights": {
+                                                    "$ref": "#/definitions/api.IncidentInsightsResponse"
                                                 },
                                                 "limit": {
                                                     "type": "integer"
@@ -1882,6 +4599,9 @@ const docTemplate = `{
                                                         "$ref": "#/definitions/api.IncidentEventResponse"
                                                     }
                                                 },
+                                                "evidence": {
+                                                    "$ref": "#/definitions/api.IncidentEvidenceResponse"
+                                                },
                                                 "incident": {
                                                     "$ref": "#/definitions/api.IncidentResponse"
                                                 },
@@ -1891,11 +4611,285 @@ const docTemplate = `{
                                                         "$ref": "#/definitions/api.MonitorReportResponse"
                                                     }
                                                 },
+                                                "related_incidents": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/api.IncidentRelatedIncidentResponse"
+                                                    }
+                                                },
                                                 "timeline": {
                                                     "type": "array",
                                                     "items": {
                                                         "$ref": "#/definitions/api.IncidentTimelineItemResponse"
                                                     }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/incidents/{id}/acknowledge": {
+            "post": {
+                "description": "Mark an active incident as acknowledged and record a manual incident event",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "incidents"
+                ],
+                "summary": "Acknowledge incident",
+                "operationId": "acknowledgeIncident",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Incident ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "incident": {
+                                                    "$ref": "#/definitions/api.IncidentResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/incidents/{id}/cover": {
+            "post": {
+                "description": "Mark an active incident as covered, optionally until a future timestamp, and record a manual incident event",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "incidents"
+                ],
+                "summary": "Cover incident",
+                "operationId": "coverIncident",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Incident ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Coverage payload",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/api.incidentCoverageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "incident": {
+                                                    "$ref": "#/definitions/api.IncidentResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/incidents/{id}/reopen": {
+            "post": {
+                "description": "Reopen a covered or resolved incident, restore its monitor active incident path, and record a manual incident event",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "incidents"
+                ],
+                "summary": "Reopen incident",
+                "operationId": "reopenIncident",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Incident ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "incident": {
+                                                    "$ref": "#/definitions/api.IncidentResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/incidents/{id}/resolve": {
+            "post": {
+                "description": "Mark an active incident as resolved, clear its monitor active incident path, and record a manual incident event",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "incidents"
+                ],
+                "summary": "Resolve incident",
+                "operationId": "resolveIncident",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Incident ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "incident": {
+                                                    "$ref": "#/definitions/api.IncidentResponse"
                                                 }
                                             }
                                         }
@@ -1987,6 +4981,121 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/logs/service": {
+            "get": {
+                "description": "Get paginated structured service logs shipped by Orion services",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "service-logs"
+                ],
+                "summary": "List service logs",
+                "operationId": "getServiceLogs",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Maximum number of logs to return",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Number of logs to skip",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by agent ID",
+                        "name": "agent_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by monitor ID",
+                        "name": "monitor_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by service log source",
+                        "name": "source",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by level",
+                        "name": "level",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by component",
+                        "name": "component",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search message, component, monitor, and related IDs",
+                        "name": "q",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer",
+                                                    "format": "int64"
+                                                },
+                                                "limit": {
+                                                    "type": "integer"
+                                                },
+                                                "logs": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/api.ServiceLogEntryResponse"
+                                                    }
+                                                },
+                                                "offset": {
+                                                    "type": "integer"
+                                                },
+                                                "pagination": {
+                                                    "$ref": "#/definitions/utils.PaginationMeta"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/monitors": {
             "get": {
                 "description": "Get a paginated list of all monitors with optional filters",
@@ -2032,6 +5141,24 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Filter by monitor type",
                         "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by owner kind (agent|core)",
+                        "name": "owner_kind",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by owner name, id, or machine id",
+                        "name": "owner_name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by monitor source (agent|core)",
+                        "name": "source",
                         "in": "query"
                     },
                     {
@@ -2105,6 +5232,63 @@ const docTemplate = `{
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a Core-managed monitor and its runner configuration.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "Create a Core monitor",
+                "operationId": "createCoreMonitor",
+                "parameters": [
+                    {
+                        "description": "Core monitor create request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.CoreManagedMonitorCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/api.CoreMonitorManagementResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
                         }
                     },
                     "500": {
@@ -2227,6 +5411,187 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "delete": {
+                "description": "Soft delete a Core-managed monitor and pause its runner configuration.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "Delete a Core monitor",
+                "operationId": "deleteCoreMonitor",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Monitor ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "description": "Update a Core-managed monitor and its runner configuration.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "Update a Core monitor",
+                "operationId": "updateCoreMonitor",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Monitor ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Core monitor update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.CoreManagedMonitorUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/api.CoreMonitorManagementResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/monitors/{id}/config": {
+            "get": {
+                "description": "Return redacted Core-managed monitor configuration.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "Get Core monitor config",
+                "operationId": "getCoreMonitorConfig",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Monitor ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/api.CoreMonitorManagementResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
             }
         },
         "/v1/monitors/{id}/history": {
@@ -2300,6 +5665,174 @@ const docTemplate = `{
                                                     }
                                                 }
                                             }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/monitors/{id}/pause": {
+            "post": {
+                "description": "Pause a Core-managed monitor so the worker will not claim it.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "Pause a Core monitor",
+                "operationId": "pauseCoreMonitor",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Monitor ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/api.CoreMonitorManagementResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/monitors/{id}/resume": {
+            "post": {
+                "description": "Resume a Core-managed monitor and make it due immediately.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "Resume a Core monitor",
+                "operationId": "resumeCoreMonitor",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Monitor ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/api.CoreMonitorManagementResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/monitors/{id}/test": {
+            "post": {
+                "description": "Execute a Core-managed monitor immediately and store the resulting monitor report.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "Test a Core monitor",
+                "operationId": "testCoreMonitor",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Monitor ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/api.CoreMonitorManagementResponse"
                                         }
                                     }
                                 }
@@ -2669,6 +6202,1665 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/v1/status-pages": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get status page publication configurations ordered by title",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "List status pages",
+                "operationId": "listStatusPages",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "pages": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/api.StatusPageResponse"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a draft status page publication configuration",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Create status page",
+                "operationId": "createStatusPage",
+                "parameters": [
+                    {
+                        "description": "Status page payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.statusPageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "page": {
+                                                    "$ref": "#/definitions/api.StatusPageResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/status-pages/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get a status page with sections, components, mappings, incidents, and incident updates",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Get status page",
+                "operationId": "getStatusPage",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/api.StatusPageDetailResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update page-level status page publication settings",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Update status page",
+                "operationId": "updateStatusPage",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Status page payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.statusPageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "page": {
+                                                    "$ref": "#/definitions/api.StatusPageResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/status-pages/{id}/components": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get components and mappings for a status page",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "List status page components",
+                "operationId": "listStatusPageComponents",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "components": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/api.StatusPageComponentResponse"
+                                                    }
+                                                },
+                                                "count": {
+                                                    "type": "integer"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a public component for a status page",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Create status page component",
+                "operationId": "createStatusPageComponent",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Component payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.statusPageComponentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "component": {
+                                                    "$ref": "#/definitions/api.StatusPageComponentResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/status-pages/{id}/components/{component_id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update a public component for a status page",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Update status page component",
+                "operationId": "updateStatusPageComponent",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Component ID",
+                        "name": "component_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Component payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.statusPageComponentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "component": {
+                                                    "$ref": "#/definitions/api.StatusPageComponentResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/status-pages/{id}/components/{component_id}/mappings": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get internal resource mappings for a public component",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "List status page component mappings",
+                "operationId": "listStatusPageComponentMappings",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Component ID",
+                        "name": "component_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "mappings": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/api.StatusPageComponentMappingResponse"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Map a public component to an internal agent or monitor",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Create status page component mapping",
+                "operationId": "createStatusPageComponentMapping",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Component ID",
+                        "name": "component_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Mapping payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.statusPageComponentMappingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "mapping": {
+                                                    "$ref": "#/definitions/api.StatusPageComponentMappingResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/status-pages/{id}/components/{component_id}/mappings/{mapping_id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update a public component internal resource mapping",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Update status page component mapping",
+                "operationId": "updateStatusPageComponentMapping",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Component ID",
+                        "name": "component_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Mapping ID",
+                        "name": "mapping_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Mapping payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.statusPageComponentMappingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "mapping": {
+                                                    "$ref": "#/definitions/api.StatusPageComponentMappingResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/status-pages/{id}/incidents": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get manual public incident records for a status page",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "List status page incidents",
+                "operationId": "listStatusPageIncidents",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "incidents": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/api.StatusPageIncidentResponse"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a manual public incident for a status page",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Create status page incident",
+                "operationId": "createStatusPageIncident",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Incident payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.statusPageIncidentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "incident": {
+                                                    "$ref": "#/definitions/api.StatusPageIncidentResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/status-pages/{id}/incidents/suggestions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Suggest public status page components mapped to the internal incident monitor or agent without exposing internal incident details",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Suggest status page incident components",
+                "operationId": "suggestStatusPageIncidentComponents",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Internal incident ID",
+                        "name": "incident_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "suggestions": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/api.StatusPageIncidentComponentSuggestionResponse"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/status-pages/{id}/incidents/{incident_id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update a manual public incident for a status page",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Update status page incident",
+                "operationId": "updateStatusPageIncident",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Incident ID",
+                        "name": "incident_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Incident payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.statusPageIncidentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "incident": {
+                                                    "$ref": "#/definitions/api.StatusPageIncidentResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/status-pages/{id}/incidents/{incident_id}/updates": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a public timeline update for a manual status page incident",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Create status page incident update",
+                "operationId": "createStatusPageIncidentUpdate",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Incident ID",
+                        "name": "incident_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Incident update payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.statusPageIncidentUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "incident": {
+                                                    "$ref": "#/definitions/api.StatusPageIncidentResponse"
+                                                },
+                                                "update": {
+                                                    "$ref": "#/definitions/api.StatusPageIncidentUpdateResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/status-pages/{id}/preview": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Preview the public-safe projection of a status page draft or publication",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Preview status page",
+                "operationId": "previewStatusPage",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "preview": {
+                                                    "$ref": "#/definitions/api.StatusPagePreviewResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/status-pages/{id}/publish": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mark a status page as public and set published_at",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Publish status page",
+                "operationId": "publishStatusPage",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "page": {
+                                                    "$ref": "#/definitions/api.StatusPageResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/status-pages/{id}/sections": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get sections for a status page",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "List status page sections",
+                "operationId": "listStatusPageSections",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "sections": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/api.StatusPageSectionResponse"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a section for grouping public components",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Create status page section",
+                "operationId": "createStatusPageSection",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Section payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.statusPageSectionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "section": {
+                                                    "$ref": "#/definitions/api.StatusPageSectionResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/status-pages/{id}/sections/{section_id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update a status page section",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Update status page section",
+                "operationId": "updateStatusPageSection",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Section ID",
+                        "name": "section_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Section payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.statusPageSectionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "section": {
+                                                    "$ref": "#/definitions/api.StatusPageSectionResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/status-pages/{id}/unpublish": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Return a status page to draft visibility while retaining published_at history",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Unpublish status page",
+                "operationId": "unpublishStatusPage",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "page": {
+                                                    "$ref": "#/definitions/api.StatusPageResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -2686,6 +7878,44 @@ const docTemplate = `{
                 },
                 "reporting_interval": {
                     "type": "string"
+                }
+            }
+        },
+        "api.AgentHealthResponse": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "availability_health": {
+                    "type": "string"
+                },
+                "degraded_count": {
+                    "type": "integer"
+                },
+                "down_count": {
+                    "type": "integer"
+                },
+                "monitor_health": {
+                    "type": "string"
+                },
+                "overall_health": {
+                    "type": "string"
+                },
+                "stale_count": {
+                    "type": "integer"
+                },
+                "status_reason": {
+                    "type": "string"
+                },
+                "total_count": {
+                    "type": "integer"
+                },
+                "unknown_count": {
+                    "type": "integer"
+                },
+                "up_count": {
+                    "type": "integer"
                 }
             }
         },
@@ -2733,6 +7963,9 @@ const docTemplate = `{
                 "arch": {
                     "type": "string"
                 },
+                "availability_health": {
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
                 },
@@ -2757,6 +7990,9 @@ const docTemplate = `{
                 "monitor_count": {
                     "type": "integer"
                 },
+                "monitor_health": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -2770,6 +8006,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "status": {
+                    "type": "string"
+                },
+                "status_reason": {
                     "type": "string"
                 },
                 "uptime_seconds": {
@@ -2802,6 +8041,54 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "up": {
+                    "type": "integer"
+                }
+            }
+        },
+        "api.AgentTokenActionRequest": {
+            "type": "object",
+            "properties": {
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.AgentTokenIssuedResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "$ref": "#/definitions/api.AgentTokenStatusResponse"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.AgentTokenStatusResponse": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "token_exists": {
+                    "type": "boolean"
+                },
+                "token_revocation_reason": {
+                    "type": "string"
+                },
+                "token_revoked_at": {
+                    "type": "string"
+                },
+                "token_rotated_at": {
+                    "type": "string"
+                },
+                "token_version": {
                     "type": "integer"
                 }
             }
@@ -2857,7 +8144,45 @@ const docTemplate = `{
                 "webhook_configured": {
                     "type": "boolean"
                 },
+                "webhook_signature_configured": {
+                    "type": "boolean"
+                },
                 "webhook_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.AlertDeliveryAttemptResponse": {
+            "type": "object",
+            "properties": {
+                "alert_delivery_id": {
+                    "type": "string"
+                },
+                "attempt_number": {
+                    "type": "integer"
+                },
+                "completed_at": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "stage": {
+                    "type": "string"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }
@@ -2865,6 +8190,18 @@ const docTemplate = `{
         "api.AlertDeliveryResponse": {
             "type": "object",
             "properties": {
+                "alert_group_id": {
+                    "type": "string"
+                },
+                "attempt_count": {
+                    "type": "integer"
+                },
+                "attempts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.AlertDeliveryAttemptResponse"
+                    }
+                },
                 "channel": {
                     "type": "string"
                 },
@@ -2883,11 +8220,181 @@ const docTemplate = `{
                 "incident_id": {
                     "type": "string"
                 },
+                "last_attempt_at": {
+                    "type": "string"
+                },
+                "max_attempts": {
+                    "type": "integer"
+                },
+                "next_attempt_at": {
+                    "type": "string"
+                },
+                "route_id": {
+                    "type": "string"
+                },
                 "status": {
                     "type": "string"
                 },
                 "type": {
                     "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.AlertEmailDestinationResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "email_to": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_delivery_at": {
+                    "type": "string"
+                },
+                "last_delivery_status": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "smtp_service_id": {
+                    "type": "string"
+                },
+                "smtp_service_name": {
+                    "type": "string"
+                },
+                "subscribed_events": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.AlertRouteDryRunResponse": {
+            "type": "object",
+            "properties": {
+                "destination_decisions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.AlertDestinationDecision"
+                    }
+                },
+                "event": {
+                    "$ref": "#/definitions/service.AlertRouteContext"
+                },
+                "legacy_fallback": {
+                    "type": "boolean"
+                },
+                "route_evaluations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.AlertRouteEvaluationResponse"
+                    }
+                },
+                "suppressed": {
+                    "type": "boolean"
+                },
+                "suppression_reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.AlertRouteEvaluationResponse": {
+            "type": "object",
+            "properties": {
+                "matched": {
+                    "type": "boolean"
+                },
+                "reasons": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "route": {
+                    "$ref": "#/definitions/api.AlertRouteResponse"
+                },
+                "suppressed": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "api.AlertRouteResponse": {
+            "type": "object",
+            "properties": {
+                "agent_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "channel_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "event_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "grouping_delay_seconds": {
+                    "type": "integer"
+                },
+                "grouping_policy": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "monitor_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "monitor_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "priority": {
+                    "type": "integer"
+                },
+                "severities": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "suppress": {
+                    "type": "boolean"
                 },
                 "updated_at": {
                     "type": "string"
@@ -2926,12 +8433,170 @@ const docTemplate = `{
                 }
             }
         },
+        "api.AlertSMTPServiceResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "from_email": {
+                    "type": "string"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password_configured": {
+                    "type": "boolean"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "username_configured": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "api.CoreMonitorConfigResponse": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "confirmation_check_count": {
+                    "type": "integer"
+                },
+                "confirmation_period_seconds": {
+                    "type": "integer"
+                },
+                "heartbeat_token": {
+                    "type": "string"
+                },
+                "interval_seconds": {
+                    "type": "integer"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "last_failure_at": {
+                    "type": "string"
+                },
+                "last_run_at": {
+                    "type": "string"
+                },
+                "last_signal_at": {
+                    "type": "string"
+                },
+                "last_success_at": {
+                    "type": "string"
+                },
+                "lease_expires_at": {
+                    "type": "string"
+                },
+                "lease_owner": {
+                    "type": "string"
+                },
+                "monitor_id": {
+                    "type": "string"
+                },
+                "next_run_at": {
+                    "type": "string"
+                },
+                "paused": {
+                    "type": "boolean"
+                },
+                "recovery_period_seconds": {
+                    "type": "integer"
+                },
+                "secret_refs": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "timeout_seconds": {
+                    "type": "integer"
+                }
+            }
+        },
+        "api.CoreMonitorManagementResponse": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "$ref": "#/definitions/api.CoreMonitorConfigResponse"
+                },
+                "monitor": {
+                    "$ref": "#/definitions/api.MonitorResponse"
+                },
+                "result": {
+                    "$ref": "#/definitions/api.CoreMonitorTestNowResponse"
+                }
+            }
+        },
+        "api.CoreMonitorTestNowResponse": {
+            "type": "object",
+            "properties": {
+                "monitor_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "api.DataLifecycleRollupRequest": {
             "type": "object",
             "properties": {
                 "date": {
                     "type": "string",
                     "example": "2026-05-12"
+                }
+            }
+        },
+        "api.HeartbeatSignalResponse": {
+            "type": "object",
+            "properties": {
+                "health": {
+                    "type": "string"
+                },
+                "monitor_id": {
+                    "type": "string"
+                },
+                "payload_truncated": {
+                    "type": "boolean"
+                },
+                "received_at": {
+                    "type": "string"
+                },
+                "report_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.IncidentComponentImpactResponse": {
+            "type": "object",
+            "properties": {
+                "component_id": {
+                    "type": "string"
+                },
+                "component_name": {
+                    "type": "string"
+                },
+                "impact": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
                 }
             }
         },
@@ -2958,6 +8623,123 @@ const docTemplate = `{
                 }
             }
         },
+        "api.IncidentEvidenceResponse": {
+            "type": "object",
+            "properties": {
+                "latest_report": {
+                    "$ref": "#/definitions/api.MonitorReportResponse"
+                },
+                "triggering_report": {
+                    "$ref": "#/definitions/api.MonitorReportResponse"
+                }
+            }
+        },
+        "api.IncidentInsightsResponse": {
+            "type": "object",
+            "properties": {
+                "lifecycle_timing": {
+                    "$ref": "#/definitions/api.IncidentLifecycleTimingResponse"
+                },
+                "notification_reliability": {
+                    "$ref": "#/definitions/api.IncidentNotificationReliabilityStats"
+                },
+                "recurring_failures": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.IncidentRecurringFailureResponse"
+                    }
+                }
+            }
+        },
+        "api.IncidentLifecycleTimingResponse": {
+            "type": "object",
+            "properties": {
+                "acknowledged_count": {
+                    "type": "integer"
+                },
+                "mean_time_to_acknowledge_seconds": {
+                    "type": "integer"
+                },
+                "mean_time_to_resolve_seconds": {
+                    "type": "integer"
+                },
+                "resolved_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "api.IncidentNotificationReliabilityStats": {
+            "type": "object",
+            "properties": {
+                "failed_deliveries": {
+                    "type": "integer"
+                },
+                "sent_deliveries": {
+                    "type": "integer"
+                },
+                "success_rate_percent": {
+                    "type": "number"
+                },
+                "suppressed_deliveries": {
+                    "type": "integer"
+                },
+                "total_deliveries": {
+                    "type": "integer"
+                }
+            }
+        },
+        "api.IncidentRecurringFailureResponse": {
+            "type": "object",
+            "properties": {
+                "incident_count": {
+                    "type": "integer"
+                },
+                "last_incident_at": {
+                    "type": "string"
+                },
+                "monitor_id": {
+                    "type": "string"
+                },
+                "monitor_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.IncidentRelatedIncidentResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "last_event_at": {
+                    "type": "string"
+                },
+                "latest_event": {
+                    "type": "string"
+                },
+                "notification_status": {
+                    "type": "string"
+                },
+                "opened_at": {
+                    "type": "string"
+                },
+                "resolution_kind": {
+                    "type": "string"
+                },
+                "resolved_at": {
+                    "type": "string"
+                },
+                "severity": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
         "api.IncidentResponse": {
             "type": "object",
             "properties": {
@@ -2967,11 +8749,26 @@ const docTemplate = `{
                 "agent_name": {
                     "type": "string"
                 },
+                "coverage_note": {
+                    "type": "string"
+                },
+                "covered_at": {
+                    "type": "string"
+                },
+                "covered_until": {
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
                 },
                 "id": {
                     "type": "string"
+                },
+                "impacted_components": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.IncidentComponentImpactResponse"
+                    }
                 },
                 "last_event_at": {
                     "type": "string"
@@ -2992,6 +8789,15 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "opened_at": {
+                    "type": "string"
+                },
+                "reopen_count": {
+                    "type": "integer"
+                },
+                "reopened_at": {
+                    "type": "string"
+                },
+                "resolution_kind": {
                     "type": "string"
                 },
                 "resolved_at": {
@@ -3021,6 +8827,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "created_at": {
+                    "type": "string"
+                },
+                "evidence": {
                     "type": "string"
                 },
                 "id": {
@@ -3134,8 +8943,20 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "owner_id": {
+                    "type": "string"
+                },
+                "owner_kind": {
+                    "type": "string"
+                },
+                "owner_name": {
+                    "type": "string"
+                },
                 "reporting_interval_seconds": {
                     "type": "integer"
+                },
+                "source": {
+                    "type": "string"
                 },
                 "type": {
                     "type": "string"
@@ -3187,6 +9008,669 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.ServiceLogBatchResponse": {
+            "type": "object",
+            "properties": {
+                "received": {
+                    "type": "integer"
+                },
+                "stored": {
+                    "type": "integer"
+                }
+            }
+        },
+        "api.ServiceLogEntryResponse": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "agent_name": {
+                    "type": "string"
+                },
+                "collected_at": {
+                    "type": "string"
+                },
+                "component": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "fields": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "level": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "monitor_id": {
+                    "type": "string"
+                },
+                "monitor_name": {
+                    "type": "string"
+                },
+                "occurred_at": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "stream": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.StatusPageComponentMappingResponse": {
+            "type": "object",
+            "properties": {
+                "component_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "health_rollup_strategy": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "resource_id": {
+                    "type": "string"
+                },
+                "resource_type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "uptime_rollup_strategy": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.StatusPageComponentResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "display_mode": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "manual_status": {
+                    "type": "string"
+                },
+                "manual_status_reason": {
+                    "type": "string"
+                },
+                "mappings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.StatusPageComponentMappingResponse"
+                    }
+                },
+                "public_description": {
+                    "type": "string"
+                },
+                "public_name": {
+                    "type": "string"
+                },
+                "section_id": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "status_page_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "visible": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "api.StatusPageDetailResponse": {
+            "type": "object",
+            "properties": {
+                "components": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.StatusPageComponentResponse"
+                    }
+                },
+                "incidents": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.StatusPageIncidentResponse"
+                    }
+                },
+                "page": {
+                    "$ref": "#/definitions/api.StatusPageResponse"
+                },
+                "sections": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.StatusPageSectionResponse"
+                    }
+                }
+            }
+        },
+        "api.StatusPageIncidentComponentSuggestionMatchResponse": {
+            "type": "object",
+            "properties": {
+                "match_reason": {
+                    "type": "string"
+                },
+                "resource_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.StatusPageIncidentComponentSuggestionResponse": {
+            "type": "object",
+            "properties": {
+                "component_id": {
+                    "type": "string"
+                },
+                "component_name": {
+                    "type": "string"
+                },
+                "matches": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.StatusPageIncidentComponentSuggestionMatchResponse"
+                    }
+                }
+            }
+        },
+        "api.StatusPageIncidentResponse": {
+            "type": "object",
+            "properties": {
+                "affected_component_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "impact_summary": {
+                    "type": "string"
+                },
+                "internal_incident_id": {
+                    "type": "string"
+                },
+                "public_status": {
+                    "type": "string"
+                },
+                "published_at": {
+                    "type": "string"
+                },
+                "resolved_at": {
+                    "type": "string"
+                },
+                "scheduled_end_at": {
+                    "type": "string"
+                },
+                "scheduled_start_at": {
+                    "type": "string"
+                },
+                "severity": {
+                    "type": "string"
+                },
+                "status_page_id": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updates": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.StatusPageIncidentUpdateResponse"
+                    }
+                },
+                "visibility": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.StatusPageIncidentUpdateResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "incident_id": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "published_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.StatusPagePreviewResponse": {
+            "type": "object",
+            "properties": {
+                "incidents": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.StatusPagePublicIncidentResponse"
+                    }
+                },
+                "last_updated": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "$ref": "#/definitions/api.StatusPagePublicMetadataResponse"
+                },
+                "overall_status": {
+                    "type": "string"
+                },
+                "overall_status_display": {
+                    "type": "string"
+                },
+                "page": {
+                    "$ref": "#/definitions/api.StatusPagePublicPageResponse"
+                },
+                "sections": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.StatusPagePublicSectionResponse"
+                    }
+                }
+            }
+        },
+        "api.StatusPagePublicComponentHistoryResponse": {
+            "type": "object",
+            "properties": {
+                "component": {
+                    "$ref": "#/definitions/api.StatusPagePublicComponentResponse"
+                },
+                "history": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.StatusPagePublicUptimeBucketResponse"
+                    }
+                },
+                "uptime": {
+                    "$ref": "#/definitions/api.StatusPagePublicUptimeResponse"
+                }
+            }
+        },
+        "api.StatusPagePublicComponentResponse": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "display_mode": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "status_display": {
+                    "type": "string"
+                },
+                "status_reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.StatusPagePublicHistoryResponse": {
+            "type": "object",
+            "properties": {
+                "components": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.StatusPagePublicComponentHistoryResponse"
+                    }
+                },
+                "generated_at": {
+                    "type": "string"
+                },
+                "incidents": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.StatusPagePublicIncidentResponse"
+                    }
+                },
+                "page": {
+                    "$ref": "#/definitions/api.StatusPagePublicPageResponse"
+                }
+            }
+        },
+        "api.StatusPagePublicIncidentHistoryResponse": {
+            "type": "object",
+            "properties": {
+                "incident": {
+                    "$ref": "#/definitions/api.StatusPagePublicIncidentResponse"
+                },
+                "updates": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.StatusPagePublicIncidentUpdateHistoryResponse"
+                    }
+                }
+            }
+        },
+        "api.StatusPagePublicIncidentResponse": {
+            "type": "object",
+            "properties": {
+                "affected_component_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "impact_summary": {
+                    "type": "string"
+                },
+                "public_status": {
+                    "type": "string"
+                },
+                "published_at": {
+                    "type": "string"
+                },
+                "resolved_at": {
+                    "type": "string"
+                },
+                "scheduled_end_at": {
+                    "type": "string"
+                },
+                "scheduled_start_at": {
+                    "type": "string"
+                },
+                "severity": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.StatusPagePublicIncidentUpdateHistoryResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "published_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.StatusPagePublicMetadataResponse": {
+            "type": "object",
+            "properties": {
+                "canonical_url": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "open_graph": {
+                    "$ref": "#/definitions/api.StatusPagePublicOpenGraphResponse"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.StatusPagePublicOpenGraphResponse": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "site_name": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.StatusPagePublicPageResponse": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "theme_settings": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "title": {
+                    "type": "string"
+                },
+                "visibility": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.StatusPagePublicSectionResponse": {
+            "type": "object",
+            "properties": {
+                "collapsed_by_default": {
+                    "type": "boolean"
+                },
+                "components": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.StatusPagePublicComponentResponse"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.StatusPagePublicUptimeBucketResponse": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string"
+                },
+                "uptime_display": {
+                    "type": "string"
+                },
+                "uptime_ratio": {
+                    "type": "number"
+                }
+            }
+        },
+        "api.StatusPagePublicUptimeResponse": {
+            "type": "object",
+            "properties": {
+                "uptime_display": {
+                    "type": "string"
+                },
+                "uptime_ratio": {
+                    "type": "number"
+                },
+                "window": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.StatusPageResponse": {
+            "type": "object",
+            "properties": {
+                "canonical_url": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "custom_domain": {
+                    "type": "string"
+                },
+                "default_incident_visibility": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "open_graph_image_url": {
+                    "type": "string"
+                },
+                "published_at": {
+                    "type": "string"
+                },
+                "seo_description": {
+                    "type": "string"
+                },
+                "seo_title": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "theme_settings": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "visibility": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.StatusPageSectionResponse": {
+            "type": "object",
+            "properties": {
+                "collapsed_by_default": {
+                    "type": "boolean"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "status_page_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.StatusPageSubscriberComponentResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.StatusPageSubscriberPublicResponse": {
+            "type": "object",
+            "properties": {
+                "available_components": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.StatusPageSubscriberComponentResponse"
+                    }
+                },
+                "component_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "destination_type": {
+                    "type": "string"
+                },
+                "masked_destination": {
+                    "type": "string"
+                },
+                "state": {
                     "type": "string"
                 }
             }
@@ -3244,7 +9728,337 @@ const docTemplate = `{
                 "type": {
                     "type": "string"
                 },
+                "webhook_signing_secret": {
+                    "type": "string"
+                },
                 "webhook_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.alertEmailDestinationRequest": {
+            "type": "object",
+            "properties": {
+                "email_to": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "smtp_service_id": {
+                    "type": "string"
+                },
+                "subscribed_events": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "api.alertRouteDryRunRequest": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "event_type": {
+                    "type": "string"
+                },
+                "incident_id": {
+                    "type": "string"
+                },
+                "monitor_id": {
+                    "type": "string"
+                },
+                "monitor_type": {
+                    "type": "string"
+                },
+                "severity": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.alertRouteRequest": {
+            "type": "object",
+            "properties": {
+                "agent_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "channel_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "event_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "grouping_delay_seconds": {
+                    "type": "integer"
+                },
+                "grouping_policy": {
+                    "type": "string"
+                },
+                "monitor_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "monitor_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "priority": {
+                    "type": "integer"
+                },
+                "severities": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "suppress": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "api.alertSMTPServiceRequest": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "from_email": {
+                    "type": "string"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.incidentCoverageRequest": {
+            "type": "object",
+            "properties": {
+                "covered_until": {
+                    "type": "string"
+                },
+                "note": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.statusPageComponentMappingRequest": {
+            "type": "object",
+            "properties": {
+                "health_rollup_strategy": {
+                    "type": "string"
+                },
+                "resource_id": {
+                    "type": "string"
+                },
+                "resource_type": {
+                    "type": "string"
+                },
+                "uptime_rollup_strategy": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.statusPageComponentRequest": {
+            "type": "object",
+            "properties": {
+                "display_mode": {
+                    "type": "string"
+                },
+                "manual_status": {
+                    "type": "string"
+                },
+                "manual_status_reason": {
+                    "type": "string"
+                },
+                "public_description": {
+                    "type": "string"
+                },
+                "public_name": {
+                    "type": "string"
+                },
+                "section_id": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "visible": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "api.statusPageIncidentRequest": {
+            "type": "object",
+            "properties": {
+                "affected_component_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "impact_summary": {
+                    "type": "string"
+                },
+                "internal_incident_id": {
+                    "type": "string"
+                },
+                "public_status": {
+                    "type": "string"
+                },
+                "published_at": {
+                    "type": "string"
+                },
+                "resolved_at": {
+                    "type": "string"
+                },
+                "scheduled_end_at": {
+                    "type": "string"
+                },
+                "scheduled_start_at": {
+                    "type": "string"
+                },
+                "severity": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "visibility": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.statusPageIncidentUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "created_by": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "published_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.statusPageRequest": {
+            "type": "object",
+            "properties": {
+                "canonical_url": {
+                    "type": "string"
+                },
+                "custom_domain": {
+                    "type": "string"
+                },
+                "default_incident_visibility": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "open_graph_image_url": {
+                    "type": "string"
+                },
+                "seo_description": {
+                    "type": "string"
+                },
+                "seo_title": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "theme_settings": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "title": {
+                    "type": "string"
+                },
+                "visibility": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.statusPageSectionRequest": {
+            "type": "object",
+            "properties": {
+                "collapsed_by_default": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                }
+            }
+        },
+        "api.statusPageSubscriberPreferencesRequest": {
+            "type": "object",
+            "properties": {
+                "component_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "api.statusPageSubscriptionRequest": {
+            "type": "object",
+            "properties": {
+                "component_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "destination": {
+                    "type": "string"
+                },
+                "destination_type": {
                     "type": "string"
                 }
             }
@@ -3409,6 +10223,78 @@ const docTemplate = `{
                 }
             }
         },
+        "service.AlertDestinationDecision": {
+            "type": "object",
+            "properties": {
+                "channel_id": {
+                    "type": "string"
+                },
+                "channel_name": {
+                    "type": "string"
+                },
+                "channel_type": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "route_id": {
+                    "type": "string"
+                },
+                "route_name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.AlertRouteContext": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "event_type": {
+                    "type": "string"
+                },
+                "incident_id": {
+                    "type": "string"
+                },
+                "monitor_id": {
+                    "type": "string"
+                },
+                "monitor_type": {
+                    "type": "string"
+                },
+                "severity": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.AlertSMTPServiceTestResult": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "smtp_service_id": {
+                    "type": "string"
+                },
+                "smtp_service_name": {
+                    "type": "string"
+                },
+                "stage": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "tested_at": {
+                    "type": "string"
+                }
+            }
+        },
         "service.ArchiveRunResult": {
             "type": "object",
             "properties": {
@@ -3432,6 +10318,97 @@ const docTemplate = `{
                 },
                 "skipped_because_no_reports": {
                     "type": "boolean"
+                }
+            }
+        },
+        "service.CoreManagedMonitorCreateRequest": {
+            "type": "object",
+            "required": [
+                "config",
+                "kind",
+                "name"
+            ],
+            "properties": {
+                "config": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "confirmation_check_count": {
+                    "type": "integer"
+                },
+                "confirmation_period_seconds": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "interval_seconds": {
+                    "type": "integer"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "paused": {
+                    "type": "boolean"
+                },
+                "recovery_period_seconds": {
+                    "type": "integer"
+                },
+                "secret_refs": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "timeout_seconds": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.CoreManagedMonitorUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "confirmation_check_count": {
+                    "type": "integer"
+                },
+                "confirmation_period_seconds": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "interval_seconds": {
+                    "type": "integer"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "paused": {
+                    "type": "boolean"
+                },
+                "recovery_period_seconds": {
+                    "type": "integer"
+                },
+                "secret_refs": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "timeout_seconds": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string"
                 }
             }
         },
@@ -3601,6 +10578,246 @@ const docTemplate = `{
                 }
             }
         },
+        "service.RuntimeDiagnosticsSnapshot": {
+            "type": "object",
+            "properties": {
+                "active_incident_lookup": {
+                    "$ref": "#/definitions/service.RuntimeLookupStats"
+                },
+                "incident_reconciliation": {
+                    "$ref": "#/definitions/service.RuntimeOperationStats"
+                },
+                "ingestion_latency_ms": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/service.RuntimeLatencyPercentiles"
+                    }
+                },
+                "report_writes": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/service.RuntimeReportWriteStats"
+                    }
+                },
+                "request_latency_ms": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/service.RuntimeLatencyPercentiles"
+                    }
+                },
+                "requests": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                },
+                "slow_operations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.RuntimeSlowOperation"
+                    }
+                },
+                "sqlite": {
+                    "$ref": "#/definitions/service.RuntimeSQLiteStats"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "uptime_seconds": {
+                    "type": "integer"
+                }
+            }
+        },
+        "service.RuntimeLatencyPercentiles": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "max": {
+                    "type": "integer"
+                },
+                "p50": {
+                    "type": "integer"
+                },
+                "p95": {
+                    "type": "integer"
+                },
+                "p99": {
+                    "type": "integer"
+                }
+            }
+        },
+        "service.RuntimeLookupStats": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "max": {
+                    "type": "integer"
+                },
+                "miss_count": {
+                    "type": "integer"
+                },
+                "p50": {
+                    "type": "integer"
+                },
+                "p95": {
+                    "type": "integer"
+                },
+                "p99": {
+                    "type": "integer"
+                }
+            }
+        },
+        "service.RuntimeOperationStats": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "error_count": {
+                    "type": "integer"
+                },
+                "max": {
+                    "type": "integer"
+                },
+                "p50": {
+                    "type": "integer"
+                },
+                "p95": {
+                    "type": "integer"
+                },
+                "p99": {
+                    "type": "integer"
+                }
+            }
+        },
+        "service.RuntimeReportWriteStats": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "error_count": {
+                    "type": "integer"
+                },
+                "max": {
+                    "type": "integer"
+                },
+                "p50": {
+                    "type": "integer"
+                },
+                "p95": {
+                    "type": "integer"
+                },
+                "p99": {
+                    "type": "integer"
+                }
+            }
+        },
+        "service.RuntimeSQLiteStats": {
+            "type": "object",
+            "properties": {
+                "busy_total": {
+                    "type": "integer"
+                },
+                "database_bytes": {
+                    "type": "integer"
+                },
+                "freelist_count": {
+                    "type": "integer"
+                },
+                "page_count": {
+                    "type": "integer"
+                },
+                "page_size_bytes": {
+                    "type": "integer"
+                }
+            }
+        },
+        "service.RuntimeSlowOperation": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "duration_ms": {
+                    "type": "integer"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "operation": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.ServiceLogBatchPayload": {
+            "type": "object",
+            "required": [
+                "entries"
+            ],
+            "properties": {
+                "entries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.ServiceLogEntryPayload"
+                    }
+                }
+            }
+        },
+        "service.ServiceLogEntryPayload": {
+            "type": "object",
+            "required": [
+                "fingerprint",
+                "timestamp"
+            ],
+            "properties": {
+                "component": {
+                    "type": "string"
+                },
+                "fields": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "fingerprint": {
+                    "type": "string"
+                },
+                "level": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "monitor_id": {
+                    "type": "string"
+                },
+                "monitor_name": {
+                    "type": "string"
+                },
+                "raw": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "stream": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
         "service.SetMaintenanceModeRequest": {
             "type": "object",
             "required": [
@@ -3708,7 +10925,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "Orion Core API",
-	Description:      "Orion Core API for agent management and monitoring",
+	Description:      "Orion Core API for server management and monitoring",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

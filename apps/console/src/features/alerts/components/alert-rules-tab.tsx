@@ -5,7 +5,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo } from "react";
 import { boolLabel } from "./alert-constants";
 
-const getRuleColumns = (webhookChannelNames: Set<string>): ColumnDef<ApiAlertRuleResponse>[] => [
+const ruleColumns: ColumnDef<ApiAlertRuleResponse>[] = [
   {
     accessorKey: "name",
     header: "Name",
@@ -37,11 +37,8 @@ const getRuleColumns = (webhookChannelNames: Set<string>): ColumnDef<ApiAlertRul
   },
   {
     accessorKey: "target_channels",
-    header: "Channels",
-    cell: ({ row }) =>
-      (row.original.target_channels ?? [])
-        .filter((channel) => webhookChannelNames.has(channel))
-        .join(", ") || "none",
+    header: "Destinations",
+    cell: ({ row }) => (row.original.target_channels ?? []).join(", ") || "none",
   },
 ];
 
@@ -49,16 +46,10 @@ type AlertRulesTabProps = {
   error: unknown;
   isLoading: boolean;
   rules: ApiAlertRuleResponse[];
-  webhookChannelNames: Set<string>;
 };
 
-export const AlertRulesTab = ({
-  error,
-  isLoading,
-  rules,
-  webhookChannelNames,
-}: AlertRulesTabProps) => {
-  const columns = useMemo(() => getRuleColumns(webhookChannelNames), [webhookChannelNames]);
+export const AlertRulesTab = ({ error, isLoading, rules }: AlertRulesTabProps) => {
+  const columns = useMemo(() => ruleColumns, []);
 
   return (
     <section className="space-y-3">

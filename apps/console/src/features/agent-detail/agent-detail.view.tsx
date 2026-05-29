@@ -15,10 +15,12 @@ import { AgentCpuTab } from "./components/agent-cpu-tab";
 import { AgentHealthSummary } from "./components/agent-health-summary";
 import { AgentLogsTab } from "./components/agent-logs-tab";
 import { AgentMonitorsTab } from "./components/agent-monitors-tab";
+import { AgentServiceLogsTab } from "./components/agent-service-logs-tab";
+import { AgentTokenPanel } from "./components/agent-token-panel";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge, toStatus } from "@/components/status-badges";
 
-const AGENT_DETAIL_TABS = ["logs", "monitors", "cpu"] as const;
+const AGENT_DETAIL_TABS = ["logs", "service-logs", "monitors", "cpu"] as const;
 type AgentDetailTab = (typeof AGENT_DETAIL_TABS)[number];
 
 const isAgentDetailTab = (value: string | null): value is AgentDetailTab =>
@@ -41,7 +43,7 @@ export const AgentDetailPage = () => {
   const uptimeResponse = useGetAgentUptime(currentAgentId, { period: "90d" });
   const incidentsResponse = useGetIncidents({
     agent_id: currentAgentId,
-    status: "open,acknowledged",
+    status: "open,acknowledged,covered",
     limit: 20,
   });
   const highlightedIncidentResponse = useGetIncident(highlightedIncidentId);
@@ -82,22 +84,22 @@ export const AgentDetailPage = () => {
   );
 
   if (agentResponse.isLoading) {
-    return <div className="py-3 text-sm text-neutral-600">Loading agent...</div>;
+    return <div className="py-3 text-sm text-neutral-600">Loading server...</div>;
   }
 
   if (agentResponse.error || !agent) {
-    return <div className="py-3 text-sm">Unable to load agent.</div>;
+    return <div className="py-3 text-sm">Unable to load server.</div>;
   }
 
   return (
     <div className="space-y-7">
       <div className="space-y-2">
         <PageBreadcrumbs
-          items={[{ label: "Agents", to: "/agents" }, { label: agent.name ?? "Agent" }]}
+          items={[{ label: "Servers", to: "/servers" }, { label: agent.name ?? "Server" }]}
         />
         <div className="flex flex-wrap items-start justify-between gap-1 flex-col ">
           <PageHeader
-            title={agent.name ?? agent.id ?? "Unknown agent"}
+            title={agent.name ?? agent.id ?? "Unknown server"}
             description={
               <p className="text-sm text-neutral-600">
                 <StatusBadge
@@ -132,23 +134,36 @@ export const AgentDetailPage = () => {
       <AgentHealthSummary
         agentId={currentAgentId}
         activeIncidentCount={activeIncidents.length}
+        availabilityHealth={healthResponse.data?.availability_health ?? agent?.availability_health}
         degradedCount={healthResponse.data?.degraded_count ?? 0}
         downCount={healthResponse.data?.down_count ?? 0}
+        monitorHealth={healthResponse.data?.monitor_health ?? agent?.monitor_health}
+        staleCount={healthResponse.data?.stale_count ?? 0}
         status={status}
+        statusReason={healthResponse.data?.status_reason ?? agent?.status_reason}
+        totalCount={healthResponse.data?.total_count ?? agent?.monitor_count ?? 0}
+        unknownCount={healthResponse.data?.unknown_count ?? 0}
         upCount={healthResponse.data?.up_count ?? 0}
         uptimePercent={uptimeResponse.data?.uptime_percent}
         uptimeBuckets={uptimeResponse.data?.daily_buckets ?? []}
       />
 
+      <AgentTokenPanel agentId={currentAgentId} />
+
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="logs">Agent Reports</TabsTrigger>
+          <TabsTrigger value="logs">Server Reports</TabsTrigger>
+          <TabsTrigger value="service-logs">Service Logs</TabsTrigger>
           <TabsTrigger value="monitors">Monitors</TabsTrigger>
           <TabsTrigger value="cpu">System Metrics</TabsTrigger>
         </TabsList>
 
         <TabsContent value="logs">
           <AgentLogsTab agentId={currentAgentId} />
+        </TabsContent>
+
+        <TabsContent value="service-logs">
+          <AgentServiceLogsTab agentId={currentAgentId} />
         </TabsContent>
 
         <TabsContent value="monitors">

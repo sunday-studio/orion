@@ -6,15 +6,15 @@ Bring the project roadmap back in sync with the current repository.
 
 ## Scope
 
-- Audit current repo structure, docs, API routes, agent CLI, frontend routes, and recent verification results.
+- Audit current repo structure, docs, API routes, server CLI, frontend routes, and recent verification results.
 - Retire the stale root roadmap and move planning history into milestone records.
 - Add milestone records under `docs/`.
 - Create a product hardening plan for the next phase.
 
 ## Completed
 
-- Root roadmap now reflects implemented Core, Agent, Frontend, Docker, API, and health-computation work.
-- Remaining work is grouped by documentation, Core, Agent, Frontend, testing, CI/CD, and release.
+- Root roadmap now reflects implemented Core, Server, Frontend, Docker, API, and health-computation work.
+- Remaining work is grouped by documentation, Core, Server, Frontend, testing, CI/CD, and release.
 - `docs/milestones/` now exists for milestone records.
 - Product and engineering planning history is now consolidated into milestone records.
 

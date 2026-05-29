@@ -28,7 +28,7 @@ export const AgentCpuTab = ({ agent, latestReport }: AgentCpuTabProps) => {
           <DetailItem label="IP address" value={location?.ip ?? agent.ip ?? "—"} />
           <DetailItem label="memory used" value={formatBytes(latestReport.memory?.used_bytes)} />
           <DetailItem label="disk used" value={formatBytes(latestReport.disk?.used_bytes)} />
-          <DetailItem label="agent version" value={latestReport.agent_version ?? "—"} />
+          <DetailItem label="server version" value={latestReport.agent_version ?? "—"} />
           <DetailItem label="hostname" value={location?.hostname ?? "—"} />
           <DetailItem label="platform" value={agent.platform ?? agent.os ?? "unknown"} />
           <DetailItem label="arch" value={agent.arch ?? "unknown"} />

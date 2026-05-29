@@ -110,6 +110,11 @@ func (s *Server) frontendAuthMiddleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+		if claims, ok := t.Claims.(jwt.MapClaims); ok {
+			if subject, ok := claims["sub"].(string); ok && subject != "" {
+				c.Set("frontend_actor_id", subject)
+			}
+		}
 
 		c.Next()
 	}

@@ -2,17 +2,19 @@ import { DataTable } from "@/components/data-table";
 import { DataTableLink } from "@/components/data-table-link";
 import { ListPagination } from "@/components/list-pagination";
 import { NotificationBadge, toNotificationStatus } from "@/components/status-badges";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
-import type { ApiAlertDeliveryResponse } from "@/orion-sdk";
+import type { ApiAlertChannelResponse, ApiAlertDeliveryResponse } from "@/orion-sdk";
 import type { ColumnDef } from "@tanstack/react-table";
-import { DELIVERY_LIMIT } from "./alert-constants";
+import { useMemo } from "react";
+import {
+  DELIVERY_LIMIT,
+  deliveryEventOptions,
+  deliveryTypeOptions,
+  eventLabel,
+} from "./alert-constants";
 
 const deliveryColumns: ColumnDef<ApiAlertDeliveryResponse>[] = [
   {
@@ -22,8 +24,13 @@ const deliveryColumns: ColumnDef<ApiAlertDeliveryResponse>[] = [
   },
   {
     accessorKey: "channel",
-    header: "Channel",
-    cell: ({ row }) => row.original.channel ?? "none",
+    header: "Destination",
+    cell: ({ row }) => row.original.channel ?? row.original.type ?? "none",
+  },
+  {
+    accessorKey: "type",
+    header: "Type",
+    cell: ({ row }) => row.original.type ?? "unknown",
   },
   {
     accessorKey: "event_type",
@@ -64,31 +71,73 @@ const statusOptions = [
 ] as const;
 
 type NotificationLogTabProps = {
+  channel: string;
+  channels: ApiAlertChannelResponse[];
   count: number;
   deliveries: ApiAlertDeliveryResponse[];
   error: unknown;
+  eventType: string;
   incident: string;
   isLoading: boolean;
   offset: number;
+  onChannelChange: (value: string) => void;
+  onClearFilters: () => void;
+  onEventTypeChange: (value: string) => void;
   onIncidentChange: (value: string) => void;
   onOffsetChange: (offset: number) => void;
   onStatusChange: (status: string) => void;
+  onTypeChange: (type: string) => void;
   status: string;
+  type: string;
 };
 
 export const NotificationLogTab = ({
+  channel,
+  channels,
   count,
   deliveries,
   error,
+  eventType,
   incident,
   isLoading,
   offset,
+  onChannelChange,
+  onClearFilters,
+  onEventTypeChange,
   onIncidentChange,
   onOffsetChange,
   onStatusChange,
+  onTypeChange,
   status,
+  type,
 }: NotificationLogTabProps) => {
   const statusLabel = statusOptions.find((option) => option.value === status)?.label ?? status;
+  const typeLabel = deliveryTypeOptions.find((option) => option.value === type)?.label ?? type;
+  const eventTypeLabel =
+    deliveryEventOptions.find((option) => option.value === eventType)?.label ??
+    eventLabel(eventType);
+  const channelOptions = useMemo(() => {
+    const names = new Set(
+      channels
+        .map((alertChannel) => alertChannel.name?.trim())
+        .filter((name): name is string => Boolean(name)),
+    );
+    if (channel !== "all") names.add(channel);
+
+    return Array.from(names)
+      .sort((first, second) => first.localeCompare(second))
+      .map((name) => ({ value: name, label: name }));
+  }, [channel, channels]);
+  const channelLabel =
+    channel === "all"
+      ? "All destinations"
+      : (channelOptions.find((option) => option.value === channel)?.label ?? channel);
+  const hasFilters =
+    status !== "all" ||
+    type !== "all" ||
+    eventType !== "all" ||
+    channel !== "all" ||
+    Boolean(incident.trim());
 
   return (
     <section className="space-y-3">
@@ -111,12 +160,54 @@ export const NotificationLogTab = ({
             ))}
           </SelectContent>
         </Select>
+        <Select value={type} onValueChange={onTypeChange}>
+          <SelectTrigger className="w-48">
+            <span data-slot="select-value">Type: {typeLabel}</span>
+          </SelectTrigger>
+          <SelectContent>
+            {deliveryTypeOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={eventType} onValueChange={onEventTypeChange}>
+          <SelectTrigger className="w-56">
+            <span data-slot="select-value">Event: {eventTypeLabel}</span>
+          </SelectTrigger>
+          <SelectContent>
+            {deliveryEventOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={channel} onValueChange={onChannelChange}>
+          <SelectTrigger className="w-60">
+            <span data-slot="select-value">Destination: {channelLabel}</span>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All destinations</SelectItem>
+            {channelOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Input
           value={incident}
           onChange={(event) => onIncidentChange(event.target.value)}
           placeholder="Filter by incident ID"
           className="w-full max-w-sm sm:w-72"
         />
+        {hasFilters && (
+          <Button type="button" variant="ghost" size="sm" onClick={onClearFilters}>
+            Clear
+          </Button>
+        )}
       </div>
       {Boolean(error) && <div className="text-sm">Unable to load notification log.</div>}
       {!error && (

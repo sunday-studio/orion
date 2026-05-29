@@ -20,12 +20,14 @@ RUN cd apps/core && go mod download
 COPY apps/core/ apps/core/
 COPY --from=frontend /app/apps/console/dist apps/core/web
 RUN cd apps/core && go build -o orion-core .
+RUN cd apps/core && go build -o orion-core-worker ./cmd/worker
 
 # Minimal runtime
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates sqlite
 WORKDIR /app
 COPY --from=core /app/apps/core/orion-core .
+COPY --from=core /app/apps/core/orion-core-worker .
 COPY --from=core /app/apps/core/web ./web
 RUN mkdir -p /data
 ENV ORION_DATA_DIR=/data

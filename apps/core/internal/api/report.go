@@ -33,6 +33,12 @@ type ReportResponse struct {
 // @Failure      500       {object}  utils.APIResponse
 // @Router       /v1/agents/{agent_id}/report [post]
 func (s *Server) receiveAgentReport(c *gin.Context) {
+	startedAt := time.Now()
+	var ingestionErr error
+	defer func() {
+		s.runtimeDiagnosticsService.RecordIngestion("agent", time.Since(startedAt), ingestionErr)
+	}()
+
 	agent, exists := c.Get("agent")
 	if !exists {
 		s.logger.Error("Agent not found in context")
@@ -71,6 +77,7 @@ func (s *Server) receiveAgentReport(c *gin.Context) {
 
 	agentReportID, err := s.reportService.StoreAgentReport(agentID.(string), payloadData)
 	if err != nil {
+		ingestionErr = err
 		s.logger.Error("Failed to store agent report", "error", err)
 		utils.InternalError(c, "Failed to store agent report", err)
 		return
@@ -111,6 +118,12 @@ func (s *Server) receiveAgentReport(c *gin.Context) {
 // @Failure      500        {object}  utils.APIResponse
 // @Router       /v1/agents/{agent_id}/{monitor_id}/report [post]
 func (s *Server) receiveMonitorReport(c *gin.Context) {
+	startedAt := time.Now()
+	var ingestionErr error
+	defer func() {
+		s.runtimeDiagnosticsService.RecordIngestion("monitor", time.Since(startedAt), ingestionErr)
+	}()
+
 	agentID, agentIDExists := c.Get("agent_id")
 	monitorID := c.Param("monitor_id")
 
@@ -161,6 +174,7 @@ func (s *Server) receiveMonitorReport(c *gin.Context) {
 	}
 
 	if _, err = s.reportService.StoreMonitorReport(monitorID, payloadData); err != nil {
+		ingestionErr = err
 		s.logger.Error("Failed to store monitor report", "error", err)
 		utils.InternalError(c, "Failed to store monitor report", nil)
 		return

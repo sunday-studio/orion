@@ -7,9 +7,10 @@ import { NavLink, useNavigate } from "react-router-dom";
 
 const navItems = [
   { label: "Incidents", to: "/incidents" },
-  { label: "Agents", to: "/agents" },
+  { label: "Servers", to: "/servers" },
   { label: "Monitors", to: "/monitors" },
   { label: "Alerts", to: "/alerts" },
+  { label: "Status", to: "/status-pages" },
   { label: "Logs", to: "/logs" },
   { label: "Settings", to: "/settings" },
 ];

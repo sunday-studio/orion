@@ -2,7 +2,7 @@
 
 This note documents the assumption that Orion report volume will grow over time and how Core should know when report ingestion is becoming slow.
 
-The main concern here is not long-term storage. Orion can keep historical data forever through rollups, archives, and backups. The concern is the amount of work Core performs while an Agent is waiting for a report request to finish.
+The main concern here is not long-term storage. Orion can keep historical data forever through rollups, archives, and backups. The concern is the amount of work Core performs while a Server is waiting for a report request to finish.
 
 ## Ingestion Growth Assumption
 
@@ -17,7 +17,7 @@ flowchart LR
   C["Shorter check intervals"] --> D
   D --> E["More synchronous ingestion work"]
   E --> F["Higher latency per report"]
-  F --> G["Agents wait longer or retry"]
+  F --> G["Servers wait longer or retry"]
 ```
 
 ## Current Synchronous Work
@@ -26,12 +26,12 @@ When Core receives a monitor report, the request currently does more than insert
 
 ```mermaid
 flowchart TD
-  A["Agent sends monitor report"] --> B["Validate request"]
+  A["Server sends monitor report"] --> B["Validate request"]
   B --> C["Insert monitor_report"]
   C --> D["Update monitor health fields"]
   D --> E["Reconcile incident"]
   E --> F["Maybe queue alert delivery"]
-  F --> G["Return response to Agent"]
+  F --> G["Return response to Server"]
 ```
 
 That synchronous path is valuable because it keeps current health and incidents fresh immediately. The risk is that every extra lookup on this path multiplies by report volume.
@@ -46,7 +46,7 @@ Keep the request path small and deterministic:
 - detect whether the monitor state changed;
 - do minimal incident reconciliation when a state change requires it.
 
-Avoid work that scans history, computes broad summaries, or performs slow external calls while the Agent is waiting.
+Avoid work that scans history, computes broad summaries, or performs slow external calls while the Server is waiting.
 
 ## Incident Reconciliation On Reports
 
@@ -226,7 +226,7 @@ Start with simple thresholds that can be shown in diagnostics:
 - incident reconciliation p95 above 100ms;
 - active incident lookup p95 above 50ms;
 - SQLite busy errors during report ingestion;
-- increasing Agent report retries;
+- increasing Server report retries;
 - slow operation count increasing day over day.
 
 These thresholds should not page the user by default. They should first appear as local diagnostics and warnings because this is self-hosted software.
@@ -239,7 +239,7 @@ The ingestion path is transition-aware:
 
 - now: keep reconciliation synchronous, use the active incident id cache when one exists, and skip incident lookup for repeated healthy reports;
 - next: add a diagnostics endpoint for ingestion timing;
-- later: move non-critical fan-out work, such as notification delivery attempts, outside the Agent request path.
+- later: move non-critical fan-out work, such as notification delivery attempts, outside the Server request path.
 
 ## Implementation Order
 

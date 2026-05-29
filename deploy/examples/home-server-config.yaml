@@ -2,7 +2,7 @@ meta:
   title: home-server
   description: Main home server
 
-# Use a Core URL this Agent host can reach.
+# Use a Core URL this Server host can reach.
 core_url: http://orion-core.local:8999
 interval: 60s
 geo_location: false
@@ -14,12 +14,12 @@ monitors:
     interval: 30s
     internal_service:
       ping:
-        # Use the Core URL from this host. If the Agent runs on the Core machine,
+        # Use the Core URL from this host. If the Server runs on the Core machine,
         # 127.0.0.1 is fine. Otherwise use the same hostname/IP as core_url.
         url: http://127.0.0.1:8999/health
         timeout: 3s
       process:
-        # This only works when the Agent runs on the Core host.
+        # This only works when the Server runs on the Core host.
         port: 8999
 
   - name: root-disk

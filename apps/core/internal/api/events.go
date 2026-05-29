@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 	"orion/core/internal/db"
+	"orion/core/internal/service"
 	"orion/core/internal/utils"
 	"sort"
 	"strings"
@@ -164,6 +165,25 @@ func (s *Server) orionEvents(fetchLimit int, filters orionEventFilters) ([]Orion
 		})
 	}
 
+	var auditEvents []db.AuditEvent
+	if err := s.db.Order("created_at DESC").Limit(fetchLimit).Find(&auditEvents).Error; err != nil {
+		return nil, err
+	}
+	for _, event := range auditEvents {
+		source := "audit"
+		if event.AffectedObjectType != "" {
+			source = event.AffectedObjectType + "_lifecycle"
+		}
+		events = append(events, OrionEventResponse{
+			ID:        event.ID,
+			Type:      event.Action,
+			Source:    source,
+			Message:   auditEventMessage(event),
+			AgentID:   auditEventAgentID(event),
+			CreatedAt: event.CreatedAt,
+		})
+	}
+
 	var settings db.DataLifecycleSettings
 	result := s.db.First(&settings, 1)
 	if result.Error == nil {
@@ -199,6 +219,26 @@ func (s *Server) orionEvents(fetchLimit int, filters orionEventFilters) ([]Orion
 		return events[:fetchLimit], nil
 	}
 	return events, nil
+}
+
+func auditEventMessage(event db.AuditEvent) string {
+	switch event.Action {
+	case service.AgentTokenAuditActionRotated:
+		return "Agent token rotated"
+	case service.AgentTokenAuditActionRevoked:
+		return "Agent token revoked"
+	case service.AgentTokenAuditActionReissued:
+		return "Agent token reissued"
+	default:
+		return strings.ReplaceAll(event.Action, "_", " ")
+	}
+}
+
+func auditEventAgentID(event db.AuditEvent) string {
+	if event.AffectedObjectType == "agent" {
+		return event.AffectedObjectID
+	}
+	return ""
 }
 
 func filterOrionEvents(events []OrionEventResponse, filters orionEventFilters) []OrionEventResponse {
