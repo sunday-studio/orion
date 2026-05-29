@@ -1,6 +1,6 @@
 # First Run Checklist
 
-Use this checklist for a first self-hosted Orion run with one Core and one Agent.
+Use this checklist for a first self-hosted Orion run with one Core and one Server.
 
 ## Core
 
@@ -34,9 +34,9 @@ curl http://localhost:8999/health
 - [ ] Open `http://localhost:8999` and sign in with the configured admin credentials.
 - [ ] Confirm the `orion-data` Docker volume exists and is included in backups.
 
-## Agent
+## Server
 
-- [ ] Pick a Core URL the Agent machine can reach, such as:
+- [ ] Pick a Core URL the Server machine can reach, such as:
 
 ```txt
 http://orion-core.local:8999
@@ -51,7 +51,7 @@ curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion
   --core-url http://orion-core.local:8999
 ```
 
-Use the Core URL this Agent host can reach.
+Use the Core URL this Server host can reach.
 
 - [ ] Or install with the sample config:
 
@@ -63,8 +63,8 @@ curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion
   --config ./orion-agent-config.yaml
 ```
 
-- [ ] Confirm the Agent service is running.
-- [ ] Confirm local Agent state exists:
+- [ ] Confirm the Server service is running.
+- [ ] Confirm local Server state exists:
 
 Linux:
 
@@ -78,7 +78,7 @@ macOS:
 sudo test -f /usr/local/var/lib/orion/state.db
 ```
 
-- [ ] Confirm local Agent logs exist:
+- [ ] Confirm local Server logs exist:
 
 Linux:
 
@@ -94,9 +94,9 @@ sudo test -f /usr/local/var/log/orion/agent.log
 orion-agent logs --lines 20
 ```
 
-- [ ] Confirm the Agent appears in the Console Agents view.
+- [ ] Confirm the Server appears in the Console Servers view.
 - [ ] Confirm monitor rows appear after the first monitor interval.
-- [ ] Restart the Agent and confirm it does not create duplicate agents or monitors.
+- [ ] Restart the Server and confirm it does not create duplicate servers or monitors.
 
 ## Backup
 

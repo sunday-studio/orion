@@ -20,6 +20,7 @@ export const statusValues = [
   "stale",
   "open",
   "acknowledged",
+  "covered",
   "resolved",
 ] as const;
 export type Status = (typeof statusValues)[number];
@@ -54,6 +55,7 @@ const statusClass: Record<Status, string> = {
   stale: "bg-slate-100 text-slate-900",
   open: "bg-rose-100 text-rose-950",
   acknowledged: "bg-amber-100 text-amber-950",
+  covered: "bg-cyan-100 text-cyan-900",
   resolved: "bg-blue-100 text-blue-900",
 };
 

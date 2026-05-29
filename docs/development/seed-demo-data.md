@@ -22,11 +22,13 @@ By default this writes to `apps/core/data/orion.db` and generates:
 - 90 days of data;
 - 10 seeded servers;
 - all implemented monitor types per server;
-- hourly agent reports;
+- hourly server reports;
 - hourly monitor reports;
 - daily uptime rollups;
 - open, acknowledged, and resolved incidents;
-- pending, sent, failed, suppressed, and cooldown alert deliveries.
+- pending, sent, failed, suppressed, and cooldown alert deliveries;
+- a published demo status page with sections, components, monitor mappings, public incidents,
+  subscriber preferences, and delivery ledger rows.
 
 ## Custom Database
 
@@ -73,6 +75,19 @@ The generated monitors cover:
 - disabled lifecycle rows;
 - deleted lifecycle rows;
 - active never-reported rows.
+
+The generated status page data covers:
+
+- `seed-orion-status`, a published public status page with SEO, metadata, theme, and custom-domain
+  fields populated;
+- public sections for customer-facing systems, infrastructure, and internal services;
+- visible mapped components, manual components, and a hidden private component;
+- monitor and server mappings so public component health and uptime can aggregate from seeded
+  monitors and rollups;
+- published active, resolved, and scheduled public incidents;
+- private and draft incidents for Console editor and public-boundary checks;
+- confirmed, scoped, pending, and unsubscribed public subscribers;
+- sent and pending-sender-configuration subscriber delivery rows.
 
 ## Re-running
 

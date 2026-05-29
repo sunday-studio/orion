@@ -2,13 +2,13 @@
 
 ## Goal
 
-Bring the Console to a usable first-test state for incidents, agents, monitors, alerts, event logs, and settings.
+Bring the Console to a usable first-test state for incidents, servers, monitors, alerts, event logs, and settings.
 
 ## Scope
 
 - Primary navigation and app shell.
 - Incidents list and incident detail.
-- Agents list and agent detail.
+- Servers list and server detail.
 - Monitors list and monitor detail.
 - Alerts, event log, and data lifecycle settings pages.
 - Shared table, pagination, empty state, badges, tabs, and URL query state.
@@ -16,11 +16,11 @@ Bring the Console to a usable first-test state for incidents, agents, monitors, 
 ## Completed
 
 - `/` redirects to `/incidents`.
-- Primary navigation includes Incidents, Agents, Monitors, Alerts, Logs, and Settings.
-- Incidents show summary cards, server-side filters, pagination, status/severity/notification badges, linked agent/monitor columns, and detail views.
-- Agent list uses summary cards, server-side filters, pagination, expandable monitor rows, and linked detail navigation.
-- Agent detail has tabs for reports, monitors, and system metrics.
-- Monitor list uses the shared data table, summary cards, filters, pagination, and linked agent/incident navigation.
+- Primary navigation includes Incidents, Servers, Monitors, Alerts, Logs, and Settings.
+- Incidents show summary cards, server-side filters, pagination, status/severity/notification badges, linked server/monitor columns, and detail views.
+- Server list uses summary cards, server-side filters, pagination, expandable monitor rows, and linked detail navigation.
+- Server detail has tabs for reports, monitors, and system metrics.
+- Monitor list uses the shared data table, summary cards, filters, pagination, and linked server/incident navigation.
 - Monitor detail shows current result, recent uptime buckets, check history, related incidents, and configuration snapshot.
 - Alerts page shows notification deliveries, channels, and rules.
 - Event log page shows Orion events with server-side source, type, and search filters.
@@ -42,5 +42,5 @@ Bring the Console to a usable first-test state for incidents, agents, monitors, 
 
 ## Next
 
-- Use seeded data and one real Agent to test the Console end to end.
+- Use seeded data and one real Server to test the Console end to end.
 - Add small browser smoke tests only after the first manual test pass stabilizes the flows.

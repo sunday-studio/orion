@@ -8,6 +8,8 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"regexp"
+	"strings"
 	"time"
 
 	"orion/agent/internal/logging"
@@ -16,9 +18,20 @@ import (
 type AuthError struct {
 	StatusCode int
 	Body       string
+	Code       string
+	Message    string
 }
 
 func (e *AuthError) Error() string {
+	if e.Code != "" && e.Message != "" {
+		return fmt.Sprintf("core authentication failed with status %d: code=%s message=%s", e.StatusCode, e.Code, e.Message)
+	}
+	if e.Code != "" {
+		return fmt.Sprintf("core authentication failed with status %d: code=%s", e.StatusCode, e.Code)
+	}
+	if e.Message != "" {
+		return fmt.Sprintf("core authentication failed with status %d: %s", e.StatusCode, e.Message)
+	}
 	if e.Body == "" {
 		return fmt.Sprintf("core authentication failed with status %d", e.StatusCode)
 	}
@@ -28,6 +41,61 @@ func (e *AuthError) Error() string {
 func IsAuthError(err error) bool {
 	var authErr *AuthError
 	return errors.As(err, &authErr)
+}
+
+func NewAuthError(statusCode int, body []byte) *AuthError {
+	code, message, safeBody := parseAuthErrorBody(body)
+	return &AuthError{
+		StatusCode: statusCode,
+		Body:       safeBody,
+		Code:       code,
+		Message:    message,
+	}
+}
+
+func parseAuthErrorBody(body []byte) (string, string, string) {
+	raw := strings.TrimSpace(string(body))
+	if raw == "" {
+		return "", "", ""
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(body, &payload); err == nil {
+		code := firstStringField(payload, "code", "error_code", "error")
+		message := firstStringField(payload, "message", "detail")
+		return redactAuthText(code), redactAuthText(message), redactAuthText(raw)
+	}
+
+	return "", redactAuthText(raw), redactAuthText(raw)
+}
+
+func firstStringField(payload map[string]any, keys ...string) string {
+	for _, key := range keys {
+		value, ok := payload[key]
+		if !ok {
+			continue
+		}
+		if text, ok := value.(string); ok {
+			return text
+		}
+	}
+	return ""
+}
+
+func redactAuthText(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	for _, pattern := range authRedactionPatterns {
+		value = pattern.ReplaceAllString(value, "${1}[redacted]")
+	}
+	return value
+}
+
+var authRedactionPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)(bearer\s+)[A-Za-z0-9._~+/=-]+`),
+	regexp.MustCompile(`(?i)("?(token|secret|password|api[_-]?key|authorization)"?\s*[:=]\s*"?)[^"\s,;{}]+`),
 }
 
 type Client struct {
@@ -184,7 +252,7 @@ func (c *Client) RegisterMonitor(req MonitorRegistrationRequest) (*MonitorRegist
 
 	if resp.StatusCode != http.StatusOK {
 		if isAuthStatus(resp.StatusCode) {
-			return nil, &AuthError{StatusCode: resp.StatusCode, Body: string(body)}
+			return nil, NewAuthError(resp.StatusCode, body)
 		}
 		return nil, fmt.Errorf("core responded with %d: %s", resp.StatusCode, string(body))
 	}
@@ -218,7 +286,7 @@ func (c *Client) UnregisterMonitor(req UnRegisterMonitorRequest) (*UnRegisterMon
 
 	if resp.StatusCode != http.StatusOK {
 		if isAuthStatus(resp.StatusCode) {
-			return nil, &AuthError{StatusCode: resp.StatusCode, Body: string(body)}
+			return nil, NewAuthError(resp.StatusCode, body)
 		}
 		return nil, fmt.Errorf("core responded with %d: %s", resp.StatusCode, string(body))
 	}
@@ -247,7 +315,7 @@ func (c *Client) SendReport(report SystemReport, agentID string) error {
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		if isAuthStatus(resp.StatusCode) {
-			return &AuthError{StatusCode: resp.StatusCode, Body: string(body)}
+			return NewAuthError(resp.StatusCode, body)
 		}
 		logging.Warnf("unexpected status from core: %d — %s", resp.StatusCode, string(body))
 		return fmt.Errorf("core server returned status %d", resp.StatusCode)
@@ -268,13 +336,38 @@ func (c *Client) SendMonitorReport(report MonitorReport, agentID string, monitor
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		if isAuthStatus(resp.StatusCode) {
-			return &AuthError{StatusCode: resp.StatusCode, Body: string(body)}
+			return NewAuthError(resp.StatusCode, body)
 		}
 		logging.Warnf("unexpected status from core: %d — %s", resp.StatusCode, string(body))
 		return fmt.Errorf("core server returned status %d", resp.StatusCode)
 	}
 
 	logging.Infof("monitor report successfully sent to core")
+	return nil
+}
+
+func (c *Client) SendServiceLogs(batch ServiceLogBatch, agentID string) error {
+	if len(batch.Entries) == 0 {
+		return nil
+	}
+
+	endpoint := fmt.Sprintf("/v1/agents/%s/logs/batch", agentID)
+	resp, err := c.makeProtectedRequest("POST", endpoint, batch)
+	if err != nil {
+		return fmt.Errorf("failed to send service logs: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		if isAuthStatus(resp.StatusCode) {
+			return NewAuthError(resp.StatusCode, body)
+		}
+		logging.Warnf("unexpected status from core service log ingest: %d — %s", resp.StatusCode, string(body))
+		return fmt.Errorf("core server returned status %d", resp.StatusCode)
+	}
+
+	logging.Infof("service logs successfully sent to core")
 	return nil
 }
 

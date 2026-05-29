@@ -5,12 +5,7 @@ import { ListPagination } from "@/components/list-pagination";
 import { StatusBadge, toStatus } from "@/components/status-badges";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import {
   type ApiMonitorResponse,
@@ -31,6 +26,8 @@ import { MonitorSummary, type MonitorSummaryFilter } from "./monitor-summary";
 
 const MONITOR_LIMIT = 20;
 const monitorStatusFilters = ["all", "up", "down", "degraded", "unknown", "stale"] as const;
+const monitorOwnerFilters = ["all", "agent", "core"] as const;
+const monitorSourceFilters = ["all", "agent", "core"] as const;
 const monitorTypeFilters = [
   "all",
   "http-healthcheck",
@@ -43,6 +40,19 @@ const monitorTypeFilters = [
   "systemd-service",
   "internal-service",
   "http",
+  "http_keyword",
+  "expected_status",
+  "dns",
+  "tls",
+  "udp",
+  "api_request",
+  "domain_expiration",
+  "ping",
+  "smtp",
+  "imap",
+  "pop",
+  "synthetic",
+  "playwright",
 ] as const;
 
 const monitorTypeOptions: Array<{ value: (typeof monitorTypeFilters)[number]; label: string }> = [
@@ -57,6 +67,19 @@ const monitorTypeOptions: Array<{ value: (typeof monitorTypeFilters)[number]; la
   { value: "systemd-service", label: "Systemd" },
   { value: "internal-service", label: "Internal service" },
   { value: "http", label: "HTTP" },
+  { value: "http_keyword", label: "HTTP keyword" },
+  { value: "expected_status", label: "Expected status" },
+  { value: "dns", label: "DNS" },
+  { value: "tls", label: "TLS" },
+  { value: "udp", label: "UDP" },
+  { value: "api_request", label: "API request" },
+  { value: "domain_expiration", label: "Domain expiration" },
+  { value: "ping", label: "Ping" },
+  { value: "smtp", label: "SMTP" },
+  { value: "imap", label: "IMAP" },
+  { value: "pop", label: "POP" },
+  { value: "synthetic", label: "Synthetic" },
+  { value: "playwright", label: "Playwright" },
 ];
 
 const monitorStatusOptions: Array<{
@@ -71,6 +94,24 @@ const monitorStatusOptions: Array<{
   { value: "stale", label: "Stale" },
 ];
 
+const monitorOwnerOptions: Array<{
+  value: (typeof monitorOwnerFilters)[number];
+  label: string;
+}> = [
+  { value: "all", label: "All owners" },
+  { value: "agent", label: "Server" },
+  { value: "core", label: "Core" },
+];
+
+const monitorSourceOptions: Array<{
+  value: (typeof monitorSourceFilters)[number];
+  label: string;
+}> = [
+  { value: "all", label: "All sources" },
+  { value: "agent", label: "Server" },
+  { value: "core", label: "Core" },
+];
+
 const isStaleMonitor = (monitor: ApiMonitorResponse) => {
   return monitor.health === "stale" || monitor.computed_health === "stale";
 };
@@ -78,6 +119,11 @@ const isStaleMonitor = (monitor: ApiMonitorResponse) => {
 const monitorHealth = (monitor: ApiMonitorResponse) => {
   if (isStaleMonitor(monitor)) return "stale";
   return monitor.health ?? monitor.computed_health ?? "unknown";
+};
+
+const ownerLabel = (monitor: ApiMonitorResponse) => {
+  if (monitor.owner_kind === "core" || monitor.source === "core") return "Core";
+  return "Server";
 };
 
 const columns: ColumnDef<ApiMonitorResponse>[] = [
@@ -106,17 +152,30 @@ const columns: ColumnDef<ApiMonitorResponse>[] = [
     cell: ({ row }) => row.original.type ?? "unknown",
   },
   {
-    accessorKey: "agent_name",
-    header: "Agent",
+    accessorKey: "owner_name",
+    header: "Owner",
     cell: ({ row }) => {
       const monitor = row.original;
-      if (!monitor.agent_id) return monitor.agent_name ?? "Unknown agent";
-
-      return (
-        <DataTableLink to={`/agents/${monitor.agent_id}?tab=monitors`}>
-          {monitor.agent_name ?? monitor.agent_id}
-        </DataTableLink>
+      const kind = ownerLabel(monitor);
+      const name = monitor.owner_name ?? monitor.agent_name ?? monitor.agent_id ?? "Unknown owner";
+      const labelClass =
+        kind === "Core"
+          ? "border-sky-200 bg-sky-50 text-sky-700"
+          : "border-emerald-200 bg-emerald-50 text-emerald-700";
+      const owner = (
+        <div className="flex min-w-44 flex-wrap items-center gap-2">
+          <span className={`rounded border px-2 py-0.5 text-xs font-medium ${labelClass}`}>
+            {kind}
+          </span>
+          <span className="truncate">{name}</span>
+        </div>
       );
+
+      if (monitor.owner_kind === "core" || monitor.source === "core" || !monitor.agent_id) {
+        return owner;
+      }
+
+      return <DataTableLink to={`/servers/${monitor.agent_id}?tab=monitors`}>{owner}</DataTableLink>;
     },
   },
   {
@@ -145,13 +204,17 @@ const columns: ColumnDef<ApiMonitorResponse>[] = [
 ];
 
 export const MonitorList = () => {
-  const [{ search, status, type, incidents, page }, setMonitorQuery] = useQueryStates({
-    search: parseAsString.withDefault(""),
-    status: parseAsStringLiteral(monitorStatusFilters).withDefault("all"),
-    type: parseAsStringLiteral(monitorTypeFilters).withDefault("all"),
-    incidents: parseAsBoolean.withDefault(false),
-    page: parseAsInteger.withDefault(1),
-  });
+  const [{ search, status, type, owner, ownerName, source, incidents, page }, setMonitorQuery] =
+    useQueryStates({
+      search: parseAsString.withDefault(""),
+      status: parseAsStringLiteral(monitorStatusFilters).withDefault("all"),
+      type: parseAsStringLiteral(monitorTypeFilters).withDefault("all"),
+      owner: parseAsStringLiteral(monitorOwnerFilters).withDefault("all"),
+      ownerName: parseAsString.withDefault(""),
+      source: parseAsStringLiteral(monitorSourceFilters).withDefault("all"),
+      incidents: parseAsBoolean.withDefault(false),
+      page: parseAsInteger.withDefault(1),
+    });
   const currentPage = Math.max(page, 1);
   const offset = (currentPage - 1) * MONITOR_LIMIT;
 
@@ -161,6 +224,9 @@ export const MonitorList = () => {
     search: search.trim() || undefined,
     health: status === "all" ? undefined : status,
     type: type === "all" ? undefined : type,
+    owner_kind: owner === "all" ? undefined : owner,
+    owner_name: ownerName.trim() || undefined,
+    source: source === "all" ? undefined : source,
     has_incidents: incidents || undefined,
     sort: "updated_at",
     order: "desc",
@@ -171,10 +237,21 @@ export const MonitorList = () => {
   const monitors = monitorsResponse.data?.monitors ?? [];
   const count = monitorsResponse.data?.count ?? monitors.length;
   const selectedSummaryFilter: MonitorSummaryFilter = incidents ? "incidents" : status;
-  const hasFilters = Boolean(search.trim()) || status !== "all" || type !== "all" || incidents;
+  const hasFilters =
+    Boolean(search.trim()) ||
+    status !== "all" ||
+    type !== "all" ||
+    owner !== "all" ||
+    Boolean(ownerName.trim()) ||
+    source !== "all" ||
+    incidents;
   const statusLabel =
     monitorStatusOptions.find((option) => option.value === status)?.label ?? status;
   const typeLabel = monitorTypeOptions.find((option) => option.value === type)?.label ?? type;
+  const ownerFilterLabel =
+    monitorOwnerOptions.find((option) => option.value === owner)?.label ?? owner;
+  const sourceLabel =
+    monitorSourceOptions.find((option) => option.value === source)?.label ?? source;
 
   const setOffset = (nextOffset: number) => {
     void setMonitorQuery({ page: Math.floor(nextOffset / MONITOR_LIMIT) + 1 });
@@ -206,11 +283,31 @@ export const MonitorList = () => {
     void setMonitorQuery({ type: nextType as (typeof monitorTypeFilters)[number], page: 1 });
   };
 
+  const setOwner = (nextOwner: string) => {
+    if (!monitorOwnerFilters.includes(nextOwner as (typeof monitorOwnerFilters)[number])) return;
+    void setMonitorQuery({ owner: nextOwner as (typeof monitorOwnerFilters)[number], page: 1 });
+  };
+
+  const setOwnerName = (nextOwnerName: string) => {
+    void setMonitorQuery({ ownerName: nextOwnerName, page: 1 });
+  };
+
+  const setSource = (nextSource: string) => {
+    if (!monitorSourceFilters.includes(nextSource as (typeof monitorSourceFilters)[number])) return;
+    void setMonitorQuery({
+      source: nextSource as (typeof monitorSourceFilters)[number],
+      page: 1,
+    });
+  };
+
   const clearFilters = () => {
     void setMonitorQuery({
       search: "",
       status: "all",
       type: "all",
+      owner: "all",
+      ownerName: "",
+      source: "all",
       incidents: false,
       page: 1,
     });
@@ -259,6 +356,36 @@ export const MonitorList = () => {
             ))}
           </SelectContent>
         </Select>
+        <Select value={owner} onValueChange={setOwner}>
+          <SelectTrigger className="min-w-44 text-xs">
+            <span data-slot="select-value">Owner: {ownerFilterLabel}</span>
+          </SelectTrigger>
+          <SelectContent>
+            {monitorOwnerOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={source} onValueChange={setSource}>
+          <SelectTrigger className="min-w-44 text-xs">
+            <span data-slot="select-value">Source: {sourceLabel}</span>
+          </SelectTrigger>
+          <SelectContent>
+            {monitorSourceOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Input
+          value={ownerName}
+          onChange={(event) => setOwnerName(event.target.value)}
+          placeholder="Owner name"
+          className="w-full max-w-48"
+        />
         {hasFilters && (
           <Button variant="ghost" size="sm" onClick={clearFilters}>
             Clear

@@ -1,6 +1,12 @@
 package service
 
 import (
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -15,10 +21,13 @@ import (
 // AgentListRow extends Agent with list-only fields from joins/subqueries.
 type AgentListRow struct {
 	db.Agent
-	MonitorCount  int64   `json:"monitor_count"`
-	IP            *string `json:"ip,omitempty"`
-	Status        string  `json:"status"`
-	UptimeSeconds *uint64 `json:"uptime_seconds,omitempty"`
+	MonitorCount       int64   `json:"monitor_count"`
+	IP                 *string `json:"ip,omitempty"`
+	Status             string  `json:"status"`
+	AvailabilityHealth string  `json:"availability_health,omitempty"`
+	MonitorHealth      string  `json:"monitor_health,omitempty"`
+	StatusReason       string  `json:"status_reason,omitempty"`
+	UptimeSeconds      *uint64 `json:"uptime_seconds,omitempty"`
 }
 
 // parseListDuration parses "24h", "7d" into a duration. last_seen filter: agents with last_seen >= now-duration.
@@ -73,6 +82,21 @@ type AgentService struct {
 	logger *logging.Logger
 }
 
+const (
+	AgentTokenStateActive  = "active"
+	AgentTokenStateRevoked = "revoked"
+
+	AgentTokenAuditActionRotated  = "agent_token_rotated"
+	AgentTokenAuditActionRevoked  = "agent_token_revoked"
+	AgentTokenAuditActionReissued = "agent_token_reissued"
+)
+
+var (
+	ErrAgentTokenRevoked         = errors.New("agent_token_revoked")
+	ErrAgentTokenReissueRequired = errors.New("agent_token_reissue_required")
+	ErrAgentTokenNotRevoked      = errors.New("agent_token_not_revoked")
+)
+
 func NewAgentService(database *gorm.DB, logger *logging.Logger) *AgentService {
 	return &AgentService{
 		db:     database,
@@ -94,6 +118,28 @@ type RegisterResponse struct {
 	Token   string `json:"token"`
 }
 
+type AgentTokenStatus struct {
+	AgentID               string     `json:"agent_id"`
+	State                 string     `json:"state"`
+	TokenVersion          int        `json:"token_version"`
+	TokenRotatedAt        *time.Time `json:"token_rotated_at,omitempty"`
+	TokenRevokedAt        *time.Time `json:"token_revoked_at,omitempty"`
+	TokenRevocationReason string     `json:"token_revocation_reason,omitempty"`
+	TokenExists           bool       `json:"token_exists"`
+}
+
+type AgentTokenActionInput struct {
+	ActorType string
+	ActorID   string
+	Reason    string
+	RequestID string
+}
+
+type AgentTokenIssueResult struct {
+	Token  string
+	Status AgentTokenStatus
+}
+
 func (s *AgentService) RegisterAgent(req *RegisterRequest) (*RegisterResponse, error) {
 	var agent db.Agent
 
@@ -106,6 +152,13 @@ func (s *AgentService) RegisterAgent(req *RegisterRequest) (*RegisterResponse, e
 	}
 
 	// Agent exists - handle reconnection/re-registration
+	if agent.TokenRevokedAt != nil {
+		return nil, ErrAgentTokenRevoked
+	}
+	if agent.TokenHash != "" {
+		return nil, ErrAgentTokenReissueRequired
+	}
+
 	// Update metadata if it has changed (OS, arch, name may change after system updates)
 	updates := make(map[string]interface{})
 	updates["last_seen"] = time.Now()
@@ -152,6 +205,7 @@ func (s *AgentService) RegisterAgent(req *RegisterRequest) (*RegisterResponse, e
 
 func (s *AgentService) createNewAgent(req *RegisterRequest) (*RegisterResponse, error) {
 	agentID := utils.GenerateID("agent")
+	now := time.Now().UTC()
 
 	token, err := utils.GenerateToken()
 	if err != nil {
@@ -165,11 +219,14 @@ func (s *AgentService) createNewAgent(req *RegisterRequest) (*RegisterResponse, 
 		Name:                     req.Name,
 		OS:                       req.OS,
 		Arch:                     req.Arch,
-		Token:                    token,
+		Token:                    storedAgentTokenMarker(token),
+		TokenHash:                hashAgentToken(token),
+		TokenVersion:             1,
+		TokenRotatedAt:           &now,
 		ReportingIntervalSeconds: req.ReportingIntervalSeconds,
 		Meta:                     req.Meta,
-		CreatedAt:                time.Now(),
-		LastSeen:                 time.Now(),
+		CreatedAt:                now,
+		LastSeen:                 now,
 	}
 	if agent.ReportingIntervalSeconds <= 0 {
 		agent.ReportingIntervalSeconds = 60
@@ -184,8 +241,224 @@ func (s *AgentService) createNewAgent(req *RegisterRequest) (*RegisterResponse, 
 
 	return &RegisterResponse{
 		AgentID: agentID,
-		Token:   agent.Token,
+		Token:   token,
 	}, nil
+}
+
+func (s *AgentService) ValidateAgentToken(agentID string, token string) (*db.Agent, error) {
+	var agent db.Agent
+	if err := s.db.Where("id = ?", agentID).First(&agent).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			s.logger.Warn("Invalid token for missing agent", "agent_id", agentID)
+			return nil, err
+		}
+		s.logger.Error("Database error during token validation", "error", err)
+		return nil, err
+	}
+	if agent.TokenRevokedAt != nil {
+		s.logger.Warn("Rejected revoked token for agent", "agent_id", agentID)
+		return nil, ErrAgentTokenRevoked
+	}
+	if !agentTokenMatches(agent, token) {
+		s.logger.Warn("Invalid token for agent", "agent_id", agentID)
+		return nil, gorm.ErrRecordNotFound
+	}
+
+	s.logger.Debug("Token validated successfully", "agent_id", agentID, "agent_name", agent.Name)
+	return &agent, nil
+}
+
+func (s *AgentService) AgentTokenStatus(agentID string) (*AgentTokenStatus, error) {
+	var agent db.Agent
+	if err := s.db.Where("id = ?", agentID).First(&agent).Error; err != nil {
+		return nil, err
+	}
+	status := agentTokenStatus(agent)
+	return &status, nil
+}
+
+func (s *AgentService) RotateAgentToken(agentID string, input AgentTokenActionInput) (*AgentTokenIssueResult, error) {
+	return s.issueAgentToken(agentID, input, AgentTokenAuditActionRotated, false)
+}
+
+func (s *AgentService) ReissueAgentToken(agentID string, input AgentTokenActionInput) (*AgentTokenIssueResult, error) {
+	return s.issueAgentToken(agentID, input, AgentTokenAuditActionReissued, true)
+}
+
+func (s *AgentService) RevokeAgentToken(agentID string, input AgentTokenActionInput) (*AgentTokenStatus, error) {
+	now := time.Now().UTC()
+	reason := sanitizeAgentTokenReason(input.Reason)
+
+	var status AgentTokenStatus
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		var agent db.Agent
+		if err := tx.Where("id = ?", agentID).First(&agent).Error; err != nil {
+			return err
+		}
+		if agent.TokenRevokedAt != nil {
+			status = agentTokenStatus(agent)
+			return nil
+		}
+
+		updates := map[string]interface{}{
+			"token":                   revokedAgentTokenMarker(agent.ID, agent.TokenVersion+1),
+			"token_hash":              "",
+			"token_version":           normalizedAgentTokenVersion(agent.TokenVersion) + 1,
+			"token_revoked_at":        now,
+			"token_revocation_reason": reason,
+		}
+		if err := tx.Model(&db.Agent{}).Where("id = ?", agent.ID).Updates(updates).Error; err != nil {
+			return err
+		}
+		var updatedAgent db.Agent
+		if err := tx.Where("id = ?", agent.ID).First(&updatedAgent).Error; err != nil {
+			return err
+		}
+		status = agentTokenStatus(updatedAgent)
+		return recordAgentTokenAuditEvent(tx, AgentTokenAuditActionRevoked, agent.ID, input, status.TokenVersion)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &status, nil
+}
+
+func (s *AgentService) issueAgentToken(agentID string, input AgentTokenActionInput, auditAction string, requireRevoked bool) (*AgentTokenIssueResult, error) {
+	token, err := utils.GenerateToken()
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now().UTC()
+
+	var result AgentTokenIssueResult
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		var agent db.Agent
+		if err := tx.Where("id = ?", agentID).First(&agent).Error; err != nil {
+			return err
+		}
+		if requireRevoked && agent.TokenRevokedAt == nil {
+			return ErrAgentTokenNotRevoked
+		}
+		if !requireRevoked && agent.TokenRevokedAt != nil {
+			return ErrAgentTokenRevoked
+		}
+
+		nextVersion := normalizedAgentTokenVersion(agent.TokenVersion) + 1
+		updates := map[string]interface{}{
+			"token":                   storedAgentTokenMarker(token),
+			"token_hash":              hashAgentToken(token),
+			"token_version":           nextVersion,
+			"token_rotated_at":        now,
+			"token_revocation_reason": "",
+		}
+		if err := tx.Model(&db.Agent{}).Where("id = ?", agent.ID).Updates(updates).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&db.Agent{}).Where("id = ?", agent.ID).UpdateColumn("token_revoked_at", gorm.Expr("NULL")).Error; err != nil {
+			return err
+		}
+		var updatedAgent db.Agent
+		if err := tx.Where("id = ?", agent.ID).First(&updatedAgent).Error; err != nil {
+			return err
+		}
+		result = AgentTokenIssueResult{
+			Token:  token,
+			Status: agentTokenStatus(updatedAgent),
+		}
+		return recordAgentTokenAuditEvent(tx, auditAction, updatedAgent.ID, input, result.Status.TokenVersion)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func agentTokenMatches(agent db.Agent, token string) bool {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return false
+	}
+	if agent.TokenHash != "" {
+		return subtle.ConstantTimeCompare([]byte(agent.TokenHash), []byte(hashAgentToken(token))) == 1
+	}
+	return subtle.ConstantTimeCompare([]byte(agent.Token), []byte(token)) == 1
+}
+
+func agentTokenStatus(agent db.Agent) AgentTokenStatus {
+	state := AgentTokenStateActive
+	tokenExists := agent.TokenHash != "" || (agent.Token != "" && !strings.HasPrefix(agent.Token, "revoked:"))
+	if agent.TokenRevokedAt != nil {
+		state = AgentTokenStateRevoked
+		tokenExists = false
+	}
+	return AgentTokenStatus{
+		AgentID:               agent.ID,
+		State:                 state,
+		TokenVersion:          normalizedAgentTokenVersion(agent.TokenVersion),
+		TokenRotatedAt:        agent.TokenRotatedAt,
+		TokenRevokedAt:        agent.TokenRevokedAt,
+		TokenRevocationReason: agent.TokenRevocationReason,
+		TokenExists:           tokenExists,
+	}
+}
+
+func normalizedAgentTokenVersion(version int) int {
+	if version <= 0 {
+		return 1
+	}
+	return version
+}
+
+func hashAgentToken(token string) string {
+	sum := sha256.Sum256([]byte(strings.TrimSpace(token)))
+	return hex.EncodeToString(sum[:])
+}
+
+func storedAgentTokenMarker(token string) string {
+	return "sha256:" + hashAgentToken(token)
+}
+
+func revokedAgentTokenMarker(agentID string, version int) string {
+	return fmt.Sprintf("revoked:%s:%d", agentID, version)
+}
+
+func sanitizeAgentTokenReason(reason string) string {
+	reason = strings.TrimSpace(reason)
+	if len(reason) > 500 {
+		reason = reason[:500]
+	}
+	return reason
+}
+
+func recordAgentTokenAuditEvent(tx *gorm.DB, action string, agentID string, input AgentTokenActionInput, tokenVersion int) error {
+	actorType := strings.TrimSpace(input.ActorType)
+	if actorType == "" {
+		actorType = "user"
+	}
+	actorID := strings.TrimSpace(input.ActorID)
+	if actorID == "" {
+		actorID = "admin"
+	}
+	metadata, err := json.Marshal(map[string]interface{}{
+		"token_version": tokenVersion,
+		"reason":        sanitizeAgentTokenReason(input.Reason),
+		"request_id":    strings.TrimSpace(input.RequestID),
+	})
+	if err != nil {
+		return err
+	}
+	event := db.AuditEvent{
+		ID:                 utils.GenerateID("audit_event"),
+		Action:             action,
+		StatusPageID:       "",
+		AffectedObjectType: "agent",
+		AffectedObjectID:   agentID,
+		ActorType:          actorType,
+		ActorID:            actorID,
+		MetadataJSON:       string(metadata),
+		CreatedAt:          time.Now().UTC(),
+	}
+	return tx.Create(&event).Error
 }
 
 func (s *AgentService) UpdateLastSeen(agentID string) error {
@@ -311,15 +584,20 @@ func (s *AgentService) ListAgents(opts ListAgentsOpts) ([]AgentListRow, int64, e
 
 	rows := make([]AgentListRow, 0, len(agents))
 	for _, a := range agents {
-		health := "unknown"
-		if h, _, _, _, err := healthSvc.ComputeAgentHealth(a.ID, cfg); err == nil {
-			health = h
+		snapshot := AgentHealthSnapshot{
+			OverallHealth: "unknown",
+			AgentHealth:   "unknown",
+			MonitorHealth: "unknown",
+			Reason:        "health has not been computed yet",
 		}
-		if opts.StaleOnly && health != "stale" {
+		if computed, err := healthSvc.ComputeAgentHealthSnapshot(a.ID, cfg); err == nil {
+			snapshot = computed
+		}
+		if opts.StaleOnly && snapshot.OverallHealth != "stale" {
 			continue
 		}
 		if statusFilter != "" {
-			if health != statusFilter {
+			if snapshot.OverallHealth != statusFilter {
 				continue
 			}
 		}
@@ -328,7 +606,14 @@ func (s *AgentService) ListAgents(opts ListAgentsOpts) ([]AgentListRow, int64, e
 			continue
 		}
 
-		row := AgentListRow{Agent: a, MonitorCount: monitorCounts[a.ID], Status: health}
+		row := AgentListRow{
+			Agent:              a,
+			MonitorCount:       monitorCounts[a.ID],
+			Status:             snapshot.OverallHealth,
+			AvailabilityHealth: snapshot.AgentHealth,
+			MonitorHealth:      snapshot.MonitorHealth,
+			StatusReason:       snapshot.Reason,
+		}
 		if v, ok := uptimeMap[a.ID]; ok {
 			row.UptimeSeconds = &v
 		}
@@ -373,7 +658,7 @@ func (s *AgentService) applyAgentListDatabaseFilters(query *gorm.DB, opts ListAg
 	if opts.HasIncidents {
 		query = query.Where(
 			"id IN (?)",
-			s.db.Model(&db.Incident{}).Select("agent_id").Where("status IN ?", []string{"open", "acknowledged"}),
+			s.db.Model(&db.Incident{}).Select("agent_id").Where("status IN ?", activeIncidentStatuses()),
 		)
 	}
 

@@ -59,7 +59,7 @@ func commandNeedsElevation(command string, args []string) bool {
 	switch command {
 	case "start", "stop", "restart", "update", "reconfigure":
 		return true
-	case "maintenance", "state":
+	case "maintenance", "state", "token":
 		return !argsSetPath(args, "state")
 	case "run":
 		return argsContainFlag(args, "once") && (!argsSetPath(args, "config") || !argsSetPath(args, "state"))

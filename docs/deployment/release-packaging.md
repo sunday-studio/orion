@@ -1,6 +1,6 @@
 # Release Packaging
 
-Use one version for the Core image, Agent binary, API contract, and Console build.
+Use one version for the Core image, Server binary, API contract, and Console build.
 
 ## Version Format
 
@@ -35,11 +35,11 @@ ghcr.io/sunday-studio/orion-core:<version>
 
 Use the same version tag in the sample Docker Compose file.
 
-## Agent Binary
+## Server Binary
 
-Publish Agent binaries from GitHub Actions:
+Publish Server binaries from GitHub Actions:
 
-- workflow: `Agent Binaries`;
+- workflow: `Server Binaries`;
 - trigger: manual `workflow_dispatch`;
 - required input: `version`, for example `0.1.0`;
 - optional input: `prerelease`.
@@ -59,17 +59,17 @@ orion-agent-darwin-amd64
 orion-agent-darwin-arm64
 ```
 
-The installer detects the host OS and architecture and downloads the matching Agent binary and
+The installer detects the host OS and architecture and downloads the matching Server binary and
 service assets from the latest GitHub release unless `--version` is explicitly passed.
 
-The Agent reports its baked version in system reports, so Core and Console can show which version
+The Server reports its baked version in system reports, so Core and Console can show which version
 is installed.
 
 ## Compatibility
 
-For the first deploy, Core and Agent should run the same release tag.
+For the first deploy, Core and Server should run the same release tag.
 
 Patch releases in the same minor line are expected to stay wire-compatible. For example, `0.1.1`
-Agent should work with `0.1.0` Core unless release notes say otherwise.
+Server should work with `0.1.0` Core unless release notes say otherwise.
 
-Minor releases may add fields or behavior. Upgrade Core before Agents when moving across minor versions.
+Minor releases may add fields or behavior. Upgrade Core before Servers when moving across minor versions.

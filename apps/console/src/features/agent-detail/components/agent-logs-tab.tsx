@@ -1,9 +1,11 @@
 import { DataTable } from "@/components/data-table";
 import { ListPagination } from "@/components/list-pagination";
-import { type ApiAgentReportResponse, useGetAgentReports } from "@/orion-sdk";
+import { ReportInspectionDrawer } from "@/features/report-inspection/report-inspection-drawer";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
+import { type ApiAgentReportResponse, useGetAgentReports } from "@/orion-sdk";
 import type { ColumnDef } from "@tanstack/react-table";
 import { parseAsInteger, useQueryStates } from "nuqs";
+import { useState } from "react";
 import { formatDuration, formatPercent } from "./agent-detail-utils";
 
 const AGENT_LOG_LIMIT = 20;
@@ -49,6 +51,7 @@ export const AgentLogsTab = ({ agentId }: AgentLogsTabProps) => {
   const reportsQuery = useGetAgentReports(agentId, { limit: AGENT_LOG_LIMIT, offset });
   const reports = reportsQuery.data?.reports ?? [];
   const count = reportsQuery.data?.count ?? reports.length;
+  const [selectedReport, setSelectedReport] = useState<ApiAgentReportResponse>();
   const setOffset = (nextOffset: number) => {
     void setReportsQuery({ reportsPage: Math.floor(nextOffset / AGENT_LOG_LIMIT) + 1 });
   };
@@ -61,9 +64,10 @@ export const AgentLogsTab = ({ agentId }: AgentLogsTabProps) => {
           columns={agentLogColumns}
           data={reports}
           emptyMessage="No reports recorded"
-          getRowId={(report, index) => report.id ?? `${report.agent_id ?? "agent"}-${index}`}
+          getRowId={(report, index) => report.id ?? `${report.agent_id ?? "server"}-${index}`}
           isLoading={reportsQuery.isLoading}
           loadingMessage="Loading reports..."
+          onRowClick={setSelectedReport}
         />
       )}
       {count > 0 && (
@@ -74,6 +78,13 @@ export const AgentLogsTab = ({ agentId }: AgentLogsTabProps) => {
           onOffsetChange={setOffset}
         />
       )}
+      <ReportInspectionDrawer
+        kind="agent"
+        report={selectedReport}
+        onOpenChange={(open) => {
+          if (!open) setSelectedReport(undefined);
+        }}
+      />
     </div>
   );
 };

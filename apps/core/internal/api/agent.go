@@ -1,6 +1,8 @@
 package api
 
 import (
+	"errors"
+	"net/http"
 	"orion/core/internal/db"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
@@ -34,6 +36,14 @@ func (s *Server) registerAgent(c *gin.Context) {
 
 	response, err := s.agentService.RegisterAgent(&req)
 	if err != nil {
+		if errors.Is(err, service.ErrAgentTokenRevoked) {
+			utils.ErrorResponse(c, http.StatusConflict, "agent_token_revoked", nil)
+			return
+		}
+		if errors.Is(err, service.ErrAgentTokenReissueRequired) {
+			utils.ErrorResponse(c, http.StatusConflict, "agent_token_reissue_required", nil)
+			return
+		}
 		s.logger.Error("Failed to register agent", "error", err)
 		utils.InternalError(c, "Failed to register agent", err)
 		return
@@ -41,6 +51,209 @@ func (s *Server) registerAgent(c *gin.Context) {
 
 	s.logger.Info("Agent registered successfully", "agent_id", response.AgentID, "machine_id", req.MachineId)
 	utils.SuccessResponse(c, 200, "Agent registered successfully", response)
+}
+
+type AgentTokenActionRequest struct {
+	Reason string `json:"reason,omitempty"`
+}
+
+type AgentTokenStatusResponse struct {
+	AgentID               string     `json:"agent_id"`
+	State                 string     `json:"state"`
+	TokenVersion          int        `json:"token_version"`
+	TokenRotatedAt        *time.Time `json:"token_rotated_at,omitempty"`
+	TokenRevokedAt        *time.Time `json:"token_revoked_at,omitempty"`
+	TokenRevocationReason string     `json:"token_revocation_reason,omitempty"`
+	TokenExists           bool       `json:"token_exists"`
+	RequestID             string     `json:"request_id,omitempty"`
+}
+
+type AgentTokenIssuedResponse struct {
+	Token  string                   `json:"token"`
+	Status AgentTokenStatusResponse `json:"status"`
+}
+
+// getAgentTokenStatus returns non-secret token lifecycle metadata for an agent.
+// @Summary      Get agent token status
+// @Description  Get non-secret token lifecycle metadata for an agent
+// @Tags         agents
+// @Accept       json
+// @Produce      json
+// @ID           getAgentTokenStatus
+// @Param        agent_id  path      string  true  "Agent ID"
+// @Success      200       {object}  utils.APIResponse{data=AgentTokenStatusResponse}
+// @Failure      400       {object}  utils.APIResponse
+// @Failure      404       {object}  utils.APIResponse
+// @Router       /v1/agents/{agent_id}/token/status [get]
+func (s *Server) getAgentTokenStatus(c *gin.Context) {
+	agentID := agentIDParam(c)
+	if agentID == "" {
+		utils.BadRequest(c, "Agent ID is required")
+		return
+	}
+	status, err := s.agentService.AgentTokenStatus(agentID)
+	if err != nil {
+		utils.NotFound(c, "Agent not found")
+		return
+	}
+	utils.SuccessResponse(c, http.StatusOK, "Agent token status retrieved successfully", agentTokenStatusResponse(*status, requestIDFromContext(c)))
+}
+
+// rotateAgentToken creates a replacement token for an active agent.
+// @Summary      Rotate agent token
+// @Description  Create a replacement token for an active agent and return it once
+// @Tags         agents
+// @Accept       json
+// @Produce      json
+// @ID           rotateAgentToken
+// @Param        agent_id  path      string                   true   "Agent ID"
+// @Param        request   body      AgentTokenActionRequest  false  "Token action request"
+// @Success      200       {object}  utils.APIResponse{data=AgentTokenIssuedResponse}
+// @Failure      400       {object}  utils.APIResponse
+// @Failure      404       {object}  utils.APIResponse
+// @Failure      409       {object}  utils.APIResponse
+// @Router       /v1/agents/{agent_id}/token/rotate [post]
+func (s *Server) rotateAgentToken(c *gin.Context) {
+	s.agentTokenIssueAction(c, s.agentService.RotateAgentToken, "Agent token rotated successfully")
+}
+
+// reissueAgentToken creates a replacement token for a revoked agent.
+// @Summary      Reissue agent token
+// @Description  Create a replacement token for a revoked agent and return it once
+// @Tags         agents
+// @Accept       json
+// @Produce      json
+// @ID           reissueAgentToken
+// @Param        agent_id  path      string                   true   "Agent ID"
+// @Param        request   body      AgentTokenActionRequest  false  "Token action request"
+// @Success      200       {object}  utils.APIResponse{data=AgentTokenIssuedResponse}
+// @Failure      400       {object}  utils.APIResponse
+// @Failure      404       {object}  utils.APIResponse
+// @Failure      409       {object}  utils.APIResponse
+// @Router       /v1/agents/{agent_id}/token/reissue [post]
+func (s *Server) reissueAgentToken(c *gin.Context) {
+	s.agentTokenIssueAction(c, s.agentService.ReissueAgentToken, "Agent token reissued successfully")
+}
+
+// revokeAgentToken revokes the active token for an agent.
+// @Summary      Revoke agent token
+// @Description  Revoke the active token for an agent without deleting the agent or monitors
+// @Tags         agents
+// @Accept       json
+// @Produce      json
+// @ID           revokeAgentToken
+// @Param        agent_id  path      string                   true   "Agent ID"
+// @Param        request   body      AgentTokenActionRequest  false  "Token action request"
+// @Success      200       {object}  utils.APIResponse{data=AgentTokenStatusResponse}
+// @Failure      400       {object}  utils.APIResponse
+// @Failure      404       {object}  utils.APIResponse
+// @Failure      409       {object}  utils.APIResponse
+// @Router       /v1/agents/{agent_id}/token/revoke [post]
+func (s *Server) revokeAgentToken(c *gin.Context) {
+	agentID := agentIDParam(c)
+	if agentID == "" {
+		utils.BadRequest(c, "Agent ID is required")
+		return
+	}
+	req, ok := bindAgentTokenActionRequest(c)
+	if !ok {
+		return
+	}
+	status, err := s.agentService.RevokeAgentToken(agentID, agentTokenActionInput(c, req))
+	if err != nil {
+		s.respondAgentTokenActionError(c, err)
+		return
+	}
+	utils.SuccessResponse(c, http.StatusOK, "Agent token revoked successfully", agentTokenStatusResponse(*status, requestIDFromContext(c)))
+}
+
+func (s *Server) agentTokenIssueAction(c *gin.Context, action func(string, service.AgentTokenActionInput) (*service.AgentTokenIssueResult, error), message string) {
+	agentID := agentIDParam(c)
+	if agentID == "" {
+		utils.BadRequest(c, "Agent ID is required")
+		return
+	}
+	req, ok := bindAgentTokenActionRequest(c)
+	if !ok {
+		return
+	}
+	result, err := action(agentID, agentTokenActionInput(c, req))
+	if err != nil {
+		s.respondAgentTokenActionError(c, err)
+		return
+	}
+	c.Header("Cache-Control", "no-store")
+	utils.SuccessResponse(c, http.StatusOK, message, AgentTokenIssuedResponse{
+		Token:  result.Token,
+		Status: agentTokenStatusResponse(result.Status, requestIDFromContext(c)),
+	})
+}
+
+func bindAgentTokenActionRequest(c *gin.Context) (AgentTokenActionRequest, bool) {
+	var req AgentTokenActionRequest
+	if c.Request.Body == nil || c.Request.ContentLength == 0 {
+		return req, true
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.BadRequest(c, "Invalid request payload")
+		return AgentTokenActionRequest{}, false
+	}
+	return req, true
+}
+
+func (s *Server) respondAgentTokenActionError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, service.ErrAgentTokenRevoked):
+		utils.ErrorResponse(c, http.StatusConflict, "agent_token_revoked", nil)
+	case errors.Is(err, service.ErrAgentTokenNotRevoked):
+		utils.ErrorResponse(c, http.StatusConflict, "agent_token_not_revoked", nil)
+	default:
+		utils.NotFound(c, "Agent not found")
+	}
+}
+
+func agentTokenActionInput(c *gin.Context, req AgentTokenActionRequest) service.AgentTokenActionInput {
+	actorID := "admin"
+	if value, ok := c.Get("frontend_actor_id"); ok {
+		if subject, ok := value.(string); ok && subject != "" {
+			actorID = subject
+		}
+	}
+	return service.AgentTokenActionInput{
+		ActorType: "user",
+		ActorID:   actorID,
+		Reason:    req.Reason,
+		RequestID: requestIDFromContext(c),
+	}
+}
+
+func agentTokenStatusResponse(status service.AgentTokenStatus, requestID string) AgentTokenStatusResponse {
+	return AgentTokenStatusResponse{
+		AgentID:               status.AgentID,
+		State:                 status.State,
+		TokenVersion:          status.TokenVersion,
+		TokenRotatedAt:        status.TokenRotatedAt,
+		TokenRevokedAt:        status.TokenRevokedAt,
+		TokenRevocationReason: status.TokenRevocationReason,
+		TokenExists:           status.TokenExists,
+		RequestID:             requestID,
+	}
+}
+
+func requestIDFromContext(c *gin.Context) string {
+	if value, ok := c.Get("request_id"); ok {
+		if requestID, ok := value.(string); ok {
+			return requestID
+		}
+	}
+	return ""
+}
+
+func agentIDParam(c *gin.Context) string {
+	if id := c.Param("agent_id"); id != "" {
+		return id
+	}
+	return c.Param("id")
 }
 
 // setMaintenanceMode sets the maintenance mode for an agent
@@ -194,7 +407,7 @@ func (s *Server) getAgentSummary(c *gin.Context) {
 		}
 		if err := s.db.Model(&db.Incident{}).
 			Select("agent_id").
-			Where("agent_id IN ? AND status IN ?", agentIDs, []string{"open", "acknowledged"}).
+			Where("agent_id IN ? AND status IN ?", agentIDs, []string{"open", "acknowledged", "covered"}).
 			Group("agent_id").
 			Find(&rows).Error; err != nil {
 			s.logger.Error("Failed to load agent incident summary", "error", err)
@@ -253,13 +466,13 @@ func (s *Server) getAgentDetail(c *gin.Context) {
 
 // getAgentHealth retrieves health status for a specific agent
 // @Summary      Get agent health
-// @Description  Get computed health status for a specific agent and its monitors
+// @Description  Get split agent availability and monitor rollup health for a specific agent
 // @Tags         agents
 // @Accept       json
 // @Produce      json
 // @ID           getAgentHealth
 // @Param        id   path      string  true  "Agent ID"
-// @Success      200  {object}  utils.APIResponse{data=object{agent_id=string,overall_health=string,up_count=int,down_count=int,degraded_count=int}}
+// @Success      200  {object}  utils.APIResponse{data=api.AgentHealthResponse}
 // @Failure      400  {object}  utils.APIResponse
 // @Failure      404  {object}  utils.APIResponse
 // @Failure      500  {object}  utils.APIResponse
@@ -279,19 +492,25 @@ func (s *Server) getAgentHealth(c *gin.Context) {
 	healthService := service.NewHealthService(s.db, s.logger)
 	config := service.DefaultHealthConfig()
 
-	overallHealth, upCount, downCount, degradedCount, err := healthService.ComputeAgentHealth(agentID, config)
+	snapshot, err := healthService.ComputeAgentHealthSnapshot(agentID, config)
 	if err != nil {
 		s.logger.Error("Failed to compute agent health", "error", err, "agent_id", agentID)
 		utils.InternalError(c, "Failed to compute agent health", err)
 		return
 	}
 
-	utils.SuccessResponse(c, 200, "Agent health retrieved successfully", gin.H{
-		"agent_id":       agentID,
-		"overall_health": overallHealth,
-		"up_count":       upCount,
-		"down_count":     downCount,
-		"degraded_count": degradedCount,
+	utils.SuccessResponse(c, 200, "Agent health retrieved successfully", AgentHealthResponse{
+		AgentID:            agentID,
+		OverallHealth:      snapshot.OverallHealth,
+		AvailabilityHealth: snapshot.AgentHealth,
+		MonitorHealth:      snapshot.MonitorHealth,
+		StatusReason:       snapshot.Reason,
+		UpCount:            snapshot.UpCount,
+		DownCount:          snapshot.DownCount,
+		DegradedCount:      snapshot.DegradedCount,
+		StaleCount:         snapshot.StaleCount,
+		UnknownCount:       snapshot.UnknownCount,
+		TotalCount:         snapshot.TotalCount,
 	})
 }
 

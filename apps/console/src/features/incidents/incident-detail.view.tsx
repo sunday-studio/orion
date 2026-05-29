@@ -8,17 +8,36 @@ import {
   toSeverity,
   toStatus,
 } from "@/components/status-badges";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { TabCount, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { ReportInspectionDrawer } from "@/features/report-inspection/report-inspection-drawer";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import {
   type ApiAlertDeliveryResponse,
   type ApiIncidentResponse,
   type ApiIncidentTimelineItemResponse,
   type ApiMonitorReportResponse,
+  getGetIncidentQueryKey,
+  getGetIncidentTimelineQueryKey,
+  useAcknowledgeIncident,
+  useCoverIncident,
   useGetIncident,
+  useReopenIncident,
+  useResolveIncident,
 } from "@/orion-sdk";
+import { useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import type { ReactNode } from "react";
+import { CheckIcon, CircleCheckIcon, RotateCcwIcon, ShieldCheckIcon } from "lucide-react";
+import { type FormEvent, type ReactNode, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
 const DetailItem = ({ label, value }: { label: string; value: ReactNode }) => (
@@ -46,6 +65,49 @@ const durationLabel = (incident: ApiIncidentResponse) => {
   if (days > 0) return `${days}d ${hours}h`;
   if (hours > 0) return `${hours}h ${minutes}m`;
   return `${minutes}m`;
+};
+
+const coverageUntilInputValue = () => {
+  const value = new Date(Date.now() + 60 * 60 * 1000);
+  const offset = value.getTimezoneOffset() * 60000;
+  return new Date(value.getTime() - offset).toISOString().slice(0, 16);
+};
+
+const coverageUntilPayload = (value: string) => {
+  if (!value) return undefined;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString();
+};
+
+type IncidentComponentImpact = NonNullable<ApiIncidentResponse["impacted_components"]>[number];
+
+const componentLabel = (component: IncidentComponentImpact) =>
+  component.component_name || component.component_id || "Unnamed component";
+
+const componentImpactLabel = (component: IncidentComponentImpact) =>
+  component.impact || component.status || "";
+
+const ComponentImpactList = ({ components }: { components: IncidentComponentImpact[] }) => {
+  if (components.length === 0) {
+    return <span className="text-neutral-500">No components</span>;
+  }
+
+  return (
+    <div className="space-y-1">
+      {components.map((component, index) => {
+        const impact = componentImpactLabel(component);
+        return (
+          <div
+            key={`${component.component_id ?? component.component_name ?? "component"}-${index}`}
+            className="min-w-0"
+          >
+            <div className="truncate">{componentLabel(component)}</div>
+            {impact && <div className="truncate text-xs text-neutral-500">{impact}</div>}
+          </div>
+        );
+      })}
+    </div>
+  );
 };
 
 type MonitorPayload = Record<string, unknown>;
@@ -98,7 +160,9 @@ type DetailTab = (typeof detailTabs)[number];
 const isDetailTab = (value: string | null): value is DetailTab =>
   detailTabs.includes(value as DetailTab);
 
-const timelineColumns: ColumnDef<ApiIncidentTimelineItemResponse>[] = [
+const timelineColumns = (
+  reportsByID: Map<string, ApiMonitorReportResponse>,
+): ColumnDef<ApiIncidentTimelineItemResponse>[] => [
   {
     accessorKey: "created_at",
     header: "Time",
@@ -118,8 +182,22 @@ const timelineColumns: ColumnDef<ApiIncidentTimelineItemResponse>[] = [
     accessorKey: "message",
     header: "Message",
     cell: ({ row }) => (
-      <div className="max-w-[28rem] truncate text-neutral-600">{row.original.message ?? "—"}</div>
+      <div className="max-w-[22rem] truncate text-neutral-600">{row.original.message ?? "—"}</div>
     ),
+  },
+  {
+    id: "evidence",
+    header: "Evidence",
+    cell: ({ row }) => {
+      const report = row.original.monitor_report_id
+        ? reportsByID.get(row.original.monitor_report_id)
+        : undefined;
+      return (
+        <div className="max-w-[22rem] truncate text-neutral-600">
+          {row.original.evidence ?? reportReason(report)}
+        </div>
+      );
+    },
   },
 ];
 
@@ -174,24 +252,135 @@ const monitorReportColumns: ColumnDef<ApiMonitorReportResponse>[] = [
   },
 ];
 
+type CoverIncidentDialogProps = {
+  open: boolean;
+  pending: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (payload: { covered_until?: string; note?: string }) => void;
+};
+
+const CoverIncidentDialog = ({
+  open,
+  pending,
+  onOpenChange,
+  onSubmit,
+}: CoverIncidentDialogProps) => {
+  const [coveredUntil, setCoveredUntil] = useState(coverageUntilInputValue);
+  const [note, setNote] = useState("");
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    onSubmit({
+      covered_until: coverageUntilPayload(coveredUntil),
+      note: note.trim() || undefined,
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <DialogHeader>
+            <DialogTitle>Cover incident</DialogTitle>
+          </DialogHeader>
+          <label className="block space-y-1">
+            <span className="text-sm font-medium">covered until</span>
+            <Input
+              type="datetime-local"
+              value={coveredUntil}
+              onChange={(event) => setCoveredUntil(event.target.value)}
+            />
+          </label>
+          <label className="block space-y-1">
+            <span className="text-sm font-medium">note</span>
+            <Textarea value={note} onChange={(event) => setNote(event.target.value)} />
+          </label>
+          <DialogFooter showCloseButton>
+            <Button type="submit" disabled={pending}>
+              <ShieldCheckIcon />
+              Cover
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const EvidenceReportGroup = ({
+  title,
+  report,
+  reason,
+  onInspect,
+}: {
+  title: string;
+  report?: ApiMonitorReportResponse;
+  reason: string;
+  onInspect: () => void;
+}) => (
+  <DetailGroup title={title}>
+    <DetailItem
+      label="result"
+      value={
+        <span className="inline-flex items-center gap-2">
+          <StatusBadge value={toStatus(report?.health)} />
+          <span>{formatDate(reportTimestamp(report), DATE_TIME_FORMAT)}</span>
+        </span>
+      }
+    />
+    <DetailItem label="reason" value={reason} />
+    <Button type="button" variant="outline" size="sm" disabled={!report} onClick={onInspect}>
+      Inspect report
+    </Button>
+  </DetailGroup>
+);
+
 export const IncidentDetailPage = () => {
   const { incidentId = "" } = useParams();
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
+  const refreshIncident = () => {
+    void queryClient.invalidateQueries({ queryKey: getGetIncidentQueryKey(incidentId) });
+    void queryClient.invalidateQueries({ queryKey: getGetIncidentTimelineQueryKey(incidentId) });
+    void queryClient.invalidateQueries({ queryKey: ["/v1/incidents"] });
+  };
   const incidentResponse = useGetIncident(incidentId);
+  const acknowledgeIncident = useAcknowledgeIncident({ mutation: { onSuccess: refreshIncident } });
+  const resolveIncident = useResolveIncident({ mutation: { onSuccess: refreshIncident } });
+  const coverIncident = useCoverIncident({ mutation: { onSuccess: refreshIncident } });
+  const reopenIncident = useReopenIncident({ mutation: { onSuccess: refreshIncident } });
   const incident = incidentResponse.data?.incident;
+  const impactedComponents = incident?.impacted_components ?? [];
+  const evidence = incidentResponse.data?.evidence;
   const timeline = incidentResponse.data?.timeline ?? [];
   const alertDeliveries = incidentResponse.data?.alert_deliveries ?? [];
   const monitorReports = incidentResponse.data?.monitor_reports ?? [];
+  const relatedIncidents = incidentResponse.data?.related_incidents ?? [];
+  const [selectedMonitorReport, setSelectedMonitorReport] = useState<ApiMonitorReportResponse>();
+  const [coverDialogOpen, setCoverDialogOpen] = useState(false);
   const sortedMonitorReports = [...monitorReports].sort(
     (a, b) => reportSortTime(a) - reportSortTime(b),
   );
+  const reportsByID = new Map(
+    monitorReports.flatMap((report) => (report.id ? [[report.id, report] as const] : [])),
+  );
   const triggeringReport =
+    evidence?.triggering_report ??
     sortedMonitorReports.find((report) => report.health && report.health !== "up") ??
     sortedMonitorReports[0];
-  const latestReport = sortedMonitorReports.at(-1);
-  const latestTimelineItem = timeline[0];
+  const latestReport = evidence?.latest_report ?? sortedMonitorReports.at(-1);
+  const latestTimelineItem = timeline.at(-1);
   const requestedTab = searchParams.get("tab");
   const activeTab: DetailTab = isDetailTab(requestedTab) ? requestedTab : "timeline";
+  const canAcknowledge = incident?.status === "open";
+  const canResolve = incident?.status !== "resolved";
+  const canCover = incident?.status === "open" || incident?.status === "acknowledged";
+  const canReopen = incident?.status === "resolved" || incident?.status === "covered";
+  const actionPending =
+    acknowledgeIncident.isPending ||
+    resolveIncident.isPending ||
+    coverIncident.isPending ||
+    reopenIncident.isPending;
 
   const handleTabChange = (tab: string) => {
     if (!isDetailTab(tab)) return;
@@ -228,12 +417,63 @@ export const IncidentDetailPage = () => {
       </div>
 
       <section className="space-y-4">
-        <div className="space-y-2">
-          <h1 className="text-base font-medium">{incident.title ?? "Untitled incident"}</h1>
-          <p className="max-w-3xl text-sm text-neutral-600">
-            {incident.latest_event ?? "No latest event recorded."}
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-2">
+            <h1 className="text-base font-medium">{incident.title ?? "Untitled incident"}</h1>
+            <p className="max-w-3xl text-sm text-neutral-600">
+              {incident.latest_event ?? "No latest event recorded."}
+            </p>
+          </div>
+          {(canResolve || canReopen) && (
+            <div className="flex flex-wrap gap-2">
+              {canAcknowledge && (
+                <Button
+                  variant="outline"
+                  disabled={actionPending}
+                  onClick={() => acknowledgeIncident.mutate({ id: incident.id ?? "" })}
+                >
+                  <CheckIcon />
+                  Acknowledge
+                </Button>
+              )}
+              {canCover && (
+                <Button
+                  variant="outline"
+                  disabled={actionPending}
+                  onClick={() => setCoverDialogOpen(true)}
+                >
+                  <ShieldCheckIcon />
+                  Cover
+                </Button>
+              )}
+              {canResolve && (
+                <Button
+                  disabled={actionPending}
+                  onClick={() => resolveIncident.mutate({ id: incident.id ?? "" })}
+                >
+                  <CircleCheckIcon />
+                  Resolve
+                </Button>
+              )}
+              {canReopen && (
+                <Button
+                  variant="outline"
+                  disabled={actionPending}
+                  onClick={() => reopenIncident.mutate({ id: incident.id ?? "" })}
+                >
+                  <RotateCcwIcon />
+                  Reopen
+                </Button>
+              )}
+            </div>
+          )}
         </div>
+        {(acknowledgeIncident.error ||
+          resolveIncident.error ||
+          coverIncident.error ||
+          reopenIncident.error) && (
+          <div className="text-sm text-rose-700">Unable to update incident.</div>
+        )}
 
         <div className="grid gap-3 lg:grid-cols-3">
           <DetailGroup title="Incident">
@@ -252,19 +492,27 @@ export const IncidentDetailPage = () => {
               }
             />
             <DetailItem label="duration" value={durationLabel(incident)} />
+            <DetailItem
+              label="resolution"
+              value={incident.resolution_kind || (incident.status === "covered" ? "covered" : "—")}
+            />
           </DetailGroup>
 
           <DetailGroup title="Affected">
-            <DetailItem label="agent" value={incident.agent_name ?? "Unknown agent"} />
+            <DetailItem label="server" value={incident.agent_name ?? "Unknown server"} />
             <DetailItem label="monitor" value={incident.monitor_name ?? "Unknown monitor"} />
             <DetailItem label="monitor type" value={incident.monitor_type ?? "unknown"} />
+            <DetailItem
+              label="components"
+              value={<ComponentImpactList components={impactedComponents} />}
+            />
             <div className="flex flex-wrap gap-4 text-sm">
               {incident.agent_id && (
                 <Link
-                  to={`/agents/${incident.agent_id}?tab=monitors&incident=${encodeURIComponent(incident.id ?? "")}`}
+                  to={`/servers/${incident.agent_id}?tab=monitors&incident=${encodeURIComponent(incident.id ?? "")}`}
                   className="font-medium hover:text-neutral-600"
                 >
-                  View agent
+                  View server
                 </Link>
               )}
               {incident.monitor_id && (
@@ -288,6 +536,13 @@ export const IncidentDetailPage = () => {
               label="resolved"
               value={formatDate(incident.resolved_at, DATE_TIME_FORMAT)}
             />
+            <DetailItem
+              label="covered until"
+              value={formatDate(incident.covered_until, DATE_TIME_FORMAT)}
+            />
+            {incident.coverage_note && (
+              <DetailItem label="coverage note" value={incident.coverage_note} />
+            )}
           </DetailGroup>
         </div>
       </section>
@@ -295,31 +550,19 @@ export const IncidentDetailPage = () => {
       <section className="space-y-3">
         <h2 className="text-sm font-medium">Cause / Evidence</h2>
         <div className="grid gap-3 lg:grid-cols-3">
-          <DetailGroup title="Trigger">
-            <DetailItem
-              label="first failing result"
-              value={
-                <span className="inline-flex items-center gap-2">
-                  <StatusBadge value={toStatus(triggeringReport?.health)} />
-                  <span>{formatDate(reportTimestamp(triggeringReport), DATE_TIME_FORMAT)}</span>
-                </span>
-              }
-            />
-            <DetailItem label="reason" value={reportReason(triggeringReport)} />
-          </DetailGroup>
+          <EvidenceReportGroup
+            title="Trigger"
+            report={triggeringReport}
+            reason={reportReason(triggeringReport)}
+            onInspect={() => setSelectedMonitorReport(triggeringReport)}
+          />
 
-          <DetailGroup title="Current Result">
-            <DetailItem
-              label="latest report"
-              value={
-                <span className="inline-flex items-center gap-2">
-                  <StatusBadge value={toStatus(latestReport?.health)} />
-                  <span>{formatDate(reportTimestamp(latestReport), DATE_TIME_FORMAT)}</span>
-                </span>
-              }
-            />
-            <DetailItem label="latest reason" value={reportReason(latestReport)} />
-          </DetailGroup>
+          <EvidenceReportGroup
+            title="Current Result"
+            report={latestReport}
+            reason={reportReason(latestReport)}
+            onInspect={() => setSelectedMonitorReport(latestReport)}
+          />
 
           <DetailGroup title="Latest Timeline Event">
             <DetailItem label="type" value={latestTimelineItem?.type ?? "—"} />
@@ -330,6 +573,27 @@ export const IncidentDetailPage = () => {
             <DetailItem label="message" value={latestTimelineItem?.message ?? "—"} />
           </DetailGroup>
         </div>
+        {relatedIncidents.length > 0 && (
+          <div className="space-y-2 bg-neutral-50 px-3 py-3">
+            <h3 className="text-sm font-medium">Related incidents</h3>
+            <div className="divide-y divide-neutral-200">
+              {relatedIncidents.slice(0, 5).map((related) => (
+                <Link
+                  key={related.id ?? related.opened_at ?? "related-incident"}
+                  to={`/incidents/${related.id ?? ""}`}
+                  className="grid gap-1 py-2 text-sm hover:text-neutral-600 sm:grid-cols-[1fr_auto]"
+                >
+                  <span className="min-w-0 truncate font-medium">
+                    {related.title ?? "Untitled incident"}
+                  </span>
+                  <span className="text-neutral-500">
+                    {formatDate(related.opened_at, DATE_TIME_FORMAT)}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="space-y-4">
@@ -348,10 +612,19 @@ export const IncidentDetailPage = () => {
           </TabsList>
           <TabsContent value="timeline">
             <DataTable
-              columns={timelineColumns}
+              columns={timelineColumns(reportsByID)}
               data={timeline}
               emptyMessage="No timeline events recorded."
               getRowId={(item, index) => item.id ?? `timeline-${index}`}
+              onRowClick={(item) => {
+                if (item.monitor_report_id) {
+                  setSelectedMonitorReport(reportsByID.get(item.monitor_report_id));
+                  return;
+                }
+                if (item.alert_delivery_id) {
+                  handleTabChange("notifications");
+                }
+              }}
             />
           </TabsContent>
           <TabsContent value="notifications">
@@ -368,10 +641,29 @@ export const IncidentDetailPage = () => {
               data={monitorReports}
               emptyMessage="No monitor reports linked."
               getRowId={(report, index) => report.id ?? `monitor-report-${index}`}
+              onRowClick={setSelectedMonitorReport}
             />
           </TabsContent>
         </Tabs>
       </section>
+      <ReportInspectionDrawer
+        kind="monitor"
+        report={selectedMonitorReport}
+        onOpenChange={(open) => {
+          if (!open) setSelectedMonitorReport(undefined);
+        }}
+      />
+      <CoverIncidentDialog
+        open={coverDialogOpen}
+        pending={coverIncident.isPending}
+        onOpenChange={setCoverDialogOpen}
+        onSubmit={(payload) =>
+          coverIncident.mutate(
+            { id: incident.id ?? "", data: payload },
+            { onSuccess: () => setCoverDialogOpen(false) },
+          )
+        }
+      />
     </div>
   );
 };

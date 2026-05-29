@@ -5,7 +5,7 @@ import "testing"
 func TestCommandNeedsElevationForInstalledCommands(t *testing.T) {
 	t.Parallel()
 
-	for _, command := range []string{"start", "stop", "restart", "update", "maintenance", "reconfigure", "state"} {
+	for _, command := range []string{"start", "stop", "restart", "update", "maintenance", "reconfigure", "state", "token"} {
 		if !commandNeedsElevation(command, nil) {
 			t.Fatalf("commandNeedsElevation(%q) = false, want true", command)
 		}
@@ -17,6 +17,9 @@ func TestCommandNeedsElevationRespectsExplicitPaths(t *testing.T) {
 
 	if commandNeedsElevation("maintenance", []string{"up", "-state", "/tmp/state.db"}) {
 		t.Fatal("commandNeedsElevation(maintenance -state /tmp/state.db) = true, want false")
+	}
+	if commandNeedsElevation("token", []string{"apply", "token-2", "--state", "/tmp/state.db"}) {
+		t.Fatal("commandNeedsElevation(token apply --state /tmp/state.db) = true, want false")
 	}
 }
 

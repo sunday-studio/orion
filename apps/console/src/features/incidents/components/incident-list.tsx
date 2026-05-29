@@ -12,22 +12,48 @@ import {
 import { type ApiIncidentResponse, useGetIncidents } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import { ListPagination } from "@/components/list-pagination";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { type ColumnDef } from "@tanstack/react-table";
 import { parseAsInteger, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 
 const INCIDENT_LIMIT = 20;
-const incidentStatuses = ["all", "open", "acknowledged", "resolved", "errors"] as const;
-const allIncidentStatuses = "open,acknowledged,resolved";
+const incidentStatuses = ["all", "open", "acknowledged", "covered", "resolved", "errors"] as const;
+const resolutionKinds = ["all", "manual", "recovered", "monitor_removed"] as const;
+const actorKinds = ["all", "manual", "system"] as const;
+const coveredStates = ["all", "covered", "uncovered"] as const;
+const notificationStatuses = [
+  "all",
+  "pending",
+  "sent",
+  "failed",
+  "suppressed",
+  "cooldown",
+] as const;
+const allIncidentStatuses = "open,acknowledged,covered,resolved";
 
 const incidentAgentPath = (incident: ApiIncidentResponse) =>
   incident.agent_id
-    ? `/agents/${incident.agent_id}?tab=monitors&incident=${encodeURIComponent(incident.id ?? "")}`
+    ? `/servers/${incident.agent_id}?tab=monitors&incident=${encodeURIComponent(incident.id ?? "")}`
     : undefined;
 
 const incidentMonitorPath = (incident: ApiIncidentResponse) =>
   incident.monitor_id
     ? `/monitors/${incident.monitor_id}?incident=${encodeURIComponent(incident.id ?? "")}`
     : undefined;
+
+const componentLabel = (
+  component: NonNullable<ApiIncidentResponse["impacted_components"]>[number],
+) => component.component_name || component.component_id || "Unnamed component";
+
+const componentImpactLabel = (
+  component: NonNullable<ApiIncidentResponse["impacted_components"]>[number],
+) => component.impact || component.status || "";
 
 const statusParam = (status: IncidentSummaryStatus) => {
   if (status === "all" || status === "errors") return allIncidentStatuses;
@@ -61,13 +87,13 @@ const columns: ColumnDef<ApiIncidentResponse>[] = [
   },
   {
     accessorKey: "agent_name",
-    header: "Agent",
+    header: "Server",
     cell: ({ row }) => {
       const incident = row.original;
       const path = incidentAgentPath(incident);
-      if (!path) return incident.agent_name ?? "Unknown agent";
+      if (!path) return incident.agent_name ?? "Unknown server";
 
-      return <DataTableLink to={path}>{incident.agent_name ?? "Unknown agent"}</DataTableLink>;
+      return <DataTableLink to={path}>{incident.agent_name ?? "Unknown server"}</DataTableLink>;
     },
   },
   {
@@ -81,7 +107,36 @@ const columns: ColumnDef<ApiIncidentResponse>[] = [
       return <DataTableLink to={path}>{incident.monitor_name ?? "Unknown monitor"}</DataTableLink>;
     },
   },
+  {
+    accessorKey: "impacted_components",
+    header: "Components",
+    cell: ({ row }) => {
+      const components = row.original.impacted_components ?? [];
+      if (components.length === 0) {
+        return <span className="text-neutral-500">No components</span>;
+      }
 
+      return (
+        <div className="max-w-48 space-y-1">
+          {components.slice(0, 2).map((component, index) => {
+            const impact = componentImpactLabel(component);
+            return (
+              <div
+                key={`${component.component_id ?? component.component_name ?? "component"}-${index}`}
+                className="truncate text-sm"
+              >
+                <span className="font-medium">{componentLabel(component)}</span>
+                {impact && <span className="text-neutral-500"> / {impact}</span>}
+              </div>
+            );
+          })}
+          {components.length > 2 && (
+            <div className="text-xs text-neutral-500">+{components.length - 2} more</div>
+          )}
+        </div>
+      );
+    },
+  },
   {
     accessorKey: "notification_status",
     header: "Notification",
@@ -100,11 +155,17 @@ const columns: ColumnDef<ApiIncidentResponse>[] = [
 ];
 
 export const IncidentList = () => {
-  const [{ page, status, agent }, setIncidentQuery] = useQueryStates({
-    agent: parseAsString.withDefault(""),
-    page: parseAsInteger.withDefault(1),
-    status: parseAsStringLiteral(incidentStatuses).withDefault("all"),
-  });
+  const [{ page, status, agent, resolution, actor, covered, notification }, setIncidentQuery] =
+    useQueryStates({
+      actor: parseAsStringLiteral(actorKinds).withDefault("all"),
+      agent: parseAsString.withDefault(""),
+      covered: parseAsStringLiteral(coveredStates).withDefault("all"),
+      notification: parseAsStringLiteral(notificationStatuses).withDefault("all"),
+      page: parseAsInteger.withDefault(1),
+      resolution: parseAsStringLiteral(resolutionKinds).withDefault("all"),
+      status: parseAsStringLiteral(incidentStatuses).withDefault("all"),
+    });
+  const coveredParam = covered === "covered" ? true : covered === "uncovered" ? false : undefined;
   const currentPage = Math.max(page, 1);
   const offset = (currentPage - 1) * INCIDENT_LIMIT;
   const incidentsResponse = useGetIncidents({
@@ -115,7 +176,11 @@ export const IncidentList = () => {
   });
   const filteredIncidentsResponse = useGetIncidents({
     agent_id: agent || undefined,
+    actor: actor === "all" ? undefined : actor,
+    covered: coveredParam,
     needs_review: status === "errors" ? true : undefined,
+    notification_status: notification === "all" ? undefined : notification,
+    resolution_kind: resolution === "all" ? undefined : resolution,
     status: statusParam(status),
     limit: INCIDENT_LIMIT,
     offset,
@@ -139,6 +204,12 @@ export const IncidentList = () => {
     limit: 1,
     offset: 0,
   });
+  const coveredIncidentsResponse = useGetIncidents({
+    agent_id: agent || undefined,
+    status: "covered",
+    limit: 1,
+    offset: 0,
+  });
   const responseIncidents = filteredIncidentsResponse.data?.incidents ?? [];
   const incidents = responseIncidents;
   const count = filteredIncidentsResponse.data?.count ?? incidents.length;
@@ -146,6 +217,10 @@ export const IncidentList = () => {
   const setStatus = (nextStatus: string) => {
     if (!incidentStatuses.includes(nextStatus as (typeof incidentStatuses)[number])) return;
     void setIncidentQuery({ status: nextStatus as (typeof incidentStatuses)[number], page: 1 });
+  };
+
+  const setFilter = (key: "resolution" | "actor" | "covered" | "notification", value: string) => {
+    void setIncidentQuery({ [key]: value, page: 1 });
   };
 
   const setOffset = (nextOffset: number) => {
@@ -166,11 +241,39 @@ export const IncidentList = () => {
         totalCount={incidentsResponse.data?.count ?? count}
         openCount={openIncidentsResponse.data?.count ?? 0}
         acknowledgedCount={acknowledgedIncidentsResponse.data?.count ?? 0}
+        coveredCount={coveredIncidentsResponse.data?.count ?? 0}
         resolvedCount={resolvedIncidentsResponse.data?.count ?? 0}
         visibleIncidents={incidents}
+        insights={filteredIncidentsResponse.data?.insights}
         selectedStatus={status}
         onStatusChange={setStatus}
       />
+      <div className="flex flex-wrap gap-2">
+        <IncidentSelect
+          value={resolution}
+          label="resolution"
+          options={resolutionKinds}
+          onValueChange={(value) => setFilter("resolution", value)}
+        />
+        <IncidentSelect
+          value={actor}
+          label="actor"
+          options={actorKinds}
+          onValueChange={(value) => setFilter("actor", value)}
+        />
+        <IncidentSelect
+          value={covered}
+          label="coverage"
+          options={coveredStates}
+          onValueChange={(value) => setFilter("covered", value)}
+        />
+        <IncidentSelect
+          value={notification}
+          label="notification"
+          options={notificationStatuses}
+          onValueChange={(value) => setFilter("notification", value)}
+        />
+      </div>
       <div>
         <DataTable
           columns={columns}
@@ -190,3 +293,30 @@ export const IncidentList = () => {
     </div>
   );
 };
+
+type IncidentSelectProps<T extends readonly string[]> = {
+  value: T[number];
+  label: string;
+  options: T;
+  onValueChange: (value: T[number]) => void;
+};
+
+const IncidentSelect = <T extends readonly string[]>({
+  value,
+  label,
+  options,
+  onValueChange,
+}: IncidentSelectProps<T>) => (
+  <Select value={value} onValueChange={(nextValue) => onValueChange(nextValue as T[number])}>
+    <SelectTrigger size="sm" aria-label={label}>
+      <SelectValue placeholder={label} />
+    </SelectTrigger>
+    <SelectContent align="start">
+      {options.map((option) => (
+        <SelectItem key={option} value={option}>
+          {option === "all" ? `${label}: all` : option.replace("_", " ")}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+);

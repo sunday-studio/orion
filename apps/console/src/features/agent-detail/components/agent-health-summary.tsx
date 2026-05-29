@@ -2,12 +2,19 @@ import type { ApiUptimeDayBucketResponse } from "@/orion-sdk";
 import { formatPercent } from "./agent-detail-utils";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { StatusBadge, toStatus } from "@/components/status-badges";
 
 type AgentHealthSummaryProps = {
   activeIncidentCount: number;
+  availabilityHealth?: string;
   degradedCount: number;
   downCount: number;
+  monitorHealth?: string;
+  staleCount: number;
   status: string;
+  statusReason?: string;
+  totalCount: number;
+  unknownCount: number;
   upCount: number;
   uptimeBuckets: ApiUptimeDayBucketResponse[];
   uptimePercent?: number;
@@ -25,9 +32,16 @@ const bucketFillClassName = (bucket: ApiUptimeDayBucketResponse) => {
 
 export const AgentHealthSummary = ({
   activeIncidentCount,
+  availabilityHealth,
   degradedCount,
   downCount,
+  monitorHealth,
+  staleCount,
   upCount,
+  status,
+  statusReason,
+  totalCount,
+  unknownCount,
   uptimeBuckets,
   uptimePercent,
   agentId,
@@ -38,9 +52,21 @@ export const AgentHealthSummary = ({
   return (
     <section className="space-y-3">
       <div className="grid gap-1 sm:grid-cols-4">
-        <SummaryCell label="up monitors" value={upCount} />
-        <SummaryCell label="down monitors" value={downCount} />
-        <SummaryCell label="degraded monitors" value={degradedCount} />
+        <StatusCell
+          label="server availability"
+          status={availabilityHealth ?? status}
+          detail={statusReason}
+        />
+        <StatusCell
+          label="monitor rollup"
+          status={monitorHealth ?? "unknown"}
+          detail={`${totalCount} active`}
+        />
+        <SummaryCell
+          label="monitor issues"
+          value={downCount + degradedCount + staleCount + unknownCount}
+          detail={`${upCount} up / ${downCount} down / ${degradedCount} degraded / ${staleCount} stale / ${unknownCount} unknown`}
+        />
         <SummaryCell label="90d uptime" value={formatPercent(uptimePercent)} />
       </div>
 
@@ -52,7 +78,7 @@ export const AgentHealthSummary = ({
           >
             <p>
               {activeIncidentCount} active incident{activeIncidentCount === 1 ? "" : "s"} on this
-              agent.
+              server.
             </p>
           </Link>
         )}
@@ -78,9 +104,38 @@ export const AgentHealthSummary = ({
   );
 };
 
-const SummaryCell = ({ label, value }: { label: string; value: string | number }) => (
+const SummaryCell = ({
+  detail,
+  label,
+  value,
+}: {
+  detail?: string;
+  label: string;
+  value: string | number;
+}) => (
   <div className="flex min-h-24 flex-col justify-between bg-neutral-100 px-3 py-2">
     <div className="text-neutral-600 text-sm capitalize">{label}</div>
-    <div className="font-medium text-2xl text-neutral-950">{value}</div>
+    <div className="space-y-1">
+      <div className="font-medium text-2xl text-neutral-950">{value}</div>
+      {detail && <div className="text-xs leading-snug text-neutral-600">{detail}</div>}
+    </div>
+  </div>
+);
+
+const StatusCell = ({
+  detail,
+  label,
+  status,
+}: {
+  detail?: string;
+  label: string;
+  status: string;
+}) => (
+  <div className="flex min-h-24 flex-col justify-between bg-neutral-100 px-3 py-2">
+    <div className="text-neutral-600 text-sm capitalize">{label}</div>
+    <div className="space-y-1">
+      <StatusBadge value={toStatus(status)} />
+      {detail && <div className="text-xs leading-snug text-neutral-600">{detail}</div>}
+    </div>
   </div>
 );

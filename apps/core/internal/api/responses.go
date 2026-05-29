@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"orion/core/internal/db"
 	"orion/core/internal/service"
+	"regexp"
+	"strings"
 	"time"
 )
 
@@ -17,6 +19,9 @@ type AgentResponse struct {
 	Arch                     string         `json:"arch"`
 	MaintenanceMode          bool           `json:"maintenance_mode"`
 	Status                   string         `json:"status,omitempty"`
+	AvailabilityHealth       string         `json:"availability_health,omitempty"`
+	MonitorHealth            string         `json:"monitor_health,omitempty"`
+	StatusReason             string         `json:"status_reason,omitempty"`
 	ReportingIntervalSeconds int            `json:"reporting_interval_seconds"`
 	CreatedAt                time.Time      `json:"created_at"`
 	LastSeen                 time.Time      `json:"last_seen"`
@@ -38,6 +43,21 @@ type AgentSummaryResponse struct {
 	HasIncidents int64 `json:"has_incidents"`
 }
 
+// AgentHealthResponse represents split agent availability and monitor health.
+type AgentHealthResponse struct {
+	AgentID            string `json:"agent_id"`
+	OverallHealth      string `json:"overall_health"`
+	AvailabilityHealth string `json:"availability_health"`
+	MonitorHealth      string `json:"monitor_health"`
+	StatusReason       string `json:"status_reason"`
+	UpCount            int    `json:"up_count"`
+	DownCount          int    `json:"down_count"`
+	DegradedCount      int    `json:"degraded_count"`
+	StaleCount         int    `json:"stale_count"`
+	UnknownCount       int    `json:"unknown_count"`
+	TotalCount         int    `json:"total_count"`
+}
+
 // MonitorResponse represents a monitor in API responses
 type MonitorResponse struct {
 	ID                       string     `json:"id"`
@@ -46,6 +66,10 @@ type MonitorResponse struct {
 	Name                     string     `json:"name"`
 	AgentID                  string     `json:"agent_id"`
 	AgentName                string     `json:"agent_name,omitempty"`
+	OwnerKind                string     `json:"owner_kind"`
+	OwnerID                  string     `json:"owner_id"`
+	OwnerName                string     `json:"owner_name,omitempty"`
+	Source                   string     `json:"source"`
 	LastSuccessfulReportAt   *time.Time `json:"last_successful_report_at"`
 	ReportingIntervalSeconds int        `json:"reporting_interval_seconds"`
 	ComputedHealth           string     `json:"computed_health"`
@@ -69,6 +93,26 @@ type MonitorReportResponse struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+// IncidentEvidenceResponse summarizes report evidence for an incident detail page.
+type IncidentEvidenceResponse struct {
+	TriggeringReport *MonitorReportResponse `json:"triggering_report,omitempty"`
+	LatestReport     *MonitorReportResponse `json:"latest_report,omitempty"`
+}
+
+// IncidentRelatedIncidentResponse summarizes a nearby incident on the same monitor.
+type IncidentRelatedIncidentResponse struct {
+	ID                 string     `json:"id"`
+	Status             string     `json:"status"`
+	Severity           string     `json:"severity"`
+	Title              string     `json:"title"`
+	ResolutionKind     string     `json:"resolution_kind,omitempty"`
+	OpenedAt           time.Time  `json:"opened_at"`
+	ResolvedAt         *time.Time `json:"resolved_at,omitempty"`
+	LastEventAt        time.Time  `json:"last_event_at"`
+	LatestEvent        string     `json:"latest_event"`
+	NotificationStatus string     `json:"notification_status"`
+}
+
 // AgentReportResponse represents a system report in frontend API responses.
 type AgentReportResponse struct {
 	ID            string                      `json:"id"`
@@ -84,6 +128,23 @@ type AgentReportResponse struct {
 	Location      db.GeoLocation              `json:"location"`
 }
 
+type ServiceLogEntryResponse struct {
+	ID          string    `json:"id"`
+	AgentID     string    `json:"agent_id"`
+	AgentName   string    `json:"agent_name,omitempty"`
+	MonitorID   string    `json:"monitor_id,omitempty"`
+	Source      string    `json:"source"`
+	Stream      string    `json:"stream"`
+	Level       string    `json:"level"`
+	Component   string    `json:"component,omitempty"`
+	MonitorName string    `json:"monitor_name,omitempty"`
+	Message     string    `json:"message"`
+	Fields      string    `json:"fields,omitempty"`
+	OccurredAt  time.Time `json:"occurred_at"`
+	CollectedAt time.Time `json:"collected_at"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
 // AgentConfigSummaryResponse is the frontend-safe subset of an agent's reported config summary.
 type AgentConfigSummaryResponse struct {
 	ReportingInterval string         `json:"reporting_interval,omitempty"`
@@ -93,22 +154,69 @@ type AgentConfigSummaryResponse struct {
 
 // IncidentResponse represents a persisted incident in frontend API responses.
 type IncidentResponse struct {
-	ID                 string     `json:"id"`
-	Status             string     `json:"status"`
-	Severity           string     `json:"severity"`
-	Title              string     `json:"title"`
-	AgentID            string     `json:"agent_id"`
-	AgentName          string     `json:"agent_name"`
-	MonitorID          string     `json:"monitor_id"`
-	MonitorName        string     `json:"monitor_name"`
-	MonitorType        string     `json:"monitor_type"`
-	OpenedAt           time.Time  `json:"opened_at"`
-	ResolvedAt         *time.Time `json:"resolved_at"`
-	LastEventAt        time.Time  `json:"last_event_at"`
-	LatestEvent        string     `json:"latest_event"`
-	NotificationStatus string     `json:"notification_status"`
-	CreatedAt          time.Time  `json:"created_at"`
-	UpdatedAt          time.Time  `json:"updated_at"`
+	ID                 string                            `json:"id"`
+	Status             string                            `json:"status"`
+	Severity           string                            `json:"severity"`
+	Title              string                            `json:"title"`
+	AgentID            string                            `json:"agent_id"`
+	AgentName          string                            `json:"agent_name"`
+	MonitorID          string                            `json:"monitor_id"`
+	MonitorName        string                            `json:"monitor_name"`
+	MonitorType        string                            `json:"monitor_type"`
+	ImpactedComponents []IncidentComponentImpactResponse `json:"impacted_components"`
+	CoveredAt          *time.Time                        `json:"covered_at,omitempty"`
+	CoveredUntil       *time.Time                        `json:"covered_until,omitempty"`
+	CoverageNote       string                            `json:"coverage_note,omitempty"`
+	ResolutionKind     string                            `json:"resolution_kind,omitempty"`
+	ReopenedAt         *time.Time                        `json:"reopened_at,omitempty"`
+	ReopenCount        int                               `json:"reopen_count"`
+	OpenedAt           time.Time                         `json:"opened_at"`
+	ResolvedAt         *time.Time                        `json:"resolved_at"`
+	LastEventAt        time.Time                         `json:"last_event_at"`
+	LatestEvent        string                            `json:"latest_event"`
+	NotificationStatus string                            `json:"notification_status"`
+	CreatedAt          time.Time                         `json:"created_at"`
+	UpdatedAt          time.Time                         `json:"updated_at"`
+}
+
+// IncidentInsightsResponse represents aggregate incident metrics for the current incident filters.
+type IncidentInsightsResponse struct {
+	RecurringFailures       []IncidentRecurringFailureResponse   `json:"recurring_failures"`
+	LifecycleTiming         IncidentLifecycleTimingResponse      `json:"lifecycle_timing"`
+	NotificationReliability IncidentNotificationReliabilityStats `json:"notification_reliability"`
+}
+
+// IncidentRecurringFailureResponse highlights monitors with repeated incidents.
+type IncidentRecurringFailureResponse struct {
+	MonitorID      string    `json:"monitor_id"`
+	MonitorName    string    `json:"monitor_name"`
+	IncidentCount  int64     `json:"incident_count"`
+	LastIncidentAt time.Time `json:"last_incident_at"`
+}
+
+// IncidentLifecycleTimingResponse summarizes incident acknowledgement and resolution timing.
+type IncidentLifecycleTimingResponse struct {
+	AcknowledgedCount            int64 `json:"acknowledged_count"`
+	ResolvedCount                int64 `json:"resolved_count"`
+	MeanTimeToAcknowledgeSeconds int64 `json:"mean_time_to_acknowledge_seconds"`
+	MeanTimeToResolveSeconds     int64 `json:"mean_time_to_resolve_seconds"`
+}
+
+// IncidentNotificationReliabilityStats summarizes alert delivery outcomes for incidents.
+type IncidentNotificationReliabilityStats struct {
+	TotalDeliveries      int64   `json:"total_deliveries"`
+	SentDeliveries       int64   `json:"sent_deliveries"`
+	FailedDeliveries     int64   `json:"failed_deliveries"`
+	SuppressedDeliveries int64   `json:"suppressed_deliveries"`
+	SuccessRatePercent   float64 `json:"success_rate_percent"`
+}
+
+// IncidentComponentImpactResponse represents one affected public-facing component snapshot.
+type IncidentComponentImpactResponse struct {
+	ComponentID   string `json:"component_id,omitempty"`
+	ComponentName string `json:"component_name"`
+	Status        string `json:"status,omitempty"`
+	Impact        string `json:"impact,omitempty"`
 }
 
 // IncidentEventResponse represents an incident event in frontend API responses.
@@ -137,35 +245,105 @@ type UptimeResponse struct {
 
 // AlertDeliveryResponse represents a frontend-safe alert delivery record.
 type AlertDeliveryResponse struct {
-	ID         string    `json:"id"`
-	IncidentID string    `json:"incident_id"`
-	EventType  string    `json:"event_type"`
-	Channel    string    `json:"channel"`
-	Type       string    `json:"type"`
-	Status     string    `json:"status"`
-	Error      string    `json:"error,omitempty"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	ID            string                         `json:"id"`
+	IncidentID    string                         `json:"incident_id"`
+	RouteID       string                         `json:"route_id,omitempty"`
+	AlertGroupID  string                         `json:"alert_group_id,omitempty"`
+	EventType     string                         `json:"event_type"`
+	Channel       string                         `json:"channel"`
+	Type          string                         `json:"type"`
+	Status        string                         `json:"status"`
+	Error         string                         `json:"error,omitempty"`
+	AttemptCount  int                            `json:"attempt_count"`
+	MaxAttempts   int                            `json:"max_attempts"`
+	NextAttemptAt *time.Time                     `json:"next_attempt_at,omitempty"`
+	LastAttemptAt *time.Time                     `json:"last_attempt_at,omitempty"`
+	Attempts      []AlertDeliveryAttemptResponse `json:"attempts"`
+	CreatedAt     time.Time                      `json:"created_at"`
+	UpdatedAt     time.Time                      `json:"updated_at"`
+}
+
+// AlertDeliveryAttemptResponse represents one sanitized delivery try.
+type AlertDeliveryAttemptResponse struct {
+	ID              string     `json:"id"`
+	AlertDeliveryID string     `json:"alert_delivery_id"`
+	AttemptNumber   int        `json:"attempt_number"`
+	Status          string     `json:"status"`
+	Stage           string     `json:"stage"`
+	Error           string     `json:"error,omitempty"`
+	StartedAt       time.Time  `json:"started_at"`
+	CompletedAt     *time.Time `json:"completed_at,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+}
+
+// AlertRouteResponse represents an explicit alert route.
+type AlertRouteResponse struct {
+	ID                   string    `json:"id"`
+	Name                 string    `json:"name"`
+	Enabled              bool      `json:"enabled"`
+	Priority             int       `json:"priority"`
+	EventTypes           []string  `json:"event_types"`
+	Severities           []string  `json:"severities"`
+	AgentIDs             []string  `json:"agent_ids"`
+	MonitorIDs           []string  `json:"monitor_ids"`
+	MonitorTypes         []string  `json:"monitor_types"`
+	ChannelIDs           []string  `json:"channel_ids"`
+	Suppress             bool      `json:"suppress"`
+	GroupingPolicy       string    `json:"grouping_policy"`
+	GroupingDelaySeconds int       `json:"grouping_delay_seconds"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
 }
 
 // AlertChannelResponse represents a configured alert channel.
 type AlertChannelResponse struct {
-	ID                     string     `json:"id"`
-	Name                   string     `json:"name"`
-	Type                   string     `json:"type"`
-	Enabled                bool       `json:"enabled"`
-	WebhookURL             string     `json:"webhook_url,omitempty"`
-	WebhookConfigured      bool       `json:"webhook_configured,omitempty"`
-	EmailToConfigured      bool       `json:"email_to_configured,omitempty"`
-	EmailFromConfigured    bool       `json:"email_from_configured,omitempty"`
-	SMTPHostConfigured     bool       `json:"smtp_host_configured,omitempty"`
-	SMTPPortConfigured     bool       `json:"smtp_port_configured,omitempty"`
-	SMTPUsernameConfigured bool       `json:"smtp_username_configured,omitempty"`
-	SubscribedEvents       []string   `json:"subscribed_events"`
-	LastDeliveryStatus     string     `json:"last_delivery_status,omitempty"`
-	LastDeliveryAt         *time.Time `json:"last_delivery_at,omitempty"`
-	CreatedAt              time.Time  `json:"created_at"`
-	UpdatedAt              time.Time  `json:"updated_at"`
+	ID                         string     `json:"id"`
+	Name                       string     `json:"name"`
+	Type                       string     `json:"type"`
+	Enabled                    bool       `json:"enabled"`
+	WebhookURL                 string     `json:"webhook_url,omitempty"`
+	WebhookConfigured          bool       `json:"webhook_configured,omitempty"`
+	WebhookSignatureConfigured bool       `json:"webhook_signature_configured,omitempty"`
+	EmailToConfigured          bool       `json:"email_to_configured,omitempty"`
+	EmailFromConfigured        bool       `json:"email_from_configured,omitempty"`
+	SMTPHostConfigured         bool       `json:"smtp_host_configured,omitempty"`
+	SMTPPortConfigured         bool       `json:"smtp_port_configured,omitempty"`
+	SMTPUsernameConfigured     bool       `json:"smtp_username_configured,omitempty"`
+	SubscribedEvents           []string   `json:"subscribed_events"`
+	LastDeliveryStatus         string     `json:"last_delivery_status,omitempty"`
+	LastDeliveryAt             *time.Time `json:"last_delivery_at,omitempty"`
+	CreatedAt                  time.Time  `json:"created_at"`
+	UpdatedAt                  time.Time  `json:"updated_at"`
+}
+
+// AlertSMTPServiceResponse represents a reusable SMTP service without secrets.
+type AlertSMTPServiceResponse struct {
+	ID                 string    `json:"id"`
+	Name               string    `json:"name"`
+	Enabled            bool      `json:"enabled"`
+	Host               string    `json:"host"`
+	Port               int       `json:"port"`
+	FromEmail          string    `json:"from_email"`
+	UsernameConfigured bool      `json:"username_configured,omitempty"`
+	PasswordConfigured bool      `json:"password_configured,omitempty"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
+}
+
+// AlertEmailDestinationResponse represents a reusable email destination.
+type AlertEmailDestinationResponse struct {
+	ID                 string     `json:"id"`
+	SMTPServiceID      string     `json:"smtp_service_id"`
+	SMTPServiceName    string     `json:"smtp_service_name,omitempty"`
+	Name               string     `json:"name"`
+	Enabled            bool       `json:"enabled"`
+	EmailTo            string     `json:"email_to"`
+	SubscribedEvents   []string   `json:"subscribed_events"`
+	LastDeliveryStatus string     `json:"last_delivery_status,omitempty"`
+	LastDeliveryAt     *time.Time `json:"last_delivery_at,omitempty"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
 }
 
 // AlertRuleResponse represents an effective Core alert rule.
@@ -180,12 +358,31 @@ type AlertRuleResponse struct {
 	TargetChannels                []string `json:"target_channels"`
 }
 
+// AlertRouteDryRunResponse explains route matching and destination decisions.
+type AlertRouteDryRunResponse struct {
+	Event                service.AlertRouteContext          `json:"event"`
+	LegacyFallback       bool                               `json:"legacy_fallback"`
+	Suppressed           bool                               `json:"suppressed"`
+	SuppressionReason    string                             `json:"suppression_reason,omitempty"`
+	RouteEvaluations     []AlertRouteEvaluationResponse     `json:"route_evaluations"`
+	DestinationDecisions []service.AlertDestinationDecision `json:"destination_decisions"`
+}
+
+// AlertRouteEvaluationResponse explains one route's match result.
+type AlertRouteEvaluationResponse struct {
+	Route      AlertRouteResponse `json:"route"`
+	Matched    bool               `json:"matched"`
+	Suppressed bool               `json:"suppressed"`
+	Reasons    []string           `json:"reasons"`
+}
+
 // IncidentTimelineItemResponse represents a normalized incident timeline item.
 type IncidentTimelineItemResponse struct {
 	ID              string    `json:"id"`
 	Type            string    `json:"type"`
 	Source          string    `json:"source"`
 	Message         string    `json:"message"`
+	Evidence        string    `json:"evidence,omitempty"`
 	MonitorReportID string    `json:"monitor_report_id,omitempty"`
 	AlertDeliveryID string    `json:"alert_delivery_id,omitempty"`
 	Channel         string    `json:"channel,omitempty"`
@@ -226,6 +423,9 @@ func agentListResponse(row service.AgentListRow) AgentResponse {
 	response.MonitorCount = row.MonitorCount
 	response.IP = row.IP
 	response.Status = row.Status
+	response.AvailabilityHealth = row.AvailabilityHealth
+	response.MonitorHealth = row.MonitorHealth
+	response.StatusReason = row.StatusReason
 	response.UptimeSeconds = row.UptimeSeconds
 	return response
 }
@@ -245,6 +445,9 @@ func monitorResponse(monitor db.Monitor) MonitorResponse {
 		Type:                     monitor.Type,
 		Name:                     monitor.Name,
 		AgentID:                  monitor.AgentID,
+		OwnerKind:                "agent",
+		OwnerID:                  monitor.AgentID,
+		Source:                   "agent",
 		LastSuccessfulReportAt:   monitor.LastSuccessfulReportAt,
 		ReportingIntervalSeconds: monitor.ReportingIntervalSeconds,
 		ComputedHealth:           monitor.ComputedHealth,
@@ -267,12 +470,17 @@ func monitorResponses(monitors []db.Monitor) []MonitorResponse {
 	return responses
 }
 
-func monitorResponsesWithAgents(monitors []db.Monitor, agentsByID map[string]db.Agent) []MonitorResponse {
+func monitorResponsesWithAgents(monitors []db.Monitor, agentsByID map[string]db.Agent, coreMonitorIDs map[string]struct{}) []MonitorResponse {
 	responses := make([]MonitorResponse, 0, len(monitors))
 	for _, monitor := range monitors {
 		response := monitorResponse(monitor)
 		if agent, ok := agentsByID[monitor.AgentID]; ok {
 			response.AgentName = agent.Name
+			response.OwnerName = agent.Name
+		}
+		if _, ok := coreMonitorIDs[monitor.ID]; ok {
+			response.OwnerKind = "core"
+			response.Source = "core"
 		}
 		responses = append(responses, response)
 	}
@@ -283,11 +491,95 @@ func monitorReportResponse(report db.MonitorReport) MonitorReportResponse {
 	return MonitorReportResponse{
 		ID:          report.ID,
 		MonitorID:   report.MonitorID,
-		Payload:     report.Payload,
+		Payload:     safeMonitorReportPayload(report.Payload),
 		CollectedAt: report.CollectedAt,
 		Health:      report.Health,
 		CreatedAt:   report.CreatedAt,
 	}
+}
+
+type heartbeatSensitivePattern struct {
+	pattern     *regexp.Regexp
+	replacement string
+}
+
+var heartbeatSensitivePatterns = []heartbeatSensitivePattern{
+	{
+		pattern:     regexp.MustCompile(`(?i)(token|password|secret|api[_-]?key|authorization)(["']?\s*[:=]\s*["']?)[^"',\s}]+`),
+		replacement: "${1}${2}[redacted]",
+	},
+	{
+		pattern:     regexp.MustCompile(`(?i)(bearer\s+)[a-z0-9._~+/-]+`),
+		replacement: "${1}[redacted]",
+	},
+}
+
+func safeMonitorReportPayload(payload string) string {
+	var fields map[string]interface{}
+	if err := json.Unmarshal([]byte(payload), &fields); err != nil {
+		return payload
+	}
+	if !isHeartbeatReportPayload(fields) {
+		return payload
+	}
+	redacted := redactHeartbeatPayloadValue(fields)
+	body, err := json.Marshal(redacted)
+	if err != nil {
+		return payload
+	}
+	return string(body)
+}
+
+func isHeartbeatReportPayload(fields map[string]interface{}) bool {
+	return stringFieldEquals(fields, "type", "heartbeat") || stringFieldEquals(fields, "runner", "heartbeat")
+}
+
+func stringFieldEquals(fields map[string]interface{}, key string, expected string) bool {
+	value, ok := fields[key].(string)
+	return ok && strings.EqualFold(strings.TrimSpace(value), expected)
+}
+
+func redactHeartbeatPayloadValue(value interface{}) interface{} {
+	switch typed := value.(type) {
+	case map[string]interface{}:
+		result := make(map[string]interface{}, len(typed))
+		for key, field := range typed {
+			if heartbeatSensitiveKey(key) {
+				result[key] = "[redacted]"
+				continue
+			}
+			result[key] = redactHeartbeatPayloadValue(field)
+		}
+		return result
+	case []interface{}:
+		result := make([]interface{}, 0, len(typed))
+		for _, item := range typed {
+			result = append(result, redactHeartbeatPayloadValue(item))
+		}
+		return result
+	case string:
+		return redactHeartbeatText(typed)
+	default:
+		return typed
+	}
+}
+
+func heartbeatSensitiveKey(key string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(key))
+	return strings.Contains(normalized, "token") ||
+		strings.Contains(normalized, "password") ||
+		strings.Contains(normalized, "secret") ||
+		strings.Contains(normalized, "api_key") ||
+		strings.Contains(normalized, "apikey") ||
+		strings.Contains(normalized, "authorization")
+}
+
+func redactHeartbeatText(value string) string {
+	redacted := value
+	for _, pattern := range heartbeatSensitivePatterns {
+		redacted = pattern.pattern.ReplaceAllString(redacted, pattern.replacement)
+	}
+	return redacted
 }
 
 func monitorReportResponses(reports []db.MonitorReport) []MonitorReportResponse {
@@ -338,6 +630,36 @@ func agentReportResponses(reports []db.AgentReport) []AgentReportResponse {
 	return responses
 }
 
+func serviceLogEntryResponse(entry db.ServiceLogEntry, agentsByID map[string]db.Agent) ServiceLogEntryResponse {
+	response := ServiceLogEntryResponse{
+		ID:          entry.ID,
+		AgentID:     entry.AgentID,
+		MonitorID:   entry.MonitorID,
+		Source:      entry.Source,
+		Stream:      entry.Stream,
+		Level:       entry.Level,
+		Component:   entry.Component,
+		MonitorName: entry.MonitorName,
+		Message:     entry.Message,
+		Fields:      entry.FieldsJSON,
+		OccurredAt:  entry.OccurredAt,
+		CollectedAt: entry.CollectedAt,
+		CreatedAt:   entry.CreatedAt,
+	}
+	if agent, ok := agentsByID[entry.AgentID]; ok {
+		response.AgentName = agent.Name
+	}
+	return response
+}
+
+func serviceLogEntryResponses(entries []db.ServiceLogEntry, agentsByID map[string]db.Agent) []ServiceLogEntryResponse {
+	responses := make([]ServiceLogEntryResponse, 0, len(entries))
+	for _, entry := range entries {
+		responses = append(responses, serviceLogEntryResponse(entry, agentsByID))
+	}
+	return responses
+}
+
 func incidentResponse(incident db.Incident, agent db.Agent, monitor db.Monitor) IncidentResponse {
 	return IncidentResponse{
 		ID:                 incident.ID,
@@ -349,6 +671,13 @@ func incidentResponse(incident db.Incident, agent db.Agent, monitor db.Monitor) 
 		MonitorID:          incident.MonitorID,
 		MonitorName:        monitor.Name,
 		MonitorType:        monitor.Type,
+		ImpactedComponents: incidentComponentImpactResponses(incident.ImpactedComponents),
+		CoveredAt:          incident.CoveredAt,
+		CoveredUntil:       incident.CoveredUntil,
+		CoverageNote:       incident.CoverageNote,
+		ResolutionKind:     incident.ResolutionKind,
+		ReopenedAt:         incident.ReopenedAt,
+		ReopenCount:        incident.ReopenCount,
 		OpenedAt:           incident.OpenedAt,
 		ResolvedAt:         incident.ResolvedAt,
 		LastEventAt:        incident.LastEventAt,
@@ -357,6 +686,32 @@ func incidentResponse(incident db.Incident, agent db.Agent, monitor db.Monitor) 
 		CreatedAt:          incident.CreatedAt,
 		UpdatedAt:          incident.UpdatedAt,
 	}
+}
+
+func incidentComponentImpactResponses(raw string) []IncidentComponentImpactResponse {
+	if strings.TrimSpace(raw) == "" {
+		return []IncidentComponentImpactResponse{}
+	}
+
+	var impacts []db.IncidentComponentImpact
+	if err := json.Unmarshal([]byte(raw), &impacts); err != nil {
+		return []IncidentComponentImpactResponse{}
+	}
+
+	responses := make([]IncidentComponentImpactResponse, 0, len(impacts))
+	for _, impact := range impacts {
+		response := IncidentComponentImpactResponse{
+			ComponentID:   strings.TrimSpace(impact.ComponentID),
+			ComponentName: strings.TrimSpace(impact.ComponentName),
+			Status:        strings.TrimSpace(impact.Status),
+			Impact:        strings.TrimSpace(impact.Impact),
+		}
+		if response.ComponentID == "" && response.ComponentName == "" {
+			continue
+		}
+		responses = append(responses, response)
+	}
+	return responses
 }
 
 func incidentEventResponse(event db.IncidentEvent) IncidentEventResponse {
@@ -380,16 +735,84 @@ func incidentEventResponses(events []db.IncidentEvent) []IncidentEventResponse {
 
 func alertDeliveryResponse(delivery db.AlertDelivery) AlertDeliveryResponse {
 	return AlertDeliveryResponse{
-		ID:         delivery.ID,
-		IncidentID: delivery.IncidentID,
-		EventType:  delivery.EventType,
-		Channel:    delivery.Channel,
-		Type:       delivery.Type,
-		Status:     delivery.Status,
-		Error:      safeAlertDeliveryError(delivery.Error),
-		CreatedAt:  delivery.CreatedAt,
-		UpdatedAt:  delivery.UpdatedAt,
+		ID:            delivery.ID,
+		IncidentID:    delivery.IncidentID,
+		RouteID:       delivery.RouteID,
+		AlertGroupID:  delivery.AlertGroupID,
+		EventType:     delivery.EventType,
+		Channel:       delivery.Channel,
+		Type:          delivery.Type,
+		Status:        delivery.Status,
+		Error:         safeAlertDeliveryError(delivery.Error),
+		AttemptCount:  delivery.AttemptCount,
+		MaxAttempts:   delivery.MaxAttempts,
+		NextAttemptAt: delivery.NextAttemptAt,
+		LastAttemptAt: delivery.LastAttemptAt,
+		Attempts:      alertDeliveryAttemptResponses(delivery.Attempts),
+		CreatedAt:     delivery.CreatedAt,
+		UpdatedAt:     delivery.UpdatedAt,
 	}
+}
+
+func alertRouteResponse(route db.AlertRoute) AlertRouteResponse {
+	return AlertRouteResponse{
+		ID:           route.ID,
+		Name:         route.Name,
+		Enabled:      route.Enabled,
+		Priority:     route.Priority,
+		EventTypes:   decodeResponseList(route.EventTypes, db.DefaultAlertEvents()),
+		Severities:   decodeResponseList(route.Severities, nil),
+		AgentIDs:     decodeResponseList(route.AgentIDs, nil),
+		MonitorIDs:   decodeResponseList(route.MonitorIDs, nil),
+		MonitorTypes: decodeResponseList(route.MonitorTypes, nil),
+		ChannelIDs:   decodeResponseList(route.ChannelIDs, nil),
+		Suppress:     route.Suppress,
+		GroupingPolicy: normalizeAlertGroupingPolicy(
+			route.GroupingPolicy,
+		),
+		GroupingDelaySeconds: normalizeAlertGroupingDelaySeconds(route.GroupingDelaySeconds),
+		CreatedAt:            route.CreatedAt,
+		UpdatedAt:            route.UpdatedAt,
+	}
+}
+
+func alertRouteResponses(routes []db.AlertRoute) []AlertRouteResponse {
+	responses := make([]AlertRouteResponse, 0, len(routes))
+	for _, route := range routes {
+		responses = append(responses, alertRouteResponse(route))
+	}
+	return responses
+}
+
+func alertRouteDryRunResponse(result *service.AlertRouteDryRunResult) AlertRouteDryRunResponse {
+	evaluations := make([]AlertRouteEvaluationResponse, 0, len(result.RouteEvaluations))
+	for _, evaluation := range result.RouteEvaluations {
+		evaluations = append(evaluations, AlertRouteEvaluationResponse{
+			Route:      alertRouteResponse(evaluation.Route),
+			Matched:    evaluation.Matched,
+			Suppressed: evaluation.Suppressed,
+			Reasons:    evaluation.Reasons,
+		})
+	}
+	return AlertRouteDryRunResponse{
+		Event:                result.Event,
+		LegacyFallback:       result.LegacyFallback,
+		Suppressed:           result.Suppressed,
+		SuppressionReason:    result.SuppressionReason,
+		RouteEvaluations:     evaluations,
+		DestinationDecisions: result.DestinationDecisions,
+	}
+}
+
+func decodeResponseList(value string, fallback []string) []string {
+	if value == "" {
+		return fallback
+	}
+	var values []string
+	if err := json.Unmarshal([]byte(value), &values); err != nil || len(values) == 0 {
+		return fallback
+	}
+	return values
 }
 
 func alertDeliveryResponses(deliveries []db.AlertDelivery) []AlertDeliveryResponse {
@@ -400,11 +823,37 @@ func alertDeliveryResponses(deliveries []db.AlertDelivery) []AlertDeliveryRespon
 	return responses
 }
 
+func alertDeliveryAttemptResponse(attempt db.AlertDeliveryAttempt) AlertDeliveryAttemptResponse {
+	return AlertDeliveryAttemptResponse{
+		ID:              attempt.ID,
+		AlertDeliveryID: attempt.AlertDeliveryID,
+		AttemptNumber:   attempt.AttemptNumber,
+		Status:          attempt.Status,
+		Stage:           attempt.Stage,
+		Error:           safeAlertDeliveryError(attempt.Error),
+		StartedAt:       attempt.StartedAt,
+		CompletedAt:     attempt.CompletedAt,
+		CreatedAt:       attempt.CreatedAt,
+		UpdatedAt:       attempt.UpdatedAt,
+	}
+}
+
+func alertDeliveryAttemptResponses(attempts []db.AlertDeliveryAttempt) []AlertDeliveryAttemptResponse {
+	responses := make([]AlertDeliveryAttemptResponse, 0, len(attempts))
+	for _, attempt := range attempts {
+		responses = append(responses, alertDeliveryAttemptResponse(attempt))
+	}
+	return responses
+}
+
 func safeAlertDeliveryError(value string) string {
 	switch value {
-	case "", "alert channel disabled", "alert cooldown active", "no alert channels configured":
+	case "", "alert channel disabled", "alert cooldown active", "no alert channels configured", "no alert routes matched", "alert route destination missing", "alert grouped into active alert group", "alert grouped; sibling incidents still active", "alert grouped summary pending":
 		return value
 	default:
+		if strings.HasPrefix(value, "alert route suppressed event") {
+			return value
+		}
 		return "delivery failed; check Core logs"
 	}
 }

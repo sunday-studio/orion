@@ -4,50 +4,50 @@
 
 ```mermaid
 sequenceDiagram
-  participant Agent
+  participant Server
   participant Core
-  participant AgentService
+  participant ServerService
   participant MonitorService
   participant ReportService
   participant DB as SQLite
 
-  Agent->>Core: POST /v1/register
-  Core->>AgentService: RegisterAgent(machine_id, name, os, arch, meta)
-  AgentService->>DB: create or reconnect agent
-  DB-->>AgentService: agent id + token
-  Core-->>Agent: agent_id + token
+  Server->>Core: POST /v1/register
+  Core->>ServerService: RegisterServer(machine_id, name, os, arch, meta)
+  ServerService->>DB: create or reconnect server
+  DB-->>ServerService: server id + token
+  Core-->>Server: agent_id + token
 
-  Agent->>Core: POST /v1/agents/{agent_id}/register-monitor
+  Server->>Core: POST /v1/agents/{agent_id}/register-monitor
   Core->>MonitorService: RegisterMonitor(...)
   MonitorService->>DB: create, revive, or reject duplicate monitor
-  Core-->>Agent: monitor_id
+  Core-->>Server: monitor_id
 
-  Agent->>Core: POST /v1/agents/{agent_id}/report
+  Server->>Core: POST /v1/agents/{agent_id}/report
   Core->>ReportService: StoreAgentReport(...)
   ReportService->>DB: insert agent_reports
   ReportService->>DB: reconcile stale monitor incidents
-  Core-->>Agent: report accepted
+  Core-->>Server: report accepted
 
-  Agent->>Core: POST /v1/agents/{agent_id}/{monitor_id}/report
+  Server->>Core: POST /v1/agents/{agent_id}/{monitor_id}/report
   Core->>ReportService: StoreMonitorReport(...)
   ReportService->>DB: insert monitor_reports
   ReportService->>DB: update monitor health and last success
   ReportService->>DB: reconcile incidents
   ReportService->>DB: compute and cache health
-  Core-->>Agent: report accepted
+  Core-->>Server: report accepted
 ```
 
-## Agent Registration
+## Server Registration
 
-The Agent stores its durable identity in local SQLite state at `state.db`.
+The Server stores its durable identity in local SQLite state at `state.db`.
 
 On first registration:
 
-- Agent generates or reads a machine identity.
-- Agent reads local system name, OS, and architecture.
-- Agent sends `machine_id`, `name`, `os`, `arch`, and optional config `meta`.
+- Server generates or reads a machine identity.
+- Server reads local system name, OS, and architecture.
+- Server sends `machine_id`, `name`, `os`, `arch`, and optional config `meta`.
 - Core creates an `agents` row with a generated `agent-*` id and token.
-- Agent saves `agent_id`, `token`, `core_url`, and registration state.
+- Server saves `agent_id`, `token`, `core_url`, and registration state.
 
 On reconnect:
 
@@ -55,6 +55,11 @@ On reconnect:
 - Core returns the same token.
 - Core refreshes `last_seen`.
 - Core updates changed name, OS, arch, reporting interval, and meta.
+
+After Server token lifecycle controls are implemented, revoked Servers must not receive a token
+through unauthenticated re-registration. Rotation and reissue preserve the existing `agent_id` and
+monitor IDs; operators apply the replacement token to local Server state instead of resetting state
+when identity continuity matters. See [agent-token-lifecycle.md](agent-token-lifecycle.md).
 
 ```mermaid
 flowchart TD
@@ -68,7 +73,7 @@ flowchart TD
 
 ## Monitor Registration
 
-After Agent registration, configured monitors are reconciled against internal state:
+After Server registration, configured monitors are reconciled against internal state:
 
 - Configured monitors are sent to Core on startup so Core can refresh monitor metadata and reporting intervals.
 - Configured monitor missing from state: Core creates or revives it.
@@ -79,7 +84,7 @@ Core monitor registration behavior:
 - New monitor creates a `monitors` row with `lifecycle = active`, `health = unknown`, and `computed_health = unknown`.
 - Previously deleted monitor with the same server/name is revived.
 - Active duplicate monitor names for a server are rejected.
-- Existing active monitors with the same name are reconciled and returned to the Agent.
+- Existing active monitors with the same name are reconciled and returned to the Server.
 - Removed monitors are soft-deleted by setting `lifecycle = deleted`, `health = unknown`, and `deleted_at`.
 - Core stores each monitor reporting interval and uses it to derive stale state.
 
@@ -100,10 +105,10 @@ flowchart TD
 
 System reports are sent:
 
-- once immediately when the Agent runtime starts;
+- once immediately when the Server runtime starts;
 - then on the global `interval` from config.
 
-Agent collects:
+Server collects:
 
 - hostname, OS, platform, architecture, kernel;
 - uptime seconds;
@@ -111,27 +116,27 @@ Agent collects:
 - memory total/used/free/available/percent;
 - root disk total/used/free/percent;
 - optional location metadata;
-- Agent version;
+- Server version;
 - config summary with reporting interval, monitor count, and monitor type counts.
 
 Core stores system reports in `agent_reports`.
-Core may also refresh the stored Agent reporting interval from `config_summary.reporting_interval`.
+Core may also refresh the stored Server reporting interval from `config_summary.reporting_interval`.
 
 ```mermaid
 flowchart TD
-  Tick["System interval tick or startup"] --> Maintenance{"Agent local maintenance?"}
+  Tick["System interval tick or startup"] --> Maintenance{"Server local maintenance?"}
   Maintenance -- "yes" --> Skip["Skip system report"]
   Maintenance -- "no" --> Collect["Collect system metrics"]
   Collect --> Send["POST /v1/agents/{agent_id}/report"]
   Send --> Auth["Core validates bearer token"]
   Auth --> Store["Insert agent_reports row"]
-  Store --> LastSeen["Update agent last_seen"]
+  Store --> LastSeen["Update server last_seen"]
   Store --> Stale["Reconcile stale monitor incidents"]
 ```
 
 ## Monitor Report Ingestion
 
-Each monitor runs in its own worker on its own configured interval. The Agent also runs every monitor once at startup.
+Each monitor runs in its own worker on its own configured interval. The Server also runs every monitor once at startup.
 
 Monitor reports contain:
 
@@ -144,7 +149,7 @@ Core stores monitor reports in `monitor_reports`. If a monitor reports `up`, Cor
 
 ```mermaid
 flowchart TD
-  Tick["Monitor interval tick or startup"] --> Maintenance{"Agent local maintenance?"}
+  Tick["Monitor interval tick or startup"] --> Maintenance{"Server local maintenance?"}
   Maintenance -- "yes" --> Skip["Skip monitor report"]
   Maintenance -- "no" --> RunCheck["Run monitor collector"]
   RunCheck --> Result{"Check result"}
@@ -161,7 +166,7 @@ flowchart TD
 
 ## Retry Behavior
 
-The Agent transport performs short request retries first:
+The Server transport performs short request retries first:
 
 - max attempts: 3;
 - base delay: 200ms;
@@ -171,13 +176,13 @@ The Agent transport performs short request retries first:
 
 If a system or monitor report still fails after transport retries:
 
-- Agent pushes a send closure into a bounded retry queue.
+- Server pushes a send closure into a bounded retry queue.
 - Queue capacity defaults to 100.
 - If full, oldest item is dropped and replaced.
 - A retry worker flushes the queue every 30 seconds.
 - Shutdown flushes the queue once with a background context.
 
-Authentication failures are not queued as transient failures. The Agent stops reporting and exits with a visible error so the operator can fix credentials or registration state.
+Authentication failures are not queued as transient failures. The Server stops reporting and exits with a visible error so the operator can fix credentials or registration state.
 
 ```mermaid
 flowchart TD

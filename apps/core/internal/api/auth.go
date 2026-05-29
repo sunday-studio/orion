@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
 	"strings"
@@ -58,6 +59,11 @@ func ValidateAgentToken(agentService *service.AgentService, authService *service
 
 		agent, err := authService.ValidateToken(agentIDStr, token.(string))
 		if err != nil {
+			if errors.Is(err, service.ErrAgentTokenRevoked) {
+				utils.Unauthorized(c, "agent_token_revoked")
+				c.Abort()
+				return
+			}
 			utils.Unauthorized(c, "Invalid token for this agent")
 			c.Abort()
 			return

@@ -1,0 +1,225 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Detect changed areas
+    runs-on: ubuntu-24.04
+    outputs:
+      agent: ${{ steps.filter.outputs.agent }}
+      console: ${{ steps.filter.outputs.console }}
+      contracts: ${{ steps.filter.outputs.contracts }}
+      core: ${{ steps.filter.outputs.core }}
+      deploy: ${{ steps.filter.outputs.deploy }}
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Filter paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            agent:
+              - 'apps/agent/**'
+              - 'deploy/scripts/**'
+              - 'deploy/systemd/**'
+              - 'deploy/launchd/**'
+              - 'Makefile'
+              - '.github/workflows/ci.yml'
+            console:
+              - 'apps/console/**'
+              - 'apps/core/openapi.yaml'
+              - 'apps/core/docs/**'
+              - 'Makefile'
+              - '.github/workflows/ci.yml'
+            contracts:
+              - 'apps/core/internal/api/**'
+              - 'apps/core/internal/db/**'
+              - 'apps/core/internal/service/**'
+              - 'apps/core/scripts/generate-openapi.sh'
+              - 'apps/core/main.go'
+              - 'apps/core/openapi.yaml'
+              - 'apps/core/docs/**'
+              - 'apps/console/src/orion-sdk/**'
+              - 'apps/console/orval.config.ts'
+              - 'apps/console/package.json'
+              - 'apps/console/pnpm-lock.yaml'
+              - 'Makefile'
+              - '.github/workflows/ci.yml'
+            core:
+              - 'apps/core/**'
+              - 'deploy/docker-compose.yml'
+              - 'deploy/examples/core-console-compose.yaml'
+              - 'Makefile'
+              - '.github/workflows/ci.yml'
+            deploy:
+              - 'deploy/**'
+              - 'README.md'
+              - 'docs/deployment/**'
+              - '.github/workflows/ci.yml'
+            docs:
+              - 'docs/**'
+              - 'README.md'
+              - 'AGENTS.md'
+              - '.github/workflows/ci.yml'
+
+  agent:
+    name: Server tests
+    runs-on: ubuntu-24.04
+    needs: changes
+    if: needs.changes.outputs.agent == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/agent/go.mod
+          cache-dependency-path: apps/agent/go.sum
+
+      - name: Test Server
+        run: go test ./...
+        working-directory: apps/agent
+
+  core:
+    name: Core tests
+    runs-on: ubuntu-24.04
+    needs: changes
+    if: needs.changes.outputs.core == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/core/go.mod
+          cache-dependency-path: apps/core/go.sum
+
+      - name: Test Core
+        run: go test ./...
+        working-directory: apps/core
+
+      - name: Build Core binaries
+        run: |
+          make core-build CORE_OUTPUT=/tmp/orion-core
+          make core-worker-build CORE_WORKER_OUTPUT=/tmp/orion-core-worker
+
+  console:
+    name: Console build
+    runs-on: ubuntu-24.04
+    needs: changes
+    if: needs.changes.outputs.console == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/core/go.mod
+          cache-dependency-path: apps/core/go.sum
+
+      - name: Set up pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.23.0 --activate
+
+      - name: Install Console dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: apps/console
+
+      - name: Build Console
+        run: pnpm run build
+        working-directory: apps/console
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+        working-directory: apps/console
+
+      - name: Browser smoke
+        run: pnpm run test:e2e
+        working-directory: apps/console
+
+  generated-contracts:
+    name: Generated contracts
+    runs-on: ubuntu-24.04
+    needs: changes
+    if: needs.changes.outputs.contracts == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/core/go.mod
+          cache-dependency-path: apps/core/go.sum
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.23.0 --activate
+
+      - name: Install Swagger generator
+        run: go install github.com/swaggo/swag/cmd/swag@latest
+
+      - name: Install Console dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: apps/console
+
+      - name: Regenerate OpenAPI and SDK
+        run: make generate-sdk
+
+      - name: Check generated files are committed
+        run: |
+          git diff --exit-code -- \
+            apps/core/docs \
+            apps/core/openapi.yaml \
+            apps/console/src/orion-sdk
+
+  repository-smoke:
+    name: Repository smoke
+    runs-on: ubuntu-24.04
+    needs: changes
+    if: |
+      needs.changes.outputs.deploy == 'true' ||
+      needs.changes.outputs.docs == 'true' ||
+      needs.changes.outputs.agent == 'true' ||
+      needs.changes.outputs.console == 'true' ||
+      needs.changes.outputs.contracts == 'true' ||
+      needs.changes.outputs.core == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check shell scripts
+        run: bash -n deploy/scripts/*.sh
+
+      - name: Validate Docker Compose syntax
+        run: docker compose -f deploy/docker-compose.yml config >/tmp/orion-compose.yml
+        env:
+          ORION_ADMIN_USERNAME: ci-admin
+          ORION_ADMIN_PASSWORD: ci-password
+          ORION_JWT_SECRET: ci-secret-at-least-long-enough

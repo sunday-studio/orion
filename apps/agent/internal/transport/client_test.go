@@ -87,6 +87,21 @@ func TestClientReturnsAuthErrorForProtectedReport(t *testing.T) {
 	}
 }
 
+func TestAuthErrorRedactsCoreResponseBody(t *testing.T) {
+	err := NewAuthError(http.StatusUnauthorized, []byte(`{"error":"agent_token_revoked","message":"authorization: Bearer secret-token","token":"secret-token"}`))
+
+	text := err.Error()
+	if !strings.Contains(text, "agent_token_revoked") {
+		t.Fatalf("Error() = %q, want stable error code", text)
+	}
+	if strings.Contains(text, "secret-token") {
+		t.Fatalf("Error() = %q, want redacted token", text)
+	}
+	if !strings.Contains(text, "[redacted]") {
+		t.Fatalf("Error() = %q, want redaction marker", text)
+	}
+}
+
 func newRetryTestClient(roundTrip func(*http.Request) (*http.Response, error)) *Client {
 	client := NewClient("https://core.example.com", "token")
 	client.httpClient.Transport = roundTripFunc(roundTrip)

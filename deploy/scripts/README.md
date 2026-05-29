@@ -4,16 +4,16 @@ This directory contains installation, deployment, and utility scripts for the Or
 
 ## Scripts
 
-### Agent Scripts
+### Server Scripts
 
-- **agent-bootstrap.sh** - Curlable installer that downloads a released Agent binary and installs it as a service.
-- **agent-install.sh** - Installs the Orion Agent binary, config, state directory, and service.
-- **agent-uninstall.sh** - Uninstalls the Orion agent, removes service files, and cleans up configuration.
+- **agent-bootstrap.sh** - Curlable installer that downloads a released Server binary and installs it as a service.
+- **agent-install.sh** - Installs the Orion Server binary, config, state directory, and service.
+- **agent-uninstall.sh** - Uninstalls the Orion server, removes service files, and cleans up configuration.
 - **agent-cli-lifecycle-smoke.sh** - Dry-run smoke test for install, uninstall, and lifecycle CLI output.
 
 ### Installation Scripts
 
-See [Agent install and upgrade](../../docs/deployment/agent-install-upgrade.md).
+See [Server install and upgrade](../../docs/deployment/agent-install-upgrade.md).
 
 ## Usage
 

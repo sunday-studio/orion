@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { LoginPage } from "@/features/auth/login-page";
 import { Layout } from "@/components/layout";
 import { AgentDetailPage } from "@/features/agent-detail/agent-detail.view";
@@ -10,6 +10,12 @@ import { LogsPage } from "@/features/event-log/logs.view";
 import { AgentsPage } from "@/features/agents/agents.view";
 import { SettingsPage } from "@/features/settings/settings.view";
 import { MonitorsPage } from "@/features/monitors/monitors.view";
+import { StatusPagesPage } from "@/features/status-pages/status-pages.view";
+
+const AgentDetailRedirect = () => {
+  const { agentId = "" } = useParams();
+  return <Navigate to={`/servers/${agentId}`} replace />;
+};
 
 function App() {
   return (
@@ -19,10 +25,11 @@ function App() {
         <Route index element={<Navigate to="/incidents" replace />} />
         <Route path="incidents" element={<IncidentsPage />} />
         <Route path="alerts" element={<AlertsPage />} />
+        <Route path="status-pages" element={<StatusPagesPage />} />
         <Route path="logs" element={<LogsPage />} />
-        <Route path="agents" element={<AgentsPage />} />
-        <Route path="agents/:agentId" element={<AgentDetailPage />} />
-        <Route path="servers" element={<Navigate to="/agents" replace />} />
+        <Route path="agents" element={<Navigate to="/servers" replace />} />
+        <Route path="agents/:agentId" element={<AgentDetailRedirect />} />
+        <Route path="servers" element={<AgentsPage />} />
         <Route path="servers/:agentId" element={<AgentDetailPage />} />
         <Route path="monitors" element={<MonitorsPage />} />
         <Route path="monitors/:monitorId" element={<MonitorDetailPage />} />
