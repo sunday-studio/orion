@@ -28,6 +28,12 @@ const sendWebhookTest = async (page: Page, name: string) => {
   await page.getByRole("menuitem", { name: "Send test" }).click();
 };
 
+const openSettings = async (page: Page) => {
+  await signIn(page);
+  await page.getByRole("link", { name: "Settings" }).click();
+  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+};
+
 test("signs in, rejects bad credentials, and signs out", async ({ page }) => {
   await page.goto("/login");
   await page.getByPlaceholder("Username").fill(username);
@@ -81,6 +87,10 @@ test("renders primary operations pages with seeded Core data", async ({ page }) 
   await page.getByRole("link", { name: "Settings" }).click();
   await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
   await expect(page.getByLabel("Raw report days")).toHaveValue("30");
+  await expect(
+    page.getByRole("checkbox", { name: "Archive raw reports automatically" }),
+  ).toBeChecked();
+  await expect(page.getByRole("checkbox", { name: "Enable rollups" })).toBeChecked();
 });
 
 test("creates and manages a Core HTTP monitor", async ({ page }) => {
@@ -137,11 +147,7 @@ test("creates webhook alert destinations and records sanitized delivery logs", a
   await page.getByRole("tab", { name: "Channels" }).click();
   await expect(page.getByRole("heading", { name: "Webhook Channels" })).toBeVisible();
 
-  await createWebhookDestination(
-    page,
-    sentDestination,
-    `${webhookReceiverURL}/webhook/success`,
-  );
+  await createWebhookDestination(page, sentDestination, `${webhookReceiverURL}/webhook/success`);
   await createWebhookDestination(
     page,
     failedDestination,
@@ -327,4 +333,52 @@ test("exercises incident detail tabs and lifecycle actions", async ({ page }) =>
   await page.getByRole("button", { name: "Resolve" }).click();
   await expect(page.getByRole("button", { name: "Resolve" })).toBeHidden();
   await expect(page.getByText("Incident manually resolved").first()).toBeVisible();
+});
+
+test("reads and saves data lifecycle settings", async ({ page }) => {
+  await openSettings(page);
+
+  await expect(page.getByLabel("Raw report days")).toHaveValue("30");
+  await expect(page.getByLabel("Archive directory")).toHaveValue(/\/archive$/);
+  await expect(page.getByRole("combobox", { name: /Archive schedule/ })).toContainText("manual");
+  await expect(
+    page.getByRole("checkbox", { name: "Archive raw reports automatically" }),
+  ).toBeChecked();
+  await expect(page.getByRole("checkbox", { name: "Enable rollups" })).toBeChecked();
+
+  await page.getByLabel("Raw report days").fill("31");
+  await page.getByLabel("Rollup days").fill("45");
+  await page.getByRole("button", { name: "Save settings" }).click();
+  await expect(page.getByText("Settings saved.")).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+  await expect(page.getByLabel("Raw report days")).toHaveValue("31");
+  await expect(page.getByLabel("Rollup days")).toHaveValue("45");
+  await expect(
+    page.getByRole("checkbox", { name: "Archive raw reports automatically" }),
+  ).toBeChecked();
+  await expect(page.getByRole("checkbox", { name: "Enable rollups" })).toBeChecked();
+});
+
+test("validates settings and runs manual lifecycle actions", async ({ page }) => {
+  await openSettings(page);
+
+  await page.getByLabel("Raw report days").fill("0");
+  await page.getByRole("button", { name: "Save settings" }).click();
+  await expect(page.getByText("Unable to save settings.")).toBeVisible();
+
+  await page.getByLabel("Raw report days").fill("31");
+  await page.getByLabel("Rollup days").fill("45");
+  await page.getByRole("button", { name: "Save settings" }).click();
+  await expect(page.getByText("Settings saved.")).toBeVisible();
+
+  await page.getByRole("button", { name: "Run rollup" }).click();
+  await expect(page.getByText(/Rolled up \d+ reports\./)).toBeVisible();
+  await expect(page.getByText("Last rollup")).toBeVisible();
+
+  await page.getByRole("button", { name: "Run archive" }).click();
+  await expect(page.getByText(/Archived \d+ reports\./)).toBeVisible();
+  await expect(page.getByText("Last archive")).toBeVisible();
+  await expect(page.getByText("success")).toBeVisible();
 });
