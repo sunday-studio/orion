@@ -262,22 +262,27 @@ func (s *Server) registerStatusPageAdminRoutes(frontend *gin.RouterGroup) {
 	frontend.POST("/status-pages", s.createStatusPage)
 	frontend.GET("/status-pages/:id", s.getStatusPage)
 	frontend.PUT("/status-pages/:id", s.updateStatusPage)
+	frontend.DELETE("/status-pages/:id", s.deleteStatusPage)
 	frontend.POST("/status-pages/:id/publish", s.publishStatusPage)
 	frontend.POST("/status-pages/:id/unpublish", s.unpublishStatusPage)
 	frontend.GET("/status-pages/:id/preview", s.previewStatusPage)
 	frontend.GET("/status-pages/:id/sections", s.listStatusPageSections)
 	frontend.POST("/status-pages/:id/sections", s.createStatusPageSection)
 	frontend.PUT("/status-pages/:id/sections/:section_id", s.updateStatusPageSection)
+	frontend.DELETE("/status-pages/:id/sections/:section_id", s.deleteStatusPageSection)
 	frontend.GET("/status-pages/:id/components", s.listStatusPageComponents)
 	frontend.POST("/status-pages/:id/components", s.createStatusPageComponent)
 	frontend.PUT("/status-pages/:id/components/:component_id", s.updateStatusPageComponent)
+	frontend.DELETE("/status-pages/:id/components/:component_id", s.deleteStatusPageComponent)
 	frontend.GET("/status-pages/:id/components/:component_id/mappings", s.listStatusPageComponentMappings)
 	frontend.POST("/status-pages/:id/components/:component_id/mappings", s.createStatusPageComponentMapping)
 	frontend.PUT("/status-pages/:id/components/:component_id/mappings/:mapping_id", s.updateStatusPageComponentMapping)
+	frontend.DELETE("/status-pages/:id/components/:component_id/mappings/:mapping_id", s.deleteStatusPageComponentMapping)
 	frontend.GET("/status-pages/:id/incidents", s.listStatusPageIncidents)
 	frontend.GET("/status-pages/:id/incidents/suggestions", s.suggestStatusPageIncidentComponents)
 	frontend.POST("/status-pages/:id/incidents", s.createStatusPageIncident)
 	frontend.PUT("/status-pages/:id/incidents/:incident_id", s.updateStatusPageIncident)
+	frontend.DELETE("/status-pages/:id/incidents/:incident_id", s.deleteStatusPageIncident)
 	frontend.POST("/status-pages/:id/incidents/:incident_id/updates", s.createStatusPageIncidentUpdate)
 }
 
@@ -410,6 +415,99 @@ func (s *Server) updateStatusPage(c *gin.Context) {
 	}
 	utils.SuccessResponse(c, http.StatusOK, "Status page updated successfully", gin.H{
 		"page": statusPageResponse(page),
+	})
+}
+
+// deleteStatusPage deletes a status page and its nested public configuration.
+// @Summary      Delete status page
+// @Description  Delete a status page with sections, components, mappings, public incidents, subscribers, and delivery records
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           deleteStatusPage
+// @Param        id   path      string  true  "Status page ID"
+// @Success      200  {object}  utils.APIResponse{data=object{id=string}}
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/status-pages/{id} [delete]
+func (s *Server) deleteStatusPage(c *gin.Context) {
+	var page db.StatusPage
+	if err := s.db.Where("id = ?", c.Param("id")).First(&page).Error; err != nil {
+		writeStatusPageLoadError(c, err, "Status page not found")
+		return
+	}
+
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		var components []db.StatusPageComponent
+		if err := tx.Where("status_page_id = ?", page.ID).Find(&components).Error; err != nil {
+			return err
+		}
+		componentIDs := make([]string, 0, len(components))
+		for _, component := range components {
+			componentIDs = append(componentIDs, component.ID)
+		}
+		if len(componentIDs) > 0 {
+			if err := tx.Where("component_id IN ?", componentIDs).Delete(&db.StatusPageComponentMapping{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("component_id IN ?", componentIDs).Delete(&db.StatusPageSubscriberComponent{}).Error; err != nil {
+				return err
+			}
+		}
+
+		var incidents []db.StatusPageIncident
+		if err := tx.Where("status_page_id = ?", page.ID).Find(&incidents).Error; err != nil {
+			return err
+		}
+		incidentIDs := make([]string, 0, len(incidents))
+		for _, incident := range incidents {
+			incidentIDs = append(incidentIDs, incident.ID)
+		}
+		if len(incidentIDs) > 0 {
+			if err := tx.Where("incident_id IN ?", incidentIDs).Delete(&db.StatusPageIncidentUpdate{}).Error; err != nil {
+				return err
+			}
+		}
+
+		var subscribers []db.StatusPageSubscriber
+		if err := tx.Where("status_page_id = ?", page.ID).Find(&subscribers).Error; err != nil {
+			return err
+		}
+		subscriberIDs := make([]string, 0, len(subscribers))
+		for _, subscriber := range subscribers {
+			subscriberIDs = append(subscriberIDs, subscriber.ID)
+		}
+		if len(subscriberIDs) > 0 {
+			if err := tx.Where("subscriber_id IN ?", subscriberIDs).Delete(&db.StatusPageSubscriberComponent{}).Error; err != nil {
+				return err
+			}
+		}
+
+		if err := tx.Where("status_page_id = ?", page.ID).Delete(&db.StatusPageSubscriberDelivery{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("status_page_id = ?", page.ID).Delete(&db.StatusPageSubscriber{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("status_page_id = ?", page.ID).Delete(&db.StatusPageIncident{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("status_page_id = ?", page.ID).Delete(&db.StatusPageComponent{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("status_page_id = ?", page.ID).Delete(&db.StatusPageSection{}).Error; err != nil {
+			return err
+		}
+		return tx.Delete(&page).Error
+	}); err != nil {
+		s.logger.Error("Failed to delete status page", "status_page_id", page.ID, "error", err)
+		utils.InternalError(c, "Failed to delete status page", err)
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, "Status page deleted successfully", gin.H{
+		"id": page.ID,
 	})
 }
 
@@ -713,6 +811,59 @@ func (s *Server) updateStatusPageSection(c *gin.Context) {
 	})
 }
 
+// deleteStatusPageSection deletes a section and its components.
+// @Summary      Delete status page section
+// @Description  Delete a section, its components, component mappings, and component subscriber preferences
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           deleteStatusPageSection
+// @Param        id          path      string  true  "Status page ID"
+// @Param        section_id  path      string  true  "Section ID"
+// @Success      200         {object}  utils.APIResponse{data=object{id=string}}
+// @Failure      404         {object}  utils.APIResponse
+// @Failure      500         {object}  utils.APIResponse
+// @Router       /v1/status-pages/{id}/sections/{section_id} [delete]
+func (s *Server) deleteStatusPageSection(c *gin.Context) {
+	var section db.StatusPageSection
+	if err := s.db.Where("id = ? AND status_page_id = ?", c.Param("section_id"), c.Param("id")).First(&section).Error; err != nil {
+		writeStatusPageLoadError(c, err, "Status page section not found")
+		return
+	}
+
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		var components []db.StatusPageComponent
+		if err := tx.Where("section_id = ? AND status_page_id = ?", section.ID, section.StatusPageID).Find(&components).Error; err != nil {
+			return err
+		}
+		componentIDs := make([]string, 0, len(components))
+		for _, component := range components {
+			componentIDs = append(componentIDs, component.ID)
+		}
+		if len(componentIDs) > 0 {
+			if err := tx.Where("component_id IN ?", componentIDs).Delete(&db.StatusPageComponentMapping{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("component_id IN ?", componentIDs).Delete(&db.StatusPageSubscriberComponent{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("section_id = ? AND status_page_id = ?", section.ID, section.StatusPageID).Delete(&db.StatusPageComponent{}).Error; err != nil {
+				return err
+			}
+		}
+		return tx.Delete(&section).Error
+	}); err != nil {
+		s.logger.Error("Failed to delete status page section", "status_page_id", section.StatusPageID, "section_id", section.ID, "error", err)
+		utils.InternalError(c, "Failed to delete status page section", err)
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, "Status page section deleted successfully", gin.H{
+		"id": section.ID,
+	})
+}
+
 // listStatusPageComponents lists components for a status page.
 // @Summary      List status page components
 // @Description  Get components and mappings for a status page
@@ -829,6 +980,45 @@ func (s *Server) updateStatusPageComponent(c *gin.Context) {
 	}
 	utils.SuccessResponse(c, http.StatusOK, "Status page component updated successfully", gin.H{
 		"component": statusPageComponentResponse(component, mappings),
+	})
+}
+
+// deleteStatusPageComponent deletes a component and its mappings.
+// @Summary      Delete status page component
+// @Description  Delete a public component, its internal mappings, and subscriber component preferences
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           deleteStatusPageComponent
+// @Param        id            path      string  true  "Status page ID"
+// @Param        component_id  path      string  true  "Component ID"
+// @Success      200           {object}  utils.APIResponse{data=object{id=string}}
+// @Failure      404           {object}  utils.APIResponse
+// @Failure      500           {object}  utils.APIResponse
+// @Router       /v1/status-pages/{id}/components/{component_id} [delete]
+func (s *Server) deleteStatusPageComponent(c *gin.Context) {
+	component, ok := s.loadStatusPageComponentForRequest(c)
+	if !ok {
+		return
+	}
+
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("component_id = ?", component.ID).Delete(&db.StatusPageComponentMapping{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("component_id = ?", component.ID).Delete(&db.StatusPageSubscriberComponent{}).Error; err != nil {
+			return err
+		}
+		return tx.Delete(&component).Error
+	}); err != nil {
+		s.logger.Error("Failed to delete status page component", "status_page_id", component.StatusPageID, "component_id", component.ID, "error", err)
+		utils.InternalError(c, "Failed to delete status page component", err)
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, "Status page component deleted successfully", gin.H{
+		"id": component.ID,
 	})
 }
 
@@ -972,6 +1162,41 @@ func (s *Server) updateStatusPageComponentMapping(c *gin.Context) {
 	}
 	utils.SuccessResponse(c, http.StatusOK, "Status page component mapping updated successfully", gin.H{
 		"mapping": statusPageComponentMappingResponse(mapping),
+	})
+}
+
+// deleteStatusPageComponentMapping deletes a component mapping.
+// @Summary      Delete status page component mapping
+// @Description  Remove an internal resource mapping from a public component
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           deleteStatusPageComponentMapping
+// @Param        id            path      string  true  "Status page ID"
+// @Param        component_id  path      string  true  "Component ID"
+// @Param        mapping_id    path      string  true  "Mapping ID"
+// @Success      200           {object}  utils.APIResponse{data=object{id=string}}
+// @Failure      404           {object}  utils.APIResponse
+// @Failure      500           {object}  utils.APIResponse
+// @Router       /v1/status-pages/{id}/components/{component_id}/mappings/{mapping_id} [delete]
+func (s *Server) deleteStatusPageComponentMapping(c *gin.Context) {
+	component, ok := s.loadStatusPageComponentForRequest(c)
+	if !ok {
+		return
+	}
+	var mapping db.StatusPageComponentMapping
+	if err := s.db.Where("id = ? AND component_id = ?", c.Param("mapping_id"), component.ID).First(&mapping).Error; err != nil {
+		writeStatusPageLoadError(c, err, "Status page component mapping not found")
+		return
+	}
+	if err := s.db.Delete(&mapping).Error; err != nil {
+		s.logger.Error("Failed to delete status page component mapping", "status_page_id", component.StatusPageID, "component_id", component.ID, "mapping_id", mapping.ID, "error", err)
+		utils.InternalError(c, "Failed to delete status page component mapping", err)
+		return
+	}
+	utils.SuccessResponse(c, http.StatusOK, "Status page component mapping deleted successfully", gin.H{
+		"id": mapping.ID,
 	})
 }
 
@@ -1172,6 +1397,46 @@ func (s *Server) updateStatusPageIncident(c *gin.Context) {
 	}
 	utils.SuccessResponse(c, http.StatusOK, "Status page incident updated successfully", gin.H{
 		"incident": statusPageIncidentResponse(incident, updates),
+	})
+}
+
+// deleteStatusPageIncident deletes a public incident and its timeline updates.
+// @Summary      Delete status page incident
+// @Description  Delete a manual public status page incident and its public updates
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           deleteStatusPageIncident
+// @Param        id           path      string  true  "Status page ID"
+// @Param        incident_id  path      string  true  "Incident ID"
+// @Success      200          {object}  utils.APIResponse{data=object{id=string}}
+// @Failure      404          {object}  utils.APIResponse
+// @Failure      500          {object}  utils.APIResponse
+// @Router       /v1/status-pages/{id}/incidents/{incident_id} [delete]
+func (s *Server) deleteStatusPageIncident(c *gin.Context) {
+	var incident db.StatusPageIncident
+	if err := s.db.Where("id = ? AND status_page_id = ?", c.Param("incident_id"), c.Param("id")).First(&incident).Error; err != nil {
+		writeStatusPageLoadError(c, err, "Status page incident not found")
+		return
+	}
+
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("incident_id = ?", incident.ID).Delete(&db.StatusPageIncidentUpdate{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("public_incident_id = ?", incident.ID).Delete(&db.StatusPageSubscriberDelivery{}).Error; err != nil {
+			return err
+		}
+		return tx.Delete(&incident).Error
+	}); err != nil {
+		s.logger.Error("Failed to delete status page incident", "status_page_id", incident.StatusPageID, "incident_id", incident.ID, "error", err)
+		utils.InternalError(c, "Failed to delete status page incident", err)
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, "Status page incident deleted successfully", gin.H{
+		"id": incident.ID,
 	})
 }
 

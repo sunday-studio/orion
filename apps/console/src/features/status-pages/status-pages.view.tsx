@@ -2,7 +2,16 @@ import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badges";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { TabCount, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
   type ApiIncidentResponse,
@@ -16,6 +25,11 @@ import {
   useCreateStatusPageIncident,
   useCreateStatusPageIncidentUpdate,
   useCreateStatusPageSection,
+  useDeleteStatusPage,
+  useDeleteStatusPageComponent,
+  useDeleteStatusPageComponentMapping,
+  useDeleteStatusPageIncident,
+  useDeleteStatusPageSection,
   useGetAgents,
   useGetIncidents,
   useGetMonitors,
@@ -28,7 +42,18 @@ import {
   useUpdateStatusPage,
   useUpdateStatusPageIncident,
 } from "@/orion-sdk";
-import { CheckCircle2, ExternalLink, Eye, Globe2, Link2, Plus, RadioTower } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Copy,
+  ExternalLink,
+  Eye,
+  Globe2,
+  Link2,
+  Plus,
+  RadioTower,
+  Trash2,
+} from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
@@ -91,6 +116,13 @@ type IncidentUpdateFormState = {
   createdBy: string;
   publishedAt: string;
 };
+
+type DeleteTarget =
+  | { kind: "page"; id: string; label: string }
+  | { kind: "section"; id: string; label: string }
+  | { kind: "component"; id: string; label: string }
+  | { kind: "mapping"; id: string; componentId: string; label: string }
+  | { kind: "incident"; id: string; label: string };
 
 const emptyPageForm: PageFormState = {
   slug: "",
@@ -250,6 +282,19 @@ const formatDateTime = (value?: string) => {
   return date.toLocaleString();
 };
 
+const absoluteUrl = (path: string) => {
+  if (!path) return "";
+  if (typeof window === "undefined") return path;
+  return new URL(path, window.location.origin).toString();
+};
+
+const looksLikePrivateLabel = (value?: string) =>
+  Boolean(
+    value?.match(
+      /(^|\s)(localhost|127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|\.local|\.internal|\.lan)(\s|$)/i,
+    ),
+  );
+
 const themeString = (settings: Record<string, unknown> | undefined, key: string, fallback = "") => {
   const value = settings?.[key];
   return typeof value === "string" ? value : fallback;
@@ -364,6 +409,9 @@ export const StatusPagesPage = () => {
   const [editIncidentForm, setEditIncidentForm] = useState<IncidentFormState>(emptyIncidentForm);
   const [updateForm, setUpdateForm] = useState<IncidentUpdateFormState>(emptyIncidentUpdateForm);
   const [selectedIncidentId, setSelectedIncidentId] = useState("");
+  const [activeTab, setActiveTab] = useState("overview");
+  const [copiedLink, setCopiedLink] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
 
   useEffect(() => {
     if (!selectedPageId && pages[0]?.id) {
@@ -407,8 +455,10 @@ export const StatusPagesPage = () => {
 
   const refreshStatusPages = () => {
     void pagesResponse.refetch();
-    void detailResponse.refetch();
-    void previewResponse.refetch();
+    if (pageId) {
+      void detailResponse.refetch();
+      void previewResponse.refetch();
+    }
   };
 
   const createPage = useCreateStatusPage({
@@ -472,6 +522,48 @@ export const StatusPagesPage = () => {
   const updatePage = useUpdateStatusPage({ mutation: { onSuccess: refreshStatusPages } });
   const publishPage = usePublishStatusPage({ mutation: { onSuccess: refreshStatusPages } });
   const unpublishPage = useUnpublishStatusPage({ mutation: { onSuccess: refreshStatusPages } });
+  const deletePage = useDeleteStatusPage({
+    mutation: {
+      onSuccess: () => {
+        setDeleteTarget(null);
+        setSearchParams({});
+        void pagesResponse.refetch();
+      },
+    },
+  });
+  const deleteSection = useDeleteStatusPageSection({
+    mutation: {
+      onSuccess: () => {
+        setDeleteTarget(null);
+        refreshStatusPages();
+      },
+    },
+  });
+  const deleteComponent = useDeleteStatusPageComponent({
+    mutation: {
+      onSuccess: () => {
+        setDeleteTarget(null);
+        refreshStatusPages();
+      },
+    },
+  });
+  const deleteMapping = useDeleteStatusPageComponentMapping({
+    mutation: {
+      onSuccess: () => {
+        setDeleteTarget(null);
+        refreshStatusPages();
+      },
+    },
+  });
+  const deleteIncident = useDeleteStatusPageIncident({
+    mutation: {
+      onSuccess: () => {
+        setDeleteTarget(null);
+        setSelectedIncidentId("");
+        refreshStatusPages();
+      },
+    },
+  });
 
   const preview = previewResponse.data?.preview;
   const monitors = monitorsResponse.data?.monitors ?? [];
@@ -501,6 +593,88 @@ export const StatusPagesPage = () => {
 
   const selectPage = (page: ApiStatusPageResponse) => {
     if (page.id) setSearchParams({ page: page.id });
+  };
+
+  const publishValidation = useMemo(() => {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    const visibleComponents = (detail?.components ?? []).filter((component) => component.visible);
+
+    if (visibleComponents.length === 0) {
+      errors.push("Add at least one visible component before publishing.");
+    }
+    visibleComponents.forEach((component) => {
+      if (!component.manual_status && (component.mappings ?? []).length === 0) {
+        errors.push(`${component.public_name} needs a mapped resource or manual status.`);
+      }
+      if (looksLikePrivateLabel(component.public_name)) {
+        errors.push(`${component.public_name} looks like a private host or internal label.`);
+      }
+    });
+    if (looksLikePrivateLabel(detailPage?.title)) {
+      warnings.push("Page title looks like a private host or internal label.");
+    }
+    (detail?.incidents ?? [])
+      .filter((incident) => incident.visibility === "published")
+      .forEach((incident) => {
+        const hasPublishedUpdate = (incident.updates ?? []).some(
+          (update) => update.published_at && update.message?.trim(),
+        );
+        if (!hasPublishedUpdate) {
+          errors.push(`${incident.title} is published without a published update.`);
+        }
+      });
+
+    return { errors, warnings };
+  }, [detail, detailPage?.title]);
+
+  const publicLinks = useMemo(() => {
+    const slug = selectedPage?.slug ?? "";
+    if (!slug) return [];
+    return [
+      { key: "page", label: "Public page", value: absoluteUrl(publicUrl(slug)) },
+      { key: "feed", label: "Atom feed", value: absoluteUrl(`/status/${slug}/feed.atom`) },
+      { key: "badge", label: "Page badge", value: absoluteUrl(`/status/${slug}/badge.svg`) },
+    ];
+  }, [selectedPage?.slug]);
+
+  const copyLink = async (key: string, value: string) => {
+    if (!value) return;
+    await navigator.clipboard.writeText(value);
+    setCopiedLink(key);
+    window.setTimeout(() => setCopiedLink((current) => (current === key ? "" : current)), 1500);
+  };
+
+  const deletePending =
+    deletePage.isPending ||
+    deleteSection.isPending ||
+    deleteComponent.isPending ||
+    deleteMapping.isPending ||
+    deleteIncident.isPending;
+
+  const confirmDelete = () => {
+    if (!pageId || !deleteTarget) return;
+    switch (deleteTarget.kind) {
+      case "page":
+        deletePage.mutate({ id: deleteTarget.id });
+        break;
+      case "section":
+        deleteSection.mutate({ id: pageId, sectionId: deleteTarget.id });
+        break;
+      case "component":
+        deleteComponent.mutate({ id: pageId, componentId: deleteTarget.id });
+        break;
+      case "mapping":
+        deleteMapping.mutate({
+          id: pageId,
+          componentId: deleteTarget.componentId,
+          mappingId: deleteTarget.id,
+        });
+        break;
+      case "incident":
+        deleteIncident.mutate({ id: pageId, incidentId: deleteTarget.id });
+        break;
+    }
   };
 
   const submitPage = (event: FormEvent) => {
@@ -739,7 +913,7 @@ export const StatusPagesPage = () => {
 
       <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="space-y-4">
-          <form className="space-y-3" onSubmit={submitPage}>
+          <form className="space-y-3 border border-neutral-200 p-3" onSubmit={submitPage}>
             <h2 className="text-sm font-medium">New Page</h2>
             <Field label="Slug">
               <Input
@@ -768,7 +942,7 @@ export const StatusPagesPage = () => {
                 rows={3}
               />
             </Field>
-            <Button className="w-full" disabled={createPage.isPending}>
+            <Button className="w-full" disabled={createPage.isPending} type="submit">
               <Plus className="size-4" />
               {createPage.isPending ? "Creating..." : "Create page"}
             </Button>
@@ -805,7 +979,7 @@ export const StatusPagesPage = () => {
         )}
 
         {selectedPage && (
-          <main className="space-y-6">
+          <main className="space-y-4">
             <section className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -830,7 +1004,11 @@ export const StatusPagesPage = () => {
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button
-                  disabled={publishPage.isPending || selectedPage.visibility === "public"}
+                  disabled={
+                    publishPage.isPending ||
+                    selectedPage.visibility === "public" ||
+                    publishValidation.errors.length > 0
+                  }
                   onClick={() => selectedPage.id && publishPage.mutate({ id: selectedPage.id })}
                 >
                   <Globe2 className="size-4" />
@@ -843,6 +1021,21 @@ export const StatusPagesPage = () => {
                 >
                   {unpublishPage.isPending ? "Unpublishing..." : "Unpublish"}
                 </Button>
+                <Button
+                  onClick={() =>
+                    selectedPage.id &&
+                    setDeleteTarget({
+                      id: selectedPage.id,
+                      kind: "page",
+                      label: selectedPage.title ?? selectedPage.slug ?? "status page",
+                    })
+                  }
+                  type="button"
+                  variant="outline"
+                >
+                  <Trash2 className="size-4" />
+                  Delete
+                </Button>
               </div>
               {publishPage.isError && (
                 <div className="basis-full text-sm">
@@ -851,972 +1044,1256 @@ export const StatusPagesPage = () => {
               )}
             </section>
 
-            <form className="space-y-4" onSubmit={submitPageSettings}>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h3 className="text-sm font-medium">Page Settings</h3>
-                <Button disabled={!pageId || updatePage.isPending} variant="outline">
-                  <CheckCircle2 className="size-4" />
-                  {updatePage.isPending ? "Saving..." : "Save settings"}
-                </Button>
-              </div>
-              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_320px]">
-                <div className="space-y-3">
-                  <Field label="Public description">
-                    <Textarea
-                      value={pageSettingsForm.description}
-                      onChange={(event) =>
-                        setPageSettingsForm((current) => ({
-                          ...current,
-                          description: event.target.value,
-                        }))
-                      }
-                      rows={4}
-                    />
-                  </Field>
-                  <Field label="Default incident visibility">
-                    <select
-                      className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
-                      value={pageSettingsForm.defaultIncidentVisibility}
-                      onChange={(event) =>
-                        setPageSettingsForm((current) => ({
-                          ...current,
-                          defaultIncidentVisibility: event.target.value,
-                        }))
-                      }
-                    >
-                      {incidentVisibilities.map((visibility) => (
-                        <option key={visibility.value} value={visibility.value}>
-                          {visibility.label}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field label="Canonical URL">
-                    <Input
-                      placeholder="https://status.example.com"
-                      type="url"
-                      value={pageSettingsForm.canonicalUrl}
-                      onChange={(event) =>
-                        setPageSettingsForm((current) => ({
-                          ...current,
-                          canonicalUrl: event.target.value,
-                        }))
-                      }
-                    />
-                  </Field>
-                </div>
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList>
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="settings">Settings</TabsTrigger>
+                <TabsTrigger value="components">
+                  Components <TabCount>{detail?.components?.length ?? 0}</TabCount>
+                </TabsTrigger>
+                <TabsTrigger value="incidents">
+                  Incidents <TabCount>{incidents.length}</TabCount>
+                </TabsTrigger>
+              </TabsList>
 
-                <div className="space-y-3">
-                  <Field label="SEO title">
-                    <Input
-                      value={pageSettingsForm.seoTitle}
-                      onChange={(event) =>
-                        setPageSettingsForm((current) => ({
-                          ...current,
-                          seoTitle: event.target.value,
-                        }))
-                      }
-                    />
-                  </Field>
-                  <Field label="SEO description">
-                    <Textarea
-                      value={pageSettingsForm.seoDescription}
-                      onChange={(event) =>
-                        setPageSettingsForm((current) => ({
-                          ...current,
-                          seoDescription: event.target.value,
-                        }))
-                      }
-                      rows={3}
-                    />
-                  </Field>
-                  <Field label="Open Graph image URL">
-                    <Input
-                      placeholder="https://status.example.com/og.png"
-                      type="url"
-                      value={pageSettingsForm.openGraphImageUrl}
-                      onChange={(event) =>
-                        setPageSettingsForm((current) => ({
-                          ...current,
-                          openGraphImageUrl: event.target.value,
-                        }))
-                      }
-                    />
-                  </Field>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="grid gap-3 sm:grid-cols-[96px_minmax(0,1fr)] xl:grid-cols-1">
-                    <Field label="Accent color">
-                      <Input
-                        type="color"
-                        value={pageSettingsForm.accentColor}
-                        onChange={(event) =>
-                          setPageSettingsForm((current) => ({
-                            ...current,
-                            accentColor: event.target.value,
-                          }))
-                        }
-                      />
-                    </Field>
-                    <Field label="Logo URL">
-                      <Input
-                        placeholder="https://status.example.com/logo.svg"
-                        type="url"
-                        value={pageSettingsForm.logoUrl}
-                        onChange={(event) =>
-                          setPageSettingsForm((current) => ({
-                            ...current,
-                            logoUrl: event.target.value,
-                          }))
-                        }
-                      />
-                    </Field>
-                  </div>
-                  <Field label="Logo alt text">
-                    <Input
-                      value={pageSettingsForm.logoAlt}
-                      onChange={(event) =>
-                        setPageSettingsForm((current) => ({
-                          ...current,
-                          logoAlt: event.target.value,
-                        }))
-                      }
-                    />
-                  </Field>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label="Header style">
-                      <select
-                        className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
-                        value={pageSettingsForm.headerStyle}
-                        onChange={(event) =>
-                          setPageSettingsForm((current) => ({
-                            ...current,
-                            headerStyle: event.target.value,
-                          }))
-                        }
-                      >
-                        {headerStyleOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-                    <Field label="Component density">
-                      <select
-                        className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
-                        value={pageSettingsForm.componentDensity}
-                        onChange={(event) =>
-                          setPageSettingsForm((current) => ({
-                            ...current,
-                            componentDensity: event.target.value,
-                          }))
-                        }
-                      >
-                        {componentDensityOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-                  </div>
-                  <div className="grid gap-2 text-sm sm:grid-cols-2 xl:grid-cols-1">
-                    <label className="flex items-center gap-2">
-                      <input
-                        checked={pageSettingsForm.showUptimeSummary}
-                        onChange={(event) =>
-                          setPageSettingsForm((current) => ({
-                            ...current,
-                            showUptimeSummary: event.target.checked,
-                          }))
-                        }
-                        type="checkbox"
-                      />
-                      <span>Show uptime summary</span>
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input
-                        checked={pageSettingsForm.showIncidentHistory}
-                        onChange={(event) =>
-                          setPageSettingsForm((current) => ({
-                            ...current,
-                            showIncidentHistory: event.target.checked,
-                          }))
-                        }
-                        type="checkbox"
-                      />
-                      <span>Show incident history</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-              {updatePage.isError && <p className="text-sm">Unable to save page settings.</p>}
-            </form>
-
-            <section className="grid gap-4 xl:grid-cols-3">
-              <form className="space-y-3" onSubmit={submitSection}>
-                <h3 className="text-sm font-medium">Sections</h3>
-                <Field label="Name">
-                  <Input
-                    value={sectionForm.name}
-                    onChange={(event) => setSectionForm({ name: event.target.value })}
-                    placeholder="API"
-                  />
-                </Field>
-                <Button disabled={!pageId || createSection.isPending} variant="outline">
-                  <Plus className="size-4" />
-                  Add section
-                </Button>
-              </form>
-
-              <form className="space-y-3" onSubmit={submitComponent}>
-                <h3 className="text-sm font-medium">Components</h3>
-                <Field label="Section">
-                  <select
-                    className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
-                    value={componentForm.sectionId}
-                    onChange={(event) =>
-                      setComponentForm((current) => ({ ...current, sectionId: event.target.value }))
-                    }
-                  >
-                    <option value="">Select section</option>
-                    {(detail?.sections ?? []).map((section) => (
-                      <option key={section.id} value={section.id}>
-                        {section.name}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Public name">
-                  <Input
-                    value={componentForm.publicName}
-                    onChange={(event) =>
-                      setComponentForm((current) => ({
-                        ...current,
-                        publicName: event.target.value,
-                      }))
-                    }
-                    placeholder="REST API"
-                  />
-                </Field>
-                <Field label="Description">
-                  <Input
-                    value={componentForm.publicDescription}
-                    onChange={(event) =>
-                      setComponentForm((current) => ({
-                        ...current,
-                        publicDescription: event.target.value,
-                      }))
-                    }
-                  />
-                </Field>
-                <Field label="Manual status">
-                  <select
-                    className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
-                    value={componentForm.manualStatus}
-                    onChange={(event) =>
-                      setComponentForm((current) => ({
-                        ...current,
-                        manualStatus: event.target.value,
-                      }))
-                    }
-                  >
-                    {manualStatuses.map((status) => (
-                      <option key={status.value} value={status.value}>
-                        {status.label}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Button
-                  disabled={!componentForm.sectionId || createComponent.isPending}
-                  variant="outline"
-                >
-                  <Plus className="size-4" />
-                  Add component
-                </Button>
-              </form>
-
-              <form className="space-y-3" onSubmit={submitMapping}>
-                <h3 className="text-sm font-medium">Mappings</h3>
-                <Field label="Component">
-                  <select
-                    className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
-                    value={mappingForm.componentId}
-                    onChange={(event) =>
-                      setMappingForm((current) => ({ ...current, componentId: event.target.value }))
-                    }
-                  >
-                    <option value="">Select component</option>
-                    {(detail?.components ?? []).map((component) => (
-                      <option key={component.id} value={component.id}>
-                        {component.public_name}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Resource type">
-                  <select
-                    className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
-                    value={mappingForm.resourceType}
-                    onChange={(event) =>
-                      setMappingForm({
-                        componentId: mappingForm.componentId,
-                        resourceId: "",
-                        resourceType: event.target.value as MappingFormState["resourceType"],
-                      })
-                    }
-                  >
-                    <option value="monitor">Monitor</option>
-                    <option value="agent">Server</option>
-                  </select>
-                </Field>
-                <Field label="Resource">
-                  <select
-                    className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
-                    value={mappingForm.resourceId}
-                    onChange={(event) =>
-                      setMappingForm((current) => ({ ...current, resourceId: event.target.value }))
-                    }
-                  >
-                    <option value="">Select resource</option>
-                    {selectedResourceOptions.map((resource) => (
-                      <option key={resource.id} value={resource.id}>
-                        {resource.label}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Button
-                  disabled={
-                    !mappingForm.componentId || !mappingForm.resourceId || createMapping.isPending
-                  }
-                  variant="outline"
-                >
-                  <Link2 className="size-4" />
-                  Add mapping
-                </Button>
-              </form>
-            </section>
-
-            <section className="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
-              <form className="space-y-3" onSubmit={submitCreateIncident}>
-                <h3 className="text-sm font-medium">New Public Incident</h3>
-                <Field label="Internal incident link">
-                  <select
-                    className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
-                    value={createIncidentForm.internalIncidentId}
-                    onChange={(event) =>
-                      setCreateIncidentForm((current) => ({
-                        ...current,
-                        internalIncidentId: event.target.value,
-                      }))
-                    }
-                  >
-                    <option value="">No linked incident</option>
-                    {internalIncidents.map((incident) => (
-                      <option key={incident.id} value={incident.id}>
-                        {incidentOptionLabel(incident)}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Internal incident ID">
-                  <Input
-                    value={createIncidentForm.internalIncidentId}
-                    onChange={(event) =>
-                      setCreateIncidentForm((current) => ({
-                        ...current,
-                        internalIncidentId: event.target.value,
-                      }))
-                    }
-                    placeholder="incident_..."
-                  />
-                </Field>
-                {renderIncidentSuggestions({
-                  internalIncidentId: createSuggestionIncidentId,
-                  isError: createSuggestionsResponse.isError,
-                  isLoading: createSuggestionsResponse.isLoading,
-                  onApply: () =>
-                    applySuggestedIncidentComponents(
-                      createIncidentForm,
-                      setCreateIncidentForm,
-                      createSuggestions,
-                    ),
-                  suggestions: createSuggestions,
-                })}
-                <Field label="Public title">
-                  <Input
-                    value={createIncidentForm.title}
-                    onChange={(event) =>
-                      setCreateIncidentForm((current) => ({
-                        ...current,
-                        title: event.target.value,
-                      }))
-                    }
-                    placeholder="API latency elevated"
-                  />
-                </Field>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label="Public status">
-                    <select
-                      className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
-                      value={createIncidentForm.publicStatus}
-                      onChange={(event) =>
-                        setCreateIncidentForm((current) => ({
-                          ...current,
-                          publicStatus: event.target.value,
-                        }))
-                      }
-                    >
-                      {incidentStatuses.map((status) => (
-                        <option key={status.value} value={status.value}>
-                          {status.label}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field label="Severity">
-                    <select
-                      className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
-                      value={createIncidentForm.severity}
-                      onChange={(event) =>
-                        setCreateIncidentForm((current) => ({
-                          ...current,
-                          severity: event.target.value,
-                        }))
-                      }
-                    >
-                      {incidentSeverities.map((severity) => (
-                        <option key={severity.value} value={severity.value}>
-                          {severity.label}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                </div>
-                <Field label="Public impact">
-                  <Textarea
-                    value={createIncidentForm.impactSummary}
-                    onChange={(event) =>
-                      setCreateIncidentForm((current) => ({
-                        ...current,
-                        impactSummary: event.target.value,
-                      }))
-                    }
-                    rows={3}
-                  />
-                </Field>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label="Scheduled start">
-                    <Input
-                      type="datetime-local"
-                      value={createIncidentForm.scheduledStartAt}
-                      onChange={(event) =>
-                        setCreateIncidentForm((current) => ({
-                          ...current,
-                          scheduledStartAt: event.target.value,
-                        }))
-                      }
-                    />
-                  </Field>
-                  <Field label="Scheduled end">
-                    <Input
-                      type="datetime-local"
-                      value={createIncidentForm.scheduledEndAt}
-                      onChange={(event) =>
-                        setCreateIncidentForm((current) => ({
-                          ...current,
-                          scheduledEndAt: event.target.value,
-                        }))
-                      }
-                    />
-                  </Field>
-                </div>
-                <div className="space-y-2">
-                  <div className="text-sm font-medium">Affected components</div>
-                  <div className="space-y-1">
-                    {(detail?.components ?? []).map((component) => (
-                      <label className="flex items-center gap-2 text-sm" key={component.id}>
-                        <input
-                          checked={createIncidentForm.affectedComponentIds.includes(
-                            component.id ?? "",
-                          )}
-                          onChange={() =>
-                            component.id &&
-                            toggleIncidentComponent(
-                              createIncidentForm,
-                              setCreateIncidentForm,
-                              component.id,
-                            )
-                          }
-                          type="checkbox"
+              <TabsContent className="space-y-4 pt-3" value="overview">
+                <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+                  <div className="space-y-4">
+                    <div className="border border-neutral-200 p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h3 className="text-sm font-medium">Publish validation</h3>
+                        <StatusBadge
+                          fallback={publishValidation.errors.length > 0 ? "blocked" : "ready"}
+                          value={publishValidation.errors.length > 0 ? "down" : "up"}
                         />
-                        <span>{component.public_name}</span>
-                      </label>
-                    ))}
-                    {(detail?.components ?? []).length === 0 && (
-                      <div className="text-sm text-neutral-600">No components configured.</div>
+                      </div>
+                      <div className="mt-3 space-y-2 text-sm">
+                        {publishValidation.errors.length === 0 &&
+                          publishValidation.warnings.length === 0 && (
+                            <div className="flex items-center gap-2 text-neutral-700">
+                              <CheckCircle2 className="size-4" />
+                              Ready to publish.
+                            </div>
+                          )}
+                        {publishValidation.errors.map((error) => (
+                          <div className="flex items-start gap-2" key={error}>
+                            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                            <span>{error}</span>
+                          </div>
+                        ))}
+                        {publishValidation.warnings.map((warning) => (
+                          <div className="flex items-start gap-2 text-neutral-700" key={warning}>
+                            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                            <span>{warning}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="border border-neutral-200 p-3">
+                      <h3 className="text-sm font-medium">Public links</h3>
+                      <div className="mt-3 space-y-2">
+                        {publicLinks.map((link) => (
+                          <div
+                            className="grid gap-2 text-sm md:grid-cols-[120px_minmax(0,1fr)_auto_auto]"
+                            key={link.key}
+                          >
+                            <div className="font-medium">{link.label}</div>
+                            <code className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap bg-neutral-50 px-2 py-1 text-xs">
+                              {link.value}
+                            </code>
+                            <Button
+                              onClick={() => void copyLink(link.key, link.value)}
+                              size="sm"
+                              type="button"
+                              variant="outline"
+                            >
+                              <Copy className="size-3.5" />
+                              {copiedLink === link.key ? "Copied" : "Copy"}
+                            </Button>
+                            <Button
+                              onClick={() => window.open(link.value, "_blank", "noreferrer")}
+                              size="sm"
+                              type="button"
+                              variant="outline"
+                            >
+                              <ExternalLink className="size-3.5" />
+                              Open
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-medium">Preview</h3>
+                      <Eye className="size-4 text-neutral-500" />
+                    </div>
+                    {previewResponse.isLoading && (
+                      <div className="text-sm text-neutral-600">Loading...</div>
+                    )}
+                    {preview && (
+                      <div className="border border-neutral-200 p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <div className="font-medium">{preview.page?.title}</div>
+                            <div className="text-sm text-neutral-600">{preview.page?.slug}</div>
+                          </div>
+                          <StatusBadge
+                            fallback={preview.overall_status}
+                            value={statusBadgeStatus(preview.overall_status)}
+                          />
+                        </div>
+                        <div className="mt-4 space-y-3">
+                          {(preview.sections ?? []).map((section) => (
+                            <div key={section.id}>
+                              <div className="text-sm font-medium">{section.name}</div>
+                              <div className="mt-2 space-y-2">
+                                {(section.components ?? []).map(
+                                  (component: ApiStatusPagePublicComponentResponse) => (
+                                    <div
+                                      className="flex items-center justify-between text-sm"
+                                      key={component.id}
+                                    >
+                                      <span>{component.name}</span>
+                                      <StatusBadge
+                                        fallback={component.status}
+                                        value={statusBadgeStatus(component.status)}
+                                      />
+                                    </div>
+                                  ),
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
-                </div>
-                <Button
-                  disabled={!pageId || !createIncidentForm.title.trim() || createIncident.isPending}
-                  variant="outline"
-                >
-                  <Plus className="size-4" />
-                  {createIncident.isPending ? "Creating..." : "Create draft incident"}
-                </Button>
-                {createIncident.isError && (
-                  <p className="text-sm">Unable to create public incident.</p>
-                )}
-              </form>
+                </section>
+              </TabsContent>
 
-              <div className="space-y-4">
-                <div className="space-y-3">
-                  <h3 className="text-sm font-medium">Configured Incidents</h3>
-                  {incidents.length === 0 && (
-                    <EmptyState
-                      title="No public incidents"
-                      description="Create a draft public incident when customer-facing communication is needed."
-                    />
-                  )}
-                  <div className="grid gap-2 md:grid-cols-2">
-                    {incidents.map((incident) => (
-                      <button
-                        className={`border px-3 py-2 text-left text-sm ${
-                          incident.id === selectedIncidentId
-                            ? "border-neutral-950 bg-neutral-100"
-                            : "border-neutral-200 hover:bg-neutral-50"
-                        }`}
-                        key={incident.id}
-                        onClick={() => setSelectedIncidentId(incident.id ?? "")}
-                        type="button"
-                      >
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="font-medium">{incident.title}</span>
-                          <StatusBadge
-                            fallback={incident.public_status}
-                            value={incidentBadgeStatus(incident.public_status)}
-                          />
-                        </span>
-                        <span className="mt-1 block text-neutral-600">
-                          {incident.visibility}
-                          {incident.internal_incident_id
-                            ? ` - linked ${incident.internal_incident_id}`
-                            : ""}
-                        </span>
-                      </button>
-                    ))}
+              <TabsContent className="pt-3" value="settings">
+                <form className="space-y-4" onSubmit={submitPageSettings}>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h3 className="text-sm font-medium">Page settings</h3>
+                    <Button
+                      disabled={!pageId || updatePage.isPending}
+                      type="submit"
+                      variant="outline"
+                    >
+                      <CheckCircle2 className="size-4" />
+                      {updatePage.isPending ? "Saving..." : "Save settings"}
+                    </Button>
                   </div>
-                </div>
-
-                {selectedIncident && (
-                  <div className="grid gap-4 xl:grid-cols-2">
-                    <form className="space-y-3" onSubmit={submitEditIncident}>
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-sm font-medium">Edit Public Incident</h3>
-                        <StatusBadge
-                          fallback={editIncidentForm.visibility}
-                          value={editIncidentForm.visibility === "published" ? "up" : "unknown"}
-                        />
-                      </div>
-                      <Field label="Internal incident ID">
-                        <Input
-                          value={editIncidentForm.internalIncidentId}
-                          onChange={(event) =>
-                            setEditIncidentForm((current) => ({
-                              ...current,
-                              internalIncidentId: event.target.value,
-                            }))
-                          }
-                        />
-                      </Field>
-                      {renderIncidentSuggestions({
-                        internalIncidentId: editSuggestionIncidentId,
-                        isError: editSuggestionsResponse.isError,
-                        isLoading: editSuggestionsResponse.isLoading,
-                        onApply: () =>
-                          applySuggestedIncidentComponents(
-                            editIncidentForm,
-                            setEditIncidentForm,
-                            editSuggestions,
-                          ),
-                        suggestions: editSuggestions,
-                      })}
-                      <Field label="Public title">
-                        <Input
-                          value={editIncidentForm.title}
-                          onChange={(event) =>
-                            setEditIncidentForm((current) => ({
-                              ...current,
-                              title: event.target.value,
-                            }))
-                          }
-                        />
-                      </Field>
-                      <div className="grid gap-3 sm:grid-cols-3">
-                        <Field label="Public status">
-                          <select
-                            className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
-                            value={editIncidentForm.publicStatus}
-                            onChange={(event) =>
-                              setEditIncidentForm((current) => ({
-                                ...current,
-                                publicStatus: event.target.value,
-                              }))
-                            }
-                          >
-                            {incidentStatuses.map((status) => (
-                              <option key={status.value} value={status.value}>
-                                {status.label}
-                              </option>
-                            ))}
-                          </select>
-                        </Field>
-                        <Field label="Severity">
-                          <select
-                            className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
-                            value={editIncidentForm.severity}
-                            onChange={(event) =>
-                              setEditIncidentForm((current) => ({
-                                ...current,
-                                severity: event.target.value,
-                              }))
-                            }
-                          >
-                            {incidentSeverities.map((severity) => (
-                              <option key={severity.value} value={severity.value}>
-                                {severity.label}
-                              </option>
-                            ))}
-                          </select>
-                        </Field>
-                        <Field label="Visibility">
-                          <select
-                            className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
-                            value={editIncidentForm.visibility}
-                            onChange={(event) =>
-                              setEditIncidentForm((current) => ({
-                                ...current,
-                                visibility: event.target.value,
-                              }))
-                            }
-                          >
-                            {incidentVisibilities.map((visibility) => (
-                              <option key={visibility.value} value={visibility.value}>
-                                {visibility.label}
-                              </option>
-                            ))}
-                          </select>
-                        </Field>
-                      </div>
-                      <Field label="Public impact">
+                  <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_320px]">
+                    <div className="space-y-3">
+                      <Field label="Public description">
                         <Textarea
-                          value={editIncidentForm.impactSummary}
+                          value={pageSettingsForm.description}
                           onChange={(event) =>
-                            setEditIncidentForm((current) => ({
+                            setPageSettingsForm((current) => ({
                               ...current,
-                              impactSummary: event.target.value,
+                              description: event.target.value,
+                            }))
+                          }
+                          rows={4}
+                        />
+                      </Field>
+                      <Field label="Default incident visibility">
+                        <select
+                          className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                          value={pageSettingsForm.defaultIncidentVisibility}
+                          onChange={(event) =>
+                            setPageSettingsForm((current) => ({
+                              ...current,
+                              defaultIncidentVisibility: event.target.value,
+                            }))
+                          }
+                        >
+                          {incidentVisibilities.map((visibility) => (
+                            <option key={visibility.value} value={visibility.value}>
+                              {visibility.label}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      <Field label="Canonical URL">
+                        <Input
+                          placeholder="https://status.example.com"
+                          type="url"
+                          value={pageSettingsForm.canonicalUrl}
+                          onChange={(event) =>
+                            setPageSettingsForm((current) => ({
+                              ...current,
+                              canonicalUrl: event.target.value,
+                            }))
+                          }
+                        />
+                      </Field>
+                    </div>
+
+                    <div className="space-y-3">
+                      <Field label="SEO title">
+                        <Input
+                          value={pageSettingsForm.seoTitle}
+                          onChange={(event) =>
+                            setPageSettingsForm((current) => ({
+                              ...current,
+                              seoTitle: event.target.value,
+                            }))
+                          }
+                        />
+                      </Field>
+                      <Field label="SEO description">
+                        <Textarea
+                          value={pageSettingsForm.seoDescription}
+                          onChange={(event) =>
+                            setPageSettingsForm((current) => ({
+                              ...current,
+                              seoDescription: event.target.value,
                             }))
                           }
                           rows={3}
                         />
                       </Field>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <Field label="Published at">
-                          <Input
-                            type="datetime-local"
-                            value={editIncidentForm.publishedAt}
-                            onChange={(event) =>
-                              setEditIncidentForm((current) => ({
-                                ...current,
-                                publishedAt: event.target.value,
-                              }))
-                            }
-                          />
-                        </Field>
-                        <Field label="Resolved at">
-                          <Input
-                            type="datetime-local"
-                            value={editIncidentForm.resolvedAt}
-                            onChange={(event) =>
-                              setEditIncidentForm((current) => ({
-                                ...current,
-                                resolvedAt: event.target.value,
-                              }))
-                            }
-                          />
-                        </Field>
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <Field label="Scheduled start">
-                          <Input
-                            type="datetime-local"
-                            value={editIncidentForm.scheduledStartAt}
-                            onChange={(event) =>
-                              setEditIncidentForm((current) => ({
-                                ...current,
-                                scheduledStartAt: event.target.value,
-                              }))
-                            }
-                          />
-                        </Field>
-                        <Field label="Scheduled end">
-                          <Input
-                            type="datetime-local"
-                            value={editIncidentForm.scheduledEndAt}
-                            onChange={(event) =>
-                              setEditIncidentForm((current) => ({
-                                ...current,
-                                scheduledEndAt: event.target.value,
-                              }))
-                            }
-                          />
-                        </Field>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="text-sm font-medium">Affected components</div>
-                        <div className="grid gap-1 sm:grid-cols-2">
-                          {(detail?.components ?? []).map((component) => (
-                            <label className="flex items-center gap-2 text-sm" key={component.id}>
-                              <input
-                                checked={editIncidentForm.affectedComponentIds.includes(
-                                  component.id ?? "",
-                                )}
-                                onChange={() =>
-                                  component.id &&
-                                  toggleIncidentComponent(
-                                    editIncidentForm,
-                                    setEditIncidentForm,
-                                    component.id,
-                                  )
-                                }
-                                type="checkbox"
-                              />
-                              <span>{component.public_name}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          disabled={!editIncidentForm.title.trim() || updateIncident.isPending}
-                          variant="outline"
-                        >
-                          {updateIncident.isPending ? "Saving..." : "Save incident"}
-                        </Button>
-                        <Button
-                          disabled={updateIncident.isPending}
-                          onClick={publishIncident}
-                          type="button"
-                          variant="outline"
-                        >
-                          <Globe2 className="size-4" />
-                          Publish
-                        </Button>
-                        <Button
-                          disabled={updateIncident.isPending}
-                          onClick={resolveIncident}
-                          type="button"
-                          variant="outline"
-                        >
-                          <CheckCircle2 className="size-4" />
-                          Resolve
-                        </Button>
-                      </div>
-                      {updateIncident.isError && (
-                        <p className="text-sm">Unable to update public incident.</p>
-                      )}
-                    </form>
+                      <Field label="Open Graph image URL">
+                        <Input
+                          placeholder="https://status.example.com/og.png"
+                          type="url"
+                          value={pageSettingsForm.openGraphImageUrl}
+                          onChange={(event) =>
+                            setPageSettingsForm((current) => ({
+                              ...current,
+                              openGraphImageUrl: event.target.value,
+                            }))
+                          }
+                        />
+                      </Field>
+                    </div>
 
-                    <div className="space-y-4">
-                      <form className="space-y-3" onSubmit={submitIncidentUpdate}>
-                        <h3 className="text-sm font-medium">Add Public Update</h3>
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <Field label="Status">
-                            <select
-                              className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
-                              value={updateForm.status}
-                              onChange={(event) =>
-                                setUpdateForm((current) => ({
-                                  ...current,
-                                  status: event.target.value,
-                                }))
+                    <div className="space-y-3">
+                      <div className="grid gap-3 sm:grid-cols-[96px_minmax(0,1fr)] xl:grid-cols-1">
+                        <Field label="Accent color">
+                          <Input
+                            type="color"
+                            value={pageSettingsForm.accentColor}
+                            onChange={(event) =>
+                              setPageSettingsForm((current) => ({
+                                ...current,
+                                accentColor: event.target.value,
+                              }))
+                            }
+                          />
+                        </Field>
+                        <Field label="Logo URL">
+                          <Input
+                            placeholder="https://status.example.com/logo.svg"
+                            type="url"
+                            value={pageSettingsForm.logoUrl}
+                            onChange={(event) =>
+                              setPageSettingsForm((current) => ({
+                                ...current,
+                                logoUrl: event.target.value,
+                              }))
+                            }
+                          />
+                        </Field>
+                      </div>
+                      <Field label="Logo alt text">
+                        <Input
+                          value={pageSettingsForm.logoAlt}
+                          onChange={(event) =>
+                            setPageSettingsForm((current) => ({
+                              ...current,
+                              logoAlt: event.target.value,
+                            }))
+                          }
+                        />
+                      </Field>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <Field label="Header style">
+                          <select
+                            className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                            value={pageSettingsForm.headerStyle}
+                            onChange={(event) =>
+                              setPageSettingsForm((current) => ({
+                                ...current,
+                                headerStyle: event.target.value,
+                              }))
+                            }
+                          >
+                            {headerStyleOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                        <Field label="Component density">
+                          <select
+                            className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                            value={pageSettingsForm.componentDensity}
+                            onChange={(event) =>
+                              setPageSettingsForm((current) => ({
+                                ...current,
+                                componentDensity: event.target.value,
+                              }))
+                            }
+                          >
+                            {componentDensityOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                      </div>
+                      <div className="grid gap-2 text-sm sm:grid-cols-2 xl:grid-cols-1">
+                        <label className="flex items-center gap-2">
+                          <input
+                            checked={pageSettingsForm.showUptimeSummary}
+                            onChange={(event) =>
+                              setPageSettingsForm((current) => ({
+                                ...current,
+                                showUptimeSummary: event.target.checked,
+                              }))
+                            }
+                            type="checkbox"
+                          />
+                          <span>Show uptime summary</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            checked={pageSettingsForm.showIncidentHistory}
+                            onChange={(event) =>
+                              setPageSettingsForm((current) => ({
+                                ...current,
+                                showIncidentHistory: event.target.checked,
+                              }))
+                            }
+                            type="checkbox"
+                          />
+                          <span>Show incident history</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  {updatePage.isError && <p className="text-sm">Unable to save page settings.</p>}
+                </form>
+              </TabsContent>
+
+              <TabsContent className="space-y-4 pt-3" value="components">
+                <section className="grid gap-4 xl:grid-cols-3">
+                  <form
+                    className="space-y-3 border border-neutral-200 p-3"
+                    onSubmit={submitSection}
+                  >
+                    <h3 className="text-sm font-medium">Sections</h3>
+                    <Field label="Name">
+                      <Input
+                        value={sectionForm.name}
+                        onChange={(event) => setSectionForm({ name: event.target.value })}
+                        placeholder="API"
+                      />
+                    </Field>
+                    <Button
+                      disabled={!pageId || createSection.isPending}
+                      type="submit"
+                      variant="outline"
+                    >
+                      <Plus className="size-4" />
+                      Add section
+                    </Button>
+                  </form>
+
+                  <form
+                    className="space-y-3 border border-neutral-200 p-3"
+                    onSubmit={submitComponent}
+                  >
+                    <h3 className="text-sm font-medium">Components</h3>
+                    <Field label="Section">
+                      <select
+                        className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                        value={componentForm.sectionId}
+                        onChange={(event) =>
+                          setComponentForm((current) => ({
+                            ...current,
+                            sectionId: event.target.value,
+                          }))
+                        }
+                      >
+                        <option value="">Select section</option>
+                        {(detail?.sections ?? []).map((section) => (
+                          <option key={section.id} value={section.id}>
+                            {section.name}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Public name">
+                      <Input
+                        value={componentForm.publicName}
+                        onChange={(event) =>
+                          setComponentForm((current) => ({
+                            ...current,
+                            publicName: event.target.value,
+                          }))
+                        }
+                        placeholder="REST API"
+                      />
+                    </Field>
+                    <Field label="Description">
+                      <Input
+                        value={componentForm.publicDescription}
+                        onChange={(event) =>
+                          setComponentForm((current) => ({
+                            ...current,
+                            publicDescription: event.target.value,
+                          }))
+                        }
+                      />
+                    </Field>
+                    <Field label="Manual status">
+                      <select
+                        className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                        value={componentForm.manualStatus}
+                        onChange={(event) =>
+                          setComponentForm((current) => ({
+                            ...current,
+                            manualStatus: event.target.value,
+                          }))
+                        }
+                      >
+                        {manualStatuses.map((status) => (
+                          <option key={status.value} value={status.value}>
+                            {status.label}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Button
+                      disabled={!componentForm.sectionId || createComponent.isPending}
+                      type="submit"
+                      variant="outline"
+                    >
+                      <Plus className="size-4" />
+                      Add component
+                    </Button>
+                  </form>
+
+                  <form
+                    className="space-y-3 border border-neutral-200 p-3"
+                    onSubmit={submitMapping}
+                  >
+                    <h3 className="text-sm font-medium">Mappings</h3>
+                    <Field label="Component">
+                      <select
+                        className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                        value={mappingForm.componentId}
+                        onChange={(event) =>
+                          setMappingForm((current) => ({
+                            ...current,
+                            componentId: event.target.value,
+                          }))
+                        }
+                      >
+                        <option value="">Select component</option>
+                        {(detail?.components ?? []).map((component) => (
+                          <option key={component.id} value={component.id}>
+                            {component.public_name}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Resource type">
+                      <select
+                        className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                        value={mappingForm.resourceType}
+                        onChange={(event) =>
+                          setMappingForm({
+                            componentId: mappingForm.componentId,
+                            resourceId: "",
+                            resourceType: event.target.value as MappingFormState["resourceType"],
+                          })
+                        }
+                      >
+                        <option value="monitor">Monitor</option>
+                        <option value="agent">Server</option>
+                      </select>
+                    </Field>
+                    <Field label="Resource">
+                      <select
+                        className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                        value={mappingForm.resourceId}
+                        onChange={(event) =>
+                          setMappingForm((current) => ({
+                            ...current,
+                            resourceId: event.target.value,
+                          }))
+                        }
+                      >
+                        <option value="">Select resource</option>
+                        {selectedResourceOptions.map((resource) => (
+                          <option key={resource.id} value={resource.id}>
+                            {resource.label}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Button
+                      disabled={
+                        !mappingForm.componentId ||
+                        !mappingForm.resourceId ||
+                        createMapping.isPending
+                      }
+                      type="submit"
+                      variant="outline"
+                    >
+                      <Link2 className="size-4" />
+                      Add mapping
+                    </Button>
+                  </form>
+                </section>
+
+                <section className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-medium">Configured Sections</h3>
+                    {(detail?.sections ?? []).map((section) => (
+                      <div
+                        className="flex items-center justify-between gap-2 border border-neutral-200 p-2 text-sm"
+                        key={section.id}
+                      >
+                        <div>
+                          <div className="font-medium">{section.name}</div>
+                          <div className="text-neutral-600">Order {section.sort_order ?? 0}</div>
+                        </div>
+                        <Button
+                          onClick={() =>
+                            section.id &&
+                            setDeleteTarget({
+                              id: section.id,
+                              kind: "section",
+                              label: section.name ?? "section",
+                            })
+                          }
+                          size="sm"
+                          type="button"
+                          variant="outline"
+                        >
+                          <Trash2 className="size-3.5" />
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                    {(detail?.sections ?? []).length === 0 && (
+                      <EmptyState
+                        title="No sections"
+                        description="Add a section before components."
+                      />
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-medium">Configured Components</h3>
+                    {(detail?.components ?? []).length === 0 && (
+                      <EmptyState
+                        title="No components"
+                        description="Add a section and component."
+                      />
+                    )}
+                    {(detail?.components ?? []).map((component) => (
+                      <div className="border border-neutral-200 p-3" key={component.id}>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <div className="font-medium">{component.public_name}</div>
+                            <div className="text-sm text-neutral-600">
+                              {component.public_description}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <StatusBadge
+                              fallback={component.manual_status || component.display_mode}
+                              value={statusBadgeStatus(component.manual_status)}
+                            />
+                            <Button
+                              onClick={() =>
+                                component.id &&
+                                setDeleteTarget({
+                                  id: component.id,
+                                  kind: "component",
+                                  label: component.public_name ?? "component",
+                                })
                               }
+                              size="sm"
+                              type="button"
+                              variant="outline"
                             >
-                              {incidentStatuses.map((status) => (
-                                <option key={status.value} value={status.value}>
-                                  {status.label}
-                                </option>
-                              ))}
-                            </select>
-                          </Field>
-                          <Field label="Published at">
+                              <Trash2 className="size-3.5" />
+                              Remove
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="mt-3 space-y-1 text-sm">
+                          {(component.mappings ?? []).map((mapping) => (
+                            <div
+                              className="flex flex-wrap items-center justify-between gap-2 border-t border-neutral-100 pt-2"
+                              key={mapping.id}
+                            >
+                              <div className="flex min-w-0 items-center gap-2">
+                                <RadioTower className="size-3.5 shrink-0 text-neutral-500" />
+                                <span>{mapping.resource_type}</span>
+                                <span className="min-w-0 truncate text-neutral-600">
+                                  {mapping.resource_id}
+                                </span>
+                              </div>
+                              <Button
+                                onClick={() =>
+                                  mapping.id &&
+                                  component.id &&
+                                  setDeleteTarget({
+                                    componentId: component.id,
+                                    id: mapping.id,
+                                    kind: "mapping",
+                                    label: `${mapping.resource_type} mapping`,
+                                  })
+                                }
+                                size="sm"
+                                type="button"
+                                variant="outline"
+                              >
+                                <Trash2 className="size-3.5" />
+                                Remove
+                              </Button>
+                            </div>
+                          ))}
+                          {(component.mappings ?? []).length === 0 && (
+                            <div className="text-neutral-600">No mappings</div>
+                          )}
+                        </div>
+                        {selectedPage.slug && component.id && (
+                          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-neutral-100 pt-2 text-sm">
+                            <code className="min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap bg-neutral-50 px-2 py-1 text-xs">
+                              {absoluteUrl(
+                                `/status/${selectedPage.slug}/components/${component.id}/badge.svg`,
+                              )}
+                            </code>
+                            <Button
+                              onClick={() =>
+                                component.id &&
+                                void copyLink(
+                                  `component-${component.id}`,
+                                  absoluteUrl(
+                                    `/status/${selectedPage.slug}/components/${component.id}/badge.svg`,
+                                  ),
+                                )
+                              }
+                              size="sm"
+                              type="button"
+                              variant="outline"
+                            >
+                              <Copy className="size-3.5" />
+                              {copiedLink === `component-${component.id}` ? "Copied" : "Copy badge"}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              </TabsContent>
+
+              <TabsContent className="pt-3" value="incidents">
+                <section className="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
+                  <form className="space-y-3" onSubmit={submitCreateIncident}>
+                    <h3 className="text-sm font-medium">New Public Incident</h3>
+                    <Field label="Internal incident link">
+                      <select
+                        className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                        value={createIncidentForm.internalIncidentId}
+                        onChange={(event) =>
+                          setCreateIncidentForm((current) => ({
+                            ...current,
+                            internalIncidentId: event.target.value,
+                          }))
+                        }
+                      >
+                        <option value="">No linked incident</option>
+                        {internalIncidents.map((incident) => (
+                          <option key={incident.id} value={incident.id}>
+                            {incidentOptionLabel(incident)}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Internal incident ID">
+                      <Input
+                        value={createIncidentForm.internalIncidentId}
+                        onChange={(event) =>
+                          setCreateIncidentForm((current) => ({
+                            ...current,
+                            internalIncidentId: event.target.value,
+                          }))
+                        }
+                        placeholder="incident_..."
+                      />
+                    </Field>
+                    {renderIncidentSuggestions({
+                      internalIncidentId: createSuggestionIncidentId,
+                      isError: createSuggestionsResponse.isError,
+                      isLoading: createSuggestionsResponse.isLoading,
+                      onApply: () =>
+                        applySuggestedIncidentComponents(
+                          createIncidentForm,
+                          setCreateIncidentForm,
+                          createSuggestions,
+                        ),
+                      suggestions: createSuggestions,
+                    })}
+                    <Field label="Public title">
+                      <Input
+                        value={createIncidentForm.title}
+                        onChange={(event) =>
+                          setCreateIncidentForm((current) => ({
+                            ...current,
+                            title: event.target.value,
+                          }))
+                        }
+                        placeholder="API latency elevated"
+                      />
+                    </Field>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label="Public status">
+                        <select
+                          className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                          value={createIncidentForm.publicStatus}
+                          onChange={(event) =>
+                            setCreateIncidentForm((current) => ({
+                              ...current,
+                              publicStatus: event.target.value,
+                            }))
+                          }
+                        >
+                          {incidentStatuses.map((status) => (
+                            <option key={status.value} value={status.value}>
+                              {status.label}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      <Field label="Severity">
+                        <select
+                          className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                          value={createIncidentForm.severity}
+                          onChange={(event) =>
+                            setCreateIncidentForm((current) => ({
+                              ...current,
+                              severity: event.target.value,
+                            }))
+                          }
+                        >
+                          {incidentSeverities.map((severity) => (
+                            <option key={severity.value} value={severity.value}>
+                              {severity.label}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                    </div>
+                    <Field label="Public impact">
+                      <Textarea
+                        value={createIncidentForm.impactSummary}
+                        onChange={(event) =>
+                          setCreateIncidentForm((current) => ({
+                            ...current,
+                            impactSummary: event.target.value,
+                          }))
+                        }
+                        rows={3}
+                      />
+                    </Field>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label="Scheduled start">
+                        <Input
+                          type="datetime-local"
+                          value={createIncidentForm.scheduledStartAt}
+                          onChange={(event) =>
+                            setCreateIncidentForm((current) => ({
+                              ...current,
+                              scheduledStartAt: event.target.value,
+                            }))
+                          }
+                        />
+                      </Field>
+                      <Field label="Scheduled end">
+                        <Input
+                          type="datetime-local"
+                          value={createIncidentForm.scheduledEndAt}
+                          onChange={(event) =>
+                            setCreateIncidentForm((current) => ({
+                              ...current,
+                              scheduledEndAt: event.target.value,
+                            }))
+                          }
+                        />
+                      </Field>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium">Affected components</div>
+                      <div className="space-y-1">
+                        {(detail?.components ?? []).map((component) => (
+                          <label className="flex items-center gap-2 text-sm" key={component.id}>
+                            <input
+                              checked={createIncidentForm.affectedComponentIds.includes(
+                                component.id ?? "",
+                              )}
+                              onChange={() =>
+                                component.id &&
+                                toggleIncidentComponent(
+                                  createIncidentForm,
+                                  setCreateIncidentForm,
+                                  component.id,
+                                )
+                              }
+                              type="checkbox"
+                            />
+                            <span>{component.public_name}</span>
+                          </label>
+                        ))}
+                        {(detail?.components ?? []).length === 0 && (
+                          <div className="text-sm text-neutral-600">No components configured.</div>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      disabled={
+                        !pageId || !createIncidentForm.title.trim() || createIncident.isPending
+                      }
+                      type="submit"
+                      variant="outline"
+                    >
+                      <Plus className="size-4" />
+                      {createIncident.isPending ? "Creating..." : "Create draft incident"}
+                    </Button>
+                    {createIncident.isError && (
+                      <p className="text-sm">Unable to create public incident.</p>
+                    )}
+                  </form>
+
+                  <div className="space-y-4">
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-medium">Configured Incidents</h3>
+                      {incidents.length === 0 && (
+                        <EmptyState
+                          title="No public incidents"
+                          description="Create a draft public incident when customer-facing communication is needed."
+                        />
+                      )}
+                      <div className="grid gap-2 md:grid-cols-2">
+                        {incidents.map((incident) => (
+                          <button
+                            className={`border px-3 py-2 text-left text-sm ${
+                              incident.id === selectedIncidentId
+                                ? "border-neutral-950 bg-neutral-100"
+                                : "border-neutral-200 hover:bg-neutral-50"
+                            }`}
+                            key={incident.id}
+                            onClick={() => setSelectedIncidentId(incident.id ?? "")}
+                            type="button"
+                          >
+                            <span className="flex items-center justify-between gap-2">
+                              <span className="font-medium">{incident.title}</span>
+                              <StatusBadge
+                                fallback={incident.public_status}
+                                value={incidentBadgeStatus(incident.public_status)}
+                              />
+                            </span>
+                            <span className="mt-1 block text-neutral-600">
+                              {incident.visibility}
+                              {incident.internal_incident_id
+                                ? ` - linked ${incident.internal_incident_id}`
+                                : ""}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {selectedIncident && (
+                      <div className="grid gap-4 xl:grid-cols-2">
+                        <form className="space-y-3" onSubmit={submitEditIncident}>
+                          <div className="flex items-center justify-between gap-2">
+                            <h3 className="text-sm font-medium">Edit Public Incident</h3>
+                            <StatusBadge
+                              fallback={editIncidentForm.visibility}
+                              value={editIncidentForm.visibility === "published" ? "up" : "unknown"}
+                            />
+                          </div>
+                          <Field label="Internal incident ID">
                             <Input
-                              type="datetime-local"
-                              value={updateForm.publishedAt}
+                              value={editIncidentForm.internalIncidentId}
                               onChange={(event) =>
-                                setUpdateForm((current) => ({
+                                setEditIncidentForm((current) => ({
                                   ...current,
-                                  publishedAt: event.target.value,
+                                  internalIncidentId: event.target.value,
                                 }))
                               }
                             />
                           </Field>
-                        </div>
-                        <Field label="Message">
-                          <Textarea
-                            value={updateForm.message}
-                            onChange={(event) =>
-                              setUpdateForm((current) => ({
-                                ...current,
-                                message: event.target.value,
-                              }))
-                            }
-                            rows={4}
-                          />
-                        </Field>
-                        <Field label="Created by">
-                          <Input
-                            value={updateForm.createdBy}
-                            onChange={(event) =>
-                              setUpdateForm((current) => ({
-                                ...current,
-                                createdBy: event.target.value,
-                              }))
-                            }
-                            placeholder="Support"
-                          />
-                        </Field>
-                        <Button
-                          disabled={!updateForm.message.trim() || createIncidentUpdate.isPending}
-                        >
-                          <Plus className="size-4" />
-                          {createIncidentUpdate.isPending ? "Adding..." : "Add update"}
-                        </Button>
-                        {createIncidentUpdate.isError && (
-                          <p className="text-sm">Unable to add public update.</p>
-                        )}
-                      </form>
-
-                      <div className="space-y-2">
-                        <h3 className="text-sm font-medium">Public Updates</h3>
-                        {(selectedIncident.updates ?? []).length === 0 && (
-                          <div className="text-sm text-neutral-600">No updates yet.</div>
-                        )}
-                        {(selectedIncident.updates ?? []).map((update) => (
-                          <div className="border border-neutral-200 p-3 text-sm" key={update.id}>
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <StatusBadge
-                                fallback={update.status}
-                                value={incidentBadgeStatus(update.status)}
-                              />
-                              <span className="text-neutral-600">
-                                {formatDateTime(update.published_at ?? update.created_at)}
-                              </span>
-                            </div>
-                            <p className="mt-2 whitespace-pre-wrap">{update.message}</p>
-                            {update.created_by && (
-                              <div className="mt-2 text-neutral-600">By {update.created_by}</div>
-                            )}
+                          {renderIncidentSuggestions({
+                            internalIncidentId: editSuggestionIncidentId,
+                            isError: editSuggestionsResponse.isError,
+                            isLoading: editSuggestionsResponse.isLoading,
+                            onApply: () =>
+                              applySuggestedIncidentComponents(
+                                editIncidentForm,
+                                setEditIncidentForm,
+                                editSuggestions,
+                              ),
+                            suggestions: editSuggestions,
+                          })}
+                          <Field label="Public title">
+                            <Input
+                              value={editIncidentForm.title}
+                              onChange={(event) =>
+                                setEditIncidentForm((current) => ({
+                                  ...current,
+                                  title: event.target.value,
+                                }))
+                              }
+                            />
+                          </Field>
+                          <div className="grid gap-3 sm:grid-cols-3">
+                            <Field label="Public status">
+                              <select
+                                className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                                value={editIncidentForm.publicStatus}
+                                onChange={(event) =>
+                                  setEditIncidentForm((current) => ({
+                                    ...current,
+                                    publicStatus: event.target.value,
+                                  }))
+                                }
+                              >
+                                {incidentStatuses.map((status) => (
+                                  <option key={status.value} value={status.value}>
+                                    {status.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </Field>
+                            <Field label="Severity">
+                              <select
+                                className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                                value={editIncidentForm.severity}
+                                onChange={(event) =>
+                                  setEditIncidentForm((current) => ({
+                                    ...current,
+                                    severity: event.target.value,
+                                  }))
+                                }
+                              >
+                                {incidentSeverities.map((severity) => (
+                                  <option key={severity.value} value={severity.value}>
+                                    {severity.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </Field>
+                            <Field label="Visibility">
+                              <select
+                                className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                                value={editIncidentForm.visibility}
+                                onChange={(event) =>
+                                  setEditIncidentForm((current) => ({
+                                    ...current,
+                                    visibility: event.target.value,
+                                  }))
+                                }
+                              >
+                                {incidentVisibilities.map((visibility) => (
+                                  <option key={visibility.value} value={visibility.value}>
+                                    {visibility.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </Field>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </section>
-
-            <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium">Configured Components</h3>
-                {(detail?.components ?? []).length === 0 && (
-                  <EmptyState title="No components" description="Add a section and component." />
-                )}
-                {(detail?.components ?? []).map((component) => (
-                  <div className="border border-neutral-200 p-3" key={component.id}>
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <div className="font-medium">{component.public_name}</div>
-                        <div className="text-sm text-neutral-600">
-                          {component.public_description}
-                        </div>
-                      </div>
-                      <StatusBadge
-                        fallback={component.manual_status || component.display_mode}
-                        value={statusBadgeStatus(component.manual_status)}
-                      />
-                    </div>
-                    <div className="mt-3 space-y-1 text-sm">
-                      {(component.mappings ?? []).map((mapping) => (
-                        <div className="flex items-center gap-2" key={mapping.id}>
-                          <RadioTower className="size-3.5 text-neutral-500" />
-                          <span>{mapping.resource_type}</span>
-                          <span className="text-neutral-600">{mapping.resource_id}</span>
-                        </div>
-                      ))}
-                      {(component.mappings ?? []).length === 0 && (
-                        <div className="text-neutral-600">No mappings</div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium">Preview</h3>
-                  <Eye className="size-4 text-neutral-500" />
-                </div>
-                {previewResponse.isLoading && (
-                  <div className="text-sm text-neutral-600">Loading...</div>
-                )}
-                {preview && (
-                  <div className="border border-neutral-200 p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <div className="font-medium">{preview.page?.title}</div>
-                        <div className="text-sm text-neutral-600">{preview.page?.slug}</div>
-                      </div>
-                      <StatusBadge
-                        fallback={preview.overall_status}
-                        value={statusBadgeStatus(preview.overall_status)}
-                      />
-                    </div>
-                    <div className="mt-4 space-y-3">
-                      {(preview.sections ?? []).map((section) => (
-                        <div key={section.id}>
-                          <div className="text-sm font-medium">{section.name}</div>
-                          <div className="mt-2 space-y-2">
-                            {(section.components ?? []).map(
-                              (component: ApiStatusPagePublicComponentResponse) => (
-                                <div
-                                  className="flex items-center justify-between text-sm"
+                          <Field label="Public impact">
+                            <Textarea
+                              value={editIncidentForm.impactSummary}
+                              onChange={(event) =>
+                                setEditIncidentForm((current) => ({
+                                  ...current,
+                                  impactSummary: event.target.value,
+                                }))
+                              }
+                              rows={3}
+                            />
+                          </Field>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <Field label="Published at">
+                              <Input
+                                type="datetime-local"
+                                value={editIncidentForm.publishedAt}
+                                onChange={(event) =>
+                                  setEditIncidentForm((current) => ({
+                                    ...current,
+                                    publishedAt: event.target.value,
+                                  }))
+                                }
+                              />
+                            </Field>
+                            <Field label="Resolved at">
+                              <Input
+                                type="datetime-local"
+                                value={editIncidentForm.resolvedAt}
+                                onChange={(event) =>
+                                  setEditIncidentForm((current) => ({
+                                    ...current,
+                                    resolvedAt: event.target.value,
+                                  }))
+                                }
+                              />
+                            </Field>
+                          </div>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <Field label="Scheduled start">
+                              <Input
+                                type="datetime-local"
+                                value={editIncidentForm.scheduledStartAt}
+                                onChange={(event) =>
+                                  setEditIncidentForm((current) => ({
+                                    ...current,
+                                    scheduledStartAt: event.target.value,
+                                  }))
+                                }
+                              />
+                            </Field>
+                            <Field label="Scheduled end">
+                              <Input
+                                type="datetime-local"
+                                value={editIncidentForm.scheduledEndAt}
+                                onChange={(event) =>
+                                  setEditIncidentForm((current) => ({
+                                    ...current,
+                                    scheduledEndAt: event.target.value,
+                                  }))
+                                }
+                              />
+                            </Field>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="text-sm font-medium">Affected components</div>
+                            <div className="grid gap-1 sm:grid-cols-2">
+                              {(detail?.components ?? []).map((component) => (
+                                <label
+                                  className="flex items-center gap-2 text-sm"
                                   key={component.id}
                                 >
-                                  <span>{component.name}</span>
-                                  <StatusBadge
-                                    fallback={component.status}
-                                    value={statusBadgeStatus(component.status)}
+                                  <input
+                                    checked={editIncidentForm.affectedComponentIds.includes(
+                                      component.id ?? "",
+                                    )}
+                                    onChange={() =>
+                                      component.id &&
+                                      toggleIncidentComponent(
+                                        editIncidentForm,
+                                        setEditIncidentForm,
+                                        component.id,
+                                      )
+                                    }
+                                    type="checkbox"
                                   />
-                                </div>
-                              ),
+                                  <span>{component.public_name}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              disabled={!editIncidentForm.title.trim() || updateIncident.isPending}
+                              type="submit"
+                              variant="outline"
+                            >
+                              {updateIncident.isPending ? "Saving..." : "Save incident"}
+                            </Button>
+                            <Button
+                              disabled={updateIncident.isPending}
+                              onClick={publishIncident}
+                              type="button"
+                              variant="outline"
+                            >
+                              <Globe2 className="size-4" />
+                              Publish
+                            </Button>
+                            <Button
+                              disabled={updateIncident.isPending}
+                              onClick={resolveIncident}
+                              type="button"
+                              variant="outline"
+                            >
+                              <CheckCircle2 className="size-4" />
+                              Resolve
+                            </Button>
+                            <Button
+                              disabled={updateIncident.isPending}
+                              onClick={() =>
+                                selectedIncident.id &&
+                                setDeleteTarget({
+                                  id: selectedIncident.id,
+                                  kind: "incident",
+                                  label: selectedIncident.title ?? "public incident",
+                                })
+                              }
+                              type="button"
+                              variant="outline"
+                            >
+                              <Trash2 className="size-4" />
+                              Delete
+                            </Button>
+                          </div>
+                          {updateIncident.isError && (
+                            <p className="text-sm">Unable to update public incident.</p>
+                          )}
+                        </form>
+
+                        <div className="space-y-4">
+                          <form className="space-y-3" onSubmit={submitIncidentUpdate}>
+                            <h3 className="text-sm font-medium">Add Public Update</h3>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <Field label="Status">
+                                <select
+                                  className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                                  value={updateForm.status}
+                                  onChange={(event) =>
+                                    setUpdateForm((current) => ({
+                                      ...current,
+                                      status: event.target.value,
+                                    }))
+                                  }
+                                >
+                                  {incidentStatuses.map((status) => (
+                                    <option key={status.value} value={status.value}>
+                                      {status.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </Field>
+                              <Field label="Published at">
+                                <Input
+                                  type="datetime-local"
+                                  value={updateForm.publishedAt}
+                                  onChange={(event) =>
+                                    setUpdateForm((current) => ({
+                                      ...current,
+                                      publishedAt: event.target.value,
+                                    }))
+                                  }
+                                />
+                              </Field>
+                            </div>
+                            <Field label="Message">
+                              <Textarea
+                                value={updateForm.message}
+                                onChange={(event) =>
+                                  setUpdateForm((current) => ({
+                                    ...current,
+                                    message: event.target.value,
+                                  }))
+                                }
+                                rows={4}
+                              />
+                            </Field>
+                            <Field label="Created by">
+                              <Input
+                                value={updateForm.createdBy}
+                                onChange={(event) =>
+                                  setUpdateForm((current) => ({
+                                    ...current,
+                                    createdBy: event.target.value,
+                                  }))
+                                }
+                                placeholder="Support"
+                              />
+                            </Field>
+                            <Button
+                              disabled={
+                                !updateForm.message.trim() || createIncidentUpdate.isPending
+                              }
+                              type="submit"
+                            >
+                              <Plus className="size-4" />
+                              {createIncidentUpdate.isPending ? "Adding..." : "Add update"}
+                            </Button>
+                            {createIncidentUpdate.isError && (
+                              <p className="text-sm">Unable to add public update.</p>
                             )}
+                          </form>
+
+                          <div className="space-y-2">
+                            <h3 className="text-sm font-medium">Public Updates</h3>
+                            {(selectedIncident.updates ?? []).length === 0 && (
+                              <div className="text-sm text-neutral-600">No updates yet.</div>
+                            )}
+                            {(selectedIncident.updates ?? []).map((update) => (
+                              <div
+                                className="border border-neutral-200 p-3 text-sm"
+                                key={update.id}
+                              >
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <StatusBadge
+                                    fallback={update.status}
+                                    value={incidentBadgeStatus(update.status)}
+                                  />
+                                  <span className="text-neutral-600">
+                                    {formatDateTime(update.published_at ?? update.created_at)}
+                                  </span>
+                                </div>
+                                <p className="mt-2 whitespace-pre-wrap">{update.message}</p>
+                                {update.created_by && (
+                                  <div className="mt-2 text-neutral-600">
+                                    By {update.created_by}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
                           </div>
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            </section>
+                </section>
+              </TabsContent>
+            </Tabs>
           </main>
         )}
       </div>
+
+      <Dialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete {deleteTarget?.kind ?? "item"}</DialogTitle>
+            <DialogDescription>
+              This removes {deleteTarget?.label ?? "the selected item"} from the status page
+              configuration.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              disabled={deletePending}
+              onClick={confirmDelete}
+              type="button"
+              variant="outline"
+            >
+              <Trash2 className="size-4" />
+              {deletePending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
