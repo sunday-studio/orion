@@ -96,7 +96,8 @@ EOF
 Optional public status page subscriber email uses a dedicated public sender. Set
 `ORION_PUBLIC_STATUS_MAIL_ENABLED=true` plus the `ORION_PUBLIC_STATUS_MAIL_*`,
 `ORION_PUBLIC_STATUS_URL_ORIGIN`, and `ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET` variables documented in
-[docs/deployment/core-docker.md](docs/deployment/core-docker.md).
+[docs/deployment/core-docker.md](docs/deployment/core-docker.md). These SMTP settings are not used for
+internal alerts; internal alert delivery is configured through webhook alert rules.
 
 Start it:
 
