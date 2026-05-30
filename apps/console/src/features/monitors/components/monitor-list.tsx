@@ -48,6 +48,7 @@ const monitorTypeFilters = [
   "api_request",
   "domain_expiration",
   "ping",
+  "mail",
   "smtp",
   "imap",
   "pop",
@@ -75,6 +76,7 @@ const monitorTypeOptions: Array<{ value: (typeof monitorTypeFilters)[number]; la
   { value: "api_request", label: "API request" },
   { value: "domain_expiration", label: "Domain expiration" },
   { value: "ping", label: "Ping" },
+  { value: "mail", label: "Mail" },
   { value: "smtp", label: "SMTP" },
   { value: "imap", label: "IMAP" },
   { value: "pop", label: "POP" },
@@ -175,7 +177,9 @@ const columns: ColumnDef<ApiMonitorResponse>[] = [
         return owner;
       }
 
-      return <DataTableLink to={`/servers/${monitor.agent_id}?tab=monitors`}>{owner}</DataTableLink>;
+      return (
+        <DataTableLink to={`/servers/${monitor.agent_id}?tab=monitors`}>{owner}</DataTableLink>
+      );
     },
   },
   {
@@ -320,7 +324,19 @@ export const MonitorList = () => {
         selectedFilter={selectedSummaryFilter}
         onFilterChange={setSummaryFilter}
       />
-      {summaryResponse.error && <div className="py-3 text-sm">Unable to load monitor summary.</div>}
+      {summaryResponse.error && (
+        <EmptyState
+          className="min-h-32"
+          title="Unable to load monitor summary"
+          description="The monitor list can still load, but the summary filters may be stale."
+          tone="error"
+          action={
+            <Button size="sm" variant="outline" onClick={() => void summaryResponse.refetch()}>
+              Retry
+            </Button>
+          }
+        />
+      )}
       <div className="mt-6 flex flex-wrap items-center gap-2">
         <div className="relative w-full max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-400" />
@@ -395,7 +411,18 @@ export const MonitorList = () => {
       {monitorsResponse.isLoading && (
         <div className="py-3 text-sm text-neutral-600">Loading monitors...</div>
       )}
-      {monitorsResponse.error && <div className="py-3 text-sm">Unable to load monitors.</div>}
+      {monitorsResponse.error && (
+        <EmptyState
+          title="Unable to load monitors"
+          description="Retry after Core is reachable."
+          tone="error"
+          action={
+            <Button size="sm" variant="outline" onClick={() => void monitorsResponse.refetch()}>
+              Retry
+            </Button>
+          }
+        />
+      )}
       {!monitorsResponse.isLoading && !monitorsResponse.error && monitors.length === 0 && (
         <EmptyState
           title="No monitors found"

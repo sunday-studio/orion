@@ -79,6 +79,40 @@ const coverageUntilPayload = (value: string) => {
   return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString();
 };
 
+type LifecycleAction = "acknowledge" | "resolve" | "reopen";
+
+const lifecycleActionLabels: Record<LifecycleAction, string> = {
+  acknowledge: "Acknowledge",
+  resolve: "Resolve",
+  reopen: "Reopen",
+};
+
+const actorLabel = (actorType?: string, actorID?: string) => {
+  const type = actorType?.trim();
+  const id = actorID?.trim();
+  if (type && id) return `${type} / ${id}`;
+  return type || id || "—";
+};
+
+const actionAllowed = (action?: { allowed?: boolean }) => action?.allowed === true;
+
+type IncidentTimelineItemWithMeta = ApiIncidentTimelineItemResponse & {
+  actor_id?: string;
+  actor_type?: string;
+  note?: string;
+};
+
+type IncidentAllowedActions = {
+  acknowledge?: { allowed?: boolean };
+  cover?: { allowed?: boolean };
+  reopen?: { allowed?: boolean };
+  resolve?: { allowed?: boolean };
+};
+
+type IncidentWithAllowedActions = ApiIncidentResponse & {
+  allowed_actions?: IncidentAllowedActions;
+};
+
 type IncidentComponentImpact = NonNullable<ApiIncidentResponse["impacted_components"]>[number];
 
 const componentLabel = (component: IncidentComponentImpact) =>
@@ -184,6 +218,26 @@ const timelineColumns = (
     cell: ({ row }) => (
       <div className="max-w-[22rem] truncate text-neutral-600">{row.original.message ?? "—"}</div>
     ),
+  },
+  {
+    id: "actor",
+    header: "Actor",
+    cell: ({ row }) => {
+      const item = row.original as IncidentTimelineItemWithMeta;
+      return (
+        <div className="max-w-[12rem] truncate text-neutral-600">
+          {actorLabel(item.actor_type, item.actor_id)}
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: "note",
+    header: "Note",
+    cell: ({ row }) => {
+      const item = row.original as IncidentTimelineItemWithMeta;
+      return <div className="max-w-[18rem] truncate text-neutral-600">{item.note ?? "—"}</div>;
+    },
   },
   {
     id: "evidence",
@@ -307,6 +361,56 @@ const CoverIncidentDialog = ({
   );
 };
 
+type ActionNoteDialogProps = {
+  action: LifecycleAction | null;
+  pending: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (payload: { note?: string }) => void;
+};
+
+const ActionNoteDialog = ({ action, pending, onOpenChange, onSubmit }: ActionNoteDialogProps) => {
+  const [note, setNote] = useState("");
+  const label = action ? lifecycleActionLabels[action] : "";
+  const icon =
+    action === "acknowledge" ? (
+      <CheckIcon />
+    ) : action === "resolve" ? (
+      <CircleCheckIcon />
+    ) : action === "reopen" ? (
+      <RotateCcwIcon />
+    ) : null;
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const submittedNote = String(formData.get("note") ?? "").trim();
+    onSubmit({ note: submittedNote || undefined });
+    setNote("");
+  };
+
+  return (
+    <Dialog open={action !== null} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <DialogHeader>
+            <DialogTitle>{label} incident</DialogTitle>
+          </DialogHeader>
+          <label className="block space-y-1">
+            <span className="text-sm font-medium">note</span>
+            <Textarea name="note" value={note} onChange={(event) => setNote(event.target.value)} />
+          </label>
+          <DialogFooter showCloseButton>
+            <Button type="submit" disabled={pending}>
+              {icon}
+              {label}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const EvidenceReportGroup = ({
   title,
   report,
@@ -358,6 +462,7 @@ export const IncidentDetailPage = () => {
   const relatedIncidents = incidentResponse.data?.related_incidents ?? [];
   const [selectedMonitorReport, setSelectedMonitorReport] = useState<ApiMonitorReportResponse>();
   const [coverDialogOpen, setCoverDialogOpen] = useState(false);
+  const [actionDialog, setActionDialog] = useState<LifecycleAction | null>(null);
   const sortedMonitorReports = [...monitorReports].sort(
     (a, b) => reportSortTime(a) - reportSortTime(b),
   );
@@ -372,10 +477,20 @@ export const IncidentDetailPage = () => {
   const latestTimelineItem = timeline.at(-1);
   const requestedTab = searchParams.get("tab");
   const activeTab: DetailTab = isDetailTab(requestedTab) ? requestedTab : "timeline";
-  const canAcknowledge = incident?.status === "open";
-  const canResolve = incident?.status !== "resolved";
-  const canCover = incident?.status === "open" || incident?.status === "acknowledged";
-  const canReopen = incident?.status === "resolved" || incident?.status === "covered";
+  const incidentWithActions = incident as IncidentWithAllowedActions | undefined;
+  const allowedActions = incidentWithActions?.allowed_actions;
+  const canAcknowledge = allowedActions
+    ? actionAllowed(allowedActions.acknowledge)
+    : incident?.status === "open";
+  const canResolve = allowedActions
+    ? actionAllowed(allowedActions.resolve)
+    : incident?.status !== "resolved";
+  const canCover = allowedActions
+    ? actionAllowed(allowedActions.cover)
+    : incident?.status === "open" || incident?.status === "acknowledged";
+  const canReopen = allowedActions
+    ? actionAllowed(allowedActions.reopen)
+    : incident?.status === "resolved" || incident?.status === "covered";
   const actionPending =
     acknowledgeIncident.isPending ||
     resolveIncident.isPending ||
@@ -391,6 +506,21 @@ export const IncidentDetailPage = () => {
       },
       { replace: true },
     );
+  };
+
+  const handleLifecycleAction = (payload: { note?: string }) => {
+    void payload;
+    const id = incident?.id ?? "";
+    const onSuccess = () => setActionDialog(null);
+    if (actionDialog === "acknowledge") {
+      acknowledgeIncident.mutate({ id }, { onSuccess });
+    }
+    if (actionDialog === "resolve") {
+      resolveIncident.mutate({ id }, { onSuccess });
+    }
+    if (actionDialog === "reopen") {
+      reopenIncident.mutate({ id }, { onSuccess });
+    }
   };
 
   if (incidentResponse.isLoading) {
@@ -430,7 +560,7 @@ export const IncidentDetailPage = () => {
                 <Button
                   variant="outline"
                   disabled={actionPending}
-                  onClick={() => acknowledgeIncident.mutate({ id: incident.id ?? "" })}
+                  onClick={() => setActionDialog("acknowledge")}
                 >
                   <CheckIcon />
                   Acknowledge
@@ -447,10 +577,7 @@ export const IncidentDetailPage = () => {
                 </Button>
               )}
               {canResolve && (
-                <Button
-                  disabled={actionPending}
-                  onClick={() => resolveIncident.mutate({ id: incident.id ?? "" })}
-                >
+                <Button disabled={actionPending} onClick={() => setActionDialog("resolve")}>
                   <CircleCheckIcon />
                   Resolve
                 </Button>
@@ -459,7 +586,7 @@ export const IncidentDetailPage = () => {
                 <Button
                   variant="outline"
                   disabled={actionPending}
-                  onClick={() => reopenIncident.mutate({ id: incident.id ?? "" })}
+                  onClick={() => setActionDialog("reopen")}
                 >
                   <RotateCcwIcon />
                   Reopen
@@ -663,6 +790,14 @@ export const IncidentDetailPage = () => {
             { onSuccess: () => setCoverDialogOpen(false) },
           )
         }
+      />
+      <ActionNoteDialog
+        action={actionDialog}
+        pending={actionPending}
+        onOpenChange={(open) => {
+          if (!open) setActionDialog(null);
+        }}
+        onSubmit={handleLifecycleAction}
       />
     </div>
   );

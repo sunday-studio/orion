@@ -12,6 +12,7 @@ func TestLoadCORSOriginsFromEnvironment(t *testing.T) {
 	t.Setenv("ORION_WORKER_HEARTBEAT_SECONDS", "20")
 	t.Setenv("ORION_WORKER_STALE_SECONDS", "90")
 	t.Setenv("ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS", "120")
+	t.Setenv("ORION_REQUIRE_FRONTEND_AUTH", "true")
 
 	cfg := Load()
 
@@ -26,6 +27,9 @@ func TestLoadCORSOriginsFromEnvironment(t *testing.T) {
 	}
 	if cfg.DataLifecycleSchedulerSeconds != 120 {
 		t.Fatalf("DataLifecycleSchedulerSeconds = %d, want 120", cfg.DataLifecycleSchedulerSeconds)
+	}
+	if !cfg.RequireFrontendAuth {
+		t.Fatal("RequireFrontendAuth = false, want true")
 	}
 }
 
@@ -100,6 +104,32 @@ func TestValidateAcceptsCompleteFrontendAuthConfig(t *testing.T) {
 	}
 
 	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+}
+
+func TestValidateRequireFrontendAuth(t *testing.T) {
+	incomplete := &Config{
+		RequireFrontendAuth:           true,
+		CoreWorkerHeartbeatSeconds:    15,
+		CoreWorkerStaleSeconds:        60,
+		DataLifecycleSchedulerSeconds: 3600,
+	}
+	if err := incomplete.Validate(); err == nil {
+		t.Fatal("Validate() error = nil, want required frontend auth config error")
+	}
+
+	complete := &Config{
+		AdminUsername:                 "admin",
+		AdminPassword:                 "secret",
+		JWTSecret:                     "jwt-secret",
+		FrontendAuthOn:                true,
+		RequireFrontendAuth:           true,
+		CoreWorkerHeartbeatSeconds:    15,
+		CoreWorkerStaleSeconds:        60,
+		DataLifecycleSchedulerSeconds: 3600,
+	}
+	if err := complete.Validate(); err != nil {
 		t.Fatalf("Validate() error = %v", err)
 	}
 }

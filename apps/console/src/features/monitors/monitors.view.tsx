@@ -5,6 +5,7 @@ import {
   type CoreMonitorSubmitAction,
 } from "@/features/monitors/components/core-monitor-dialog";
 import { HeartbeatSetupPanel } from "@/features/monitors/components/heartbeat-setup-panel";
+import { coreMonitorMutationErrorMessage } from "@/features/monitors/components/core-monitor-errors";
 import { MonitorList } from "@/features/monitors/components/monitor-list";
 import {
   type ApiCoreMonitorConfigResponse,
@@ -18,15 +19,6 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useState } from "react";
-
-const mutationErrorMessage = (error: unknown, fallback: string) => {
-  if (!error) return "";
-  if (error instanceof Error) return error.message;
-  if (typeof error === "object" && "message" in error) {
-    return String((error as { message?: unknown }).message ?? fallback);
-  }
-  return fallback;
-};
 
 const parseReportPayload = (report?: ApiMonitorReportResponse) => {
   if (!report?.payload) return {};
@@ -100,7 +92,10 @@ export const MonitorsPage = () => {
         const tested = await testCoreMonitor(created.monitor.id);
         const history = await getMonitorHistory(created.monitor.id, { limit: 1, offset: 0 });
         const health =
-          tested.monitor?.computed_health ?? tested.monitor?.health ?? tested.result?.status ?? "unknown";
+          tested.monitor?.computed_health ??
+          tested.monitor?.health ??
+          tested.result?.status ??
+          "unknown";
         setCreateFeedback(describeTestResult(health, history.reports?.[0]));
         setCreateFeedbackTone(health === "up" ? "neutral" : "error");
       } finally {
@@ -123,7 +118,11 @@ export const MonitorsPage = () => {
         </Button>
       </div>
       {createFeedback && (
-        <p className={createFeedbackTone === "error" ? "text-sm text-rose-700" : "text-sm text-neutral-600"}>
+        <p
+          className={
+            createFeedbackTone === "error" ? "text-sm text-rose-700" : "text-sm text-neutral-600"
+          }
+        >
           {createFeedback}
         </p>
       )}
@@ -136,7 +135,10 @@ export const MonitorsPage = () => {
       )}
       <MonitorList />
       <CoreMonitorDialog
-        error={mutationErrorMessage(createMonitor.error, "Unable to create Core monitor.")}
+        error={coreMonitorMutationErrorMessage(
+          createMonitor.error,
+          "Unable to create Core monitor.",
+        )}
         isSubmitting={createMonitor.isPending || isTestingCreatedMonitor}
         mode="create"
         onOpenChange={setCreateOpen}

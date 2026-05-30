@@ -2038,9 +2038,12 @@ func TestManualIncidentActionsAcknowledgeAndResolve(t *testing.T) {
 		t.Fatalf("covered incident = %+v, want covered lifecycle fields", incident)
 	}
 	assertIncidentEvent(t, server, incident.ID, "incident_covered", "Incident marked covered")
+	assertIncidentEventMetadata(t, server, incident.ID, "incident_covered", "user", "console", "Known deploy window")
 	assertMonitorIncidentState(t, server, registeredMonitor.Data.MonitorID, incident.ID, "down")
 
-	reopenCoveredResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/reopen", nil, "")
+	reopenCoveredResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/reopen", map[string]string{
+		"note": "Deploy window complete",
+	}, "")
 	if reopenCoveredResp.Code != http.StatusOK {
 		t.Fatalf("reopen covered incident status = %d, body = %s", reopenCoveredResp.Code, reopenCoveredResp.Body.String())
 	}
@@ -2052,9 +2055,12 @@ func TestManualIncidentActionsAcknowledgeAndResolve(t *testing.T) {
 		t.Fatalf("reopened covered incident = %+v, want open with cleared coverage fields", incident)
 	}
 	assertIncidentEvent(t, server, incident.ID, "incident_reopened", "Incident reopened")
+	assertIncidentEventMetadata(t, server, incident.ID, "incident_reopened", "user", "console", "Deploy window complete")
 	assertMonitorIncidentState(t, server, registeredMonitor.Data.MonitorID, incident.ID, "down")
 
-	ackResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/acknowledge", nil, "")
+	ackResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/acknowledge", map[string]string{
+		"note": "Investigating with on-call",
+	}, "")
 	if ackResp.Code != http.StatusOK {
 		t.Fatalf("acknowledge incident status = %d, body = %s", ackResp.Code, ackResp.Body.String())
 	}
@@ -2066,9 +2072,12 @@ func TestManualIncidentActionsAcknowledgeAndResolve(t *testing.T) {
 		t.Fatalf("acknowledged incident = %+v, want acknowledged manual latest event", incident)
 	}
 	assertIncidentEvent(t, server, incident.ID, "incident_acknowledged", "Incident manually acknowledged")
+	assertIncidentEventMetadata(t, server, incident.ID, "incident_acknowledged", "user", "console", "Investigating with on-call")
 	assertMonitorIncidentState(t, server, registeredMonitor.Data.MonitorID, incident.ID, "down")
 
-	resolveResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/resolve", nil, "")
+	resolveResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/resolve", map[string]string{
+		"note": "Rollback restored service",
+	}, "")
 	if resolveResp.Code != http.StatusOK {
 		t.Fatalf("resolve incident status = %d, body = %s", resolveResp.Code, resolveResp.Body.String())
 	}
@@ -2080,6 +2089,7 @@ func TestManualIncidentActionsAcknowledgeAndResolve(t *testing.T) {
 		t.Fatalf("resolved incident = %+v, want resolved manual latest event", incident)
 	}
 	assertIncidentEvent(t, server, incident.ID, "incident_resolved", "Incident manually resolved")
+	assertIncidentEventMetadata(t, server, incident.ID, "incident_resolved", "user", "console", "Rollback restored service")
 	assertMonitorIncidentState(t, server, registeredMonitor.Data.MonitorID, "", "up")
 
 	reopenResolvedResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/reopen", nil, "")
@@ -2793,6 +2803,20 @@ func TestCoreMonitorManagementRejectsInvalidConfig(t *testing.T) {
 
 func TestCoreMonitorManagementEnforcesTargetPolicy(t *testing.T) {
 	server := setupTestServer(t)
+
+	localhostResp := performJSONRequest(t, server, http.MethodPost, "/v1/monitors", map[string]interface{}{
+		"name": "Localhost Target",
+		"kind": "http",
+		"config": map[string]interface{}{
+			"url": "http://localhost:8080/health?token=secret",
+		},
+	}, "")
+	if localhostResp.Code != http.StatusBadRequest {
+		t.Fatalf("localhost create status = %d, body = %s", localhostResp.Code, localhostResp.Body.String())
+	}
+	if strings.Contains(localhostResp.Body.String(), "token=secret") {
+		t.Fatalf("localhost create leaked query secret: %s", localhostResp.Body.String())
+	}
 
 	createResp := performJSONRequest(t, server, http.MethodPost, "/v1/monitors", map[string]interface{}{
 		"name": "Metadata Target",
@@ -3643,6 +3667,13 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 		t.Fatalf("latest report status = %d, body = %s", latestResp.Code, latestResp.Body.String())
 	}
 
+	ackResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/acknowledge", map[string]string{
+		"note": "Ops accepted the incident",
+	}, "")
+	if ackResp.Code != http.StatusOK {
+		t.Fatalf("acknowledge detail incident status = %d, body = %s", ackResp.Code, ackResp.Body.String())
+	}
+
 	detailResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents/"+incident.ID, nil, "")
 	if detailResp.Code != http.StatusOK {
 		t.Fatalf("incident detail status = %d, body = %s", detailResp.Code, detailResp.Body.String())
@@ -3651,9 +3682,25 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 		Success bool `json:"success"`
 		Data    struct {
 			Incident struct {
-				ID                 string `json:"id"`
-				AgentName          string `json:"agent_name"`
-				MonitorName        string `json:"monitor_name"`
+				ID             string `json:"id"`
+				AgentName      string `json:"agent_name"`
+				MonitorName    string `json:"monitor_name"`
+				AllowedActions struct {
+					Acknowledge struct {
+						Allowed bool   `json:"allowed"`
+						Reason  string `json:"reason"`
+					} `json:"acknowledge"`
+					Cover struct {
+						Allowed bool `json:"allowed"`
+					} `json:"cover"`
+					Resolve struct {
+						Allowed bool `json:"allowed"`
+					} `json:"resolve"`
+					Reopen struct {
+						Allowed bool   `json:"allowed"`
+						Reason  string `json:"reason"`
+					} `json:"reopen"`
+				} `json:"allowed_actions"`
 				ImpactedComponents []struct {
 					ComponentID   string `json:"component_id"`
 					ComponentName string `json:"component_name"`
@@ -3683,6 +3730,9 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 				Evidence        string `json:"evidence"`
 				MonitorReportID string `json:"monitor_report_id"`
 				AlertDeliveryID string `json:"alert_delivery_id"`
+				ActorType       string `json:"actor_type"`
+				ActorID         string `json:"actor_id"`
+				Note            string `json:"note"`
 			} `json:"timeline"`
 			AlertDeliveries []struct {
 				Status string `json:"status"`
@@ -3698,6 +3748,14 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 	}
 	if detail.Data.Incident.AgentName != "test-server" || detail.Data.Incident.MonitorName != "homepage" {
 		t.Fatalf("incident names = %+v, want agent and monitor names", detail.Data.Incident)
+	}
+	if detail.Data.Incident.AllowedActions.Acknowledge.Allowed ||
+		detail.Data.Incident.AllowedActions.Acknowledge.Reason == "" ||
+		!detail.Data.Incident.AllowedActions.Cover.Allowed ||
+		!detail.Data.Incident.AllowedActions.Resolve.Allowed ||
+		detail.Data.Incident.AllowedActions.Reopen.Allowed ||
+		detail.Data.Incident.AllowedActions.Reopen.Reason == "" {
+		t.Fatalf("incident allowed actions = %+v, want acknowledged action state", detail.Data.Incident.AllowedActions)
 	}
 	if len(detail.Data.Incident.ImpactedComponents) != 1 ||
 		detail.Data.Incident.ImpactedComponents[0].ComponentID != "incident-detail-component" ||
@@ -3726,6 +3784,7 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 	}
 	var reportLinked bool
 	var deliveryLinked bool
+	var manualAuditLinked bool
 	for _, item := range detail.Data.Timeline {
 		if item.MonitorReportID != "" && item.Evidence != "" {
 			reportLinked = true
@@ -3733,8 +3792,11 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 		if item.AlertDeliveryID != "" {
 			deliveryLinked = true
 		}
+		if item.Type == "incident_acknowledged" && item.ActorType == "user" && item.ActorID == "console" && item.Note == "Ops accepted the incident" {
+			manualAuditLinked = true
+		}
 	}
-	if !reportLinked || !deliveryLinked {
+	if !reportLinked || !deliveryLinked || !manualAuditLinked {
 		t.Fatalf("timeline links = %+v, want report evidence and alert delivery links", detail.Data.Timeline)
 	}
 
@@ -5221,6 +5283,18 @@ func assertIncidentEvent(t *testing.T, server *Server, incidentID string, eventT
 	var event db.IncidentEvent
 	if err := server.db.Where("incident_id = ? AND type = ? AND message = ?", incidentID, eventType, wantMessage).First(&event).Error; err != nil {
 		t.Fatalf("find incident event %s: %v", eventType, err)
+	}
+}
+
+func assertIncidentEventMetadata(t *testing.T, server *Server, incidentID string, eventType string, wantActorType string, wantActorID string, wantNote string) {
+	t.Helper()
+
+	var event db.IncidentEvent
+	if err := server.db.Where("incident_id = ? AND type = ?", incidentID, eventType).Order("created_at DESC").First(&event).Error; err != nil {
+		t.Fatalf("find incident event %s metadata: %v", eventType, err)
+	}
+	if event.ActorType != wantActorType || event.ActorID != wantActorID || event.Note != wantNote {
+		t.Fatalf("incident event %s metadata = actor %s/%s note %q, want actor %s/%s note %q", eventType, event.ActorType, event.ActorID, event.Note, wantActorType, wantActorID, wantNote)
 	}
 }
 

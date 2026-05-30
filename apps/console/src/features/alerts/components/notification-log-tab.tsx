@@ -1,5 +1,6 @@
 import { DataTable } from "@/components/data-table";
 import { DataTableLink } from "@/components/data-table-link";
+import { EmptyState } from "@/components/empty-state";
 import { ListPagination } from "@/components/list-pagination";
 import { NotificationBadge, toNotificationStatus } from "@/components/status-badges";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,12 @@ const deliveryColumns: ColumnDef<ApiAlertDeliveryResponse>[] = [
     cell: ({ row }) => <NotificationBadge value={toNotificationStatus(row.original.status)} />,
   },
   {
+    accessorKey: "attempt_count",
+    header: "Attempts",
+    cell: ({ row }) =>
+      `${row.original.attempt_count ?? 0}/${row.original.max_attempts ?? row.original.attempt_count ?? 0}`,
+  },
+  {
     accessorKey: "incident_id",
     header: "Incident",
     cell: ({ row }) =>
@@ -56,7 +63,19 @@ const deliveryColumns: ColumnDef<ApiAlertDeliveryResponse>[] = [
     accessorKey: "error",
     header: "Error",
     cell: ({ row }) => (
-      <div className="max-w-[24rem] truncate text-neutral-600">{row.original.error ?? "—"}</div>
+      <div className="max-w-[28rem] text-neutral-600">
+        <div className="truncate">{row.original.error ?? "—"}</div>
+        {row.original.next_attempt_at && (
+          <div className="text-xs">
+            Next retry {formatDate(row.original.next_attempt_at, DATE_TIME_FORMAT)}
+          </div>
+        )}
+        {row.original.last_attempt_at && (
+          <div className="text-xs">
+            Last attempt {formatDate(row.original.last_attempt_at, DATE_TIME_FORMAT)}
+          </div>
+        )}
+      </div>
     ),
   },
 ];
@@ -209,7 +228,14 @@ export const NotificationLogTab = ({
           </Button>
         )}
       </div>
-      {Boolean(error) && <div className="text-sm">Unable to load notification log.</div>}
+      {Boolean(error) && (
+        <EmptyState
+          className="min-h-40"
+          title="Unable to load notification log"
+          description="Retry from the browser after Core is reachable."
+          tone="error"
+        />
+      )}
       {!error && (
         <DataTable
           columns={deliveryColumns}

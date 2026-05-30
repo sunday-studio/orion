@@ -87,11 +87,17 @@ Create a `.env` file next to `orion-compose.yml`:
 cat > .env <<'EOF'
 ORION_CORE_IMAGE=ghcr.io/sunday-studio/orion-core:<version>
 ORION_HTTP_PORT=8999
+ORION_REQUIRE_FRONTEND_AUTH=true
 ORION_ADMIN_USERNAME=admin
 ORION_ADMIN_PASSWORD=replace-with-a-strong-password
 ORION_JWT_SECRET=replace-with-a-long-random-secret
 EOF
 ```
+
+`ORION_REQUIRE_FRONTEND_AUTH=true` is recommended for any deployment reachable outside your
+development machine. It makes Core fail startup unless `ORION_ADMIN_USERNAME`,
+`ORION_ADMIN_PASSWORD`, and `ORION_JWT_SECRET` are all set, which protects Console monitor admin
+APIs.
 
 Optional public status page subscriber email uses a dedicated public sender. Set
 `ORION_PUBLIC_STATUS_MAIL_ENABLED=true` plus the `ORION_PUBLIC_STATUS_MAIL_*`,
@@ -115,6 +121,7 @@ docker run -d \
   -e ORION_DATA_DIR=/data \
   -e ORION_PORT=8999 \
   -e ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS=3600 \
+  -e ORION_REQUIRE_FRONTEND_AUTH=true \
   -e ORION_ADMIN_USERNAME=admin \
   -e ORION_ADMIN_PASSWORD='replace-with-a-strong-password' \
   -e ORION_JWT_SECRET='replace-with-a-long-random-secret' \
@@ -126,6 +133,7 @@ docker run -d \
   -v orion-data:/data \
   -e ORION_DATA_DIR=/data \
   -e ORION_WORKER_ID=core-monitor-worker \
+  -e ORION_REQUIRE_FRONTEND_AUTH=true \
   -e ORION_ADMIN_USERNAME=admin \
   -e ORION_ADMIN_PASSWORD='replace-with-a-strong-password' \
   -e ORION_JWT_SECRET='replace-with-a-long-random-secret' \

@@ -89,15 +89,21 @@ export const HeartbeatSetupPanel = ({
       <div className="grid gap-3 sm:grid-cols-3">
         <div>
           <div className="text-sm text-neutral-600">last signal</div>
-          <div className="text-sm font-medium">{formatDate(config?.last_signal_at, DATE_TIME_FORMAT)}</div>
+          <div className="text-sm font-medium">
+            {formatDate(config?.last_signal_at, DATE_TIME_FORMAT)}
+          </div>
         </div>
         <div>
           <div className="text-sm text-neutral-600">last success</div>
-          <div className="text-sm font-medium">{formatDate(config?.last_success_at, DATE_TIME_FORMAT)}</div>
+          <div className="text-sm font-medium">
+            {formatDate(config?.last_success_at, DATE_TIME_FORMAT)}
+          </div>
         </div>
         <div>
           <div className="text-sm text-neutral-600">last failure</div>
-          <div className="text-sm font-medium">{formatDate(config?.last_failure_at, DATE_TIME_FORMAT)}</div>
+          <div className="text-sm font-medium">
+            {formatDate(config?.last_failure_at, DATE_TIME_FORMAT)}
+          </div>
         </div>
       </div>
 
@@ -110,8 +116,8 @@ export const HeartbeatSetupPanel = ({
         </div>
       ) : (
         <p className="text-sm text-neutral-600">
-          The token is shown after heartbeat monitor creation. Create a replacement heartbeat if a new
-          endpoint is needed.
+          The token is shown after heartbeat monitor creation. Create a replacement heartbeat if a
+          new endpoint is needed.
         </p>
       )}
     </div>

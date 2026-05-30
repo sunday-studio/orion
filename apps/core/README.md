@@ -33,6 +33,8 @@ Useful environment variables:
   unset on workers without a browser runtime; those monitors report `runtime_unavailable` explicitly.
 - `ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS`: API-side data lifecycle archive/rollup scheduler interval.
 - `ORION_ADMIN_USERNAME`, `ORION_ADMIN_PASSWORD`, `ORION_JWT_SECRET`: enable Console login.
+- `ORION_REQUIRE_FRONTEND_AUTH`: set to `true` for any exposed deployment so Core refuses to
+  start unless all Console admin auth values are configured.
 
 See [Core Docker deployment](../../docs/deployment/core-docker.md) for deploy usage.
 

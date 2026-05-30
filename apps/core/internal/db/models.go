@@ -277,6 +277,9 @@ type IncidentEvent struct {
 	Type            string    `json:"type" gorm:"not null"`
 	Message         string    `json:"message" gorm:"type:text"`
 	MonitorReportID string    `json:"monitor_report_id" gorm:"index:idx_incident_events_monitor_report_id"`
+	ActorType       string    `json:"actor_type" gorm:"not null;default:system;index:idx_incident_events_actor"`
+	ActorID         string    `json:"actor_id" gorm:"not null;default:core;index:idx_incident_events_actor"`
+	Note            string    `json:"note" gorm:"type:text;not null;default:''"`
 	CreatedAt       time.Time `json:"created_at" gorm:"index:idx_incident_events_created_at"`
 }
 

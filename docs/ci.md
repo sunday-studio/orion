@@ -4,12 +4,13 @@ Orion uses `.github/workflows/ci.yml` for pull request and `main` branch validat
 
 The workflow is path-aware:
 
-- Server changes run `go test ./...` in `apps/agent`.
+- Server changes run Go formatting checks and `go test ./...` in `apps/agent`.
 - Core changes run `make core-coverage`, upload package/function coverage artifacts, and build the
-  Core API and worker binaries.
-- Console changes install dependencies with pnpm and run the Console build.
-- API or generated-contract changes regenerate OpenAPI and the Console SDK, then fail if generated
-  files are not committed.
+  Core API and worker binaries after Go formatting checks pass.
+- Console changes install dependencies with pnpm, generate the local SDK from committed OpenAPI,
+  run format and lint checks, and run the Console build.
+- API or generated-contract changes regenerate OpenAPI before generating the local Console SDK.
+  CI then fails if regenerated Core OpenAPI and Swagger files are not committed.
 - Deploy and documentation changes run repository smoke checks, including shell syntax and Docker
   Compose config validation.
 
@@ -33,6 +34,10 @@ CI fails unless the PR body fills in `No Core backend test changes because:` wit
 rationale. This gate is intentionally scoped to pull requests and Core backend files so
 documentation, deploy, Console-only, and generated-contract-only changes do not inherit backend
 test policy.
+
+The Console SDK stays ignored locally, so clean CI checkouts generate it before TypeScript resolves
+`@/orion-sdk`. Backend contract changes regenerate OpenAPI first; frontend-only changes generate the
+SDK from the committed OpenAPI file.
 
 Coverage thresholds are still deferred. A raw percentage would be misleading until generated docs
 and integration-heavy packages have agreed package-level interpretation.

@@ -21,6 +21,10 @@ type incidentCoverageRequest struct {
 	Note         string     `json:"note"`
 }
 
+type incidentLifecycleActionRequest struct {
+	Note string `json:"note"`
+}
+
 type incidentListFilters struct {
 	statuses           []string
 	agentID            string
@@ -429,13 +433,18 @@ func (s *Server) getIncidentTimeline(c *gin.Context) {
 // @Produce      json
 // @ID           acknowledgeIncident
 // @Param        id   path      string  true  "Incident ID"
+// @Param        request  body  incidentLifecycleActionRequest  false  "Lifecycle action metadata"
 // @Success      200  {object}  utils.APIResponse{data=object{incident=IncidentResponse}}
 // @Failure      400  {object}  utils.APIResponse
 // @Failure      404  {object}  utils.APIResponse
 // @Failure      500  {object}  utils.APIResponse
 // @Router       /v1/incidents/{id}/acknowledge [post]
 func (s *Server) acknowledgeIncident(c *gin.Context) {
-	incident, err := service.NewIncidentService(s.db, s.logger, s.cfg).AcknowledgeIncident(c.Param("id"))
+	request, ok := bindIncidentLifecycleActionRequest(c)
+	if !ok {
+		return
+	}
+	incident, err := service.NewIncidentService(s.db, s.logger, s.cfg).AcknowledgeIncident(c.Param("id"), s.incidentLifecycleActionMetadata(c, request.Note))
 	if err != nil {
 		s.handleIncidentActionError(c, err, "Failed to acknowledge incident")
 		return
@@ -451,12 +460,17 @@ func (s *Server) acknowledgeIncident(c *gin.Context) {
 // @Produce      json
 // @ID           resolveIncident
 // @Param        id   path      string  true  "Incident ID"
+// @Param        request  body  incidentLifecycleActionRequest  false  "Lifecycle action metadata"
 // @Success      200  {object}  utils.APIResponse{data=object{incident=IncidentResponse}}
 // @Failure      404  {object}  utils.APIResponse
 // @Failure      500  {object}  utils.APIResponse
 // @Router       /v1/incidents/{id}/resolve [post]
 func (s *Server) resolveIncident(c *gin.Context) {
-	incident, err := service.NewIncidentService(s.db, s.logger, s.cfg).ResolveIncident(c.Param("id"))
+	request, ok := bindIncidentLifecycleActionRequest(c)
+	if !ok {
+		return
+	}
+	incident, err := service.NewIncidentService(s.db, s.logger, s.cfg).ResolveIncident(c.Param("id"), s.incidentLifecycleActionMetadata(c, request.Note))
 	if err != nil {
 		s.handleIncidentActionError(c, err, "Failed to resolve incident")
 		return
@@ -486,7 +500,7 @@ func (s *Server) coverIncident(c *gin.Context) {
 			return
 		}
 	}
-	incident, err := service.NewIncidentService(s.db, s.logger, s.cfg).CoverIncident(c.Param("id"), request.CoveredUntil, request.Note)
+	incident, err := service.NewIncidentService(s.db, s.logger, s.cfg).CoverIncident(c.Param("id"), request.CoveredUntil, request.Note, s.incidentLifecycleActionMetadata(c, request.Note))
 	if err != nil {
 		s.handleIncidentActionError(c, err, "Failed to cover incident")
 		return
@@ -502,17 +516,51 @@ func (s *Server) coverIncident(c *gin.Context) {
 // @Produce      json
 // @ID           reopenIncident
 // @Param        id   path      string  true  "Incident ID"
+// @Param        request  body  incidentLifecycleActionRequest  false  "Lifecycle action metadata"
 // @Success      200  {object}  utils.APIResponse{data=object{incident=IncidentResponse}}
 // @Failure      404  {object}  utils.APIResponse
 // @Failure      500  {object}  utils.APIResponse
 // @Router       /v1/incidents/{id}/reopen [post]
 func (s *Server) reopenIncident(c *gin.Context) {
-	incident, err := service.NewIncidentService(s.db, s.logger, s.cfg).ReopenIncident(c.Param("id"))
+	request, ok := bindIncidentLifecycleActionRequest(c)
+	if !ok {
+		return
+	}
+	incident, err := service.NewIncidentService(s.db, s.logger, s.cfg).ReopenIncident(c.Param("id"), s.incidentLifecycleActionMetadata(c, request.Note))
 	if err != nil {
 		s.handleIncidentActionError(c, err, "Failed to reopen incident")
 		return
 	}
 	s.writeIncidentActionResponse(c, "Incident reopened successfully", incident)
+}
+
+func bindIncidentLifecycleActionRequest(c *gin.Context) (incidentLifecycleActionRequest, bool) {
+	var request incidentLifecycleActionRequest
+	if c.Request.Body != nil && c.Request.ContentLength != 0 {
+		if err := c.ShouldBindJSON(&request); err != nil {
+			utils.BadRequest(c, "Invalid incident lifecycle action payload")
+			return incidentLifecycleActionRequest{}, false
+		}
+	}
+	return request, true
+}
+
+func (s *Server) incidentLifecycleActionMetadata(c *gin.Context, note string) service.IncidentLifecycleActionMetadata {
+	actorType, actorID := incidentLifecycleActor(c)
+	return service.IncidentLifecycleActionMetadata{
+		ActorType: actorType,
+		ActorID:   actorID,
+		Note:      note,
+	}
+}
+
+func incidentLifecycleActor(c *gin.Context) (string, string) {
+	if actor, ok := c.Get("frontend_actor_id"); ok {
+		if actorID, ok := actor.(string); ok && strings.TrimSpace(actorID) != "" {
+			return "user", strings.TrimSpace(actorID)
+		}
+	}
+	return "user", "console"
 }
 
 func (s *Server) handleIncidentActionError(c *gin.Context, err error, message string) {
@@ -685,6 +733,9 @@ func incidentTimeline(events []db.IncidentEvent, deliveries []db.AlertDelivery, 
 			Message:         event.Message,
 			Evidence:        evidenceByReportID[event.MonitorReportID],
 			MonitorReportID: event.MonitorReportID,
+			ActorType:       event.ActorType,
+			ActorID:         event.ActorID,
+			Note:            event.Note,
 			CreatedAt:       event.CreatedAt,
 		})
 	}

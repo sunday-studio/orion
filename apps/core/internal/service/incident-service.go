@@ -28,6 +28,12 @@ var (
 	ErrIncidentNotFound        = errors.New("incident not found")
 )
 
+type IncidentLifecycleActionMetadata struct {
+	ActorType string
+	ActorID   string
+	Note      string
+}
+
 type IncidentService struct {
 	db          *gorm.DB
 	logger      *logging.Logger
@@ -332,7 +338,7 @@ func (s *IncidentService) ReconcileStaleMonitors(agentID string) error {
 	return nil
 }
 
-func (s *IncidentService) AcknowledgeIncident(incidentID string) (db.Incident, error) {
+func (s *IncidentService) AcknowledgeIncident(incidentID string, metadata IncidentLifecycleActionMetadata) (db.Incident, error) {
 	var incident db.Incident
 	if err := s.db.Where("id = ?", incidentID).First(&incident).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -356,7 +362,7 @@ func (s *IncidentService) AcknowledgeIncident(incidentID string) (db.Incident, e
 	}).Error; err != nil {
 		return db.Incident{}, err
 	}
-	if err := s.createIncidentEvent(incident.ID, "incident_acknowledged", message, ""); err != nil {
+	if err := s.createIncidentEvent(incident.ID, "incident_acknowledged", message, "", metadata); err != nil {
 		return db.Incident{}, err
 	}
 	if err := s.db.Where("id = ?", incident.ID).First(&incident).Error; err != nil {
@@ -365,7 +371,7 @@ func (s *IncidentService) AcknowledgeIncident(incidentID string) (db.Incident, e
 	return incident, nil
 }
 
-func (s *IncidentService) ResolveIncident(incidentID string) (db.Incident, error) {
+func (s *IncidentService) ResolveIncident(incidentID string, metadata IncidentLifecycleActionMetadata) (db.Incident, error) {
 	var incident db.Incident
 	if err := s.db.Where("id = ?", incidentID).First(&incident).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -378,7 +384,7 @@ func (s *IncidentService) ResolveIncident(incidentID string) (db.Incident, error
 	}
 
 	message := "Incident manually resolved"
-	if err := s.resolveIncidentRecord(&incident, message, "", "up", "manual", true); err != nil {
+	if err := s.resolveIncidentRecord(&incident, message, "", "up", "manual", true, metadata); err != nil {
 		return db.Incident{}, err
 	}
 	if err := s.db.Where("id = ?", incident.ID).First(&incident).Error; err != nil {
@@ -387,7 +393,7 @@ func (s *IncidentService) ResolveIncident(incidentID string) (db.Incident, error
 	return incident, nil
 }
 
-func (s *IncidentService) CoverIncident(incidentID string, coveredUntil *time.Time, note string) (db.Incident, error) {
+func (s *IncidentService) CoverIncident(incidentID string, coveredUntil *time.Time, note string, metadata IncidentLifecycleActionMetadata) (db.Incident, error) {
 	var incident db.Incident
 	if err := s.db.Where("id = ?", incidentID).First(&incident).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -401,11 +407,13 @@ func (s *IncidentService) CoverIncident(incidentID string, coveredUntil *time.Ti
 
 	now := time.Now().UTC()
 	message := "Incident marked covered"
+	cleanNote := strings.TrimSpace(note)
+	metadata.Note = firstNonEmpty(metadata.Note, cleanNote)
 	updates := map[string]interface{}{
 		"status":          "covered",
 		"covered_at":      &now,
 		"covered_until":   coveredUntil,
-		"coverage_note":   strings.TrimSpace(note),
+		"coverage_note":   cleanNote,
 		"last_event_at":   now,
 		"latest_event":    message,
 		"resolution_kind": "",
@@ -417,7 +425,7 @@ func (s *IncidentService) CoverIncident(incidentID string, coveredUntil *time.Ti
 	if err := s.db.Exec("UPDATE incidents SET resolved_at = NULL WHERE id = ?", incident.ID).Error; err != nil {
 		return db.Incident{}, err
 	}
-	if err := s.createIncidentEvent(incident.ID, "incident_covered", message, ""); err != nil {
+	if err := s.createIncidentEvent(incident.ID, "incident_covered", message, "", metadata); err != nil {
 		return db.Incident{}, err
 	}
 	var reloaded db.Incident
@@ -427,7 +435,7 @@ func (s *IncidentService) CoverIncident(incidentID string, coveredUntil *time.Ti
 	return reloaded, nil
 }
 
-func (s *IncidentService) ReopenIncident(incidentID string) (db.Incident, error) {
+func (s *IncidentService) ReopenIncident(incidentID string, metadata IncidentLifecycleActionMetadata) (db.Incident, error) {
 	var incident db.Incident
 	if err := s.db.Where("id = ?", incidentID).First(&incident).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -460,7 +468,7 @@ func (s *IncidentService) ReopenIncident(incidentID string) (db.Incident, error)
 	if err := s.updateMonitorIncidentState(incident.MonitorID, incident.ID, s.reopenedIncidentState(incident.MonitorID)); err != nil {
 		return db.Incident{}, err
 	}
-	if err := s.createIncidentEvent(incident.ID, "incident_reopened", message, ""); err != nil {
+	if err := s.createIncidentEvent(incident.ID, "incident_reopened", message, "", metadata); err != nil {
 		return db.Incident{}, err
 	}
 	if err := NewAlertService(s.db, s.logger, s.cfg).QueueIncidentNotifications(incident.ID, "incident_opened"); err != nil {
@@ -482,7 +490,7 @@ func (s *IncidentService) ResolveMonitorRemoved(monitorID string) error {
 		return s.updateMonitorIncidentState(monitorID, "", "unknown")
 	}
 	message := "Monitor removed; active incident resolved"
-	return s.resolveIncidentRecord(incident, message, "", "unknown", "monitor_removed", true)
+	return s.resolveIncidentRecord(incident, message, "", "unknown", "monitor_removed", true, incidentSystemEventMetadata())
 }
 
 func (s *IncidentService) openOrUpdateIncident(agent db.Agent, monitor db.Monitor, monitorReportID string, health string, incidentState string) error {
@@ -527,7 +535,7 @@ func (s *IncidentService) openOrUpdateIncident(agent db.Agent, monitor db.Monito
 		if err := s.updateMonitorIncidentState(monitor.ID, incident.ID, incidentState); err != nil {
 			return err
 		}
-		return s.createIncidentEvent(incident.ID, "monitor_failed", message, monitorReportID)
+		return s.createIncidentEvent(incident.ID, "monitor_failed", message, monitorReportID, incidentSystemEventMetadata())
 	}
 
 	newIncident := db.Incident{
@@ -551,7 +559,7 @@ func (s *IncidentService) openOrUpdateIncident(agent db.Agent, monitor db.Monito
 		return err
 	}
 
-	if err := s.createIncidentEvent(newIncident.ID, "incident_opened", message, monitorReportID); err != nil {
+	if err := s.createIncidentEvent(newIncident.ID, "incident_opened", message, monitorReportID, incidentSystemEventMetadata()); err != nil {
 		return err
 	}
 	return NewAlertService(s.db, s.logger, s.cfg).QueueIncidentNotifications(newIncident.ID, "incident_opened")
@@ -595,7 +603,7 @@ func (s *IncidentService) resolveActiveIncident(monitor db.Monitor, monitorRepor
 		return err
 	}
 
-	if err := s.createIncidentEvent(incident.ID, "incident_resolved", message, monitorReportID); err != nil {
+	if err := s.createIncidentEvent(incident.ID, "incident_resolved", message, monitorReportID, incidentSystemEventMetadata()); err != nil {
 		return err
 	}
 	if s.cfg != nil && !s.cfg.AlertRecoveryNotifications {
@@ -604,7 +612,7 @@ func (s *IncidentService) resolveActiveIncident(monitor db.Monitor, monitorRepor
 	return NewAlertService(s.db, s.logger, s.cfg).QueueIncidentNotifications(incident.ID, "incident_resolved")
 }
 
-func (s *IncidentService) resolveIncidentRecord(incident *db.Incident, message string, monitorReportID string, incidentState string, resolutionKind string, notify bool) error {
+func (s *IncidentService) resolveIncidentRecord(incident *db.Incident, message string, monitorReportID string, incidentState string, resolutionKind string, notify bool, metadata IncidentLifecycleActionMetadata) error {
 	now := time.Now().UTC()
 	updates := map[string]interface{}{
 		"status":          "resolved",
@@ -622,7 +630,7 @@ func (s *IncidentService) resolveIncidentRecord(incident *db.Incident, message s
 	if err := s.updateMonitorIncidentState(incident.MonitorID, "", incidentState); err != nil {
 		return err
 	}
-	if err := s.createIncidentEvent(incident.ID, "incident_resolved", message, monitorReportID); err != nil {
+	if err := s.createIncidentEvent(incident.ID, "incident_resolved", message, monitorReportID, metadata); err != nil {
 		return err
 	}
 	if !notify || (s.cfg != nil && !s.cfg.AlertRecoveryNotifications) {
@@ -697,7 +705,7 @@ func (s *IncidentService) updateActiveIncidentByID(incidentID string, monitorID 
 	if err := s.updateMonitorIncidentState(monitorID, incidentID, incidentState); err != nil {
 		return true, err
 	}
-	return true, s.createIncidentEvent(incidentID, "monitor_failed", message, monitorReportID)
+	return true, s.createIncidentEvent(incidentID, "monitor_failed", message, monitorReportID, incidentSystemEventMetadata())
 }
 
 func (s *IncidentService) resolveActiveIncidentByID(incidentID string, monitorID string, monitorReportID string, message string, incidentState string) (bool, error) {
@@ -727,7 +735,7 @@ func (s *IncidentService) resolveActiveIncidentByID(incidentID string, monitorID
 	if err := s.updateMonitorIncidentState(monitorID, "", incidentState); err != nil {
 		return true, err
 	}
-	if err := s.createIncidentEvent(incidentID, "incident_resolved", message, monitorReportID); err != nil {
+	if err := s.createIncidentEvent(incidentID, "incident_resolved", message, monitorReportID, incidentSystemEventMetadata()); err != nil {
 		return true, err
 	}
 	if s.cfg != nil && !s.cfg.AlertRecoveryNotifications {
@@ -751,7 +759,7 @@ func (s *IncidentService) handleCoveredIncidentFailure(incident *db.Incident, mo
 		if err := s.updateMonitorIncidentState(monitorID, incident.ID, incidentState); err != nil {
 			return false, err
 		}
-		if err := s.createIncidentEvent(incident.ID, "incident_coverage_suppressed", message, monitorReportID); err != nil {
+		if err := s.createIncidentEvent(incident.ID, "incident_coverage_suppressed", message, monitorReportID, incidentSystemEventMetadata()); err != nil {
 			return false, err
 		}
 		return true, nil
@@ -780,7 +788,7 @@ func (s *IncidentService) expireIncidentCoverage(incident *db.Incident, monitorR
 	if err := s.clearIncidentCoverageFields(incident.ID); err != nil {
 		return err
 	}
-	if err := s.createIncidentEvent(incident.ID, "incident_coverage_expired", message, monitorReportID); err != nil {
+	if err := s.createIncidentEvent(incident.ID, "incident_coverage_expired", message, monitorReportID, incidentSystemEventMetadata()); err != nil {
 		return err
 	}
 	incident.Status = "open"
@@ -804,15 +812,39 @@ func (s *IncidentService) updateMonitorIncidentState(monitorID string, activeInc
 	}).Error
 }
 
-func (s *IncidentService) createIncidentEvent(incidentID string, eventType string, message string, monitorReportID string) error {
+func (s *IncidentService) createIncidentEvent(incidentID string, eventType string, message string, monitorReportID string, metadata IncidentLifecycleActionMetadata) error {
+	metadata = normalizedIncidentLifecycleMetadata(metadata)
 	event := db.IncidentEvent{
 		ID:              utils.GenerateID("incident_event"),
 		IncidentID:      incidentID,
 		Type:            eventType,
 		Message:         message,
 		MonitorReportID: monitorReportID,
+		ActorType:       metadata.ActorType,
+		ActorID:         metadata.ActorID,
+		Note:            metadata.Note,
 	}
 	return s.db.Create(&event).Error
+}
+
+func incidentSystemEventMetadata() IncidentLifecycleActionMetadata {
+	return IncidentLifecycleActionMetadata{
+		ActorType: "system",
+		ActorID:   "core",
+	}
+}
+
+func normalizedIncidentLifecycleMetadata(metadata IncidentLifecycleActionMetadata) IncidentLifecycleActionMetadata {
+	metadata.ActorType = strings.TrimSpace(metadata.ActorType)
+	if metadata.ActorType == "" {
+		metadata.ActorType = "system"
+	}
+	metadata.ActorID = strings.TrimSpace(metadata.ActorID)
+	if metadata.ActorID == "" {
+		metadata.ActorID = "core"
+	}
+	metadata.Note = strings.TrimSpace(metadata.Note)
+	return metadata
 }
 
 func (s *IncidentService) reportOwner(monitor db.Monitor, payload MonitorReportPayload) (db.Agent, db.Monitor, error) {
