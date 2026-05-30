@@ -224,6 +224,24 @@ test("confirms archive and prevents duplicate maintenance submissions", async ({
   expect(archiveRequests).toBe(1);
 });
 
+test("navigates from incident list rows to incident detail", async ({ page }) => {
+  await signIn(page);
+
+  await page.goto("/incidents?agent=seed-agent-03-down");
+  await expect(page.getByRole("heading", { name: "Incidents" })).toBeVisible();
+
+  const incidentLink = page.getByRole("link", {
+    name: "Down Server HTTP API is down",
+  });
+  await expect(incidentLink).toBeVisible();
+  await incidentLink.click();
+
+  await expect(page).toHaveURL(/\/incidents\/seed-incident-seed-monitor-seed-agent-03-down-http/);
+  await expect(page.getByRole("heading", { name: "Down Server HTTP API is down" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "View server" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "View monitor" })).toBeVisible();
+});
+
 test("creates and manages a Core HTTP monitor", async ({ page }) => {
   const monitorName = `Core E2E HTTP ${Date.now()}`;
   const updatedName = `${monitorName} updated`;
