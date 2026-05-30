@@ -113,7 +113,7 @@ test("reads, saves, validates, and runs Settings lifecycle controls", async ({ p
 
   await rawReportDays.fill("0");
   await page.getByRole("button", { name: "Save settings" }).click();
-  await expect(page.getByText("Unable to save settings.")).toBeVisible();
+  await expect(page.getByText("Fix the highlighted settings before saving.")).toBeVisible();
 
   await rawReportDays.fill("45");
   await rollupDays.fill("120");
@@ -499,7 +499,7 @@ test("validates settings and runs manual lifecycle actions", async ({ page }) =>
 
   await page.getByLabel("Raw report days").fill("0");
   await page.getByRole("button", { name: "Save settings" }).click();
-  await expect(page.getByText("Unable to save settings.")).toBeVisible();
+  await expect(page.getByText("Fix the highlighted settings before saving.")).toBeVisible();
 
   await page.getByLabel("Raw report days").fill("31");
   await page.getByLabel("Rollup days").fill("45");
