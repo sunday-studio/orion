@@ -1,4 +1,4 @@
-.PHONY: generate-openapi generate-sdk console-sdk build-static docker-build docker-up docker-down agent-test core-test console-build repository-smoke generated-contracts-check release-core-build release-readiness core-build core-worker-build agent-build seed-demo-data
+.PHONY: generate-openapi generate-sdk console-sdk build-static docker-build docker-up docker-down agent-test core-test core-race core-modernize-check core-vulncheck core-contract-check core-backend-verify console-build repository-smoke generated-contracts-check release-core-build release-readiness core-build core-worker-build agent-build seed-demo-data
 
 VERSION ?= latest
 CORE_IMAGE ?= ghcr.io/sunday-studio/orion-core
@@ -24,11 +24,31 @@ build-static: console-sdk
 	mkdir -p apps/core/web
 	cp -R apps/console/dist/. apps/core/web/
 
-agent-test:
-	cd apps/agent && go test ./...
-
+# Run the full Core Go test suite.
 core-test:
 	cd apps/core && go test ./...
+
+# Run race detection on Core packages with scheduler, worker, and lifecycle concurrency.
+core-race:
+	cd apps/core && go test -race ./internal/service ./internal/worker
+
+# Run the Core Go modernization lint gate. Requires golangci-lint v2.6 or newer.
+core-modernize-check:
+	cd apps/core && golangci-lint run --config ../../.golangci.yml --new-from-merge-base=main ./...
+
+# Run the Core Go vulnerability gate. Requires govulncheck.
+core-vulncheck:
+	cd apps/core && govulncheck ./...
+
+# Regenerate Core OpenAPI output and fail if generated contract files drift.
+core-contract-check: generate-openapi
+	git diff --exit-code -- apps/core/docs apps/core/openapi.yaml
+
+# Local Core backend verification bundle used before opening backend PRs.
+core-backend-verify: core-test core-race core-modernize-check core-vulncheck core-contract-check core-build core-worker-build
+
+agent-test:
+	cd apps/agent && go test ./...
 
 console-build: console-sdk
 	cd apps/console && pnpm run build
@@ -39,6 +59,7 @@ repository-smoke:
 
 generated-contracts-check: generate-sdk
 	git diff --exit-code -- apps/core/docs apps/core/openapi.yaml apps/console/src/orion-sdk
+	test -s apps/console/src/orion-sdk/index.ts
 
 release-core-build:
 	$(MAKE) core-build CORE_OUTPUT=/tmp/orion-core

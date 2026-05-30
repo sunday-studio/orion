@@ -59,6 +59,7 @@ jobs:
               - 'Makefile'
               - '.github/workflows/ci.yml'
             core:
+              - '.golangci.yml'
               - 'apps/core/**'
               - 'deploy/docker-compose.yml'
               - 'deploy/examples/core-console-compose.yaml'
@@ -155,10 +156,54 @@ jobs:
         run: go test ./...
         working-directory: apps/core
 
+      - name: Race test Core concurrency packages
+        run: go test -race ./internal/service ./internal/worker
+        working-directory: apps/core
+
       - name: Build Core binaries
         run: |
           make core-build CORE_OUTPUT=/tmp/orion-core
           make core-worker-build CORE_WORKER_OUTPUT=/tmp/orion-core-worker
+
+  core-modernize:
+    name: Core modernize lint
+    runs-on: ubuntu-24.04
+    needs: changes
+    if: needs.changes.outputs.core == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/core/go.mod
+          cache-dependency-path: apps/core/go.sum
+
+      - name: Modernize lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.12.2
+          working-directory: apps/core
+          args: --config=../../.golangci.yml ./...
+          only-new-issues: true
+
+  core-vulncheck:
+    name: Core govulncheck
+    runs-on: ubuntu-24.04
+    needs: changes
+    if: needs.changes.outputs.core == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Govulncheck
+        uses: golang/govulncheck-action@v1
+        with:
+          go-version-file: apps/core/go.mod
+          cache-dependency-path: apps/core/go.sum
+          work-dir: apps/core
+          repo-checkout: false
 
   console-quality:
     name: Console quality
@@ -341,6 +386,7 @@ jobs:
           git diff --exit-code -- \
             apps/core/docs \
             apps/core/openapi.yaml
+          test -s apps/console/src/orion-sdk/index.ts
 
   repository-smoke:
     name: Repository smoke
@@ -372,8 +418,12 @@ jobs:
     runs-on: ubuntu-24.04
     needs:
       - changes
+      - server-agent-format
       - server-agent-test
+      - core-format
       - core-test
+      - core-modernize
+      - core-vulncheck
       - console-quality
       - console-build
       - console-e2e
@@ -384,8 +434,12 @@ jobs:
       - name: Check gate results
         env:
           CHANGES_RESULT: ${{ needs.changes.result }}
+          SERVER_AGENT_FORMAT_RESULT: ${{ needs['server-agent-format'].result }}
           SERVER_AGENT_RESULT: ${{ needs['server-agent-test'].result }}
+          CORE_FORMAT_RESULT: ${{ needs['core-format'].result }}
           CORE_RESULT: ${{ needs['core-test'].result }}
+          CORE_MODERNIZE_RESULT: ${{ needs['core-modernize'].result }}
+          CORE_VULNCHECK_RESULT: ${{ needs['core-vulncheck'].result }}
           CONSOLE_QUALITY_RESULT: ${{ needs['console-quality'].result }}
           CONSOLE_BUILD_RESULT: ${{ needs['console-build'].result }}
           CONSOLE_E2E_RESULT: ${{ needs['console-e2e'].result }}
@@ -395,8 +449,12 @@ jobs:
           failed=0
           for gate in \
             "Changed area detection:${CHANGES_RESULT}" \
+            "Server Agent format:${SERVER_AGENT_FORMAT_RESULT}" \
             "Server tests:${SERVER_AGENT_RESULT}" \
+            "Core format:${CORE_FORMAT_RESULT}" \
             "Core tests:${CORE_RESULT}" \
+            "Core modernize lint:${CORE_MODERNIZE_RESULT}" \
+            "Core govulncheck:${CORE_VULNCHECK_RESULT}" \
             "Console quality:${CONSOLE_QUALITY_RESULT}" \
             "Console build:${CONSOLE_BUILD_RESULT}" \
             "Console E2E:${CONSOLE_E2E_RESULT}" \
