@@ -20,12 +20,14 @@ const (
 
 type StatusPagePublicUptimeResponse struct {
 	Window        string   `json:"window"`
+	Status        string   `json:"status"`
 	UptimeRatio   *float64 `json:"uptime_ratio"`
 	UptimeDisplay string   `json:"uptime_display"`
 }
 
 type StatusPagePublicUptimeBucketResponse struct {
 	Date          string   `json:"date"`
+	Status        string   `json:"status"`
 	UptimeRatio   *float64 `json:"uptime_ratio"`
 	UptimeDisplay string   `json:"uptime_display"`
 }
@@ -60,6 +62,11 @@ type statusPagePublicResourceUptime struct {
 	totalUp       int
 	totalSamples  int
 	uptimePercent float64
+}
+
+type statusPagePublicMappedResourceUptime struct {
+	uptime statusPagePublicResourceUptime
+	ok     bool
 }
 
 // getPublicStatusPageHistory returns public incident and component uptime history.
@@ -234,12 +241,13 @@ func (s *Server) publicStatusPageComponentForRequest(c *gin.Context) (StatusPage
 }
 
 func (s *Server) publicStatusPageComponentHistories(detail StatusPageDetailResponse, window string, includeBuckets bool) []StatusPagePublicComponentHistoryResponse {
+	cache := map[string]statusPagePublicMappedResourceUptime{}
 	responses := make([]StatusPagePublicComponentHistoryResponse, 0, len(detail.Components))
 	for _, component := range detail.Components {
 		if !component.Visible {
 			continue
 		}
-		uptime, history := s.publicStatusPageComponentUptime(component, window)
+		uptime, history := s.publicStatusPageComponentUptimeWithCache(component, window, cache)
 		if !includeBuckets {
 			history = nil
 		}
@@ -253,13 +261,17 @@ func (s *Server) publicStatusPageComponentHistories(detail StatusPageDetailRespo
 }
 
 func (s *Server) publicStatusPageComponentUptime(component StatusPageComponentResponse, window string) (StatusPagePublicUptimeResponse, []StatusPagePublicUptimeBucketResponse) {
+	return s.publicStatusPageComponentUptimeWithCache(component, window, map[string]statusPagePublicMappedResourceUptime{})
+}
+
+func (s *Server) publicStatusPageComponentUptimeWithCache(component StatusPageComponentResponse, window string, cache map[string]statusPagePublicMappedResourceUptime) (StatusPagePublicUptimeResponse, []StatusPagePublicUptimeBucketResponse) {
 	if len(component.Mappings) == 0 {
 		return noDataPublicUptime(window), publicEmptyUptimeHistory(window)
 	}
 
 	resourceUptimes := make([]statusPagePublicResourceUptime, 0, len(component.Mappings))
 	for _, mapping := range component.Mappings {
-		uptime, ok := s.publicStatusPageMappedResourceUptime(mapping, window)
+		uptime, ok := s.publicStatusPageMappedResourceUptimeCached(mapping, window, cache)
 		if ok {
 			resourceUptimes = append(resourceUptimes, uptime)
 		}
@@ -271,6 +283,16 @@ func (s *Server) publicStatusPageComponentUptime(component StatusPageComponentRe
 	strategy := publicComponentUptimeStrategy(component.Mappings)
 	ratio := aggregatePublicUptimeRatio(resourceUptimes, strategy)
 	return publicUptime(window, ratio), aggregatePublicUptimeHistory(resourceUptimes, strategy, window)
+}
+
+func (s *Server) publicStatusPageMappedResourceUptimeCached(mapping StatusPageComponentMappingResponse, window string, cache map[string]statusPagePublicMappedResourceUptime) (statusPagePublicResourceUptime, bool) {
+	key := mapping.ResourceType + ":" + mapping.ResourceID + ":" + window
+	if cached, ok := cache[key]; ok {
+		return cached.uptime, cached.ok
+	}
+	uptime, ok := s.publicStatusPageMappedResourceUptime(mapping, window)
+	cache[key] = statusPagePublicMappedResourceUptime{uptime: uptime, ok: ok}
+	return uptime, ok
 }
 
 func (s *Server) publicStatusPageMappedResourceUptime(mapping StatusPageComponentMappingResponse, window string) (statusPagePublicResourceUptime, bool) {
@@ -414,6 +436,7 @@ func publicRatio(up int, total int) *float64 {
 func publicUptime(window string, ratio *float64) StatusPagePublicUptimeResponse {
 	return StatusPagePublicUptimeResponse{
 		Window:        window,
+		Status:        publicUptimeStatus(ratio),
 		UptimeRatio:   publicRoundedRatio(ratio),
 		UptimeDisplay: publicUptimeDisplay(ratio),
 	}
@@ -426,9 +449,23 @@ func noDataPublicUptime(window string) StatusPagePublicUptimeResponse {
 func publicUptimeBucket(date string, ratio *float64) StatusPagePublicUptimeBucketResponse {
 	return StatusPagePublicUptimeBucketResponse{
 		Date:          date,
+		Status:        publicUptimeStatus(ratio),
 		UptimeRatio:   publicRoundedRatio(ratio),
 		UptimeDisplay: publicUptimeDisplay(ratio),
 	}
+}
+
+func publicUptimeStatus(ratio *float64) string {
+	if ratio == nil {
+		return "no_data"
+	}
+	if *ratio >= 0.99995 {
+		return "operational"
+	}
+	if *ratio <= 0 {
+		return "outage"
+	}
+	return "degraded"
 }
 
 func publicRoundedRatio(ratio *float64) *float64 {

@@ -184,6 +184,7 @@ type StatusPagePreviewResponse struct {
 	Incidents            []StatusPagePublicIncidentResponse `json:"incidents"`
 	OverallStatus        string                             `json:"overall_status"`
 	OverallStatusDisplay string                             `json:"overall_status_display"`
+	UptimeWindow         string                             `json:"uptime_window"`
 	LastUpdated          time.Time                          `json:"last_updated"`
 }
 
@@ -219,13 +220,15 @@ type StatusPagePublicSectionResponse struct {
 }
 
 type StatusPagePublicComponentResponse struct {
-	ID            string `json:"id"`
-	Name          string `json:"name"`
-	Description   string `json:"description,omitempty"`
-	Status        string `json:"status"`
-	StatusDisplay string `json:"status_display"`
-	StatusReason  string `json:"status_reason,omitempty"`
-	DisplayMode   string `json:"display_mode"`
+	ID            string                                 `json:"id"`
+	Name          string                                 `json:"name"`
+	Description   string                                 `json:"description,omitempty"`
+	Status        string                                 `json:"status"`
+	StatusDisplay string                                 `json:"status_display"`
+	StatusReason  string                                 `json:"status_reason,omitempty"`
+	DisplayMode   string                                 `json:"display_mode"`
+	Uptime        *StatusPagePublicUptimeResponse        `json:"uptime,omitempty"`
+	UptimeHistory []StatusPagePublicUptimeBucketResponse `json:"uptime_history,omitempty"`
 }
 
 type StatusPagePublicIncidentResponse struct {
@@ -508,7 +511,7 @@ func (s *Server) previewStatusPage(c *gin.Context) {
 		writeStatusPageLoadError(c, err, "Failed to load status page preview")
 		return
 	}
-	preview := s.statusPagePreview(detail, true)
+	preview := s.statusPagePreviewWithUptime(detail, true, statusPagePublicDefaultUptimeWindow)
 	utils.SuccessResponse(c, http.StatusOK, "Status page preview retrieved successfully", gin.H{
 		"preview": preview,
 	})
@@ -1481,7 +1484,7 @@ func (s *Server) loadPublicStatusPageProjection(c *gin.Context, slug string) (St
 	if !ok {
 		return StatusPagePreviewResponse{}, false
 	}
-	return s.statusPagePreview(detail, false), true
+	return s.statusPagePreviewWithUptime(detail, false, statusPagePublicDefaultUptimeWindow), true
 }
 
 func (s *Server) loadPublicStatusPageDetail(c *gin.Context, slug string) (StatusPageDetailResponse, bool) {
@@ -1528,8 +1531,20 @@ func (s *Server) loadPublicStatusPageForRequest(c *gin.Context, slug string) (db
 }
 
 func (s *Server) statusPagePreview(detail StatusPageDetailResponse, includeDraftIncidents bool) StatusPagePreviewResponse {
+	return s.statusPagePreviewProjection(detail, includeDraftIncidents, "", false)
+}
+
+func (s *Server) statusPagePreviewWithUptime(detail StatusPageDetailResponse, includeDraftIncidents bool, window string) StatusPagePreviewResponse {
+	return s.statusPagePreviewProjection(detail, includeDraftIncidents, window, true)
+}
+
+func (s *Server) statusPagePreviewProjection(detail StatusPageDetailResponse, includeDraftIncidents bool, window string, includeUptime bool) StatusPagePreviewResponse {
+	if window == "" {
+		window = statusPagePublicDefaultUptimeWindow
+	}
 	componentsBySection := map[string][]StatusPagePublicComponentResponse{}
 	overallStatus := "operational"
+	uptimeCache := map[string]statusPagePublicMappedResourceUptime{}
 	for _, component := range detail.Components {
 		if !component.Visible {
 			continue
@@ -1538,7 +1553,13 @@ func (s *Server) statusPagePreview(detail StatusPageDetailResponse, includeDraft
 		if statusPageStatusWeight(componentStatus) > statusPageStatusWeight(overallStatus) {
 			overallStatus = componentStatus
 		}
-		componentsBySection[component.SectionID] = append(componentsBySection[component.SectionID], s.statusPagePublicComponentResponse(component, componentStatus))
+		response := s.statusPagePublicComponentResponse(component, componentStatus)
+		if includeUptime {
+			uptime, history := s.publicStatusPageComponentUptimeWithCache(component, window, uptimeCache)
+			response.Uptime = &uptime
+			response.UptimeHistory = history
+		}
+		componentsBySection[component.SectionID] = append(componentsBySection[component.SectionID], response)
 	}
 
 	sections := make([]StatusPagePublicSectionResponse, 0, len(detail.Sections))
@@ -1579,13 +1600,14 @@ func (s *Server) statusPagePreview(detail StatusPageDetailResponse, includeDraft
 			Title:         detail.Page.Title,
 			Description:   detail.Page.Description,
 			Visibility:    detail.Page.Visibility,
-			ThemeSettings: detail.Page.ThemeSettings,
+			ThemeSettings: safeStatusPagePublicThemeSettings(detail.Page.ThemeSettings),
 		},
 		Metadata:             statusPagePublicMetadata(detail.Page),
 		Sections:             sections,
 		Incidents:            incidents,
 		OverallStatus:        overallStatus,
 		OverallStatusDisplay: publicStatusDisplay(overallStatus),
+		UptimeWindow:         window,
 		LastUpdated:          publicMinute(time.Now()),
 	}
 }
@@ -1873,6 +1895,15 @@ func sanitizeStatusPageThemeSettings(settings map[string]interface{}) (map[strin
 				return nil, &requestValidationError{message: "theme_settings.component_density is unsupported"}
 			}
 			sanitized[key] = text
+		case "theme_mode":
+			text, err := statusPageThemeString(value, "theme_settings.theme_mode", 64)
+			if err != nil {
+				return nil, err
+			}
+			if text != "light" && text != "dark" && text != "system" {
+				return nil, &requestValidationError{message: "theme_settings.theme_mode is unsupported"}
+			}
+			sanitized[key] = text
 		case "show_uptime_summary", "show_incident_history":
 			boolean, ok := value.(bool)
 			if !ok {
@@ -1893,6 +1924,70 @@ func sanitizeStatusPageThemeSettings(settings map[string]interface{}) (map[strin
 		}
 	}
 	return sanitized, nil
+}
+
+func safeStatusPagePublicThemeSettings(settings map[string]interface{}) map[string]interface{} {
+	if settings == nil {
+		return map[string]interface{}{}
+	}
+	sanitized, err := sanitizeStatusPageThemeSettings(settings)
+	if err == nil {
+		return sanitized
+	}
+
+	filtered := map[string]interface{}{}
+	for key, value := range settings {
+		switch key {
+		case "accent_color":
+			if text, ok := value.(string); ok && validStatusPageThemeHexColor(text) {
+				filtered[key] = strings.ToLower(strings.TrimSpace(text))
+			}
+		case "logo_url":
+			if text, ok := value.(string); ok && validateOptionalURL(text, "theme_settings.logo_url") == nil {
+				trimmed := strings.TrimSpace(text)
+				if trimmed != "" {
+					filtered[key] = trimmed
+				}
+			}
+		case "logo_alt", "open_graph_title", "open_graph_description", "open_graph_site_name":
+			if text, ok := value.(string); ok {
+				trimmed := strings.TrimSpace(text)
+				if trimmed != "" && len([]rune(trimmed)) <= 280 {
+					filtered[key] = trimmed
+				}
+			}
+		case "header_style":
+			if text, ok := value.(string); ok {
+				switch strings.TrimSpace(text) {
+				case "standard", "compact", "centered":
+					filtered[key] = strings.TrimSpace(text)
+				}
+			}
+		case "component_density":
+			if text, ok := value.(string); ok {
+				switch strings.TrimSpace(text) {
+				case "comfortable", "compact":
+					filtered[key] = strings.TrimSpace(text)
+				}
+			}
+		case "theme_mode":
+			if text, ok := value.(string); ok {
+				switch strings.TrimSpace(text) {
+				case "light", "dark", "system":
+					filtered[key] = strings.TrimSpace(text)
+				}
+			}
+		case "show_uptime_summary", "show_incident_history":
+			if boolean, ok := value.(bool); ok {
+				filtered[key] = boolean
+			}
+		case "open_graph_type":
+			if text, ok := value.(string); ok && strings.TrimSpace(text) == "website" {
+				filtered[key] = "website"
+			}
+		}
+	}
+	return filtered
 }
 
 func statusPageThemeString(value interface{}, field string, maxRunes int) (string, error) {
