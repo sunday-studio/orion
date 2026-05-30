@@ -132,9 +132,10 @@ test("reads, saves, validates, and runs Settings lifecycle controls", async ({ p
   await expect(page.getByLabel("Archive schedule")).toContainText("Daily");
 
   await page.getByRole("button", { name: "Run rollup" }).click();
-  await expect(page.getByText(/Rolled up \d+ reports\./)).toBeVisible();
+  await expect(page.getByText(/Rolled up \d+ reports for /)).toBeVisible();
 
   await page.getByRole("button", { name: "Run archive" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Run archive" }).click();
   await expect(page.getByText(/Archived \d+ reports\./)).toBeVisible();
 
   // Restore seed defaults so later serial settings tests start from a clean baseline.
@@ -144,6 +145,83 @@ test("reads, saves, validates, and runs Settings lifecycle controls", async ({ p
   await page.getByRole("button", { name: "Save settings" }).click();
   await expect(page.getByText("Settings saved.")).toBeVisible();
   await expect(rawReportDays).toHaveValue("30");
+});
+
+test("confirms archive and prevents duplicate maintenance submissions", async ({ page }) => {
+  await signIn(page);
+  await page.getByRole("link", { name: "Settings" }).click();
+  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+
+  let rollupRequests = 0;
+  await page.route("**/v1/settings/data-lifecycle/actions/rollup", async (route) => {
+    rollupRequests += 1;
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        data: {
+          result: {
+            date: "2026-05-28",
+            monitor_days: 0,
+            report_count: 0,
+            skipped_today: false,
+          },
+        },
+      }),
+    });
+  });
+
+  await page.getByRole("button", { name: "Run rollup" }).evaluate((button: HTMLButtonElement) => {
+    button.click();
+    button.click();
+  });
+  await expect(page.getByRole("button", { name: "Running rollup..." })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Run archive" })).toBeDisabled();
+  await expect(page.getByText("No monitor reports matched this rollup day.")).toBeVisible();
+  expect(rollupRequests).toBe(1);
+
+  let archiveRequests = 0;
+  await page.route("**/v1/settings/data-lifecycle/actions/archive", async (route) => {
+    archiveRequests += 1;
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        data: {
+          result: {
+            archive_path: "/tmp/orion/archive/raw-reports-2026-05.sqlite",
+            cutoff: "2026-05-01T00:00:00Z",
+            agent_reports_archived: 0,
+            monitor_reports_archived: 0,
+            archive_raw_reports: true,
+            skipped_because_disabled: false,
+            skipped_because_no_reports: true,
+          },
+        },
+      }),
+    });
+  });
+
+  await page.getByRole("button", { name: "Run archive" }).click();
+  await expect(page.getByRole("dialog")).toContainText("Archive raw reports");
+  await expect(page.getByRole("dialog")).toContainText("Reports older than");
+  await expect(page.getByRole("dialog")).toContainText("Archive destination");
+  await expect(page.getByRole("dialog")).toContainText("move out of the hot Core database");
+
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Run archive" })
+    .evaluate((button: HTMLButtonElement) => {
+      button.click();
+      button.click();
+    });
+  await expect(page.getByRole("button", { name: "Running archive..." })).toBeDisabled();
+  await expect(page.getByText("No raw reports matched the cutoff.")).toBeVisible();
+  await expect(page.getByText("Last rollup")).toBeVisible();
+  await expect(page.getByText("Last archive")).toBeVisible();
+  expect(archiveRequests).toBe(1);
 });
 
 test("creates and manages a Core HTTP monitor", async ({ page }) => {
@@ -429,10 +507,11 @@ test("validates settings and runs manual lifecycle actions", async ({ page }) =>
   await expect(page.getByText("Settings saved.")).toBeVisible();
 
   await page.getByRole("button", { name: "Run rollup" }).click();
-  await expect(page.getByText(/Rolled up \d+ reports\./)).toBeVisible();
+  await expect(page.getByText(/Rolled up \d+ reports for /)).toBeVisible();
   await expect(page.getByText("Last rollup")).toBeVisible();
 
   await page.getByRole("button", { name: "Run archive" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Run archive" }).click();
   await expect(page.getByText(/Archived \d+ reports\./)).toBeVisible();
   await expect(page.getByText("Last archive")).toBeVisible();
   await expect(page.getByText("success")).toBeVisible();
