@@ -34,6 +34,53 @@ func TestStatusPageAdminAPIRequiresFrontendJWTWhenConfigured(t *testing.T) {
 	}
 }
 
+func TestPublicStatusRoutesStayUnauthenticatedWhenFrontendAuthConfigured(t *testing.T) {
+	server := setupStatusPageAuthTestServer(t)
+	publishedAt := time.Now().UTC()
+	page := db.StatusPage{
+		ID:                        "status-page-auth-boundary",
+		Slug:                      "auth-boundary",
+		Title:                     "Auth Boundary",
+		Visibility:                "public",
+		ThemeSettings:             "{}",
+		DefaultIncidentVisibility: "draft",
+		PublishedAt:               &publishedAt,
+	}
+	section := db.StatusPageSection{
+		ID:           "status-page-auth-boundary-section",
+		StatusPageID: page.ID,
+		Name:         "Public",
+	}
+	component := db.StatusPageComponent{
+		ID:           "status-page-auth-boundary-component",
+		StatusPageID: page.ID,
+		SectionID:    section.ID,
+		PublicName:   "Public API",
+		DisplayMode:  "manual",
+		ManualStatus: "operational",
+		Visible:      true,
+	}
+	if err := server.db.Create(&page).Error; err != nil {
+		t.Fatalf("create status page: %v", err)
+	}
+	if err := server.db.Create(&section).Error; err != nil {
+		t.Fatalf("create status page section: %v", err)
+	}
+	if err := server.db.Create(&component).Error; err != nil {
+		t.Fatalf("create status page component: %v", err)
+	}
+
+	publicResp := performJSONRequest(t, server, http.MethodGet, "/status/auth-boundary", nil, "")
+	if publicResp.Code != http.StatusOK {
+		t.Fatalf("public status route status = %d, body = %s", publicResp.Code, publicResp.Body.String())
+	}
+
+	adminResp := performJSONRequest(t, server, http.MethodGet, "/v1/status-pages", nil, "")
+	if adminResp.Code != http.StatusUnauthorized {
+		t.Fatalf("admin status page route status = %d, body = %s, want 401", adminResp.Code, adminResp.Body.String())
+	}
+}
+
 func TestStatusPageAuditEventsRecordActorAndMinimalFields(t *testing.T) {
 	server := setupStatusPageAuthTestServer(t)
 	token := loginStatusPageTestAdmin(t, server)

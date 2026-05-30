@@ -239,7 +239,7 @@ persistence rule, scheduler, security boundary, and public/private projection pa
 | Core worker runners | Worker tests per runner | Keep one focused file per runner covering success, failure, invalid config, timeout, payload shape, redaction, and target-policy behavior. |
 | Heartbeats | API integration plus worker tests | Cover token generation, success/failure ingest, payload truncation/redaction, pending state, missed-check reconciliation, recovery, and incident behavior. |
 | Incident lifecycle | API integration plus service tests | Cover open, acknowledge, resolve, cover, reopen, unregister cleanup, event timeline, filters, candidates, recurrence, and public-impact fields. |
-| Alerts | Service tests plus API integration tests | Cover channels, SMTP services, email destinations, routes, dry runs, grouping, cooldowns, maintenance suppression, test actions, delivery attempts, and secret redaction. |
+| Alerts | Service tests plus API integration tests | Cover webhook destinations, editable rules, dry runs, grouping, cooldowns, maintenance suppression, test actions, delivery attempts, outbound target policy, and secret redaction. |
 | Status pages admin | API integration tests | Cover page CRUD, sections, components, mappings, incidents, updates, publish validation, audit events, metadata, custom domains, and theme settings. |
 | Status pages public | API integration plus contract tests | Cover public payloads, HTML, Atom feed, badges, history, uptime, cache headers, ETags, custom-domain routing, and internal data isolation. |
 | Public subscribers | API integration plus service tests | Cover subscribe, confirm, preferences, unsubscribe, fan-out scoping, public mail sender config, token secrecy, and abuse controls. |
