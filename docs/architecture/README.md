@@ -5,6 +5,8 @@ This folder documents the implemented backend and Server system, plus product ar
 ## Read Order
 
 - [system-overview.md](system-overview.md): components, responsibilities, and the main runtime shape.
+- [server-terminology.md](server-terminology.md): product terminology, compatibility boundaries,
+  and intentionally retained `agent` surfaces.
 - [data-ingestion.md](data-ingestion.md): how Server registration, monitor registration, system reports, and monitor reports move through the system.
 - [agent-token-lifecycle.md](agent-token-lifecycle.md): planned Server token rotation, revocation, and recovery semantics.
 - [incident-reconciliation-flow.md](incident-reconciliation-flow.md): how reports open, update, and resolve incidents.
