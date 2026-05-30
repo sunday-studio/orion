@@ -330,6 +330,10 @@ func seed(database *gorm.DB, cfg seedConfig) (seedStats, error) {
 		stats.rollups += rollups
 	}
 
+	if err := seedAlertChannels(database, now); err != nil {
+		return stats, err
+	}
+
 	incidentStats, err := seedIncidents(database, allMonitors, monitorToAgent, monitorToScenario, monitorToTemplate, now)
 	if err != nil {
 		return stats, err
@@ -623,6 +627,32 @@ func seedMonitorReports(database *gorm.DB, monitor db.Monitor, sc scenario, tpl 
 	return counts, created, err
 }
 
+func seedAlertChannels(database *gorm.DB, now time.Time) error {
+	channels := []db.AlertChannel{
+		{
+			ID:               "seed-alert-channel-webhook-primary",
+			Name:             "seed-webhook-primary",
+			Type:             "webhook",
+			Enabled:          true,
+			WebhookURL:       "https://alerts.example.com/primary",
+			SubscribedEvents: db.EncodeAlertEvents(db.DefaultAlertEvents()),
+			CreatedAt:        now,
+			UpdatedAt:        now,
+		},
+		{
+			ID:               "seed-alert-channel-webhook-secondary",
+			Name:             "seed-webhook-secondary",
+			Type:             "webhook",
+			Enabled:          true,
+			WebhookURL:       "https://alerts.example.com/secondary",
+			SubscribedEvents: db.EncodeAlertEvents(db.DefaultAlertEvents()),
+			CreatedAt:        now,
+			UpdatedAt:        now,
+		},
+	}
+	return database.Clauses(clause.OnConflict{DoNothing: true}).Create(&channels).Error
+}
+
 func seedRollups(database *gorm.DB, monitorID string, counts map[string]dayCounts, now time.Time) (int, error) {
 	rollups := make([]db.MonitorUptimeRollup, 0, len(counts))
 	for day, c := range counts {
@@ -738,10 +768,10 @@ func seedIncidents(database *gorm.DB, monitors []db.Monitor, monitorToAgent map[
 				ID:         fmt.Sprintf("seed-alert-delivery-%s-%s", incidentID, alertStatus),
 				IncidentID: incidentID,
 				EventType:  choose(i%2 == 0, "incident_opened", "incident_resolved"),
-				Channel:    choose(i%2 == 0, "seed-webhook", "seed-email"),
-				Type:       choose(i%2 == 0, "webhook", "email"),
+				Channel:    choose(i%2 == 0, "seed-webhook-primary", "seed-webhook-secondary"),
+				Type:       "webhook",
 				Status:     alertStatus,
-				Error:      choose(alertStatus == "failed", "seeded delivery failure: connection refused", ""),
+				Error:      choose(alertStatus == "failed", "seeded webhook delivery failure: connection refused", ""),
 				CreatedAt:  openedAt.Add(time.Duration(i) * time.Minute),
 				UpdatedAt:  openedAt.Add(time.Duration(i+1) * time.Minute),
 			}

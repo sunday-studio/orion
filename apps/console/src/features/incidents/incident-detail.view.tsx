@@ -23,8 +23,8 @@ import { ReportInspectionDrawer } from "@/features/report-inspection/report-insp
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import {
   type ApiAlertDeliveryResponse,
-  type ApiIncidentResponse,
   type ApiIncidentNextActionResponse,
+  type ApiIncidentResponse,
   type ApiIncidentTimelineItemResponse,
   type ApiMonitorReportResponse,
   getGetIncidentQueryKey,
