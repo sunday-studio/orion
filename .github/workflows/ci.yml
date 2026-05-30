@@ -151,9 +151,23 @@ jobs:
           go-version-file: apps/core/go.mod
           cache-dependency-path: apps/core/go.sum
 
+      - name: Check Core backend test expectation
+        if: github.event_name == 'pull_request'
+        env:
+          PR_BODY: ${{ github.event.pull_request.body || '' }}
+        run: .github/scripts/check-core-backend-tests.sh "${{ github.event.pull_request.base.sha }}" "${{ github.sha }}"
+
       - name: Test Core
-        run: go test ./...
-        working-directory: apps/core
+        run: make core-coverage CORE_COVERAGE_PROFILE=coverage.out CORE_COVERAGE_SUMMARY=coverage-summary.txt
+
+      - name: Upload Core coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-coverage
+          path: |
+            apps/core/coverage.out
+            apps/core/coverage-summary.txt
+          if-no-files-found: error
 
       - name: Build Core binaries
         run: |
