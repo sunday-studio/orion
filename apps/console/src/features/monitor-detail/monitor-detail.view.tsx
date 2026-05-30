@@ -17,6 +17,14 @@ import { TabCount, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components
 import { HeartbeatSetupPanel } from "@/features/monitors/components/heartbeat-setup-panel";
 import { coreMonitorMutationErrorMessage } from "@/features/monitors/components/core-monitor-errors";
 import { CoreMonitorDialog } from "@/features/monitors/components/core-monitor-dialog";
+import {
+  type MonitorPayload,
+  explainMonitorFailure,
+  formatMonitorLatency,
+  parseMonitorPayload,
+  readMonitorPayloadString,
+  summarizeMonitorResult,
+} from "@/features/monitors/monitor-result-summary";
 import { ReportInspectionDrawer } from "@/features/report-inspection/report-inspection-drawer";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
@@ -27,6 +35,7 @@ import {
   getGetCoreMonitorConfigQueryKey,
   getGetMonitorHistoryQueryKey,
   getGetMonitorQueryKey,
+  getMonitorHistory,
   useDeleteCoreMonitor,
   useGetCoreMonitorConfig,
   useGetIncident,
@@ -41,7 +50,7 @@ import {
 } from "@/orion-sdk";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Pause, Play, RefreshCw, Save, Trash2 } from "lucide-react";
+import { FileJson, Pause, Play, RefreshCw, Save, Trash2 } from "lucide-react";
 import { parseAsInteger, useQueryStates } from "nuqs";
 import { type ReactNode, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -53,73 +62,23 @@ type MonitorDetailTab = (typeof monitorDetailTabs)[number];
 const isMonitorDetailTab = (value: string | null): value is MonitorDetailTab =>
   monitorDetailTabs.includes(value as MonitorDetailTab);
 
-type MonitorPayload = Record<string, unknown>;
-
-const parsePayload = (payload?: string): MonitorPayload => {
-  if (!payload) return {};
-  try {
-    const parsed = JSON.parse(payload);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
-};
-
-const readString = (payload: MonitorPayload, keys: string[]) => {
-  for (const key of keys) {
-    const value = payload[key];
-    if (typeof value === "string" && value.trim() !== "") return value;
-    if (typeof value === "number") return String(value);
-  }
-  return "—";
-};
-
-const readNumber = (payload: MonitorPayload, keys: string[]) => {
-  for (const key of keys) {
-    const value = payload[key];
-    if (typeof value === "number") return value;
-    if (typeof value === "string" && value.trim() !== "" && !Number.isNaN(Number(value))) {
-      return Number(value);
-    }
-  }
-  return undefined;
-};
-
-const formatLatency = (payload: MonitorPayload) => {
-  const latency = readNumber(payload, ["latency_ms", "response_time_ms", "duration_ms"]);
-  return typeof latency === "number" ? `${latency} ms` : "—";
-};
-
-const payloadSummary = (report: ApiMonitorReportResponse) => {
-  const payload = parsePayload(report.payload);
-  return (
-    readString(payload, [
-      "failure_reason",
-      "message",
-      "error",
-      "summary",
-      "payload",
-      "failure_stage",
-      "status",
-      "status_code",
-    ]) ?? "—"
-  );
-};
-
 const isHeartbeatPayload = (payload: MonitorPayload) =>
   payload.type === "heartbeat" || payload.runner === "heartbeat";
 
 const heartbeatPayloadContext = (report?: ApiMonitorReportResponse) => {
   if (!report) return "—";
-  const payload = parsePayload(report.payload);
+  const payload = parseMonitorPayload(report.payload);
   if (!isHeartbeatPayload(payload)) return "—";
-  return readString(payload, ["payload", "failure_stage", "status", "message", "error"]);
+  return (
+    readMonitorPayloadString(payload, ["payload", "failure_stage", "status", "message", "error"]) ??
+    "—"
+  );
 };
 
 const DetailItem = ({ label, value }: { label: string; value: ReactNode }) => (
   <div>
     <div className="text-sm text-neutral-600">{label}</div>
-    <div className="text-sm font-medium">{value}</div>
+    <div className="break-words text-sm font-medium">{value}</div>
   </div>
 );
 
@@ -179,13 +138,15 @@ const historyColumns: ColumnDef<ApiMonitorReportResponse>[] = [
   {
     id: "latency",
     header: "Latency",
-    cell: ({ row }) => formatLatency(parsePayload(row.original.payload)),
+    cell: ({ row }) => formatMonitorLatency(parseMonitorPayload(row.original.payload)),
   },
   {
     id: "result",
     header: "Result",
     cell: ({ row }) => (
-      <div className="max-w-[22rem] truncate text-neutral-600">{payloadSummary(row.original)}</div>
+      <div className="max-w-[22rem] truncate text-neutral-600">
+        {summarizeMonitorResult(row.original).headline}
+      </div>
     ),
   },
 ];
@@ -256,9 +217,10 @@ export const MonitorDetailPage = () => {
   const reportCount = historyQuery.data?.count ?? reports.length;
   const latestReport = monitorResponse.data?.recent_reports?.[0] ?? reports[0];
   const [selectedReport, setSelectedReport] = useState<ApiMonitorReportResponse>();
-  const latestPayload = parsePayload(latestReport?.payload);
+  const monitorKind = coreConfig?.kind ?? monitor?.type;
+  const latestSummary = summarizeMonitorResult(latestReport, monitorKind);
   const heartbeatReports = reports.filter((report) =>
-    isHeartbeatPayload(parsePayload(report.payload)),
+    isHeartbeatPayload(parseMonitorPayload(report.payload)),
   );
   const latestHeartbeatReport = heartbeatReports[0];
   const latestHeartbeatFailure = heartbeatReports.find(
@@ -282,6 +244,14 @@ export const MonitorDetailPage = () => {
     highlightedIncidentResponse.data?.incident?.monitor_id === monitorId
       ? highlightedIncidentResponse.data.incident
       : highlightedIncidentFromList;
+  const incidentContext = highlightedIncident ?? activeIncidents[0] ?? relatedIncidents[0];
+  const incidentContextLabel = highlightedIncident
+    ? "highlighted"
+    : activeIncidents[0]
+      ? "active"
+      : relatedIncidents[0]
+        ? "latest"
+        : "none";
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [actionFeedback, setActionFeedback] = useState("");
@@ -309,11 +279,22 @@ export const MonitorDetailPage = () => {
           result.monitor?.health ??
           result.result?.status ??
           "unknown";
-        setActionFeedback(
-          testHealth === "up"
-            ? "Core monitor test reported up."
-            : `Core monitor test reported ${testHealth}. Review the latest check history row.`,
-        );
+        void getMonitorHistory(monitorId, { limit: 1, offset: 0 })
+          .then((history) => {
+            const explanation = explainMonitorFailure(history.reports?.[0], result.config?.kind);
+            setActionFeedback(
+              testHealth === "up"
+                ? "Core monitor test reported up."
+                : `Core monitor test reported ${testHealth}: ${explanation}`,
+            );
+          })
+          .catch(() => {
+            setActionFeedback(
+              testHealth === "up"
+                ? "Core monitor test reported up."
+                : `Core monitor test reported ${testHealth}. Review the latest check history row.`,
+            );
+          });
         refreshMonitor();
       },
     },
@@ -344,20 +325,6 @@ export const MonitorDetailPage = () => {
       },
     },
   });
-  const latestFailureReason = readString(latestPayload, [
-    "failure_reason",
-    "message",
-    "error",
-    "detail",
-    "summary",
-  ]);
-  const latestStatusCode = readString(latestPayload, ["status_code", "code"]);
-  const latestResolvedIp = readString(latestPayload, ["resolved_ip", "ip"]);
-  const latestTlsExpiry = readString(latestPayload, [
-    "tls_days_remaining",
-    "tls_expiry",
-    "certificate_expiry",
-  ]);
   const setHistoryOffset = (nextOffset: number) => {
     void setHistoryQuery({ historyPage: Math.floor(nextOffset / HISTORY_LIMIT) + 1 });
   };
@@ -494,22 +461,33 @@ export const MonitorDetailPage = () => {
 
       <section className="space-y-4">
         <div className="grid gap-3 lg:grid-cols-4">
-          <DetailGroup title="Monitor">
+          <DetailGroup title="State">
             <DetailItem label="health" value={<StatusBadge value={toStatus(health)} />} />
-            <DetailItem label="type" value={monitor.type ?? "unknown"} />
-            <DetailItem label="interval" value={`${monitor.reporting_interval_seconds ?? 0}s`} />
-            <DetailItem label="lifecycle" value={monitor.lifecycle ?? "unknown"} />
-          </DetailGroup>
-
-          <DetailGroup title="Owner">
+            <DetailItem label="type" value={latestSummary.kindLabel} />
+            <DetailItem label="source" value={isCoreMonitor ? "Core" : "Server"} />
             <DetailItem
               label="owner"
               value={monitor.owner_name ?? monitor.agent_name ?? "Unknown owner"}
             />
-            <DetailItem label="source" value={isCoreMonitor ? "Core" : "Server"} />
+            <DetailItem label="lifecycle" value={monitor.lifecycle ?? "unknown"} />
+          </DetailGroup>
+
+          <DetailGroup title="Schedule">
+            <DetailItem
+              label="last checked"
+              value={formatDate(reportTimestamp(latestReport), DATE_TIME_FORMAT)}
+            />
             <DetailItem
               label="last success"
               value={formatDate(monitor.last_successful_report_at, DATE_TIME_FORMAT)}
+            />
+            <DetailItem
+              label="next run"
+              value={formatDate(coreConfig?.next_run_at, DATE_TIME_FORMAT)}
+            />
+            <DetailItem
+              label="interval"
+              value={`${coreConfig?.interval_seconds ?? monitor.reporting_interval_seconds ?? 0}s`}
             />
             {!isCoreMonitor && monitor.agent_id && (
               <Link
@@ -522,33 +500,42 @@ export const MonitorDetailPage = () => {
           </DetailGroup>
 
           <DetailGroup title="Latest Result">
-            <DetailItem
-              label="checked"
-              value={formatDate(reportTimestamp(latestReport), DATE_TIME_FORMAT)}
-            />
-            <DetailItem label="latency" value={formatLatency(latestPayload)} />
-            <DetailItem label="status code" value={latestStatusCode} />
-            <DetailItem label="resolved ip" value={latestResolvedIp} />
-            <DetailItem label="tls expiry" value={latestTlsExpiry} />
+            <DetailItem label="summary" value={latestSummary.headline} />
+            {latestSummary.items.slice(0, 5).map((detail) => (
+              <DetailItem key={detail.label} label={detail.label} value={detail.value} />
+            ))}
+            {latestReport && (
+              <Button size="sm" variant="outline" onClick={() => setSelectedReport(latestReport)}>
+                <FileJson />
+                Inspect raw report
+              </Button>
+            )}
           </DetailGroup>
 
-          <DetailGroup title="Incidents">
+          <DetailGroup title="Incident Context">
             <DetailItem label="active" value={activeIncidents.length} />
             <DetailItem label="related" value={relatedIncidents.length} />
-            {relatedIncidents[0] && (
+            <DetailItem label="focus" value={incidentContextLabel} />
+            {incidentContext && (
+              <DetailItem
+                label="latest event"
+                value={incidentContext.latest_event ?? "No latest event recorded."}
+              />
+            )}
+            {incidentContext && (
               <Link
                 className="text-sm font-medium hover:text-neutral-600"
-                to={`/incidents/${relatedIncidents[0].id}`}
+                to={`/incidents/${incidentContext.id}`}
               >
-                View latest incident
+                View incident
               </Link>
             )}
           </DetailGroup>
         </div>
 
         <div className="space-y-1">
-          <h2 className="text-sm font-medium">Latest Failure Reason</h2>
-          <p className="max-w-3xl text-sm text-neutral-600">{latestFailureReason}</p>
+          <h2 className="text-sm font-medium">Latest Explanation</h2>
+          <p className="max-w-3xl text-sm text-neutral-600">{latestSummary.explanation}</p>
         </div>
 
         {coreConfig?.kind === "heartbeat" && (

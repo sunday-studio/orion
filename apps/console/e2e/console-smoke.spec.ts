@@ -395,7 +395,7 @@ test("creates a Core heartbeat monitor and shows setup affordances", async ({ pa
   await expect(page.getByRole("heading", { name: monitorName })).toBeVisible();
   await expect(page.getByText("Core · heartbeat")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Latest Heartbeat", exact: true })).toBeVisible();
-  await expect(page.getByText("status=ok")).toBeVisible();
+  await expect(page.getByText("status=ok").first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "Latest Heartbeat Failure" })).toBeVisible();
   await expect(page.getByText("[redacted]").first()).toBeVisible();
   await expect(page.locator("body")).not.toContainText("super-secret");
@@ -406,12 +406,12 @@ test("creates a Core heartbeat monitor and shows setup affordances", async ({ pa
     page.getByText("The token is shown after heartbeat monitor creation."),
   ).toBeVisible();
   await page.getByRole("tab", { name: "Check history" }).click();
-  await page.getByRole("row", { name: /status=ok/ }).click();
+  await page.getByRole("row", { name: /Heartbeat up/ }).click();
   await expect(page.getByRole("dialog")).toContainText("Heartbeat");
   await expect(page.getByRole("dialog")).toContainText("status=ok");
   await page.keyboard.press("Escape");
 
-  await page.getByRole("link", { name: "View latest incident" }).click();
+  await page.getByRole("link", { name: "View incident" }).first().click();
   await expect(page.getByRole("heading", { name: new RegExp(monitorName) })).toBeVisible();
   await expect(page.getByText("[redacted]").first()).toBeVisible();
   await expect(page.locator("body")).not.toContainText("super-secret");
