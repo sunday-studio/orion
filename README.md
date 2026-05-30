@@ -84,25 +84,28 @@ curl -fsSL -o orion-compose.yml \
 Create a `.env` file next to `orion-compose.yml`:
 
 ```sh
+ADMIN_PASSWORD="$(openssl rand -base64 24)"
+JWT_SECRET="$(openssl rand -base64 32)"
+
 cat > .env <<'EOF'
 ORION_CORE_IMAGE=ghcr.io/sunday-studio/orion-core:<version>
 ORION_HTTP_PORT=8999
 ORION_REQUIRE_FRONTEND_AUTH=true
 ORION_ADMIN_USERNAME=admin
-ORION_ADMIN_PASSWORD=replace-with-a-strong-password
-ORION_JWT_SECRET=replace-with-a-long-random-secret
 EOF
+
+printf 'ORION_ADMIN_PASSWORD=%s\nORION_JWT_SECRET=%s\n' "$ADMIN_PASSWORD" "$JWT_SECRET" >> .env
 ```
 
-`ORION_REQUIRE_FRONTEND_AUTH=true` is recommended for any deployment reachable outside your
-development machine. It makes Core fail startup unless `ORION_ADMIN_USERNAME`,
-`ORION_ADMIN_PASSWORD`, and `ORION_JWT_SECRET` are all set, which protects Console monitor admin
-APIs.
+`ORION_REQUIRE_FRONTEND_AUTH=true` makes Core refuse startup unless Console login is configured
+with a non-placeholder admin password of at least 12 characters and a non-placeholder JWT secret of
+at least 32 characters. Keep these values out of source control.
 
 Optional public status page subscriber email uses a dedicated public sender. Set
 `ORION_PUBLIC_STATUS_MAIL_ENABLED=true` plus the `ORION_PUBLIC_STATUS_MAIL_*`,
 `ORION_PUBLIC_STATUS_URL_ORIGIN`, and `ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET` variables documented in
-[docs/deployment/core-docker.md](docs/deployment/core-docker.md).
+[docs/deployment/core-docker.md](docs/deployment/core-docker.md). These SMTP settings are not used for
+internal alerts; internal alert delivery is configured through webhook alert rules.
 
 Start it:
 
@@ -124,7 +127,7 @@ docker run -d \
   -e ORION_REQUIRE_FRONTEND_AUTH=true \
   -e ORION_ADMIN_USERNAME=admin \
   -e ORION_ADMIN_PASSWORD='replace-with-a-strong-password' \
-  -e ORION_JWT_SECRET='replace-with-a-long-random-secret' \
+  -e ORION_JWT_SECRET='replace-with-at-least-32-random-characters' \
   ghcr.io/sunday-studio/orion-core:<version>
 
 docker run -d \
@@ -136,7 +139,7 @@ docker run -d \
   -e ORION_REQUIRE_FRONTEND_AUTH=true \
   -e ORION_ADMIN_USERNAME=admin \
   -e ORION_ADMIN_PASSWORD='replace-with-a-strong-password' \
-  -e ORION_JWT_SECRET='replace-with-a-long-random-secret' \
+  -e ORION_JWT_SECRET='replace-with-at-least-32-random-characters' \
   ghcr.io/sunday-studio/orion-core:<version> \
   ./orion-core-worker
 ```
@@ -284,9 +287,23 @@ Run the bundled Core and Console example from this repository:
 
 ```sh
 cd deploy/examples
+ADMIN_PASSWORD="$(openssl rand -base64 24)"
+JWT_SECRET="$(openssl rand -base64 32)"
+cat > .env <<EOF
+ORION_REQUIRE_FRONTEND_AUTH=true
+ORION_ADMIN_USERNAME=admin
+ORION_ADMIN_PASSWORD=$ADMIN_PASSWORD
+ORION_JWT_SECRET=$JWT_SECRET
+EOF
 docker compose -f ./core-console-compose.yaml up -d
 curl http://localhost:8999/health
-curl http://localhost:8999/v1/diagnostics/core-worker
+TOKEN="$(
+  curl -fsS http://localhost:8999/v1/auth/login \
+    -H 'Content-Type: application/json' \
+    -d "{\"username\":\"admin\",\"password\":\"$ADMIN_PASSWORD\"}" |
+    jq -r '.data.token'
+)"
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8999/v1/diagnostics/core-worker
 ```
 
 Run the Console dev server against local Core:

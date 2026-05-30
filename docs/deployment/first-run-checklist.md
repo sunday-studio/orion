@@ -11,7 +11,7 @@ curl -fsSL -o orion-compose.yaml \
   https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/examples/core-console-compose.yaml
 ```
 
-- [ ] Edit `orion-compose.yaml` and set real values for:
+- [ ] Create `.env` next to `orion-compose.yaml` and set real values for:
 
 ```txt
 ORION_REQUIRE_FRONTEND_AUTH=true
@@ -20,8 +20,8 @@ ORION_ADMIN_PASSWORD
 ORION_JWT_SECRET
 ```
 
-Core should not be exposed without the auth guard and all three admin auth values, because Console
-monitor admin APIs are otherwise unauthenticated.
+Use an admin password with at least 12 characters and a JWT secret with at least 32 characters.
+Do not use the placeholder values shown in examples.
 
 - [ ] Start Core:
 
