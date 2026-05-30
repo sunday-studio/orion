@@ -154,10 +154,6 @@ definitions:
     properties:
       created_at:
         type: string
-      email_from_configured:
-        type: boolean
-      email_to_configured:
-        type: boolean
       enabled:
         type: boolean
       id:
@@ -168,12 +164,6 @@ definitions:
         type: string
       name:
         type: string
-      smtp_host_configured:
-        type: boolean
-      smtp_port_configured:
-        type: boolean
-      smtp_username_configured:
-        type: boolean
       subscribed_events:
         items:
           type: string
@@ -246,33 +236,6 @@ definitions:
         type: string
       type:
         type: string
-      updated_at:
-        type: string
-    type: object
-  api.AlertEmailDestinationResponse:
-    properties:
-      created_at:
-        type: string
-      email_to:
-        type: string
-      enabled:
-        type: boolean
-      id:
-        type: string
-      last_delivery_at:
-        type: string
-      last_delivery_status:
-        type: string
-      name:
-        type: string
-      smtp_service_id:
-        type: string
-      smtp_service_name:
-        type: string
-      subscribed_events:
-        items:
-          type: string
-        type: array
       updated_at:
         type: string
     type: object
@@ -353,49 +316,114 @@ definitions:
       updated_at:
         type: string
     type: object
-  api.AlertRuleResponse:
+  api.AlertRuleDestinationDecision:
     properties:
-      cooldown_seconds:
-        type: integer
-      enabled:
-        type: boolean
-      maintenance_suppression_enabled:
-        type: boolean
-      name:
+      channel_id:
         type: string
-      recovery_notification_enabled:
-        type: boolean
+      channel_name:
+        type: string
+      channel_type:
+        type: string
+      reason:
+        type: string
+      rule_id:
+        type: string
+      rule_name:
+        type: string
+      status:
+        type: string
+    type: object
+  api.AlertRuleDryRunContext:
+    properties:
+      agent_id:
+        type: string
+      event_type:
+        type: string
+      incident_id:
+        type: string
+      monitor_id:
+        type: string
+      monitor_type:
+        type: string
       severity:
         type: string
-      target_channels:
+    type: object
+  api.AlertRuleDryRunResponse:
+    properties:
+      destination_decisions:
+        items:
+          $ref: '#/definitions/api.AlertRuleDestinationDecision'
+        type: array
+      event:
+        $ref: '#/definitions/api.AlertRuleDryRunContext'
+      legacy_fallback:
+        type: boolean
+      rule_evaluations:
+        items:
+          $ref: '#/definitions/api.AlertRuleEvaluationResponse'
+        type: array
+      suppressed:
+        type: boolean
+      suppression_reason:
+        type: string
+    type: object
+  api.AlertRuleEvaluationResponse:
+    properties:
+      matched:
+        type: boolean
+      reasons:
         items:
           type: string
         type: array
-      trigger_condition:
-        type: string
+      rule:
+        $ref: '#/definitions/api.AlertRuleResponse'
+      suppressed:
+        type: boolean
     type: object
-  api.AlertSMTPServiceResponse:
+  api.AlertRuleResponse:
     properties:
+      agent_ids:
+        items:
+          type: string
+        type: array
+      channel_ids:
+        items:
+          type: string
+        type: array
       created_at:
         type: string
       enabled:
         type: boolean
-      from_email:
-        type: string
-      host:
+      event_types:
+        items:
+          type: string
+        type: array
+      grouping_delay_seconds:
+        type: integer
+      grouping_policy:
         type: string
       id:
         type: string
+      monitor_ids:
+        items:
+          type: string
+        type: array
+      monitor_types:
+        items:
+          type: string
+        type: array
       name:
         type: string
-      password_configured:
-        type: boolean
-      port:
+      priority:
         type: integer
+      severities:
+        items:
+          type: string
+        type: array
+      suppress:
+        type: boolean
       updated_at:
         type: string
-      username_configured:
-        type: boolean
     type: object
   api.CoreMonitorConfigResponse:
     properties:
@@ -527,6 +555,27 @@ definitions:
         type: integer
       resolved_count:
         type: integer
+    type: object
+  api.IncidentNextActionResponse:
+    properties:
+      action_type:
+        type: string
+      description:
+        type: string
+      filter_status:
+        type: string
+      id:
+        type: string
+      label:
+        type: string
+      priority:
+        type: integer
+      target_id:
+        type: string
+      target_kind:
+        type: string
+      target_tab:
+        type: string
     type: object
   api.IncidentNotificationReliabilityStats:
     properties:
@@ -1201,21 +1250,9 @@ definitions:
     type: object
   api.alertChannelRequest:
     properties:
-      email_from:
-        type: string
-      email_to:
-        type: string
       enabled:
         type: boolean
       name:
-        type: string
-      smtp_host:
-        type: string
-      smtp_password:
-        type: string
-      smtp_port:
-        type: integer
-      smtp_username:
         type: string
       subscribed_events:
         items:
@@ -1227,21 +1264,6 @@ definitions:
         type: string
       webhook_url:
         type: string
-    type: object
-  api.alertEmailDestinationRequest:
-    properties:
-      email_to:
-        type: string
-      enabled:
-        type: boolean
-      name:
-        type: string
-      smtp_service_id:
-        type: string
-      subscribed_events:
-        items:
-          type: string
-        type: array
     type: object
   api.alertRouteDryRunRequest:
     properties:
@@ -1297,22 +1319,59 @@ definitions:
       suppress:
         type: boolean
     type: object
-  api.alertSMTPServiceRequest:
+  api.alertRuleDryRunRequest:
     properties:
+      agent_id:
+        type: string
+      event_type:
+        type: string
+      incident_id:
+        type: string
+      monitor_id:
+        type: string
+      monitor_type:
+        type: string
+      severity:
+        type: string
+    type: object
+  api.alertRuleRequest:
+    properties:
+      agent_ids:
+        items:
+          type: string
+        type: array
+      channel_ids:
+        items:
+          type: string
+        type: array
       enabled:
         type: boolean
-      from_email:
+      event_types:
+        items:
+          type: string
+        type: array
+      grouping_delay_seconds:
+        type: integer
+      grouping_policy:
         type: string
-      host:
-        type: string
+      monitor_ids:
+        items:
+          type: string
+        type: array
+      monitor_types:
+        items:
+          type: string
+        type: array
       name:
         type: string
-      password:
-        type: string
-      port:
+      priority:
         type: integer
-      username:
-        type: string
+      severities:
+        items:
+          type: string
+        type: array
+      suppress:
+        type: boolean
     type: object
   api.incidentCoverageRequest:
     properties:
@@ -1577,21 +1636,6 @@ definitions:
       monitor_type:
         type: string
       severity:
-        type: string
-    type: object
-  service.AlertSMTPServiceTestResult:
-    properties:
-      error:
-        type: string
-      smtp_service_id:
-        type: string
-      smtp_service_name:
-        type: string
-      stage:
-        type: string
-      status:
-        type: string
-      tested_at:
         type: string
     type: object
   service.ArchiveRunResult:
@@ -3585,8 +3629,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create a webhook, Slack, Discord, or email alert channel. Secret
-        values are stored but never returned by the API.
+      description: Create a generic webhook alert channel. Secret values are stored
+        but never returned by the API.
       operationId: createAlertChannel
       parameters:
       - description: Alert channel payload
@@ -3658,8 +3702,7 @@ paths:
     patch:
       consumes:
       - application/json
-      description: Update an alert channel. Omit email secret values to keep existing
-        stored values.
+      description: Update a generic webhook alert channel.
       operationId: updateAlertChannel
       parameters:
       - description: Alert channel ID
@@ -3711,8 +3754,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Send a manual test notification through a configured webhook or
-        email alert channel.
+      description: Send a manual test notification through a configured generic webhook
+        alert channel.
       operationId: testAlertChannel
       parameters:
       - description: Alert channel ID
@@ -3814,206 +3857,6 @@ paths:
           schema:
             $ref: '#/definitions/utils.APIResponse'
       summary: List alert deliveries
-      tags:
-      - alerts
-  /v1/alerts/email-destinations:
-    get:
-      consumes:
-      - application/json
-      description: Get reusable email destinations and their last delivery status
-      operationId: getAlertEmailDestinations
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    count:
-                      type: integer
-                    email_destinations:
-                      items:
-                        $ref: '#/definitions/api.AlertEmailDestinationResponse'
-                      type: array
-                  type: object
-              type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-      summary: List alert email destinations
-      tags:
-      - alerts
-    post:
-      consumes:
-      - application/json
-      description: Create a reusable email destination that sends through an SMTP
-        service.
-      operationId: createAlertEmailDestination
-      parameters:
-      - description: Email destination payload
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/api.alertEmailDestinationRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    email_destination:
-                      $ref: '#/definitions/api.AlertEmailDestinationResponse'
-                  type: object
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-      summary: Create alert email destination
-      tags:
-      - alerts
-  /v1/alerts/email-destinations/{id}:
-    delete:
-      consumes:
-      - application/json
-      description: Delete a reusable email destination. Existing delivery history
-        is preserved.
-      operationId: deleteAlertEmailDestination
-      parameters:
-      - description: Email destination ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-      summary: Delete alert email destination
-      tags:
-      - alerts
-    patch:
-      consumes:
-      - application/json
-      description: Update a reusable email destination.
-      operationId: updateAlertEmailDestination
-      parameters:
-      - description: Email destination ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Email destination payload
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/api.alertEmailDestinationRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    email_destination:
-                      $ref: '#/definitions/api.AlertEmailDestinationResponse'
-                  type: object
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-      summary: Update alert email destination
-      tags:
-      - alerts
-  /v1/alerts/email-destinations/{id}/test:
-    post:
-      consumes:
-      - application/json
-      description: Send a manual test notification through a reusable email destination.
-        Delivery errors are sanitized in the response.
-      operationId: testAlertEmailDestination
-      parameters:
-      - description: Email destination ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    delivery:
-                      $ref: '#/definitions/api.AlertDeliveryResponse'
-                  type: object
-              type: object
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-      summary: Test alert email destination
       tags:
       - alerts
   /v1/alerts/routes:
@@ -4221,7 +4064,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get effective built-in alert rules derived from Core configuration
+      description: Get persisted webhook alert rules ordered by priority
       operationId: getAlertRules
       produces:
       - application/json
@@ -4242,54 +4085,26 @@ paths:
                       type: array
                   type: object
               type: object
-      summary: List alert rules
-      tags:
-      - alerts
-  /v1/alerts/smtp-services:
-    get:
-      consumes:
-      - application/json
-      description: Get reusable SMTP services without secret values
-      operationId: getAlertSMTPServices
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    count:
-                      type: integer
-                    smtp_services:
-                      items:
-                        $ref: '#/definitions/api.AlertSMTPServiceResponse'
-                      type: array
-                  type: object
-              type: object
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/utils.APIResponse'
-      summary: List alert SMTP services
+      summary: List alert rules
       tags:
       - alerts
     post:
       consumes:
       - application/json
-      description: Create a reusable SMTP service. Secret values are stored but never
-        returned by the API.
-      operationId: createAlertSMTPService
+      description: Create a priority-ordered alert rule that targets webhook channels
+        or suppresses matching events
+      operationId: createAlertRule
       parameters:
-      - description: SMTP service payload
+      - description: Alert rule payload
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/api.alertSMTPServiceRequest'
+          $ref: '#/definitions/api.alertRuleRequest'
       produces:
       - application/json
       responses:
@@ -4301,8 +4116,8 @@ paths:
             - properties:
                 data:
                   properties:
-                    smtp_service:
-                      $ref: '#/definitions/api.AlertSMTPServiceResponse'
+                    rule:
+                      $ref: '#/definitions/api.AlertRuleResponse'
                   type: object
               type: object
         "400":
@@ -4317,17 +4132,17 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/utils.APIResponse'
-      summary: Create alert SMTP service
+      summary: Create alert rule
       tags:
       - alerts
-  /v1/alerts/smtp-services/{id}:
+  /v1/alerts/rules/{id}:
     delete:
       consumes:
       - application/json
-      description: Delete a reusable SMTP service. Existing delivery history is preserved.
-      operationId: deleteAlertSMTPService
+      description: Delete an alert rule. Existing delivery history is preserved.
+      operationId: deleteAlertRule
       parameters:
-      - description: SMTP service ID
+      - description: Alert rule ID
         in: path
         name: id
         required: true
@@ -4343,35 +4158,31 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/utils.APIResponse'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/utils.APIResponse'
-      summary: Delete alert SMTP service
+      summary: Delete alert rule
       tags:
       - alerts
     patch:
       consumes:
       - application/json
-      description: Update a reusable SMTP service. Omit password to keep the existing
-        stored value.
-      operationId: updateAlertSMTPService
+      description: Update alert rule match filters, webhook channels, or suppression
+        behavior
+      operationId: updateAlertRule
       parameters:
-      - description: SMTP service ID
+      - description: Alert rule ID
         in: path
         name: id
         required: true
         type: string
-      - description: SMTP service payload
+      - description: Alert rule payload
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/api.alertSMTPServiceRequest'
+          $ref: '#/definitions/api.alertRuleRequest'
       produces:
       - application/json
       responses:
@@ -4383,8 +4194,8 @@ paths:
             - properties:
                 data:
                   properties:
-                    smtp_service:
-                      $ref: '#/definitions/api.AlertSMTPServiceResponse'
+                    rule:
+                      $ref: '#/definitions/api.AlertRuleResponse'
                   type: object
               type: object
         "400":
@@ -4403,18 +4214,17 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/utils.APIResponse'
-      summary: Update alert SMTP service
+      summary: Update alert rule
       tags:
       - alerts
-  /v1/alerts/smtp-services/{id}/test:
+  /v1/alerts/rules/{id}/disable:
     post:
       consumes:
       - application/json
-      description: Connect to a reusable SMTP service and return a sanitized connectivity
-        result without secret values.
-      operationId: testAlertSMTPService
+      description: Disable an alert rule without changing its filters or webhook destinations.
+      operationId: disableAlertRule
       parameters:
-      - description: SMTP service ID
+      - description: Alert rule ID
         in: path
         name: id
         required: true
@@ -4430,8 +4240,8 @@ paths:
             - properties:
                 data:
                   properties:
-                    test:
-                      $ref: '#/definitions/service.AlertSMTPServiceTestResult'
+                    rule:
+                      $ref: '#/definitions/api.AlertRuleResponse'
                   type: object
               type: object
         "404":
@@ -4442,7 +4252,89 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/utils.APIResponse'
-      summary: Test alert SMTP service
+      summary: Disable alert rule
+      tags:
+      - alerts
+  /v1/alerts/rules/{id}/enable:
+    post:
+      consumes:
+      - application/json
+      description: Enable an alert rule without changing its filters or webhook destinations.
+      operationId: enableAlertRule
+      parameters:
+      - description: Alert rule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    rule:
+                      $ref: '#/definitions/api.AlertRuleResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Enable alert rule
+      tags:
+      - alerts
+  /v1/alerts/rules/dry-run:
+    post:
+      consumes:
+      - application/json
+      description: Explain rule event matching, suppression, cooldown, grouping, and
+        webhook destination decisions without creating deliveries or sending notifications
+      operationId: dryRunAlertRules
+      parameters:
+      - description: Alert rule dry-run payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.alertRuleDryRunRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    dry_run:
+                      $ref: '#/definitions/api.AlertRuleDryRunResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      summary: Dry-run alert rules
       tags:
       - alerts
   /v1/auth/login:
@@ -4892,6 +4784,10 @@ paths:
                     monitor_reports:
                       items:
                         $ref: '#/definitions/api.MonitorReportResponse'
+                      type: array
+                    next_actions:
+                      items:
+                        $ref: '#/definitions/api.IncidentNextActionResponse'
                       type: array
                     related_incidents:
                       items:

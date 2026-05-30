@@ -323,7 +323,7 @@ func (s *Server) incidentNotificationReliability(incidentIDs []string) IncidentN
 // @Produce      json
 // @ID           getIncident
 // @Param        id   path      string  true  "Incident ID"
-// @Success      200  {object}  utils.APIResponse{data=object{incident=IncidentResponse,evidence=IncidentEvidenceResponse,related_incidents=[]IncidentRelatedIncidentResponse,timeline=[]IncidentTimelineItemResponse,events=[]IncidentEventResponse,alert_deliveries=[]AlertDeliveryResponse,monitor_reports=[]MonitorReportResponse}}
+// @Success      200  {object}  utils.APIResponse{data=object{incident=IncidentResponse,evidence=IncidentEvidenceResponse,next_actions=[]IncidentNextActionResponse,related_incidents=[]IncidentRelatedIncidentResponse,timeline=[]IncidentTimelineItemResponse,events=[]IncidentEventResponse,alert_deliveries=[]AlertDeliveryResponse,monitor_reports=[]MonitorReportResponse}}
 // @Failure      404  {object}  utils.APIResponse
 // @Failure      500  {object}  utils.APIResponse
 // @Router       /v1/incidents/{id} [get]
@@ -369,6 +369,7 @@ func (s *Server) getIncidentDetail(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Incident retrieved successfully", gin.H{
 		"incident":          incidentResponse(incident, agent, monitor),
 		"evidence":          evidence,
+		"next_actions":      incidentNextActions(incident, monitor, deliveries, reports, relatedIncidents),
 		"related_incidents": relatedIncidents,
 		"timeline":          incidentTimeline(events, deliveries, reports),
 		"events":            incidentEventResponses(events),
@@ -419,6 +420,123 @@ func (s *Server) getIncidentTimeline(c *gin.Context) {
 		"timeline": timeline,
 		"count":    len(timeline),
 	})
+}
+
+func incidentNextActions(incident db.Incident, monitor db.Monitor, deliveries []db.AlertDelivery, reports []db.MonitorReport, related []IncidentRelatedIncidentResponse) []IncidentNextActionResponse {
+	actions := make([]IncidentNextActionResponse, 0, 5)
+	switch incident.Status {
+	case "open":
+		actions = append(actions, IncidentNextActionResponse{
+			ID:          "acknowledge-incident",
+			Label:       "Acknowledge",
+			Description: "Mark ownership before recovery work starts.",
+			ActionType:  "acknowledge_incident",
+			Priority:    10,
+			TargetKind:  "incident",
+			TargetID:    incident.ID,
+		})
+		fallthrough
+	case "acknowledged":
+		actions = append(actions, IncidentNextActionResponse{
+			ID:          "cover-incident",
+			Label:       "Cover",
+			Description: "Suppress noise while a known mitigation is in progress.",
+			ActionType:  "cover_incident",
+			Priority:    20,
+			TargetKind:  "incident",
+			TargetID:    incident.ID,
+		})
+	case "covered", "resolved":
+		actions = append(actions, IncidentNextActionResponse{
+			ID:          "reopen-incident",
+			Label:       "Reopen",
+			Description: "Resume active incident handling if recovery did not hold.",
+			ActionType:  "reopen_incident",
+			Priority:    20,
+			TargetKind:  "incident",
+			TargetID:    incident.ID,
+		})
+	}
+	if incident.Status != "resolved" {
+		actions = append(actions, IncidentNextActionResponse{
+			ID:          "resolve-incident",
+			Label:       "Resolve",
+			Description: "Close the incident after the latest check confirms recovery.",
+			ActionType:  "resolve_incident",
+			Priority:    40,
+			TargetKind:  "incident",
+			TargetID:    incident.ID,
+		})
+	}
+
+	if incident.MonitorID != "" && incidentNeedsMonitorTuning(incident, reports, related) {
+		monitorName := monitor.Name
+		if strings.TrimSpace(monitorName) == "" {
+			monitorName = incident.MonitorID
+		}
+		actions = append(actions, IncidentNextActionResponse{
+			ID:          "review-monitor-tuning",
+			Label:       "Tune monitor",
+			Description: "Review confirmation, recovery, and timeout settings for " + monitorName + ".",
+			ActionType:  "review_monitor_tuning",
+			Priority:    30,
+			TargetKind:  "monitor",
+			TargetID:    incident.MonitorID,
+			TargetTab:   "config",
+		})
+	}
+
+	if failedCount := failedAlertDeliveryCount(deliveries); failedCount > 0 {
+		deliveryLabel := " failed delivery attempt needs alert destination review."
+		if failedCount > 1 {
+			deliveryLabel = " failed delivery attempts need alert destination review."
+		}
+		actions = append(actions, IncidentNextActionResponse{
+			ID:           "review-failed-notifications",
+			Label:        "Recover notifications",
+			Description:  strconv.Itoa(failedCount) + deliveryLabel,
+			ActionType:   "review_failed_notifications",
+			Priority:     35,
+			TargetKind:   "alert_deliveries",
+			TargetID:     incident.ID,
+			TargetTab:    "logs",
+			FilterStatus: "failed",
+		})
+	}
+
+	sort.SliceStable(actions, func(i, j int) bool {
+		if actions[i].Priority == actions[j].Priority {
+			return actions[i].ID < actions[j].ID
+		}
+		return actions[i].Priority < actions[j].Priority
+	})
+	return actions
+}
+
+func incidentNeedsMonitorTuning(incident db.Incident, reports []db.MonitorReport, related []IncidentRelatedIncidentResponse) bool {
+	if len(related) > 0 {
+		return true
+	}
+	if incident.Status == "open" || incident.Status == "acknowledged" || incident.Status == "covered" {
+		return true
+	}
+	for _, report := range reports {
+		switch report.Health {
+		case "down", "degraded", "stale":
+			return true
+		}
+	}
+	return false
+}
+
+func failedAlertDeliveryCount(deliveries []db.AlertDelivery) int {
+	count := 0
+	for _, delivery := range deliveries {
+		if delivery.Status == "failed" {
+			count++
+		}
+	}
+	return count
 }
 
 // acknowledgeIncident manually acknowledges an active incident.
