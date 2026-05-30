@@ -93,6 +93,59 @@ test("renders primary operations pages with seeded Core data", async ({ page }) 
   await expect(page.getByRole("checkbox", { name: "Enable rollups" })).toBeChecked();
 });
 
+test("reads, saves, validates, and runs Settings lifecycle controls", async ({ page }) => {
+  await signIn(page);
+
+  await page.getByRole("link", { name: "Settings" }).click();
+  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+
+  const rawReportDays = page.getByLabel("Raw report days");
+  const rollupDays = page.getByLabel("Rollup days");
+  const archiveDir = page.getByLabel("Archive directory");
+  const archiveSchedule = page.getByLabel("Archive schedule");
+
+  await expect(rawReportDays).toHaveValue("30");
+  await expect(rollupDays).toHaveValue("");
+  await expect(archiveDir).not.toHaveValue("");
+  await expect(archiveSchedule).toContainText("Manual only");
+  await expect(page.getByText("Last archive")).toBeVisible();
+  await expect(page.getByText("success")).toBeVisible();
+
+  await rawReportDays.fill("0");
+  await page.getByRole("button", { name: "Save settings" }).click();
+  await expect(page.getByText("Unable to save settings.")).toBeVisible();
+
+  await rawReportDays.fill("45");
+  await rollupDays.fill("120");
+  await archiveSchedule.click();
+  await page.getByRole("option", { name: "Daily" }).click();
+  await page.getByRole("button", { name: "Save settings" }).click();
+  await expect(page.getByText("Settings saved.")).toBeVisible();
+  await expect(rawReportDays).toHaveValue("45");
+  await expect(rollupDays).toHaveValue("120");
+  await expect(archiveSchedule).toContainText("Daily");
+
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+  await expect(page.getByLabel("Raw report days")).toHaveValue("45");
+  await expect(page.getByLabel("Rollup days")).toHaveValue("120");
+  await expect(page.getByLabel("Archive schedule")).toContainText("Daily");
+
+  await page.getByRole("button", { name: "Run rollup" }).click();
+  await expect(page.getByText(/Rolled up \d+ reports\./)).toBeVisible();
+
+  await page.getByRole("button", { name: "Run archive" }).click();
+  await expect(page.getByText(/Archived \d+ reports\./)).toBeVisible();
+
+  // Restore seed defaults so later serial settings tests start from a clean baseline.
+  await rawReportDays.fill("30");
+  await archiveSchedule.click();
+  await page.getByRole("option", { name: "Manual only" }).click();
+  await page.getByRole("button", { name: "Save settings" }).click();
+  await expect(page.getByText("Settings saved.")).toBeVisible();
+  await expect(rawReportDays).toHaveValue("30");
+});
+
 test("creates and manages a Core HTTP monitor", async ({ page }) => {
   const monitorName = `Core E2E HTTP ${Date.now()}`;
   const updatedName = `${monitorName} updated`;
@@ -340,7 +393,9 @@ test("reads and saves data lifecycle settings", async ({ page }) => {
 
   await expect(page.getByLabel("Raw report days")).toHaveValue("30");
   await expect(page.getByLabel("Archive directory")).toHaveValue(/\/archive$/);
-  await expect(page.getByRole("combobox", { name: /Archive schedule/ })).toContainText("manual");
+  await expect(page.getByRole("combobox", { name: /Archive schedule/ })).toContainText(
+    "Manual only",
+  );
   await expect(
     page.getByRole("checkbox", { name: "Archive raw reports automatically" }),
   ).toBeChecked();
