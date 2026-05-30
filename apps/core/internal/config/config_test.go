@@ -12,6 +12,7 @@ func TestLoadCORSOriginsFromEnvironment(t *testing.T) {
 	t.Setenv("ORION_WORKER_HEARTBEAT_SECONDS", "20")
 	t.Setenv("ORION_WORKER_STALE_SECONDS", "90")
 	t.Setenv("ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS", "120")
+	t.Setenv("ORION_REQUIRE_FRONTEND_AUTH", "true")
 
 	cfg := Load()
 
@@ -26,6 +27,9 @@ func TestLoadCORSOriginsFromEnvironment(t *testing.T) {
 	}
 	if cfg.DataLifecycleSchedulerSeconds != 120 {
 		t.Fatalf("DataLifecycleSchedulerSeconds = %d, want 120", cfg.DataLifecycleSchedulerSeconds)
+	}
+	if !cfg.RequireFrontendAuth {
+		t.Fatal("RequireFrontendAuth = false, want true")
 	}
 }
 

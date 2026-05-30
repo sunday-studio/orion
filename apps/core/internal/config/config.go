@@ -176,6 +176,9 @@ func (c *Config) Validate() error {
 	if c.FrontendAuthOn && c.JWTSecret == "" {
 		return &ValidationError{Msg: "ORION_JWT_SECRET is required when ORION_ADMIN_USERNAME and ORION_ADMIN_PASSWORD are set"}
 	}
+	if c.RequireFrontendAuth && authValueCount != len(authValues) {
+		return &ValidationError{Msg: "ORION_REQUIRE_FRONTEND_AUTH requires ORION_ADMIN_USERNAME, ORION_ADMIN_PASSWORD, and ORION_JWT_SECRET"}
+	}
 	if c.LoginRateLimitAttempts < 0 {
 		return &ValidationError{Msg: "ORION_LOGIN_RATE_LIMIT_ATTEMPTS must be >= 0"}
 	}

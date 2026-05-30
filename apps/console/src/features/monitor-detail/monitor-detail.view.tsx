@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { TabCount, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HeartbeatSetupPanel } from "@/features/monitors/components/heartbeat-setup-panel";
+import { coreMonitorMutationErrorMessage } from "@/features/monitors/components/core-monitor-errors";
 import { CoreMonitorDialog } from "@/features/monitors/components/core-monitor-dialog";
 import { ReportInspectionDrawer } from "@/features/report-inspection/report-inspection-drawer";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
@@ -130,15 +131,6 @@ const DetailGroup = ({ title, children }: { title: string; children: ReactNode }
 );
 
 const formatUptime = (value?: number) => (typeof value === "number" ? `${value.toFixed(1)}%` : "—");
-
-const mutationErrorMessage = (error: unknown, fallback: string) => {
-  if (!error) return "";
-  if (error instanceof Error) return error.message;
-  if (typeof error === "object" && "message" in error) {
-    return String((error as { message?: unknown }).message ?? fallback);
-  }
-  return fallback;
-};
 
 const isCoreOwnedMonitor = (monitor?: { owner_kind?: string; source?: string }) =>
   monitor?.owner_kind === "core" || monitor?.source === "core";
@@ -384,11 +376,11 @@ export const MonitorDetailPage = () => {
     );
   };
   const actionError =
-    mutationErrorMessage(testMonitor.error, "Unable to test Core monitor.") ||
-    mutationErrorMessage(pauseMonitor.error, "Unable to pause Core monitor.") ||
-    mutationErrorMessage(resumeMonitor.error, "Unable to resume Core monitor.") ||
-    mutationErrorMessage(updateMonitor.error, "Unable to save Core monitor.") ||
-    mutationErrorMessage(deleteMonitor.error, "Unable to delete Core monitor.");
+    coreMonitorMutationErrorMessage(testMonitor.error, "Unable to test Core monitor.") ||
+    coreMonitorMutationErrorMessage(pauseMonitor.error, "Unable to pause Core monitor.") ||
+    coreMonitorMutationErrorMessage(resumeMonitor.error, "Unable to resume Core monitor.") ||
+    coreMonitorMutationErrorMessage(updateMonitor.error, "Unable to save Core monitor.") ||
+    coreMonitorMutationErrorMessage(deleteMonitor.error, "Unable to delete Core monitor.");
   const isActionPending =
     testMonitor.isPending ||
     pauseMonitor.isPending ||
@@ -764,7 +756,10 @@ export const MonitorDetailPage = () => {
       {isCoreMonitor && (
         <CoreMonitorDialog
           config={coreConfig}
-          error={mutationErrorMessage(updateMonitor.error, "Unable to save Core monitor.")}
+          error={coreMonitorMutationErrorMessage(
+            updateMonitor.error,
+            "Unable to save Core monitor.",
+          )}
           isSubmitting={updateMonitor.isPending}
           mode="edit"
           monitor={monitor}

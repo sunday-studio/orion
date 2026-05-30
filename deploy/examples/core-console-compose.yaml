@@ -1,4 +1,4 @@
-# Copy this file and run it directly, or override values with a .env file.
+# Copy this file next to a .env file with admin credentials, then run it directly.
 # Override ORION_CORE_IMAGE to deploy a newer released tag.
 # ORION_CORS_ORIGINS is only needed for separate Console/custom-origin API access.
 services:

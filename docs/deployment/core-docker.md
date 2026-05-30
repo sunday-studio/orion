@@ -148,7 +148,8 @@ services:
 An official optional Playwright worker image or sidecar is intentionally deferred until the browser
 sandbox, browser set, and artifact retention policy are versioned as a separate runtime contract.
 
-From this repository, you can run the example directly:
+From this repository, you can run the example after creating `deploy/examples/.env` with the same
+auth variables:
 
 ```sh
 cd deploy/examples
