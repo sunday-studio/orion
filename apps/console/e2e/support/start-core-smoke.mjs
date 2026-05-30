@@ -8,8 +8,10 @@ import { fileURLToPath } from "node:url";
 const consoleDir = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const repoDir = resolve(consoleDir, "../..");
 const coreDir = join(repoDir, "apps/core");
-const coreURL = "http://127.0.0.1:18999";
-const consoleURL = "http://127.0.0.1:5173";
+const corePort = process.env.ORION_E2E_CORE_PORT ?? "18999";
+const consolePort = process.env.ORION_E2E_CONSOLE_PORT ?? "5173";
+const coreURL = `http://127.0.0.1:${corePort}`;
+const consoleURL = `http://127.0.0.1:${consolePort}`;
 const webhookURL = "http://127.0.0.1:19080";
 const adminUsername = "admin";
 const adminPassword = "change-me";
@@ -178,14 +180,15 @@ start("go", ["run", "."], {
     ORION_ADMIN_PASSWORD: adminPassword,
     ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS: "true",
     ORION_JWT_SECRET: jwtSecret,
-    ORION_PORT: "18999",
+    ORION_PORT: corePort,
+    ORION_CORS_ORIGINS: consoleURL,
     ORION_DATA_DIR: dataDir,
     ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS: "3600",
   },
 });
 await waitFor(`${coreURL}/health`, 60_000);
 
-start("pnpm", ["dev", "--host", "127.0.0.1", "--port", "5173"], {
+start("pnpm", ["dev", "--host", "127.0.0.1", "--port", consolePort], {
   cwd: consoleDir,
   env: {
     ...process.env,
