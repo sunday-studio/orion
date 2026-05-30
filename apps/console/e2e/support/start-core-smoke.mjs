@@ -169,6 +169,10 @@ await run(
   },
 );
 
+await run("pnpm", ["run", "generate:api"], {
+  cwd: consoleDir,
+});
+
 webhookServer = await startWebhookReceiver();
 await waitFor(`${webhookURL}/health`, 10_000);
 
