@@ -372,9 +372,11 @@ jobs:
     runs-on: ubuntu-24.04
     needs:
       - changes
-      - agent
-      - core
-      - console
+      - server-agent-test
+      - core-test
+      - console-quality
+      - console-build
+      - console-e2e
       - generated-contracts
       - repository-smoke
     if: always()
@@ -382,18 +384,22 @@ jobs:
       - name: Check gate results
         env:
           CHANGES_RESULT: ${{ needs.changes.result }}
-          AGENT_RESULT: ${{ needs.agent.result }}
-          CORE_RESULT: ${{ needs.core.result }}
-          CONSOLE_RESULT: ${{ needs.console.result }}
-          CONTRACTS_RESULT: ${{ needs.generated-contracts.result }}
-          REPOSITORY_SMOKE_RESULT: ${{ needs.repository-smoke.result }}
+          SERVER_AGENT_RESULT: ${{ needs['server-agent-test'].result }}
+          CORE_RESULT: ${{ needs['core-test'].result }}
+          CONSOLE_QUALITY_RESULT: ${{ needs['console-quality'].result }}
+          CONSOLE_BUILD_RESULT: ${{ needs['console-build'].result }}
+          CONSOLE_E2E_RESULT: ${{ needs['console-e2e'].result }}
+          CONTRACTS_RESULT: ${{ needs['generated-contracts'].result }}
+          REPOSITORY_SMOKE_RESULT: ${{ needs['repository-smoke'].result }}
         run: |
           failed=0
           for gate in \
             "Changed area detection:${CHANGES_RESULT}" \
-            "Server tests:${AGENT_RESULT}" \
+            "Server tests:${SERVER_AGENT_RESULT}" \
             "Core tests:${CORE_RESULT}" \
-            "Console build:${CONSOLE_RESULT}" \
+            "Console quality:${CONSOLE_QUALITY_RESULT}" \
+            "Console build:${CONSOLE_BUILD_RESULT}" \
+            "Console E2E:${CONSOLE_E2E_RESULT}" \
             "Generated contracts:${CONTRACTS_RESULT}" \
             "Repository smoke:${REPOSITORY_SMOKE_RESULT}"
           do

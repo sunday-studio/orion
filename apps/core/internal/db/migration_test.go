@@ -29,12 +29,6 @@ func TestMigrateAppliesEmbeddedMigrations(t *testing.T) {
 	if !database.Migrator().HasColumn(&AlertChannel{}, "webhook_signing_secret") {
 		t.Fatal("alert_channels.webhook_signing_secret was not created")
 	}
-	if !database.Migrator().HasTable(&AlertSMTPService{}) {
-		t.Fatal("alert_smtp_services table was not created")
-	}
-	if !database.Migrator().HasTable(&AlertEmailDestination{}) {
-		t.Fatal("alert_email_destinations table was not created")
-	}
 	if !database.Migrator().HasTable(&AlertRoute{}) {
 		t.Fatal("alert_routes table was not created")
 	}

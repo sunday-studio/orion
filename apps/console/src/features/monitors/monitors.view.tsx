@@ -4,6 +4,7 @@ import {
   CoreMonitorDialog,
   type CoreMonitorSubmitAction,
 } from "@/features/monitors/components/core-monitor-dialog";
+import { coreMonitorMutationErrorMessage } from "@/features/monitors/components/core-monitor-errors";
 import { HeartbeatSetupPanel } from "@/features/monitors/components/heartbeat-setup-panel";
 import { MonitorList } from "@/features/monitors/components/monitor-list";
 import {
@@ -18,15 +19,6 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useState } from "react";
-
-const mutationErrorMessage = (error: unknown, fallback: string) => {
-  if (!error) return "";
-  if (error instanceof Error) return error.message;
-  if (typeof error === "object" && "message" in error) {
-    return String((error as { message?: unknown }).message ?? fallback);
-  }
-  return fallback;
-};
 
 const parseReportPayload = (report?: ApiMonitorReportResponse) => {
   if (!report?.payload) return {};
@@ -136,7 +128,10 @@ export const MonitorsPage = () => {
       )}
       <MonitorList />
       <CoreMonitorDialog
-        error={mutationErrorMessage(createMonitor.error, "Unable to create Core monitor.")}
+        error={coreMonitorMutationErrorMessage(
+          createMonitor.error,
+          "Unable to create Core monitor.",
+        )}
         isSubmitting={createMonitor.isPending || isTestingCreatedMonitor}
         mode="create"
         onOpenChange={setCreateOpen}
