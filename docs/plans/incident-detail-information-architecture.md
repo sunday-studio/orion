@@ -1,6 +1,6 @@
 # Incident And Detail View Information Architecture Plan
 
-This document plans the next incident and detail-view improvements. It focuses on the information Orion should show, how operators can use that information to make better decisions, and what Core and Console need in order to support manual incident lifecycle actions such as "mark covered" or "resolve manually".
+This document started as the incident detail improvement plan. As of 2026-05-29, the original lifecycle, coverage, evidence, and analytics phases are mostly implemented; this page now records the remaining readiness gaps instead of treating those shipped areas as missing.
 
 ## Product Outcome
 
@@ -11,14 +11,21 @@ Incident detail should answer four questions quickly:
 3. What evidence proves the current state?
 4. What should I do next?
 
-The current implementation already gives Orion a useful base: incidents have list and detail screens, related server and monitor links, timeline events, alert deliveries, and linked monitor reports. The missing step is turning incident detail from a passive record into an operator workflow.
+The current implementation gives Orion an operator workflow: incidents have list and detail screens, related server and monitor links, lifecycle actions, coverage suppression, timeline events, alert deliveries, linked monitor reports, evidence summaries, related incidents, and lifecycle filters.
 
 The target workflow is:
 
 - understand impact from the incident header and affected-resource summary;
 - inspect evidence from the triggering report, latest report, timeline, notifications, and raw payloads;
 - choose a lifecycle action: acknowledge, mark covered, manually resolve, reopen, or defer;
-- preserve the decision as structured audit data so future lists, status pages, and alerting can use it.
+- preserve the decision as audit data so future lists, status pages, and alerting can use it.
+
+Remaining readiness work should focus on:
+
+- richer actor, note, timing, and allowed-action metadata for each lifecycle action;
+- context-aware next actions that point operators toward monitor tuning, alert recovery, or public communication;
+- public status page draft creation from an internal incident with safe default copy;
+- browser/E2E coverage that proves the incident workflow and public projection stay usable.
 
 ## Current Implementation
 
@@ -30,6 +37,7 @@ Implemented incident statuses are:
 
 - `open`
 - `acknowledged`
+- `covered`
 - `resolved`
 
 Current incident behavior:
@@ -37,9 +45,13 @@ Current incident behavior:
 - monitor reports open, update, and automatically resolve incidents;
 - `monitors.active_incident_id` caches the active incident for fast reconciliation;
 - `monitors.incident_state` records the last incident-relevant monitor state;
-- incident detail returns `incident`, `timeline`, `events`, `alert_deliveries`, and `monitor_reports`;
-- timeline is derived from incident events plus alert delivery attempts;
-- alert recovery notifications may be queued when Core resolves an incident.
+- incident detail returns `incident`, `evidence`, `related_incidents`, `timeline`, `events`, `alert_deliveries`, and `monitor_reports`;
+- timeline is derived from incident events, alert delivery attempts, and linked monitor reports;
+- alert recovery notifications may be queued when Core resolves an incident;
+- manual acknowledge, resolve, cover, and reopen actions are implemented;
+- covered incidents suppress repeated failure handling until recovery or coverage expiry;
+- incident list filters support resolution kind, actor, and covered state;
+- incident list responses include recurring failure, lifecycle timing, and notification reliability insights.
 
 Current API surface:
 
@@ -47,14 +59,17 @@ Current API surface:
 - `GET /v1/incidents/{id}`
 - `GET /v1/incidents/{id}/timeline`
 - `GET /v1/incidents/candidates`
+- `POST /v1/incidents/{id}/acknowledge`
+- `POST /v1/incidents/{id}/resolve`
+- `POST /v1/incidents/{id}/cover`
+- `POST /v1/incidents/{id}/reopen`
 
-Missing API surface:
+Remaining API and contract gaps:
 
-- no manual acknowledge endpoint;
-- no manual resolve endpoint;
-- no covered/suppressed-by-human concept;
-- no structured resolution kind, actor, note, or expiry;
-- no explicit reopen behavior after a human closes an incident while reports still fail.
+- no `unacknowledge` endpoint;
+- lifecycle actions do not yet preserve full actor identity, action-specific notes, and timestamps in a structured response model;
+- incident detail does not yet expose server-computed allowed actions;
+- no helper endpoint creates a public status page incident draft from an internal incident.
 
 ### Console
 
@@ -64,8 +79,10 @@ The incident detail view currently shows:
 
 - incident status, severity, notification state, and duration;
 - affected server, monitor, and monitor type;
+- impacted public-facing components when mappings exist;
 - opened, latest event, and resolved timestamps;
-- first failing result, latest report, and latest timeline event;
+- coverage state, coverage note, resolution kind, reopened timestamp, and reopen count;
+- triggering report, latest report, related incidents, and latest timeline event;
 - tabs for timeline, notifications, and monitor reports.
 
 Related detail views already connect back to incidents:
@@ -73,13 +90,12 @@ Related detail views already connect back to incidents:
 - server detail highlights an active or requested incident;
 - monitor detail highlights an incident, shows latest result, uptime, related incidents, history, and config.
 
-Missing Console behavior:
+Remaining Console behavior:
 
-- no primary incident action bar;
-- no acknowledge, mark covered, manual resolve, or reopen dialogs;
-- no visible distinction between auto-resolved and human-resolved incidents;
-- no raw report drawer for evidence inspection from the incident page;
-- no opinionated "next best action" section.
+- no opinionated "next best action" section;
+- no public status draft action from incident detail;
+- no full actor/note display for every lifecycle action;
+- no server-driven allowed action state.
 
 ## Information Architecture
 
@@ -370,94 +386,102 @@ Resolution kind and notes make incident history searchable:
 
 Covered incidents can later decide whether a component should stay degraded, show a maintenance-style notice, or disappear from the public status page.
 
-## Implementation Plan
+## Implementation State
 
 ### Phase 1: Lifecycle Actions
 
-Goal: make incidents actionable from Console.
+Status: implemented baseline, with metadata hardening still open.
 
 Core:
 
-- add migration for lifecycle fields;
-- add acknowledge, resolve, cover, and reopen service methods;
-- add API routes and OpenAPI annotations;
-- generate OpenAPI and SDK;
-- test status transitions, event creation, monitor `active_incident_id`, and alert notification behavior.
+- implemented migration fields for coverage, resolution kind, reopen timestamp, and reopen count;
+- implemented acknowledge, resolve, cover, and reopen service methods;
+- implemented API routes and OpenAPI annotations;
+- generated OpenAPI and SDK in the implementation branch;
+- tests cover status transitions, event creation, monitor `active_incident_id`, and notification behavior.
 
 Console:
 
-- add incident action bar;
-- add confirmation dialogs with note fields;
-- add lifecycle summary on detail;
-- invalidate incident list/detail, monitor detail, and server detail queries after actions.
+- implemented incident action bar;
+- implemented coverage dialog with note and expiry fields;
+- implemented lifecycle summary on detail;
+- invalidates incident list/detail, monitor detail, and server detail queries after actions.
+
+Remaining:
+
+- persist and display actor and note metadata consistently across acknowledge, resolve, cover, and reopen;
+- return allowed actions from Core instead of recomputing them in Console.
 
 ### Phase 2: Coverage Semantics
 
-Goal: stop duplicate reopen noise after a human marks an incident covered.
+Status: implemented.
 
 Core:
 
-- add monitor-level coverage check to incident reconciliation;
-- suppress new incident creation while coverage is active;
-- end coverage when a healthy report arrives;
-- record `incident_suppressed_by_coverage` events for audit.
+- implemented monitor-level coverage checks in incident reconciliation;
+- suppresses repeated failing reports while coverage is active;
+- ends coverage on healthy recovery or expiry;
+- records coverage suppression and expiry events for audit.
 
 Console:
 
-- show coverage expiry and reason;
-- add "End coverage" or "Reopen" action;
-- add list filter for covered incidents.
+- shows coverage expiry and note;
+- supports reopen from covered or resolved incidents;
+- includes covered status and covered-state list filters.
 
 ### Phase 3: Evidence And Debugging
 
-Goal: make incident detail explain the failure.
+Status: implemented baseline.
 
 Core:
 
-- normalize trigger and latest report summaries;
-- include related incidents for the same monitor;
-- expose raw report payload safely.
+- returns triggering and latest report evidence;
+- includes related incidents for the same monitor;
+- exposes monitor report payloads through the existing safe payload boundary.
 
 Console:
 
-- add raw payload drawers from incident, monitor history, and server logs;
-- show trigger versus latest report side by side;
-- link timeline rows to their report or delivery detail.
+- shows trigger and latest report cards;
+- allows report inspection from incident detail;
+- links timeline rows to report or delivery context where available.
+
+Remaining:
+
+- broaden payload redaction and browser coverage so every monitor payload type is verified before public release.
 
 ### Phase 4: Operational Analytics
 
-Goal: use incident history for product intelligence.
+Status: implemented baseline.
 
 Core:
 
-- add filters for resolution kind, actor, and covered state;
-- add aggregate endpoints for recurring failures and mean time to acknowledge/resolve.
+- added filters for resolution kind, actor, and covered state;
+- added recurring failure, lifecycle timing, and notification reliability aggregates to list responses.
 
 Console:
 
-- add incident insights to the list summary;
-- add recurring-incident callouts on monitor detail;
-- show notification reliability alongside incident severity.
+- shows incident insights in list summary and filters;
+- still needs deeper recurring-incident callouts on monitor detail if that remains a product priority.
 
-## Recommended MVP Scope
+## Delivered MVP Scope
 
-Build this first:
+The first MVP now includes:
 
 - `POST /v1/incidents/{id}/acknowledge`
 - `POST /v1/incidents/{id}/resolve`
 - `POST /v1/incidents/{id}/cover`
-- lifecycle fields: `acknowledged_at`, `resolved_by`, `resolution_kind`, `resolution_note`, `covered_until`
+- `POST /v1/incidents/{id}/reopen`
+- lifecycle fields for coverage, resolution kind, and reopening;
 - incident events for acknowledge, manual resolve, and covered;
 - Console action bar and dialogs;
-- list/detail badges that distinguish `auto recovered`, `manually resolved`, and `covered`.
+- list/detail badges that distinguish recovered, manually resolved, and covered incidents.
 
-Defer this until the first lifecycle actions feel right:
+Remaining readiness items:
 
-- full actor identity;
-- recurring incident analytics;
-- public status page policy;
-- advanced coverage records;
-- alert grouping and route-level suppression.
+- full actor identity, notes, and allowed-action response metadata;
+- incident next-action panel;
+- public status draft workflow;
+- browser/E2E confidence for lifecycle, evidence redaction, and public incident publication.
 
 ## Open Decisions
 

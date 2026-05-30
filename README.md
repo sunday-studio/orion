@@ -368,6 +368,7 @@ generated Console SDK by hand.
 - [Kubernetes position](docs/deployment/kubernetes-position.md)
 - [Server install and upgrade](docs/deployment/agent-install-upgrade.md)
 - [Release readiness gate](docs/deployment/release-readiness.md)
+- [Incident readiness PR checklist](docs/development/incident-readiness-pr-checklist.md)
 - [Seed demo data](docs/development/seed-demo-data.md)
 - [Milestones](docs/milestones/README.md)
 
