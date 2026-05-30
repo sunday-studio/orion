@@ -78,6 +78,7 @@ export const SettingsPage = () => {
 
   const settings = settingsResponse.data?.settings;
   const [formState, setFormState] = useState(defaultFormState);
+  const archiveScheduleLabel = formState.archiveSchedule === "manual" ? "Manual only" : "Daily";
 
   useEffect(() => {
     if (!settings) return;
@@ -162,8 +163,8 @@ export const SettingsPage = () => {
               value={formState.archiveSchedule}
               onValueChange={(value) => updateField("archiveSchedule", value)}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Archive schedule" />
+              <SelectTrigger aria-label="Archive schedule">
+                <SelectValue placeholder="Archive schedule">{archiveScheduleLabel}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="daily">Daily</SelectItem>
