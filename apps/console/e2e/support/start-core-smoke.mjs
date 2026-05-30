@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
-import { get } from "node:http";
+import { createServer, get } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,10 +10,13 @@ const repoDir = resolve(consoleDir, "../..");
 const coreDir = join(repoDir, "apps/core");
 const coreURL = "http://127.0.0.1:18999";
 const consoleURL = "http://127.0.0.1:5173";
+const webhookURL = "http://127.0.0.1:19080";
 const adminUsername = "admin";
 const adminPassword = "change-me";
 const jwtSecret = "console-browser-smoke-secret-at-least-long-enough";
 const children = [];
+const webhookCaptures = [];
+let webhookServer;
 let workDir;
 let shuttingDown = false;
 
@@ -72,9 +75,65 @@ const requestOK = (url) =>
     });
   });
 
+const readRequestBody = (req) =>
+  new Promise((resolveBody, rejectBody) => {
+    const chunks = [];
+    req.on("data", (chunk) => chunks.push(chunk));
+    req.on("end", () => resolveBody(Buffer.concat(chunks).toString("utf8")));
+    req.on("error", rejectBody);
+  });
+
+const respondJSON = (res, statusCode, value) => {
+  res.writeHead(statusCode, { "Content-Type": "application/json" });
+  res.end(JSON.stringify(value));
+};
+
+const startWebhookReceiver = () =>
+  new Promise((resolveListen, rejectListen) => {
+    const server = createServer(async (req, res) => {
+      const url = new URL(req.url ?? "/", webhookURL);
+      if (url.pathname === "/health") {
+        respondJSON(res, 200, { status: "ok" });
+        return;
+      }
+      if (url.pathname === "/captures" && req.method === "GET") {
+        respondJSON(res, 200, { captures: webhookCaptures });
+        return;
+      }
+      if (url.pathname === "/captures" && req.method === "DELETE") {
+        webhookCaptures.length = 0;
+        respondJSON(res, 200, { captures: webhookCaptures });
+        return;
+      }
+      if (req.method === "POST" && url.pathname.startsWith("/webhook/")) {
+        const body = await readRequestBody(req);
+        webhookCaptures.push({
+          body,
+          headers: req.headers,
+          path: url.pathname,
+          query: url.search,
+          received_at: new Date().toISOString(),
+        });
+        if (url.pathname.startsWith("/webhook/failure")) {
+          respondJSON(res, 500, { error: "simulated webhook failure" });
+          return;
+        }
+        respondJSON(res, 202, { status: "accepted" });
+        return;
+      }
+      respondJSON(res, 404, { error: "not found" });
+    });
+
+    server.on("error", rejectListen);
+    server.listen(19080, "127.0.0.1", () => resolveListen(server));
+  });
+
 const shutdown = async (exitCode = 0) => {
   if (shuttingDown) return;
   shuttingDown = true;
+  if (webhookServer) {
+    await new Promise((resolveClose) => webhookServer.close(resolveClose));
+  }
   for (const child of children) {
     if (!child.killed) child.kill("SIGTERM");
   }
@@ -107,6 +166,9 @@ await run(
     cwd: coreDir,
   },
 );
+
+webhookServer = await startWebhookReceiver();
+await waitFor(`${webhookURL}/health`, 10_000);
 
 start("go", ["run", "."], {
   cwd: coreDir,

@@ -67,6 +67,9 @@ ORION_PUBLIC_STATUS_URL_ORIGIN=https://status.example.com
 ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET=replace-with-a-long-random-secret
 ```
 
+These SMTP variables only support public status page subscriber mail. Core does not use them for
+internal alert delivery, and internal alert rules should target webhook channels.
+
 Start Core. If you skip the `.env` file, Compose uses the defaults in `orion-compose.yaml`.
 Compose starts two services:
 
