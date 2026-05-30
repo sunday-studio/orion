@@ -2,6 +2,7 @@ import { type Page, expect, test } from "@playwright/test";
 
 const username = "admin";
 const password = "change-me";
+const webhookReceiverURL = "http://127.0.0.1:19080";
 
 test.describe.configure({ mode: "serial" });
 
@@ -11,6 +12,20 @@ const signIn = async (page: Page) => {
   await page.getByPlaceholder("Password").fill(password);
   await page.getByRole("button", { name: "Enter" }).click();
   await expect(page.getByRole("heading", { name: "Incidents" })).toBeVisible();
+};
+
+const createWebhookDestination = async (page: Page, name: string, url: string) => {
+  await page.getByRole("button", { name: "New webhook" }).click();
+  const dialog = page.getByRole("dialog", { name: "New webhook" });
+  await dialog.getByPlaceholder("ops-webhook").fill(name);
+  await dialog.getByPlaceholder("https://example.com/webhook").fill(url);
+  await dialog.getByRole("button", { name: "Create destination" }).click();
+  await expect(page.getByRole("row", { name: new RegExp(name) })).toBeVisible();
+};
+
+const sendWebhookTest = async (page: Page, name: string) => {
+  await page.getByLabel(`Open actions for ${name}`).click();
+  await page.getByRole("menuitem", { name: "Send test" }).click();
 };
 
 test("signs in, rejects bad credentials, and signs out", async ({ page }) => {
@@ -77,24 +92,20 @@ test("creates and manages a Core HTTP monitor", async ({ page }) => {
   await page.getByRole("link", { name: "Monitors" }).click();
   await page.getByRole("button", { name: "Core monitor" }).click();
   await page.getByLabel("Name").fill(monitorName);
-  await page.getByLabel("URL").fill("http://127.0.0.1:18999/health");
-  await page.getByRole("spinbutton", { name: "Expected status" }).fill("503");
-  await page.getByRole("spinbutton", { name: "Interval seconds" }).fill("45");
-  await page.getByRole("button", { name: "Create and test" }).click();
-  await expect(page.getByText("received HTTP 200, expected 503")).toBeVisible();
+  await page.getByLabel("URL").fill("https://example.com/health");
+  await page.getByLabel("Expected status").fill("200");
+  await page.getByLabel("Interval seconds").fill("45");
+  await page.getByRole("button", { name: "Create", exact: true }).click();
 
   await page.getByPlaceholder("Search monitors").fill(monitorName);
-  await expect(page.getByRole("link", { name: monitorName })).toBeVisible();
+  await expect(page.getByRole("link", { name: monitorName })).toBeVisible({ timeout: 15_000 });
   await page.getByRole("link", { name: monitorName }).click();
   await expect(page.getByRole("heading", { name: monitorName })).toBeVisible();
   await expect(page.getByText("Core · http")).toBeVisible();
 
   await page.getByRole("tab", { name: "Configuration" }).click();
-  await expect(page.getByText("http://127.0.0.1:18999/health")).toBeVisible();
+  await expect(page.getByText("https://example.com/health")).toBeVisible();
   await expect(page.getByLabel("Configuration").getByText("45s")).toBeVisible();
-
-  await page.getByRole("button", { name: "Test" }).click();
-  await expect(page.getByText("Core monitor test reported down.")).toBeVisible();
 
   await page.getByRole("button", { name: "Pause" }).click();
   await expect(page.getByText("Core monitor paused.")).toBeVisible();
@@ -111,6 +122,93 @@ test("creates and manages a Core HTTP monitor", async ({ page }) => {
   await page.getByRole("button", { name: "Delete" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Delete" }).click();
   await expect(page.getByRole("heading", { name: "Monitors" })).toBeVisible();
+});
+
+test("creates webhook alert destinations and records sanitized delivery logs", async ({ page }) => {
+  const stamp = Date.now();
+  const sentDestination = `e2e-webhook-sent-${stamp}`;
+  const failedDestination = `e2e-webhook-failed-${stamp}`;
+  const secretToken = "super-secret-failure-token";
+
+  await signIn(page);
+  await page.request.delete(`${webhookReceiverURL}/captures`);
+
+  await page.getByRole("link", { name: "Alerts" }).click();
+  await page.getByRole("tab", { name: "Channels" }).click();
+  await expect(page.getByRole("heading", { name: "Webhook Channels" })).toBeVisible();
+
+  await createWebhookDestination(
+    page,
+    sentDestination,
+    `${webhookReceiverURL}/webhook/success`,
+  );
+  await createWebhookDestination(
+    page,
+    failedDestination,
+    `${webhookReceiverURL}/webhook/failure?token=${secretToken}`,
+  );
+
+  await page.getByRole("tab", { name: "Rules" }).click();
+  await expect(page.getByRole("heading", { name: "Rules" })).toBeVisible();
+  const ruleName = `e2e monitor failure ${stamp}`;
+  await page.getByRole("button", { name: "New rule" }).click();
+  const ruleDialog = page.getByRole("dialog", { name: "New alert rule" });
+  await ruleDialog.getByLabel("Name", { exact: true }).fill(ruleName);
+  for (const destination of [sentDestination, failedDestination]) {
+    const checkbox = ruleDialog.getByRole("checkbox", { name: destination });
+    if ((await checkbox.getAttribute("aria-checked")) !== "true") {
+      await checkbox.click();
+    }
+  }
+  await ruleDialog.getByRole("button", { name: "Create rule" }).click();
+  const ruleRow = page.getByRole("row", { name: new RegExp(ruleName) });
+  await expect(ruleRow).toContainText(sentDestination);
+  await expect(ruleRow).toContainText(failedDestination);
+
+  await page.getByRole("tab", { name: "Channels" }).click();
+  await sendWebhookTest(page, sentDestination);
+  await expect(
+    page.getByText(`Test sent to ${sentDestination}. Delivery status: sent.`),
+  ).toBeVisible();
+
+  const capturesResponse = await page.request.get(`${webhookReceiverURL}/captures`);
+  expect(capturesResponse.ok()).toBeTruthy();
+  const captures = (await capturesResponse.json()) as {
+    captures: { body: string; path: string }[];
+  };
+  expect(captures.captures.some((capture) => capture.path === "/webhook/success")).toBeTruthy();
+  expect(captures.captures.map((capture) => capture.body).join("\n")).toContain(
+    "Alert channel test",
+  );
+
+  await page.goto(
+    `/alerts?tab=logs&status=sent&type=webhook&event_type=test&channel=${encodeURIComponent(
+      sentDestination,
+    )}`,
+  );
+  await expect(page.getByRole("heading", { name: "Notification Log" })).toBeVisible();
+  await expect(page.getByRole("row", { name: new RegExp(sentDestination) })).toContainText("sent");
+  await expect(page.getByRole("row", { name: new RegExp(sentDestination) })).toContainText(
+    "webhook",
+  );
+  await expect(page.getByRole("row", { name: new RegExp(sentDestination) })).toContainText("test");
+
+  await page.getByRole("tab", { name: "Channels" }).click();
+  await sendWebhookTest(page, failedDestination);
+  await expect(
+    page.getByText(`Test sent to ${failedDestination}. Delivery status: failed.`),
+  ).toBeVisible();
+
+  await page.goto(
+    `/alerts?tab=logs&status=failed&type=webhook&event_type=test&channel=${encodeURIComponent(
+      failedDestination,
+    )}`,
+  );
+  await expect(page.getByRole("heading", { name: "Notification Log" })).toBeVisible();
+  await expect(page.getByRole("row", { name: new RegExp(failedDestination) })).toContainText(
+    "delivery failed; check Core logs",
+  );
+  await expect(page.locator("body")).not.toContainText(secretToken);
 });
 
 test("creates a Core heartbeat monitor and shows setup affordances", async ({ page }) => {

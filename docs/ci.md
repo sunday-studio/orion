@@ -13,6 +13,8 @@ The workflow is path-aware:
   Core generated files drift or SDK generation stops producing `apps/console/src/orion-sdk/index.ts`.
 - Deploy and documentation changes run repository smoke checks, including shell syntax and Docker
   Compose config validation.
+- The release readiness job aggregates path-aware job results and fails when any required gate fails
+  or is cancelled.
 
 Release-only jobs stay separate:
 
@@ -46,6 +48,14 @@ modernization cleanup goal instead of blocking unrelated CI changes.
 The generated-contract job remains the OpenAPI drift and Console SDK generation check. `make
 core-contract-check` is the narrower backend-only drift check for generated Core Swagger docs and
 `apps/core/openapi.yaml`.
+
+## Release Readiness
+
+`make release-readiness` runs the local blocking gate for Server tests, Core tests, Console build,
+and repository smoke checks. Contract-changing PRs must also run `make generated-contracts-check`.
+
+The full matrix and warning classification rules live in
+[Release readiness gate](deployment/release-readiness.md).
 
 ## Coverage
 

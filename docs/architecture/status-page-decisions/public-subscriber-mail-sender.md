@@ -8,11 +8,11 @@ Ticket: T-20260527-174212-709a
 
 ## Context
 
-Status page subscriptions need confirmation, preference, unsubscribe, and fan-out emails. Orion already has internal alert SMTP services and email destinations, but public subscriber mail has a different trust boundary: it sends customer-facing status updates and must not expose internal alert routing, operator destinations, escalation policy, or alert-channel secrets.
+Status page subscriptions need confirmation, preference, unsubscribe, and fan-out emails. Orion internal alerting is moving to generic webhooks only, so public subscriber mail has a separate trust boundary: it sends customer-facing status updates and must not expose internal alert rules, operator destinations, or webhook secrets.
 
 ## Decision
 
-Use a dedicated public subscriber mail sender configuration for status page email. It may reuse Orion's low-level SMTP client code, retry primitives, and redaction helpers, but it must not reuse internal alert destinations or alert routes as subscriber sender records.
+Use a dedicated public subscriber mail sender configuration for status page email. It may reuse Orion's low-level SMTP client code, retry primitives, and redaction helpers, but it must not reuse internal alert webhooks or alert rules as subscriber sender records.
 
 The first implementation should model one public mail sender per Core instance, with room for per-status-page overrides later. The sender configuration includes:
 
@@ -30,8 +30,8 @@ If the sender is not configured, public subscription request routes may create p
 ## Boundary Rules
 
 - Public subscriber code may read only the dedicated public sender configuration and sanitized public status page DTOs.
-- Public subscriber code must not read alert routes, alert destination recipient lists, internal alert templates, escalation policy, or operator-only incident fields.
-- SMTP credentials remain encrypted or otherwise protected using the same secret-handling rules as internal SMTP services.
+- Public subscriber code must not read alert rules, internal alert webhook URLs, internal alert templates, escalation policy, or operator-only incident fields.
+- SMTP credentials remain encrypted or otherwise protected by the public sender configuration, not by internal alert destination records.
 - Admin APIs may expose public sender readiness and masked addresses, but not raw SMTP passwords or subscriber tokens.
 - Delivery records store public subscriber ids, public incident ids, public update ids, provider message ids, status, attempts, and sanitized errors only.
 
