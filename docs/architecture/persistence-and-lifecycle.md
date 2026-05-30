@@ -125,6 +125,16 @@ Stores API-managed notification targets:
 
 Secret fields are stored for delivery but redacted from API responses.
 
+### `audit_events`
+
+Stores durable audit records for lifecycle-sensitive operator actions:
+
+- action name;
+- actor id and actor type when known;
+- affected object type and id;
+- safe metadata JSON;
+- created timestamp.
+
 ### `data_lifecycle_settings`
 
 Stores singleton lifecycle settings:
@@ -135,6 +145,27 @@ Stores singleton lifecycle settings:
 - optional rollup retention;
 - archive schedule;
 - last rollup/archive run metadata.
+
+The default row is created on first read when it is missing.
+
+Implemented validation:
+
+- `raw_report_hot_days` must be at least 1;
+- `archive_dir` must be non-empty when raw report archiving is enabled;
+- `rollups_enabled` must be true when raw report archiving is enabled;
+- `rollup_retention_days` must be null or at least 1;
+- `archive_schedule` must be `daily` or `manual`.
+
+Current archive path policy:
+
+- the default archive directory is `<data_dir>/archive`;
+- Core stores and uses the configured archive directory string as provided;
+- relative and absolute archive directories are currently accepted;
+- traversal or external-path rejection is not implemented yet.
+
+The stricter archive-directory policy is tracked separately from this architecture
+record. Until that lands, do not describe the archive directory as sandboxed or
+normalized by Core.
 
 ## Migrations
 
@@ -154,12 +185,15 @@ flowchart TD
   Next --> Done["Database ready"]
 ```
 
-Current migrations:
+Current lifecycle-relevant migrations:
 
 - `000001_init_schema.up.sql`: base Server, report, monitor, incident, and alert tables.
 - `000002_data_lifecycle_settings.up.sql`: lifecycle settings.
 - `000003_monitor_uptime_rollups.up.sql`: daily uptime rollups.
 - `000004_incident_reconciliation_state.up.sql`: monitor incident-state cache and active incident lookup index.
+- `000014_audit_events.up.sql`: durable audit event table.
+- `000023_incident_lifecycle_fields.up.sql`: structured incident lifecycle fields.
+- `000024_agent_token_lifecycle.up.sql`: Server token lifecycle metadata.
 
 ## Uptime Rollups
 
@@ -170,6 +204,8 @@ Manual action:
 - `POST /v1/settings/data-lifecycle/actions/rollup`
 - Optional body: `{"date":"YYYY-MM-DD"}`
 - If no date is given, Core rolls up yesterday.
+- The manual endpoint can be run even when automatic rollups are disabled.
+- `last_rollup_run_at` is updated only for the default yesterday rollup path.
 
 ```mermaid
 flowchart TD
@@ -201,6 +237,10 @@ Archive behavior:
 - copies old `agent_reports` and `monitor_reports` into the archive database;
 - deletes copied rows from the hot database inside the Core database transaction;
 - records last archive run status and error.
+
+The archive action currently records `suppressed`, `success`, or `failed` status
+on the settings row. A run with no matching old reports is still recorded as a
+successful archive run with zero copied reports.
 
 ```mermaid
 flowchart TD
@@ -238,6 +278,44 @@ flowchart TD
 ```
 
 Server uptime averages each active monitor uptime percentage and uses the first monitor's daily bucket shape as the current implementation.
+
+## Automatic Lifecycle Scheduler
+
+Core starts a data lifecycle scheduler with the API process.
+
+Scheduler behavior:
+
+- runs once at Core startup and then on `ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS`;
+- uses a one-hour interval when the configured interval is zero or negative;
+- skips all automatic lifecycle jobs when `archive_schedule` is `manual`;
+- when `archive_schedule` is `daily`, runs at most one rollup and one archive per calendar day;
+- runs automatic rollups only when `rollups_enabled` is true;
+- runs automatic archives only when `archive_raw_reports` is true.
+
+Manual rollup and archive endpoints are independent of the scheduler cadence.
+
+## Settings Audit And Logs
+
+Current implemented visibility:
+
+- the event log derives `retention_rollup_ran` from `last_rollup_run_at`;
+- the event log derives `retention_archive_ran` from `last_archive_run_at` and `last_archive_status`;
+- Console Logs can filter those lifecycle event types through the regular event log filters.
+
+Open readiness gaps:
+
+- updating data lifecycle settings does not yet write a durable `audit_events` row;
+- manual rollup and archive actions do not yet write durable `audit_events` rows;
+- archive path errors may include filesystem details from the underlying operation;
+- Console does not yet require an archive confirmation step with cutoff and destination details.
+
+These gaps are implementation tickets, not accepted architecture behavior.
+
+## Settings PR Closeout
+
+Settings readiness PRs should use
+[`docs/plans/settings-pr-closeout-checklist.md`](../plans/settings-pr-closeout-checklist.md)
+before review.
 
 ## Generated OpenAPI Contract
 
