@@ -1009,6 +1009,12 @@ definitions:
         type: string
       status_reason:
         type: string
+      uptime:
+        $ref: '#/definitions/api.StatusPagePublicUptimeResponse'
+      uptime_history:
+        items:
+          $ref: '#/definitions/api.StatusPagePublicUptimeBucketResponse'
+        type: array
     type: object
   api.StatusPagePublicHistoryResponse:
     properties:
@@ -1127,6 +1133,8 @@ definitions:
     properties:
       date:
         type: string
+      status:
+        type: string
       uptime_display:
         type: string
       uptime_ratio:
@@ -1134,6 +1142,8 @@ definitions:
     type: object
   api.StatusPagePublicUptimeResponse:
     properties:
+      status:
+        type: string
       uptime_display:
         type: string
       uptime_ratio:
