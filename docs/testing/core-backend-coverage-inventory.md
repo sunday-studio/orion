@@ -1,6 +1,6 @@
 # Core Backend Coverage Inventory
 
-Last audited: 2026-05-29
+Last audited: 2026-05-30
 
 This inventory maps the current Core backend surface to existing automated coverage and follow-up
 tickets. It is intentionally stricter than package line coverage: a row is only `covered` when the
@@ -77,9 +77,9 @@ Source routes are registered in `apps/core/internal/api/routes.go` and
 | --- | --- | --- | --- | --- |
 | `POST /v1/register` | `registerAgent` | Covered | `apps/core/internal/api/integration_test.go` `TestRegisterReportListFlow`, token lifecycle coverage, monitor flow tests. | T-20260529-190857-02c8 for deeper service-level token boundaries |
 | `POST /v1/auth/login` | `login` | Covered | `apps/core/internal/api/integration_test.go` `TestLoginRequiresConfiguredFrontendAuth`, `TestLoginReturnsTokenForValidConfiguredCredentials`; `apps/core/internal/api/status_pages_test.go` auth boundary for admin routes. | T-20260529-190857-02c8 |
-| `POST /v1/heartbeats/:token` | `receiveHeartbeatSuccess` | Covered | `apps/core/internal/api/integration_test.go` `TestHeartbeatMonitorTokenAndIngestRoutes`; worker missed heartbeat tests in `apps/core/internal/worker/app_test.go`. | None |
-| `POST /v1/heartbeats/:token/success` | `receiveHeartbeatSuccess` | Covered | `apps/core/internal/api/integration_test.go` `TestHeartbeatMonitorTokenAndIngestRoutes`. | None |
-| `POST /v1/heartbeats/:token/failure` | `receiveHeartbeatFailure` | Covered | `apps/core/internal/api/integration_test.go` `TestHeartbeatMonitorTokenAndIngestRoutes`. | None |
+| `POST /v1/heartbeats/:token` | `receiveHeartbeatSuccess` | Covered | `apps/core/internal/api/core_monitor_api_test.go` `TestHeartbeatMonitorTokenAndIngestRoutes`; worker missed heartbeat tests in `apps/core/internal/worker/app_test.go`. | None |
+| `POST /v1/heartbeats/:token/success` | `receiveHeartbeatSuccess` | Covered | `apps/core/internal/api/core_monitor_api_test.go` `TestHeartbeatMonitorTokenAndIngestRoutes`. | None |
+| `POST /v1/heartbeats/:token/failure` | `receiveHeartbeatFailure` | Covered | `apps/core/internal/api/core_monitor_api_test.go` `TestHeartbeatMonitorTokenAndIngestRoutes`. | None |
 
 ### V1 Frontend Agent And Monitor Routes
 
@@ -88,66 +88,63 @@ Source routes are registered in `apps/core/internal/api/routes.go` and
 | `GET /v1/agents` | `listAgents` | Covered | `apps/core/internal/api/integration_test.go` `TestRegisterReportListFlow`, auth middleware coverage via status page admin auth test. | T-20260529-190828-4b8e |
 | `GET /v1/agents/summary` | `getAgentSummary` | Covered | `apps/core/internal/api/integration_test.go` `TestRegisterReportListFlow`. | T-20260529-190828-4b8e |
 | `GET /v1/agents/:id` | `getAgentDetail` | Covered | `apps/core/internal/api/integration_test.go` `TestRegisterReportListFlow`, not-found tests. | T-20260529-190828-4b8e |
-| `GET /v1/agents/:id/health` | `getAgentHealth` | Covered | `apps/core/internal/api/integration_test.go` agent health split and stale-agent tests. | T-20260529-190828-4b8e |
+| `GET /v1/agents/:id/health` | `getAgentHealth` | Covered | `apps/core/internal/api/agent_monitor_api_test.go` agent health split and stale-agent tests. | T-20260529-190828-4b8e |
 | `GET /v1/agents/:id/reports` | `getAgentReports` | Covered | `apps/core/internal/api/integration_test.go` register/report/list flow. | T-20260529-190828-4b8e |
 | `GET /v1/agents/:id/service-logs` | `listAgentServiceLogs` | Covered | `apps/core/internal/api/integration_test.go` `TestAgentServiceLogBatchFlow`. | T-20260529-190828-4b8e |
 | `GET /v1/agents/:id/uptime` | `getAgentUptime` | Covered | `apps/core/internal/api/integration_test.go` register/report/list flow; service aggregation in `apps/core/internal/service/report-service_test.go`. | T-20260529-190828-4b8e |
-| `GET /v1/agents/:id/monitors` | `listMonitors` | Covered | `apps/core/internal/api/integration_test.go` list monitor count, filters, and not-found tests. | T-20260529-190828-4b8e |
+| `GET /v1/agents/:id/monitors` | `listMonitors` | Covered | `apps/core/internal/api/agent_monitor_api_test.go` list monitor count, filters, and not-found tests. | T-20260529-190828-4b8e |
 | `GET /v1/agents/:id/token/status` | `getAgentTokenStatus` | Covered | `apps/core/internal/api/integration_test.go` `TestAgentTokenLifecycleFlow`. | T-20260529-190857-02c8 |
 | `POST /v1/agents/:agent_id/token/rotate` | `rotateAgentToken` | Covered | `apps/core/internal/api/integration_test.go` `TestAgentTokenLifecycleFlow`. | T-20260529-190857-02c8 |
 | `POST /v1/agents/:agent_id/token/revoke` | `revokeAgentToken` | Covered | `apps/core/internal/api/integration_test.go` `TestAgentTokenLifecycleFlow`. | T-20260529-190857-02c8 |
 | `POST /v1/agents/:agent_id/token/reissue` | `reissueAgentToken` | Covered | `apps/core/internal/api/integration_test.go` `TestAgentTokenLifecycleFlow`. | T-20260529-190857-02c8 |
-| `GET /v1/monitors` | `listAllMonitors` | Covered | `apps/core/internal/api/integration_test.go` monitor summary, owner/source, alias, and computed health filter tests. | T-20260529-190828-4b8e |
-| `POST /v1/monitors` | `createCoreMonitor` | Covered | `apps/core/internal/api/integration_test.go` core monitor lifecycle, unsupported kind, invalid config, target policy, catalog config, and heartbeat tests. | T-20260529-190857-16a8 |
-| `GET /v1/monitors/summary` | `getMonitorSummary` | Covered | `apps/core/internal/api/integration_test.go` `TestListAllMonitorsAndSummaryUseDerivedStaleState`. | T-20260529-190828-4b8e |
-| `PATCH /v1/monitors/:id` | `updateCoreMonitor` | Covered | `apps/core/internal/api/integration_test.go` `TestCoreMonitorManagementLifecycle`. | T-20260529-190857-16a8 |
-| `DELETE /v1/monitors/:id` | `deleteCoreMonitor` | Covered | `apps/core/internal/api/integration_test.go` `TestCoreMonitorManagementLifecycle`. | T-20260529-190857-16a8 |
-| `GET /v1/monitors/:id/config` | `getCoreMonitorConfig` | Covered | `apps/core/internal/api/integration_test.go` `TestCoreMonitorManagementLifecycle`. | T-20260529-190857-16a8 |
-| `POST /v1/monitors/:id/pause` | `pauseCoreMonitor` | Covered | `apps/core/internal/api/integration_test.go` `TestCoreMonitorManagementLifecycle`. | T-20260529-190857-16a8 |
-| `POST /v1/monitors/:id/resume` | `resumeCoreMonitor` | Covered | `apps/core/internal/api/integration_test.go` `TestCoreMonitorManagementLifecycle`. | T-20260529-190857-16a8 |
-| `POST /v1/monitors/:id/test` | `testCoreMonitor` | Covered | `apps/core/internal/api/integration_test.go` `TestCoreMonitorManagementLifecycle`, target policy tests. | T-20260529-190857-16a8 |
-| `GET /v1/monitors/:id` | `getMonitorDetail` | Covered | `apps/core/internal/api/integration_test.go` monitor detail consistency and severity override tests. | T-20260529-190828-4b8e |
-| `GET /v1/monitors/:id/uptime` | `getMonitorUptime` | Covered | `apps/core/internal/api/integration_test.go` monitor detail/history flow; `apps/core/internal/service/report-service_test.go`. | T-20260529-190828-4b8e |
-| `GET /v1/monitors/:id/history` | `getMonitorHistory` | Covered | `apps/core/internal/api/integration_test.go` monitor history not-found and flow tests. | T-20260529-190828-4b8e |
+| `GET /v1/monitors` | `listAllMonitors` | Covered | `apps/core/internal/api/agent_monitor_api_test.go` monitor summary, owner/source, alias, and computed health filter tests. | T-20260529-190828-4b8e |
+| `POST /v1/monitors` | `createCoreMonitor` | Covered | `apps/core/internal/api/core_monitor_api_test.go` core monitor lifecycle, unsupported kind, invalid config, target policy, catalog config, and heartbeat tests. | T-20260529-190857-16a8 |
+| `GET /v1/monitors/summary` | `getMonitorSummary` | Covered | `apps/core/internal/api/agent_monitor_api_test.go` `TestListAllMonitorsAndSummaryUseDerivedStaleState`. | T-20260529-190828-4b8e |
+| `PATCH /v1/monitors/:id` | `updateCoreMonitor` | Covered | `apps/core/internal/api/core_monitor_api_test.go` `TestCoreMonitorManagementLifecycle`. | T-20260529-190857-16a8 |
+| `DELETE /v1/monitors/:id` | `deleteCoreMonitor` | Covered | `apps/core/internal/api/core_monitor_api_test.go` `TestCoreMonitorManagementLifecycle`. | T-20260529-190857-16a8 |
+| `GET /v1/monitors/:id/config` | `getCoreMonitorConfig` | Covered | `apps/core/internal/api/core_monitor_api_test.go` `TestCoreMonitorManagementLifecycle`. | T-20260529-190857-16a8 |
+| `POST /v1/monitors/:id/pause` | `pauseCoreMonitor` | Covered | `apps/core/internal/api/core_monitor_api_test.go` `TestCoreMonitorManagementLifecycle`. | T-20260529-190857-16a8 |
+| `POST /v1/monitors/:id/resume` | `resumeCoreMonitor` | Covered | `apps/core/internal/api/core_monitor_api_test.go` `TestCoreMonitorManagementLifecycle`. | T-20260529-190857-16a8 |
+| `POST /v1/monitors/:id/test` | `testCoreMonitor` | Covered | `apps/core/internal/api/core_monitor_api_test.go` `TestCoreMonitorManagementLifecycle`, target policy tests. | T-20260529-190857-16a8 |
+| `GET /v1/monitors/:id` | `getMonitorDetail` | Covered | `apps/core/internal/api/agent_monitor_api_test.go` monitor detail consistency and severity override tests. | T-20260529-190828-4b8e |
+| `GET /v1/monitors/:id/uptime` | `getMonitorUptime` | Covered | `apps/core/internal/api/agent_monitor_api_test.go` monitor detail/history flow; `apps/core/internal/service/report-service_test.go`. | T-20260529-190828-4b8e |
+| `GET /v1/monitors/:id/history` | `getMonitorHistory` | Covered | `apps/core/internal/api/agent_monitor_api_test.go` monitor history not-found and flow tests. | T-20260529-190828-4b8e |
 
 ### V1 Frontend Health Diagnostics Incident Alert Routes
 
 | Route | Handler | Status | Existing coverage | Follow-up |
 | --- | --- | --- | --- | --- |
-| `GET /v1/health/summary` | `getSystemHealth` | Covered | `apps/core/internal/api/integration_test.go` `TestSystemHealthSeparatesStaleMonitorCounts`. | None |
-| `GET /v1/health/issues` | `getHealthIssues` | Covered | `apps/core/internal/api/integration_test.go` health issue and stale monitor scenarios. | None |
+| `GET /v1/health/summary` | `getSystemHealth` | Covered | `apps/core/internal/api/agent_monitor_api_test.go` `TestSystemHealthSeparatesStaleMonitorCounts`. | None |
+| `GET /v1/health/issues` | `getHealthIssues` | Covered | `apps/core/internal/api/agent_monitor_api_test.go` health issue and stale monitor scenarios. | None |
 | `GET /v1/diagnostics/core` | `getCoreDiagnostics` | Covered | `apps/core/internal/api/integration_test.go` `TestCoreDiagnosticsReportsIngestionMetrics`. | T-20260529-191329-9a02 for direct diagnostics service tests |
 | `GET /v1/diagnostics/core-worker` | `getCoreWorkerDiagnostics` | Covered | `apps/core/internal/api/integration_test.go` `TestCoreWorkerDiagnosticsDoNotAffectAPIHealth`; `apps/core/internal/service/worker-diagnostics-service_test.go`. | None |
-| `GET /v1/incidents` | `listIncidents` | Covered | `apps/core/internal/api/integration_test.go` list, detail, timeline, lifecycle, candidates, maintenance, and incident event tests. | T-20260529-190828-a8e8 |
-| `GET /v1/incidents/:id` | `getIncidentDetail` | Covered | `apps/core/internal/api/integration_test.go` `TestIncidentDetailAndTimelineEndpoints` and severity override tests. | T-20260529-190828-a8e8 |
-| `GET /v1/incidents/:id/timeline` | `getIncidentTimeline` | Covered | `apps/core/internal/api/integration_test.go` `TestIncidentDetailAndTimelineEndpoints`. | T-20260529-190828-a8e8 |
-| `POST /v1/incidents/:id/acknowledge` | `acknowledgeIncident` | Covered | `apps/core/internal/api/integration_test.go` `TestManualIncidentActionsAcknowledgeAndResolve`. | T-20260529-190828-a8e8 |
-| `POST /v1/incidents/:id/resolve` | `resolveIncident` | Covered | `apps/core/internal/api/integration_test.go` `TestManualIncidentActionsAcknowledgeAndResolve`. | T-20260529-190828-a8e8 |
-| `POST /v1/incidents/:id/cover` | `coverIncident` | Covered | `apps/core/internal/api/integration_test.go` manual and covered incident suppression tests. | T-20260529-190828-a8e8 |
-| `POST /v1/incidents/:id/reopen` | `reopenIncident` | Covered | `apps/core/internal/api/integration_test.go` manual incident action tests. | T-20260529-190828-a8e8 |
-| `GET /v1/incidents/candidates` | `getIncidentCandidates` | Covered | `apps/core/internal/api/integration_test.go` candidate and maintenance suppression tests. | T-20260529-190828-a8e8 |
-| `GET /v1/alerts/deliveries` | `listAlertDeliveries` | Covered | `apps/core/internal/api/integration_test.go` alert delivery list and filter tests. | T-20260529-190857-bb83 |
-| `GET /v1/alerts/channels` | `listAlertChannels` | Covered | `apps/core/internal/api/integration_test.go` webhook URL redaction and channel list tests. | T-20260529-190857-bb83 |
-| `POST /v1/alerts/channels` | `createAlertChannel` | Covered | `apps/core/internal/api/integration_test.go` webhook and chat channel write endpoint tests. | T-20260529-190857-bb83 |
-| `PATCH /v1/alerts/channels/:id` | `updateAlertChannel` | Covered | `apps/core/internal/api/integration_test.go` webhook and chat update tests. | T-20260529-190857-bb83 |
-| `POST /v1/alerts/channels/:id/test` | `testAlertChannel` | Covered | `apps/core/internal/api/integration_test.go` webhook test endpoint; `apps/core/internal/service/alert-service_test.go` channel tests. | T-20260529-190857-bb83 |
-| `DELETE /v1/alerts/channels/:id` | `deleteAlertChannel` | Covered | `apps/core/internal/api/integration_test.go` channel write endpoint tests. | T-20260529-190857-bb83 |
-| `GET /v1/alerts/smtp-services` | `listAlertSMTPServices` | Partial | Covered by `apps/core/internal/api/integration_test.go` SMTP service flow, but webhook-only alert simplification may remove this surface. | G-20260529-190307-7def and T-20260529-190857-bb83 |
-| `POST /v1/alerts/smtp-services` | `createAlertSMTPService` | Partial | Covered by SMTP service flow and service connectivity tests; future surface ownership is uncertain during webhook-only cleanup. | G-20260529-190307-7def and T-20260529-190857-bb83 |
-| `PATCH /v1/alerts/smtp-services/:id` | `updateAlertSMTPService` | Partial | API flow covers create/list/delete/test more strongly than update-specific assertions. | G-20260529-190307-7def and T-20260529-190857-bb83 |
-| `POST /v1/alerts/smtp-services/:id/test` | `testAlertSMTPService` | Covered | `apps/core/internal/api/integration_test.go` service test endpoint and sanitized failure tests; `apps/core/internal/service/alert-service_test.go`. | T-20260529-190857-bb83 |
-| `DELETE /v1/alerts/smtp-services/:id` | `deleteAlertSMTPService` | Partial | Covered by API flow, but lifecycle edge cases are not isolated. | G-20260529-190307-7def and T-20260529-190857-bb83 |
-| `GET /v1/alerts/email-destinations` | `listAlertEmailDestinations` | Partial | Covered inside email destination flow, but update/list filter isolation is thin. | G-20260529-190307-7def and T-20260529-190857-bb83 |
-| `POST /v1/alerts/email-destinations` | `createAlertEmailDestination` | Covered | `apps/core/internal/api/integration_test.go` SMTP service and email destination endpoint tests. | T-20260529-190857-bb83 |
-| `PATCH /v1/alerts/email-destinations/:id` | `updateAlertEmailDestination` | Partial | No strong update-specific assertions were found beyond create/list/test/delete flow. | G-20260529-190307-7def and T-20260529-190857-bb83 |
-| `POST /v1/alerts/email-destinations/:id/test` | `testAlertEmailDestination` | Covered | `apps/core/internal/api/integration_test.go` destination test endpoint; `apps/core/internal/service/alert-service_test.go`. | T-20260529-190857-bb83 |
-| `DELETE /v1/alerts/email-destinations/:id` | `deleteAlertEmailDestination` | Covered | `apps/core/internal/api/integration_test.go` email destination flow. | T-20260529-190857-bb83 |
-| `GET /v1/alerts/routes` | `listAlertRoutes` | Covered | `apps/core/internal/api/integration_test.go` alert route write and dry-run endpoint tests. | T-20260529-190857-bb83 |
-| `POST /v1/alerts/routes` | `createAlertRoute` | Covered | `apps/core/internal/api/integration_test.go` alert route write tests. | T-20260529-190857-bb83 |
-| `POST /v1/alerts/routes/dry-run` | `dryRunAlertRoutes` | Covered | `apps/core/internal/api/integration_test.go` dry-run tests; `apps/core/internal/service/alert-service_test.go` route dry-run explanations. | T-20260529-190857-bb83 |
-| `PATCH /v1/alerts/routes/:id` | `updateAlertRoute` | Covered | `apps/core/internal/api/integration_test.go` alert route update tests. | T-20260529-190857-bb83 |
-| `DELETE /v1/alerts/routes/:id` | `deleteAlertRoute` | Covered | `apps/core/internal/api/integration_test.go` alert route delete tests. | T-20260529-190857-bb83 |
-| `GET /v1/alerts/rules` | `listAlertRules` | Covered | `apps/core/internal/api/integration_test.go` alert read endpoint test calls `/v1/alerts/rules`. | T-20260529-190857-bb83 |
+| `GET /v1/incidents` | `listIncidents` | Covered | `apps/core/internal/api/incident_api_test.go` list, detail, timeline, lifecycle, candidates, maintenance, and incident event tests. | T-20260529-190828-a8e8 |
+| `GET /v1/incidents/:id` | `getIncidentDetail` | Covered | `apps/core/internal/api/incident_api_test.go` `TestIncidentDetailAndTimelineEndpoints` and severity override tests. | T-20260529-190828-a8e8 |
+| `GET /v1/incidents/:id/timeline` | `getIncidentTimeline` | Covered | `apps/core/internal/api/incident_api_test.go` `TestIncidentDetailAndTimelineEndpoints`. | T-20260529-190828-a8e8 |
+| `POST /v1/incidents/:id/acknowledge` | `acknowledgeIncident` | Covered | `apps/core/internal/api/incident_api_test.go` `TestManualIncidentActionsAcknowledgeAndResolve`. | T-20260529-190828-a8e8 |
+| `POST /v1/incidents/:id/resolve` | `resolveIncident` | Covered | `apps/core/internal/api/incident_api_test.go` `TestManualIncidentActionsAcknowledgeAndResolve`. | T-20260529-190828-a8e8 |
+| `POST /v1/incidents/:id/cover` | `coverIncident` | Covered | `apps/core/internal/api/incident_api_test.go` manual and covered incident suppression tests. | T-20260529-190828-a8e8 |
+| `POST /v1/incidents/:id/reopen` | `reopenIncident` | Covered | `apps/core/internal/api/incident_api_test.go` manual incident action tests. | T-20260529-190828-a8e8 |
+| `GET /v1/incidents/candidates` | `getIncidentCandidates` | Covered | `apps/core/internal/api/incident_api_test.go` candidate and maintenance suppression tests. | T-20260529-190828-a8e8 |
+| `GET /v1/alerts/deliveries` | `listAlertDeliveries` | Covered | `apps/core/internal/api/alert_api_test.go` alert delivery list and filter tests. | T-20260529-190857-bb83 |
+| `GET /v1/alerts/channels` | `listAlertChannels` | Covered | `apps/core/internal/api/alert_api_test.go` webhook URL redaction, webhook-only filtering, and channel list tests. | T-20260529-190857-bb83 |
+| `POST /v1/alerts/channels` | `createAlertChannel` | Covered | `apps/core/internal/api/alert_api_test.go` webhook write and non-webhook rejection tests. | T-20260529-190857-bb83 |
+| `PATCH /v1/alerts/channels/:id` | `updateAlertChannel` | Covered | `apps/core/internal/api/alert_api_test.go` webhook update tests. | T-20260529-190857-bb83 |
+| `POST /v1/alerts/channels/:id/test` | `testAlertChannel` | Covered | `apps/core/internal/api/alert_api_test.go` webhook test endpoint; `apps/core/internal/service/alert-service_test.go` channel tests. | T-20260529-190857-bb83 |
+| `DELETE /v1/alerts/channels/:id` | `deleteAlertChannel` | Covered | `apps/core/internal/api/alert_api_test.go` channel write endpoint tests. | T-20260529-190857-bb83 |
+| Removed SMTP and email destination routes | Router fallback | Covered | `apps/core/internal/api/alert_api_test.go` `TestRemovedAlertDestinationEndpointsAreUnavailable` asserts removed endpoints return 404. | None |
+| `GET /v1/alerts/routes` | `listAlertRoutes` | Covered | `apps/core/internal/api/alert_api_test.go` alert route write and dry-run endpoint tests. | T-20260529-190857-bb83 |
+| `POST /v1/alerts/routes` | `createAlertRoute` | Covered | `apps/core/internal/api/alert_api_test.go` alert route write tests. | T-20260529-190857-bb83 |
+| `POST /v1/alerts/routes/dry-run` | `dryRunAlertRoutes` | Covered | `apps/core/internal/api/alert_api_test.go` dry-run tests; `apps/core/internal/service/alert-service_test.go` route dry-run explanations. | T-20260529-190857-bb83 |
+| `PATCH /v1/alerts/routes/:id` | `updateAlertRoute` | Covered | `apps/core/internal/api/alert_api_test.go` alert route update tests. | T-20260529-190857-bb83 |
+| `DELETE /v1/alerts/routes/:id` | `deleteAlertRoute` | Covered | `apps/core/internal/api/alert_api_test.go` alert route delete tests. | T-20260529-190857-bb83 |
+| `GET /v1/alerts/rules` | `listAlertRules` | Covered | `apps/core/internal/api/alert_api_test.go` alert rule write, list, enable/disable, update, dry-run, and delete tests. | T-20260529-190857-bb83 |
+| `POST /v1/alerts/rules` | `createAlertRule` | Covered | `apps/core/internal/api/alert_api_test.go` rule creation and webhook-only channel validation tests. | T-20260529-190857-bb83 |
+| `POST /v1/alerts/rules/dry-run` | `dryRunAlertRules` | Covered | `apps/core/internal/api/alert_api_test.go` rule dry-run test covers rule-named response fields and no side effects. | T-20260529-190857-bb83 |
+| `PATCH /v1/alerts/rules/:id` | `updateAlertRule` | Covered | `apps/core/internal/api/alert_api_test.go` update and invalid `event_types` rejection tests. | T-20260529-190857-bb83 |
+| `DELETE /v1/alerts/rules/:id` | `deleteAlertRule` | Covered | `apps/core/internal/api/alert_api_test.go` rule delete test. | T-20260529-190857-bb83 |
+| `POST /v1/alerts/rules/:id/enable` | `enableAlertRule` | Covered | `apps/core/internal/api/alert_api_test.go` rule enable test. | T-20260529-190857-bb83 |
+| `POST /v1/alerts/rules/:id/disable` | `disableAlertRule` | Covered | `apps/core/internal/api/alert_api_test.go` rule disable test. | T-20260529-190857-bb83 |
 
 ### V1 Status Page Admin Routes
 
@@ -181,21 +178,21 @@ Source routes are registered in `apps/core/internal/api/routes.go` and
 | --- | --- | --- | --- | --- |
 | `GET /v1/events` | `listOrionEvents` | Covered | `apps/core/internal/api/integration_test.go` `TestListOrionEvents`. | T-20260529-190828-a8e8 |
 | `GET /v1/logs/service` | `listServiceLogs` | Covered | `apps/core/internal/api/integration_test.go` `TestAgentServiceLogBatchFlow`; service filters in `apps/core/internal/service/service-log-service_test.go`. | None |
-| `GET /v1/settings/data-lifecycle` | `getDataLifecycleSettings` | Covered | `apps/core/internal/api/integration_test.go` `TestDataLifecycleSettingsFlow`; `apps/core/internal/service/settings-service_test.go`. | T-20260529-190828-4b8e |
-| `PUT /v1/settings/data-lifecycle` | `updateDataLifecycleSettings` | Covered | `apps/core/internal/api/integration_test.go` `TestDataLifecycleSettingsFlow`; service validation tests. | T-20260529-190828-4b8e |
-| `POST /v1/settings/data-lifecycle/actions/rollup` | `runDataLifecycleRollup` | Covered | `apps/core/internal/api/integration_test.go` `TestDataLifecycleActionsFlow`; `apps/core/internal/service/rollup-service_test.go`. | T-20260529-190857-bb83 |
-| `POST /v1/settings/data-lifecycle/actions/archive` | `runDataLifecycleArchive` | Covered | `apps/core/internal/api/integration_test.go` `TestDataLifecycleActionsFlow`; `apps/core/internal/service/archive-service_test.go`. | T-20260529-190857-bb83 |
+| `GET /v1/settings/data-lifecycle` | `getDataLifecycleSettings` | Covered | `apps/core/internal/api/settings_api_test.go` `TestDataLifecycleSettingsFlow`; `apps/core/internal/service/settings-service_test.go`. | T-20260529-190828-4b8e |
+| `PUT /v1/settings/data-lifecycle` | `updateDataLifecycleSettings` | Covered | `apps/core/internal/api/settings_api_test.go` `TestDataLifecycleSettingsFlow`; service validation tests. | T-20260529-190828-4b8e |
+| `POST /v1/settings/data-lifecycle/actions/rollup` | `runDataLifecycleRollup` | Covered | `apps/core/internal/api/settings_api_test.go` `TestDataLifecycleActionsFlow`; `apps/core/internal/service/rollup-service_test.go`. | T-20260529-190857-bb83 |
+| `POST /v1/settings/data-lifecycle/actions/archive` | `runDataLifecycleArchive` | Covered | `apps/core/internal/api/settings_api_test.go` `TestDataLifecycleActionsFlow`; `apps/core/internal/service/archive-service_test.go`. | T-20260529-190857-bb83 |
 
 ### V1 Agent-Protected Routes
 
 | Route | Handler | Status | Existing coverage | Follow-up |
 | --- | --- | --- | --- | --- |
-| `POST /v1/agents/:agent_id/register-monitor` | `registerMonitor` | Covered | `apps/core/internal/api/integration_test.go` register monitor ownership and token boundary tests. | T-20260529-190857-02c8 |
-| `POST /v1/agents/:agent_id/unregister-monitor` | `unregisterMonitor` | Covered | `apps/core/internal/api/integration_test.go` unregister cleanup and route agent ID tests. | T-20260529-190857-02c8 |
-| `POST /v1/agents/:agent_id/report` | `receiveAgentReport` | Covered | `apps/core/internal/api/integration_test.go` report ingestion, diagnostics, stale reconciliation, and auth ownership tests. | T-20260529-190857-02c8 |
+| `POST /v1/agents/:agent_id/register-monitor` | `registerMonitor` | Covered | `apps/core/internal/api/agent_monitor_api_test.go` register monitor ownership and token boundary tests. | T-20260529-190857-02c8 |
+| `POST /v1/agents/:agent_id/unregister-monitor` | `unregisterMonitor` | Covered | `apps/core/internal/api/agent_monitor_api_test.go` unregister cleanup and route agent ID tests. | T-20260529-190857-02c8 |
+| `POST /v1/agents/:agent_id/report` | `receiveAgentReport` | Covered | `apps/core/internal/api/agent_monitor_api_test.go` report ingestion, diagnostics, stale reconciliation, and auth ownership tests. | T-20260529-190857-02c8 |
 | `POST /v1/agents/:agent_id/logs/batch` | `receiveAgentLogBatch` | Covered | `apps/core/internal/api/integration_test.go` `TestAgentServiceLogBatchFlow`; `apps/core/internal/service/service-log-service_test.go`. | None |
-| `POST /v1/agents/:agent_id/:monitor_id/report` | `receiveMonitorReport` | Covered | `apps/core/internal/api/integration_test.go` monitor report ownership, history, incident, and diagnostics tests. | T-20260529-190857-02c8 |
-| `PUT /v1/agents/:agent_id/maintenance` | `setMaintenanceMode` | Covered | `apps/core/internal/api/integration_test.go` maintenance suppression tests. | T-20260529-190857-02c8 |
+| `POST /v1/agents/:agent_id/:monitor_id/report` | `receiveMonitorReport` | Covered | `apps/core/internal/api/agent_monitor_api_test.go` and `apps/core/internal/api/incident_api_test.go` cover monitor report ownership, history, incident, and diagnostics tests. | T-20260529-190857-02c8 |
+| `PUT /v1/agents/:agent_id/maintenance` | `setMaintenanceMode` | Covered | `apps/core/internal/api/incident_api_test.go` maintenance suppression tests. | T-20260529-190857-02c8 |
 
 ## Service Coverage Map
 
@@ -209,7 +206,7 @@ Source routes are registered in `apps/core/internal/api/routes.go` and
 | `IncidentService` | `SetDiagnostics`, `ReconcileMonitorReport`, `ReconcileStaleMonitors`, `AcknowledgeIncident`, `ResolveIncident`, `CoverIncident`, `ReopenIncident`, `ResolveMonitorRemoved` | Partial | API integration tests cover incident reconciliation and lifecycle; no focused `incident-service_test.go` was found. | T-20260529-190828-a8e8, T-20260529-191329-9a02 |
 | `CoreMonitorManagementService` | `CreateCoreMonitor`, `UpdateCoreMonitor`, `DeleteCoreMonitor`, `PauseCoreMonitor`, `ResumeCoreMonitor`, `GetCoreMonitorConfig`, `GetHeartbeatMonitorByToken`, `RecordHeartbeatSignal`, `ValidateCoreMonitorConfig` | Covered | `apps/core/internal/service/core-monitor-management-service_test.go` covers validation and target policy; API tests cover lifecycle and heartbeat routes. | T-20260529-190857-16a8 for remaining high-risk target/privacy paths |
 | `CoreMonitorSchedulerService` | `ClaimDueCoreMonitorConfigs`, `CompleteCoreMonitorCheck` | Covered | `apps/core/internal/service/core-monitor-scheduler-service_test.go` covers due claims, leases, paused/inactive monitors, heartbeat skips, and completion. | None |
-| `AlertService` | `QueueIncidentNotifications`, `TestChannel`, `TestSMTPService`, `TestEmailDestination`, `ProcessDueDeliveries`, `LoadAlertRouteContext`, `DryRunRoutes` | Covered | `apps/core/internal/service/alert-service_test.go` covers queueing, retries, payloads, signatures, grouping, cooldowns, tests, SMTP, email, and dry-run behavior. | T-20260529-190857-bb83 for data lifecycle and endpoint split work |
+| `AlertService` | `QueueIncidentNotifications`, `TestChannel`, `ProcessDueDeliveries`, `LoadAlertRouteContext`, `DryRunRoutes` | Covered | `apps/core/internal/service/alert-service_test.go` covers queueing, retries, payloads, signatures, grouping, cooldowns, webhook tests, retired delivery suppression, and dry-run behavior. | T-20260529-190857-bb83 for data lifecycle and endpoint split work |
 | `SettingsService` | `GetDataLifecycleSettings`, `UpdateDataLifecycleSettings` | Covered | `apps/core/internal/service/settings-service_test.go` and API settings flow tests. | None |
 | `DataLifecycleSchedulerService` | `Run`, `RunDue` | Covered | `apps/core/internal/service/data-lifecycle-scheduler-service_test.go` covers daily run, manual mode, and once-per-day behavior. | None |
 | `ArchiveService` | `RunRawReportArchive` | Covered | `apps/core/internal/service/archive-service_test.go` covers archival and disabled mode. | T-20260529-190857-bb83 for additional migration/data lifecycle high-risk scenarios |
@@ -239,7 +236,7 @@ Source routes are registered in `apps/core/internal/api/routes.go` and
 | Missed heartbeat reconciliation | heartbeat monitors | Covered | `apps/core/internal/worker/app_test.go` pending, grace window, incident open/recovery, failed signal preservation, paused/deleted/non-heartbeat skips. | None |
 | Alert delivery retry worker path | `AlertService.ProcessDueDeliveries` | Covered | `apps/core/internal/service/alert-service_test.go` due delivery retry tests. | T-20260529-190857-bb83 |
 | Data lifecycle scheduler | daily archive and rollup | Covered | `apps/core/internal/service/data-lifecycle-scheduler-service_test.go`. | None |
-| Manual archive and rollup API jobs | settings actions | Covered | `apps/core/internal/api/integration_test.go` `TestDataLifecycleActionsFlow`; service archive and rollup tests. | T-20260529-190857-bb83 |
+| Manual archive and rollup API jobs | settings actions | Covered | `apps/core/internal/api/settings_api_test.go` `TestDataLifecycleActionsFlow`; service archive and rollup tests. | T-20260529-190857-bb83 |
 | Core worker CLI startup | `apps/core/cmd/worker/main.go` | Missing | No CLI-level worker startup test was found. | T-20260529-191339-c514 |
 
 ## Persistence And Migration Coverage Map
@@ -252,7 +249,7 @@ Source routes are registered in `apps/core/internal/api/routes.go` and
 | Legacy agent report metadata repair | Covered | `apps/core/internal/db/migration_test.go` `TestMigrateRepairsLegacyAgentReportMetadataColumns`. | None |
 | Status page schema and unique indexes | Covered | `apps/core/internal/db/migration_test.go` status page schema and unique index tests; `apps/core/internal/db/status_page_models_test.go`. | None |
 | Migrations `000001` through `000024` as a set | Partial | The suite verifies full application, contiguity, idempotency, selected status page indexes, and one legacy repair; it does not assert every migration's defaults/indexes/compatibility independently. | T-20260529-190857-bb83 |
-| Alert channel, SMTP, email destination migrations | Partial | Covered indirectly by API/service alert tests and full migration application. | G-20260529-190307-7def, T-20260529-190857-bb83 |
+| Alert channel and removed SMTP/email destination migrations | Covered | `apps/core/internal/db/alert_migration_test.go` covers webhook defaults and removed destination schema cleanup; API/service alert tests cover current webhook behavior. | T-20260529-190857-bb83 |
 | Agent token lifecycle migration | Partial | Covered through API token lifecycle flow and full migration application; no migration-specific compatibility test was found. | T-20260529-190857-02c8 |
 | Core monitor config, worker status, heartbeat, and confirmation migrations | Partial | Covered by Core monitor API, scheduler, worker diagnostics, and full migration application; migration-specific default/index assertions are thin. | T-20260529-190857-16a8, T-20260529-190857-bb83 |
 | Incident lifecycle and component impact migrations | Partial | Covered by incident lifecycle/status page tests and full migration application; migration-specific compatibility assertions are thin. | T-20260529-190828-a8e8, T-20260529-190857-bb83 |
@@ -274,9 +271,8 @@ Source routes are registered in `apps/core/internal/api/routes.go` and
    `IncidentService`, `AuthService`, and `RuntimeDiagnosticsService`.
 2. Migration coverage proves global application and selected compatibility, but not every migration's
    default/index/old-row contract.
-3. Startup, fallback, and route drift behavior are not strongly guarded.
-4. Alert email and SMTP route coverage exists, but ownership is unstable while webhook-only alert
-   cleanup is active.
+3. Startup, fallback, route drift, and direct runtime diagnostics boundaries remain the highest
+   backend gaps after the alert webhook cleanup and high-risk coverage PRs.
 
 ## Verification Commands
 
