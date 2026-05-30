@@ -25,7 +25,7 @@ Compose without adopting Prometheus, Postgres, Kubernetes, or a hosted observabi
 
 | Incidents | Servers |
 |---|---|
-| ![Incidents list](assets/incidents-list.png) | ![Servers list](assets/agents-list.png) |
+| ![Incidents list](assets/incidents-list.png) | ![Servers list](assets/servers-list.png) |
 
 | Monitors | Monitor detail |
 |---|---|
@@ -56,6 +56,15 @@ flowchart LR
 - **Core** receives reports, stores data, derives health, manages incidents, and serves the API.
 - **Core monitor worker** executes Core-managed checks and records worker heartbeat diagnostics.
 - **Console** is the web UI for incidents, servers, monitors, alerts, logs, and settings.
+
+## Terminology
+
+Orion uses **Server** for product-facing copy: a monitored Linux or macOS machine with an Orion
+process installed on it. The historical `agent` name remains in compatibility surfaces, including
+the `orion-agent` binary, install assets, API routes such as `/v1/agents`, generated SDK symbols,
+SQLite tables, and existing config/state fields. See
+[Server terminology decision](docs/architecture/server-terminology.md) for the compatibility
+boundary.
 
 Core's HTTP API is the boundary between the backend and user interfaces. The bundled Console is the
 supported UI today. A TUI, automation script, or alternative UI can be built against the API later,
