@@ -60,6 +60,15 @@ type alertRouteDryRunRequest struct {
 	MonitorType string `json:"monitor_type"`
 }
 
+type alertRuleDryRunRequest struct {
+	IncidentID  string `json:"incident_id"`
+	EventType   string `json:"event_type"`
+	Severity    string `json:"severity"`
+	AgentID     string `json:"agent_id"`
+	MonitorID   string `json:"monitor_id"`
+	MonitorType string `json:"monitor_type"`
+}
+
 // listAlertDeliveries retrieves alert delivery attempts.
 // @Summary      List alert deliveries
 // @Description  Get a paginated list of alert delivery attempts
@@ -450,6 +459,10 @@ func (s *Server) createAlertRoute(c *gin.Context) {
 	}
 
 	if err := s.db.Create(&route).Error; err != nil {
+		if isAlertNameConflict(err) {
+			writeAlertNameConflict(c, err, "Alert route name already exists")
+			return
+		}
 		s.logger.Error("Failed to create alert route", "error", err)
 		utils.InternalError(c, "Failed to create alert route", err)
 		return
@@ -547,6 +560,10 @@ func (s *Server) updateAlertRoute(c *gin.Context) {
 	}
 
 	if err := s.db.Save(&route).Error; err != nil {
+		if isAlertNameConflict(err) {
+			writeAlertNameConflict(c, err, "Alert route name already exists")
+			return
+		}
 		s.logger.Error("Failed to update alert route", "error", err)
 		utils.InternalError(c, "Failed to update alert route", err)
 		return
@@ -707,6 +724,10 @@ func (s *Server) createAlertRule(c *gin.Context) {
 	}
 
 	if err := s.db.Create(&rule).Error; err != nil {
+		if isAlertNameConflict(err) {
+			writeAlertNameConflict(c, err, "Alert rule name already exists")
+			return
+		}
 		s.logger.Error("Failed to create alert rule", "error", err)
 		utils.InternalError(c, "Failed to create alert rule", err)
 		return
@@ -749,6 +770,12 @@ func (s *Server) updateAlertRule(c *gin.Context) {
 		utils.BadRequest(c, "Invalid alert rule payload")
 		return
 	}
+	if request.EventTypes != nil {
+		if err := validateAlertEvents(request.EventTypes); err != nil {
+			utils.BadRequest(c, "invalid event_types")
+			return
+		}
+	}
 
 	mergeAlertRuleRequest(&rule, request)
 	if err := validateAlertRule(rule); err != nil {
@@ -765,6 +792,10 @@ func (s *Server) updateAlertRule(c *gin.Context) {
 	}
 
 	if err := s.db.Save(&rule).Error; err != nil {
+		if isAlertNameConflict(err) {
+			writeAlertNameConflict(c, err, "Alert rule name already exists")
+			return
+		}
 		s.logger.Error("Failed to update alert rule", "error", err)
 		utils.InternalError(c, "Failed to update alert rule", err)
 		return
@@ -862,14 +893,14 @@ func (s *Server) setAlertRuleEnabled(c *gin.Context, enabled bool) {
 // @Accept       json
 // @Produce      json
 // @ID           dryRunAlertRules
-// @Param        request  body      alertRouteDryRunRequest  true  "Alert rule dry-run payload"
+// @Param        request  body      alertRuleDryRunRequest  true  "Alert rule dry-run payload"
 // @Success      200      {object}  utils.APIResponse{data=object{dry_run=AlertRuleDryRunResponse}}
 // @Failure      400      {object}  utils.APIResponse
 // @Failure      404      {object}  utils.APIResponse
 // @Failure      500      {object}  utils.APIResponse
 // @Router       /v1/alerts/rules/dry-run [post]
 func (s *Server) dryRunAlertRules(c *gin.Context) {
-	event, ok := s.alertDryRunEventFromRequest(c, "rule")
+	event, ok := s.alertRuleDryRunEventFromRequest(c)
 	if !ok {
 		return
 	}
@@ -1061,12 +1092,59 @@ func (s *Server) alertDryRunEventFromRequest(c *gin.Context, resourceName string
 	return event, true
 }
 
+func (s *Server) alertRuleDryRunEventFromRequest(c *gin.Context) (service.AlertRouteContext, bool) {
+	var request alertRuleDryRunRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		utils.BadRequest(c, "Invalid alert rule dry-run payload")
+		return service.AlertRouteContext{}, false
+	}
+	if !db.ValidAlertEvent(strings.TrimSpace(request.EventType)) {
+		utils.BadRequest(c, "unsupported alert rule event")
+		return service.AlertRouteContext{}, false
+	}
+
+	alertService := service.NewAlertService(s.db, s.logger, s.cfg)
+	event := service.AlertRouteContext{
+		IncidentID:  strings.TrimSpace(request.IncidentID),
+		EventType:   strings.TrimSpace(request.EventType),
+		Severity:    strings.TrimSpace(request.Severity),
+		AgentID:     strings.TrimSpace(request.AgentID),
+		MonitorID:   strings.TrimSpace(request.MonitorID),
+		MonitorType: strings.TrimSpace(request.MonitorType),
+	}
+	if event.IncidentID != "" {
+		loaded, err := alertService.LoadAlertRouteContext(event.IncidentID, event.EventType)
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				utils.NotFound(c, "Incident not found")
+				return service.AlertRouteContext{}, false
+			}
+			s.logger.Error("Failed to load incident for alert rule dry-run", "incident_id", event.IncidentID, "error", err)
+			utils.InternalError(c, "Failed to dry-run alert rules", err)
+			return service.AlertRouteContext{}, false
+		}
+		event = mergeAlertRouteContext(*loaded, event)
+	}
+	return event, true
+}
+
 func writeAlertNameConflict(c *gin.Context, err error, message string) {
-	if err == gorm.ErrDuplicatedKey {
+	if isAlertNameConflict(err) {
 		utils.ErrorResponse(c, http.StatusConflict, message, nil)
 		return
 	}
 	utils.InternalError(c, message, err)
+}
+
+func isAlertNameConflict(err error) bool {
+	if err == nil {
+		return false
+	}
+	if err == gorm.ErrDuplicatedKey {
+		return true
+	}
+	errText := strings.ToLower(err.Error())
+	return strings.Contains(errText, "unique") || strings.Contains(errText, "duplicate")
 }
 
 func alertOptionalSecret(value *string) string {

@@ -316,14 +316,46 @@ definitions:
       updated_at:
         type: string
     type: object
+  api.AlertRuleDestinationDecision:
+    properties:
+      channel_id:
+        type: string
+      channel_name:
+        type: string
+      channel_type:
+        type: string
+      reason:
+        type: string
+      rule_id:
+        type: string
+      rule_name:
+        type: string
+      status:
+        type: string
+    type: object
+  api.AlertRuleDryRunContext:
+    properties:
+      agent_id:
+        type: string
+      event_type:
+        type: string
+      incident_id:
+        type: string
+      monitor_id:
+        type: string
+      monitor_type:
+        type: string
+      severity:
+        type: string
+    type: object
   api.AlertRuleDryRunResponse:
     properties:
       destination_decisions:
         items:
-          $ref: '#/definitions/service.AlertDestinationDecision'
+          $ref: '#/definitions/api.AlertRuleDestinationDecision'
         type: array
       event:
-        $ref: '#/definitions/service.AlertRouteContext'
+        $ref: '#/definitions/api.AlertRuleDryRunContext'
       legacy_fallback:
         type: boolean
       rule_evaluations:
@@ -1265,6 +1297,21 @@ definitions:
         type: array
       suppress:
         type: boolean
+    type: object
+  api.alertRuleDryRunRequest:
+    properties:
+      agent_id:
+        type: string
+      event_type:
+        type: string
+      incident_id:
+        type: string
+      monitor_id:
+        type: string
+      monitor_type:
+        type: string
+      severity:
+        type: string
     type: object
   api.alertRuleRequest:
     properties:
@@ -4238,7 +4285,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/api.alertRouteDryRunRequest'
+          $ref: '#/definitions/api.alertRuleDryRunRequest'
       produces:
       - application/json
       responses:

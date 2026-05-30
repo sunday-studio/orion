@@ -351,12 +351,22 @@ type AlertRouteEvaluationResponse struct {
 
 // AlertRuleDryRunResponse explains rule matching and destination decisions.
 type AlertRuleDryRunResponse struct {
-	Event                service.AlertRouteContext          `json:"event"`
-	LegacyFallback       bool                               `json:"legacy_fallback"`
-	Suppressed           bool                               `json:"suppressed"`
-	SuppressionReason    string                             `json:"suppression_reason,omitempty"`
-	RuleEvaluations      []AlertRuleEvaluationResponse      `json:"rule_evaluations"`
-	DestinationDecisions []service.AlertDestinationDecision `json:"destination_decisions"`
+	Event                AlertRuleDryRunContext         `json:"event"`
+	LegacyFallback       bool                           `json:"legacy_fallback"`
+	Suppressed           bool                           `json:"suppressed"`
+	SuppressionReason    string                         `json:"suppression_reason,omitempty"`
+	RuleEvaluations      []AlertRuleEvaluationResponse  `json:"rule_evaluations"`
+	DestinationDecisions []AlertRuleDestinationDecision `json:"destination_decisions"`
+}
+
+// AlertRuleDryRunContext represents an alert rule dry-run event.
+type AlertRuleDryRunContext struct {
+	IncidentID  string `json:"incident_id"`
+	EventType   string `json:"event_type"`
+	Severity    string `json:"severity"`
+	AgentID     string `json:"agent_id"`
+	MonitorID   string `json:"monitor_id"`
+	MonitorType string `json:"monitor_type"`
 }
 
 // AlertRuleEvaluationResponse explains one rule's match result.
@@ -365,6 +375,17 @@ type AlertRuleEvaluationResponse struct {
 	Matched    bool              `json:"matched"`
 	Suppressed bool              `json:"suppressed"`
 	Reasons    []string          `json:"reasons"`
+}
+
+// AlertRuleDestinationDecision explains one alert rule destination decision.
+type AlertRuleDestinationDecision struct {
+	RuleID      string `json:"rule_id,omitempty"`
+	RuleName    string `json:"rule_name,omitempty"`
+	ChannelID   string `json:"channel_id,omitempty"`
+	ChannelName string `json:"channel_name"`
+	ChannelType string `json:"channel_type"`
+	Status      string `json:"status"`
+	Reason      string `json:"reason"`
 }
 
 // IncidentTimelineItemResponse represents a normalized incident timeline item.
@@ -746,7 +767,46 @@ func alertDeliveryResponse(delivery db.AlertDelivery) AlertDeliveryResponse {
 }
 
 func alertRouteResponse(route db.AlertRoute) AlertRouteResponse {
+	base := alertRouteFields(route)
 	return AlertRouteResponse{
+		ID:                   base.ID,
+		Name:                 base.Name,
+		Enabled:              base.Enabled,
+		Priority:             base.Priority,
+		EventTypes:           base.EventTypes,
+		Severities:           base.Severities,
+		AgentIDs:             base.AgentIDs,
+		MonitorIDs:           base.MonitorIDs,
+		MonitorTypes:         base.MonitorTypes,
+		ChannelIDs:           base.ChannelIDs,
+		Suppress:             base.Suppress,
+		GroupingPolicy:       base.GroupingPolicy,
+		GroupingDelaySeconds: base.GroupingDelaySeconds,
+		CreatedAt:            base.CreatedAt,
+		UpdatedAt:            base.UpdatedAt,
+	}
+}
+
+type alertRouteFieldSet struct {
+	ID                   string
+	Name                 string
+	Enabled              bool
+	Priority             int
+	EventTypes           []string
+	Severities           []string
+	AgentIDs             []string
+	MonitorIDs           []string
+	MonitorTypes         []string
+	ChannelIDs           []string
+	Suppress             bool
+	GroupingPolicy       string
+	GroupingDelaySeconds int
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
+}
+
+func alertRouteFields(route db.AlertRoute) alertRouteFieldSet {
+	return alertRouteFieldSet{
 		ID:           route.ID,
 		Name:         route.Name,
 		Enabled:      route.Enabled,
@@ -776,24 +836,23 @@ func alertRouteResponses(routes []db.AlertRoute) []AlertRouteResponse {
 }
 
 func alertRuleResponse(rule db.AlertRoute) AlertRuleResponse {
+	base := alertRouteFields(rule)
 	return AlertRuleResponse{
-		ID:           rule.ID,
-		Name:         rule.Name,
-		Enabled:      rule.Enabled,
-		Priority:     rule.Priority,
-		EventTypes:   decodeResponseList(rule.EventTypes, db.DefaultAlertEvents()),
-		Severities:   decodeResponseList(rule.Severities, nil),
-		AgentIDs:     decodeResponseList(rule.AgentIDs, nil),
-		MonitorIDs:   decodeResponseList(rule.MonitorIDs, nil),
-		MonitorTypes: decodeResponseList(rule.MonitorTypes, nil),
-		ChannelIDs:   decodeResponseList(rule.ChannelIDs, nil),
-		Suppress:     rule.Suppress,
-		GroupingPolicy: normalizeAlertGroupingPolicy(
-			rule.GroupingPolicy,
-		),
-		GroupingDelaySeconds: normalizeAlertGroupingDelaySeconds(rule.GroupingDelaySeconds),
-		CreatedAt:            rule.CreatedAt,
-		UpdatedAt:            rule.UpdatedAt,
+		ID:                   base.ID,
+		Name:                 base.Name,
+		Enabled:              base.Enabled,
+		Priority:             base.Priority,
+		EventTypes:           base.EventTypes,
+		Severities:           base.Severities,
+		AgentIDs:             base.AgentIDs,
+		MonitorIDs:           base.MonitorIDs,
+		MonitorTypes:         base.MonitorTypes,
+		ChannelIDs:           base.ChannelIDs,
+		Suppress:             base.Suppress,
+		GroupingPolicy:       base.GroupingPolicy,
+		GroupingDelaySeconds: base.GroupingDelaySeconds,
+		CreatedAt:            base.CreatedAt,
+		UpdatedAt:            base.UpdatedAt,
 	}
 }
 
@@ -836,13 +895,40 @@ func alertRuleDryRunResponse(result *service.AlertRouteDryRunResult) AlertRuleDr
 		})
 	}
 	return AlertRuleDryRunResponse{
-		Event:                result.Event,
+		Event:                alertRuleDryRunContext(result.Event),
 		LegacyFallback:       result.LegacyFallback,
 		Suppressed:           result.Suppressed,
 		SuppressionReason:    result.SuppressionReason,
 		RuleEvaluations:      evaluations,
-		DestinationDecisions: result.DestinationDecisions,
+		DestinationDecisions: alertRuleDestinationDecisions(result.DestinationDecisions),
 	}
+}
+
+func alertRuleDryRunContext(event service.AlertRouteContext) AlertRuleDryRunContext {
+	return AlertRuleDryRunContext{
+		IncidentID:  event.IncidentID,
+		EventType:   event.EventType,
+		Severity:    event.Severity,
+		AgentID:     event.AgentID,
+		MonitorID:   event.MonitorID,
+		MonitorType: event.MonitorType,
+	}
+}
+
+func alertRuleDestinationDecisions(decisions []service.AlertDestinationDecision) []AlertRuleDestinationDecision {
+	responses := make([]AlertRuleDestinationDecision, 0, len(decisions))
+	for _, decision := range decisions {
+		responses = append(responses, AlertRuleDestinationDecision{
+			RuleID:      decision.RouteID,
+			RuleName:    decision.RouteName,
+			ChannelID:   decision.ChannelID,
+			ChannelName: decision.ChannelName,
+			ChannelType: decision.ChannelType,
+			Status:      decision.Status,
+			Reason:      decision.Reason,
+		})
+	}
+	return responses
 }
 
 func decodeResponseList(value string, fallback []string) []string {

@@ -3319,7 +3319,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.alertRouteDryRunRequest"
+                            "$ref": "#/definitions/api.alertRuleDryRunRequest"
                         }
                     }
                 ],
@@ -8109,17 +8109,66 @@ const docTemplate = `{
                 }
             }
         },
+        "api.AlertRuleDestinationDecision": {
+            "type": "object",
+            "properties": {
+                "channel_id": {
+                    "type": "string"
+                },
+                "channel_name": {
+                    "type": "string"
+                },
+                "channel_type": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "rule_id": {
+                    "type": "string"
+                },
+                "rule_name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.AlertRuleDryRunContext": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "event_type": {
+                    "type": "string"
+                },
+                "incident_id": {
+                    "type": "string"
+                },
+                "monitor_id": {
+                    "type": "string"
+                },
+                "monitor_type": {
+                    "type": "string"
+                },
+                "severity": {
+                    "type": "string"
+                }
+            }
+        },
         "api.AlertRuleDryRunResponse": {
             "type": "object",
             "properties": {
                 "destination_decisions": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/service.AlertDestinationDecision"
+                        "$ref": "#/definitions/api.AlertRuleDestinationDecision"
                     }
                 },
                 "event": {
-                    "$ref": "#/definitions/service.AlertRouteContext"
+                    "$ref": "#/definitions/api.AlertRuleDryRunContext"
                 },
                 "legacy_fallback": {
                     "type": "boolean"
@@ -9555,6 +9604,29 @@ const docTemplate = `{
                 },
                 "suppress": {
                     "type": "boolean"
+                }
+            }
+        },
+        "api.alertRuleDryRunRequest": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "event_type": {
+                    "type": "string"
+                },
+                "incident_id": {
+                    "type": "string"
+                },
+                "monitor_id": {
+                    "type": "string"
+                },
+                "monitor_type": {
+                    "type": "string"
+                },
+                "severity": {
+                    "type": "string"
                 }
             }
         },

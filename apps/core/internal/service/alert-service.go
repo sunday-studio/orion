@@ -21,6 +21,7 @@ const (
 	defaultAlertDeliveryRetryDelay  = 5 * time.Minute
 	alertEventGroupSummary          = "group_summary"
 	alertGroupedSummaryPending      = "alert grouped summary pending"
+	retiredAlertDeliveryMessage     = "retired alert delivery type suppressed"
 )
 
 type AlertRouteContext struct {
@@ -474,6 +475,13 @@ func (s *AlertService) ProcessDueDeliveries(limit int) (int, error) {
 	processed := 0
 	for i := range deliveries {
 		delivery := &deliveries[i]
+		if retiredAlertDeliveryType(delivery.Type) {
+			if err := s.updateDelivery(delivery.ID, "suppressed", retiredAlertDeliveryMessage); err != nil {
+				s.logger.Error("Failed to suppress retired alert delivery", "delivery_id", delivery.ID, "type", delivery.Type, "error", err)
+			}
+			processed++
+			continue
+		}
 		channel, err := s.channelForDelivery(*delivery)
 		if err != nil {
 			if attemptErr := s.attemptDelivery(delivery, func() error {
@@ -508,6 +516,15 @@ func (s *AlertService) channelForDelivery(delivery db.AlertDelivery) (db.AlertCh
 		}
 	}
 	return db.AlertChannel{}, gorm.ErrRecordNotFound
+}
+
+func retiredAlertDeliveryType(deliveryType string) bool {
+	switch strings.TrimSpace(deliveryType) {
+	case "email", "slack", "discord":
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *AlertService) createDelivery(delivery db.AlertDelivery) (*db.AlertDelivery, error) {

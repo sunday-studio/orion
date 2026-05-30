@@ -330,6 +330,10 @@ func seed(database *gorm.DB, cfg seedConfig) (seedStats, error) {
 		stats.rollups += rollups
 	}
 
+	if err := seedAlertChannels(database, now); err != nil {
+		return stats, err
+	}
+
 	incidentStats, err := seedIncidents(database, allMonitors, monitorToAgent, monitorToScenario, monitorToTemplate, now)
 	if err != nil {
 		return stats, err
@@ -621,6 +625,32 @@ func seedMonitorReports(database *gorm.DB, monitor db.Monitor, sc scenario, tpl 
 	}
 	created, err := bulkCreate(database, reports, 1000)
 	return counts, created, err
+}
+
+func seedAlertChannels(database *gorm.DB, now time.Time) error {
+	channels := []db.AlertChannel{
+		{
+			ID:               "seed-alert-channel-webhook-primary",
+			Name:             "seed-webhook-primary",
+			Type:             "webhook",
+			Enabled:          true,
+			WebhookURL:       "https://alerts.example.com/primary",
+			SubscribedEvents: db.EncodeAlertEvents(db.DefaultAlertEvents()),
+			CreatedAt:        now,
+			UpdatedAt:        now,
+		},
+		{
+			ID:               "seed-alert-channel-webhook-secondary",
+			Name:             "seed-webhook-secondary",
+			Type:             "webhook",
+			Enabled:          true,
+			WebhookURL:       "https://alerts.example.com/secondary",
+			SubscribedEvents: db.EncodeAlertEvents(db.DefaultAlertEvents()),
+			CreatedAt:        now,
+			UpdatedAt:        now,
+		},
+	}
+	return database.Clauses(clause.OnConflict{DoNothing: true}).Create(&channels).Error
 }
 
 func seedRollups(database *gorm.DB, monitorID string, counts map[string]dayCounts, now time.Time) (int, error) {

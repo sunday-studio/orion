@@ -142,6 +142,42 @@ func TestAlertServiceRecordsFailedAttemptAndRetriesDueDelivery(t *testing.T) {
 	}
 }
 
+func TestAlertServiceSuppressesRetiredDueDeliveries(t *testing.T) {
+	database := setupAlertServiceDatabase(t)
+	createTestIncident(t, database, "incident-1")
+	dueAt := time.Now().UTC().Add(-time.Minute)
+	if err := database.Create(&db.AlertDelivery{
+		ID:            "delivery-retired-email",
+		IncidentID:    "incident-1",
+		EventType:     db.AlertEventIncidentOpened,
+		Channel:       "ops-email",
+		Type:          "email",
+		Status:        "failed",
+		AttemptCount:  1,
+		MaxAttempts:   3,
+		NextAttemptAt: &dueAt,
+	}).Error; err != nil {
+		t.Fatalf("create retired delivery: %v", err)
+	}
+
+	service := NewAlertService(database, logging.NewLogger(), &config.Config{})
+	processed, err := service.ProcessDueDeliveries(10)
+	if err != nil {
+		t.Fatalf("ProcessDueDeliveries() error = %v", err)
+	}
+	if processed != 1 {
+		t.Fatalf("processed = %d, want 1", processed)
+	}
+
+	var delivery db.AlertDelivery
+	if err := database.Where("id = ?", "delivery-retired-email").First(&delivery).Error; err != nil {
+		t.Fatalf("find retired delivery: %v", err)
+	}
+	if delivery.Status != "suppressed" || delivery.Error != retiredAlertDeliveryMessage || delivery.AttemptCount != 1 {
+		t.Fatalf("retired delivery = %+v, want suppressed without retry attempt", delivery)
+	}
+}
+
 func TestAlertServiceWebhookUsesPayloadV1(t *testing.T) {
 	database := setupAlertServiceDatabase(t)
 	createTestIncident(t, database, "incident-1")

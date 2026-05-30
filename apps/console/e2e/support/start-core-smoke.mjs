@@ -180,7 +180,6 @@ start("go", ["run", "."], {
     ORION_JWT_SECRET: jwtSecret,
     ORION_PORT: "18999",
     ORION_DATA_DIR: dataDir,
-    ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS: "true",
     ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS: "3600",
   },
 });

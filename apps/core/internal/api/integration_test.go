@@ -4839,6 +4839,13 @@ func TestAlertRuleWriteEnableDisableAndDryRunEndpoints(t *testing.T) {
 		t.Fatalf("listed rules = %+v, want created rule", listed.Data)
 	}
 
+	invalidUpdateResp := performJSONRequest(t, server, http.MethodPatch, "/v1/alerts/rules/"+created.Data.Rule.ID, gin.H{
+		"event_types": []string{"not-an-alert-event"},
+	}, "")
+	if invalidUpdateResp.Code != http.StatusBadRequest || !strings.Contains(invalidUpdateResp.Body.String(), "invalid event_types") {
+		t.Fatalf("invalid update status = %d, body = %s, want invalid event rejection", invalidUpdateResp.Code, invalidUpdateResp.Body.String())
+	}
+
 	disableResp := performJSONRequest(t, server, http.MethodPost, "/v1/alerts/rules/"+created.Data.Rule.ID+"/disable", nil, "")
 	if disableResp.Code != http.StatusOK {
 		t.Fatalf("disable rule status = %d, body = %s", disableResp.Code, disableResp.Body.String())
@@ -4911,12 +4918,16 @@ func TestAlertRuleWriteEnableDisableAndDryRunEndpoints(t *testing.T) {
 					Suppressed bool `json:"suppressed"`
 				} `json:"rule_evaluations"`
 				DestinationDecisions []struct {
-					Status string `json:"status"`
+					RuleID   string `json:"rule_id"`
+					RuleName string `json:"rule_name"`
+					Status   string `json:"status"`
 				} `json:"destination_decisions"`
 			} `json:"dry_run"`
 		} `json:"data"`
 	}
 	decodeResponse(t, dryRunResp, &dryRun)
+	assertNotContains(t, dryRunResp.Body.String(), "route_id")
+	assertNotContains(t, dryRunResp.Body.String(), "route_name")
 	if !dryRun.Data.DryRun.Suppressed || len(dryRun.Data.DryRun.RuleEvaluations) != 1 ||
 		dryRun.Data.DryRun.RuleEvaluations[0].Rule.ID != created.Data.Rule.ID ||
 		!dryRun.Data.DryRun.RuleEvaluations[0].Matched || !dryRun.Data.DryRun.RuleEvaluations[0].Suppressed ||
