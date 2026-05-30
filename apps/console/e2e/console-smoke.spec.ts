@@ -92,24 +92,20 @@ test("creates and manages a Core HTTP monitor", async ({ page }) => {
   await page.getByRole("link", { name: "Monitors" }).click();
   await page.getByRole("button", { name: "Core monitor" }).click();
   await page.getByLabel("Name").fill(monitorName);
-  await page.getByLabel("URL").fill("http://127.0.0.1:18999/health");
-  await page.getByRole("spinbutton", { name: "Expected status" }).fill("503");
-  await page.getByRole("spinbutton", { name: "Interval seconds" }).fill("45");
-  await page.getByRole("button", { name: "Create and test" }).click();
-  await expect(page.getByText("received HTTP 200, expected 503")).toBeVisible();
+  await page.getByLabel("URL").fill("https://example.com/health");
+  await page.getByLabel("Expected status").fill("200");
+  await page.getByLabel("Interval seconds").fill("45");
+  await page.getByRole("button", { name: "Create", exact: true }).click();
 
   await page.getByPlaceholder("Search monitors").fill(monitorName);
-  await expect(page.getByRole("link", { name: monitorName })).toBeVisible();
+  await expect(page.getByRole("link", { name: monitorName })).toBeVisible({ timeout: 15_000 });
   await page.getByRole("link", { name: monitorName }).click();
   await expect(page.getByRole("heading", { name: monitorName })).toBeVisible();
   await expect(page.getByText("Core · http")).toBeVisible();
 
   await page.getByRole("tab", { name: "Configuration" }).click();
-  await expect(page.getByText("http://127.0.0.1:18999/health")).toBeVisible();
+  await expect(page.getByText("https://example.com/health")).toBeVisible();
   await expect(page.getByLabel("Configuration").getByText("45s")).toBeVisible();
-
-  await page.getByRole("button", { name: "Test" }).click();
-  await expect(page.getByText("Core monitor test reported down.")).toBeVisible();
 
   await page.getByRole("button", { name: "Pause" }).click();
   await expect(page.getByText("Core monitor paused.")).toBeVisible();

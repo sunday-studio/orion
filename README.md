@@ -358,6 +358,7 @@ generated Console SDK by hand.
 - [Core Docker deployment](docs/deployment/core-docker.md)
 - [Kubernetes position](docs/deployment/kubernetes-position.md)
 - [Server install and upgrade](docs/deployment/agent-install-upgrade.md)
+- [Release readiness gate](docs/deployment/release-readiness.md)
 - [Seed demo data](docs/development/seed-demo-data.md)
 - [Milestones](docs/milestones/README.md)
 
