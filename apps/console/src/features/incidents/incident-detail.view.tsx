@@ -23,6 +23,7 @@ import { ReportInspectionDrawer } from "@/features/report-inspection/report-insp
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import {
   type ApiAlertDeliveryResponse,
+  type ApiIncidentNextActionResponse,
   type ApiIncidentResponse,
   type ApiIncidentTimelineItemResponse,
   type ApiMonitorReportResponse,
@@ -36,7 +37,14 @@ import {
 } from "@/orion-sdk";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { CheckIcon, CircleCheckIcon, RotateCcwIcon, ShieldCheckIcon } from "lucide-react";
+import {
+  BellRingIcon,
+  CheckIcon,
+  CircleCheckIcon,
+  RotateCcwIcon,
+  ShieldCheckIcon,
+  WrenchIcon,
+} from "lucide-react";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
@@ -107,6 +115,121 @@ const ComponentImpactList = ({ components }: { components: IncidentComponentImpa
         );
       })}
     </div>
+  );
+};
+
+const actionIcon = (actionType?: string) => {
+  switch (actionType) {
+    case "acknowledge_incident":
+      return <CheckIcon />;
+    case "cover_incident":
+      return <ShieldCheckIcon />;
+    case "resolve_incident":
+      return <CircleCheckIcon />;
+    case "reopen_incident":
+      return <RotateCcwIcon />;
+    case "review_monitor_tuning":
+      return <WrenchIcon />;
+    case "review_failed_notifications":
+      return <BellRingIcon />;
+    default:
+      return <CheckIcon />;
+  }
+};
+
+const nextActionHref = (
+  action: ApiIncidentNextActionResponse,
+  incident: ApiIncidentResponse,
+) => {
+  if (action.target_kind === "monitor" && action.target_id) {
+    const params = new URLSearchParams();
+    if (action.target_tab) params.set("tab", action.target_tab);
+    if (incident.id) params.set("incident", incident.id);
+    const query = params.toString();
+    return `/monitors/${action.target_id}${query ? `?${query}` : ""}`;
+  }
+  if (action.target_kind === "alert_deliveries") {
+    const params = new URLSearchParams();
+    params.set("tab", action.target_tab || "logs");
+    params.set("incident", action.target_id || incident.id || "");
+    if (action.filter_status) params.set("status", action.filter_status);
+    return `/alerts?${params.toString()}`;
+  }
+  return undefined;
+};
+
+const isIncidentMutationAction = (actionType?: string) =>
+  actionType === "acknowledge_incident" ||
+  actionType === "cover_incident" ||
+  actionType === "resolve_incident" ||
+  actionType === "reopen_incident";
+
+type IncidentNextActionPanelProps = {
+  actions: ApiIncidentNextActionResponse[];
+  actionPending: boolean;
+  incident: ApiIncidentResponse;
+  onAction: (action: ApiIncidentNextActionResponse) => void;
+};
+
+const IncidentNextActionPanel = ({
+  actions,
+  actionPending,
+  incident,
+  onAction,
+}: IncidentNextActionPanelProps) => {
+  if (actions.length === 0) {
+    return (
+      <section className="space-y-2 bg-neutral-50 px-3 py-3">
+        <h2 className="text-sm font-medium">Next Actions</h2>
+        <p className="text-sm text-neutral-600">No operator action is currently suggested.</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="space-y-3 bg-neutral-50 px-3 py-3">
+      <h2 className="text-sm font-medium">Next Actions</h2>
+      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+        {actions.map((action) => {
+          const href = nextActionHref(action, incident);
+          return (
+            <div
+              key={action.id ?? action.action_type ?? action.label}
+              className="flex min-w-0 flex-col justify-between gap-3 border border-neutral-200 bg-white px-3 py-3"
+            >
+              <div className="min-w-0 space-y-1">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  {actionIcon(action.action_type)}
+                  <span className="truncate">{action.label ?? "Review action"}</span>
+                </div>
+                <p className="text-sm text-neutral-600">
+                  {action.description ?? "Review the incident context before continuing."}
+                </p>
+              </div>
+              {href ? (
+                <Link
+                  className="inline-flex h-8 items-center justify-center gap-2 border border-input bg-background px-3 text-xs font-medium shadow-xs hover:bg-accent hover:text-accent-foreground"
+                  to={href}
+                >
+                  {actionIcon(action.action_type)}
+                  Open
+                </Link>
+              ) : (
+                <Button
+                  disabled={actionPending || !isIncidentMutationAction(action.action_type)}
+                  onClick={() => onAction(action)}
+                  size="sm"
+                  variant={action.action_type === "resolve_incident" ? "default" : "outline"}
+                >
+                  {actionIcon(action.action_type)}
+                  {action.label ?? "Apply"}
+                </Button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 };
 
@@ -352,6 +475,7 @@ export const IncidentDetailPage = () => {
   const incident = incidentResponse.data?.incident;
   const impactedComponents = incident?.impacted_components ?? [];
   const evidence = incidentResponse.data?.evidence;
+  const nextActions = incidentResponse.data?.next_actions ?? [];
   const timeline = incidentResponse.data?.timeline ?? [];
   const alertDeliveries = incidentResponse.data?.alert_deliveries ?? [];
   const monitorReports = incidentResponse.data?.monitor_reports ?? [];
@@ -393,6 +517,24 @@ export const IncidentDetailPage = () => {
     );
   };
 
+  const handleNextAction = (action: ApiIncidentNextActionResponse) => {
+    const id = action.target_id || incident?.id || "";
+    switch (action.action_type) {
+      case "acknowledge_incident":
+        acknowledgeIncident.mutate({ id });
+        break;
+      case "cover_incident":
+        setCoverDialogOpen(true);
+        break;
+      case "resolve_incident":
+        resolveIncident.mutate({ id });
+        break;
+      case "reopen_incident":
+        reopenIncident.mutate({ id });
+        break;
+    }
+  };
+
   if (incidentResponse.isLoading) {
     return <div className="py-3 text-sm text-neutral-600">Loading incident...</div>;
   }
@@ -424,7 +566,7 @@ export const IncidentDetailPage = () => {
               {incident.latest_event ?? "No latest event recorded."}
             </p>
           </div>
-          {(canResolve || canReopen) && (
+          {nextActions.length === 0 && (canResolve || canReopen) && (
             <div className="flex flex-wrap gap-2">
               {canAcknowledge && (
                 <Button
@@ -474,6 +616,13 @@ export const IncidentDetailPage = () => {
           reopenIncident.error) && (
           <div className="text-sm text-rose-700">Unable to update incident.</div>
         )}
+
+        <IncidentNextActionPanel
+          actions={nextActions}
+          actionPending={actionPending}
+          incident={incident}
+          onAction={handleNextAction}
+        />
 
         <div className="grid gap-3 lg:grid-cols-3">
           <DetailGroup title="Incident">

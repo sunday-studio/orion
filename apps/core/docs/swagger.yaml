@@ -556,6 +556,27 @@ definitions:
       resolved_count:
         type: integer
     type: object
+  api.IncidentNextActionResponse:
+    properties:
+      action_type:
+        type: string
+      description:
+        type: string
+      filter_status:
+        type: string
+      id:
+        type: string
+      label:
+        type: string
+      priority:
+        type: integer
+      target_id:
+        type: string
+      target_kind:
+        type: string
+      target_tab:
+        type: string
+    type: object
   api.IncidentNotificationReliabilityStats:
     properties:
       failed_deliveries:
@@ -4763,6 +4784,10 @@ paths:
                     monitor_reports:
                       items:
                         $ref: '#/definitions/api.MonitorReportResponse'
+                      type: array
+                    next_actions:
+                      items:
+                        $ref: '#/definitions/api.IncidentNextActionResponse'
                       type: array
                     related_incidents:
                       items:
