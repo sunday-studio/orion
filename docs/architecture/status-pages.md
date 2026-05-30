@@ -549,13 +549,13 @@ Forbidden coupling:
 
 - storing public subscribers in internal alert channel tables;
 - reusing internal alert destination ids as subscriber ids;
-- exposing internal webhook URLs, SMTP credentials, signing secrets, escalation policies, or operator routing settings to subscriber code paths;
+- exposing internal alert webhook URLs, public mail sender credentials, signing secrets, escalation policies, or operator rule settings to subscriber code paths;
 - delivering public status notifications from internal incident alert templates;
 - allowing public subscribe, confirm, unsubscribe, or preference routes to read or mutate internal alert channels.
 
 Public subscriber fan-out should have its own queue or queue namespace, template set, delivery ledger, metrics labels, and audit events. If the implementation later reuses the alert delivery engine, it must do so behind an adapter that accepts only public DTOs and provider credentials selected for public subscriber mail. That adapter must not receive internal alert channel records or secrets.
 
-Public subscriber email uses a dedicated public mail sender configuration. It may reuse low-level SMTP client code, but it does not reuse internal alert destinations, routes, templates, or escalation policy. Until the public sender and public URL origin are configured, subscription routes may create pending subscribers but must not send confirmation or fan-out mail.
+Public subscriber email uses a dedicated public mail sender configuration. It may reuse low-level SMTP client code, but it does not reuse internal alert webhooks, rules, templates, or escalation policy. Until the public sender and public URL origin are configured, subscription routes may create pending subscribers but must not send confirmation or fan-out mail.
 
 ## Public API Shape
 

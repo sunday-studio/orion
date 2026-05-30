@@ -9,16 +9,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import type { FormEvent } from "react";
-import {
-  alertChannelTypeLabel,
-  alertChannelTypeOptions,
-  alertEventOptions,
-} from "./alert-constants";
+import { alertChannelTypeOptions, alertEventOptions } from "./alert-constants";
 
 type WebhookDialogProps = {
-  channelType: string;
   enabled: boolean;
   events: string[];
   isEditing: boolean;
@@ -31,14 +25,12 @@ type WebhookDialogProps = {
   onEventToggle: (event: string, enabled: boolean) => void;
   onNameChange: (name: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  onTypeChange: (type: string) => void;
   onUrlChange: (url: string) => void;
   onOpenChange: (open: boolean) => void;
   url: string;
 };
 
 export const WebhookDialog = ({
-  channelType,
   enabled,
   events,
   isEditing,
@@ -51,15 +43,11 @@ export const WebhookDialog = ({
   onEventToggle,
   onNameChange,
   onSubmit,
-  onTypeChange,
   onUrlChange,
   onOpenChange,
   url,
 }: WebhookDialogProps) => {
-  const typeLabel = alertChannelTypeLabel(channelType);
-  const selectedType =
-    alertChannelTypeOptions.find((option) => option.value === channelType) ??
-    alertChannelTypeOptions[0];
+  const selectedType = alertChannelTypeOptions[0];
 
   return (
     <Dialog
@@ -75,7 +63,7 @@ export const WebhookDialog = ({
       <DialogContent className="sm:max-w-md">
         <form className="space-y-5" onSubmit={onSubmit}>
           <DialogHeader>
-            <DialogTitle>{isEditing ? `Edit ${typeLabel}` : "New alert destination"}</DialogTitle>
+            <DialogTitle>{isEditing ? "Edit webhook" : "New webhook"}</DialogTitle>
             <DialogDescription>
               {isEditing
                 ? "Update the destination name, URL, enabled state, and event subscriptions."
@@ -85,30 +73,11 @@ export const WebhookDialog = ({
 
           <div className="space-y-3">
             <label className="block space-y-1.5 text-sm">
-              <span>Type</span>
-              <Select value={channelType} onValueChange={onTypeChange}>
-                <SelectTrigger className="w-full">{typeLabel}</SelectTrigger>
-                <SelectContent>
-                  {alertChannelTypeOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
-            <label className="block space-y-1.5 text-sm">
               <span>Name</span>
               <Input
                 value={name}
                 onChange={(event) => onNameChange(event.target.value)}
-                placeholder={
-                  channelType === "slack"
-                    ? "ops-slack"
-                    : channelType === "discord"
-                      ? "ops-discord"
-                      : "ops-webhook"
-                }
+                placeholder="ops-webhook"
                 required
               />
             </label>

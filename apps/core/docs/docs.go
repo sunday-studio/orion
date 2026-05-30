@@ -2495,7 +2495,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Create a webhook, Slack, Discord, or email alert channel. Secret values are stored but never returned by the API.",
+                "description": "Create a generic webhook alert channel. Secret values are stored but never returned by the API.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2608,7 +2608,7 @@ const docTemplate = `{
                 }
             },
             "patch": {
-                "description": "Update an alert channel. Omit email secret values to keep existing stored values.",
+                "description": "Update a generic webhook alert channel.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2691,7 +2691,7 @@ const docTemplate = `{
         },
         "/v1/alerts/channels/{id}/test": {
             "post": {
-                "description": "Send a manual test notification through a configured webhook or email alert channel.",
+                "description": "Send a manual test notification through a configured generic webhook alert channel.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2849,321 +2849,6 @@ const docTemplate = `{
                                     }
                                 }
                             ]
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/alerts/email-destinations": {
-            "get": {
-                "description": "Get reusable email destinations and their last delivery status",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "alerts"
-                ],
-                "summary": "List alert email destinations",
-                "operationId": "getAlertEmailDestinations",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/utils.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "count": {
-                                                    "type": "integer"
-                                                },
-                                                "email_destinations": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "$ref": "#/definitions/api.AlertEmailDestinationResponse"
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "Create a reusable email destination that sends through an SMTP service.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "alerts"
-                ],
-                "summary": "Create alert email destination",
-                "operationId": "createAlertEmailDestination",
-                "parameters": [
-                    {
-                        "description": "Email destination payload",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/api.alertEmailDestinationRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/utils.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "email_destination": {
-                                                    "$ref": "#/definitions/api.AlertEmailDestinationResponse"
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/alerts/email-destinations/{id}": {
-            "delete": {
-                "description": "Delete a reusable email destination. Existing delivery history is preserved.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "alerts"
-                ],
-                "summary": "Delete alert email destination",
-                "operationId": "deleteAlertEmailDestination",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Email destination ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
-                        }
-                    }
-                }
-            },
-            "patch": {
-                "description": "Update a reusable email destination.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "alerts"
-                ],
-                "summary": "Update alert email destination",
-                "operationId": "updateAlertEmailDestination",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Email destination ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Email destination payload",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/api.alertEmailDestinationRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/utils.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "email_destination": {
-                                                    "$ref": "#/definitions/api.AlertEmailDestinationResponse"
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/alerts/email-destinations/{id}/test": {
-            "post": {
-                "description": "Send a manual test notification through a reusable email destination. Delivery errors are sanitized in the response.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "alerts"
-                ],
-                "summary": "Test alert email destination",
-                "operationId": "testAlertEmailDestination",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Email destination ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/utils.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "delivery": {
-                                                    "$ref": "#/definitions/api.AlertDeliveryResponse"
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
                         }
                     },
                     "500": {
@@ -3494,7 +3179,7 @@ const docTemplate = `{
         },
         "/v1/alerts/rules": {
             "get": {
-                "description": "Get effective built-in alert rules derived from Core configuration",
+                "description": "Get persisted webhook alert rules ordered by priority",
                 "consumes": [
                     "application/json"
                 ],
@@ -3535,53 +3220,6 @@ const docTemplate = `{
                                 }
                             ]
                         }
-                    }
-                }
-            }
-        },
-        "/v1/alerts/smtp-services": {
-            "get": {
-                "description": "Get reusable SMTP services without secret values",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "alerts"
-                ],
-                "summary": "List alert SMTP services",
-                "operationId": "getAlertSMTPServices",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/utils.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "count": {
-                                                    "type": "integer"
-                                                },
-                                                "smtp_services": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "$ref": "#/definitions/api.AlertSMTPServiceResponse"
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
                     },
                     "500": {
                         "description": "Internal Server Error",
@@ -3592,7 +3230,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Create a reusable SMTP service. Secret values are stored but never returned by the API.",
+                "description": "Create a priority-ordered alert rule that targets webhook channels or suppresses matching events",
                 "consumes": [
                     "application/json"
                 ],
@@ -3602,16 +3240,16 @@ const docTemplate = `{
                 "tags": [
                     "alerts"
                 ],
-                "summary": "Create alert SMTP service",
-                "operationId": "createAlertSMTPService",
+                "summary": "Create alert rule",
+                "operationId": "createAlertRule",
                 "parameters": [
                     {
-                        "description": "SMTP service payload",
+                        "description": "Alert rule payload",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.alertSMTPServiceRequest"
+                            "$ref": "#/definitions/api.alertRuleRequest"
                         }
                     }
                 ],
@@ -3629,8 +3267,8 @@ const docTemplate = `{
                                         "data": {
                                             "type": "object",
                                             "properties": {
-                                                "smtp_service": {
-                                                    "$ref": "#/definitions/api.AlertSMTPServiceResponse"
+                                                "rule": {
+                                                    "$ref": "#/definitions/api.AlertRuleResponse"
                                                 }
                                             }
                                         }
@@ -3660,9 +3298,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/alerts/smtp-services/{id}": {
-            "delete": {
-                "description": "Delete a reusable SMTP service. Existing delivery history is preserved.",
+        "/v1/alerts/rules/dry-run": {
+            "post": {
+                "description": "Explain rule event matching, suppression, cooldown, grouping, and webhook destination decisions without creating deliveries or sending notifications",
                 "consumes": [
                     "application/json"
                 ],
@@ -3672,12 +3310,82 @@ const docTemplate = `{
                 "tags": [
                     "alerts"
                 ],
-                "summary": "Delete alert SMTP service",
-                "operationId": "deleteAlertSMTPService",
+                "summary": "Dry-run alert rules",
+                "operationId": "dryRunAlertRules",
+                "parameters": [
+                    {
+                        "description": "Alert rule dry-run payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.alertRuleDryRunRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "dry_run": {
+                                                    "$ref": "#/definitions/api.AlertRuleDryRunResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/alerts/rules/{id}": {
+            "delete": {
+                "description": "Delete an alert rule. Existing delivery history is preserved.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Delete alert rule",
+                "operationId": "deleteAlertRule",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "SMTP service ID",
+                        "description": "Alert rule ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -3692,12 +3400,6 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/utils.APIResponse"
                         }
@@ -3711,7 +3413,7 @@ const docTemplate = `{
                 }
             },
             "patch": {
-                "description": "Update a reusable SMTP service. Omit password to keep the existing stored value.",
+                "description": "Update alert rule match filters, webhook channels, or suppression behavior",
                 "consumes": [
                     "application/json"
                 ],
@@ -3721,23 +3423,23 @@ const docTemplate = `{
                 "tags": [
                     "alerts"
                 ],
-                "summary": "Update alert SMTP service",
-                "operationId": "updateAlertSMTPService",
+                "summary": "Update alert rule",
+                "operationId": "updateAlertRule",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "SMTP service ID",
+                        "description": "Alert rule ID",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "SMTP service payload",
+                        "description": "Alert rule payload",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.alertSMTPServiceRequest"
+                            "$ref": "#/definitions/api.alertRuleRequest"
                         }
                     }
                 ],
@@ -3755,8 +3457,8 @@ const docTemplate = `{
                                         "data": {
                                             "type": "object",
                                             "properties": {
-                                                "smtp_service": {
-                                                    "$ref": "#/definitions/api.AlertSMTPServiceResponse"
+                                                "rule": {
+                                                    "$ref": "#/definitions/api.AlertRuleResponse"
                                                 }
                                             }
                                         }
@@ -3792,9 +3494,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/alerts/smtp-services/{id}/test": {
+        "/v1/alerts/rules/{id}/disable": {
             "post": {
-                "description": "Connect to a reusable SMTP service and return a sanitized connectivity result without secret values.",
+                "description": "Disable an alert rule without changing its filters or webhook destinations.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3804,12 +3506,12 @@ const docTemplate = `{
                 "tags": [
                     "alerts"
                 ],
-                "summary": "Test alert SMTP service",
-                "operationId": "testAlertSMTPService",
+                "summary": "Disable alert rule",
+                "operationId": "disableAlertRule",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "SMTP service ID",
+                        "description": "Alert rule ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -3829,8 +3531,70 @@ const docTemplate = `{
                                         "data": {
                                             "type": "object",
                                             "properties": {
-                                                "test": {
-                                                    "$ref": "#/definitions/service.AlertSMTPServiceTestResult"
+                                                "rule": {
+                                                    "$ref": "#/definitions/api.AlertRuleResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/alerts/rules/{id}/enable": {
+            "post": {
+                "description": "Enable an alert rule without changing its filters or webhook destinations.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Enable alert rule",
+                "operationId": "enableAlertRule",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Alert rule ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "rule": {
+                                                    "$ref": "#/definitions/api.AlertRuleResponse"
                                                 }
                                             }
                                         }
@@ -8099,12 +7863,6 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
-                "email_from_configured": {
-                    "type": "boolean"
-                },
-                "email_to_configured": {
-                    "type": "boolean"
-                },
                 "enabled": {
                     "type": "boolean"
                 },
@@ -8119,15 +7877,6 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
-                },
-                "smtp_host_configured": {
-                    "type": "boolean"
-                },
-                "smtp_port_configured": {
-                    "type": "boolean"
-                },
-                "smtp_username_configured": {
-                    "type": "boolean"
                 },
                 "subscribed_events": {
                     "type": "array",
@@ -8237,47 +7986,6 @@ const docTemplate = `{
                 },
                 "type": {
                     "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.AlertEmailDestinationResponse": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "email_to": {
-                    "type": "string"
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "last_delivery_at": {
-                    "type": "string"
-                },
-                "last_delivery_status": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "smtp_service_id": {
-                    "type": "string"
-                },
-                "smtp_service_name": {
-                    "type": "string"
-                },
-                "subscribed_events": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
                 },
                 "updated_at": {
                     "type": "string"
@@ -8401,70 +8109,169 @@ const docTemplate = `{
                 }
             }
         },
-        "api.AlertRuleResponse": {
+        "api.AlertRuleDestinationDecision": {
             "type": "object",
             "properties": {
-                "cooldown_seconds": {
-                    "type": "integer"
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "maintenance_suppression_enabled": {
-                    "type": "boolean"
-                },
-                "name": {
+                "channel_id": {
                     "type": "string"
                 },
-                "recovery_notification_enabled": {
-                    "type": "boolean"
+                "channel_name": {
+                    "type": "string"
+                },
+                "channel_type": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "rule_id": {
+                    "type": "string"
+                },
+                "rule_name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.AlertRuleDryRunContext": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "event_type": {
+                    "type": "string"
+                },
+                "incident_id": {
+                    "type": "string"
+                },
+                "monitor_id": {
+                    "type": "string"
+                },
+                "monitor_type": {
+                    "type": "string"
                 },
                 "severity": {
                     "type": "string"
+                }
+            }
+        },
+        "api.AlertRuleDryRunResponse": {
+            "type": "object",
+            "properties": {
+                "destination_decisions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.AlertRuleDestinationDecision"
+                    }
                 },
-                "target_channels": {
+                "event": {
+                    "$ref": "#/definitions/api.AlertRuleDryRunContext"
+                },
+                "legacy_fallback": {
+                    "type": "boolean"
+                },
+                "rule_evaluations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.AlertRuleEvaluationResponse"
+                    }
+                },
+                "suppressed": {
+                    "type": "boolean"
+                },
+                "suppression_reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.AlertRuleEvaluationResponse": {
+            "type": "object",
+            "properties": {
+                "matched": {
+                    "type": "boolean"
+                },
+                "reasons": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
-                "trigger_condition": {
-                    "type": "string"
+                "rule": {
+                    "$ref": "#/definitions/api.AlertRuleResponse"
+                },
+                "suppressed": {
+                    "type": "boolean"
                 }
             }
         },
-        "api.AlertSMTPServiceResponse": {
+        "api.AlertRuleResponse": {
             "type": "object",
             "properties": {
+                "agent_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "channel_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "created_at": {
                     "type": "string"
                 },
                 "enabled": {
                     "type": "boolean"
                 },
-                "from_email": {
-                    "type": "string"
+                "event_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
-                "host": {
+                "grouping_delay_seconds": {
+                    "type": "integer"
+                },
+                "grouping_policy": {
                     "type": "string"
                 },
                 "id": {
                     "type": "string"
                 },
+                "monitor_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "monitor_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "name": {
                     "type": "string"
                 },
-                "password_configured": {
-                    "type": "boolean"
-                },
-                "port": {
+                "priority": {
                     "type": "integer"
+                },
+                "severities": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "suppress": {
+                    "type": "boolean"
                 },
                 "updated_at": {
                     "type": "string"
-                },
-                "username_configured": {
-                    "type": "boolean"
                 }
             }
         },
@@ -9695,28 +9502,10 @@ const docTemplate = `{
         "api.alertChannelRequest": {
             "type": "object",
             "properties": {
-                "email_from": {
-                    "type": "string"
-                },
-                "email_to": {
-                    "type": "string"
-                },
                 "enabled": {
                     "type": "boolean"
                 },
                 "name": {
-                    "type": "string"
-                },
-                "smtp_host": {
-                    "type": "string"
-                },
-                "smtp_password": {
-                    "type": "string"
-                },
-                "smtp_port": {
-                    "type": "integer"
-                },
-                "smtp_username": {
                     "type": "string"
                 },
                 "subscribed_events": {
@@ -9733,29 +9522,6 @@ const docTemplate = `{
                 },
                 "webhook_url": {
                     "type": "string"
-                }
-            }
-        },
-        "api.alertEmailDestinationRequest": {
-            "type": "object",
-            "properties": {
-                "email_to": {
-                    "type": "string"
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "smtp_service_id": {
-                    "type": "string"
-                },
-                "subscribed_events": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
                 }
             }
         },
@@ -9841,29 +9607,85 @@ const docTemplate = `{
                 }
             }
         },
-        "api.alertSMTPServiceRequest": {
+        "api.alertRuleDryRunRequest": {
             "type": "object",
             "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "event_type": {
+                    "type": "string"
+                },
+                "incident_id": {
+                    "type": "string"
+                },
+                "monitor_id": {
+                    "type": "string"
+                },
+                "monitor_type": {
+                    "type": "string"
+                },
+                "severity": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.alertRuleRequest": {
+            "type": "object",
+            "properties": {
+                "agent_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "channel_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "enabled": {
                     "type": "boolean"
                 },
-                "from_email": {
+                "event_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "grouping_delay_seconds": {
+                    "type": "integer"
+                },
+                "grouping_policy": {
                     "type": "string"
                 },
-                "host": {
-                    "type": "string"
+                "monitor_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "monitor_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "name": {
                     "type": "string"
                 },
-                "password": {
-                    "type": "string"
-                },
-                "port": {
+                "priority": {
                     "type": "integer"
                 },
-                "username": {
-                    "type": "string"
+                "severities": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "suppress": {
+                    "type": "boolean"
                 }
             }
         },
@@ -10268,29 +10090,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "severity": {
-                    "type": "string"
-                }
-            }
-        },
-        "service.AlertSMTPServiceTestResult": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "type": "string"
-                },
-                "smtp_service_id": {
-                    "type": "string"
-                },
-                "smtp_service_name": {
-                    "type": "string"
-                },
-                "stage": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "tested_at": {
                     "type": "string"
                 }
             }
