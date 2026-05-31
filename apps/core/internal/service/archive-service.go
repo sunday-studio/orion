@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"orion/core/internal/db"
 	"orion/core/internal/logging"
 	"os"
@@ -27,6 +28,11 @@ type ArchiveService struct {
 	logger  *logging.Logger
 	dataDir string
 }
+
+var (
+	errArchiveStorageUnavailable = errors.New("failed to prepare archive storage")
+	errArchiveMoveFailed         = errors.New("failed to move old raw reports")
+)
 
 func NewArchiveService(database *gorm.DB, logger *logging.Logger, dataDir string) *ArchiveService {
 	return &ArchiveService{
@@ -64,8 +70,9 @@ func (s *ArchiveService) RunRawReportArchive(now time.Time) (*ArchiveRunResult, 
 
 	archiveDB, err := openArchiveDatabase(archivePath)
 	if err != nil {
-		_ = s.recordArchiveRun(now, "failed", err.Error())
-		return nil, err
+		_ = s.recordArchiveRun(now, "failed", errArchiveStorageUnavailable.Error())
+		s.logger.Error("Failed to open archive database", "error", err)
+		return nil, errArchiveStorageUnavailable
 	}
 
 	cutoff := now.AddDate(0, 0, -settings.RawReportHotDays)
@@ -115,9 +122,9 @@ func (s *ArchiveService) RunRawReportArchive(now time.Time) (*ArchiveRunResult, 
 
 		return nil
 	}); err != nil {
-		_ = s.recordArchiveRun(now, "failed", err.Error())
+		_ = s.recordArchiveRun(now, "failed", errArchiveMoveFailed.Error())
 		s.logger.Error("Failed to archive raw reports", "error", err)
-		return nil, err
+		return nil, errArchiveMoveFailed
 	}
 
 	if err := s.recordArchiveRun(now, "success", ""); err != nil {
@@ -127,10 +134,76 @@ func (s *ArchiveService) RunRawReportArchive(now time.Time) (*ArchiveRunResult, 
 }
 
 func (s *ArchiveService) archivePath(archiveDir string, now time.Time) (string, error) {
-	if err := os.MkdirAll(archiveDir, 0o755); err != nil {
+	safeArchiveDir, err := s.prepareArchiveDir(archiveDir)
+	if err != nil {
 		return "", err
 	}
-	return filepath.Join(archiveDir, "raw-reports-"+now.Format("2006-01")+".sqlite"), nil
+	return filepath.Join(safeArchiveDir, "raw-reports-"+now.Format("2006-01")+".sqlite"), nil
+}
+
+func (s *ArchiveService) prepareArchiveDir(archiveDir string) (string, error) {
+	normalizedArchiveDir, err := normalizeArchiveDir(s.dataDir, archiveDir)
+	if err != nil {
+		return "", err
+	}
+
+	dataRoot, err := cleanAbsPath(s.dataDir)
+	if err != nil {
+		return "", errCoreDataDirInvalid
+	}
+	if err := os.MkdirAll(dataRoot, 0o755); err != nil {
+		return "", errArchiveStorageUnavailable
+	}
+
+	resolvedDataRoot, err := filepath.EvalSymlinks(dataRoot)
+	if err != nil {
+		return "", errArchiveStorageUnavailable
+	}
+	resolvedDataRoot = filepath.Clean(resolvedDataRoot)
+
+	existingAncestor, err := nearestExistingPath(normalizedArchiveDir)
+	if err != nil {
+		return "", errArchiveStorageUnavailable
+	}
+	resolvedExistingAncestor, err := filepath.EvalSymlinks(existingAncestor)
+	if err != nil {
+		return "", errArchiveStorageUnavailable
+	}
+	resolvedExistingAncestor = filepath.Clean(resolvedExistingAncestor)
+	if resolvedExistingAncestor != resolvedDataRoot && !pathStrictlyInside(resolvedDataRoot, resolvedExistingAncestor) {
+		return "", errArchiveDirOutsideDataDir
+	}
+
+	if err := os.MkdirAll(normalizedArchiveDir, 0o755); err != nil {
+		return "", errArchiveStorageUnavailable
+	}
+	resolvedArchiveDir, err := filepath.EvalSymlinks(normalizedArchiveDir)
+	if err != nil {
+		return "", errArchiveStorageUnavailable
+	}
+	resolvedArchiveDir = filepath.Clean(resolvedArchiveDir)
+	if !pathStrictlyInside(resolvedDataRoot, resolvedArchiveDir) {
+		return "", errArchiveDirOutsideDataDir
+	}
+
+	return normalizedArchiveDir, nil
+}
+
+func nearestExistingPath(path string) (string, error) {
+	path = filepath.Clean(path)
+	for {
+		if _, err := os.Lstat(path); err == nil {
+			return path, nil
+		} else if !os.IsNotExist(err) {
+			return "", err
+		}
+
+		parent := filepath.Dir(path)
+		if parent == path {
+			return "", os.ErrNotExist
+		}
+		path = parent
+	}
 }
 
 func (s *ArchiveService) recordArchiveRun(now time.Time, status string, message string) error {

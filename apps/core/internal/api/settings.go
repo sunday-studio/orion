@@ -155,7 +155,7 @@ func (s *Server) runDataLifecycleArchive(c *gin.Context) {
 	if err != nil {
 		s.logger.Error("Failed to run data lifecycle archive", "error", err)
 		_ = s.recordDataLifecycleAuditEvent(c, service.DataLifecycleAuditActionArchiveRun, dataLifecycleArchiveAuditMetadata(nil, "failed"))
-		utils.InternalError(c, "Failed to run data lifecycle archive", err)
+		utils.InternalError(c, "Failed to run data lifecycle archive", nil)
 		return
 	}
 	if err := s.recordDataLifecycleAuditEvent(c, service.DataLifecycleAuditActionArchiveRun, dataLifecycleArchiveAuditMetadata(result, dataLifecycleArchiveStatus(result))); err != nil {

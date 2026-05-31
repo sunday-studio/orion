@@ -257,13 +257,24 @@ Manual archive safety:
 - archive and rollup actions refresh the settings row after completion so last-run metadata and errors are visible to operators;
 - duplicate manual action prevention belongs in the caller until Core adds durable action leasing.
 
+Archive directory policy:
+
+- `archive_dir` must resolve inside Core's configured `ORION_DATA_DIR`;
+- relative `archive_dir` values are resolved relative to `ORION_DATA_DIR`;
+- absolute `archive_dir` values are accepted only when they resolve inside `ORION_DATA_DIR`;
+- the data directory itself is not a valid archive directory;
+- traversal, null-byte, and external absolute paths are rejected with user-safe validation errors;
+- archive execution re-checks the path before writing and rejects archive directories that resolve outside `ORION_DATA_DIR` through existing symlinks;
+- raw report hot retention and rollup retention are capped at 3650 days.
+
 ```mermaid
 flowchart TD
   Action["Run archive action"] --> Settings["Load lifecycle settings"]
   Settings --> Enabled{"archive_raw_reports?"}
   Enabled -- "no" --> Suppressed["Record suppressed run"]
   Enabled -- "yes" --> Cutoff["Compute cutoff"]
-  Cutoff --> ArchiveDB["Open monthly archive SQLite"]
+  Cutoff --> ValidatePath["Validate archive path inside data dir"]
+  ValidatePath --> ArchiveDB["Open monthly archive SQLite"]
   ArchiveDB --> Select["Select old agent_reports and monitor_reports"]
   Select --> Empty{"Any old reports?"}
   Empty -- "no" --> Noop["Record no reports archived"]
