@@ -268,4 +268,8 @@ func (s *Server) registerStatusPageAdminRoutes(frontend *gin.RouterGroup) {
 	frontend.POST("/status-pages/:id/incidents", s.createStatusPageIncident)
 	frontend.PUT("/status-pages/:id/incidents/:incident_id", s.updateStatusPageIncident)
 	frontend.POST("/status-pages/:id/incidents/:incident_id/updates", s.createStatusPageIncidentUpdate)
+	frontend.GET("/status-pages/:id/subscribers", s.listStatusPageSubscribers)
+	frontend.POST("/status-pages/:id/subscribers/:subscriber_id/disable", s.disableStatusPageSubscriber)
+	frontend.POST("/status-pages/:id/subscribers/:subscriber_id/anonymize", s.anonymizeStatusPageSubscriber)
+	frontend.DELETE("/status-pages/:id/subscribers/:subscriber_id", s.deleteStatusPageSubscriber)
 }

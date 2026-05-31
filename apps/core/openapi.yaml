@@ -1213,6 +1213,48 @@ definitions:
       updated_at:
         type: string
     type: object
+  api.StatusPageSubscriberAdminComponentResponse:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  api.StatusPageSubscriberAdminResponse:
+    properties:
+      bounce_count:
+        type: integer
+      components:
+        items:
+          $ref: '#/definitions/api.StatusPageSubscriberAdminComponentResponse'
+        type: array
+      confirmed_at:
+        type: string
+      created_at:
+        type: string
+      destination_type:
+        type: string
+      disabled_at:
+        type: string
+      id:
+        type: string
+      last_delivery_at:
+        type: string
+      last_delivery_status:
+        type: string
+      masked_destination:
+        type: string
+      source:
+        type: string
+      state:
+        type: string
+      status_page_id:
+        type: string
+      unsubscribed_at:
+        type: string
+      updated_at:
+        type: string
+    type: object
   api.StatusPageSubscriberComponentResponse:
     properties:
       id:
@@ -6798,6 +6840,193 @@ paths:
       security:
       - BearerAuth: []
       summary: Update status page section
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/subscribers:
+    get:
+      consumes:
+      - application/json
+      description: Get masked status page subscribers without raw destinations, hashes,
+        ciphertext, or token metadata
+      operationId: listStatusPageSubscribers
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Subscriber state filter
+        in: query
+        name: state
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    subscribers:
+                      items:
+                        $ref: '#/definitions/api.StatusPageSubscriberAdminResponse'
+                      type: array
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List status page subscribers
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/subscribers/{subscriber_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Hard-delete a subscriber plus component preferences and delivery
+        ledger rows
+      operationId: deleteStatusPageSubscriber
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Subscriber ID
+        in: path
+        name: subscriber_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    deleted:
+                      type: boolean
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete status page subscriber
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/subscribers/{subscriber_id}/anonymize:
+    post:
+      consumes:
+      - application/json
+      description: Irreversibly remove subscriber contact data, tokens, and component
+        preferences
+      operationId: anonymizeStatusPageSubscriber
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Subscriber ID
+        in: path
+        name: subscriber_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    subscriber:
+                      $ref: '#/definitions/api.StatusPageSubscriberAdminResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Anonymize status page subscriber
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/subscribers/{subscriber_id}/disable:
+    post:
+      consumes:
+      - application/json
+      description: Disable a subscriber and clear bearer token hashes without exposing
+        sensitive fields
+      operationId: disableStatusPageSubscriber
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Subscriber ID
+        in: path
+        name: subscriber_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    subscriber:
+                      $ref: '#/definitions/api.StatusPageSubscriberAdminResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Disable status page subscriber
       tags:
       - status-pages
   /v1/status-pages/{id}/unpublish:

@@ -10,16 +10,21 @@ import {
   type ApiStatusPageIncidentResponse,
   type ApiStatusPagePublicComponentResponse,
   type ApiStatusPageResponse,
+  type ApiStatusPageSubscriberAdminResponse,
+  useAnonymizeStatusPageSubscriber,
   useCreateStatusPage,
   useCreateStatusPageComponent,
   useCreateStatusPageComponentMapping,
   useCreateStatusPageIncident,
   useCreateStatusPageIncidentUpdate,
   useCreateStatusPageSection,
+  useDeleteStatusPageSubscriber,
+  useDisableStatusPageSubscriber,
   useGetAgents,
   useGetIncidents,
   useGetMonitors,
   useGetStatusPage,
+  useListStatusPageSubscribers,
   useListStatusPages,
   usePreviewStatusPage,
   usePublishStatusPage,
@@ -28,7 +33,18 @@ import {
   useUpdateStatusPage,
   useUpdateStatusPageIncident,
 } from "@/orion-sdk";
-import { CheckCircle2, ExternalLink, Eye, Globe2, Link2, Plus, RadioTower } from "lucide-react";
+import {
+  CheckCircle2,
+  ExternalLink,
+  Eye,
+  Globe2,
+  Link2,
+  Plus,
+  RadioTower,
+  ShieldX,
+  Trash2,
+  UserX,
+} from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
@@ -194,6 +210,15 @@ const componentDensityOptions = [
   { label: "Compact", value: "compact" },
 ];
 
+const subscriberStateOptions = [
+  { label: "All subscribers", value: "" },
+  { label: "Pending", value: "pending" },
+  { label: "Confirmed", value: "confirmed" },
+  { label: "Unsubscribed", value: "unsubscribed" },
+  { label: "Bounced", value: "bounced" },
+  { label: "Disabled", value: "disabled" },
+];
+
 const statusBadgeStatus = (status?: string) => {
   switch (status) {
     case "operational":
@@ -205,6 +230,22 @@ const statusBadgeStatus = (status?: string) => {
       return "maintenance";
     case "degraded":
       return "degraded";
+    default:
+      return "unknown";
+  }
+};
+
+const subscriberBadgeStatus = (state?: string) => {
+  switch (state) {
+    case "confirmed":
+      return "up";
+    case "pending":
+      return "maintenance";
+    case "bounced":
+      return "degraded";
+    case "unsubscribed":
+    case "disabled":
+      return "stale";
     default:
       return "unknown";
   }
@@ -337,6 +378,160 @@ const Field = ({ label, children }: { label: string; children: ReactNode }) => (
   </label>
 );
 
+const StatusPageSubscribersTab = ({ pageId }: { pageId: string }) => {
+  const [stateFilter, setStateFilter] = useState("");
+  const subscribersResponse = useListStatusPageSubscribers(
+    pageId,
+    stateFilter ? { state: stateFilter } : undefined,
+    { query: { enabled: Boolean(pageId) } },
+  );
+  const subscribers = subscribersResponse.data?.subscribers ?? [];
+  const refreshSubscribers = () => {
+    void subscribersResponse.refetch();
+  };
+  const disableSubscriber = useDisableStatusPageSubscriber({
+    mutation: { onSuccess: refreshSubscribers },
+  });
+  const anonymizeSubscriber = useAnonymizeStatusPageSubscriber({
+    mutation: { onSuccess: refreshSubscribers },
+  });
+  const deleteSubscriber = useDeleteStatusPageSubscriber({
+    mutation: { onSuccess: refreshSubscribers },
+  });
+  const isMutating =
+    disableSubscriber.isPending || anonymizeSubscriber.isPending || deleteSubscriber.isPending;
+
+  const disable = (subscriber: ApiStatusPageSubscriberAdminResponse) => {
+    if (!pageId || !subscriber.id) return;
+    disableSubscriber.mutate({ id: pageId, subscriberId: subscriber.id });
+  };
+
+  const anonymize = (subscriber: ApiStatusPageSubscriberAdminResponse) => {
+    if (!pageId || !subscriber.id) return;
+    if (!window.confirm("Anonymize this subscriber and remove contact data?")) return;
+    anonymizeSubscriber.mutate({ id: pageId, subscriberId: subscriber.id });
+  };
+
+  const hardDelete = (subscriber: ApiStatusPageSubscriberAdminResponse) => {
+    if (!pageId || !subscriber.id) return;
+    if (!window.confirm("Hard-delete this subscriber and delivery history?")) return;
+    deleteSubscriber.mutate({ id: pageId, subscriberId: subscriber.id });
+  };
+
+  return (
+    <section className="space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-medium">Subscribers</h3>
+          <p className="mt-1 text-sm text-neutral-600">
+            {subscribersResponse.data?.count ?? 0} matching records
+          </p>
+        </div>
+        <Field label="State">
+          <select
+            className="h-9 w-full min-w-48 border border-neutral-200 bg-white px-3 text-sm"
+            value={stateFilter}
+            onChange={(event) => setStateFilter(event.target.value)}
+          >
+            {subscriberStateOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
+
+      {subscribersResponse.isLoading && <div className="text-sm text-neutral-600">Loading...</div>}
+      {subscribersResponse.isError && <div className="text-sm">Unable to load subscribers.</div>}
+      {!subscribersResponse.isLoading && subscribers.length === 0 && (
+        <EmptyState
+          title="No subscribers"
+          description="Confirmed public subscribers will appear here with masked destinations."
+        />
+      )}
+
+      <div className="space-y-3">
+        {subscribers.map((subscriber) => (
+          <div className="border border-neutral-200 p-3" key={subscriber.id}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium">{subscriber.masked_destination}</span>
+                  <StatusBadge
+                    fallback={subscriber.state}
+                    value={subscriberBadgeStatus(subscriber.state)}
+                  />
+                </div>
+                <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-neutral-600">
+                  <span>{subscriber.destination_type}</span>
+                  <span>Source {subscriber.source || "unknown"}</span>
+                  <span>Created {formatDateTime(subscriber.created_at)}</span>
+                  {subscriber.last_delivery_status && (
+                    <span>
+                      Last delivery {subscriber.last_delivery_status} -{" "}
+                      {formatDateTime(subscriber.last_delivery_at)}
+                    </span>
+                  )}
+                  {subscriber.bounce_count ? <span>Bounces {subscriber.bounce_count}</span> : null}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  disabled={isMutating || subscriber.state === "disabled"}
+                  onClick={() => disable(subscriber)}
+                  type="button"
+                  variant="outline"
+                >
+                  <UserX className="size-4" />
+                  Disable
+                </Button>
+                <Button
+                  disabled={isMutating || subscriber.masked_destination === "anonymized"}
+                  onClick={() => anonymize(subscriber)}
+                  type="button"
+                  variant="outline"
+                >
+                  <ShieldX className="size-4" />
+                  Anonymize
+                </Button>
+                <Button
+                  disabled={isMutating}
+                  onClick={() => hardDelete(subscriber)}
+                  type="button"
+                  variant="outline"
+                >
+                  <Trash2 className="size-4" />
+                  Delete
+                </Button>
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2 text-sm">
+              {(subscriber.components ?? []).map((component) => (
+                <span className="border border-neutral-200 px-2 py-1" key={component.id}>
+                  {component.name}
+                </span>
+              ))}
+              {(subscriber.components ?? []).length === 0 && (
+                <span className="text-neutral-600">All visible components</span>
+              )}
+            </div>
+            <div className="mt-3 grid gap-2 text-xs text-neutral-600 sm:grid-cols-3">
+              <span>Confirmed {formatDateTime(subscriber.confirmed_at)}</span>
+              <span>Unsubscribed {formatDateTime(subscriber.unsubscribed_at)}</span>
+              <span>Disabled {formatDateTime(subscriber.disabled_at)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {(disableSubscriber.isError || anonymizeSubscriber.isError || deleteSubscriber.isError) && (
+        <p className="text-sm">Unable to update subscriber.</p>
+      )}
+    </section>
+  );
+};
+
 export const StatusPagesPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedPageId = searchParams.get("page") ?? "";
@@ -364,6 +559,7 @@ export const StatusPagesPage = () => {
   const [editIncidentForm, setEditIncidentForm] = useState<IncidentFormState>(emptyIncidentForm);
   const [updateForm, setUpdateForm] = useState<IncidentUpdateFormState>(emptyIncidentUpdateForm);
   const [selectedIncidentId, setSelectedIncidentId] = useState("");
+  const [activePageTab, setActivePageTab] = useState<"setup" | "subscribers">("setup");
 
   useEffect(() => {
     if (!selectedPageId && pages[0]?.id) {
@@ -851,6 +1047,31 @@ export const StatusPagesPage = () => {
               )}
             </section>
 
+            <div className="inline-flex border border-neutral-800">
+              <button
+                className={`px-3 py-1.5 text-sm ${
+                  activePageTab === "setup" ? "bg-neutral-800 text-white" : "bg-white"
+                }`}
+                onClick={() => setActivePageTab("setup")}
+                type="button"
+              >
+                Setup
+              </button>
+              <button
+                className={`border-l border-neutral-800 px-3 py-1.5 text-sm ${
+                  activePageTab === "subscribers" ? "bg-neutral-800 text-white" : "bg-white"
+                }`}
+                onClick={() => setActivePageTab("subscribers")}
+                type="button"
+              >
+                Subscribers
+              </button>
+            </div>
+
+            {activePageTab === "subscribers" ? (
+              <StatusPageSubscribersTab pageId={pageId} />
+            ) : (
+              <>
             <form className="space-y-4" onSubmit={submitPageSettings}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h3 className="text-sm font-medium">Page Settings</h3>
@@ -1814,6 +2035,8 @@ export const StatusPagesPage = () => {
                 )}
               </div>
             </section>
+              </>
+            )}
           </main>
         )}
       </div>
