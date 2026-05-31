@@ -842,7 +842,7 @@ func incidentTimelineEvidenceByReportID(reports []db.MonitorReport) map[string]s
 
 func monitorReportEvidence(report db.MonitorReport) string {
 	var fields map[string]interface{}
-	if err := json.Unmarshal([]byte(safeMonitorReportPayload(report.Payload)), &fields); err != nil {
+	if err := json.Unmarshal([]byte(service.SafeMonitorReportPayload(report.Payload)), &fields); err != nil {
 		return ""
 	}
 	for _, key := range []string{"payload", "failure_stage", "failure_reason", "message", "error", "summary", "status", "status_code"} {

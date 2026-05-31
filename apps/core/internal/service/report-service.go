@@ -52,20 +52,18 @@ func (s *ReportService) SetDiagnostics(diagnostics *RuntimeDiagnosticsService) {
 func (s *ReportService) StoreMonitorReport(monitorID string, payload MonitorReportPayload) (*string, error) {
 	monitorReportID := utils.GenerateID("monitor_report")
 
-	var payloadData string
+	var reportPayload interface{}
 	if payload.Error != nil {
-		b, err := json.Marshal(payload.Error)
-		if err != nil {
-			return nil, err
-		}
-		payloadData = string(b)
+		reportPayload = payload.Error
 	} else {
-		b, err := json.Marshal(payload.Metrics)
-		if err != nil {
-			return nil, err
-		}
-		payloadData = string(b)
+		reportPayload = payload.Metrics
 	}
+
+	b, err := json.Marshal(RedactMonitorReportPayloadValue(reportPayload))
+	if err != nil {
+		return nil, err
+	}
+	payloadData := string(b)
 
 	monitorReport := db.MonitorReport{
 		ID:          monitorReportID,
