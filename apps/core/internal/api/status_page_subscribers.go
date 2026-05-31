@@ -415,8 +415,8 @@ func (s *Server) allowPublicSubscriberRequest(c *gin.Context, scope string) bool
 }
 
 func (s *Server) loadPublicStatusPageForSubscriberRequest(c *gin.Context) (db.StatusPage, bool) {
-	var page db.StatusPage
-	if err := s.db.Where("slug = ? AND visibility IN ?", strings.TrimSpace(c.Param("slug")), []string{statusPageVisibilityPublic, statusPageVisibilityUnlisted}).First(&page).Error; err != nil {
+	page, err := s.loadPublicStatusPageForRequest(c, c.Param("slug"))
+	if err != nil {
 		writeStatusPageLoadError(c, err, "Status page not found")
 		return db.StatusPage{}, false
 	}
