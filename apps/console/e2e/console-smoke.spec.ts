@@ -461,6 +461,51 @@ test("creates a Core heartbeat monitor and shows setup affordances", async ({ pa
   await expect(page.getByRole("heading", { name: "Monitors" })).toBeVisible();
 });
 
+test("creates a public status incident draft from an internal incident", async ({ page }) => {
+  await signIn(page);
+
+  await page.goto("/incidents/seed-incident-seed-monitor-seed-agent-03-down-http");
+  await expect(page.getByRole("heading", { name: "Down Server HTTP API is down" })).toBeVisible();
+  await page.getByRole("button", { name: "Public draft" }).click();
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText("Seed Orion Status")).toBeVisible();
+  await expect(dialog.getByText("Checkout", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("Investigating an issue affecting Checkout")).toBeVisible();
+  await expect(dialog).not.toContainText("seed-monitor-seed-agent-03-down-http");
+  await expect(dialog).not.toContainText("Down Server HTTP API is down");
+
+  await dialog.getByRole("button", { name: "Create draft" }).click();
+  await expect(dialog.getByText("Draft created:")).toBeVisible();
+
+  const token = await page.evaluate(() => localStorage.getItem("orion_token"));
+  expect(token).toBeTruthy();
+  const adminIncidents = await page.request.get(
+    "http://127.0.0.1:18999/v1/status-pages/seed-status-page-main/incidents",
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  expect(adminIncidents.ok()).toBeTruthy();
+  const adminPayload = (await adminIncidents.json()) as {
+    data?: { incidents?: Array<{ id?: string; title?: string; visibility?: string }> };
+  };
+  const draftIncident = adminPayload.data?.incidents?.find(
+    (incident) => incident.title === "Investigating an issue affecting Checkout",
+  );
+  expect(draftIncident?.visibility).toBe("draft");
+  if (!draftIncident?.id) throw new Error("Draft incident was not created");
+
+  const publicList = await page.request.get(
+    "http://127.0.0.1:18999/status/seed-orion-status/incidents",
+  );
+  expect(publicList.ok()).toBeTruthy();
+  expect(await publicList.text()).not.toContain("Investigating an issue affecting Checkout");
+
+  const publicDetail = await page.request.get(
+    `http://127.0.0.1:18999/status/seed-orion-status/incidents/${draftIncident.id}`,
+  );
+  expect(publicDetail.status()).toBe(404);
+});
+
 test("exercises incident detail tabs and lifecycle actions", async ({ page }) => {
   await signIn(page);
 
