@@ -251,7 +251,7 @@ type statusPagePublicHTMLThemeConfig struct {
 	ShowIncidentHistory bool
 }
 
-func statusPagePublicHTMLTheme(settings map[string]interface{}) statusPagePublicHTMLThemeConfig {
+func statusPagePublicHTMLTheme(settings map[string]any) statusPagePublicHTMLThemeConfig {
 	theme := statusPagePublicHTMLThemeConfig{
 		AccentColor:         "#2563eb",
 		HeaderClass:         "standard",

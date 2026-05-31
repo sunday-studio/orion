@@ -320,7 +320,7 @@ func (a *App) storeMissedHeartbeatReport(monitorConfig db.CoreMonitorConfig, now
 	payload := service.MonitorReportPayload{
 		Timestamp: now.Format(time.RFC3339),
 		Health:    "stale",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]any{
 			"runner":           "core",
 			"type":             "heartbeat",
 			"failure_stage":    "missed_signal",
@@ -335,7 +335,7 @@ func (a *App) storeMissedHeartbeatReport(monitorConfig db.CoreMonitorConfig, now
 	}
 	return a.db.Model(&db.CoreMonitorConfig{}).
 		Where("monitor_id = ?", monitorConfig.MonitorID).
-		Updates(map[string]interface{}{
+		Updates(map[string]any{
 			"last_failure_at": now,
 			"updated_at":      now,
 		}).Error
@@ -354,7 +354,7 @@ func (a *App) RunImmediateCheck(ctx context.Context, monitorConfig db.CoreMonito
 	if interval <= 0 {
 		interval = defaultCheckInterval
 	}
-	updates := map[string]interface{}{
+	updates := map[string]any{
 		"last_run_at":      &result.finishedAt,
 		"next_run_at":      result.finishedAt.Add(interval),
 		"lease_owner":      "",

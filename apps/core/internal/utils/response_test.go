@@ -15,7 +15,7 @@ func TestSuccessResponse(t *testing.T) {
 		name       string
 		statusCode int
 		message    string
-		data       interface{}
+		data       any
 	}{
 		{name: "ok with data", statusCode: 200, message: "OK", data: map[string]string{"id": "x"}},
 		{name: "created with nil data", statusCode: 201, message: "Created", data: nil},

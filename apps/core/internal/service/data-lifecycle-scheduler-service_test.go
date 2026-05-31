@@ -105,7 +105,7 @@ func TestDataLifecycleSchedulerRunsOncePerDay(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("update settings: %v", err)
 	}
-	if err := database.Model(&db.DataLifecycleSettings{}).Where("id = ?", 1).Updates(map[string]interface{}{
+	if err := database.Model(&db.DataLifecycleSettings{}).Where("id = ?", 1).Updates(map[string]any{
 		"last_rollup_run_at":  now.Add(-time.Hour),
 		"last_archive_run_at": now.Add(-time.Hour),
 	}).Error; err != nil {

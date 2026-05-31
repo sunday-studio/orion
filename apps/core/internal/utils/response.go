@@ -8,10 +8,10 @@ import (
 
 // APIResponse represents a standard API response structure
 type APIResponse struct {
-	Success bool        `json:"success"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
-	Error   string      `json:"error,omitempty"`
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+	Data    any    `json:"data,omitempty"`
+	Error   string `json:"error,omitempty"`
 }
 
 // PaginationMeta describes a paginated list in a UI-friendly, consistent shape.
@@ -91,7 +91,7 @@ func NewPaginationMeta(totalItems int64, limit int, offset int, currentCount int
 }
 
 // SuccessResponse sends a successful JSON response
-func SuccessResponse(c *gin.Context, statusCode int, message string, data interface{}) {
+func SuccessResponse(c *gin.Context, statusCode int, message string, data any) {
 	c.JSON(statusCode, APIResponse{
 		Success: true,
 		Message: message,

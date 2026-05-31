@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"orion/core/internal/db"
 	"orion/core/internal/service"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
@@ -73,28 +73,28 @@ type syntheticResult struct {
 }
 
 type syntheticStepResult struct {
-	ID                string      `json:"id"`
-	Index             int         `json:"index"`
-	Name              string      `json:"name"`
-	Type              string      `json:"type"`
-	Method            string      `json:"method,omitempty"`
-	TargetURL         string      `json:"target_url,omitempty"`
-	FinalURL          string      `json:"final_url,omitempty"`
-	FinalHost         string      `json:"final_host,omitempty"`
-	StatusCode        int         `json:"status_code,omitempty"`
-	ExpectedStatus    int         `json:"expected_status,omitempty"`
-	ExpectedStatuses  []int       `json:"expected_statuses,omitempty"`
-	RequestHeaders    []string    `json:"request_headers,omitempty"`
-	ResponseSample    string      `json:"response_sample,omitempty"`
-	ResponseTruncated bool        `json:"response_truncated,omitempty"`
-	Extracted         []string    `json:"extracted_variables,omitempty"`
-	AssertionPath     string      `json:"assertion_path,omitempty"`
-	AssertionExpected interface{} `json:"assertion_expected,omitempty"`
-	AssertionActual   interface{} `json:"assertion_actual,omitempty"`
-	DurationMS        int64       `json:"duration_ms"`
-	Ok                bool        `json:"ok"`
-	FailureStage      string      `json:"failure_stage,omitempty"`
-	Error             string      `json:"error,omitempty"`
+	ID                string   `json:"id"`
+	Index             int      `json:"index"`
+	Name              string   `json:"name"`
+	Type              string   `json:"type"`
+	Method            string   `json:"method,omitempty"`
+	TargetURL         string   `json:"target_url,omitempty"`
+	FinalURL          string   `json:"final_url,omitempty"`
+	FinalHost         string   `json:"final_host,omitempty"`
+	StatusCode        int      `json:"status_code,omitempty"`
+	ExpectedStatus    int      `json:"expected_status,omitempty"`
+	ExpectedStatuses  []int    `json:"expected_statuses,omitempty"`
+	RequestHeaders    []string `json:"request_headers,omitempty"`
+	ResponseSample    string   `json:"response_sample,omitempty"`
+	ResponseTruncated bool     `json:"response_truncated,omitempty"`
+	Extracted         []string `json:"extracted_variables,omitempty"`
+	AssertionPath     string   `json:"assertion_path,omitempty"`
+	AssertionExpected any      `json:"assertion_expected,omitempty"`
+	AssertionActual   any      `json:"assertion_actual,omitempty"`
+	DurationMS        int64    `json:"duration_ms"`
+	Ok                bool     `json:"ok"`
+	FailureStage      string   `json:"failure_stage,omitempty"`
+	Error             string   `json:"error,omitempty"`
 	startedAt         time.Time
 }
 
@@ -401,7 +401,7 @@ func (a *App) runSyntheticStep(ctx context.Context, step syntheticStepConfig, va
 }
 
 func evaluateSyntheticJSONAssertions(body string, assertions []apiJSONAssertion, result *syntheticStepResult) error {
-	var decoded interface{}
+	var decoded any
 	if err := json.Unmarshal([]byte(body), &decoded); err != nil {
 		return fmt.Errorf("parse response json: %w", err)
 	}
@@ -424,7 +424,7 @@ func evaluateSyntheticJSONAssertions(body string, assertions []apiJSONAssertion,
 }
 
 func extractSyntheticVariables(body string, extractions []syntheticExtraction, variables map[string]string) ([]string, error) {
-	var decoded interface{}
+	var decoded any
 	if err := json.Unmarshal([]byte(body), &decoded); err != nil {
 		return nil, fmt.Errorf("parse response json: %w", err)
 	}
@@ -444,7 +444,7 @@ func extractSyntheticVariables(body string, extractions []syntheticExtraction, v
 		variables[extraction.Name] = extractedValue
 		extracted = append(extracted, extraction.Name)
 	}
-	sort.Strings(extracted)
+	slices.Sort(extracted)
 	return extracted, nil
 }
 
@@ -532,7 +532,7 @@ func sortedStringKeys(values map[string]string) []string {
 	for key := range values {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 
@@ -568,8 +568,8 @@ func (a *App) storeSyntheticReport(monitorID string, result syntheticResult) err
 	return err
 }
 
-func syntheticPayload(result syntheticResult, resultErr error) map[string]interface{} {
-	payload := map[string]interface{}{
+func syntheticPayload(result syntheticResult, resultErr error) map[string]any {
+	payload := map[string]any{
 		"runner":               "core",
 		"type":                 "synthetic",
 		"step_count":           result.StepCount,

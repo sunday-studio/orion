@@ -35,7 +35,7 @@ func TestRunDueChecksStoresUpReportForUDPResponse(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-udp-test", UDPDialContext: udpDialContext})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 	if dialedNetwork != "udp" || dialedAddress != "example.com:8125" {
@@ -49,7 +49,7 @@ func TestRunDueChecksStoresUpReportForUDPResponse(t *testing.T) {
 	if report.Health != "up" {
 		t.Fatalf("report health = %q, want up", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -83,7 +83,7 @@ func TestRunDueChecksStoresDownReportForUDPTimeout(t *testing.T) {
 			return &fakeUDPConn{readErr: timeoutTestError{}}, nil
 		},
 	})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -110,7 +110,7 @@ func TestRunDueChecksStoresDownReportForUDPResponseMismatch(t *testing.T) {
 			return &fakeUDPConn{response: "nope"}, nil
 		},
 	})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -132,7 +132,7 @@ func TestRunDueChecksStoresDownReportForUDPNoResponseConfig(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-udp-test"})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -146,7 +146,7 @@ func assertUDPFailurePayload(t *testing.T, database *gorm.DB, monitorID string, 
 	if report.Health != "down" {
 		t.Fatalf("report health = %q, want down", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
