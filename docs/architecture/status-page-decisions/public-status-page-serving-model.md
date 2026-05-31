@@ -22,7 +22,7 @@ The public status page bundle is separate from the authenticated Console SPA. It
 
 - Core registers explicit public status routes before the Console SPA fallback.
 - `GET /status/:slug` serves the public status page HTML shell.
-- Public read endpoints stay outside `/v1`, for example `GET /status/:slug/payload`, `GET /status/:slug/history`, `GET /status/:slug/incidents`, and `GET /status/:slug/incidents/:incident_id`.
+- Public read endpoints stay outside `/v1`, for example `GET /status/:slug?format=json`, `GET /status/:slug/history`, `GET /status/:slug/incidents`, and `GET /status/:slug/incidents/:incident_id`.
 - Console admin routes stay under `/v1/status-pages` and remain separate from public routes.
 - The Console fallback must not claim `/status/*`; unknown status slugs should return public `404` responses, not the Console app.
 - Future custom domains should resolve host plus path to the same Core public route handlers, with strict host and slug validation.
