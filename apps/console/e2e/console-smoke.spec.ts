@@ -70,6 +70,18 @@ test("renders primary operations pages with seeded Core data", async ({ page }) 
   await expect(page.getByText("Owner: Core")).toBeVisible();
   await expect(page.getByText("Type: HTTP")).toBeVisible();
   await expect(page.getByText("Source: Core")).toBeVisible();
+  const workerDiagnostics = page.getByLabel("Core worker diagnostics");
+  await expect(workerDiagnostics.getByText("Core API", { exact: true })).toBeVisible();
+  await expect(workerDiagnostics.getByText("Monitor worker", { exact: true })).toBeVisible();
+  await expect(workerDiagnostics.getByText("unknown", { exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByText("No Core monitor worker heartbeat is available.").first(),
+  ).toBeVisible();
+  await expect(page.getByText("Worker attention needed").first()).toBeVisible();
+  await page.getByRole("link", { name: "Core Public API" }).click();
+  await expect(page.getByRole("heading", { name: "Core Public API" })).toBeVisible();
+  await expect(page.getByText("Core · http")).toBeVisible();
+  await expect(page.getByText("No Core monitor worker heartbeat is available.")).toBeVisible();
 
   await page.getByRole("link", { name: "Alerts" }).click();
   await expect(page.getByRole("heading", { name: "Alerts" })).toBeVisible();
