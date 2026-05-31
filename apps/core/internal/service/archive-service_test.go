@@ -1,6 +1,8 @@
 package service
 
 import (
+	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -16,10 +18,11 @@ import (
 func TestRunRawReportArchiveMovesOldReportsToArchiveDatabase(t *testing.T) {
 	database := openArchiveTestDatabase(t)
 	logger := logging.NewLogger()
-	archiveDir := filepath.Join(t.TempDir(), "archive")
+	dataDir := t.TempDir()
+	archiveDir := filepath.Join(dataDir, "archive")
 	now := time.Date(2026, 5, 13, 12, 0, 0, 0, time.UTC)
 
-	settingsService := NewSettingsService(database, logger, t.TempDir())
+	settingsService := NewSettingsService(database, logger, dataDir)
 	if _, err := settingsService.UpdateDataLifecycleSettings(DataLifecycleSettingsPayload{
 		RawReportHotDays:  30,
 		ArchiveRawReports: true,
@@ -35,7 +38,7 @@ func TestRunRawReportArchiveMovesOldReportsToArchiveDatabase(t *testing.T) {
 	oldMonitorID := insertArchiveMonitorReport(t, database, "monitor_a", "up", now.AddDate(0, 0, -31))
 	newMonitorID := insertArchiveMonitorReport(t, database, "monitor_a", "down", now.AddDate(0, 0, -2))
 
-	result, err := NewArchiveService(database, logger, t.TempDir()).RunRawReportArchive(now)
+	result, err := NewArchiveService(database, logger, dataDir).RunRawReportArchive(now)
 	if err != nil {
 		t.Fatalf("RunRawReportArchive() error = %v", err)
 	}
@@ -67,9 +70,10 @@ func TestRunRawReportArchiveMovesOldReportsToArchiveDatabase(t *testing.T) {
 func TestRunRawReportArchiveSkipsWhenDisabled(t *testing.T) {
 	database := openArchiveTestDatabase(t)
 	logger := logging.NewLogger()
+	dataDir := t.TempDir()
 	now := time.Date(2026, 5, 13, 12, 0, 0, 0, time.UTC)
 
-	settingsService := NewSettingsService(database, logger, t.TempDir())
+	settingsService := NewSettingsService(database, logger, dataDir)
 	if _, err := settingsService.UpdateDataLifecycleSettings(DataLifecycleSettingsPayload{
 		RawReportHotDays:  30,
 		ArchiveRawReports: false,
@@ -81,7 +85,7 @@ func TestRunRawReportArchiveSkipsWhenDisabled(t *testing.T) {
 	}
 	oldReportID := insertArchiveMonitorReport(t, database, "monitor_a", "up", now.AddDate(0, 0, -31))
 
-	result, err := NewArchiveService(database, logger, t.TempDir()).RunRawReportArchive(now)
+	result, err := NewArchiveService(database, logger, dataDir).RunRawReportArchive(now)
 	if err != nil {
 		t.Fatalf("RunRawReportArchive() error = %v", err)
 	}
@@ -90,6 +94,46 @@ func TestRunRawReportArchiveSkipsWhenDisabled(t *testing.T) {
 		t.Fatalf("SkippedBecauseDisabled = false, want true")
 	}
 	assertArchiveReportExists(t, database, &db.MonitorReport{}, oldReportID)
+}
+
+func TestRunRawReportArchiveRejectsSymlinkEscapingDataDir(t *testing.T) {
+	database := openArchiveTestDatabase(t)
+	logger := logging.NewLogger()
+	dataDir := t.TempDir()
+	externalDir := t.TempDir()
+	archiveLink := filepath.Join(dataDir, "archive-link")
+	if err := os.Symlink(externalDir, archiveLink); err != nil {
+		t.Skipf("create symlink: %v", err)
+	}
+
+	settings := db.DataLifecycleSettings{
+		ID:                1,
+		RawReportHotDays:  30,
+		ArchiveRawReports: true,
+		ArchiveDir:        archiveLink,
+		RollupsEnabled:    true,
+		ArchiveSchedule:   "manual",
+	}
+	if err := database.Create(&settings).Error; err != nil {
+		t.Fatalf("create settings: %v", err)
+	}
+	oldReportID := insertArchiveMonitorReport(t, database, "monitor_a", "up", time.Date(2026, 4, 10, 12, 0, 0, 0, time.UTC))
+
+	now := time.Date(2026, 5, 13, 12, 0, 0, 0, time.UTC)
+	_, err := NewArchiveService(database, logger, dataDir).RunRawReportArchive(now)
+	if !errors.Is(err, errArchiveDirOutsideDataDir) {
+		t.Fatalf("RunRawReportArchive() error = %v, want archive directory policy error", err)
+	}
+	assertArchiveReportExists(t, database, &db.MonitorReport{}, oldReportID)
+	if err := database.First(&settings, 1).Error; err != nil {
+		t.Fatalf("find settings: %v", err)
+	}
+	if settings.LastArchiveStatus != "failed" {
+		t.Fatalf("LastArchiveStatus = %q, want failed", settings.LastArchiveStatus)
+	}
+	if _, err := os.Stat(filepath.Join(externalDir, "raw-reports-2026-05.sqlite")); !os.IsNotExist(err) {
+		t.Fatalf("archive file escaped data dir, stat err = %v", err)
+	}
 }
 
 func openArchiveTestDatabase(t *testing.T) *gorm.DB {

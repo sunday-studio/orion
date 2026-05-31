@@ -2,9 +2,11 @@ package api
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
+	"orion/core/internal/config"
 	"orion/core/internal/db"
 )
 
@@ -51,8 +53,75 @@ func TestDataLifecycleSettingsFlow(t *testing.T) {
 	}
 }
 
+func TestDataLifecycleSettingsRejectsUnsafeArchivePathWithoutPathLeak(t *testing.T) {
+	dataDir := t.TempDir()
+	externalDir := t.TempDir()
+	server := setupTestServerWithConfig(t, &config.Config{
+		DataDir:                    dataDir,
+		AlertRecoveryNotifications: true,
+		AlertTLSExpiryDays:         14,
+	})
+
+	updateResp := performJSONRequest(t, server, http.MethodPut, "/v1/settings/data-lifecycle", map[string]interface{}{
+		"raw_report_hot_days":   90,
+		"archive_raw_reports":   true,
+		"archive_dir":           externalDir,
+		"rollups_enabled":       true,
+		"rollup_retention_days": nil,
+		"archive_schedule":      "daily",
+	}, "")
+	if updateResp.Code != http.StatusBadRequest {
+		t.Fatalf("unsafe archive path status = %d, body = %s", updateResp.Code, updateResp.Body.String())
+	}
+	body := updateResp.Body.String()
+	if strings.Contains(body, externalDir) || strings.Contains(body, dataDir) {
+		t.Fatalf("unsafe archive path response leaked filesystem path: %s", body)
+	}
+	if !strings.Contains(body, "archive_dir must stay inside the Core data directory") {
+		t.Fatalf("unsafe archive path response = %s, want policy message", body)
+	}
+}
+
+func TestDataLifecycleArchiveErrorDoesNotLeakArchivePath(t *testing.T) {
+	dataDir := t.TempDir()
+	externalDir := t.TempDir()
+	server := setupTestServerWithConfig(t, &config.Config{
+		DataDir:                    dataDir,
+		AlertRecoveryNotifications: true,
+		AlertTLSExpiryDays:         14,
+	})
+	if _, err := server.settingsService.GetDataLifecycleSettings(); err != nil {
+		t.Fatalf("create settings defaults: %v", err)
+	}
+	if err := server.db.Model(&db.DataLifecycleSettings{}).Where("id = ?", 1).Updates(map[string]interface{}{
+		"archive_raw_reports": true,
+		"archive_dir":         externalDir,
+		"rollups_enabled":     true,
+		"archive_schedule":    "manual",
+	}).Error; err != nil {
+		t.Fatalf("seed unsafe archive path: %v", err)
+	}
+
+	archiveResp := performJSONRequest(t, server, http.MethodPost, "/v1/settings/data-lifecycle/actions/archive", nil, "")
+	if archiveResp.Code != http.StatusInternalServerError {
+		t.Fatalf("archive status = %d, body = %s", archiveResp.Code, archiveResp.Body.String())
+	}
+	body := archiveResp.Body.String()
+	if strings.Contains(body, externalDir) || strings.Contains(body, dataDir) {
+		t.Fatalf("archive error response leaked filesystem path: %s", body)
+	}
+	if !strings.Contains(body, "Failed to run data lifecycle archive") {
+		t.Fatalf("archive error response = %s, want generic failure message", body)
+	}
+}
+
 func TestDataLifecycleActionsFlow(t *testing.T) {
-	server := setupTestServer(t)
+	dataDir := t.TempDir()
+	server := setupTestServerWithConfig(t, &config.Config{
+		DataDir:                    dataDir,
+		AlertRecoveryNotifications: true,
+		AlertTLSExpiryDays:         14,
+	})
 	registered := registerTestAgent(t, server)
 	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
 
@@ -90,7 +159,7 @@ func TestDataLifecycleActionsFlow(t *testing.T) {
 	updateResp := performJSONRequest(t, server, http.MethodPut, "/v1/settings/data-lifecycle", map[string]interface{}{
 		"raw_report_hot_days":   0,
 		"archive_raw_reports":   true,
-		"archive_dir":           t.TempDir(),
+		"archive_dir":           "archive",
 		"rollups_enabled":       true,
 		"rollup_retention_days": nil,
 		"archive_schedule":      "manual",
@@ -102,7 +171,7 @@ func TestDataLifecycleActionsFlow(t *testing.T) {
 	updateResp = performJSONRequest(t, server, http.MethodPut, "/v1/settings/data-lifecycle", map[string]interface{}{
 		"raw_report_hot_days":   1,
 		"archive_raw_reports":   true,
-		"archive_dir":           t.TempDir(),
+		"archive_dir":           "archive",
 		"rollups_enabled":       true,
 		"rollup_retention_days": nil,
 		"archive_schedule":      "manual",

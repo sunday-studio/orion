@@ -1,6 +1,7 @@
 package service
 
 import (
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -17,12 +18,13 @@ func TestGetMonitorUptimeUsesRollupsForArchivedDays(t *testing.T) {
 	database := openReportTestDatabase(t)
 	logger := logging.NewLogger()
 	now := time.Date(2026, 5, 13, 12, 0, 0, 0, time.UTC)
+	dataDir := t.TempDir()
 
-	settingsService := NewSettingsService(database, logger, t.TempDir())
+	settingsService := NewSettingsService(database, logger, dataDir)
 	if _, err := settingsService.UpdateDataLifecycleSettings(DataLifecycleSettingsPayload{
 		RawReportHotDays:  1,
 		ArchiveRawReports: true,
-		ArchiveDir:        t.TempDir(),
+		ArchiveDir:        filepath.Join(dataDir, "archive"),
 		RollupsEnabled:    true,
 		ArchiveSchedule:   "manual",
 	}); err != nil {
@@ -42,7 +44,7 @@ func TestGetMonitorUptimeUsesRollupsForArchivedDays(t *testing.T) {
 	insertReportServiceMonitorReport(t, database, "monitor_a", "up", time.Date(2026, 5, 12, 10, 0, 0, 0, time.UTC))
 	insertReportServiceMonitorReport(t, database, "monitor_a", "down", time.Date(2026, 5, 12, 11, 0, 0, 0, time.UTC))
 
-	reportService := NewReportService(database, logger, &config.Config{DataDir: t.TempDir()})
+	reportService := NewReportService(database, logger, &config.Config{DataDir: dataDir})
 	result, err := reportService.getMonitorUptime("monitor_a", "3d", now)
 	if err != nil {
 		t.Fatalf("getMonitorUptime() error = %v", err)
@@ -73,7 +75,7 @@ func TestGetAgentUptimeAggregatesActiveMonitorBuckets(t *testing.T) {
 	if _, err := settingsService.UpdateDataLifecycleSettings(DataLifecycleSettingsPayload{
 		RawReportHotDays:  30,
 		ArchiveRawReports: true,
-		ArchiveDir:        t.TempDir(),
+		ArchiveDir:        filepath.Join(dataDir, "archive"),
 		RollupsEnabled:    true,
 		ArchiveSchedule:   "manual",
 	}); err != nil {

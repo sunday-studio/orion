@@ -2,13 +2,22 @@ package service
 
 import (
 	"errors"
-	"fmt"
 	"orion/core/internal/db"
 	"orion/core/internal/logging"
+	"os"
 	"path/filepath"
 	"strings"
 
 	"gorm.io/gorm"
+)
+
+const maxDataLifecycleRetentionDays = 3650
+
+var (
+	errArchiveDirRequired       = errors.New("archive_dir is required when archive_raw_reports is enabled")
+	errArchiveDirOutsideDataDir = errors.New("archive_dir must stay inside the Core data directory")
+	errArchiveDirInvalid        = errors.New("archive_dir is invalid")
+	errCoreDataDirInvalid       = errors.New("Core data directory is invalid")
 )
 
 type DataLifecycleSettingsPayload struct {
@@ -43,7 +52,8 @@ func (s *SettingsService) GetDataLifecycleSettings() (*db.DataLifecycleSettings,
 }
 
 func (s *SettingsService) UpdateDataLifecycleSettings(payload DataLifecycleSettingsPayload) (*db.DataLifecycleSettings, error) {
-	if err := s.validateDataLifecyclePayload(payload); err != nil {
+	archiveDir, err := s.validateDataLifecyclePayload(payload)
+	if err != nil {
 		return nil, err
 	}
 
@@ -55,7 +65,7 @@ func (s *SettingsService) UpdateDataLifecycleSettings(payload DataLifecycleSetti
 	updates := map[string]interface{}{
 		"raw_report_hot_days":   payload.RawReportHotDays,
 		"archive_raw_reports":   payload.ArchiveRawReports,
-		"archive_dir":           payload.ArchiveDir,
+		"archive_dir":           archiveDir,
 		"rollups_enabled":       payload.RollupsEnabled,
 		"rollup_retention_days": payload.RollupRetentionDays,
 		"archive_schedule":      payload.ArchiveSchedule,
@@ -81,7 +91,7 @@ func (s *SettingsService) ensureDataLifecycleDefaults() (*db.DataLifecycleSettin
 		ID:                1,
 		RawReportHotDays:  90,
 		ArchiveRawReports: true,
-		ArchiveDir:        filepath.Join(s.dataDir, "archive"),
+		ArchiveDir:        defaultArchiveDir(s.dataDir),
 		RollupsEnabled:    true,
 		ArchiveSchedule:   "daily",
 	}
@@ -92,23 +102,161 @@ func (s *SettingsService) ensureDataLifecycleDefaults() (*db.DataLifecycleSettin
 	return &settings, nil
 }
 
-func (s *SettingsService) validateDataLifecyclePayload(payload DataLifecycleSettingsPayload) error {
+func (s *SettingsService) validateDataLifecyclePayload(payload DataLifecycleSettingsPayload) (string, error) {
 	if payload.RawReportHotDays < 1 {
-		return errors.New("raw_report_hot_days must be >= 1")
+		return "", errors.New("raw_report_hot_days must be >= 1")
 	}
-	if payload.ArchiveRawReports && strings.TrimSpace(payload.ArchiveDir) == "" {
-		return errors.New("archive_dir is required when archive_raw_reports is enabled")
+	if payload.RawReportHotDays > maxDataLifecycleRetentionDays {
+		return "", errors.New("raw_report_hot_days must be <= 3650")
+	}
+
+	archiveDir := strings.TrimSpace(payload.ArchiveDir)
+	if archiveDir == "" {
+		if payload.ArchiveRawReports {
+			return "", errArchiveDirRequired
+		}
+	} else {
+		normalizedArchiveDir, err := normalizeArchiveDir(s.dataDir, archiveDir)
+		if err != nil {
+			return "", err
+		}
+		archiveDir = normalizedArchiveDir
 	}
 	if payload.ArchiveRawReports && !payload.RollupsEnabled {
-		return errors.New("rollups_enabled is required when archive_raw_reports is enabled")
+		return "", errors.New("rollups_enabled is required when archive_raw_reports is enabled")
 	}
 	if payload.RollupRetentionDays != nil && *payload.RollupRetentionDays < 1 {
-		return errors.New("rollup_retention_days must be >= 1 or null")
+		return "", errors.New("rollup_retention_days must be >= 1 or null")
+	}
+	if payload.RollupRetentionDays != nil && *payload.RollupRetentionDays > maxDataLifecycleRetentionDays {
+		return "", errors.New("rollup_retention_days must be <= 3650 or null")
 	}
 	switch payload.ArchiveSchedule {
 	case "daily", "manual":
-		return nil
+		return archiveDir, nil
 	default:
-		return fmt.Errorf("archive_schedule must be daily or manual")
+		return "", errors.New("archive_schedule must be daily or manual")
 	}
+}
+
+func defaultArchiveDir(dataDir string) string {
+	dataRoot, err := cleanAbsPath(dataDir)
+	if err != nil {
+		return filepath.Join(dataDir, "archive")
+	}
+	return filepath.Join(dataRoot, "archive")
+}
+
+func normalizeArchiveDir(dataDir string, archiveDir string) (string, error) {
+	if strings.ContainsRune(archiveDir, 0) {
+		return "", errArchiveDirInvalid
+	}
+
+	dataRoot, err := cleanAbsPath(dataDir)
+	if err != nil {
+		return "", errCoreDataDirInvalid
+	}
+
+	cleanArchiveDir := filepath.Clean(archiveDir)
+	candidate := cleanArchiveDir
+	if !filepath.IsAbs(candidate) {
+		if cleanArchiveDir == ".." || strings.HasPrefix(cleanArchiveDir, ".."+string(os.PathSeparator)) {
+			return "", errArchiveDirOutsideDataDir
+		}
+		absFromWorkingDir, err := cleanAbsPath(cleanArchiveDir)
+		if err != nil {
+			return "", errArchiveDirInvalid
+		}
+		if pathStrictlyInside(dataRoot, absFromWorkingDir) {
+			candidate = absFromWorkingDir
+		} else {
+			candidate = filepath.Join(dataRoot, cleanArchiveDir)
+		}
+	}
+	candidate, err = cleanAbsPath(candidate)
+	if err != nil {
+		return "", errArchiveDirInvalid
+	}
+	if !pathStrictlyInside(dataRoot, candidate) {
+		return "", errArchiveDirOutsideDataDir
+	}
+	if archiveDirEscapesThroughExistingSymlink(dataRoot, candidate) {
+		return "", errArchiveDirOutsideDataDir
+	}
+	return candidate, nil
+}
+
+func cleanAbsPath(path string) (string, error) {
+	if strings.ContainsRune(path, 0) {
+		return "", errArchiveDirInvalid
+	}
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	absPath = filepath.Clean(absPath)
+	resolvedPath, err := filepath.EvalSymlinks(absPath)
+	if err == nil {
+		return filepath.Clean(resolvedPath), nil
+	}
+	if !os.IsNotExist(err) {
+		return "", err
+	}
+
+	existingPath := absPath
+	missingParts := []string{}
+	for {
+		parent := filepath.Dir(existingPath)
+		if parent == existingPath {
+			return absPath, nil
+		}
+		if _, statErr := os.Lstat(existingPath); statErr == nil {
+			resolvedExisting, evalErr := filepath.EvalSymlinks(existingPath)
+			if evalErr != nil {
+				return "", evalErr
+			}
+			for i := len(missingParts) - 1; i >= 0; i-- {
+				resolvedExisting = filepath.Join(resolvedExisting, missingParts[i])
+			}
+			return filepath.Clean(resolvedExisting), nil
+		} else if os.IsNotExist(statErr) {
+			missingParts = append(missingParts, filepath.Base(existingPath))
+			existingPath = parent
+		} else {
+			return "", statErr
+		}
+	}
+}
+
+func pathStrictlyInside(root string, candidate string) bool {
+	rel, err := filepath.Rel(root, candidate)
+	if err != nil {
+		return false
+	}
+	if rel == "." || rel == ".." {
+		return false
+	}
+	return !strings.HasPrefix(rel, ".."+string(os.PathSeparator))
+}
+
+func archiveDirEscapesThroughExistingSymlink(dataRoot string, candidate string) bool {
+	resolvedDataRoot, err := filepath.EvalSymlinks(dataRoot)
+	if err != nil {
+		return false
+	}
+	existingAncestor, err := nearestExistingPath(candidate)
+	if err != nil {
+		return false
+	}
+	resolvedExistingAncestor, err := filepath.EvalSymlinks(existingAncestor)
+	if err != nil {
+		return false
+	}
+
+	resolvedDataRoot = filepath.Clean(resolvedDataRoot)
+	resolvedExistingAncestor = filepath.Clean(resolvedExistingAncestor)
+	if resolvedExistingAncestor == resolvedDataRoot {
+		return false
+	}
+	return !pathStrictlyInside(resolvedDataRoot, resolvedExistingAncestor)
 }
