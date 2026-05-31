@@ -20,6 +20,8 @@ This milestone covers the Core worker monitor runner catalog, not the Console cr
 - `synthetic` and `synthetic_multi_step`;
 - `playwright` and `playwright_transaction`.
 
+Post-reconciliation note: the Playwright runner exists in main as M6 implementation evidence, but first-release readiness now tracks removing that surface under `G-20260529-191523-aad2`. Until that removal lands, Playwright remains behind the explicit `ORION_PLAYWRIGHT_RUNNER` runtime boundary and is not part of the first-release monitor scope.
+
 ## Completed
 
 - Split the Core worker loop into focused runner files so each monitor type owns its config parsing, execution result, report payload, and tests.
@@ -55,10 +57,12 @@ This milestone covers the Core worker monitor runner catalog, not the Console cr
 ## Open Risks
 
 - ICMP ping is explicit unsupported/permission behavior until the worker has privileged raw-socket support.
-- Domain expiration uses RDAP first and reports unavailable data clearly; WHOIS fallback remains deferred.
+- Domain expiration uses RDAP first and supports a bounded WHOIS fallback for configured or known registry servers; unsupported or unavailable data still fails clearly.
 - Playwright transactions require an explicit `ORION_PLAYWRIGHT_RUNNER` runtime on the worker host; the default Core image does not silently bundle browsers, and official optional browser packaging remains a later runtime-contract decision.
 - Mail monitors intentionally do not authenticate in this milestone.
+- First-release planning has moved Playwright removal into active Maat work; do not treat the M6 Playwright implementation as release-ready product scope.
 
 ## Next
 
 - Wire the full catalog into Console creation and edit flows.
+- Reconcile first-release Console copy and creation forms with the narrower supported scope.

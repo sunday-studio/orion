@@ -159,14 +159,13 @@ Minimum options:
 - domain;
 - expiration threshold;
 - RDAP first;
-- WHOIS fallback later;
+- WHOIS fallback when RDAP lacks usable expiration data;
 - interval.
 
 First release behavior: Core queries RDAP for the domain expiration event and reports `expires_at`,
 `days_remaining`, `lookup_strategy: rdap`, and `fallback_strategy: none`. If RDAP does not expose
-usable expiration data, the monitor fails clearly with an unavailable-data payload instead of
-guessing from WHOIS text. WHOIS fallback stays deferred because registry formats, throttling, and
-privacy redaction make it a separate reliability problem.
+usable expiration data, the monitor can fall back to a configured or known WHOIS server, reports
+`fallback_strategy: whois`, and still fails clearly when both sources lack usable expiration data.
 
 9. Expected status code monitor
 
@@ -244,14 +243,11 @@ Minimum options:
 - secrets for login flows;
 - interval.
 
-First release behavior: Core treats Playwright transactions as bounded browser step lists executed
-through an explicit Node/Playwright runner configured with `ORION_PLAYWRIGHT_RUNNER` on the worker
-host. The default Core image stays browser-free. The worker enforces step count, timeout, viewport,
-and artifact-size limits, redacts configured secret variable names in reports, captures bounded
-screenshot artifacts on failure, and reports `runtime_unavailable` clearly when Playwright is not
-configured on the worker host. Operators that need browser checks should install or mount a trusted
-runner executable and set `ORION_PLAYWRIGHT_RUNNER`; an official optional browser worker image or
-sidecar is deferred until Orion versions the browser sandbox and artifact-retention contract.
+Reconciliation decision: Playwright transactions were implemented behind an explicit
+`ORION_PLAYWRIGHT_RUNNER` runtime boundary, but they are no longer first-release monitor scope.
+`G-20260529-191523-aad2` tracks removing the worker, API, Console, and docs surface. Until that
+removal lands, existing code must continue to fail closed with `runtime_unavailable` when no runner
+is configured, keep artifacts bounded, and redact configured secret variable names in reports.
 
 14. Synthetic multi-step API/browser flows
 
@@ -599,6 +595,8 @@ Milestones map directly to Maat goals. Ticket rows under each milestone map to M
 | M4: Better incident controls | Core monitors have enough noise controls to be useful in production without opening incidents for short transient failures. | Add monitor confirmation periods; Add monitor recovery periods; Add Core monitor flapping handling; Add Core monitor severity defaults; Add Core monitor maintenance windows. |
 | M5: Components and status page groundwork | Core and Server monitors can be mapped to service/status-page components so incidents identify impacted components and future status pages can consume monitor health. | Design component data model; Add monitor-to-component mapping; Add incident component fields; Update status page architecture for monitor components. |
 | M6: Full monitor catalog expansion | Orion implements the full now-scope monitor catalog through the Core monitor worker with clear safety limits, report shapes, and incident behavior. | Add HTTP keyword monitor; Add expected status code monitor; Add TCP port monitor; Add TLS certificate monitor; Add DNS monitor; Add ping monitor; Add domain expiration monitor; Add API request monitor; Add UDP monitor; Add SMTP IMAP and POP monitors; Add Playwright transaction monitor; Add synthetic multi-step monitor. |
+
+Reconciliation status, 2026-05-29: M1, M2, M3, M4, M5, and M6 implementation rows have repository evidence and should not remain active as stale Maat implementation tickets. First-release readiness work continues in the newer `G-20260529-191440-d81b`, `G-20260529-191451-5e80`, `G-20260529-191503-bee9`, `G-20260529-191509-e97e`, `G-20260529-191516-ddf7`, `G-20260529-191523-aad2`, and `G-20260529-191529-d379` goals. The detailed audit is in `docs/milestones/monitor-readiness-reconciliation-2026-05-29.md`.
 
 ## Maat Loading Rows
 
