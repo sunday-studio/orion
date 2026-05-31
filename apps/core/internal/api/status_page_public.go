@@ -195,21 +195,38 @@ func (s *Server) statusPagePreview(detail StatusPageDetailResponse, includeDraft
 		})
 	}
 
+	page := detail.Page
+	page.ThemeSettings = publicStatusPageThemeSettings(page.ThemeSettings)
+
 	return StatusPagePreviewResponse{
 		Page: StatusPagePublicPageResponse{
-			Slug:          detail.Page.Slug,
-			Title:         detail.Page.Title,
-			Description:   detail.Page.Description,
-			Visibility:    detail.Page.Visibility,
-			ThemeSettings: detail.Page.ThemeSettings,
+			Slug:          page.Slug,
+			Title:         page.Title,
+			Description:   page.Description,
+			Visibility:    page.Visibility,
+			ThemeSettings: page.ThemeSettings,
 		},
-		Metadata:             statusPagePublicMetadata(detail.Page),
+		Metadata:             statusPagePublicMetadata(page),
 		Sections:             sections,
 		Incidents:            incidents,
 		OverallStatus:        overallStatus,
 		OverallStatusDisplay: publicStatusDisplay(overallStatus),
 		LastUpdated:          publicMinute(time.Now()),
 	}
+}
+
+func publicStatusPageThemeSettings(settings map[string]interface{}) map[string]interface{} {
+	sanitized := map[string]interface{}{}
+	for key, value := range settings {
+		candidate, err := sanitizeStatusPageThemeSettings(map[string]interface{}{key: value})
+		if err != nil {
+			continue
+		}
+		for sanitizedKey, sanitizedValue := range candidate {
+			sanitized[sanitizedKey] = sanitizedValue
+		}
+	}
+	return sanitized
 }
 
 func statusPagePublicMetadata(page StatusPageResponse) StatusPagePublicMetadataResponse {

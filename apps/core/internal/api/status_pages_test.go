@@ -466,6 +466,184 @@ func TestStatusPageThemeSettingsValidationAndPublicProjection(t *testing.T) {
 	}
 }
 
+func TestPublicStatusPageProjectionSanitizesLegacyThemeSettings(t *testing.T) {
+	server := setupTestServer(t)
+	now := time.Date(2026, 5, 29, 17, 15, 0, 0, time.UTC)
+	page := db.StatusPage{
+		ID:                        "status-page-legacy-theme",
+		Slug:                      "legacy-theme-status",
+		Title:                     "Legacy Theme Status",
+		Description:               "Customer-facing availability",
+		Visibility:                statusPageVisibilityPublic,
+		ThemeSettings:             `{"accent_color":"#FFAA00","component_density":"compact","header_style":"centered","logo_alt":" Legacy logo ","logo_url":"javascript://do-not-render","mode":"private-dark-mode","internal_note":"do-not-leak","open_graph_description_extra":"bad-og-description","open_graph_site_name":"Legacy Trust","open_graph_title":"Legacy Public Title","open_graph_type":"article","show_incident_history":"false","show_uptime_summary":true}`,
+		DefaultIncidentVisibility: statusPageIncidentVisibilityDraft,
+		PublishedAt:               &now,
+		CreatedAt:                 now,
+		UpdatedAt:                 now,
+	}
+	section := db.StatusPageSection{
+		ID:           "legacy-theme-section",
+		StatusPageID: page.ID,
+		Name:         "Public services",
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+	component := db.StatusPageComponent{
+		ID:           "legacy-theme-component",
+		StatusPageID: page.ID,
+		SectionID:    section.ID,
+		PublicName:   "Public API",
+		DisplayMode:  "manual",
+		ManualStatus: "operational",
+		Visible:      true,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+	incident := db.StatusPageIncident{
+		ID:            "legacy-theme-incident",
+		StatusPageID:  page.ID,
+		Title:         "Public maintenance notice",
+		PublicStatus:  "resolved",
+		Severity:      "low",
+		ImpactSummary: "Maintenance completed.",
+		Visibility:    statusPageIncidentVisibilityPublished,
+		PublishedAt:   &now,
+		ResolvedAt:    &now,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	update := db.StatusPageIncidentUpdate{
+		ID:          "legacy-theme-update",
+		IncidentID:  incident.ID,
+		Status:      "resolved",
+		Message:     "Maintenance is complete.",
+		PublishedAt: &now,
+		CreatedAt:   now,
+	}
+	if err := server.db.Create(&page).Error; err != nil {
+		t.Fatalf("create status page: %v", err)
+	}
+	if err := server.db.Create(&section).Error; err != nil {
+		t.Fatalf("create section: %v", err)
+	}
+	if err := server.db.Create(&component).Error; err != nil {
+		t.Fatalf("create component: %v", err)
+	}
+	if err := server.db.Create(&incident).Error; err != nil {
+		t.Fatalf("create incident: %v", err)
+	}
+	if err := server.db.Create(&update).Error; err != nil {
+		t.Fatalf("create incident update: %v", err)
+	}
+
+	publicResp := performJSONRequest(t, server, http.MethodGet, "/status/legacy-theme-status", nil, "")
+	if publicResp.Code != http.StatusOK {
+		t.Fatalf("public status = %d, body = %s", publicResp.Code, publicResp.Body.String())
+	}
+	var publicPayload struct {
+		Data struct {
+			StatusPage StatusPagePreviewResponse `json:"status_page"`
+		} `json:"data"`
+	}
+	decodeResponse(t, publicResp, &publicPayload)
+	assertLegacyThemePublicProjection(t, publicPayload.Data.StatusPage.Page.ThemeSettings)
+	if publicPayload.Data.StatusPage.Metadata.OpenGraph.Title != "Legacy Public Title" ||
+		publicPayload.Data.StatusPage.Metadata.OpenGraph.SiteName != "Legacy Trust" ||
+		publicPayload.Data.StatusPage.Metadata.OpenGraph.Type != "website" {
+		t.Fatalf("metadata = %+v, want sanitized public metadata", publicPayload.Data.StatusPage.Metadata.OpenGraph)
+	}
+	assertPublicStatusPageBodyDoesNotContainLegacyThemeLeaks(t, publicResp.Body.String())
+
+	previewResp := performJSONRequest(t, server, http.MethodGet, "/v1/status-pages/"+page.ID+"/preview", nil, "")
+	if previewResp.Code != http.StatusOK {
+		t.Fatalf("preview status = %d, body = %s", previewResp.Code, previewResp.Body.String())
+	}
+	var previewPayload struct {
+		Data struct {
+			Preview StatusPagePreviewResponse `json:"preview"`
+		} `json:"data"`
+	}
+	decodeResponse(t, previewResp, &previewPayload)
+	assertLegacyThemePublicProjection(t, previewPayload.Data.Preview.Page.ThemeSettings)
+	assertPublicStatusPageBodyDoesNotContainLegacyThemeLeaks(t, previewResp.Body.String())
+
+	historyResp := performJSONRequest(t, server, http.MethodGet, "/status/legacy-theme-status/history?window=7d", nil, "")
+	if historyResp.Code != http.StatusOK {
+		t.Fatalf("history status = %d, body = %s", historyResp.Code, historyResp.Body.String())
+	}
+	assertPublicStatusPageBodyDoesNotContainLegacyThemeLeaks(t, historyResp.Body.String())
+
+	htmlReq := httptest.NewRequest(http.MethodGet, "/status/legacy-theme-status", nil)
+	htmlReq.Header.Set("Accept", "text/html")
+	htmlResp := httptest.NewRecorder()
+	server.router.ServeHTTP(htmlResp, htmlReq)
+	if htmlResp.Code != http.StatusOK {
+		t.Fatalf("HTML status = %d, body = %s", htmlResp.Code, htmlResp.Body.String())
+	}
+	assertContains(t, htmlResp.Body.String(), `<meta property="og:title" content="Legacy Public Title">`)
+	assertContains(t, htmlResp.Body.String(), `--accent: #ffaa00`)
+	assertPublicStatusPageBodyDoesNotContainLegacyThemeLeaks(t, htmlResp.Body.String())
+
+	feedResp := performJSONRequest(t, server, http.MethodGet, "/status/legacy-theme-status/feed.atom", nil, "")
+	if feedResp.Code != http.StatusOK {
+		t.Fatalf("feed status = %d, body = %s", feedResp.Code, feedResp.Body.String())
+	}
+	assertPublicStatusPageBodyDoesNotContainLegacyThemeLeaks(t, feedResp.Body.String())
+
+	badgeResp := performJSONRequest(t, server, http.MethodGet, "/status/legacy-theme-status/badge.svg", nil, "")
+	if badgeResp.Code != http.StatusOK {
+		t.Fatalf("badge status = %d, body = %s", badgeResp.Code, badgeResp.Body.String())
+	}
+	assertPublicStatusPageBodyDoesNotContainLegacyThemeLeaks(t, badgeResp.Body.String())
+
+	subscriberResp := performJSONRequest(t, server, http.MethodPost, "/status/legacy-theme-status/subscribers", gin.H{
+		"destination":   "legacy-subscriber@example.com",
+		"component_ids": []string{component.ID},
+	}, "")
+	if subscriberResp.Code != http.StatusAccepted {
+		t.Fatalf("subscriber status = %d, body = %s", subscriberResp.Code, subscriberResp.Body.String())
+	}
+	assertPublicStatusPageBodyDoesNotContainLegacyThemeLeaks(t, subscriberResp.Body.String())
+}
+
+func assertLegacyThemePublicProjection(t *testing.T, settings map[string]interface{}) {
+	t.Helper()
+	if settings["accent_color"] != "#ffaa00" ||
+		settings["component_density"] != "compact" ||
+		settings["header_style"] != "centered" ||
+		settings["logo_alt"] != "Legacy logo" ||
+		settings["open_graph_site_name"] != "Legacy Trust" ||
+		settings["open_graph_title"] != "Legacy Public Title" ||
+		settings["show_uptime_summary"] != true {
+		t.Fatalf("public theme settings = %+v, want only sanitized supported values", settings)
+	}
+	for _, key := range []string{
+		"internal_note",
+		"logo_url",
+		"mode",
+		"open_graph_description_extra",
+		"open_graph_type",
+		"show_incident_history",
+	} {
+		if _, ok := settings[key]; ok {
+			t.Fatalf("public theme settings = %+v, want %q omitted", settings, key)
+		}
+	}
+}
+
+func assertPublicStatusPageBodyDoesNotContainLegacyThemeLeaks(t *testing.T, body string) {
+	t.Helper()
+	for _, value := range []string{
+		"bad-og-description",
+		"do-not-leak",
+		"do-not-render",
+		"javascript:",
+		"private-dark-mode",
+	} {
+		assertNotContains(t, body, value)
+	}
+}
+
 func TestStatusPageAdminAPIFlow(t *testing.T) {
 	server := setupTestServer(t)
 	registered := registerTestAgent(t, server)
@@ -1243,6 +1421,37 @@ func TestStatusPageCustomDomainHostRoutingAndIsolation(t *testing.T) {
 	}
 	assertContains(t, feedResp.Body.String(), "http://status.example.com")
 	assertNotContains(t, feedResp.Body.String(), "/status/custom-public")
+
+	historyResp := performHostRequest(t, server, http.MethodGet, "/status/custom-public/history", "status.example.com")
+	if historyResp.Code != http.StatusOK {
+		t.Fatalf("custom host history status = %d, body = %s", historyResp.Code, historyResp.Body.String())
+	}
+	assertContains(t, historyResp.Body.String(), "Custom Public")
+	assertNotContains(t, historyResp.Body.String(), "Other Public")
+
+	otherHistoryOnCustomHostResp := performHostRequest(t, server, http.MethodGet, "/status/other-public/history", "status.example.com")
+	if otherHistoryOnCustomHostResp.Code != http.StatusNotFound {
+		t.Fatalf("other history on custom host status = %d, body = %s, want 404", otherHistoryOnCustomHostResp.Code, otherHistoryOnCustomHostResp.Body.String())
+	}
+
+	otherBadgeOnCustomHostResp := performHostRequest(t, server, http.MethodGet, "/status/other-public/badge.svg", "status.example.com")
+	if otherBadgeOnCustomHostResp.Code != http.StatusNotFound {
+		t.Fatalf("other badge on custom host status = %d, body = %s, want 404", otherBadgeOnCustomHostResp.Code, otherBadgeOnCustomHostResp.Body.String())
+	}
+
+	otherSubscriberOnCustomHostResp := performHostJSONRequest(t, server, http.MethodPost, "/status/other-public/subscribers", "status.example.com", gin.H{
+		"destination": "other-status-subscriber@example.com",
+	})
+	if otherSubscriberOnCustomHostResp.Code != http.StatusNotFound {
+		t.Fatalf("other subscriber on custom host status = %d, body = %s, want 404", otherSubscriberOnCustomHostResp.Code, otherSubscriberOnCustomHostResp.Body.String())
+	}
+	var subscriberCount int64
+	if err := server.db.Model(&db.StatusPageSubscriber{}).Count(&subscriberCount).Error; err != nil {
+		t.Fatalf("count subscribers: %v", err)
+	}
+	if subscriberCount != 0 {
+		t.Fatalf("subscriber count = %d, want 0 after custom-domain mismatch", subscriberCount)
+	}
 }
 
 func TestStatusPagePublishValidation(t *testing.T) {
@@ -1359,6 +1568,21 @@ func performHostRequest(t *testing.T, server *Server, method string, path string
 
 	req := httptest.NewRequest(method, path, nil)
 	req.Host = host
+	recorder := httptest.NewRecorder()
+	server.router.ServeHTTP(recorder, req)
+	return recorder
+}
+
+func performHostJSONRequest(t *testing.T, server *Server, method string, path string, host string, body interface{}) *httptest.ResponseRecorder {
+	t.Helper()
+
+	payload, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal request body: %v", err)
+	}
+	req := httptest.NewRequest(method, path, strings.NewReader(string(payload)))
+	req.Host = host
+	req.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()
 	server.router.ServeHTTP(recorder, req)
 	return recorder
