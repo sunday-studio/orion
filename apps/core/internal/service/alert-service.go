@@ -365,7 +365,7 @@ func (s *AlertService) scheduleGroupedSummaryDelivery(event AlertRouteContext, g
 		return result.Error
 	}
 	if result.RowsAffected > 0 {
-		return s.db.Model(&db.AlertDelivery{}).Where("id = ?", existing.ID).Updates(map[string]interface{}{
+		return s.db.Model(&db.AlertDelivery{}).Where("id = ?", existing.ID).Updates(map[string]any{
 			"incident_id":     event.IncidentID,
 			"next_attempt_at": dueAt,
 			"error":           alertGroupedSummaryPending,
@@ -540,7 +540,7 @@ func (s *AlertService) createDelivery(delivery db.AlertDelivery) (*db.AlertDeliv
 }
 
 func (s *AlertService) updateDelivery(deliveryID string, status string, message string) error {
-	return s.db.Model(&db.AlertDelivery{}).Where("id = ?", deliveryID).Updates(map[string]interface{}{
+	return s.db.Model(&db.AlertDelivery{}).Where("id = ?", deliveryID).Updates(map[string]any{
 		"status": status,
 		"error":  message,
 	}).Error
@@ -616,7 +616,7 @@ func (s *AlertService) openIncidentGroupingDecision(event AlertRouteContext, inc
 		return alertGroupingDecision{}, err
 	}
 	nextCount := group.IncidentCount + 1
-	updates := map[string]interface{}{
+	updates := map[string]any{
 		"last_incident_id": incident.ID,
 		"incident_count":   nextCount,
 		"last_event_at":    now,
@@ -653,7 +653,7 @@ func (s *AlertService) resolveIncidentGroupingDecision(event AlertRouteContext, 
 		return alertGroupingDecision{}, err
 	}
 	if activeCount > 0 {
-		if err := s.db.Model(&db.AlertGroup{}).Where("id = ?", group.ID).Updates(map[string]interface{}{
+		if err := s.db.Model(&db.AlertGroup{}).Where("id = ?", group.ID).Updates(map[string]any{
 			"last_event_at": now,
 			"summary":       alertGroupSummary(event, group.IncidentCount),
 		}).Error; err != nil {
@@ -667,7 +667,7 @@ func (s *AlertService) resolveIncidentGroupingDecision(event AlertRouteContext, 
 		}, nil
 	}
 
-	if err := s.db.Model(&db.AlertGroup{}).Where("id = ?", group.ID).Updates(map[string]interface{}{
+	if err := s.db.Model(&db.AlertGroup{}).Where("id = ?", group.ID).Updates(map[string]any{
 		"status":        "resolved",
 		"resolved_at":   &now,
 		"last_event_at": now,

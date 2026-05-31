@@ -357,8 +357,8 @@ func (a *App) storeDomainExpirationReport(monitorID string, result domainExpirat
 	return err
 }
 
-func domainExpirationPayload(result domainExpirationResult, resultErr error) map[string]interface{} {
-	payload := map[string]interface{}{
+func domainExpirationPayload(result domainExpirationResult, resultErr error) map[string]any {
+	payload := map[string]any{
 		"runner":            "core",
 		"type":              "domain_expiration",
 		"domain":            result.Domain,

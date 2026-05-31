@@ -48,7 +48,7 @@ func TestRunDueChecksStoresUpReportForPlaywrightTransaction(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-playwright-test", PlaywrightRun: playwrightRun})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 	if received.Config.Browser != "chromium" || received.Config.Viewport.Width != 1440 || received.Secrets.Variables["password"] != "super-secret" {
@@ -59,7 +59,7 @@ func TestRunDueChecksStoresUpReportForPlaywrightTransaction(t *testing.T) {
 	if report.Health != "up" {
 		t.Fatalf("report health = %q, want up", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestRunDueChecksStoresDownReportForPlaywrightFailureArtifact(t *testing.T) 
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-playwright-test", PlaywrightRun: playwrightRun})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -124,15 +124,15 @@ func TestRunDueChecksStoresDownReportForPlaywrightFailureArtifact(t *testing.T) 
 	if strings.Contains(report.Payload, "super-secret") {
 		t.Fatalf("payload leaked secret value: %s", report.Payload)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
 	if payload["failure_stage"] != "step" || payload["failure_step"] != "submit login" || payload["failure_index"].(float64) != 1 || payload["artifact_bytes"].(float64) != 32 || payload["ok"] != false {
 		t.Fatalf("payload = %+v, want bounded Playwright failure payload", payload)
 	}
-	artifacts := payload["artifacts"].([]interface{})
-	firstArtifact := artifacts[0].(map[string]interface{})
+	artifacts := payload["artifacts"].([]any)
+	firstArtifact := artifacts[0].(map[string]any)
 	if firstArtifact["truncated"] != true || len(firstArtifact["data_base64"].(string)) != 32 {
 		t.Fatalf("artifact = %+v, want truncated screenshot artifact", firstArtifact)
 	}
@@ -161,12 +161,12 @@ func TestRunDueChecksStoresDownReportForPlaywrightRuntimeFailure(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-playwright-test", PlaywrightRun: playwrightRun})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
 	report := loadWorkerMonitorReport(t, database, "monitor-playwright-runtime")
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -195,7 +195,7 @@ func TestRunDueChecksStoresDownReportForPlaywrightInvalidConfig(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-playwright-test", PlaywrightRun: playwrightRun})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 	if called {
@@ -203,7 +203,7 @@ func TestRunDueChecksStoresDownReportForPlaywrightInvalidConfig(t *testing.T) {
 	}
 
 	report := loadWorkerMonitorReport(t, database, "monitor-playwright-config")
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -232,7 +232,7 @@ func TestRunDueChecksRejectsPlaywrightPrivateTarget(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-playwright-test", PlaywrightRun: playwrightRun})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 	if called {
@@ -240,7 +240,7 @@ func TestRunDueChecksRejectsPlaywrightPrivateTarget(t *testing.T) {
 	}
 
 	report := loadWorkerMonitorReport(t, database, "monitor-playwright-private")
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}

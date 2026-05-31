@@ -16,7 +16,7 @@ type AgentReportPayload struct {
 	UptimeSeconds uint64         `json:"uptime_seconds"`
 	Timestamp     string         `json:"timestamp"`
 	AgentVersion  string         `json:"agent_version,omitempty"`
-	ConfigSummary interface{}    `json:"config_summary,omitempty"`
+	ConfigSummary any            `json:"config_summary,omitempty"`
 	CPU           db.CPUStats    `json:"cpu"`
 	Memory        db.MemoryStats `json:"memory"`
 	Disk          db.DiskStats   `json:"disk"`
@@ -24,10 +24,10 @@ type AgentReportPayload struct {
 }
 
 type MonitorReportPayload struct {
-	Timestamp string      `json:"timestamp" binding:"required"`
-	Health    string      `json:"health" binding:"required"` // up | down
-	Metrics   interface{} `json:"metrics" binding:"required"`
-	Error     interface{} `json:"error,omitempty"`
+	Timestamp string `json:"timestamp" binding:"required"`
+	Health    string `json:"health" binding:"required"` // up | down
+	Metrics   any    `json:"metrics" binding:"required"`
+	Error     any    `json:"error,omitempty"`
 }
 
 type ReportService struct {
@@ -83,7 +83,7 @@ func (s *ReportService) StoreMonitorReport(monitorID string, payload MonitorRepo
 
 	// Update monitor health and last successful report timestamp
 	now := time.Now()
-	updates := map[string]interface{}{
+	updates := map[string]any{
 		"health":                  payload.Health,
 		"computed_health":         "",
 		"last_health_computation": nil,
@@ -167,8 +167,8 @@ func (s *ReportService) StoreAgentReport(agentID string, payload AgentReportPayl
 	return &agentReportID, nil
 }
 
-func reportingIntervalSeconds(configSummary interface{}) int {
-	summary, ok := configSummary.(map[string]interface{})
+func reportingIntervalSeconds(configSummary any) int {
+	summary, ok := configSummary.(map[string]any)
 	if !ok {
 		return 0
 	}

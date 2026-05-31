@@ -1,7 +1,6 @@
 package worker
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -54,7 +53,7 @@ func TestRunDueChecksStoresUpReportForSyntheticAPISteps(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-synthetic-test", HTTPClient: httpClient})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 	if len(requests) != 2 || requests[0] != "/login" || requests[1] != "/widgets/abc123" {
@@ -68,7 +67,7 @@ func TestRunDueChecksStoresUpReportForSyntheticAPISteps(t *testing.T) {
 	if report.Health != "up" {
 		t.Fatalf("report health = %q, want up", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -76,8 +75,8 @@ func TestRunDueChecksStoresUpReportForSyntheticAPISteps(t *testing.T) {
 		t.Fatalf("payload = %+v, want synthetic success payload", payload)
 	}
 	assertPayloadContainsString(t, payload["variables"], "token")
-	steps := payload["steps"].([]interface{})
-	first := steps[0].(map[string]interface{})
+	steps := payload["steps"].([]any)
+	first := steps[0].(map[string]any)
 	if first["name"] != "login" || first["ok"] != true {
 		t.Fatalf("first step = %+v, want successful login step", first)
 	}
@@ -113,7 +112,7 @@ func TestRunDueChecksStopsSyntheticOnStepFailure(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-synthetic-test", HTTPClient: httpClient})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 	if calls != 1 {
@@ -124,14 +123,14 @@ func TestRunDueChecksStopsSyntheticOnStepFailure(t *testing.T) {
 	if report.Health != "down" {
 		t.Fatalf("report health = %q, want down", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
 	if payload["failure_stage"] != "step_status" || payload["failure_step"] != "failing status" || payload["failure_index"].(float64) != 0 || payload["completed_steps"].(float64) != 0 || payload["ok"] != false {
 		t.Fatalf("payload = %+v, want first step status failure", payload)
 	}
-	steps := payload["steps"].([]interface{})
+	steps := payload["steps"].([]any)
 	if len(steps) != 1 {
 		t.Fatalf("steps = %+v, want one recorded failed step", steps)
 	}
@@ -160,20 +159,20 @@ func TestRunDueChecksStoresDownReportForSyntheticAssertionFailure(t *testing.T) 
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-synthetic-test", HTTPClient: httpClient})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
 	report := loadWorkerMonitorReport(t, database, "monitor-synthetic-assertion")
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
 	if payload["failure_stage"] != "json_assertion" || payload["ok"] != false {
 		t.Fatalf("payload = %+v, want assertion failure", payload)
 	}
-	steps := payload["steps"].([]interface{})
-	first := steps[0].(map[string]interface{})
+	steps := payload["steps"].([]any)
+	first := steps[0].(map[string]any)
 	if first["assertion_path"] != "$.ok" || first["assertion_actual"] != false {
 		t.Fatalf("first step = %+v, want assertion context", first)
 	}
@@ -194,7 +193,7 @@ func TestRunDueChecksStoresDownReportForSyntheticBrowserStepUnsupported(t *testi
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-synthetic-test"})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -202,7 +201,7 @@ func TestRunDueChecksStoresDownReportForSyntheticBrowserStepUnsupported(t *testi
 	if strings.Contains(report.Payload, "password") {
 		t.Fatalf("payload unexpectedly contains sensitive fixture text: %s", report.Payload)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -231,7 +230,7 @@ func TestRunDueChecksStoresDownReportForSyntheticMissingVariable(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-synthetic-test", HTTPClient: httpClient})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 	if calls != 0 {
@@ -239,7 +238,7 @@ func TestRunDueChecksStoresDownReportForSyntheticMissingVariable(t *testing.T) {
 	}
 
 	report := loadWorkerMonitorReport(t, database, "monitor-synthetic-missing-variable")
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -268,7 +267,7 @@ func TestRunDueChecksRejectsSyntheticSubstitutedPrivateTarget(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-synthetic-test", HTTPClient: httpClient})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 	if calls != 0 {
@@ -276,12 +275,12 @@ func TestRunDueChecksRejectsSyntheticSubstitutedPrivateTarget(t *testing.T) {
 	}
 
 	report := loadWorkerMonitorReport(t, database, "monitor-synthetic-private")
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
-	steps := payload["steps"].([]interface{})
-	first := steps[0].(map[string]interface{})
+	steps := payload["steps"].([]any)
+	first := steps[0].(map[string]any)
 	if payload["failure_stage"] != "config" || first["failure_stage"] != "config" || first["target_url"] != "http://10.0.0.5/health" {
 		t.Fatalf("payload = %+v, want blocked substituted target", payload)
 	}
@@ -306,17 +305,17 @@ func TestRunDueChecksStoresTruncatedSyntheticResponseSample(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-synthetic-test", HTTPClient: httpClient})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
 	report := loadWorkerMonitorReport(t, database, "monitor-synthetic-truncated")
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
-	steps := payload["steps"].([]interface{})
-	first := steps[0].(map[string]interface{})
+	steps := payload["steps"].([]any)
+	first := steps[0].(map[string]any)
 	if first["response_truncated"] != true || len(first["response_sample"].(string)) > maxHTTPBodyCaptureLen {
 		t.Fatalf("first step = %+v, want truncated response sample", first)
 	}

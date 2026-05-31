@@ -182,7 +182,7 @@ func insertArchiveMonitorReport(t *testing.T, database *gorm.DB, monitorID strin
 	return report.ID
 }
 
-func assertArchiveReportExists(t *testing.T, database *gorm.DB, model interface{}, id string) {
+func assertArchiveReportExists(t *testing.T, database *gorm.DB, model any, id string) {
 	t.Helper()
 
 	var count int64
@@ -194,7 +194,7 @@ func assertArchiveReportExists(t *testing.T, database *gorm.DB, model interface{
 	}
 }
 
-func assertArchiveReportMissing(t *testing.T, database *gorm.DB, model interface{}, id string) {
+func assertArchiveReportMissing(t *testing.T, database *gorm.DB, model any, id string) {
 	t.Helper()
 
 	var count int64

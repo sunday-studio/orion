@@ -453,7 +453,7 @@ func (s *Server) getAgentDetail(c *gin.Context) {
 		// Don't fail if reports can't be retrieved
 	}
 
-	var latestReport interface{}
+	var latestReport any
 	if len(reports) > 0 {
 		latestReport = agentReportResponse(reports[0])
 	}

@@ -109,7 +109,7 @@ func (s *Server) receiveHeartbeatSignal(c *gin.Context, health string) {
 	utils.SuccessResponse(c, http.StatusOK, "Heartbeat signal recorded successfully", response)
 }
 
-func readHeartbeatPayload(c *gin.Context) (map[string]interface{}, bool, error) {
+func readHeartbeatPayload(c *gin.Context) (map[string]any, bool, error) {
 	body, err := io.ReadAll(io.LimitReader(c.Request.Body, heartbeatPayloadReadMax))
 	if err != nil {
 		return nil, false, err
@@ -120,7 +120,7 @@ func readHeartbeatPayload(c *gin.Context) (map[string]interface{}, bool, error) 
 		body = body[:heartbeatPayloadMaxBytes]
 	}
 
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"runner":            "heartbeat",
 		"payload_truncated": truncated,
 	}

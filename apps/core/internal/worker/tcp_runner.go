@@ -116,8 +116,8 @@ func (a *App) storeTCPReport(monitorID string, result tcpResult) error {
 	return err
 }
 
-func tcpPayload(result tcpResult, resultErr error) map[string]interface{} {
-	payload := map[string]interface{}{
+func tcpPayload(result tcpResult, resultErr error) map[string]any {
+	payload := map[string]any{
 		"runner":        "core",
 		"type":          "tcp",
 		"host":          result.Host,

@@ -101,11 +101,11 @@ func TestCoreMonitorTargetPolicySanitizesURLs(t *testing.T) {
 	if redacted["url"] != "https://example.com/health" {
 		t.Fatalf("redacted url = %#v, want query stripped", redacted["url"])
 	}
-	steps, ok := redacted["steps"].([]interface{})
+	steps, ok := redacted["steps"].([]any)
 	if !ok || len(steps) != 1 {
 		t.Fatalf("redacted steps = %#v, want one step", redacted["steps"])
 	}
-	step, ok := steps[0].(map[string]interface{})
+	step, ok := steps[0].(map[string]any)
 	if !ok || !strings.HasPrefix(step["url"].(string), "https://api.example.com/check") || strings.Contains(step["url"].(string), "api_key") {
 		t.Fatalf("redacted step url = %#v, want sanitized URL", step["url"])
 	}

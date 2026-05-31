@@ -8,7 +8,7 @@ import (
 	"net"
 	"orion/core/internal/db"
 	"orion/core/internal/service"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
@@ -76,7 +76,7 @@ func (a *App) runDNSCheck(ctx context.Context, monitorConfig db.CoreMonitorConfi
 		return result
 	}
 	result.Answers = normalizeDNSValues(answers, runnerConfig.RecordType)
-	sort.Strings(result.Answers)
+	slices.Sort(result.Answers)
 
 	result.MissingValues = missingDNSValues(result.Answers, result.ExpectedValues)
 	if len(result.MissingValues) > 0 {
@@ -185,7 +185,7 @@ func normalizeDNSValues(values []string, recordType string) []string {
 		seen[value] = struct{}{}
 		normalized = append(normalized, value)
 	}
-	sort.Strings(normalized)
+	slices.Sort(normalized)
 	return normalized
 }
 
@@ -231,8 +231,8 @@ func (a *App) storeDNSReport(monitorID string, result dnsResult) error {
 	return err
 }
 
-func dnsPayload(result dnsResult, resultErr error) map[string]interface{} {
-	payload := map[string]interface{}{
+func dnsPayload(result dnsResult, resultErr error) map[string]any {
+	payload := map[string]any{
 		"runner":          "core",
 		"type":            "dns",
 		"host":            result.Host,

@@ -248,8 +248,8 @@ func (a *App) storeHTTPStatusReport(monitorID string, result httpStatusResult) e
 	return err
 }
 
-func httpStatusPayload(result httpStatusResult, resultErr error) map[string]interface{} {
-	payload := map[string]interface{}{
+func httpStatusPayload(result httpStatusResult, resultErr error) map[string]any {
+	payload := map[string]any{
 		"runner":        "core",
 		"type":          "http",
 		"method":        result.Method,

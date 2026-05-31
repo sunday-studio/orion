@@ -36,7 +36,7 @@ func TestRunDueChecksStoresUpReportForHealthyTLSCertificate(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-tls-test", TLSCheck: tlsCheck})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 	if checkedTarget.Address != "api.example.com:443" || checkedTarget.ServerName != "api.example.com" {
@@ -47,7 +47,7 @@ func TestRunDueChecksStoresUpReportForHealthyTLSCertificate(t *testing.T) {
 	if report.Health != "up" {
 		t.Fatalf("report health = %q, want up", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -83,7 +83,7 @@ func TestRunDueChecksStoresDegradedReportForExpiringTLSCertificate(t *testing.T)
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-tls-test", TLSCheck: tlsCheck})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -91,7 +91,7 @@ func TestRunDueChecksStoresDegradedReportForExpiringTLSCertificate(t *testing.T)
 	if report.Health != "degraded" {
 		t.Fatalf("report health = %q, want degraded", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -126,7 +126,7 @@ func TestRunDueChecksStoresDownReportForInvalidTLSCertificate(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-tls-test", TLSCheck: tlsCheck})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -134,7 +134,7 @@ func TestRunDueChecksStoresDownReportForInvalidTLSCertificate(t *testing.T) {
 	if report.Health != "down" {
 		t.Fatalf("report health = %q, want down", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}

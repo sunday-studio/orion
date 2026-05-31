@@ -88,7 +88,7 @@ func (s *MonitorService) RegisterMonitor(req *RegisterMonitorRequest) (*Register
 				interval = 60
 			}
 
-			updates := map[string]interface{}{
+			updates := map[string]any{
 				"lifecycle":                  "active",
 				"health":                     "up",
 				"description":                req.Description,
@@ -110,7 +110,7 @@ func (s *MonitorService) RegisterMonitor(req *RegisterMonitorRequest) (*Register
 			}, nil
 		}
 
-		updates := map[string]interface{}{}
+		updates := map[string]any{}
 		if req.ReportingIntervalSeconds > 0 && monitor.ReportingIntervalSeconds != req.ReportingIntervalSeconds {
 			updates["reporting_interval_seconds"] = req.ReportingIntervalSeconds
 		}
@@ -152,7 +152,7 @@ func (s *MonitorService) UnregisterMonitor(req *UnregisterMonitorRequest) (*Unre
 
 	if err := s.db.Model(&db.Monitor{}).
 		Where("agent_id = ? AND id = ? AND (deleted_at IS NULL OR deleted_at = ?)", req.AgentID, req.MonitorID, time.Time{}).
-		Updates(map[string]interface{}{
+		Updates(map[string]any{
 			"lifecycle":  "deleted",
 			"health":     "unknown",
 			"updated_at": now,

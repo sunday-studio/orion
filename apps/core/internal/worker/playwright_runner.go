@@ -473,8 +473,8 @@ func (a *App) storePlaywrightReport(monitorID string, result playwrightResult) e
 	return err
 }
 
-func playwrightPayload(result playwrightResult, resultErr error) map[string]interface{} {
-	payload := map[string]interface{}{
+func playwrightPayload(result playwrightResult, resultErr error) map[string]any {
+	payload := map[string]any{
 		"runner":                "core",
 		"type":                  "playwright_transaction",
 		"target_url":            service.SanitizeCoreMonitorURL(result.TargetURL),

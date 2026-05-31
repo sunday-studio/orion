@@ -1,13 +1,14 @@
 package db
 
 import (
+	"cmp"
 	"database/sql"
 	"embed"
 	"fmt"
 	"orion/core/internal/logging"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -133,8 +134,8 @@ func loadMigrations(path string) ([]migration, error) {
 		})
 	}
 
-	sort.Slice(migrations, func(i, j int) bool {
-		return migrations[i].version < migrations[j].version
+	slices.SortFunc(migrations, func(a, b migration) int {
+		return cmp.Compare(a.version, b.version)
 	})
 
 	return migrations, nil
@@ -203,7 +204,7 @@ func tableColumns(db *sql.DB, table string) (map[string]bool, error) {
 		var cid int
 		var name, columnType string
 		var notNull int
-		var defaultValue interface{}
+		var defaultValue any
 		var primaryKey int
 		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
 			return nil, fmt.Errorf("scan %s column: %w", table, err)

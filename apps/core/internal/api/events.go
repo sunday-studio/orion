@@ -7,7 +7,7 @@ import (
 	"orion/core/internal/db"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -215,8 +215,8 @@ func (s *Server) orionEvents(fetchLimit int, filters orionEventFilters) ([]Orion
 		}
 	}
 
-	sort.SliceStable(events, func(i, j int) bool {
-		return events[i].CreatedAt.After(events[j].CreatedAt)
+	slices.SortStableFunc(events, func(a, b OrionEventResponse) int {
+		return b.CreatedAt.Compare(a.CreatedAt)
 	})
 	events = filterOrionEvents(events, filters)
 	if fetchLimit > 0 && len(events) > fetchLimit {

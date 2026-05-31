@@ -14,24 +14,24 @@ import (
 )
 
 type CoreMonitorConfigResponse struct {
-	MonitorID                 string                 `json:"monitor_id"`
-	Kind                      string                 `json:"kind"`
-	Config                    map[string]interface{} `json:"config"`
-	SecretRefs                map[string]interface{} `json:"secret_refs"`
-	HeartbeatToken            string                 `json:"heartbeat_token,omitempty"`
-	IntervalSeconds           int                    `json:"interval_seconds"`
-	TimeoutSeconds            int                    `json:"timeout_seconds"`
-	ConfirmationPeriodSeconds int                    `json:"confirmation_period_seconds"`
-	ConfirmationCheckCount    int                    `json:"confirmation_check_count"`
-	RecoveryPeriodSeconds     int                    `json:"recovery_period_seconds"`
-	Paused                    bool                   `json:"paused"`
-	NextRunAt                 time.Time              `json:"next_run_at"`
-	LastRunAt                 *time.Time             `json:"last_run_at,omitempty"`
-	LastSignalAt              *time.Time             `json:"last_signal_at,omitempty"`
-	LastSuccessAt             *time.Time             `json:"last_success_at,omitempty"`
-	LastFailureAt             *time.Time             `json:"last_failure_at,omitempty"`
-	LeaseOwner                string                 `json:"lease_owner,omitempty"`
-	LeaseExpiresAt            *time.Time             `json:"lease_expires_at,omitempty"`
+	MonitorID                 string         `json:"monitor_id"`
+	Kind                      string         `json:"kind"`
+	Config                    map[string]any `json:"config"`
+	SecretRefs                map[string]any `json:"secret_refs"`
+	HeartbeatToken            string         `json:"heartbeat_token,omitempty"`
+	IntervalSeconds           int            `json:"interval_seconds"`
+	TimeoutSeconds            int            `json:"timeout_seconds"`
+	ConfirmationPeriodSeconds int            `json:"confirmation_period_seconds"`
+	ConfirmationCheckCount    int            `json:"confirmation_check_count"`
+	RecoveryPeriodSeconds     int            `json:"recovery_period_seconds"`
+	Paused                    bool           `json:"paused"`
+	NextRunAt                 time.Time      `json:"next_run_at"`
+	LastRunAt                 *time.Time     `json:"last_run_at,omitempty"`
+	LastSignalAt              *time.Time     `json:"last_signal_at,omitempty"`
+	LastSuccessAt             *time.Time     `json:"last_success_at,omitempty"`
+	LastFailureAt             *time.Time     `json:"last_failure_at,omitempty"`
+	LeaseOwner                string         `json:"lease_owner,omitempty"`
+	LeaseExpiresAt            *time.Time     `json:"lease_expires_at,omitempty"`
 }
 
 type CoreMonitorManagementResponse struct {

@@ -62,7 +62,7 @@ func (s *SettingsService) UpdateDataLifecycleSettings(payload DataLifecycleSetti
 		return nil, err
 	}
 
-	updates := map[string]interface{}{
+	updates := map[string]any{
 		"raw_report_hot_days":   payload.RawReportHotDays,
 		"archive_raw_reports":   payload.ArchiveRawReports,
 		"archive_dir":           archiveDir,
