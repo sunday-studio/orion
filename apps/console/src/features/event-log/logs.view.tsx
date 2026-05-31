@@ -47,6 +47,9 @@ const typeOptions = [
   { value: "alert_failed", label: "Alert failed" },
   { value: "alert_suppressed", label: "Alert suppressed" },
   { value: "alert_cooldown", label: "Alert cooldown" },
+  { value: "data_lifecycle_settings_updated", label: "Lifecycle settings updated" },
+  { value: "data_lifecycle_rollup_run", label: "Lifecycle rollup run" },
+  { value: "data_lifecycle_archive_run", label: "Lifecycle archive run" },
   { value: "retention_rollup_ran", label: "Retention rollup ran" },
   { value: "retention_archive_ran", label: "Retention archive ran" },
 ] as const;
