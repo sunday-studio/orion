@@ -14,6 +14,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { TabCount, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  CoreWorkerWarning,
+  coreWorkerDiagnosticsFromPayload,
+  shouldWarnForCoreWorker,
+} from "@/features/monitors/components/core-worker-diagnostics";
 import { HeartbeatSetupPanel } from "@/features/monitors/components/heartbeat-setup-panel";
 import { coreMonitorMutationErrorMessage } from "@/features/monitors/components/core-monitor-errors";
 import { CoreMonitorDialog } from "@/features/monitors/components/core-monitor-dialog";
@@ -38,6 +43,7 @@ import {
   getMonitorHistory,
   useDeleteCoreMonitor,
   useGetCoreMonitorConfig,
+  useGetCoreWorkerDiagnostics,
   useGetIncident,
   useGetIncidents,
   useGetMonitor,
@@ -209,6 +215,10 @@ export const MonitorDetailPage = () => {
 
   const monitor = monitorResponse.data?.monitor;
   const isCoreMonitor = isCoreOwnedMonitor(monitor);
+  const workerDiagnosticsResponse = useGetCoreWorkerDiagnostics({
+    query: { enabled: Boolean(isCoreMonitor), refetchInterval: 30_000 },
+  });
+  const workerDiagnostics = coreWorkerDiagnosticsFromPayload(workerDiagnosticsResponse.data);
   const coreConfigResponse = useGetCoreMonitorConfig(monitorId, {
     query: { enabled: Boolean(monitorId && isCoreMonitor) },
   });
@@ -439,6 +449,10 @@ export const MonitorDetailPage = () => {
           </p>
         )}
       </div>
+
+      {isCoreMonitor && shouldWarnForCoreWorker(workerDiagnostics) && (
+        <CoreWorkerWarning worker={workerDiagnostics} />
+      )}
 
       {highlightedIncident && (
         <section className="flex flex-wrap items-center justify-between gap-3 bg-rose-50 px-3 py-2.5 text-sm">
