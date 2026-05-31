@@ -2,6 +2,10 @@
 
 Use this checklist for a first self-hosted Orion run with one Core and one Server.
 
+If you want a quick local proof before installing a Server service, run the
+[`examples/python-sleep-compose`](../../examples/python-sleep-compose/) smoke first. It shows a real
+healthy service, a forced failing service, Console verification, and reset commands.
+
 ## Core
 
 - [ ] Download the Docker Compose sample:

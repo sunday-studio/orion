@@ -31,6 +31,20 @@ Compose without adopting Prometheus, Postgres, Kubernetes, or a hosted observabi
 |---|---|
 | ![Monitors list](assets/monitors-list.png) | ![Monitor detail](assets/monitor-detail.png) |
 
+## Try It First
+
+The quickest useful demo is the Python sleep Compose example. It builds a local Core image when
+needed, starts Orion Core and Console, monitors a real Python `/health` endpoint, flips that endpoint
+into failure, and verifies recovery:
+
+```sh
+examples/python-sleep-compose/smoke.sh
+```
+
+Open `http://127.0.0.1:18999` with `admin` / `change-me` while the smoke is running to see the
+Server, `python-health` monitor, failing report, incident, and recovery in Console. See
+[examples/python-sleep-compose](examples/python-sleep-compose/) for manual steps and reset commands.
+
 ## How It Works
 
 ```mermaid
@@ -288,9 +302,10 @@ See [Server monitors](docs/architecture/agent-monitors.md) for config details.
 
 ## Running Locally
 
-Runtime examples live under `deploy/examples/`. Use them for local smoke tests or as a starting
-point for your own Compose file. A fuller first-run example with a tiny monitored Python app lives
-under `examples/python-sleep-compose/`.
+Runtime examples live under `deploy/examples/` and `examples/`. Use them for local smoke tests or
+as a starting point for your own Compose file. Start with
+[examples/python-sleep-compose](examples/python-sleep-compose/) when you want to see Orion report
+healthy, failing, and recovered states against a tiny monitored Python app.
 
 Run the bundled Core and Console example from this repository:
 
