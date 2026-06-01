@@ -181,6 +181,7 @@ type StatusPagePreviewResponse struct {
 	Incidents            []StatusPagePublicIncidentResponse `json:"incidents"`
 	OverallStatus        string                             `json:"overall_status"`
 	OverallStatusDisplay string                             `json:"overall_status_display"`
+	UptimeWindow         string                             `json:"uptime_window"`
 	LastUpdated          time.Time                          `json:"last_updated"`
 }
 

@@ -240,7 +240,7 @@ func (s *Server) previewStatusPage(c *gin.Context) {
 		writeStatusPageLoadError(c, err, "Failed to load status page preview")
 		return
 	}
-	preview := s.statusPagePreview(detail, true)
+	preview := s.statusPagePreviewWithUptime(detail, true, statusPagePublicDefaultUptimeWindow)
 	utils.SuccessResponse(c, http.StatusOK, "Status page preview retrieved successfully", gin.H{
 		"preview": preview,
 	})
@@ -443,6 +443,15 @@ func sanitizeStatusPageThemeSettings(settings map[string]interface{}) (map[strin
 			}
 			if text != "comfortable" && text != "compact" {
 				return nil, &requestValidationError{message: "theme_settings.component_density is unsupported"}
+			}
+			sanitized[key] = text
+		case "theme_mode":
+			text, err := statusPageThemeString(value, "theme_settings.theme_mode", 64)
+			if err != nil {
+				return nil, err
+			}
+			if text != "light" && text != "dark" && text != "system" {
+				return nil, &requestValidationError{message: "theme_settings.theme_mode is unsupported"}
 			}
 			sanitized[key] = text
 		case "show_uptime_summary", "show_incident_history":
