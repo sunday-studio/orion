@@ -4430,6 +4430,14 @@
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "Lifecycle action metadata",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/api.incidentLifecycleActionRequest"
+                        }
                     }
                 ],
                 "responses": {
@@ -4574,6 +4582,14 @@
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "Lifecycle action metadata",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/api.incidentLifecycleActionRequest"
+                        }
                     }
                 ],
                 "responses": {
@@ -4598,6 +4614,12 @@
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
                         }
                     },
                     "404": {
@@ -4636,6 +4658,14 @@
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "Lifecycle action metadata",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/api.incidentLifecycleActionRequest"
+                        }
                     }
                 ],
                 "responses": {
@@ -4660,6 +4690,12 @@
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.APIResponse"
                         }
                     },
                     "404": {
@@ -8757,7 +8793,7 @@
             "properties": {
                 "config": {
                     "type": "object",
-                    "additionalProperties": true
+                    "additionalProperties": {}
                 },
                 "confirmation_check_count": {
                     "type": "integer"
@@ -8806,7 +8842,7 @@
                 },
                 "secret_refs": {
                     "type": "object",
-                    "additionalProperties": true
+                    "additionalProperties": {}
                 },
                 "timeout_seconds": {
                     "type": "integer"
@@ -8867,6 +8903,34 @@
                 }
             }
         },
+        "api.IncidentActionStateResponse": {
+            "type": "object",
+            "properties": {
+                "allowed": {
+                    "type": "boolean"
+                },
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.IncidentAllowedActionsResponse": {
+            "type": "object",
+            "properties": {
+                "acknowledge": {
+                    "$ref": "#/definitions/api.IncidentActionStateResponse"
+                },
+                "cover": {
+                    "$ref": "#/definitions/api.IncidentActionStateResponse"
+                },
+                "reopen": {
+                    "$ref": "#/definitions/api.IncidentActionStateResponse"
+                },
+                "resolve": {
+                    "$ref": "#/definitions/api.IncidentActionStateResponse"
+                }
+            }
+        },
         "api.IncidentComponentImpactResponse": {
             "type": "object",
             "properties": {
@@ -8887,6 +8951,12 @@
         "api.IncidentEventResponse": {
             "type": "object",
             "properties": {
+                "actor_id": {
+                    "type": "string"
+                },
+                "actor_type": {
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
                 },
@@ -8900,6 +8970,9 @@
                     "type": "string"
                 },
                 "monitor_report_id": {
+                    "type": "string"
+                },
+                "note": {
                     "type": "string"
                 },
                 "type": {
@@ -9065,6 +9138,9 @@
                 "agent_name": {
                     "type": "string"
                 },
+                "allowed_actions": {
+                    "$ref": "#/definitions/api.IncidentAllowedActionsResponse"
+                },
                 "coverage_note": {
                     "type": "string"
                 },
@@ -9136,6 +9212,12 @@
         "api.IncidentTimelineItemResponse": {
             "type": "object",
             "properties": {
+                "actor_id": {
+                    "type": "string"
+                },
+                "actor_type": {
+                    "type": "string"
+                },
                 "alert_delivery_id": {
                     "type": "string"
                 },
@@ -9155,6 +9237,9 @@
                     "type": "string"
                 },
                 "monitor_report_id": {
+                    "type": "string"
+                },
+                "note": {
                     "type": "string"
                 },
                 "source": {
@@ -10318,6 +10403,14 @@
                 "covered_until": {
                     "type": "string"
                 },
+                "note": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.incidentLifecycleActionRequest": {
+            "type": "object",
+            "properties": {
                 "note": {
                     "type": "string"
                 }

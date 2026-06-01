@@ -187,8 +187,23 @@ type IncidentResponse struct {
 	LastEventAt        time.Time                         `json:"last_event_at"`
 	LatestEvent        string                            `json:"latest_event"`
 	NotificationStatus string                            `json:"notification_status"`
+	AllowedActions     IncidentAllowedActionsResponse    `json:"allowed_actions"`
 	CreatedAt          time.Time                         `json:"created_at"`
 	UpdatedAt          time.Time                         `json:"updated_at"`
+}
+
+// IncidentAllowedActionsResponse describes whether each lifecycle action can run.
+type IncidentAllowedActionsResponse struct {
+	Acknowledge IncidentActionStateResponse `json:"acknowledge"`
+	Cover       IncidentActionStateResponse `json:"cover"`
+	Resolve     IncidentActionStateResponse `json:"resolve"`
+	Reopen      IncidentActionStateResponse `json:"reopen"`
+}
+
+// IncidentActionStateResponse describes one incident lifecycle action.
+type IncidentActionStateResponse struct {
+	Allowed bool   `json:"allowed"`
+	Reason  string `json:"reason,omitempty"`
 }
 
 // IncidentInsightsResponse represents aggregate incident metrics for the current incident filters.
@@ -238,6 +253,9 @@ type IncidentEventResponse struct {
 	Type            string    `json:"type"`
 	Message         string    `json:"message"`
 	MonitorReportID string    `json:"monitor_report_id"`
+	ActorType       string    `json:"actor_type"`
+	ActorID         string    `json:"actor_id"`
+	Note            string    `json:"note,omitempty"`
 	CreatedAt       time.Time `json:"created_at"`
 }
 
@@ -409,6 +427,9 @@ type IncidentTimelineItemResponse struct {
 	Evidence        string    `json:"evidence,omitempty"`
 	MonitorReportID string    `json:"monitor_report_id,omitempty"`
 	AlertDeliveryID string    `json:"alert_delivery_id,omitempty"`
+	ActorType       string    `json:"actor_type,omitempty"`
+	ActorID         string    `json:"actor_id,omitempty"`
+	Note            string    `json:"note,omitempty"`
 	Channel         string    `json:"channel,omitempty"`
 	Status          string    `json:"status,omitempty"`
 	CreatedAt       time.Time `json:"created_at"`
@@ -623,9 +644,26 @@ func incidentResponse(incident db.Incident, agent db.Agent, monitor db.Monitor) 
 		LastEventAt:        incident.LastEventAt,
 		LatestEvent:        incident.LatestEvent,
 		NotificationStatus: incident.NotificationStatus,
+		AllowedActions:     incidentAllowedActionsResponse(incident),
 		CreatedAt:          incident.CreatedAt,
 		UpdatedAt:          incident.UpdatedAt,
 	}
+}
+
+func incidentAllowedActionsResponse(incident db.Incident) IncidentAllowedActionsResponse {
+	return IncidentAllowedActionsResponse{
+		Acknowledge: incidentActionState(incident.Status == "open" || incident.Status == "covered", "incident must be open or covered"),
+		Cover:       incidentActionState(incident.Status == "open" || incident.Status == "acknowledged" || incident.Status == "covered", "incident must be open, acknowledged, or covered"),
+		Resolve:     incidentActionState(incident.Status != "resolved", "incident is already resolved"),
+		Reopen:      incidentActionState(incident.Status == "resolved" || incident.Status == "covered", "incident must be resolved or covered"),
+	}
+}
+
+func incidentActionState(allowed bool, blockedReason string) IncidentActionStateResponse {
+	if allowed {
+		return IncidentActionStateResponse{Allowed: true}
+	}
+	return IncidentActionStateResponse{Reason: blockedReason}
 }
 
 func incidentComponentImpactResponses(raw string) []IncidentComponentImpactResponse {
@@ -661,6 +699,9 @@ func incidentEventResponse(event db.IncidentEvent) IncidentEventResponse {
 		Type:            event.Type,
 		Message:         event.Message,
 		MonitorReportID: event.MonitorReportID,
+		ActorType:       event.ActorType,
+		ActorID:         event.ActorID,
+		Note:            event.Note,
 		CreatedAt:       event.CreatedAt,
 	}
 }
