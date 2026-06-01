@@ -201,7 +201,7 @@ func TestStatusPageSubscriberFanoutRequiresPublishedPageAndUpdate(t *testing.T) 
 	createDraftStatusPageIncidentUpdateForFanoutTest(t, server, page.ID, draftIncidentID, "Draft update should not fan out")
 	assertStatusPageSubscriberDeliveryCount(t, server, 0)
 
-	if err := server.db.Model(&db.StatusPage{}).Where("id = ?", page.ID).Updates(map[string]interface{}{
+	if err := server.db.Model(&db.StatusPage{}).Where("id = ?", page.ID).Updates(map[string]any{
 		"visibility":   statusPageVisibilityDraft,
 		"published_at": nil,
 	}).Error; err != nil {

@@ -1,4 +1,4 @@
-# Copy this file and run it directly, or override values with a .env file.
+# Copy this file next to a .env file with admin credentials, then run it directly.
 # Override ORION_CORE_IMAGE to deploy a newer released tag.
 # ORION_CORS_ORIGINS is only needed for separate Console/custom-origin API access.
 services:
@@ -14,9 +14,10 @@ services:
       ORION_DATA_DIR: /data
       ORION_PORT: "8999"
       ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS: ${ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS:-3600}
-      ORION_ADMIN_USERNAME: ${ORION_ADMIN_USERNAME:-admin}
-      ORION_ADMIN_PASSWORD: ${ORION_ADMIN_PASSWORD:-change-me}
-      ORION_JWT_SECRET: ${ORION_JWT_SECRET:-change-me-to-a-long-random-secret-before-deploying}
+      ORION_REQUIRE_FRONTEND_AUTH: "true"
+      ORION_ADMIN_USERNAME: ${ORION_ADMIN_USERNAME:?set ORION_ADMIN_USERNAME}
+      ORION_ADMIN_PASSWORD: ${ORION_ADMIN_PASSWORD:?set ORION_ADMIN_PASSWORD}
+      ORION_JWT_SECRET: ${ORION_JWT_SECRET:?set ORION_JWT_SECRET}
       ORION_CORS_ORIGINS: ${ORION_CORS_ORIGINS:-http://localhost:8999,http://127.0.0.1:8999,https://orion-core.examples.orb.local}
       ORION_PUBLIC_STATUS_MAIL_ENABLED: ${ORION_PUBLIC_STATUS_MAIL_ENABLED:-false}
       ORION_PUBLIC_STATUS_MAIL_HOST: ${ORION_PUBLIC_STATUS_MAIL_HOST:-}
@@ -52,9 +53,10 @@ services:
       ORION_WORKER_STALE_SECONDS: ${ORION_WORKER_STALE_SECONDS:-60}
       ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS: ${ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS:-false}
       ORION_PLAYWRIGHT_RUNNER: ${ORION_PLAYWRIGHT_RUNNER:-}
-      ORION_ADMIN_USERNAME: ${ORION_ADMIN_USERNAME:-admin}
-      ORION_ADMIN_PASSWORD: ${ORION_ADMIN_PASSWORD:-change-me}
-      ORION_JWT_SECRET: ${ORION_JWT_SECRET:-change-me-to-a-long-random-secret-before-deploying}
+      ORION_REQUIRE_FRONTEND_AUTH: "true"
+      ORION_ADMIN_USERNAME: ${ORION_ADMIN_USERNAME:?set ORION_ADMIN_USERNAME}
+      ORION_ADMIN_PASSWORD: ${ORION_ADMIN_PASSWORD:?set ORION_ADMIN_PASSWORD}
+      ORION_JWT_SECRET: ${ORION_JWT_SECRET:?set ORION_JWT_SECRET}
     healthcheck:
       test: ["CMD", "./orion-core-worker", "healthcheck"]
       interval: 30s

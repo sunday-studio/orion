@@ -434,7 +434,7 @@ type AlertDelivery struct {
 	AlertGroupID  string                 `json:"alert_group_id" gorm:"not null;default:'';index:idx_alert_deliveries_alert_group_id"`
 	EventType     string                 `json:"event_type" gorm:"not null"` // incident_opened | incident_resolved | test
 	Channel       string                 `json:"channel" gorm:"not null"`
-	Type          string                 `json:"type" gorm:"not null"`   // webhook | slack | discord | email | none
+	Type          string                 `json:"type" gorm:"not null"`   // webhook | none | route | group
 	Status        string                 `json:"status" gorm:"not null"` // pending | sent | failed | suppressed | cooldown
 	Error         string                 `json:"error" gorm:"type:text"`
 	AttemptCount  int                    `json:"attempt_count" gorm:"not null;default:0"`
@@ -451,7 +451,7 @@ type AlertDeliveryAttempt struct {
 	AlertDeliveryID string     `json:"alert_delivery_id" gorm:"index:idx_alert_delivery_attempts_delivery_id;not null"`
 	AttemptNumber   int        `json:"attempt_number" gorm:"not null;index:idx_alert_delivery_attempts_delivery_number"`
 	Status          string     `json:"status" gorm:"not null"` // pending | sent | failed
-	Stage           string     `json:"stage" gorm:"not null"`  // load_incident | serialize | http_request | http_response | smtp_send | channel_lookup | transport
+	Stage           string     `json:"stage" gorm:"not null"`  // load_incident | serialize | http_request | http_response | channel_lookup | transport
 	Error           string     `json:"error" gorm:"type:text"`
 	StartedAt       time.Time  `json:"started_at" gorm:"not null;index:idx_alert_delivery_attempts_started_at"`
 	CompletedAt     *time.Time `json:"completed_at"`
@@ -504,43 +504,13 @@ type AlertRoute struct {
 type AlertChannel struct {
 	ID                   string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
 	Name                 string    `json:"name" gorm:"uniqueIndex;not null"`
-	Type                 string    `json:"type" gorm:"not null"` // webhook | slack | discord | email
+	Type                 string    `json:"type" gorm:"not null"` // webhook
 	Enabled              bool      `json:"enabled" gorm:"not null"`
 	WebhookURL           string    `json:"webhook_url" gorm:"type:text"`
 	WebhookSigningSecret string    `json:"webhook_signing_secret" gorm:"type:text"`
-	EmailTo              string    `json:"email_to"`
-	EmailFrom            string    `json:"email_from"`
-	SMTPHost             string    `json:"smtp_host"`
-	SMTPPort             int       `json:"smtp_port"`
-	SMTPUsername         string    `json:"smtp_username"`
-	SMTPPassword         string    `json:"smtp_password"`
 	SubscribedEvents     string    `json:"subscribed_events" gorm:"type:text"`
 	CreatedAt            time.Time `json:"created_at"`
 	UpdatedAt            time.Time `json:"updated_at"`
-}
-
-type AlertSMTPService struct {
-	ID        string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
-	Name      string    `json:"name" gorm:"uniqueIndex;not null"`
-	Enabled   bool      `json:"enabled" gorm:"not null"`
-	Host      string    `json:"host" gorm:"not null"`
-	Port      int       `json:"port" gorm:"not null"`
-	Username  string    `json:"username"`
-	Password  string    `json:"password"`
-	FromEmail string    `json:"from_email" gorm:"not null"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-type AlertEmailDestination struct {
-	ID               string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
-	SMTPServiceID    string    `json:"smtp_service_id" gorm:"not null;index:idx_alert_email_destinations_smtp_service_id"`
-	Name             string    `json:"name" gorm:"uniqueIndex;not null"`
-	Enabled          bool      `json:"enabled" gorm:"not null"`
-	EmailTo          string    `json:"email_to" gorm:"not null"`
-	SubscribedEvents string    `json:"subscribed_events" gorm:"type:text"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 type DataLifecycleSettings struct {

@@ -37,7 +37,7 @@ func TestRunDueChecksStoresUpReportForSMTPMonitor(t *testing.T) {
 			return conn, nil
 		},
 	})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 	if dialedAddress != "mx.example:25" {
@@ -51,7 +51,7 @@ func TestRunDueChecksStoresUpReportForSMTPMonitor(t *testing.T) {
 	if report.Health != "up" {
 		t.Fatalf("report health = %q, want up", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -87,7 +87,7 @@ func TestRunDueChecksStoresUpReportForIMAPMonitor(t *testing.T) {
 			return conn, nil
 		},
 	})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 	if !strings.Contains(conn.Written(), "A001 CAPABILITY") {
@@ -98,7 +98,7 @@ func TestRunDueChecksStoresUpReportForIMAPMonitor(t *testing.T) {
 	if report.Health != "up" {
 		t.Fatalf("report health = %q, want up", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -129,7 +129,7 @@ func TestRunDueChecksStoresUpReportForPOPMonitor(t *testing.T) {
 			return conn, nil
 		},
 	})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 	if !strings.Contains(conn.Written(), "CAPA") {
@@ -140,7 +140,7 @@ func TestRunDueChecksStoresUpReportForPOPMonitor(t *testing.T) {
 	if report.Health != "up" {
 		t.Fatalf("report health = %q, want up", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -171,7 +171,7 @@ func TestRunDueChecksStoresDownReportForMailMissingCapability(t *testing.T) {
 			return conn, nil
 		},
 	})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -194,7 +194,7 @@ func TestRunDueChecksStoresDownReportForMailAuthEnabledConfig(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-mail-test"})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -225,7 +225,7 @@ func TestRunDueChecksStoresDownReportForMailTimeout(t *testing.T) {
 			return nil, timeoutTestError{}
 		},
 	})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -239,7 +239,7 @@ func assertMailFailurePayload(t *testing.T, database *gorm.DB, monitorID string,
 	if report.Health != "down" {
 		t.Fatalf("report health = %q, want down", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
