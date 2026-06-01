@@ -6048,6 +6048,46 @@ paths:
       tags:
       - status-pages
   /v1/status-pages/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a status page, including sections, components, mappings,
+        public incidents, subscriber preferences, subscribers, and delivery history
+      operationId: deleteStatusPage
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    id:
+                      type: string
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete status page
+      tags:
+      - status-pages
     get:
       consumes:
       - application/json
@@ -6232,6 +6272,51 @@ paths:
       tags:
       - status-pages
   /v1/status-pages/{id}/components/{component_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a public status page component, mappings, and subscriber
+        component preferences
+      operationId: deleteStatusPageComponent
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Component ID
+        in: path
+        name: component_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    id:
+                      type: string
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete status page component
+      tags:
+      - status-pages
     put:
       consumes:
       - application/json
@@ -6394,6 +6479,55 @@ paths:
       tags:
       - status-pages
   /v1/status-pages/{id}/components/{component_id}/mappings/{mapping_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a public component mapping to an internal monitor or agent
+      operationId: deleteStatusPageComponentMapping
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Component ID
+        in: path
+        name: component_id
+        required: true
+        type: string
+      - description: Mapping ID
+        in: path
+        name: mapping_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    id:
+                      type: string
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete status page component mapping
+      tags:
+      - status-pages
     put:
       consumes:
       - application/json
@@ -6551,6 +6685,51 @@ paths:
       tags:
       - status-pages
   /v1/status-pages/{id}/incidents/{incident_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a manual public status page incident, public updates, and
+        subscriber delivery history for that incident
+      operationId: deleteStatusPageIncident
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Incident ID
+        in: path
+        name: incident_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    id:
+                      type: string
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete status page incident
+      tags:
+      - status-pages
     put:
       consumes:
       - application/json
@@ -7001,6 +7180,51 @@ paths:
       tags:
       - status-pages
   /v1/status-pages/{id}/sections/{section_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a status page section, its public components, mappings,
+        and subscriber component preferences
+      operationId: deleteStatusPageSection
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Section ID
+        in: path
+        name: section_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    id:
+                      type: string
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete status page section
+      tags:
+      - status-pages
     put:
       consumes:
       - application/json

@@ -25,4 +25,5 @@ apps/agent/tmp/
 
 # core
 apps/core/.env
-apps/core/web/
+apps/core/web/index.html
+apps/core/web/assets/
