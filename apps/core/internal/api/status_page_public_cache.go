@@ -14,7 +14,7 @@ import (
 
 const statusPagePublicCacheControl = "public, max-age=30, stale-while-revalidate=30"
 
-func (s *Server) writePublicStatusPageJSON(c *gin.Context, statusCode int, message string, data interface{}) {
+func (s *Server) writePublicStatusPageJSON(c *gin.Context, statusCode int, message string, data any) {
 	payload, err := json.Marshal(utils.APIResponse{
 		Success: true,
 		Message: message,

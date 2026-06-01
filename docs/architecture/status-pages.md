@@ -6,9 +6,20 @@ Status pages give Orion a public, shareable view of service health. They should 
 
 The status page is not a mirror of the Console. It is a curated publication layer over existing Core data: servers, monitors, derived health, incidents, and uptime rollups. Administrators decide which operational resources are exposed, how they are named, and which incident details are public.
 
+## Readiness State
+
+The first status page foundation is implemented enough to treat this document as an architecture boundary, not only a future plan. Core and Console now support status pages, sections, components, internal resource mappings, public page payloads, public incidents, public incident updates, feeds, badges, custom domains, and subscriber lifecycle operations.
+
+Incident-related readiness still has important gaps:
+
+- internal incidents remain private unless an administrator creates public incident content;
+- Core does not yet provide a dedicated "create public draft from this internal incident" helper;
+- safe default public copy, affected component suggestions, and browser coverage for the internal-to-public draft path are tracked as incident readiness follow-up work;
+- public incident payloads must continue to omit internal incident ids, private timeline text, raw report payloads, alert delivery internals, and operator notes.
+
 ## Product Goals
 
-- Create one or more status pages from the Console.
+- Create multiple top-level status pages from the Console.
 - Group public-facing components into sections, such as `API`, `Website`, `Database`, or `Region`.
 - Map each public component to one or more internal monitors or servers.
 - Show current component health, active incidents, maintenance, and uptime history.
@@ -109,7 +120,7 @@ flowchart LR
 
 ## Data Model
 
-Add publication tables rather than changing Server/Core reporting behavior.
+Publication tables sit alongside Server/Core reporting behavior rather than replacing it.
 
 ### `status_pages`
 
@@ -556,13 +567,13 @@ Forbidden coupling:
 
 - storing public subscribers in internal alert channel tables;
 - reusing internal alert destination ids as subscriber ids;
-- exposing internal webhook URLs, SMTP credentials, signing secrets, escalation policies, or operator routing settings to subscriber code paths;
+- exposing internal alert webhook URLs, public mail sender credentials, signing secrets, escalation policies, or operator rule settings to subscriber code paths;
 - delivering public status notifications from internal incident alert templates;
 - allowing public subscribe, confirm, unsubscribe, or preference routes to read or mutate internal alert channels.
 
 Public subscriber fan-out should have its own queue or queue namespace, template set, delivery ledger, metrics labels, and audit events. If the implementation later reuses the alert delivery engine, it must do so behind an adapter that accepts only public DTOs and provider credentials selected for public subscriber mail. That adapter must not receive internal alert channel records or secrets.
 
-Public subscriber email uses a dedicated public mail sender configuration. It may reuse low-level SMTP client code, but it does not reuse internal alert destinations, routes, templates, or escalation policy. Until the public sender and public URL origin are configured, subscription routes may create pending subscribers but must not send confirmation or fan-out mail.
+Public subscriber email uses a dedicated public mail sender configuration. It may reuse low-level SMTP client code, but it does not reuse internal alert webhooks, rules, templates, or escalation policy. Until the public sender and public URL origin are configured, subscription routes may create pending subscribers but must not send confirmation or fan-out mail.
 
 ## Public API Shape
 
@@ -799,7 +810,7 @@ Resolved status page architecture decisions are recorded in:
 
 Build status pages as a publication layer over Core, not as a second monitoring system. Keep the Server/Core contract unchanged. Store public configuration and public incident copy separately from internal incidents, then project safe public DTOs through unauthenticated status routes.
 
-Serve public status pages from the Core main binary with a dedicated public status page bundle packaged through the existing static asset path. The first release supports one status page per Core instance while preserving plural schema, slug routes, and APIs so multiple pages can be enabled later without a data migration.
+Serve public status pages from the Core main binary with a dedicated public status page bundle packaged through the existing static asset path. The first release supports multiple top-level status pages per Core instance, with slug routes and page-scoped child records. Customer-specific sub-pages, regional sub-pages, and a default `/status` page remain future product decisions.
 
 Use a separate public subscriber system for status page subscriptions. Public subscriber records, tokens, preferences, deliveries, templates, and public mail credentials must stay separate from internal alert channel records and secrets. Shared transport helpers are acceptable only behind a public DTO adapter that cannot read or mutate internal alert channels.
 

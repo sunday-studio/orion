@@ -11,22 +11,9 @@ export const deliveryStatuses = [
 export const deliveryTypeOptions = [
   { value: "all", label: "All types" },
   { value: "webhook", label: "Webhook" },
-  { value: "slack", label: "Slack" },
-  { value: "discord", label: "Discord" },
-  { value: "email", label: "Email" },
 ] as const;
 export const alertChannelTypeOptions = [
   { value: "webhook", label: "Webhook", urlPlaceholder: "https://example.com/webhook" },
-  {
-    value: "slack",
-    label: "Slack",
-    urlPlaceholder: "https://hooks.slack.com/services/...",
-  },
-  {
-    value: "discord",
-    label: "Discord",
-    urlPlaceholder: "https://discord.com/api/webhooks/...",
-  },
 ] as const;
 export const manageableAlertChannelTypes = alertChannelTypeOptions.map((option) => option.value);
 export const alertEventOptions = [
@@ -42,8 +29,7 @@ export const defaultAlertEvents = alertEventOptions.map((event) => event.value);
 export const boolLabel = (value?: boolean) => (value ? "yes" : "no");
 
 export const alertChannelTypeLabel = (value?: string) =>
-  alertChannelTypeOptions.find((option) => option.value === value)?.label ??
-  (value === "email" ? "Email" : (value ?? "unknown"));
+  alertChannelTypeOptions.find((option) => option.value === value)?.label ?? value ?? "unknown";
 
 export const eventLabel = (value?: string) =>
   alertEventOptions.find((event) => event.value === value)?.label ?? value ?? "unknown";
