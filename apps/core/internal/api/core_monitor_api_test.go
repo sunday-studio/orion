@@ -524,6 +524,20 @@ func TestCoreMonitorManagementRejectsInvalidConfig(t *testing.T) {
 func TestCoreMonitorManagementEnforcesTargetPolicy(t *testing.T) {
 	server := setupTestServer(t)
 
+	localhostResp := performJSONRequest(t, server, http.MethodPost, "/v1/monitors", map[string]interface{}{
+		"name": "Localhost Target",
+		"kind": "http",
+		"config": map[string]interface{}{
+			"url": "http://localhost:8080/health?token=secret",
+		},
+	}, "")
+	if localhostResp.Code != http.StatusBadRequest {
+		t.Fatalf("localhost create status = %d, body = %s", localhostResp.Code, localhostResp.Body.String())
+	}
+	if strings.Contains(localhostResp.Body.String(), "token=secret") {
+		t.Fatalf("localhost create leaked query secret: %s", localhostResp.Body.String())
+	}
+
 	createResp := performJSONRequest(t, server, http.MethodPost, "/v1/monitors", map[string]interface{}{
 		"name": "Metadata Target",
 		"kind": "http",

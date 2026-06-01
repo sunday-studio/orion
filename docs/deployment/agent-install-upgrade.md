@@ -3,6 +3,10 @@
 Install the Server on every Linux or macOS machine you want Orion to monitor. Core should already
 be running from the Docker image before installing Servers.
 
+This guide uses **Server** for the product concept. The installed binary, service names, release
+assets, and several local paths still use `orion-agent` or `agent` for compatibility with existing
+installs and automation. Do not rename those paths during routine installs or upgrades.
+
 ## Paths
 
 Linux:

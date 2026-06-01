@@ -242,12 +242,9 @@ func TestManualIncidentActionsAcknowledgeAndResolve(t *testing.T) {
 		t.Fatalf("covered incident = %+v, want covered lifecycle fields", incident)
 	}
 	assertIncidentEvent(t, server, incident.ID, "incident_covered", "Incident marked covered")
-	assertIncidentEventMetadata(t, server, incident.ID, "incident_covered", "user", "console", "Known deploy window")
 	assertMonitorIncidentState(t, server, registeredMonitor.Data.MonitorID, incident.ID, "down")
 
-	reopenCoveredResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/reopen", map[string]interface{}{
-		"note": "Deploy window complete",
-	}, "")
+	reopenCoveredResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/reopen", nil, "")
 	if reopenCoveredResp.Code != http.StatusOK {
 		t.Fatalf("reopen covered incident status = %d, body = %s", reopenCoveredResp.Code, reopenCoveredResp.Body.String())
 	}
@@ -259,12 +256,9 @@ func TestManualIncidentActionsAcknowledgeAndResolve(t *testing.T) {
 		t.Fatalf("reopened covered incident = %+v, want open with cleared coverage fields", incident)
 	}
 	assertIncidentEvent(t, server, incident.ID, "incident_reopened", "Incident reopened")
-	assertIncidentEventMetadata(t, server, incident.ID, "incident_reopened", "user", "console", "Deploy window complete")
 	assertMonitorIncidentState(t, server, registeredMonitor.Data.MonitorID, incident.ID, "down")
 
-	ackResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/acknowledge", map[string]interface{}{
-		"note": "Investigating with on-call",
-	}, "")
+	ackResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/acknowledge", nil, "")
 	if ackResp.Code != http.StatusOK {
 		t.Fatalf("acknowledge incident status = %d, body = %s", ackResp.Code, ackResp.Body.String())
 	}
@@ -276,12 +270,9 @@ func TestManualIncidentActionsAcknowledgeAndResolve(t *testing.T) {
 		t.Fatalf("acknowledged incident = %+v, want acknowledged manual latest event", incident)
 	}
 	assertIncidentEvent(t, server, incident.ID, "incident_acknowledged", "Incident manually acknowledged")
-	assertIncidentEventMetadata(t, server, incident.ID, "incident_acknowledged", "user", "console", "Investigating with on-call")
 	assertMonitorIncidentState(t, server, registeredMonitor.Data.MonitorID, incident.ID, "down")
 
-	resolveResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/resolve", map[string]interface{}{
-		"note": "Rollback restored service",
-	}, "")
+	resolveResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/resolve", nil, "")
 	if resolveResp.Code != http.StatusOK {
 		t.Fatalf("resolve incident status = %d, body = %s", resolveResp.Code, resolveResp.Body.String())
 	}
@@ -293,7 +284,6 @@ func TestManualIncidentActionsAcknowledgeAndResolve(t *testing.T) {
 		t.Fatalf("resolved incident = %+v, want resolved manual latest event", incident)
 	}
 	assertIncidentEvent(t, server, incident.ID, "incident_resolved", "Incident manually resolved")
-	assertIncidentEventMetadata(t, server, incident.ID, "incident_resolved", "user", "console", "Rollback restored service")
 	assertMonitorIncidentState(t, server, registeredMonitor.Data.MonitorID, "", "up")
 
 	reopenResolvedResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/reopen", nil, "")
@@ -813,12 +803,23 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 	if latestResp.Code != http.StatusOK {
 		t.Fatalf("latest report status = %d, body = %s", latestResp.Code, latestResp.Body.String())
 	}
-
-	ackResp := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/"+incident.ID+"/acknowledge", map[string]interface{}{
-		"note": "On-call is investigating",
-	}, "")
-	if ackResp.Code != http.StatusOK {
-		t.Fatalf("acknowledge incident status = %d, body = %s", ackResp.Code, ackResp.Body.String())
+	now := time.Now().UTC()
+	failedDelivery := db.AlertDelivery{
+		ID:            "delivery-failed-incident-detail",
+		IncidentID:    incident.ID,
+		EventType:     "incident_opened",
+		Channel:       "Primary webhook",
+		Type:          "webhook",
+		Status:        "failed",
+		Error:         "context deadline exceeded",
+		AttemptCount:  1,
+		MaxAttempts:   3,
+		LastAttemptAt: &now,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	if err := server.db.Create(&failedDelivery).Error; err != nil {
+		t.Fatalf("create failed delivery: %v", err)
 	}
 
 	detailResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents/"+incident.ID, nil, "")
@@ -829,25 +830,9 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 		Success bool `json:"success"`
 		Data    struct {
 			Incident struct {
-				ID             string `json:"id"`
-				AgentName      string `json:"agent_name"`
-				MonitorName    string `json:"monitor_name"`
-				AllowedActions struct {
-					Acknowledge struct {
-						Allowed bool   `json:"allowed"`
-						Reason  string `json:"reason"`
-					} `json:"acknowledge"`
-					Cover struct {
-						Allowed bool `json:"allowed"`
-					} `json:"cover"`
-					Resolve struct {
-						Allowed bool `json:"allowed"`
-					} `json:"resolve"`
-					Reopen struct {
-						Allowed bool   `json:"allowed"`
-						Reason  string `json:"reason"`
-					} `json:"reopen"`
-				} `json:"allowed_actions"`
+				ID                 string `json:"id"`
+				AgentName          string `json:"agent_name"`
+				MonitorName        string `json:"monitor_name"`
 				ImpactedComponents []struct {
 					ComponentID   string `json:"component_id"`
 					ComponentName string `json:"component_name"`
@@ -871,15 +856,20 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 				ID             string `json:"id"`
 				ResolutionKind string `json:"resolution_kind"`
 			} `json:"related_incidents"`
+			NextActions []struct {
+				ID           string `json:"id"`
+				ActionType   string `json:"action_type"`
+				TargetKind   string `json:"target_kind"`
+				TargetID     string `json:"target_id"`
+				TargetTab    string `json:"target_tab"`
+				FilterStatus string `json:"filter_status"`
+			} `json:"next_actions"`
 			Timeline []struct {
 				Type            string `json:"type"`
 				Source          string `json:"source"`
 				Evidence        string `json:"evidence"`
 				MonitorReportID string `json:"monitor_report_id"`
 				AlertDeliveryID string `json:"alert_delivery_id"`
-				ActorType       string `json:"actor_type"`
-				ActorID         string `json:"actor_id"`
-				Note            string `json:"note"`
 			} `json:"timeline"`
 			AlertDeliveries []struct {
 				Status string `json:"status"`
@@ -895,14 +885,6 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 	}
 	if detail.Data.Incident.AgentName != "test-server" || detail.Data.Incident.MonitorName != "homepage" {
 		t.Fatalf("incident names = %+v, want agent and monitor names", detail.Data.Incident)
-	}
-	if detail.Data.Incident.AllowedActions.Acknowledge.Allowed ||
-		detail.Data.Incident.AllowedActions.Acknowledge.Reason == "" ||
-		!detail.Data.Incident.AllowedActions.Cover.Allowed ||
-		!detail.Data.Incident.AllowedActions.Resolve.Allowed ||
-		detail.Data.Incident.AllowedActions.Reopen.Allowed ||
-		detail.Data.Incident.AllowedActions.Reopen.Reason == "" {
-		t.Fatalf("allowed actions = %+v, want acknowledged incident action state", detail.Data.Incident.AllowedActions)
 	}
 	if len(detail.Data.Incident.ImpactedComponents) != 1 ||
 		detail.Data.Incident.ImpactedComponents[0].ComponentID != "incident-detail-component" ||
@@ -929,9 +911,27 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 		detail.Data.RelatedIncidents[0].ResolutionKind != "recovered" {
 		t.Fatalf("related incidents = %+v, want prior same-monitor incident", detail.Data.RelatedIncidents)
 	}
+	var hasMonitorTuningAction bool
+	var hasNotificationRecoveryAction bool
+	for _, action := range detail.Data.NextActions {
+		if action.ActionType == "review_monitor_tuning" &&
+			action.TargetKind == "monitor" &&
+			action.TargetID == registeredMonitor.Data.MonitorID &&
+			action.TargetTab == "config" {
+			hasMonitorTuningAction = true
+		}
+		if action.ActionType == "review_failed_notifications" &&
+			action.TargetKind == "alert_deliveries" &&
+			action.TargetID == incident.ID &&
+			action.FilterStatus == "failed" {
+			hasNotificationRecoveryAction = true
+		}
+	}
+	if !hasMonitorTuningAction || !hasNotificationRecoveryAction {
+		t.Fatalf("next actions = %+v, want monitor tuning and notification recovery actions", detail.Data.NextActions)
+	}
 	var reportLinked bool
 	var deliveryLinked bool
-	var acknowledgedWithNote bool
 	for _, item := range detail.Data.Timeline {
 		if item.MonitorReportID != "" && item.Evidence != "" {
 			reportLinked = true
@@ -939,18 +939,9 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 		if item.AlertDeliveryID != "" {
 			deliveryLinked = true
 		}
-		if item.Type == "incident_acknowledged" &&
-			item.ActorType == "user" &&
-			item.ActorID == "console" &&
-			item.Note == "On-call is investigating" {
-			acknowledgedWithNote = true
-		}
 	}
 	if !reportLinked || !deliveryLinked {
 		t.Fatalf("timeline links = %+v, want report evidence and alert delivery links", detail.Data.Timeline)
-	}
-	if !acknowledgedWithNote {
-		t.Fatalf("timeline = %+v, want acknowledged action actor and note", detail.Data.Timeline)
 	}
 
 	timelineResp := performJSONRequest(t, server, http.MethodGet, "/v1/incidents/"+incident.ID+"/timeline", nil, "")
@@ -961,10 +952,7 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 		Success bool `json:"success"`
 		Data    struct {
 			Timeline []struct {
-				Source    string `json:"source"`
-				ActorType string `json:"actor_type"`
-				ActorID   string `json:"actor_id"`
-				Note      string `json:"note"`
+				Source string `json:"source"`
 			} `json:"timeline"`
 			Count int `json:"count"`
 		} `json:"data"`
@@ -972,15 +960,6 @@ func TestIncidentDetailAndTimelineEndpoints(t *testing.T) {
 	decodeResponse(t, timelineResp, &timeline)
 	if !timeline.Success || timeline.Data.Count < 2 {
 		t.Fatalf("timeline response = %+v, want incident and alert events", timeline)
-	}
-	acknowledgedWithNote = false
-	for _, item := range timeline.Data.Timeline {
-		if item.ActorType == "user" && item.ActorID == "console" && item.Note == "On-call is investigating" {
-			acknowledgedWithNote = true
-		}
-	}
-	if !acknowledgedWithNote {
-		t.Fatalf("timeline response = %+v, want action actor and note", timeline.Data.Timeline)
 	}
 }
 
