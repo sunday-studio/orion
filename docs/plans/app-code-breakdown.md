@@ -107,3 +107,15 @@ Split runtime files by orchestration, reporting, spooling, maintenance state, an
 4. Split tests before behavior-heavy files when one test file covers several product surfaces.
 5. Split Console views by visible workflow and extract data hooks only when they remove repeated state logic.
 6. Run `make code-line-limit` after each area and the relevant test or build command for the app being changed.
+
+## Migration Status
+
+The app source line-limit migration is complete on this branch. `make code-line-limit` passes with all app source files at or below 500 lines.
+
+Verification completed:
+
+- Agent tests: `GOCACHE=/private/tmp/orion-go-cache go test ./...` from `apps/agent`.
+- Core targeted tests: `GOCACHE=/private/tmp/orion-go-cache go test ./internal/api ./internal/service ./internal/worker ./internal/db ./internal/monitorvalidation ./scripts/seed-demo-data` from `apps/core`.
+- Console type check: `pnpm exec tsc --noEmit` from `apps/console`.
+
+Known follow-up outside the line-limit migration: `pnpm run build` still fails on existing SDK/type-contract drift in incident and status-page features.

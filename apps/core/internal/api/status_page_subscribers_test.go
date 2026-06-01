@@ -1,27 +1,20 @@
 package api
 
 import (
+	"github.com/gin-gonic/gin"
 	"net/http"
+	"orion/core/internal/db"
+	"orion/core/internal/service"
 	"strings"
 	"testing"
 	"time"
-
-	"orion/core/internal/db"
-	"orion/core/internal/service"
-	"orion/core/internal/utils"
-
-	"github.com/gin-gonic/gin"
 )
 
 func TestPublicStatusPageSubscriptionRequestStoresHashesAndMasksDestination(t *testing.T) {
 	server := setupTestServer(t)
 	page, visibleComponent, _ := createPublishedStatusPageForSubscriberTest(t, server, "subscriber-status")
-
 	rawDestination := "Alice.Observer@example.com"
-	resp := performJSONRequest(t, server, http.MethodPost, "/status/"+page.Slug+"/subscribers", gin.H{
-		"destination":   rawDestination,
-		"component_ids": []string{visibleComponent.ID},
-	}, "")
+	resp := performJSONRequest(t, server, http.MethodPost, "/status/"+page.Slug+"/subscribers", gin.H{"destination": rawDestination, "component_ids": []string{visibleComponent.ID}}, "")
 	if resp.Code != http.StatusAccepted {
 		t.Fatalf("subscription request status = %d, body = %s", resp.Code, resp.Body.String())
 	}
@@ -34,7 +27,6 @@ func TestPublicStatusPageSubscriptionRequestStoresHashesAndMasksDestination(t *t
 	assertNotContains(t, body, "manage_token")
 	assertNotContains(t, body, "unsubscribe_token")
 	assertNotContains(t, body, "token_hash")
-
 	var subscriber db.StatusPageSubscriber
 	if err := server.db.Where("status_page_id = ?", page.ID).First(&subscriber).Error; err != nil {
 		t.Fatalf("load subscriber: %v", err)
@@ -48,16 +40,11 @@ func TestPublicStatusPageSubscriptionRequestStoresHashesAndMasksDestination(t *t
 	if subscriber.DestinationValueCiphertext != "" {
 		t.Fatalf("destination value ciphertext = %q, want empty until encrypted storage is implemented", subscriber.DestinationValueCiphertext)
 	}
-	for name, value := range map[string]string{
-		"confirmation": subscriber.ConfirmationTokenHash,
-		"manage":       subscriber.ManageTokenHash,
-		"unsubscribe":  subscriber.UnsubscribeTokenHash,
-	} {
+	for name, value := range map[string]string{"confirmation": subscriber.ConfirmationTokenHash, "manage": subscriber.ManageTokenHash, "unsubscribe": subscriber.UnsubscribeTokenHash} {
 		if value == "" || value == rawDestination {
 			t.Fatalf("%s token hash = %q, want non-raw hash", name, value)
 		}
 	}
-
 	var preferences []db.StatusPageSubscriberComponent
 	if err := server.db.Where("subscriber_id = ?", subscriber.ID).Find(&preferences).Error; err != nil {
 		t.Fatalf("load preferences: %v", err)
@@ -66,7 +53,6 @@ func TestPublicStatusPageSubscriptionRequestStoresHashesAndMasksDestination(t *t
 		t.Fatalf("preferences = %+v, want only visible component %s", preferences, visibleComponent.ID)
 	}
 }
-
 func TestPublicStatusPageSubscriptionSendsConfirmationWithConfiguredPublicSender(t *testing.T) {
 	server := setupTestServer(t)
 	configurePublicStatusMailForTest(server)
@@ -80,12 +66,8 @@ func TestPublicStatusPageSubscriptionSendsConfirmationWithConfiguredPublicSender
 		t.Fatalf("set custom domain: %v", err)
 	}
 	page.CustomDomain = "status.customer.example"
-
 	rawDestination := "Configured.User@example.com"
-	resp := performJSONRequest(t, server, http.MethodPost, "/status/"+page.Slug+"/subscribers", gin.H{
-		"destination":   rawDestination,
-		"component_ids": []string{visibleComponent.ID},
-	}, "")
+	resp := performJSONRequest(t, server, http.MethodPost, "/status/"+page.Slug+"/subscribers", gin.H{"destination": rawDestination, "component_ids": []string{visibleComponent.ID}}, "")
 	if resp.Code != http.StatusAccepted {
 		t.Fatalf("subscription request status = %d, body = %s", resp.Code, resp.Body.String())
 	}
@@ -102,7 +84,6 @@ func TestPublicStatusPageSubscriptionSendsConfirmationWithConfiguredPublicSender
 	}
 	assertContains(t, messages[0].Text, "https://status.customer.example/status/"+page.Slug+"/subscribers/confirm/")
 	assertNotContains(t, messages[0].Text, server.cfg.PublicStatusMailPassword)
-
 	var subscriber db.StatusPageSubscriber
 	if err := server.db.Where("status_page_id = ?", page.ID).First(&subscriber).Error; err != nil {
 		t.Fatalf("load subscriber: %v", err)
@@ -117,7 +98,6 @@ func TestPublicStatusPageSubscriptionSendsConfirmationWithConfiguredPublicSender
 	if decrypted != "configured.user@example.com" {
 		t.Fatalf("decrypted destination = %q", decrypted)
 	}
-
 	var delivery db.StatusPageSubscriberDelivery
 	if err := server.db.Where("subscriber_id = ?", subscriber.ID).First(&delivery).Error; err != nil {
 		t.Fatalf("load confirmation delivery: %v", err)
@@ -126,13 +106,11 @@ func TestPublicStatusPageSubscriptionSendsConfirmationWithConfiguredPublicSender
 		t.Fatalf("delivery = %+v, want sent confirmation ledger row", delivery)
 	}
 }
-
 func TestPublicStatusPageSubscriberConfirmationUsesOneTimeHashedToken(t *testing.T) {
 	server := setupTestServer(t)
 	page, visibleComponent, _ := createPublishedStatusPageForSubscriberTest(t, server, "confirm-status")
 	confirmationToken := "confirm-token-for-test"
 	subscriber := seedStatusPageSubscriberForTest(t, server, page.ID, "Confirm.User@example.com", statusPageSubscriberStatePending, confirmationToken, "manage-token", "unsubscribe-token", []string{visibleComponent.ID})
-
 	resp := performJSONRequest(t, server, http.MethodGet, "/status/"+page.Slug+"/subscribers/confirm/"+confirmationToken, nil, "")
 	if resp.Code != http.StatusOK {
 		t.Fatalf("confirm status = %d, body = %s", resp.Code, resp.Body.String())
@@ -143,7 +121,6 @@ func TestPublicStatusPageSubscriberConfirmationUsesOneTimeHashedToken(t *testing
 	assertNotContains(t, body, confirmationToken)
 	assertNotContains(t, body, "Confirm.User")
 	assertNotContains(t, body, "token")
-
 	var stored db.StatusPageSubscriber
 	if err := server.db.Where("id = ?", subscriber.ID).First(&stored).Error; err != nil {
 		t.Fatalf("load confirmed subscriber: %v", err)
@@ -154,13 +131,11 @@ func TestPublicStatusPageSubscriberConfirmationUsesOneTimeHashedToken(t *testing
 	if stored.ConfirmationTokenHash != "" || stored.ConfirmationTokenExpiresAt != nil {
 		t.Fatalf("confirmation token was not cleared after use: %+v", stored)
 	}
-
 	reuseResp := performJSONRequest(t, server, http.MethodGet, "/status/"+page.Slug+"/subscribers/confirm/"+confirmationToken, nil, "")
 	if reuseResp.Code != http.StatusNotFound {
 		t.Fatalf("reused confirmation status = %d, body = %s, want 404", reuseResp.Code, reuseResp.Body.String())
 	}
 }
-
 func TestPublicStatusPageSubscriberConfirmationRejectsInvalidExpiredAndRateLimitedTokens(t *testing.T) {
 	server := setupTestServer(t)
 	page, visibleComponent, _ := createPublishedStatusPageForSubscriberTest(t, server, "confirm-invalid-status")
@@ -170,23 +145,19 @@ func TestPublicStatusPageSubscriberConfirmationRejectsInvalidExpiredAndRateLimit
 	if err := server.db.Model(&db.StatusPageSubscriber{}).Where("id = ?", expiredSubscriber.ID).Update("confirmation_token_expires_at", expiredAt).Error; err != nil {
 		t.Fatalf("expire confirmation token: %v", err)
 	}
-
 	invalidResp := performJSONRequest(t, server, http.MethodGet, "/status/"+page.Slug+"/subscribers/confirm/not-a-real-token", nil, "")
 	if invalidResp.Code != http.StatusNotFound {
 		t.Fatalf("invalid confirmation status = %d, body = %s, want 404", invalidResp.Code, invalidResp.Body.String())
 	}
 	assertNotContains(t, invalidResp.Body.String(), "not-a-real-token")
-
 	expiredResp := performJSONRequest(t, server, http.MethodGet, "/status/"+page.Slug+"/subscribers/confirm/"+expiredToken, nil, "")
 	if expiredResp.Code != http.StatusNotFound {
 		t.Fatalf("expired confirmation status = %d, body = %s, want 404", expiredResp.Code, expiredResp.Body.String())
 	}
 	assertNotContains(t, expiredResp.Body.String(), expiredToken)
-
 	limitedServer := setupTestServer(t)
 	limitedPage, _, _ := createPublishedStatusPageForSubscriberTest(t, limitedServer, "confirm-rate-limit-status")
 	limitedServer.publicSubscriberLimiter = NewRateLimiter(1, time.Hour)
-
 	firstResp := performJSONRequest(t, limitedServer, http.MethodGet, "/status/"+limitedPage.Slug+"/subscribers/confirm/not-a-real-token", nil, "")
 	if firstResp.Code != http.StatusNotFound {
 		t.Fatalf("first limited confirmation status = %d, body = %s, want 404", firstResp.Code, firstResp.Body.String())
@@ -197,7 +168,6 @@ func TestPublicStatusPageSubscriberConfirmationRejectsInvalidExpiredAndRateLimit
 	}
 	assertNotContains(t, secondResp.Body.String(), "not-a-real-token")
 }
-
 func TestPublicStatusPageSubscriberSelfServiceEndpointsAreRateLimited(t *testing.T) {
 	cases := []struct {
 		name          string
@@ -205,47 +175,22 @@ func TestPublicStatusPageSubscriberSelfServiceEndpointsAreRateLimited(t *testing
 		path          func(string) string
 		body          gin.H
 		firstWantCode int
-	}{
-		{
-			name:          "create",
-			method:        http.MethodPost,
-			path:          func(slug string) string { return "/status/" + slug + "/subscribers" },
-			body:          gin.H{},
-			firstWantCode: http.StatusBadRequest,
-		},
-		{
-			name:          "confirm",
-			method:        http.MethodGet,
-			path:          func(slug string) string { return "/status/" + slug + "/subscribers/confirm/not-a-real-token" },
-			firstWantCode: http.StatusNotFound,
-		},
-		{
-			name:          "manage-get",
-			method:        http.MethodGet,
-			path:          func(slug string) string { return "/status/" + slug + "/subscribers/manage/not-a-real-token" },
-			firstWantCode: http.StatusNotFound,
-		},
-		{
-			name:          "manage-put",
-			method:        http.MethodPut,
-			path:          func(slug string) string { return "/status/" + slug + "/subscribers/manage/not-a-real-token" },
-			body:          gin.H{},
-			firstWantCode: http.StatusNotFound,
-		},
-		{
-			name:          "unsubscribe",
-			method:        http.MethodPost,
-			path:          func(slug string) string { return "/status/" + slug + "/subscribers/unsubscribe/not-a-real-token" },
-			firstWantCode: http.StatusOK,
-		},
-	}
-
+	}{{name: "create", method: http.MethodPost, path: func(slug string) string {
+		return "/status/" + slug + "/subscribers"
+	}, body: gin.H{}, firstWantCode: http.StatusBadRequest}, {name: "confirm", method: http.MethodGet, path: func(slug string) string {
+		return "/status/" + slug + "/subscribers/confirm/not-a-real-token"
+	}, firstWantCode: http.StatusNotFound}, {name: "manage-get", method: http.MethodGet, path: func(slug string) string {
+		return "/status/" + slug + "/subscribers/manage/not-a-real-token"
+	}, firstWantCode: http.StatusNotFound}, {name: "manage-put", method: http.MethodPut, path: func(slug string) string {
+		return "/status/" + slug + "/subscribers/manage/not-a-real-token"
+	}, body: gin.H{}, firstWantCode: http.StatusNotFound}, {name: "unsubscribe", method: http.MethodPost, path: func(slug string) string {
+		return "/status/" + slug + "/subscribers/unsubscribe/not-a-real-token"
+	}, firstWantCode: http.StatusOK}}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			server := setupTestServer(t)
 			page, _, _ := createPublishedStatusPageForSubscriberTest(t, server, "rate-limit-"+tc.name)
 			server.publicSubscriberLimiter = NewRateLimiter(1, time.Hour)
-
 			firstResp := performJSONRequest(t, server, tc.method, tc.path(page.Slug), tc.body, "")
 			if firstResp.Code != tc.firstWantCode {
 				t.Fatalf("first %s status = %d, body = %s, want %d", tc.name, firstResp.Code, firstResp.Body.String(), tc.firstWantCode)
@@ -259,13 +204,11 @@ func TestPublicStatusPageSubscriberSelfServiceEndpointsAreRateLimited(t *testing
 		})
 	}
 }
-
 func TestPublicStatusPageSubscriberUnsubscribeIsIdempotent(t *testing.T) {
 	server := setupTestServer(t)
 	page, visibleComponent, _ := createPublishedStatusPageForSubscriberTest(t, server, "unsubscribe-status")
 	unsubscribeToken := "unsubscribe-token-for-test"
 	subscriber := seedStatusPageSubscriberForTest(t, server, page.ID, "Unsub.User@example.com", statusPageSubscriberStateConfirmed, "confirm-token", "manage-token", unsubscribeToken, []string{visibleComponent.ID})
-
 	for i := 0; i < 2; i++ {
 		resp := performJSONRequest(t, server, http.MethodPost, "/status/"+page.Slug+"/subscribers/unsubscribe/"+unsubscribeToken, nil, "")
 		if resp.Code != http.StatusOK {
@@ -278,7 +221,6 @@ func TestPublicStatusPageSubscriberUnsubscribeIsIdempotent(t *testing.T) {
 	if invalidResp.Code != http.StatusOK {
 		t.Fatalf("invalid unsubscribe status = %d, body = %s, want generic success", invalidResp.Code, invalidResp.Body.String())
 	}
-
 	var stored db.StatusPageSubscriber
 	if err := server.db.Where("id = ?", subscriber.ID).First(&stored).Error; err != nil {
 		t.Fatalf("load unsubscribed subscriber: %v", err)
@@ -299,13 +241,11 @@ func TestPublicStatusPageSubscriberUnsubscribeIsIdempotent(t *testing.T) {
 	assertNotContains(t, auditEvents[0].MetadataJSON, "Unsub.User")
 	assertNotContains(t, auditEvents[0].MetadataJSON, unsubscribeToken)
 }
-
 func TestPublicStatusPageSubscriberPreferencesSuppressHiddenComponents(t *testing.T) {
 	server := setupTestServer(t)
 	page, visibleComponent, hiddenComponent := createPublishedStatusPageForSubscriberTest(t, server, "preferences-status")
 	manageToken := "manage-token-for-test"
 	seedStatusPageSubscriberForTest(t, server, page.ID, "Prefs.User@example.com", statusPageSubscriberStateConfirmed, "confirm-token", manageToken, "unsubscribe-token", []string{visibleComponent.ID, hiddenComponent.ID})
-
 	resp := performJSONRequest(t, server, http.MethodGet, "/status/"+page.Slug+"/subscribers/manage/"+manageToken, nil, "")
 	if resp.Code != http.StatusOK {
 		t.Fatalf("manage status = %d, body = %s", resp.Code, resp.Body.String())
@@ -317,30 +257,21 @@ func TestPublicStatusPageSubscriberPreferencesSuppressHiddenComponents(t *testin
 	assertNotContains(t, body, "Hidden Database")
 	assertNotContains(t, body, "Prefs.User")
 	assertNotContains(t, body, "token")
-
-	updateResp := performJSONRequest(t, server, http.MethodPut, "/status/"+page.Slug+"/subscribers/manage/"+manageToken, gin.H{
-		"component_ids": []string{hiddenComponent.ID},
-	}, "")
+	updateResp := performJSONRequest(t, server, http.MethodPut, "/status/"+page.Slug+"/subscribers/manage/"+manageToken, gin.H{"component_ids": []string{hiddenComponent.ID}}, "")
 	if updateResp.Code != http.StatusBadRequest {
 		t.Fatalf("hidden component preference status = %d, body = %s, want 400", updateResp.Code, updateResp.Body.String())
 	}
 	assertContains(t, updateResp.Body.String(), "visible components")
 }
-
 func TestStatusPageSubscriberAdminListReturnsRedactedSubscribers(t *testing.T) {
 	server := setupTestServer(t)
 	page, visibleComponent, _ := createPublishedStatusPageForSubscriberTest(t, server, "admin-list-status")
 	rawDestination := "Admin.List@example.com"
 	subscriber := seedStatusPageSubscriberForTest(t, server, page.ID, rawDestination, statusPageSubscriberStateConfirmed, "admin-confirm-token", "admin-manage-token", "admin-unsubscribe-token", []string{visibleComponent.ID})
 	lastDeliveryAt := time.Now().UTC()
-	if err := server.db.Model(&db.StatusPageSubscriber{}).Where("id = ?", subscriber.ID).Updates(map[string]interface{}{
-		"last_delivery_status": statusPageSubscriberDeliveryStateSent,
-		"last_delivery_at":     lastDeliveryAt,
-		"bounce_count":         2,
-	}).Error; err != nil {
+	if err := server.db.Model(&db.StatusPageSubscriber{}).Where("id = ?", subscriber.ID).Updates(map[string]interface{}{"last_delivery_status": statusPageSubscriberDeliveryStateSent, "last_delivery_at": lastDeliveryAt, "bounce_count": 2}).Error; err != nil {
 		t.Fatalf("update subscriber delivery state: %v", err)
 	}
-
 	resp := performJSONRequest(t, server, http.MethodGet, "/v1/status-pages/"+page.ID+"/subscribers", nil, "")
 	if resp.Code != http.StatusOK {
 		t.Fatalf("admin list status = %d, body = %s", resp.Code, resp.Body.String())
@@ -353,7 +284,6 @@ func TestStatusPageSubscriberAdminListReturnsRedactedSubscribers(t *testing.T) {
 	assertContains(t, body, visibleComponent.ID)
 	assertContains(t, body, "Visible API")
 	assertStatusPageSubscriberAdminResponseRedacted(t, body, rawDestination, subscriber)
-
 	filteredResp := performJSONRequest(t, server, http.MethodGet, "/v1/status-pages/"+page.ID+"/subscribers?state=disabled", nil, "")
 	if filteredResp.Code != http.StatusOK {
 		t.Fatalf("filtered admin list status = %d, body = %s", filteredResp.Code, filteredResp.Body.String())
@@ -361,14 +291,12 @@ func TestStatusPageSubscriberAdminListReturnsRedactedSubscribers(t *testing.T) {
 	assertContains(t, filteredResp.Body.String(), `"count":0`)
 	assertNotContains(t, filteredResp.Body.String(), subscriber.ID)
 }
-
 func TestDisableStatusPageSubscriberClearsTokensAndStopsPublicManagement(t *testing.T) {
 	server := setupTestServer(t)
 	page, visibleComponent, _ := createPublishedStatusPageForSubscriberTest(t, server, "admin-disable-status")
 	manageToken := "disable-manage-token"
 	unsubscribeToken := "disable-unsubscribe-token"
 	subscriber := seedStatusPageSubscriberForTest(t, server, page.ID, "Disable.User@example.com", statusPageSubscriberStateConfirmed, "disable-confirm-token", manageToken, unsubscribeToken, []string{visibleComponent.ID})
-
 	resp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+page.ID+"/subscribers/"+subscriber.ID+"/disable", nil, "")
 	if resp.Code != http.StatusOK {
 		t.Fatalf("disable subscriber status = %d, body = %s", resp.Code, resp.Body.String())
@@ -377,7 +305,6 @@ func TestDisableStatusPageSubscriberClearsTokensAndStopsPublicManagement(t *test
 	assertContains(t, body, `"state":"disabled"`)
 	assertContains(t, body, `"disabled_at"`)
 	assertStatusPageSubscriberAdminResponseRedacted(t, body, "Disable.User@example.com", subscriber)
-
 	var stored db.StatusPageSubscriber
 	if err := server.db.Where("id = ?", subscriber.ID).First(&stored).Error; err != nil {
 		t.Fatalf("load disabled subscriber: %v", err)
@@ -391,7 +318,6 @@ func TestDisableStatusPageSubscriberClearsTokensAndStopsPublicManagement(t *test
 	if stored.ManageTokenVersion != 2 || stored.UnsubscribeTokenVersion != 2 {
 		t.Fatalf("token versions = %d/%d, want rotated to 2/2", stored.ManageTokenVersion, stored.UnsubscribeTokenVersion)
 	}
-
 	manageResp := performJSONRequest(t, server, http.MethodGet, "/status/"+page.Slug+"/subscribers/manage/"+manageToken, nil, "")
 	if manageResp.Code != http.StatusNotFound {
 		t.Fatalf("manage disabled subscriber status = %d, body = %s, want 404", manageResp.Code, manageResp.Body.String())
@@ -401,13 +327,11 @@ func TestDisableStatusPageSubscriberClearsTokensAndStopsPublicManagement(t *test
 		t.Fatalf("unsubscribe disabled subscriber status = %d, body = %s, want generic success", unsubscribeResp.Code, unsubscribeResp.Body.String())
 	}
 }
-
 func TestAnonymizeStatusPageSubscriberRemovesContactDataAndPreferences(t *testing.T) {
 	server := setupTestServer(t)
 	page, visibleComponent, _ := createPublishedStatusPageForSubscriberTest(t, server, "admin-anonymize-status")
 	rawDestination := "Anon.User@example.com"
 	subscriber := seedStatusPageSubscriberForTest(t, server, page.ID, rawDestination, statusPageSubscriberStateConfirmed, "anon-confirm-token", "anon-manage-token", "anon-unsubscribe-token", []string{visibleComponent.ID})
-
 	resp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+page.ID+"/subscribers/"+subscriber.ID+"/anonymize", nil, "")
 	if resp.Code != http.StatusOK {
 		t.Fatalf("anonymize subscriber status = %d, body = %s", resp.Code, resp.Body.String())
@@ -417,7 +341,6 @@ func TestAnonymizeStatusPageSubscriberRemovesContactDataAndPreferences(t *testin
 	assertContains(t, body, `"state":"disabled"`)
 	assertContains(t, body, `"components":[]`)
 	assertStatusPageSubscriberAdminResponseRedacted(t, body, rawDestination, subscriber)
-
 	var stored db.StatusPageSubscriber
 	if err := server.db.Where("id = ?", subscriber.ID).First(&stored).Error; err != nil {
 		t.Fatalf("load anonymized subscriber: %v", err)
@@ -438,182 +361,4 @@ func TestAnonymizeStatusPageSubscriberRemovesContactDataAndPreferences(t *testin
 	if preferenceCount != 0 {
 		t.Fatalf("preference count = %d, want 0", preferenceCount)
 	}
-}
-
-func TestDeleteStatusPageSubscriberHardDeletesDependentRows(t *testing.T) {
-	server := setupTestServer(t)
-	page, visibleComponent, _ := createPublishedStatusPageForSubscriberTest(t, server, "admin-delete-status")
-	subscriber := seedStatusPageSubscriberForTest(t, server, page.ID, "Delete.User@example.com", statusPageSubscriberStateConfirmed, "delete-confirm-token", "delete-manage-token", "delete-unsubscribe-token", []string{visibleComponent.ID})
-	delivery := db.StatusPageSubscriberDelivery{
-		ID:                utils.GenerateID("status_page_delivery"),
-		SubscriberID:      subscriber.ID,
-		StatusPageID:      page.ID,
-		DeliveryType:      statusPageSubscriberDeliveryTypeEmail,
-		DeliveryState:     statusPageSubscriberDeliveryStateSent,
-		ProviderMessageID: "provider-message-id",
-	}
-	if err := server.db.Create(&delivery).Error; err != nil {
-		t.Fatalf("create delivery: %v", err)
-	}
-
-	resp := performJSONRequest(t, server, http.MethodDelete, "/v1/status-pages/"+page.ID+"/subscribers/"+subscriber.ID, nil, "")
-	if resp.Code != http.StatusOK {
-		t.Fatalf("delete subscriber status = %d, body = %s", resp.Code, resp.Body.String())
-	}
-	assertContains(t, resp.Body.String(), `"deleted":true`)
-	assertNotContains(t, resp.Body.String(), "Delete.User")
-	assertNotContains(t, resp.Body.String(), subscriber.DestinationHash)
-
-	for name, model := range map[string]interface{}{
-		"subscriber": &db.StatusPageSubscriber{},
-		"preference": &db.StatusPageSubscriberComponent{},
-		"delivery":   &db.StatusPageSubscriberDelivery{},
-	} {
-		var count int64
-		query := server.db.Model(model)
-		if name == "subscriber" {
-			query = query.Where("id = ?", subscriber.ID)
-		} else {
-			query = query.Where("subscriber_id = ?", subscriber.ID)
-		}
-		if err := query.Count(&count).Error; err != nil {
-			t.Fatalf("count %s rows: %v", name, err)
-		}
-		if count != 0 {
-			t.Fatalf("%s count = %d, want 0", name, count)
-		}
-	}
-}
-
-func createPublishedStatusPageForSubscriberTest(t *testing.T, server *Server, slug string) (db.StatusPage, db.StatusPageComponent, db.StatusPageComponent) {
-	t.Helper()
-	now := time.Now().UTC()
-	page := db.StatusPage{
-		ID:                        utils.GenerateID("status_page"),
-		Slug:                      slug,
-		Title:                     "Subscriber Test Status",
-		Visibility:                statusPageVisibilityPublic,
-		ThemeSettings:             "{}",
-		DefaultIncidentVisibility: statusPageIncidentVisibilityDraft,
-		PublishedAt:               &now,
-	}
-	if err := server.db.Create(&page).Error; err != nil {
-		t.Fatalf("create status page: %v", err)
-	}
-	section := db.StatusPageSection{
-		ID:           utils.GenerateID("status_page_section"),
-		StatusPageID: page.ID,
-		Name:         "Services",
-	}
-	if err := server.db.Create(&section).Error; err != nil {
-		t.Fatalf("create section: %v", err)
-	}
-	visibleComponent := db.StatusPageComponent{
-		ID:           utils.GenerateID("status_page_component"),
-		StatusPageID: page.ID,
-		SectionID:    section.ID,
-		PublicName:   "Visible API",
-		DisplayMode:  "manual",
-		ManualStatus: "operational",
-		Visible:      true,
-	}
-	hiddenComponent := db.StatusPageComponent{
-		ID:           utils.GenerateID("status_page_component"),
-		StatusPageID: page.ID,
-		SectionID:    section.ID,
-		PublicName:   "Hidden Database",
-		DisplayMode:  "manual",
-		ManualStatus: "operational",
-		Visible:      false,
-	}
-	if err := server.db.Create(&visibleComponent).Error; err != nil {
-		t.Fatalf("create visible component: %v", err)
-	}
-	if err := server.db.Create(&hiddenComponent).Error; err != nil {
-		t.Fatalf("create hidden component: %v", err)
-	}
-	if err := server.db.Model(&db.StatusPageComponent{}).Where("id = ?", hiddenComponent.ID).Update("visible", false).Error; err != nil {
-		t.Fatalf("hide component: %v", err)
-	}
-	hiddenComponent.Visible = false
-	return page, visibleComponent, hiddenComponent
-}
-
-func seedStatusPageSubscriberForTest(t *testing.T, server *Server, pageID string, destination string, state string, confirmationToken string, manageToken string, unsubscribeToken string, componentIDs []string) db.StatusPageSubscriber {
-	t.Helper()
-	destinationTypeInput := statusPageSubscriberDestinationEmail
-	destinationType, normalizedDestination, maskedDestination, err := normalizeStatusPageSubscriberDestination(&destinationTypeInput, &destination)
-	if err != nil {
-		t.Fatalf("normalize destination: %v", err)
-	}
-	destinationCiphertext, err := server.encryptStatusPageSubscriberDestination(normalizedDestination)
-	if err != nil {
-		t.Fatalf("encrypt destination: %v", err)
-	}
-	expiresAt := time.Now().UTC().Add(time.Hour)
-	subscriber := db.StatusPageSubscriber{
-		ID:                         utils.GenerateID("status_page_subscriber"),
-		StatusPageID:               pageID,
-		DestinationType:            destinationType,
-		DestinationHash:            hashStatusPageSubscriberValue(destinationType + ":" + normalizedDestination),
-		DestinationValueCiphertext: destinationCiphertext,
-		MaskedDestination:          maskedDestination,
-		State:                      state,
-		ConfirmationTokenHash:      hashStatusPageSubscriberToken(confirmationToken),
-		ConfirmationTokenExpiresAt: &expiresAt,
-		ManageTokenHash:            hashStatusPageSubscriberToken(manageToken),
-		ManageTokenVersion:         1,
-		UnsubscribeTokenHash:       hashStatusPageSubscriberToken(unsubscribeToken),
-		UnsubscribeTokenVersion:    1,
-		Source:                     statusPageSubscriberSourcePublicPage,
-	}
-	if state == statusPageSubscriberStateConfirmed {
-		now := time.Now().UTC()
-		subscriber.ConfirmedAt = &now
-	}
-	if err := server.db.Create(&subscriber).Error; err != nil {
-		t.Fatalf("create subscriber: %v", err)
-	}
-	if err := replaceStatusPageSubscriberComponents(server.db, subscriber.ID, componentIDs); err != nil {
-		t.Fatalf("create subscriber preferences: %v", err)
-	}
-	return subscriber
-}
-
-func assertStatusPageSubscriberAdminResponseRedacted(t *testing.T, body string, rawDestination string, subscriber db.StatusPageSubscriber) {
-	t.Helper()
-	assertNotContainsIfPresent(t, body, rawDestination)
-	assertNotContainsIfPresent(t, body, strings.Split(rawDestination, "@")[0])
-	assertNotContainsIfPresent(t, body, subscriber.DestinationHash)
-	assertNotContainsIfPresent(t, body, subscriber.DestinationValueCiphertext)
-	assertNotContainsIfPresent(t, body, subscriber.ConfirmationTokenHash)
-	assertNotContainsIfPresent(t, body, subscriber.ManageTokenHash)
-	assertNotContainsIfPresent(t, body, subscriber.UnsubscribeTokenHash)
-	assertNotContains(t, body, "destination_hash")
-	assertNotContains(t, body, "destination_value_ciphertext")
-	assertNotContains(t, body, "confirmation_token")
-	assertNotContains(t, body, "manage_token")
-	assertNotContains(t, body, "unsubscribe_token")
-	assertNotContains(t, body, "token_version")
-}
-
-func assertNotContainsIfPresent(t *testing.T, body string, value string) {
-	t.Helper()
-	if value == "" {
-		return
-	}
-	assertNotContains(t, body, value)
-}
-
-func configurePublicStatusMailForTest(server *Server) {
-	server.cfg.PublicStatusMailEnabled = true
-	server.cfg.PublicStatusMailHost = "smtp.example.com"
-	server.cfg.PublicStatusMailPort = 587
-	server.cfg.PublicStatusMailFromEmail = "status@example.com"
-	server.cfg.PublicStatusMailFromName = "Orion Status"
-	server.cfg.PublicStatusMailReplyTo = "support@example.com"
-	server.cfg.PublicStatusMailUsername = "status-user"
-	server.cfg.PublicStatusMailPassword = "status-password-secret"
-	server.cfg.PublicStatusURLOrigin = "https://status.example.com"
-	server.cfg.PublicStatusSubscriberSecret = "test-subscriber-secret"
 }

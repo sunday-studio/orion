@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/page-header";
-import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -30,154 +29,19 @@ import {
 } from "@/orion-sdk";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArchiveIcon, History, RotateCwIcon, Save } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-
-type SettingsFormState = {
-  rawReportHotDays: string;
-  archiveRawReports: boolean;
-  archiveDir: string;
-  archiveSchedule: string;
-  rollupsEnabled: boolean;
-  rollupRetentionDays: string;
-};
-
-const defaultFormState: SettingsFormState = {
-  rawReportHotDays: "",
-  archiveRawReports: false,
-  archiveDir: "",
-  archiveSchedule: "daily",
-  rollupsEnabled: false,
-  rollupRetentionDays: "",
-};
-
-type SettingsFieldKey = keyof SettingsFormState | "archiveRollupCompatibility";
-
-type SettingsFormErrors = Partial<Record<SettingsFieldKey, string>>;
-
-const asNumber = (value: string) => {
-  const trimmed = value.trim();
-  if (trimmed === "") return undefined;
-  const parsed = Number(trimmed);
-  return Number.isFinite(parsed) ? parsed : undefined;
-};
-
-const getArchiveCutoff = (hotDays?: number) => {
-  if (!hotDays) return null;
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - hotDays);
-  return cutoff.toISOString();
-};
-
-const getErrorMessage = (error: unknown) => {
-  if (error instanceof Error && error.message) return error.message;
-  return "The maintenance action could not be completed.";
-};
-
-const isPositiveInteger = (value: string) => {
-  const trimmed = value.trim();
-  if (trimmed === "") return false;
-  const parsed = Number(trimmed);
-  return Number.isInteger(parsed) && parsed >= 1;
-};
-
-const optionalPositiveInteger = (value: string) => {
-  const trimmed = value.trim();
-  if (trimmed === "") return true;
-  const parsed = Number(trimmed);
-  return Number.isInteger(parsed) && parsed >= 1;
-};
-
-const validateSettingsForm = (formState: SettingsFormState): SettingsFormErrors => {
-  const errors: SettingsFormErrors = {};
-  if (!isPositiveInteger(formState.rawReportHotDays)) {
-    errors.rawReportHotDays = "Enter at least 1 day.";
-  }
-  if (!optionalPositiveInteger(formState.rollupRetentionDays)) {
-    errors.rollupRetentionDays = "Enter at least 1 day, or leave it blank.";
-  }
-  if (formState.archiveRawReports && formState.archiveDir.trim() === "") {
-    errors.archiveDir = "Archive directory is required when raw report archiving is enabled.";
-  }
-  if (formState.archiveRawReports && !formState.rollupsEnabled) {
-    errors.archiveRollupCompatibility = "Enable rollups before archiving raw reports.";
-  }
-  return errors;
-};
-
-const safeInlineMessage = (value: unknown, fallback = "Unable to complete action.") => {
-  if (typeof value !== "string") return fallback;
-  const compact = value.replace(/\s+/g, " ").trim();
-  if (compact === "") return fallback;
-  return compact.length > 180 ? `${compact.slice(0, 177)}...` : compact;
-};
-
-const archiveCount = (result: {
-  agent_reports_archived?: number;
-  monitor_reports_archived?: number;
-}) => (result.agent_reports_archived ?? 0) + (result.monitor_reports_archived ?? 0);
-
-const Field = ({
-  label,
-  children,
-  description,
-  error,
-}: {
-  label: string;
-  children: ReactNode;
-  description?: string;
-  error?: string;
-}) => (
-  <label className="block space-y-1">
-    <span className="text-sm font-medium">{label}</span>
-    {children}
-    {description && <span className="block text-sm text-neutral-600">{description}</span>}
-    {error && <span className="block text-sm text-red-700">{error}</span>}
-  </label>
-);
-
-const Section = ({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description?: string;
-  children: ReactNode;
-}) => (
-  <section className="space-y-3 border-t border-neutral-200 pt-5">
-    <div className="space-y-1">
-      <h2 className="text-sm font-medium">{title}</h2>
-      {description && <p className="text-sm text-neutral-600">{description}</p>}
-    </div>
-    {children}
-  </section>
-);
-
-const ActivityItem = ({
-  label,
-  value,
-  detail,
-  tone = "neutral",
-}: {
-  label: string;
-  value: string;
-  detail?: ReactNode;
-  tone?: "neutral" | "success" | "error" | "pending";
-}) => (
-  <div
-    className={cn(
-      "space-y-1 border-l-2 bg-neutral-50 px-3 py-2 text-sm",
-      tone === "success" && "border-emerald-500",
-      tone === "error" && "border-red-500",
-      tone === "pending" && "border-amber-500",
-      tone === "neutral" && "border-neutral-300",
-    )}
-  >
-    <div className="text-neutral-600">{label}</div>
-    <div className="font-medium">{value}</div>
-    {detail && <div className="text-neutral-600">{detail}</div>}
-  </div>
-);
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ActivityItem, Field, Section } from "./settings-components";
+import {
+  archiveCount,
+  asNumber,
+  defaultFormState,
+  getArchiveCutoff,
+  getErrorMessage,
+  safeInlineMessage,
+  type SettingsFieldKey,
+  type SettingsFormState,
+  validateSettingsForm,
+} from "./settings-utils";
 
 export const SettingsPage = () => {
   const queryClient = useQueryClient();
