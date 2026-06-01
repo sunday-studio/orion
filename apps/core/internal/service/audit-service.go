@@ -85,7 +85,7 @@ func (s *AuditService) RecordEvent(input AuditEventInput) (*db.AuditEvent, error
 	if err := validateAuditEventInput(normalized); err != nil {
 		return nil, err
 	}
-	metadata, err := json.Marshal(normalized.Metadata)
+	metadata, err := statusPageAuditMetadataJSON(normalized.Metadata)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func (s *AuditService) RecordEvent(input AuditEventInput) (*db.AuditEvent, error
 		AffectedObjectID:   normalized.AffectedObjectID,
 		ActorType:          normalized.ActorType,
 		ActorID:            normalized.ActorID,
-		MetadataJSON:       string(metadata),
+		MetadataJSON:       metadata,
 		CreatedAt:          time.Now().UTC(),
 	}
 	if err := s.db.Create(&event).Error; err != nil {
@@ -106,6 +106,17 @@ func (s *AuditService) RecordEvent(input AuditEventInput) (*db.AuditEvent, error
 		return nil, err
 	}
 	return &event, nil
+}
+
+func statusPageAuditMetadataJSON(metadata map[string]interface{}) (string, error) {
+	if metadata == nil {
+		metadata = map[string]interface{}{}
+	}
+	encoded, err := json.Marshal(metadata)
+	if err != nil {
+		return "", err
+	}
+	return string(encoded), nil
 }
 
 func normalizeAuditEventInput(input AuditEventInput) AuditEventInput {
