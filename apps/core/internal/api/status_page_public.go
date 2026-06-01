@@ -25,7 +25,7 @@ import (
 // @Failure      500   {object}  utils.APIResponse
 // @Router       /status/{slug} [get]
 func (s *Server) getPublicStatusPage(c *gin.Context) {
-	preview, ok := s.loadPublicStatusPageProjection(c, c.Param("slug"))
+	preview, ok := s.loadPublicStatusPageProjectionWithUptime(c, c.Param("slug"))
 	if !ok {
 		return
 	}
@@ -99,6 +99,14 @@ func (s *Server) getPublicStatusPageIncident(c *gin.Context) {
 }
 
 func (s *Server) loadPublicStatusPageProjection(c *gin.Context, slug string) (StatusPagePreviewResponse, bool) {
+	detail, ok := s.loadPublicStatusPageDetail(c, slug)
+	if !ok {
+		return StatusPagePreviewResponse{}, false
+	}
+	return s.statusPagePreviewWithUptime(detail, false, statusPagePublicDefaultUptimeWindow), true
+}
+
+func (s *Server) loadPublicStatusPageProjectionWithUptime(c *gin.Context, slug string) (StatusPagePreviewResponse, bool) {
 	detail, ok := s.loadPublicStatusPageDetail(c, slug)
 	if !ok {
 		return StatusPagePreviewResponse{}, false
