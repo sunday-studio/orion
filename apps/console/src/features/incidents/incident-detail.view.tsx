@@ -179,10 +179,7 @@ const actionIcon = (actionType?: string) => {
   }
 };
 
-const nextActionHref = (
-  action: ApiIncidentNextActionResponse,
-  incident: ApiIncidentResponse,
-) => {
+const nextActionHref = (action: ApiIncidentNextActionResponse, incident: ApiIncidentResponse) => {
   if (action.target_kind === "monitor" && action.target_id) {
     const params = new URLSearchParams();
     if (action.target_tab) params.set("tab", action.target_tab);
@@ -884,54 +881,56 @@ export const IncidentDetailPage = () => {
               {incident.latest_event ?? "No latest event recorded."}
             </p>
           </div>
-          {nextActions.length === 0 && (canResolve || canReopen) && (
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                disabled={actionPending}
-                onClick={() => handlePublicDraftDialogOpenChange(true)}
-              >
-                <MegaphoneIcon />
-                Public draft
-              </Button>
-              {canAcknowledge && (
-                <Button
-                  variant="outline"
-                  disabled={actionPending}
-                  onClick={() => setActionDialog("acknowledge")}
-                >
-                  <CheckIcon />
-                  Acknowledge
-                </Button>
-              )}
-              {canCover && (
-                <Button
-                  variant="outline"
-                  disabled={actionPending}
-                  onClick={() => setCoverDialogOpen(true)}
-                >
-                  <ShieldCheckIcon />
-                  Cover
-                </Button>
-              )}
-              {canResolve && (
-                <Button disabled={actionPending} onClick={() => setActionDialog("resolve")}>
-                  <CircleCheckIcon />
-                  Resolve
-                </Button>
-              )}
-              {canReopen && (
-                <Button
-                  variant="outline"
-                  disabled={actionPending}
-                  onClick={() => setActionDialog("reopen")}
-                >
-                  <RotateCcwIcon />
-                  Reopen
-                </Button>
-              )}
-            </div>
-          )}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              disabled={actionPending}
+              onClick={() => handlePublicDraftDialogOpenChange(true)}
+            >
+              <MegaphoneIcon />
+              Public draft
+            </Button>
+            {nextActions.length === 0 && (canResolve || canReopen) && (
+              <>
+                {canAcknowledge && (
+                  <Button
+                    variant="outline"
+                    disabled={actionPending}
+                    onClick={() => setActionDialog("acknowledge")}
+                  >
+                    <CheckIcon />
+                    Acknowledge
+                  </Button>
+                )}
+                {canCover && (
+                  <Button
+                    variant="outline"
+                    disabled={actionPending}
+                    onClick={() => setCoverDialogOpen(true)}
+                  >
+                    <ShieldCheckIcon />
+                    Cover
+                  </Button>
+                )}
+                {canResolve && (
+                  <Button disabled={actionPending} onClick={() => setActionDialog("resolve")}>
+                    <CircleCheckIcon />
+                    Resolve
+                  </Button>
+                )}
+                {canReopen && (
+                  <Button
+                    variant="outline"
+                    disabled={actionPending}
+                    onClick={() => setActionDialog("reopen")}
+                  >
+                    <RotateCcwIcon />
+                    Reopen
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
         </div>
         {(acknowledgeIncident.error ||
           resolveIncident.error ||

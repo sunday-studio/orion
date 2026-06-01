@@ -23,8 +23,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Filter paths
         id: filter
@@ -145,6 +143,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -152,9 +152,23 @@ jobs:
           go-version-file: apps/core/go.mod
           cache-dependency-path: apps/core/go.sum
 
+      - name: Check Core backend test expectation
+        if: github.event_name == 'pull_request'
+        env:
+          PR_BODY: ${{ github.event.pull_request.body || '' }}
+        run: .github/scripts/check-core-backend-tests.sh "${{ github.event.pull_request.base.sha }}" "${{ github.sha }}"
+
       - name: Test Core
-        run: go test ./...
-        working-directory: apps/core
+        run: make core-coverage CORE_COVERAGE_PROFILE=coverage.out CORE_COVERAGE_SUMMARY=coverage-summary.txt
+
+      - name: Upload Core coverage report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: core-coverage
+          path: |
+            apps/core/coverage.out
+            apps/core/coverage-summary.txt
+          if-no-files-found: error
 
       - name: Race test Core concurrency packages
         run: go test -race ./internal/service ./internal/worker
@@ -213,6 +227,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Node
         uses: actions/setup-node@v4

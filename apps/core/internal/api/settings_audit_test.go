@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -90,7 +91,7 @@ func TestDataLifecycleActionAuditEventsAppearInLogs(t *testing.T) {
 		t.Fatalf("rollup status = %d, body = %s", rollupResp.Code, rollupResp.Body.String())
 	}
 
-	archiveDir := t.TempDir()
+	archiveDir := filepath.Join(server.cfg.DataDir, "audit-archive")
 	settingsResp := performJSONRequest(t, server, http.MethodPut, "/v1/settings/data-lifecycle", map[string]interface{}{
 		"raw_report_hot_days":   1,
 		"archive_raw_reports":   true,

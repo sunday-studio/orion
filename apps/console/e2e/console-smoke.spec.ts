@@ -300,14 +300,15 @@ test("renders the public status page IA on desktop and mobile", async ({ page })
 test("creates and manages a Core HTTP monitor", async ({ page }) => {
   const monitorName = `Core E2E HTTP ${Date.now()}`;
   const updatedName = `${monitorName} updated`;
+  const monitorURL = "http://127.0.0.1:19080/health";
 
   await signIn(page);
 
   await page.getByRole("link", { name: "Monitors" }).click();
   await page.getByRole("button", { name: "Core monitor" }).click();
   await page.getByLabel("Name").fill(monitorName);
-  await page.getByLabel("URL").fill("https://example.com/health");
-  await page.getByLabel("Expected status").fill("200");
+  await page.getByLabel("URL").fill(monitorURL);
+  await page.getByRole("spinbutton", { name: "Expected status" }).fill("503");
   await page.getByLabel("Interval seconds").fill("45");
   await page.getByRole("button", { name: "Create", exact: true }).click();
 
@@ -318,11 +319,11 @@ test("creates and manages a Core HTTP monitor", async ({ page }) => {
   await expect(page.getByText("Core · http")).toBeVisible();
 
   await page.getByRole("tab", { name: "Configuration" }).click();
-  await expect(page.getByText("https://example.com/health")).toBeVisible();
+  await expect(page.getByText(monitorURL)).toBeVisible();
   await expect(page.getByLabel("Configuration").getByText("45s")).toBeVisible();
 
   await page.getByRole("button", { name: "Test" }).click();
-  await expect(page.getByText("Core monitor test reported down.")).toBeVisible();
+  await expect(page.getByText(/Core monitor test reported down:/)).toBeVisible();
 
   await page.reload();
   await expect(page.getByRole("heading", { name: monitorName })).toBeVisible();
@@ -349,7 +350,7 @@ test("creates and manages a Core HTTP monitor", async ({ page }) => {
 
   await page.getByRole("button", { name: "Edit" }).click();
   await page.getByLabel("Name").fill(updatedName);
-  await page.getByLabel("Expected status").fill("200");
+  await page.getByRole("spinbutton", { name: "Expected status" }).fill("200");
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("heading", { name: updatedName })).toBeVisible();
 
@@ -357,7 +358,7 @@ test("creates and manages a Core HTTP monitor", async ({ page }) => {
   await expect(page.getByText("Core monitor test reported up.")).toBeVisible();
   await page.reload();
   await expect(page.getByRole("heading", { name: updatedName })).toBeVisible();
-  await page.getByRole("link", { name: "View latest incident" }).click();
+  await page.getByRole("link", { name: "View incident" }).click();
   await expect(page.getByRole("heading", { name: new RegExp(monitorName) })).toBeVisible();
   await expect(page.getByText("resolved").first()).toBeVisible();
   await page.getByRole("link", { name: "View monitor" }).click();
