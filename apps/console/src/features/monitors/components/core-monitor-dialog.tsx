@@ -38,27 +38,32 @@ type CoreMonitorDialogProps = {
 
 type FormState = {
   advancedConfig: string;
-  apiRequestMethod: string;
+  apiBody: string;
+  apiHeaders: string;
+  apiJSONAssertions: string;
+  apiMethod: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
   confirmationCheckCount: string;
   confirmationPeriodSeconds: string;
   description: string;
   domain: string;
   expectedStatus: string;
+  expectedStatuses: string;
+  expectedValues: string;
   graceSeconds: string;
   host: string;
   intervalSeconds: string;
   kind: CoreMonitorKind;
   mailProtocol: string;
   mailTlsMode: string;
-  method: string;
   name: string;
   paused: boolean;
   pingMethod: string;
   port: string;
   rdapUrl: string;
-  recordType: string;
+  recordType: "A" | "AAAA" | "CNAME" | "TXT" | "MX" | "NS";
   requiredContains: string;
   recoveryPeriodSeconds: string;
+  serverName: string;
   timeoutSeconds: string;
   udpExpectedResponse: string;
   udpPayload: string;
@@ -72,11 +77,11 @@ type CoreMonitorKind =
   | "http"
   | "http_keyword"
   | "expected_status"
-  | "api_request"
   | "tcp"
   | "udp"
   | "dns"
   | "tls"
+  | "api_request"
   | "domain_expiration"
   | "ping"
   | "mail"
@@ -87,20 +92,24 @@ type CoreMonitorKind =
   | "playwright";
 
 const defaultForm: FormState = {
-  advancedConfig: "{\n  \"steps\": []\n}",
-  apiRequestMethod: "GET",
+  advancedConfig: '{\n  "steps": []\n}',
+  apiBody: "",
+  apiHeaders: "",
+  apiJSONAssertions: "",
+  apiMethod: "GET",
   confirmationCheckCount: "0",
   confirmationPeriodSeconds: "0",
   description: "",
   domain: "",
   expectedStatus: "200",
+  expectedStatuses: "",
+  expectedValues: "",
   graceSeconds: "60",
   host: "",
   intervalSeconds: "60",
   kind: "http",
   mailProtocol: "smtp",
   mailTlsMode: "none",
-  method: "GET",
   name: "",
   paused: false,
   pingMethod: "tcp",
@@ -109,11 +118,12 @@ const defaultForm: FormState = {
   recordType: "A",
   requiredContains: "",
   recoveryPeriodSeconds: "0",
+  serverName: "",
   timeoutSeconds: "10",
   udpExpectedResponse: "",
   udpPayload: "",
   url: "",
-  warningDays: "30",
+  warningDays: "14",
   whoisServer: "",
 };
 
@@ -137,9 +147,8 @@ const coreMonitorKindOptions = [
   { value: "heartbeat", label: "Heartbeat" },
 ] as const;
 
-const httpMethods = ["GET", "HEAD"] as const;
-const apiRequestMethods = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"] as const;
-const dnsRecordTypes = ["A", "AAAA", "CNAME", "TXT", "MX", "NS"] as const;
+const apiMethodOptions = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"] as const;
+const dnsRecordTypeOptions = ["A", "AAAA", "CNAME", "TXT", "MX", "NS"] as const;
 const mailProtocols = ["smtp", "imap", "pop"] as const;
 const mailTlsModes = ["none", "implicit", "starttls"] as const;
 const pingMethods = ["tcp", "icmp"] as const;
@@ -148,41 +157,22 @@ const isCoreMonitorKind = (value: string): value is CoreMonitorKind =>
   coreMonitorKindOptions.some((option) => option.value === value);
 
 const normalizeKind = (kind?: string): CoreMonitorKind => {
-  switch (kind) {
-    case "heartbeat":
-    case "http":
-    case "http_keyword":
-    case "expected_status":
-    case "api_request":
-    case "tcp":
-    case "udp":
-    case "dns":
-    case "tls":
-    case "domain_expiration":
-    case "ping":
-    case "mail":
-    case "smtp":
-    case "imap":
-    case "pop":
-    case "synthetic":
-    case "playwright":
-      return kind;
-    case "pop3":
-      return "pop";
-    case "http_status":
-      return "http";
-    case "tcp_port":
-      return "tcp";
-    case "tls_certificate":
-      return "tls";
-    case "synthetic_multi_step":
-      return "synthetic";
-    case "playwright_transaction":
-      return "playwright";
-    default:
-      return "http";
-  }
+  if (!kind) return "http";
+  if (isCoreMonitorKind(kind)) return kind;
+  if (kind === "pop3") return "pop";
+  if (kind === "http_status") return "http";
+  if (kind === "tcp_port") return "tcp";
+  if (kind === "tls_certificate") return "tls";
+  if (kind === "synthetic_multi_step") return "synthetic";
+  if (kind === "playwright_transaction") return "playwright";
+  return "http";
 };
+
+const isAPIMethod = (value: string): value is FormState["apiMethod"] =>
+  apiMethodOptions.includes(value as FormState["apiMethod"]);
+
+const isDNSRecordType = (value: string): value is FormState["recordType"] =>
+  dnsRecordTypeOptions.includes(value as FormState["recordType"]);
 
 const readConfigString = (config: ApiCoreMonitorConfigResponse | undefined, key: string) => {
   const value = config?.config?.[key];
@@ -208,19 +198,29 @@ const readConfigStringList = (config: ApiCoreMonitorConfigResponse | undefined, 
   return "";
 };
 
-const formatConfigJSON = (config: ApiCoreMonitorConfigResponse | undefined, fallback: string) => {
-  try {
-    return JSON.stringify(config?.config ?? JSON.parse(fallback), null, 2);
-  } catch {
-    return fallback;
+const readConfigIntList = (config: ApiCoreMonitorConfigResponse | undefined, key: string) => {
+  const value = config?.config?.[key];
+  if (Array.isArray(value)) {
+    return value
+      .filter((item): item is number => typeof item === "number" && Number.isInteger(item))
+      .join(", ");
   }
+  return "";
 };
 
-const parseJSONConfig = (value: string) => {
-  const parsed = JSON.parse(value);
-  return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-    ? (parsed as Record<string, unknown>)
-    : undefined;
+const readConfigObjectEntries = (config: ApiCoreMonitorConfigResponse | undefined, key: string) => {
+  const value = config?.config?.[key];
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return "";
+  return Object.entries(value)
+    .filter((entry): entry is [string, string] => typeof entry[1] === "string")
+    .map(([header, headerValue]) => `${header}: ${headerValue}`)
+    .join("\n");
+};
+
+const readConfigJSON = (config: ApiCoreMonitorConfigResponse | undefined, key: string) => {
+  const value = config?.config?.[key];
+  if (value === undefined || value === null) return "";
+  return JSON.stringify(value, null, 2);
 };
 
 const toPositiveInt = (value: string, fallback: number) => {
@@ -231,6 +231,178 @@ const toPositiveInt = (value: string, fallback: number) => {
 const toNonNegativeInt = (value: string, fallback: number) => {
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+};
+
+const parseIntList = (value: string, fieldName: string) => {
+  const values = value
+    .split(/\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (values.some((item) => !/^\d+$/.test(item))) {
+    throw new Error(`${fieldName} must contain only whole numbers.`);
+  }
+  return values.map((item) => Number.parseInt(item, 10));
+};
+
+const parseStringList = (value: string) =>
+  value
+    .split(/\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+const parseHeaderMap = (value: string) => {
+  const headers: Record<string, string> = {};
+  for (const rawLine of value.split("\n")) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    const separatorIndex = line.includes(":") ? line.indexOf(":") : line.indexOf("=");
+    if (separatorIndex < 1) {
+      throw new Error("Headers must use Name: value lines.");
+    }
+    const key = line.slice(0, separatorIndex).trim();
+    const headerValue = line.slice(separatorIndex + 1).trim();
+    if (!key) {
+      throw new Error("Header names are required.");
+    }
+    headers[key] = headerValue;
+  }
+  return headers;
+};
+
+const parseJSONAssertions = (value: string) => {
+  if (!value.trim()) return undefined;
+  const parsed = JSON.parse(value) as unknown;
+  if (!Array.isArray(parsed)) {
+    throw new Error("JSON assertions must be a JSON array.");
+  }
+  return parsed;
+};
+
+const formatConfigJSON = (config: ApiCoreMonitorConfigResponse | undefined, fallback: string) => {
+  try {
+    return JSON.stringify(config?.config ?? JSON.parse(fallback), null, 2);
+  } catch {
+    return fallback;
+  }
+};
+
+const parseJSONConfig = (value: string) => {
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+const buildConfigPayload = (form: FormState): Record<string, unknown> => {
+  switch (form.kind) {
+    case "heartbeat":
+      return {
+        grace_seconds: toPositiveInt(form.graceSeconds, 60),
+      };
+    case "http": {
+      const expectedStatus = toPositiveInt(form.expectedStatus, 200);
+      const expectedStatuses = parseIntList(form.expectedStatuses, "Expected statuses");
+      return {
+        expected_status: expectedStatus,
+        ...(expectedStatuses.length > 0 ? { expected_statuses: expectedStatuses } : {}),
+        url: form.url.trim(),
+      };
+    }
+    case "http_keyword": {
+      const expectedStatus = toPositiveInt(form.expectedStatus, 200);
+      const expectedStatuses = parseIntList(form.expectedStatuses, "Expected statuses");
+      const requiredContains = parseStringList(form.requiredContains);
+      return {
+        expected_status: expectedStatus,
+        ...(expectedStatuses.length > 0 ? { expected_statuses: expectedStatuses } : {}),
+        ...(requiredContains.length > 0 ? { required_contains: requiredContains } : {}),
+        url: form.url.trim(),
+      };
+    }
+    case "expected_status": {
+      const expectedStatus = toPositiveInt(form.expectedStatus, 200);
+      const expectedStatuses = parseIntList(form.expectedStatuses, "Expected statuses");
+      return {
+        expected_status: expectedStatus,
+        ...(expectedStatuses.length > 0 ? { expected_statuses: expectedStatuses } : {}),
+        url: form.url.trim(),
+      };
+    }
+    case "api_request": {
+      const expectedStatus = toPositiveInt(form.expectedStatus, 200);
+      const expectedStatuses = parseIntList(form.expectedStatuses, "Expected statuses");
+      const headers = parseHeaderMap(form.apiHeaders);
+      const jsonAssertions = parseJSONAssertions(form.apiJSONAssertions);
+      return {
+        body: form.apiBody,
+        expected_status: expectedStatus,
+        ...(expectedStatuses.length > 0 ? { expected_statuses: expectedStatuses } : {}),
+        ...(Object.keys(headers).length > 0 ? { headers } : {}),
+        ...(jsonAssertions ? { json_assertions: jsonAssertions } : {}),
+        method: form.apiMethod,
+        url: form.url.trim(),
+      };
+    }
+    case "tcp":
+      return {
+        host: form.host.trim(),
+        port: toPositiveInt(form.port, 0),
+      };
+    case "udp":
+      return {
+        expected_response: form.udpExpectedResponse,
+        host: form.host.trim(),
+        payload: form.udpPayload,
+        port: toPositiveInt(form.port, 53),
+      };
+    case "dns": {
+      const expectedValues = parseStringList(form.expectedValues);
+      return {
+        ...(expectedValues.length > 0 ? { expected_values: expectedValues } : {}),
+        host: form.host.trim(),
+        record_type: form.recordType,
+      };
+    }
+    case "tls":
+      return {
+        host: form.host.trim(),
+        ...(form.port.trim() ? { port: toPositiveInt(form.port, 443) } : {}),
+        ...(form.serverName.trim() ? { server_name: form.serverName.trim() } : {}),
+        warning_days: toNonNegativeInt(form.warningDays, 14),
+      };
+    case "domain_expiration":
+      return {
+        domain: form.domain.trim(),
+        ...(form.rdapUrl.trim() ? { rdap_url: form.rdapUrl.trim() } : {}),
+        warning_days: toNonNegativeInt(form.warningDays, 14),
+        ...(form.whoisServer.trim() ? { whois_server: form.whoisServer.trim() } : {}),
+      };
+    case "ping":
+      return {
+        host: form.host.trim(),
+        method: form.pingMethod,
+        ...(form.pingMethod === "tcp" && form.port.trim()
+          ? { port: toPositiveInt(form.port, 443) }
+          : {}),
+      };
+    case "mail":
+    case "smtp":
+    case "imap":
+    case "pop":
+      return {
+        host: form.host.trim(),
+        ...(form.kind === "mail" ? { protocol: form.mailProtocol } : {}),
+        ...(form.port.trim() ? { port: toPositiveInt(form.port, 25) } : {}),
+        tls_mode: form.mailTlsMode,
+      };
+    case "synthetic":
+    case "playwright":
+      return parseJSONConfig(form.advancedConfig) ?? {};
+  }
 };
 
 export const CoreMonitorDialog = ({
@@ -244,28 +416,31 @@ export const CoreMonitorDialog = ({
   open,
 }: CoreMonitorDialogProps) => {
   const [form, setForm] = useState<FormState>(defaultForm);
-  const [submitAction, setSubmitAction] = useState<CoreMonitorSubmitAction>("save");
+  const [localError, setLocalError] = useState("");
 
   useEffect(() => {
     if (!open) return;
+    setLocalError("");
     if (mode === "create") {
       setForm(defaultForm);
       return;
     }
     const kind = normalizeKind(config?.kind);
+    const method = readConfigString(config, "method").toUpperCase();
+    const recordType = readConfigString(config, "record_type").toUpperCase();
     setForm({
-      advancedConfig: formatConfigJSON(
-        config,
-        kind === "playwright"
-          ? "{\n  \"url\": \"https://example.com\",\n  \"browser\": \"chromium\",\n  \"steps\": []\n}"
-          : "{\n  \"steps\": []\n}",
-      ),
-      apiRequestMethod: readConfigString(config, "method") || "GET",
+      advancedConfig: formatConfigJSON(config, defaultForm.advancedConfig),
+      apiBody: readConfigString(config, "body"),
+      apiHeaders: readConfigObjectEntries(config, "headers"),
+      apiJSONAssertions: readConfigJSON(config, "json_assertions"),
+      apiMethod: isAPIMethod(method) ? method : "GET",
       confirmationCheckCount: String(config?.confirmation_check_count ?? 0),
       confirmationPeriodSeconds: String(config?.confirmation_period_seconds ?? 0),
       description: monitor?.description ?? "",
       domain: readConfigString(config, "domain"),
       expectedStatus: readConfigNumber(config, "expected_status") || "200",
+      expectedStatuses: readConfigIntList(config, "expected_statuses"),
+      expectedValues: readConfigStringList(config, "expected_values"),
       graceSeconds: readConfigNumber(config, "grace_seconds") || "60",
       host: readConfigString(config, "host"),
       intervalSeconds: String(
@@ -274,20 +449,20 @@ export const CoreMonitorDialog = ({
       kind,
       mailProtocol: readConfigString(config, "protocol") || (kind === "mail" ? "smtp" : kind),
       mailTlsMode: readConfigString(config, "tls_mode") || "none",
-      method: readConfigString(config, "method") || "GET",
       name: monitor?.name ?? "",
       paused: config?.paused ?? false,
       pingMethod: readConfigString(config, "method") || "tcp",
       port: readConfigNumber(config, "port"),
       rdapUrl: readConfigString(config, "rdap_url"),
-      recordType: readConfigString(config, "record_type") || "A",
+      recordType: isDNSRecordType(recordType) ? recordType : "A",
       requiredContains: readConfigStringList(config, "required_contains"),
       recoveryPeriodSeconds: String(config?.recovery_period_seconds ?? 0),
+      serverName: readConfigString(config, "server_name"),
       timeoutSeconds: String(config?.timeout_seconds ?? 10),
       udpExpectedResponse: readConfigString(config, "expected_response"),
       udpPayload: readConfigString(config, "payload"),
       url: readConfigString(config, "url"),
-      warningDays: readConfigNumber(config, "warning_days") || "30",
+      warningDays: readConfigNumber(config, "warning_days") || "14",
       whoisServer: readConfigString(config, "whois_server"),
     });
   }, [config, mode, monitor, open]);
@@ -297,96 +472,29 @@ export const CoreMonitorDialog = ({
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const expectedStatus = toPositiveInt(form.expectedStatus, 200);
-    const isHeartbeat = form.kind === "heartbeat";
-    const requiredContains = form.requiredContains
-      .split(/\n|,/)
-      .map((value) => value.trim())
-      .filter(Boolean);
-    const configPayload = (() => {
-      switch (form.kind) {
-        case "heartbeat":
-          return { grace_seconds: toPositiveInt(form.graceSeconds, 60) };
-        case "http":
-        case "http_keyword":
-        case "expected_status":
-          return {
-            expected_status: expectedStatus,
-            method: form.method,
-            ...(form.kind === "http_keyword" && requiredContains.length > 0
-              ? { required_contains: requiredContains }
-              : {}),
-            url: form.url.trim(),
-          };
-        case "api_request":
-          return {
-            expected_status: expectedStatus,
-            method: form.apiRequestMethod,
-            url: form.url.trim(),
-          };
-        case "tcp":
-          return { host: form.host.trim(), port: toPositiveInt(form.port, 443) };
-        case "udp":
-          return {
-            expected_response: form.udpExpectedResponse,
-            host: form.host.trim(),
-            payload: form.udpPayload,
-            port: toPositiveInt(form.port, 53),
-          };
-        case "dns":
-          return { host: form.host.trim(), record_type: form.recordType };
-        case "tls":
-          return {
-            host: form.host.trim(),
-            ...(form.port.trim() ? { port: toPositiveInt(form.port, 443) } : {}),
-            warning_days: toNonNegativeInt(form.warningDays, 30),
-          };
-        case "domain_expiration":
-          return {
-            domain: form.domain.trim(),
-            ...(form.rdapUrl.trim() ? { rdap_url: form.rdapUrl.trim() } : {}),
-            warning_days: toNonNegativeInt(form.warningDays, 30),
-            ...(form.whoisServer.trim() ? { whois_server: form.whoisServer.trim() } : {}),
-          };
-        case "ping":
-          return {
-            host: form.host.trim(),
-            method: form.pingMethod,
-            ...(form.pingMethod === "tcp" && form.port.trim()
-              ? { port: toPositiveInt(form.port, 443) }
-              : {}),
-          };
-        case "mail":
-        case "smtp":
-        case "imap":
-        case "pop":
-          return {
-            host: form.host.trim(),
-            ...(form.kind === "mail" ? { protocol: form.mailProtocol } : {}),
-            ...(form.port.trim() ? { port: toPositiveInt(form.port, 25) } : {}),
-            tls_mode: form.mailTlsMode,
-          };
-        case "synthetic":
-        case "playwright":
-          return parseJSONConfig(form.advancedConfig);
-      }
-    })();
-
-    if (!configPayload) return;
-    const payload = {
-      config: configPayload,
-      description: form.description.trim() || undefined,
-      confirmation_check_count: toNonNegativeInt(form.confirmationCheckCount, 0),
-      confirmation_period_seconds: toNonNegativeInt(form.confirmationPeriodSeconds, 0),
-      interval_seconds: toPositiveInt(form.intervalSeconds, 60),
-      kind: form.kind,
-      name: form.name.trim(),
-      paused: form.paused,
-      recovery_period_seconds: toNonNegativeInt(form.recoveryPeriodSeconds, 0),
-      ...(isHeartbeat ? {} : { timeout_seconds: toPositiveInt(form.timeoutSeconds, 10) }),
-      type: form.kind,
-    };
-    onSubmit(payload, submitAction);
+    const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+    const action: CoreMonitorSubmitAction = submitter?.value === "save_test" ? "save_test" : "save";
+    try {
+      const configPayload = buildConfigPayload(form);
+      setLocalError("");
+      const isHeartbeat = form.kind === "heartbeat";
+      const payload = {
+        config: configPayload,
+        description: form.description.trim() || undefined,
+        confirmation_check_count: toNonNegativeInt(form.confirmationCheckCount, 0),
+        confirmation_period_seconds: toNonNegativeInt(form.confirmationPeriodSeconds, 0),
+        interval_seconds: toPositiveInt(form.intervalSeconds, 60),
+        kind: form.kind,
+        name: form.name.trim(),
+        paused: form.paused,
+        recovery_period_seconds: toNonNegativeInt(form.recoveryPeriodSeconds, 0),
+        ...(isHeartbeat ? {} : { timeout_seconds: toPositiveInt(form.timeoutSeconds, 10) }),
+        type: form.kind,
+      };
+      onSubmit(payload, action);
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : "Monitor configuration is invalid.");
+    }
   };
 
   const title = mode === "create" ? "Create Core Monitor" : "Edit Core Monitor";
@@ -395,28 +503,38 @@ export const CoreMonitorDialog = ({
       ? "Add a check that runs from Orion Core."
       : "Update the Core-owned check configuration.";
   const isHeartbeat = form.kind === "heartbeat";
-  const usesUrl = ["http", "http_keyword", "expected_status", "api_request"].includes(form.kind);
-  const usesHost = ["tcp", "udp", "dns", "tls", "ping", "mail", "smtp", "imap", "pop"].includes(
-    form.kind,
-  );
-  const usesDomain = form.kind === "domain_expiration";
+  const isURLMonitor =
+    form.kind === "http" ||
+    form.kind === "http_keyword" ||
+    form.kind === "expected_status" ||
+    form.kind === "api_request";
+  const isHostMonitor = [
+    "tcp",
+    "udp",
+    "dns",
+    "tls",
+    "ping",
+    "mail",
+    "smtp",
+    "imap",
+    "pop",
+  ].includes(form.kind);
+  const isDomainMonitor = form.kind === "domain_expiration";
   const usesAdvancedJSON = form.kind === "synthetic" || form.kind === "playwright";
-  const advancedConfigError = (() => {
-    if (!usesAdvancedJSON) return "";
-    try {
-      return parseJSONConfig(form.advancedConfig) ? "" : "Configuration JSON must be an object.";
-    } catch (error) {
-      return error instanceof Error ? error.message : "Configuration JSON is invalid.";
-    }
-  })();
+  const advancedConfigError =
+    usesAdvancedJSON && !parseJSONConfig(form.advancedConfig)
+      ? "Configuration JSON must be an object."
+      : "";
+  const requiresPort = form.kind === "tcp" || form.kind === "udp";
   const canSubmit =
     form.name.trim() &&
     !advancedConfigError &&
     (isHeartbeat ||
-      (usesUrl && form.url.trim()) ||
-      (usesHost && form.host.trim()) ||
-      (usesDomain && form.domain.trim()) ||
+      (isURLMonitor && form.url.trim()) ||
+      (isHostMonitor && form.host.trim() && (!requiresPort || form.port.trim())) ||
+      (isDomainMonitor && form.domain.trim()) ||
       usesAdvancedJSON);
+  const visibleError = localError || error;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -478,7 +596,7 @@ export const CoreMonitorDialog = ({
                 ))}
               </select>
             </label>
-            {usesUrl && (
+            {isURLMonitor && (
               <>
                 <label className="space-y-1 text-sm">
                   <span className="font-medium">URL</span>
@@ -489,26 +607,6 @@ export const CoreMonitorDialog = ({
                     onChange={(event) => updateForm({ url: event.target.value })}
                     placeholder="https://example.com/health"
                   />
-                </label>
-                <label className="space-y-1 text-sm">
-                  <span className="font-medium">Method</span>
-                  <select
-                    className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
-                    value={form.kind === "api_request" ? form.apiRequestMethod : form.method}
-                    onChange={(event) =>
-                      form.kind === "api_request"
-                        ? updateForm({ apiRequestMethod: event.target.value })
-                        : updateForm({ method: event.target.value })
-                    }
-                  >
-                    {(form.kind === "api_request" ? apiRequestMethods : httpMethods).map(
-                      (method) => (
-                        <option key={method} value={method}>
-                          {method}
-                        </option>
-                      ),
-                    )}
-                  </select>
                 </label>
                 <label className="space-y-1 text-sm">
                   <span className="font-medium">Expected status</span>
@@ -523,7 +621,63 @@ export const CoreMonitorDialog = ({
                 </label>
               </>
             )}
-            {usesHost && (
+            {form.kind === "api_request" && (
+              <>
+                <label className="space-y-1 text-sm">
+                  <span className="font-medium">Method</span>
+                  <Select
+                    value={form.apiMethod}
+                    onValueChange={(value) => {
+                      if (isAPIMethod(value)) updateForm({ apiMethod: value });
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <span data-slot="select-value">{form.apiMethod}</span>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {apiMethodOptions.map((method) => (
+                        <SelectItem key={method} value={method}>
+                          {method}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </label>
+                <label className="space-y-1 text-sm">
+                  <span className="font-medium">Expected statuses</span>
+                  <Input
+                    value={form.expectedStatuses}
+                    onChange={(event) => updateForm({ expectedStatuses: event.target.value })}
+                    placeholder="200, 201"
+                  />
+                </label>
+                <label className="space-y-1 text-sm sm:col-span-2">
+                  <span className="font-medium">Headers</span>
+                  <Textarea
+                    value={form.apiHeaders}
+                    onChange={(event) => updateForm({ apiHeaders: event.target.value })}
+                    placeholder="X-Trace: trace-1"
+                  />
+                </label>
+                <label className="space-y-1 text-sm sm:col-span-2">
+                  <span className="font-medium">Body</span>
+                  <Textarea
+                    value={form.apiBody}
+                    onChange={(event) => updateForm({ apiBody: event.target.value })}
+                    placeholder='{"status":"check"}'
+                  />
+                </label>
+                <label className="space-y-1 text-sm sm:col-span-2">
+                  <span className="font-medium">JSON assertions</span>
+                  <Textarea
+                    value={form.apiJSONAssertions}
+                    onChange={(event) => updateForm({ apiJSONAssertions: event.target.value })}
+                    placeholder='[{"path":"$.ok","equals":true}]'
+                  />
+                </label>
+              </>
+            )}
+            {isHostMonitor && (
               <>
                 <label className="space-y-1 text-sm">
                   <span className="font-medium">Host</span>
@@ -531,30 +685,23 @@ export const CoreMonitorDialog = ({
                     required
                     value={form.host}
                     onChange={(event) => updateForm({ host: event.target.value })}
-                    placeholder="example.com"
+                    placeholder="api.example.com"
                   />
                 </label>
-                {form.kind !== "dns" && (
+                {["tcp", "udp", "tls", "ping", "mail", "smtp", "imap", "pop"].includes(
+                  form.kind,
+                ) && (
                   <label className="space-y-1 text-sm">
                     <span className="font-medium">Port</span>
                     <Input
+                      required={form.kind === "tcp" || form.kind === "udp"}
                       inputMode="numeric"
                       min={1}
                       max={65535}
                       type="number"
                       value={form.port}
                       onChange={(event) => updateForm({ port: event.target.value })}
-                      placeholder={
-                        form.kind === "udp"
-                          ? "53"
-                          : form.kind === "smtp"
-                            ? "25"
-                            : form.kind === "imap"
-                              ? "143"
-                              : form.kind === "pop"
-                                ? "110"
-                                : "443"
-                      }
+                      placeholder={form.kind === "tls" || form.kind === "ping" ? "443" : "5432"}
                     />
                   </label>
                 )}
@@ -565,53 +712,83 @@ export const CoreMonitorDialog = ({
                 <label className="space-y-1 text-sm">
                   <span className="font-medium">Payload</span>
                   <Input
-                    required
                     value={form.udpPayload}
                     onChange={(event) => updateForm({ udpPayload: event.target.value })}
-                    placeholder="ping"
+                    placeholder="optional UDP payload"
                   />
                 </label>
                 <label className="space-y-1 text-sm">
                   <span className="font-medium">Expected response</span>
                   <Input
-                    required
                     value={form.udpExpectedResponse}
                     onChange={(event) => updateForm({ udpExpectedResponse: event.target.value })}
-                    placeholder="pong"
+                    placeholder="optional response text"
                   />
                 </label>
               </>
             )}
             {form.kind === "dns" && (
-              <label className="space-y-1 text-sm">
-                <span className="font-medium">Record type</span>
-                <select
-                  className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
-                  value={form.recordType}
-                  onChange={(event) => updateForm({ recordType: event.target.value })}
-                >
-                  {dnsRecordTypes.map((recordType) => (
-                    <option key={recordType} value={recordType}>
-                      {recordType}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <>
+                <label className="space-y-1 text-sm">
+                  <span className="font-medium">Record type</span>
+                  <Select
+                    value={form.recordType}
+                    onValueChange={(value) => {
+                      if (isDNSRecordType(value)) updateForm({ recordType: value });
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <span data-slot="select-value">{form.recordType}</span>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {dnsRecordTypeOptions.map((recordType) => (
+                        <SelectItem key={recordType} value={recordType}>
+                          {recordType}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </label>
+                <label className="space-y-1 text-sm sm:col-span-2">
+                  <span className="font-medium">Expected values</span>
+                  <Textarea
+                    value={form.expectedValues}
+                    onChange={(event) => updateForm({ expectedValues: event.target.value })}
+                    placeholder="203.0.113.10"
+                  />
+                </label>
+              </>
+            )}
+            {form.kind === "tls" && (
+              <>
+                <label className="space-y-1 text-sm">
+                  <span className="font-medium">Server name</span>
+                  <Input
+                    value={form.serverName}
+                    onChange={(event) => updateForm({ serverName: event.target.value })}
+                    placeholder="api.example.com"
+                  />
+                </label>
+              </>
             )}
             {form.kind === "ping" && (
               <label className="space-y-1 text-sm">
                 <span className="font-medium">Method</span>
-                <select
-                  className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                <Select
                   value={form.pingMethod}
-                  onChange={(event) => updateForm({ pingMethod: event.target.value })}
+                  onValueChange={(value) => updateForm({ pingMethod: value })}
                 >
-                  {pingMethods.map((method) => (
-                    <option key={method} value={method}>
-                      {method.toUpperCase()}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="w-full">
+                    <span data-slot="select-value">{form.pingMethod.toUpperCase()}</span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pingMethods.map((method) => (
+                      <SelectItem key={method} value={method}>
+                        {method.toUpperCase()}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </label>
             )}
             {["mail", "smtp", "imap", "pop"].includes(form.kind) && (
@@ -619,32 +796,40 @@ export const CoreMonitorDialog = ({
                 {form.kind === "mail" && (
                   <label className="space-y-1 text-sm">
                     <span className="font-medium">Protocol</span>
-                    <select
-                      className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                    <Select
                       value={form.mailProtocol}
-                      onChange={(event) => updateForm({ mailProtocol: event.target.value })}
+                      onValueChange={(value) => updateForm({ mailProtocol: value })}
                     >
-                      {mailProtocols.map((protocol) => (
-                        <option key={protocol} value={protocol}>
-                          {protocol.toUpperCase()}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="w-full">
+                        <span data-slot="select-value">{form.mailProtocol.toUpperCase()}</span>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {mailProtocols.map((protocol) => (
+                          <SelectItem key={protocol} value={protocol}>
+                            {protocol.toUpperCase()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </label>
                 )}
                 <label className="space-y-1 text-sm">
                   <span className="font-medium">TLS mode</span>
-                  <select
-                    className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                  <Select
                     value={form.mailTlsMode}
-                    onChange={(event) => updateForm({ mailTlsMode: event.target.value })}
+                    onValueChange={(value) => updateForm({ mailTlsMode: value })}
                   >
-                    {mailTlsModes.map((tlsMode) => (
-                      <option key={tlsMode} value={tlsMode}>
-                        {tlsMode}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="w-full">
+                      <span data-slot="select-value">{form.mailTlsMode}</span>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {mailTlsModes.map((tlsMode) => (
+                        <SelectItem key={tlsMode} value={tlsMode}>
+                          {tlsMode}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </label>
               </>
             )}
@@ -794,30 +979,22 @@ export const CoreMonitorDialog = ({
             </label>
           </div>
 
-          {error && (
-            <div className="border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
-              {error}
-            </div>
+          {visibleError && (
+            <p className="text-sm text-rose-700" role="alert">
+              {visibleError}
+            </p>
           )}
 
           <DialogFooter>
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button
-              disabled={isSubmitting || !canSubmit}
-              type="submit"
-              onClick={() => setSubmitAction("save")}
-            >
+            <Button disabled={isSubmitting || !canSubmit} type="submit" value="save">
               <Save />
               {mode === "create" ? "Create" : "Save"}
             </Button>
             {mode === "create" && !isHeartbeat && (
-              <Button
-                disabled={isSubmitting || !canSubmit}
-                type="submit"
-                onClick={() => setSubmitAction("save_test")}
-              >
+              <Button disabled={isSubmitting || !canSubmit} type="submit" value="save_test">
                 <Play />
                 Create and test
               </Button>

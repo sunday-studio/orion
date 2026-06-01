@@ -12,6 +12,7 @@ func TestLoadCORSOriginsFromEnvironment(t *testing.T) {
 	t.Setenv("ORION_WORKER_HEARTBEAT_SECONDS", "20")
 	t.Setenv("ORION_WORKER_STALE_SECONDS", "90")
 	t.Setenv("ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS", "120")
+	t.Setenv("ORION_REQUIRE_FRONTEND_AUTH", "true")
 
 	cfg := Load()
 
@@ -26,6 +27,9 @@ func TestLoadCORSOriginsFromEnvironment(t *testing.T) {
 	}
 	if cfg.DataLifecycleSchedulerSeconds != 120 {
 		t.Fatalf("DataLifecycleSchedulerSeconds = %d, want 120", cfg.DataLifecycleSchedulerSeconds)
+	}
+	if !cfg.RequireFrontendAuth {
+		t.Fatal("RequireFrontendAuth = false, want true")
 	}
 }
 
@@ -54,6 +58,16 @@ func TestLoadPublicStatusMailConfigFromEnvironment(t *testing.T) {
 		cfg.PublicStatusURLOrigin != "https://status.example.com" ||
 		cfg.PublicStatusSubscriberSecret != "subscriber-secret" {
 		t.Fatalf("public status mail config = %+v", cfg)
+	}
+}
+
+func TestLoadRequireFrontendAuthFromEnvironment(t *testing.T) {
+	t.Setenv("ORION_REQUIRE_FRONTEND_AUTH", "true")
+
+	cfg := Load()
+
+	if !cfg.RequireFrontendAuth {
+		t.Fatal("RequireFrontendAuth = false, want true")
 	}
 }
 
@@ -88,6 +102,47 @@ func TestValidateRejectsPartialFrontendAuthConfig(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsMissingRequiredFrontendAuthConfig(t *testing.T) {
+	cfg := validRequiredFrontendAuthConfig()
+	cfg.AdminPassword = ""
+	cfg.FrontendAuthOn = false
+
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate() error = nil, want required frontend auth config error")
+	}
+}
+
+func TestValidateRejectsWeakRequiredFrontendAuthConfig(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*Config)
+	}{
+		{name: "short password", mutate: func(cfg *Config) { cfg.AdminPassword = "short" }},
+		{name: "placeholder password", mutate: func(cfg *Config) { cfg.AdminPassword = "change-me-now" }},
+		{name: "short jwt secret", mutate: func(cfg *Config) { cfg.JWTSecret = "short-secret" }},
+		{name: "placeholder jwt secret", mutate: func(cfg *Config) { cfg.JWTSecret = "change-me-to-a-long-random-secret" }},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := validRequiredFrontendAuthConfig()
+			tt.mutate(cfg)
+
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want weak required frontend auth config error")
+			}
+		})
+	}
+}
+
+func TestValidateAcceptsStrongRequiredFrontendAuthConfig(t *testing.T) {
+	cfg := validRequiredFrontendAuthConfig()
+
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+}
+
 func TestValidateAcceptsCompleteFrontendAuthConfig(t *testing.T) {
 	cfg := &Config{
 		AdminUsername:                 "admin",
@@ -101,6 +156,19 @@ func TestValidateAcceptsCompleteFrontendAuthConfig(t *testing.T) {
 
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("Validate() error = %v", err)
+	}
+}
+
+func validRequiredFrontendAuthConfig() *Config {
+	return &Config{
+		AdminUsername:                 "admin",
+		AdminPassword:                 "correct-horse-battery-staple",
+		JWTSecret:                     "0123456789abcdef0123456789abcdef",
+		FrontendAuthOn:                true,
+		RequireFrontendAuth:           true,
+		CoreWorkerHeartbeatSeconds:    15,
+		CoreWorkerStaleSeconds:        60,
+		DataLifecycleSchedulerSeconds: 3600,
 	}
 }
 

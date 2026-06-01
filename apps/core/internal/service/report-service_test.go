@@ -1,6 +1,9 @@
 package service
 
 import (
+	"encoding/json"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,16 +16,104 @@ import (
 	"gorm.io/gorm"
 )
 
+func TestStoreMonitorReportRedactsSensitivePayloadBeforePersistence(t *testing.T) {
+	database := openReportTestDatabase(t)
+	logger := logging.NewLogger()
+	insertReportServiceAgent(t, database, "agent_redaction")
+	insertReportServiceMonitor(t, database, "monitor_redaction", "agent_redaction", "active")
+	if err := database.Model(&db.Monitor{}).Where("id = ?", "monitor_redaction").Update("incident_state", "up").Error; err != nil {
+		t.Fatalf("prime monitor incident state: %v", err)
+	}
+
+	reportService := NewReportService(database, logger, &config.Config{DataDir: t.TempDir()})
+	reportService.SetDiagnostics(NewRuntimeDiagnosticsService(database, logger))
+	secretValues := []string{
+		"plain-token-value",
+		"nested-password-value",
+		"bearer-secret-value",
+		"cookie-secret-value",
+		"query-secret-value",
+		"url-password-value",
+	}
+
+	reportID, err := reportService.StoreMonitorReport("monitor_redaction", MonitorReportPayload{
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Health:    "up",
+		Metrics: map[string]interface{}{
+			"type":          "api_request",
+			"token":         "plain-token-value",
+			"status_code":   200,
+			"target_url":    "https://example.com/health?token=query-secret-value&ok=true",
+			"credentialURL": "https://user:url-password-value@example.com/path",
+			"headers": map[string]interface{}{
+				"Authorization": "Bearer bearer-secret-value",
+				"X-Trace-ID":    "trace-1",
+			},
+			"events": []interface{}{
+				map[string]interface{}{"password": "nested-password-value"},
+				"Set-Cookie: session=cookie-secret-value",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("store report: %v", err)
+	}
+
+	var stored db.MonitorReport
+	if err := database.Where("id = ?", *reportID).First(&stored).Error; err != nil {
+		t.Fatalf("load stored report: %v", err)
+	}
+	for _, secretValue := range secretValues {
+		if strings.Contains(stored.Payload, secretValue) {
+			t.Fatalf("stored payload leaked %q: %s", secretValue, stored.Payload)
+		}
+	}
+	if !strings.Contains(stored.Payload, monitorReportRedactedValue) {
+		t.Fatalf("stored payload = %s, want redacted marker", stored.Payload)
+	}
+
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(stored.Payload), &payload); err != nil {
+		t.Fatalf("unmarshal stored payload: %v", err)
+	}
+	if payload["status_code"].(float64) != 200 {
+		t.Fatalf("stored payload = %+v, want non-sensitive status_code retained", payload)
+	}
+}
+
+func TestSafeMonitorReportPayloadRedactsExistingRows(t *testing.T) {
+	jsonPayload := `{"type":"http","message":"failed with password=raw-password","nested":{"api_key":"raw-api-key"},"url":"https://example.com/path?token=raw-token"}`
+	safePayload := SafeMonitorReportPayload(jsonPayload)
+
+	for _, leaked := range []string{"raw-password", "raw-api-key", "raw-token"} {
+		if strings.Contains(safePayload, leaked) {
+			t.Fatalf("safe payload leaked %q: %s", leaked, safePayload)
+		}
+	}
+	if !strings.Contains(safePayload, monitorReportRedactedValue) {
+		t.Fatalf("safe payload = %s, want redacted marker", safePayload)
+	}
+
+	rawTextPayload := `authorization=Bearer raw-bearer-token cookie=session-cookie`
+	safeTextPayload := SafeMonitorReportPayload(rawTextPayload)
+	for _, leaked := range []string{"raw-bearer-token", "session-cookie"} {
+		if strings.Contains(safeTextPayload, leaked) {
+			t.Fatalf("safe text payload leaked %q: %s", leaked, safeTextPayload)
+		}
+	}
+}
+
 func TestGetMonitorUptimeUsesRollupsForArchivedDays(t *testing.T) {
 	database := openReportTestDatabase(t)
 	logger := logging.NewLogger()
 	now := time.Date(2026, 5, 13, 12, 0, 0, 0, time.UTC)
+	dataDir := t.TempDir()
 
-	settingsService := NewSettingsService(database, logger, t.TempDir())
+	settingsService := NewSettingsService(database, logger, dataDir)
 	if _, err := settingsService.UpdateDataLifecycleSettings(DataLifecycleSettingsPayload{
 		RawReportHotDays:  1,
 		ArchiveRawReports: true,
-		ArchiveDir:        t.TempDir(),
+		ArchiveDir:        filepath.Join(dataDir, "archive"),
 		RollupsEnabled:    true,
 		ArchiveSchedule:   "manual",
 	}); err != nil {
@@ -42,7 +133,7 @@ func TestGetMonitorUptimeUsesRollupsForArchivedDays(t *testing.T) {
 	insertReportServiceMonitorReport(t, database, "monitor_a", "up", time.Date(2026, 5, 12, 10, 0, 0, 0, time.UTC))
 	insertReportServiceMonitorReport(t, database, "monitor_a", "down", time.Date(2026, 5, 12, 11, 0, 0, 0, time.UTC))
 
-	reportService := NewReportService(database, logger, &config.Config{DataDir: t.TempDir()})
+	reportService := NewReportService(database, logger, &config.Config{DataDir: dataDir})
 	result, err := reportService.getMonitorUptime("monitor_a", "3d", now)
 	if err != nil {
 		t.Fatalf("getMonitorUptime() error = %v", err)
@@ -73,7 +164,7 @@ func TestGetAgentUptimeAggregatesActiveMonitorBuckets(t *testing.T) {
 	if _, err := settingsService.UpdateDataLifecycleSettings(DataLifecycleSettingsPayload{
 		RawReportHotDays:  30,
 		ArchiveRawReports: true,
-		ArchiveDir:        t.TempDir(),
+		ArchiveDir:        filepath.Join(dataDir, "archive"),
 		RollupsEnabled:    true,
 		ArchiveSchedule:   "manual",
 	}); err != nil {
