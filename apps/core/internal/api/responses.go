@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"orion/core/internal/db"
 	"orion/core/internal/service"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -97,6 +96,19 @@ type MonitorReportResponse struct {
 type IncidentEvidenceResponse struct {
 	TriggeringReport *MonitorReportResponse `json:"triggering_report,omitempty"`
 	LatestReport     *MonitorReportResponse `json:"latest_report,omitempty"`
+}
+
+// IncidentNextActionResponse represents an operator action suggested by incident detail context.
+type IncidentNextActionResponse struct {
+	ID           string `json:"id"`
+	Label        string `json:"label"`
+	Description  string `json:"description"`
+	ActionType   string `json:"action_type"`
+	Priority     int    `json:"priority"`
+	TargetKind   string `json:"target_kind,omitempty"`
+	TargetID     string `json:"target_id,omitempty"`
+	TargetTab    string `json:"target_tab,omitempty"`
+	FilterStatus string `json:"filter_status,omitempty"`
 }
 
 // IncidentRelatedIncidentResponse summarizes a nearby incident on the same monitor.
@@ -305,11 +317,6 @@ type AlertChannelResponse struct {
 	WebhookURL                 string     `json:"webhook_url,omitempty"`
 	WebhookConfigured          bool       `json:"webhook_configured,omitempty"`
 	WebhookSignatureConfigured bool       `json:"webhook_signature_configured,omitempty"`
-	EmailToConfigured          bool       `json:"email_to_configured,omitempty"`
-	EmailFromConfigured        bool       `json:"email_from_configured,omitempty"`
-	SMTPHostConfigured         bool       `json:"smtp_host_configured,omitempty"`
-	SMTPPortConfigured         bool       `json:"smtp_port_configured,omitempty"`
-	SMTPUsernameConfigured     bool       `json:"smtp_username_configured,omitempty"`
 	SubscribedEvents           []string   `json:"subscribed_events"`
 	LastDeliveryStatus         string     `json:"last_delivery_status,omitempty"`
 	LastDeliveryAt             *time.Time `json:"last_delivery_at,omitempty"`
@@ -317,45 +324,23 @@ type AlertChannelResponse struct {
 	UpdatedAt                  time.Time  `json:"updated_at"`
 }
 
-// AlertSMTPServiceResponse represents a reusable SMTP service without secrets.
-type AlertSMTPServiceResponse struct {
-	ID                 string    `json:"id"`
-	Name               string    `json:"name"`
-	Enabled            bool      `json:"enabled"`
-	Host               string    `json:"host"`
-	Port               int       `json:"port"`
-	FromEmail          string    `json:"from_email"`
-	UsernameConfigured bool      `json:"username_configured,omitempty"`
-	PasswordConfigured bool      `json:"password_configured,omitempty"`
-	CreatedAt          time.Time `json:"created_at"`
-	UpdatedAt          time.Time `json:"updated_at"`
-}
-
-// AlertEmailDestinationResponse represents a reusable email destination.
-type AlertEmailDestinationResponse struct {
-	ID                 string     `json:"id"`
-	SMTPServiceID      string     `json:"smtp_service_id"`
-	SMTPServiceName    string     `json:"smtp_service_name,omitempty"`
-	Name               string     `json:"name"`
-	Enabled            bool       `json:"enabled"`
-	EmailTo            string     `json:"email_to"`
-	SubscribedEvents   []string   `json:"subscribed_events"`
-	LastDeliveryStatus string     `json:"last_delivery_status,omitempty"`
-	LastDeliveryAt     *time.Time `json:"last_delivery_at,omitempty"`
-	CreatedAt          time.Time  `json:"created_at"`
-	UpdatedAt          time.Time  `json:"updated_at"`
-}
-
-// AlertRuleResponse represents an effective Core alert rule.
+// AlertRuleResponse represents a webhook alert rule.
 type AlertRuleResponse struct {
-	Name                          string   `json:"name"`
-	TriggerCondition              string   `json:"trigger_condition"`
-	Severity                      string   `json:"severity"`
-	Enabled                       bool     `json:"enabled"`
-	CooldownSeconds               int      `json:"cooldown_seconds"`
-	RecoveryNotificationEnabled   bool     `json:"recovery_notification_enabled"`
-	MaintenanceSuppressionEnabled bool     `json:"maintenance_suppression_enabled"`
-	TargetChannels                []string `json:"target_channels"`
+	ID                   string    `json:"id"`
+	Name                 string    `json:"name"`
+	Enabled              bool      `json:"enabled"`
+	Priority             int       `json:"priority"`
+	EventTypes           []string  `json:"event_types"`
+	Severities           []string  `json:"severities"`
+	AgentIDs             []string  `json:"agent_ids"`
+	MonitorIDs           []string  `json:"monitor_ids"`
+	MonitorTypes         []string  `json:"monitor_types"`
+	ChannelIDs           []string  `json:"channel_ids"`
+	Suppress             bool      `json:"suppress"`
+	GroupingPolicy       string    `json:"grouping_policy"`
+	GroupingDelaySeconds int       `json:"grouping_delay_seconds"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
 }
 
 // AlertRouteDryRunResponse explains route matching and destination decisions.
@@ -374,6 +359,45 @@ type AlertRouteEvaluationResponse struct {
 	Matched    bool               `json:"matched"`
 	Suppressed bool               `json:"suppressed"`
 	Reasons    []string           `json:"reasons"`
+}
+
+// AlertRuleDryRunResponse explains rule matching and destination decisions.
+type AlertRuleDryRunResponse struct {
+	Event                AlertRuleDryRunContext         `json:"event"`
+	LegacyFallback       bool                           `json:"legacy_fallback"`
+	Suppressed           bool                           `json:"suppressed"`
+	SuppressionReason    string                         `json:"suppression_reason,omitempty"`
+	RuleEvaluations      []AlertRuleEvaluationResponse  `json:"rule_evaluations"`
+	DestinationDecisions []AlertRuleDestinationDecision `json:"destination_decisions"`
+}
+
+// AlertRuleDryRunContext represents an alert rule dry-run event.
+type AlertRuleDryRunContext struct {
+	IncidentID  string `json:"incident_id"`
+	EventType   string `json:"event_type"`
+	Severity    string `json:"severity"`
+	AgentID     string `json:"agent_id"`
+	MonitorID   string `json:"monitor_id"`
+	MonitorType string `json:"monitor_type"`
+}
+
+// AlertRuleEvaluationResponse explains one rule's match result.
+type AlertRuleEvaluationResponse struct {
+	Rule       AlertRuleResponse `json:"rule"`
+	Matched    bool              `json:"matched"`
+	Suppressed bool              `json:"suppressed"`
+	Reasons    []string          `json:"reasons"`
+}
+
+// AlertRuleDestinationDecision explains one alert rule destination decision.
+type AlertRuleDestinationDecision struct {
+	RuleID      string `json:"rule_id,omitempty"`
+	RuleName    string `json:"rule_name,omitempty"`
+	ChannelID   string `json:"channel_id,omitempty"`
+	ChannelName string `json:"channel_name"`
+	ChannelType string `json:"channel_type"`
+	Status      string `json:"status"`
+	Reason      string `json:"reason"`
 }
 
 // IncidentTimelineItemResponse represents a normalized incident timeline item.
@@ -491,95 +515,11 @@ func monitorReportResponse(report db.MonitorReport) MonitorReportResponse {
 	return MonitorReportResponse{
 		ID:          report.ID,
 		MonitorID:   report.MonitorID,
-		Payload:     safeMonitorReportPayload(report.Payload),
+		Payload:     service.SafeMonitorReportPayload(report.Payload),
 		CollectedAt: report.CollectedAt,
 		Health:      report.Health,
 		CreatedAt:   report.CreatedAt,
 	}
-}
-
-type heartbeatSensitivePattern struct {
-	pattern     *regexp.Regexp
-	replacement string
-}
-
-var heartbeatSensitivePatterns = []heartbeatSensitivePattern{
-	{
-		pattern:     regexp.MustCompile(`(?i)(token|password|secret|api[_-]?key|authorization)(["']?\s*[:=]\s*["']?)[^"',\s}]+`),
-		replacement: "${1}${2}[redacted]",
-	},
-	{
-		pattern:     regexp.MustCompile(`(?i)(bearer\s+)[a-z0-9._~+/-]+`),
-		replacement: "${1}[redacted]",
-	},
-}
-
-func safeMonitorReportPayload(payload string) string {
-	var fields map[string]interface{}
-	if err := json.Unmarshal([]byte(payload), &fields); err != nil {
-		return payload
-	}
-	if !isHeartbeatReportPayload(fields) {
-		return payload
-	}
-	redacted := redactHeartbeatPayloadValue(fields)
-	body, err := json.Marshal(redacted)
-	if err != nil {
-		return payload
-	}
-	return string(body)
-}
-
-func isHeartbeatReportPayload(fields map[string]interface{}) bool {
-	return stringFieldEquals(fields, "type", "heartbeat") || stringFieldEquals(fields, "runner", "heartbeat")
-}
-
-func stringFieldEquals(fields map[string]interface{}, key string, expected string) bool {
-	value, ok := fields[key].(string)
-	return ok && strings.EqualFold(strings.TrimSpace(value), expected)
-}
-
-func redactHeartbeatPayloadValue(value interface{}) interface{} {
-	switch typed := value.(type) {
-	case map[string]interface{}:
-		result := make(map[string]interface{}, len(typed))
-		for key, field := range typed {
-			if heartbeatSensitiveKey(key) {
-				result[key] = "[redacted]"
-				continue
-			}
-			result[key] = redactHeartbeatPayloadValue(field)
-		}
-		return result
-	case []interface{}:
-		result := make([]interface{}, 0, len(typed))
-		for _, item := range typed {
-			result = append(result, redactHeartbeatPayloadValue(item))
-		}
-		return result
-	case string:
-		return redactHeartbeatText(typed)
-	default:
-		return typed
-	}
-}
-
-func heartbeatSensitiveKey(key string) bool {
-	normalized := strings.ToLower(strings.TrimSpace(key))
-	return strings.Contains(normalized, "token") ||
-		strings.Contains(normalized, "password") ||
-		strings.Contains(normalized, "secret") ||
-		strings.Contains(normalized, "api_key") ||
-		strings.Contains(normalized, "apikey") ||
-		strings.Contains(normalized, "authorization")
-}
-
-func redactHeartbeatText(value string) string {
-	redacted := value
-	for _, pattern := range heartbeatSensitivePatterns {
-		redacted = pattern.pattern.ReplaceAllString(redacted, pattern.replacement)
-	}
-	return redacted
 }
 
 func monitorReportResponses(reports []db.MonitorReport) []MonitorReportResponse {
@@ -755,7 +695,46 @@ func alertDeliveryResponse(delivery db.AlertDelivery) AlertDeliveryResponse {
 }
 
 func alertRouteResponse(route db.AlertRoute) AlertRouteResponse {
+	base := alertRouteFields(route)
 	return AlertRouteResponse{
+		ID:                   base.ID,
+		Name:                 base.Name,
+		Enabled:              base.Enabled,
+		Priority:             base.Priority,
+		EventTypes:           base.EventTypes,
+		Severities:           base.Severities,
+		AgentIDs:             base.AgentIDs,
+		MonitorIDs:           base.MonitorIDs,
+		MonitorTypes:         base.MonitorTypes,
+		ChannelIDs:           base.ChannelIDs,
+		Suppress:             base.Suppress,
+		GroupingPolicy:       base.GroupingPolicy,
+		GroupingDelaySeconds: base.GroupingDelaySeconds,
+		CreatedAt:            base.CreatedAt,
+		UpdatedAt:            base.UpdatedAt,
+	}
+}
+
+type alertRouteFieldSet struct {
+	ID                   string
+	Name                 string
+	Enabled              bool
+	Priority             int
+	EventTypes           []string
+	Severities           []string
+	AgentIDs             []string
+	MonitorIDs           []string
+	MonitorTypes         []string
+	ChannelIDs           []string
+	Suppress             bool
+	GroupingPolicy       string
+	GroupingDelaySeconds int
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
+}
+
+func alertRouteFields(route db.AlertRoute) alertRouteFieldSet {
+	return alertRouteFieldSet{
 		ID:           route.ID,
 		Name:         route.Name,
 		Enabled:      route.Enabled,
@@ -784,6 +763,35 @@ func alertRouteResponses(routes []db.AlertRoute) []AlertRouteResponse {
 	return responses
 }
 
+func alertRuleResponse(rule db.AlertRoute) AlertRuleResponse {
+	base := alertRouteFields(rule)
+	return AlertRuleResponse{
+		ID:                   base.ID,
+		Name:                 base.Name,
+		Enabled:              base.Enabled,
+		Priority:             base.Priority,
+		EventTypes:           base.EventTypes,
+		Severities:           base.Severities,
+		AgentIDs:             base.AgentIDs,
+		MonitorIDs:           base.MonitorIDs,
+		MonitorTypes:         base.MonitorTypes,
+		ChannelIDs:           base.ChannelIDs,
+		Suppress:             base.Suppress,
+		GroupingPolicy:       base.GroupingPolicy,
+		GroupingDelaySeconds: base.GroupingDelaySeconds,
+		CreatedAt:            base.CreatedAt,
+		UpdatedAt:            base.UpdatedAt,
+	}
+}
+
+func alertRuleResponses(rules []db.AlertRoute) []AlertRuleResponse {
+	responses := make([]AlertRuleResponse, 0, len(rules))
+	for _, rule := range rules {
+		responses = append(responses, alertRuleResponse(rule))
+	}
+	return responses
+}
+
 func alertRouteDryRunResponse(result *service.AlertRouteDryRunResult) AlertRouteDryRunResponse {
 	evaluations := make([]AlertRouteEvaluationResponse, 0, len(result.RouteEvaluations))
 	for _, evaluation := range result.RouteEvaluations {
@@ -802,6 +810,53 @@ func alertRouteDryRunResponse(result *service.AlertRouteDryRunResult) AlertRoute
 		RouteEvaluations:     evaluations,
 		DestinationDecisions: result.DestinationDecisions,
 	}
+}
+
+func alertRuleDryRunResponse(result *service.AlertRouteDryRunResult) AlertRuleDryRunResponse {
+	evaluations := make([]AlertRuleEvaluationResponse, 0, len(result.RouteEvaluations))
+	for _, evaluation := range result.RouteEvaluations {
+		evaluations = append(evaluations, AlertRuleEvaluationResponse{
+			Rule:       alertRuleResponse(evaluation.Route),
+			Matched:    evaluation.Matched,
+			Suppressed: evaluation.Suppressed,
+			Reasons:    evaluation.Reasons,
+		})
+	}
+	return AlertRuleDryRunResponse{
+		Event:                alertRuleDryRunContext(result.Event),
+		LegacyFallback:       result.LegacyFallback,
+		Suppressed:           result.Suppressed,
+		SuppressionReason:    result.SuppressionReason,
+		RuleEvaluations:      evaluations,
+		DestinationDecisions: alertRuleDestinationDecisions(result.DestinationDecisions),
+	}
+}
+
+func alertRuleDryRunContext(event service.AlertRouteContext) AlertRuleDryRunContext {
+	return AlertRuleDryRunContext{
+		IncidentID:  event.IncidentID,
+		EventType:   event.EventType,
+		Severity:    event.Severity,
+		AgentID:     event.AgentID,
+		MonitorID:   event.MonitorID,
+		MonitorType: event.MonitorType,
+	}
+}
+
+func alertRuleDestinationDecisions(decisions []service.AlertDestinationDecision) []AlertRuleDestinationDecision {
+	responses := make([]AlertRuleDestinationDecision, 0, len(decisions))
+	for _, decision := range decisions {
+		responses = append(responses, AlertRuleDestinationDecision{
+			RuleID:      decision.RouteID,
+			RuleName:    decision.RouteName,
+			ChannelID:   decision.ChannelID,
+			ChannelName: decision.ChannelName,
+			ChannelType: decision.ChannelType,
+			Status:      decision.Status,
+			Reason:      decision.Reason,
+		})
+	}
+	return responses
 }
 
 func decodeResponseList(value string, fallback []string) []string {

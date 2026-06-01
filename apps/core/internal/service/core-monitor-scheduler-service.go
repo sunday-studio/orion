@@ -98,7 +98,7 @@ func (s *CoreMonitorSchedulerService) ClaimDueCoreMonitorConfigs(req ClaimDueCor
 				Where("next_run_at <= ?", now).
 				Where("(lease_expires_at IS NULL OR lease_expires_at <= ?)", now).
 				Where("monitor_id IN (?)", tx.Model(&db.Monitor{}).Select("id").Where("lifecycle = ?", "active")).
-				Updates(map[string]interface{}{
+				Updates(map[string]any{
 					"lease_owner":      leaseOwner,
 					"lease_expires_at": &leaseExpiresAt,
 					"updated_at":       now,
@@ -161,7 +161,7 @@ func (s *CoreMonitorSchedulerService) CompleteCoreMonitorCheck(req CompleteCoreM
 			nextRunAt = req.NextRunAt.UTC()
 		}
 
-		updates := map[string]interface{}{
+		updates := map[string]any{
 			"last_run_at":      &finishedAt,
 			"next_run_at":      nextRunAt,
 			"lease_owner":      "",

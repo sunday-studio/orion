@@ -22,7 +22,7 @@ import (
 func TestAppRunStopsWhenContextIsCanceled(t *testing.T) {
 	database := openWorkerTestDatabase(t)
 	app := NewApp(database, logging.NewLogger(), Options{HealthInterval: time.Millisecond})
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
 	if err := app.Run(ctx); err != nil {
@@ -43,7 +43,7 @@ func TestAppCheckDatabasePassesForOpenDatabase(t *testing.T) {
 	database := openWorkerTestDatabase(t)
 	app := NewApp(database, logging.NewLogger(), Options{})
 
-	if err := app.checkDatabase(context.Background()); err != nil {
+	if err := app.checkDatabase(t.Context()); err != nil {
 		t.Fatalf("checkDatabase() error = %v", err)
 	}
 }
@@ -74,7 +74,7 @@ func TestRunDueChecksStoresUpReportAndCompletesLease(t *testing.T) {
 		LeaseDuration: time.Minute,
 		HTTPClient:    httpClient,
 	})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -82,7 +82,7 @@ func TestRunDueChecksStoresUpReportAndCompletesLease(t *testing.T) {
 	if report.Health != "up" {
 		t.Fatalf("report health = %q, want up", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -122,12 +122,12 @@ func TestRunDueChecksRecordsSanitizedFinalTarget(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
 	report := loadWorkerMonitorReport(t, database, "monitor-http-final")
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -162,7 +162,7 @@ func TestRunDueChecksRejectsBlockedHTTPRedirect(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 	if calls != 1 {
@@ -173,12 +173,94 @@ func TestRunDueChecksRejectsBlockedHTTPRedirect(t *testing.T) {
 	if report.Health != "down" {
 		t.Fatalf("report health = %q, want down", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
 	if payload["failure_stage"] != "http_request" || payload["ok"] != false {
 		t.Fatalf("payload = %+v, want blocked redirect failure", payload)
+	}
+}
+
+func TestRunDueChecksRejectsBlockedPrivateHTTPRedirect(t *testing.T) {
+	database := openWorkerMigratedTestDatabase(t)
+	calls := 0
+	httpClient := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		calls++
+		response := workerHTTPResponse(http.StatusFound)
+		response.Header.Set("Location", "http://10.0.0.5/admin")
+		response.Request = r
+		return response, nil
+	})}
+
+	insertWorkerCoreOwner(t, database)
+	insertWorkerMonitor(t, database, "monitor-http-private-redirect")
+	insertWorkerCoreMonitorConfig(t, database, db.CoreMonitorConfig{
+		MonitorID:       "monitor-http-private-redirect",
+		Kind:            "http",
+		ConfigJSON:      `{"url":"https://example.com/start","expected_status":200}`,
+		IntervalSeconds: 60,
+		TimeoutSeconds:  5,
+		NextRunAt:       time.Now().UTC().Add(-time.Minute),
+	})
+
+	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
+	if err := app.runDueChecks(context.Background()); err != nil {
+		t.Fatalf("runDueChecks() error = %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("transport calls = %d, want only initial request before blocked redirect", calls)
+	}
+
+	report := loadWorkerMonitorReport(t, database, "monitor-http-private-redirect")
+	if report.Health != "down" {
+		t.Fatalf("report health = %q, want down", report.Health)
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
+		t.Fatalf("unmarshal report payload: %v", err)
+	}
+	if payload["failure_stage"] != "http_request" || payload["ok"] != false {
+		t.Fatalf("payload = %+v, want blocked private redirect failure", payload)
+	}
+}
+
+func TestRunDueChecksRejectsBlockedHTTPConfigBeforeTransport(t *testing.T) {
+	database := openWorkerMigratedTestDatabase(t)
+	httpClient := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		t.Fatalf("transport called for blocked target %s", r.URL.String())
+		return workerHTTPResponse(http.StatusOK), nil
+	})}
+
+	insertWorkerCoreOwner(t, database)
+	insertWorkerMonitor(t, database, "monitor-http-metadata")
+	insertWorkerCoreMonitorConfig(t, database, db.CoreMonitorConfig{
+		MonitorID:       "monitor-http-metadata",
+		Kind:            "http",
+		ConfigJSON:      `{"url":"http://169.254.169.254/latest/meta-data?token=secret","expected_status":200}`,
+		IntervalSeconds: 60,
+		TimeoutSeconds:  5,
+		NextRunAt:       time.Now().UTC().Add(-time.Minute),
+	})
+
+	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
+	if err := app.runDueChecks(context.Background()); err != nil {
+		t.Fatalf("runDueChecks() error = %v", err)
+	}
+
+	report := loadWorkerMonitorReport(t, database, "monitor-http-metadata")
+	if report.Health != "down" {
+		t.Fatalf("report health = %q, want down", report.Health)
+	}
+	if strings.Contains(report.Payload, "token=secret") {
+		t.Fatalf("blocked report leaked query secret: %s", report.Payload)
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
+		t.Fatalf("unmarshal report payload: %v", err)
+	}
+	if payload["failure_stage"] != "config" || payload["ok"] != false {
+		t.Fatalf("payload = %+v, want config failure before transport", payload)
 	}
 }
 
@@ -204,7 +286,7 @@ func TestRunDueChecksAllowsPrivateHTTPWhenConfigured(t *testing.T) {
 		HTTPClient: httpClient,
 		Config:     &config.Config{CoreMonitorAllowPrivateTargets: true},
 	})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -232,7 +314,7 @@ func TestRunDueChecksStoresDownReportForUnexpectedStatus(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -240,7 +322,7 @@ func TestRunDueChecksStoresDownReportForUnexpectedStatus(t *testing.T) {
 	if report.Health != "down" {
 		t.Fatalf("report health = %q, want down", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -272,7 +354,7 @@ func TestRunDueChecksAcceptsExpectedStatusSet(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -280,11 +362,11 @@ func TestRunDueChecksAcceptsExpectedStatusSet(t *testing.T) {
 	if report.Health != "up" {
 		t.Fatalf("report health = %q, want up", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
-	statuses, ok := payload["expected_statuses"].([]interface{})
+	statuses, ok := payload["expected_statuses"].([]any)
 	if !ok || len(statuses) != 3 || statuses[1].(float64) != 202 {
 		t.Fatalf("expected_statuses = %+v, want [200 202 204]", payload["expected_statuses"])
 	}
@@ -308,7 +390,7 @@ func TestRunDueChecksAcceptsExpectedStatusKindAlias(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -316,7 +398,7 @@ func TestRunDueChecksAcceptsExpectedStatusKindAlias(t *testing.T) {
 	if report.Health != "up" {
 		t.Fatalf("report health = %q, want up", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -343,7 +425,7 @@ func TestRunDueChecksStoresDownReportForMissingRequiredKeyword(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -351,7 +433,7 @@ func TestRunDueChecksStoresDownReportForMissingRequiredKeyword(t *testing.T) {
 	if report.Health != "down" {
 		t.Fatalf("report health = %q, want down", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -378,7 +460,7 @@ func TestRunDueChecksAcceptsHTTPKeywordKindAlias(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -386,7 +468,7 @@ func TestRunDueChecksAcceptsHTTPKeywordKindAlias(t *testing.T) {
 	if report.Health != "up" {
 		t.Fatalf("report health = %q, want up", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -413,7 +495,7 @@ func TestRunDueChecksStoresDownReportForForbiddenKeyword(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -421,7 +503,7 @@ func TestRunDueChecksStoresDownReportForForbiddenKeyword(t *testing.T) {
 	if report.Health != "down" {
 		t.Fatalf("report health = %q, want down", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -445,7 +527,7 @@ func TestRunDueChecksStoresDownReportForInvalidConfig(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test"})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -453,7 +535,7 @@ func TestRunDueChecksStoresDownReportForInvalidConfig(t *testing.T) {
 	if report.Health != "down" {
 		t.Fatalf("report health = %q, want down", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -488,7 +570,7 @@ func TestRunDueChecksStoresUpReportForTCPConnection(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-tcp-test", TCPDialContext: tcpDialContext})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 	if dialedNetwork != "tcp" || dialedAddress != "example.com:443" {
@@ -499,7 +581,7 @@ func TestRunDueChecksStoresUpReportForTCPConnection(t *testing.T) {
 	if report.Health != "up" {
 		t.Fatalf("report health = %q, want up", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -533,7 +615,7 @@ func TestRunDueChecksStoresDownReportForTCPRefusedConnection(t *testing.T) {
 			return nil, errors.New("connect: connection refused")
 		},
 	})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -562,7 +644,7 @@ func TestRunDueChecksRejectsBlockedTCPHost(t *testing.T) {
 			return fakeNetConn{}, nil
 		},
 	})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 	if calls != 0 {
@@ -592,7 +674,7 @@ func TestRunDueChecksStoresDownReportForTCPDNSFailure(t *testing.T) {
 			return nil, &net.DNSError{Name: "missing.example.invalid", Err: "no such host"}
 		},
 	})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -619,7 +701,7 @@ func TestRunDueChecksStoresDownReportForTCPTimeout(t *testing.T) {
 			return nil, timeoutTestError{}
 		},
 	})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -700,7 +782,7 @@ func TestRunDueChecksStoresUpReportForDNSRecords(t *testing.T) {
 			})
 
 			app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-dns-test", DNSResolver: resolver})
-			if err := app.runDueChecks(context.Background()); err != nil {
+			if err := app.runDueChecks(t.Context()); err != nil {
 				t.Fatalf("runDueChecks() error = %v", err)
 			}
 
@@ -708,7 +790,7 @@ func TestRunDueChecksStoresUpReportForDNSRecords(t *testing.T) {
 			if report.Health != "up" {
 				t.Fatalf("report health = %q, want up", report.Health)
 			}
-			var payload map[string]interface{}
+			var payload map[string]any
 			if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 				t.Fatalf("unmarshal report payload: %v", err)
 			}
@@ -738,7 +820,7 @@ func TestRunDueChecksStoresDownReportForDNSExpectedValueMiss(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-dns-test", DNSResolver: resolver})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -746,7 +828,7 @@ func TestRunDueChecksStoresDownReportForDNSExpectedValueMiss(t *testing.T) {
 	if report.Health != "down" {
 		t.Fatalf("report health = %q, want down", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -774,7 +856,7 @@ func TestRunDueChecksStoresDownReportForDNSLookupFailure(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-dns-test", DNSResolver: resolver})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -782,7 +864,7 @@ func TestRunDueChecksStoresDownReportForDNSLookupFailure(t *testing.T) {
 	if report.Health != "down" {
 		t.Fatalf("report health = %q, want down", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -804,7 +886,7 @@ func TestReconcileMissedHeartbeatsLeavesPendingMonitorUnknown(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-heartbeat-test"})
-	if err := app.reconcileMissedHeartbeats(context.Background(), time.Now().UTC().Add(time.Hour)); err != nil {
+	if err := app.reconcileMissedHeartbeats(t.Context(), time.Now().UTC().Add(time.Hour)); err != nil {
 		t.Fatalf("reconcileMissedHeartbeats() error = %v", err)
 	}
 
@@ -840,7 +922,7 @@ func TestReconcileMissedHeartbeatsIgnoresSignalsInsideGraceWindow(t *testing.T) 
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-heartbeat-test"})
-	if err := app.reconcileMissedHeartbeats(context.Background(), now); err != nil {
+	if err := app.reconcileMissedHeartbeats(t.Context(), now); err != nil {
 		t.Fatalf("reconcileMissedHeartbeats() error = %v", err)
 	}
 	if countWorkerMonitorReports(t, database, "monitor-heartbeat-grace") != 0 {
@@ -868,7 +950,7 @@ func TestReconcileMissedHeartbeatsOpensAndRecoveryResolvesIncident(t *testing.T)
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-heartbeat-test"})
-	if err := app.reconcileMissedHeartbeats(context.Background(), now); err != nil {
+	if err := app.reconcileMissedHeartbeats(t.Context(), now); err != nil {
 		t.Fatalf("reconcileMissedHeartbeats() error = %v", err)
 	}
 
@@ -876,7 +958,7 @@ func TestReconcileMissedHeartbeatsOpensAndRecoveryResolvesIncident(t *testing.T)
 	if report.Health != "stale" {
 		t.Fatalf("missed heartbeat report health = %q, want stale", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal missed heartbeat payload: %v", err)
 	}
@@ -895,7 +977,7 @@ func TestReconcileMissedHeartbeatsOpensAndRecoveryResolvesIncident(t *testing.T)
 		t.Fatalf("missed heartbeat config = %+v, want original signal and failure timestamp", completed)
 	}
 
-	if err := app.reconcileMissedHeartbeats(context.Background(), now.Add(time.Second)); err != nil {
+	if err := app.reconcileMissedHeartbeats(t.Context(), now.Add(time.Second)); err != nil {
 		t.Fatalf("second reconcileMissedHeartbeats() error = %v", err)
 	}
 	if countWorkerMonitorReports(t, database, "monitor-heartbeat-missed") != 1 {
@@ -906,14 +988,14 @@ func TestReconcileMissedHeartbeatsOpensAndRecoveryResolvesIncident(t *testing.T)
 	if _, err := app.reports.StoreMonitorReport("monitor-heartbeat-missed", service.MonitorReportPayload{
 		Timestamp: recoveredAt.Format(time.RFC3339),
 		Health:    "up",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]any{
 			"runner": "core",
 			"type":   "heartbeat",
 		},
 	}); err != nil {
 		t.Fatalf("store heartbeat recovery report: %v", err)
 	}
-	if err := database.Model(&db.CoreMonitorConfig{}).Where("monitor_id = ?", "monitor-heartbeat-missed").Updates(map[string]interface{}{
+	if err := database.Model(&db.CoreMonitorConfig{}).Where("monitor_id = ?", "monitor-heartbeat-missed").Updates(map[string]any{
 		"last_signal_at":  recoveredAt,
 		"last_success_at": recoveredAt,
 		"updated_at":      recoveredAt,
@@ -948,7 +1030,7 @@ func TestReconcileMissedHeartbeatsDoesNotOverrideFailedSignal(t *testing.T) {
 	if _, err := app.reports.StoreMonitorReport("monitor-heartbeat-failed", service.MonitorReportPayload{
 		Timestamp: lastSignalAt.Format(time.RFC3339),
 		Health:    "down",
-		Metrics: map[string]interface{}{
+		Metrics: map[string]any{
 			"runner": "core",
 			"type":   "heartbeat",
 		},
@@ -956,7 +1038,7 @@ func TestReconcileMissedHeartbeatsDoesNotOverrideFailedSignal(t *testing.T) {
 		t.Fatalf("store heartbeat failure report: %v", err)
 	}
 
-	if err := app.reconcileMissedHeartbeats(context.Background(), now); err != nil {
+	if err := app.reconcileMissedHeartbeats(t.Context(), now); err != nil {
 		t.Fatalf("reconcileMissedHeartbeats() error = %v", err)
 	}
 	if count := countWorkerMonitorReports(t, database, "monitor-heartbeat-failed"); count != 1 {
@@ -1005,7 +1087,7 @@ func TestReconcileMissedHeartbeatsSkipsPausedDeletedAndNonHeartbeatMonitors(t *t
 	}
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-heartbeat-test"})
-	if err := app.reconcileMissedHeartbeats(context.Background(), now); err != nil {
+	if err := app.reconcileMissedHeartbeats(t.Context(), now); err != nil {
 		t.Fatalf("reconcileMissedHeartbeats() error = %v", err)
 	}
 	for _, tc := range cases {
@@ -1160,7 +1242,7 @@ func assertTCPFailurePayload(t *testing.T, database *gorm.DB, monitorID string, 
 	if report.Health != "down" {
 		t.Fatalf("report health = %q, want down", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -1260,10 +1342,10 @@ func (r fakeDNSResolver) LookupNS(ctx context.Context, host string) ([]*net.NS, 
 	return answers, nil
 }
 
-func assertPayloadContainsString(t *testing.T, raw interface{}, expected string) {
+func assertPayloadContainsString(t *testing.T, raw any, expected string) {
 	t.Helper()
 
-	values, ok := raw.([]interface{})
+	values, ok := raw.([]any)
 	if !ok {
 		t.Fatalf("payload values = %T(%v), want array containing %q", raw, raw, expected)
 	}

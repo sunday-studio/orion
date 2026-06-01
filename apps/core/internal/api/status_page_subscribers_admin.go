@@ -96,20 +96,47 @@ func (s *Server) listStatusPageSubscribers(c *gin.Context) {
 // @Router       /v1/status-pages/{id}/subscribers/{subscriber_id}/disable [post]
 func (s *Server) disableStatusPageSubscriber(c *gin.Context) {
 	pageID := strings.TrimSpace(c.Param("id"))
-	subscriber, ok := s.loadStatusPageSubscriberForAdmin(c, pageID)
-	if !ok {
+	if !s.statusPageExists(c, pageID) {
 		return
 	}
 
+	subscriberID := strings.TrimSpace(c.Param("subscriber_id"))
+	var subscriber db.StatusPageSubscriber
 	now := time.Now().UTC()
-	subscriber.State = statusPageSubscriberStateDisabled
-	if subscriber.DisabledAt == nil {
-		subscriber.DisabledAt = &now
-	}
-	s.clearStatusPageSubscriberTokenHashes(&subscriber)
-
-	if err := s.db.Save(&subscriber).Error; err != nil {
-		s.logger.Error("Failed to disable status page subscriber", "status_page_id", pageID, "subscriber_id", subscriber.ID, "error", err)
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("status_page_id = ? AND id = ?", pageID, subscriberID).First(&subscriber).Error; err != nil {
+			return err
+		}
+		subscriber.State = statusPageSubscriberStateDisabled
+		if subscriber.DisabledAt == nil {
+			subscriber.DisabledAt = &now
+		}
+		s.clearStatusPageSubscriberTokenHashes(&subscriber)
+		result := tx.Model(&db.StatusPageSubscriber{}).
+			Where("status_page_id = ? AND id = ?", pageID, subscriber.ID).
+			Updates(map[string]any{
+				"state":                         subscriber.State,
+				"disabled_at":                   subscriber.DisabledAt,
+				"confirmation_token_hash":       subscriber.ConfirmationTokenHash,
+				"confirmation_token_expires_at": subscriber.ConfirmationTokenExpiresAt,
+				"manage_token_hash":             subscriber.ManageTokenHash,
+				"manage_token_version":          subscriber.ManageTokenVersion,
+				"unsubscribe_token_hash":        subscriber.UnsubscribeTokenHash,
+				"unsubscribe_token_version":     subscriber.UnsubscribeTokenVersion,
+			})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return gorm.ErrRecordNotFound
+		}
+		return nil
+	}); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			utils.NotFound(c, "Status page subscriber not found")
+			return
+		}
+		s.logger.Error("Failed to disable status page subscriber", "status_page_id", pageID, "subscriber_id", subscriberID, "error", err)
 		utils.InternalError(c, "Failed to disable status page subscriber", err)
 		return
 	}
@@ -132,13 +159,17 @@ func (s *Server) disableStatusPageSubscriber(c *gin.Context) {
 // @Router       /v1/status-pages/{id}/subscribers/{subscriber_id}/anonymize [post]
 func (s *Server) anonymizeStatusPageSubscriber(c *gin.Context) {
 	pageID := strings.TrimSpace(c.Param("id"))
-	subscriber, ok := s.loadStatusPageSubscriberForAdmin(c, pageID)
-	if !ok {
+	if !s.statusPageExists(c, pageID) {
 		return
 	}
 
+	subscriberID := strings.TrimSpace(c.Param("subscriber_id"))
+	var subscriber db.StatusPageSubscriber
 	now := time.Now().UTC()
 	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("status_page_id = ? AND id = ?", pageID, subscriberID).First(&subscriber).Error; err != nil {
+			return err
+		}
 		subscriber.DestinationHash = hashStatusPageSubscriberValue("anonymized:" + subscriber.ID)
 		subscriber.DestinationValueCiphertext = ""
 		subscriber.MaskedDestination = "anonymized"
@@ -150,12 +181,36 @@ func (s *Server) anonymizeStatusPageSubscriber(c *gin.Context) {
 			subscriber.DisabledAt = &now
 		}
 		s.clearStatusPageSubscriberTokenHashes(&subscriber)
-		if err := tx.Save(&subscriber).Error; err != nil {
-			return err
+		result := tx.Model(&db.StatusPageSubscriber{}).
+			Where("status_page_id = ? AND id = ?", pageID, subscriber.ID).
+			Updates(map[string]any{
+				"destination_hash":              subscriber.DestinationHash,
+				"destination_value_ciphertext":  subscriber.DestinationValueCiphertext,
+				"masked_destination":            subscriber.MaskedDestination,
+				"state":                         subscriber.State,
+				"confirmation_token_hash":       subscriber.ConfirmationTokenHash,
+				"confirmation_token_expires_at": subscriber.ConfirmationTokenExpiresAt,
+				"confirmed_at":                  subscriber.ConfirmedAt,
+				"unsubscribed_at":               subscriber.UnsubscribedAt,
+				"disabled_at":                   subscriber.DisabledAt,
+				"manage_token_hash":             subscriber.ManageTokenHash,
+				"manage_token_version":          subscriber.ManageTokenVersion,
+				"unsubscribe_token_hash":        subscriber.UnsubscribeTokenHash,
+				"unsubscribe_token_version":     subscriber.UnsubscribeTokenVersion,
+			})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return gorm.ErrRecordNotFound
 		}
 		return tx.Where("subscriber_id = ?", subscriber.ID).Delete(&db.StatusPageSubscriberComponent{}).Error
 	}); err != nil {
-		s.logger.Error("Failed to anonymize status page subscriber", "status_page_id", pageID, "subscriber_id", subscriber.ID, "error", err)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			utils.NotFound(c, "Status page subscriber not found")
+			return
+		}
+		s.logger.Error("Failed to anonymize status page subscriber", "status_page_id", pageID, "subscriber_id", subscriberID, "error", err)
 		utils.InternalError(c, "Failed to anonymize status page subscriber", err)
 		return
 	}

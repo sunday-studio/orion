@@ -21,6 +21,7 @@ Finish the checklist needed to test Orion as a first self-hosted deploy candidat
 - UI release pass for incidents, servers, monitors, alerts, event logs, settings, page states, and URL state.
 - Server install/upgrade docs, first-run checklist, backup/restore docs, and deployment docs.
 - Release packaging commands for tagged Core images and Server binaries.
+- Automated data lifecycle archive and rollup scheduling in Core.
 
 ## Release Packaging
 
@@ -54,7 +55,6 @@ VERSION=v0.1.0 make agent-build
 - Manual incident acknowledge/resolve actions.
 - Alert channel test action.
 - Core runtime metrics for report write rate, ingestion latency, DB size, and slow requests.
-- Automated archive/rollup scheduling.
 - Server update bookkeeping in local state.
 - Durable Server report spool if real usage shows unacceptable report gaps.
 

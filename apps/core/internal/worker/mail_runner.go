@@ -551,8 +551,8 @@ func (a *App) storeMailReport(monitorID string, result mailResult) error {
 	return err
 }
 
-func mailPayload(result mailResult, resultErr error) map[string]interface{} {
-	payload := map[string]interface{}{
+func mailPayload(result mailResult, resultErr error) map[string]any {
+	payload := map[string]any{
 		"runner":                "core",
 		"type":                  "mail",
 		"protocol":              result.Protocol,

@@ -444,12 +444,14 @@ const StatusPageSubscribersTab = ({ pageId }: { pageId: string }) => {
 
       {subscribersResponse.isLoading && <div className="text-sm text-neutral-600">Loading...</div>}
       {subscribersResponse.isError && <div className="text-sm">Unable to load subscribers.</div>}
-      {!subscribersResponse.isLoading && subscribers.length === 0 && (
-        <EmptyState
-          title="No subscribers"
-          description="Confirmed public subscribers will appear here with masked destinations."
-        />
-      )}
+      {!subscribersResponse.isLoading &&
+        !subscribersResponse.isError &&
+        subscribers.length === 0 && (
+          <EmptyState
+            title="No subscribers"
+            description="Confirmed public subscribers will appear here with masked destinations."
+          />
+        )}
 
       <div className="space-y-3">
         {subscribers.map((subscriber) => (
