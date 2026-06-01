@@ -216,13 +216,15 @@ type StatusPagePublicSectionResponse struct {
 }
 
 type StatusPagePublicComponentResponse struct {
-	ID            string `json:"id"`
-	Name          string `json:"name"`
-	Description   string `json:"description,omitempty"`
-	Status        string `json:"status"`
-	StatusDisplay string `json:"status_display"`
-	StatusReason  string `json:"status_reason,omitempty"`
-	DisplayMode   string `json:"display_mode"`
+	ID            string                                 `json:"id"`
+	Name          string                                 `json:"name"`
+	Description   string                                 `json:"description,omitempty"`
+	Status        string                                 `json:"status"`
+	StatusDisplay string                                 `json:"status_display"`
+	StatusReason  string                                 `json:"status_reason,omitempty"`
+	DisplayMode   string                                 `json:"display_mode"`
+	Uptime        *StatusPagePublicUptimeResponse        `json:"uptime,omitempty"`
+	UptimeHistory []StatusPagePublicUptimeBucketResponse `json:"uptime_history,omitempty"`
 }
 
 type StatusPagePublicIncidentResponse struct {
