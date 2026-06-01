@@ -25,7 +25,7 @@ import (
 // @Failure      500   {object}  utils.APIResponse
 // @Router       /status/{slug} [get]
 func (s *Server) getPublicStatusPage(c *gin.Context) {
-	preview, ok := s.loadPublicStatusPageProjection(c, c.Param("slug"))
+	preview, ok := s.loadPublicStatusPageProjectionWithUptime(c, c.Param("slug"))
 	if !ok {
 		return
 	}
@@ -106,6 +106,14 @@ func (s *Server) loadPublicStatusPageProjection(c *gin.Context, slug string) (St
 	return s.statusPagePreview(detail, false), true
 }
 
+func (s *Server) loadPublicStatusPageProjectionWithUptime(c *gin.Context, slug string) (StatusPagePreviewResponse, bool) {
+	detail, ok := s.loadPublicStatusPageDetail(c, slug)
+	if !ok {
+		return StatusPagePreviewResponse{}, false
+	}
+	return s.statusPagePreviewWithUptime(detail, false, statusPagePublicDefaultUptimeWindow), true
+}
+
 func (s *Server) loadPublicStatusPageDetail(c *gin.Context, slug string) (StatusPageDetailResponse, bool) {
 	page, err := s.loadPublicStatusPageForRequest(c, slug)
 	if err != nil {
@@ -150,8 +158,20 @@ func (s *Server) loadPublicStatusPageForRequest(c *gin.Context, slug string) (db
 }
 
 func (s *Server) statusPagePreview(detail StatusPageDetailResponse, includeDraftIncidents bool) StatusPagePreviewResponse {
+	return s.statusPagePreviewProjection(detail, includeDraftIncidents, "", false)
+}
+
+func (s *Server) statusPagePreviewWithUptime(detail StatusPageDetailResponse, includeDraftIncidents bool, window string) StatusPagePreviewResponse {
+	return s.statusPagePreviewProjection(detail, includeDraftIncidents, window, true)
+}
+
+func (s *Server) statusPagePreviewProjection(detail StatusPageDetailResponse, includeDraftIncidents bool, window string, includeUptime bool) StatusPagePreviewResponse {
+	if window == "" {
+		window = statusPagePublicDefaultUptimeWindow
+	}
 	componentsBySection := map[string][]StatusPagePublicComponentResponse{}
 	overallStatus := "operational"
+	uptimeCache := map[string]statusPagePublicMappedResourceUptime{}
 	for _, component := range detail.Components {
 		if !component.Visible {
 			continue
@@ -160,7 +180,13 @@ func (s *Server) statusPagePreview(detail StatusPageDetailResponse, includeDraft
 		if statusPageStatusWeight(componentStatus) > statusPageStatusWeight(overallStatus) {
 			overallStatus = componentStatus
 		}
-		componentsBySection[component.SectionID] = append(componentsBySection[component.SectionID], s.statusPagePublicComponentResponse(component, componentStatus))
+		response := s.statusPagePublicComponentResponse(component, componentStatus)
+		if includeUptime {
+			uptime, history := s.publicStatusPageComponentUptimeWithCache(component, window, uptimeCache)
+			response.Uptime = &uptime
+			response.UptimeHistory = history
+		}
+		componentsBySection[component.SectionID] = append(componentsBySection[component.SectionID], response)
 	}
 
 	sections := make([]StatusPagePublicSectionResponse, 0, len(detail.Sections))

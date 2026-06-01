@@ -139,6 +139,7 @@ func TestPublicStatusPageComponentHistoryAggregatesAndRedactsInternals(t *testin
 			} `json:"uptime"`
 			History []struct {
 				Date          string   `json:"date"`
+				Status        string   `json:"status"`
 				UptimeRatio   *float64 `json:"uptime_ratio"`
 				UptimeDisplay string   `json:"uptime_display"`
 			} `json:"history"`
@@ -158,6 +159,203 @@ func TestPublicStatusPageComponentHistoryAggregatesAndRedactsInternals(t *testin
 	hiddenResp := performJSONRequest(t, server, http.MethodGet, "/status/uptime-status/components/"+hiddenComponent.ID+"/history?window=7d", nil, "")
 	if hiddenResp.Code != http.StatusNotFound {
 		t.Fatalf("hidden component history status = %d, body = %s, want 404", hiddenResp.Code, hiddenResp.Body.String())
+	}
+}
+
+func TestPublicStatusPageProjectionIncludesSafeUptimeHistory(t *testing.T) {
+	server := setupTestServer(t)
+	now := time.Now().UTC().Add(-24 * time.Hour)
+
+	page := db.StatusPage{
+		ID:                        "status-page-public-uptime-projection",
+		Slug:                      "public-uptime-projection",
+		Title:                     "Projection Status",
+		Visibility:                "public",
+		ThemeSettings:             "{}",
+		DefaultIncidentVisibility: "draft",
+		CreatedAt:                 now,
+		UpdatedAt:                 now,
+	}
+	section := db.StatusPageSection{
+		ID:           "public-uptime-section",
+		StatusPageID: page.ID,
+		Name:         "Core",
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+	monitorComponent := db.StatusPageComponent{
+		ID:           "public-component-monitor",
+		StatusPageID: page.ID,
+		SectionID:    section.ID,
+		PublicName:   "API",
+		DisplayMode:  "single_resource",
+		SortOrder:    1,
+		Visible:      true,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+	agentComponent := db.StatusPageComponent{
+		ID:           "public-component-agent",
+		StatusPageID: page.ID,
+		SectionID:    section.ID,
+		PublicName:   "Workers",
+		DisplayMode:  "single_resource",
+		SortOrder:    2,
+		Visible:      true,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+	noDataComponent := db.StatusPageComponent{
+		ID:           "public-component-no-data",
+		StatusPageID: page.ID,
+		SectionID:    section.ID,
+		PublicName:   "Queue",
+		DisplayMode:  "single_resource",
+		SortOrder:    3,
+		Visible:      true,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+	hiddenComponent := db.StatusPageComponent{
+		ID:           "hidden-public-component",
+		StatusPageID: page.ID,
+		SectionID:    section.ID,
+		PublicName:   "Hidden database",
+		DisplayMode:  "single_resource",
+		SortOrder:    4,
+		Visible:      false,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+	monitorAgent := db.Agent{ID: "internal-agent-monitor", MachineId: "internal-machine-monitor", Name: "private monitor host", OS: "linux", Arch: "arm64", Token: "private-monitor-agent-token", LastSeen: now, CreatedAt: now}
+	workerAgent := db.Agent{ID: "internal-agent-workers", MachineId: "internal-machine-workers", Name: "private worker host", OS: "linux", Arch: "arm64", Token: "private-worker-agent-token", LastSeen: now, CreatedAt: now}
+	monitor := db.Monitor{ID: "internal-monitor-api", AgentID: monitorAgent.ID, Name: "private api monitor", Type: "http", Lifecycle: "active", Health: "down", ComputedHealth: "down", CreatedAt: now, UpdatedAt: now}
+	workerMonitor := db.Monitor{ID: "internal-monitor-workers", AgentID: workerAgent.ID, Name: "private worker monitor", Type: "http", Lifecycle: "active", Health: "up", ComputedHealth: "up", CreatedAt: now, UpdatedAt: now}
+	mappings := []db.StatusPageComponentMapping{
+		{ID: "public-uptime-monitor-mapping", ComponentID: monitorComponent.ID, ResourceType: "monitor", ResourceID: monitor.ID, HealthRollupStrategy: "worst", UptimeRollupStrategy: "worst", CreatedAt: now, UpdatedAt: now},
+		{ID: "public-uptime-agent-mapping", ComponentID: agentComponent.ID, ResourceType: "agent", ResourceID: workerAgent.ID, HealthRollupStrategy: "worst", UptimeRollupStrategy: "worst", CreatedAt: now, UpdatedAt: now},
+		{ID: "public-uptime-no-data-mapping", ComponentID: noDataComponent.ID, ResourceType: "monitor", ResourceID: "missing-private-resource", HealthRollupStrategy: "worst", UptimeRollupStrategy: "worst", CreatedAt: now, UpdatedAt: now},
+		{ID: "public-uptime-hidden-mapping", ComponentID: hiddenComponent.ID, ResourceType: "monitor", ResourceID: "hidden-private-resource", HealthRollupStrategy: "worst", UptimeRollupStrategy: "worst", CreatedAt: now, UpdatedAt: now},
+	}
+	reports := []db.MonitorReport{
+		{ID: "projection-api-up", MonitorID: monitor.ID, Payload: `{"secret":"private-api-up"}`, CollectedAt: now.Format(time.RFC3339), Health: "up", CreatedAt: now},
+		{ID: "projection-api-down", MonitorID: monitor.ID, Payload: `{"secret":"private-api-down"}`, CollectedAt: now.Add(time.Minute).Format(time.RFC3339), Health: "down", CreatedAt: now.Add(time.Minute)},
+		{ID: "projection-worker-up", MonitorID: workerMonitor.ID, Payload: `{"secret":"private-worker-up"}`, CollectedAt: now.Format(time.RFC3339), Health: "up", CreatedAt: now},
+	}
+
+	if err := server.db.Create(&page).Error; err != nil {
+		t.Fatalf("create status page: %v", err)
+	}
+	if err := server.db.Create(&section).Error; err != nil {
+		t.Fatalf("create section: %v", err)
+	}
+	if err := server.db.Create(&[]db.StatusPageComponent{monitorComponent, agentComponent, noDataComponent, hiddenComponent}).Error; err != nil {
+		t.Fatalf("create components: %v", err)
+	}
+	if err := server.db.Model(&db.StatusPageComponent{}).Where("id = ?", hiddenComponent.ID).Update("visible", false).Error; err != nil {
+		t.Fatalf("hide component: %v", err)
+	}
+	if err := server.db.Create(&[]db.Agent{monitorAgent, workerAgent}).Error; err != nil {
+		t.Fatalf("create agents: %v", err)
+	}
+	if err := server.db.Create(&[]db.Monitor{monitor, workerMonitor}).Error; err != nil {
+		t.Fatalf("create monitors: %v", err)
+	}
+	if err := server.db.Create(&mappings).Error; err != nil {
+		t.Fatalf("create mappings: %v", err)
+	}
+	if err := server.db.Create(&reports).Error; err != nil {
+		t.Fatalf("create reports: %v", err)
+	}
+
+	resp := performJSONRequest(t, server, http.MethodGet, "/status/public-uptime-projection?format=json", nil, "")
+	if resp.Code != http.StatusOK {
+		t.Fatalf("public projection status = %d, body = %s", resp.Code, resp.Body.String())
+	}
+	body := resp.Body.String()
+	for _, privateValue := range []string{
+		monitor.ID,
+		workerMonitor.ID,
+		monitorAgent.ID,
+		workerAgent.ID,
+		monitorAgent.Token,
+		workerAgent.Token,
+		"missing-private-resource",
+		"hidden-private-resource",
+		"private-api",
+		"private-worker",
+	} {
+		if strings.Contains(body, privateValue) {
+			t.Fatalf("public projection leaked %q in %s", privateValue, body)
+		}
+	}
+	assertNotContains(t, body, hiddenComponent.ID)
+
+	var parsed struct {
+		Data struct {
+			StatusPage struct {
+				Sections []struct {
+					Components []struct {
+						ID     string `json:"id"`
+						Name   string `json:"name"`
+						Status string `json:"status"`
+						Uptime struct {
+							Window        string   `json:"window"`
+							Status        string   `json:"status"`
+							UptimeRatio   *float64 `json:"uptime_ratio"`
+							UptimeDisplay string   `json:"uptime_display"`
+						} `json:"uptime"`
+						UptimeHistory []struct {
+							Date          string   `json:"date"`
+							Status        string   `json:"status"`
+							UptimeRatio   *float64 `json:"uptime_ratio"`
+							UptimeDisplay string   `json:"uptime_display"`
+						} `json:"uptime_history"`
+					} `json:"components"`
+				} `json:"sections"`
+			} `json:"status_page"`
+		} `json:"data"`
+	}
+	decodeResponse(t, resp, &parsed)
+	components := map[string]struct {
+		ID     string `json:"id"`
+		Name   string `json:"name"`
+		Status string `json:"status"`
+		Uptime struct {
+			Window        string   `json:"window"`
+			Status        string   `json:"status"`
+			UptimeRatio   *float64 `json:"uptime_ratio"`
+			UptimeDisplay string   `json:"uptime_display"`
+		} `json:"uptime"`
+		UptimeHistory []struct {
+			Date          string   `json:"date"`
+			Status        string   `json:"status"`
+			UptimeRatio   *float64 `json:"uptime_ratio"`
+			UptimeDisplay string   `json:"uptime_display"`
+		} `json:"uptime_history"`
+	}{}
+	for _, section := range parsed.Data.StatusPage.Sections {
+		for _, component := range section.Components {
+			components[component.Name] = component
+		}
+	}
+	if len(components) != 3 {
+		t.Fatalf("public component count = %d, want 3 visible components", len(components))
+	}
+	if components["API"].Uptime.Window != "90d" || components["API"].Uptime.Status != "degraded" || components["API"].Uptime.UptimeRatio == nil || *components["API"].Uptime.UptimeRatio != 0.5 {
+		t.Fatalf("API uptime = %+v, want degraded 50%% monitor uptime", components["API"].Uptime)
+	}
+	if len(components["API"].UptimeHistory) != 90 || components["API"].UptimeHistory[len(components["API"].UptimeHistory)-1].Status != "degraded" {
+		t.Fatalf("API uptime history = %+v, want 90 buckets ending degraded", components["API"].UptimeHistory)
+	}
+	if components["Workers"].Uptime.Status != "operational" || components["Workers"].Uptime.UptimeRatio == nil || *components["Workers"].Uptime.UptimeRatio != 1 {
+		t.Fatalf("Workers uptime = %+v, want operational agent-mapped uptime", components["Workers"].Uptime)
+	}
+	if components["Queue"].Uptime.Status != "no_data" || components["Queue"].Uptime.UptimeRatio != nil || components["Queue"].Uptime.UptimeDisplay != "No data" {
+		t.Fatalf("Queue uptime = %+v, want no-data uptime", components["Queue"].Uptime)
+	}
+	if len(components["Queue"].UptimeHistory) != 90 || components["Queue"].UptimeHistory[0].Status != "no_data" {
+		t.Fatalf("Queue uptime history = %+v, want distinct no-data buckets", components["Queue"].UptimeHistory)
 	}
 }
 
