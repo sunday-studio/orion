@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/mail"
 	"orion/core/internal/db"
+	"orion/core/internal/service"
 	"orion/core/internal/utils"
 	"strings"
 	"time"
@@ -393,9 +394,15 @@ func (s *Server) unsubscribePublicStatusPageSubscriber(c *gin.Context) {
 	}
 	if subscriber.State != statusPageSubscriberStateUnsubscribed {
 		now := time.Now().UTC()
+		previousSubscriber := subscriber
 		subscriber.State = statusPageSubscriberStateUnsubscribed
 		subscriber.UnsubscribedAt = &now
-		if err := s.db.Save(&subscriber).Error; err != nil {
+		if err := s.db.Transaction(func(tx *gorm.DB) error {
+			if err := service.NewStatusPageSubscriberLifecycleService(tx, s.logger).RecordUnsubscribe(previousSubscriber, "public", "subscriber"); err != nil {
+				return err
+			}
+			return tx.Save(&subscriber).Error
+		}); err != nil {
 			s.logger.Error("Failed to unsubscribe status page subscriber", "status_page_id", page.ID, "subscriber_id", subscriber.ID, "error", err)
 			utils.InternalError(c, "Failed to unsubscribe status page subscriber", err)
 			return
