@@ -24,6 +24,7 @@ type Config struct {
 	AdminPassword                  string
 	JWTSecret                      string
 	FrontendAuthOn                 bool
+	RequireFrontendAuth            bool
 	LoginRateLimitAttempts         int
 	LoginRateLimitWindowSecs       int
 	AlertCooldownSeconds           int
@@ -44,6 +45,7 @@ type Config struct {
 // Load reads configuration from environment variables.
 // ORION_ADMIN_USERNAME and ORION_ADMIN_PASSWORD must both be set to enable frontend auth.
 // ORION_JWT_SECRET is required when frontend auth is enabled.
+// ORION_REQUIRE_FRONTEND_AUTH rejects startup without production-safe frontend auth.
 func Load() *Config {
 	adminUser := os.Getenv("ORION_ADMIN_USERNAME")
 	adminPass := os.Getenv("ORION_ADMIN_PASSWORD")
@@ -64,6 +66,7 @@ func Load() *Config {
 		AdminPassword:                  adminPass,
 		JWTSecret:                      jwtSecret,
 		FrontendAuthOn:                 frontendAuthOn,
+		RequireFrontendAuth:            getEnvBool("ORION_REQUIRE_FRONTEND_AUTH", false),
 		LoginRateLimitAttempts:         getEnvInt("ORION_LOGIN_RATE_LIMIT_ATTEMPTS", 5),
 		LoginRateLimitWindowSecs:       getEnvInt("ORION_LOGIN_RATE_LIMIT_WINDOW_SECONDS", 60),
 		AlertCooldownSeconds:           getEnvInt("ORION_ALERT_COOLDOWN_SECONDS", 300),
@@ -162,8 +165,19 @@ func (c *Config) Validate() error {
 	if authValueCount > 0 && authValueCount < len(authValues) {
 		return &ValidationError{Msg: "ORION_ADMIN_USERNAME, ORION_ADMIN_PASSWORD, and ORION_JWT_SECRET must all be set together"}
 	}
+	if c.RequireFrontendAuth {
+		if authValueCount != len(authValues) {
+			return &ValidationError{Msg: "ORION_ADMIN_USERNAME, ORION_ADMIN_PASSWORD, and ORION_JWT_SECRET are required when ORION_REQUIRE_FRONTEND_AUTH is true"}
+		}
+		if err := validateRequiredFrontendAuth(c); err != nil {
+			return err
+		}
+	}
 	if c.FrontendAuthOn && c.JWTSecret == "" {
 		return &ValidationError{Msg: "ORION_JWT_SECRET is required when ORION_ADMIN_USERNAME and ORION_ADMIN_PASSWORD are set"}
+	}
+	if c.RequireFrontendAuth && authValueCount != len(authValues) {
+		return &ValidationError{Msg: "ORION_REQUIRE_FRONTEND_AUTH requires ORION_ADMIN_USERNAME, ORION_ADMIN_PASSWORD, and ORION_JWT_SECRET"}
 	}
 	if c.LoginRateLimitAttempts < 0 {
 		return &ValidationError{Msg: "ORION_LOGIN_RATE_LIMIT_ATTEMPTS must be >= 0"}
@@ -212,6 +226,40 @@ func (c *Config) Validate() error {
 		}
 	}
 	return nil
+}
+
+func validateRequiredFrontendAuth(c *Config) error {
+	adminPassword := strings.TrimSpace(c.AdminPassword)
+	if len(adminPassword) < 12 {
+		return &ValidationError{Msg: "ORION_ADMIN_PASSWORD must be at least 12 characters when ORION_REQUIRE_FRONTEND_AUTH is true"}
+	}
+	if isPlaceholderSecret(adminPassword) {
+		return &ValidationError{Msg: "ORION_ADMIN_PASSWORD must not use a placeholder value when ORION_REQUIRE_FRONTEND_AUTH is true"}
+	}
+
+	jwtSecret := strings.TrimSpace(c.JWTSecret)
+	if len(jwtSecret) < 32 {
+		return &ValidationError{Msg: "ORION_JWT_SECRET must be at least 32 characters when ORION_REQUIRE_FRONTEND_AUTH is true"}
+	}
+	if isPlaceholderSecret(jwtSecret) {
+		return &ValidationError{Msg: "ORION_JWT_SECRET must not use a placeholder value when ORION_REQUIRE_FRONTEND_AUTH is true"}
+	}
+	return nil
+}
+
+func isPlaceholderSecret(value string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	placeholderFragments := []string{
+		"change-me",
+		"changeme",
+		"replace-with",
+	}
+	for _, fragment := range placeholderFragments {
+		if strings.Contains(normalized, fragment) {
+			return true
+		}
+	}
+	return false
 }
 
 // ValidationError is returned when config validation fails.

@@ -341,7 +341,7 @@ func (s *Server) recordStatusPageSubscriberDelivery(pageID string, subscriberID 
 	}
 	if err := s.db.Model(&db.StatusPageSubscriber{}).
 		Where("id = ?", subscriberID).
-		Updates(map[string]interface{}{
+		Updates(map[string]any{
 			"last_delivery_status": state,
 			"last_delivery_at":     now,
 		}).Error; err != nil {

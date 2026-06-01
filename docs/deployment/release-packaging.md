@@ -2,6 +2,8 @@
 
 Use one version for the Core image, Server binary, API contract, and Console build.
 
+Use [Release readiness gate](release-readiness.md) before tagging a release candidate.
+
 ## Version Format
 
 First deploy releases should use semantic version tags:

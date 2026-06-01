@@ -33,17 +33,18 @@ function BreadcrumbItem({ className, ...props }: React.ComponentProps<"li">) {
 function BreadcrumbLink({
   asChild,
   className,
+  children,
   ...props
 }: React.ComponentProps<"a"> & {
   asChild?: boolean;
 }) {
-  if (asChild && React.isValidElement<{ className?: string }>(props.children)) {
-    return React.cloneElement(props.children, {
+  if (asChild && React.isValidElement<{ className?: string }>(children)) {
+    return React.cloneElement(children, {
       ...props,
       ...({ "data-slot": "breadcrumb-link" } as React.HTMLAttributes<HTMLElement>),
       className: cn(
         "transition-colors hover:text-foreground",
-        props.children.props.className,
+        children.props.className,
         className,
       ),
     });
@@ -54,7 +55,9 @@ function BreadcrumbLink({
       data-slot="breadcrumb-link"
       className={cn("transition-colors hover:text-foreground", className)}
       {...props}
-    />
+    >
+      {children}
+    </a>
   );
 }
 

@@ -26,7 +26,7 @@ By default this writes to `apps/core/data/orion.db` and generates:
 - hourly monitor reports;
 - daily uptime rollups;
 - open, acknowledged, and resolved incidents;
-- pending, sent, failed, suppressed, and cooldown alert deliveries;
+- pending, sent, failed, suppressed, and cooldown webhook alert deliveries;
 - a published demo status page with sections, components, monitor mappings, public incidents,
   subscriber preferences, and delivery ledger rows.
 

@@ -10,16 +10,21 @@ import {
   type ApiStatusPageIncidentResponse,
   type ApiStatusPagePublicComponentResponse,
   type ApiStatusPageResponse,
+  type ApiStatusPageSubscriberAdminResponse,
+  useAnonymizeStatusPageSubscriber,
   useCreateStatusPage,
   useCreateStatusPageComponent,
   useCreateStatusPageComponentMapping,
   useCreateStatusPageIncident,
   useCreateStatusPageIncidentUpdate,
   useCreateStatusPageSection,
+  useDeleteStatusPageSubscriber,
+  useDisableStatusPageSubscriber,
   useGetAgents,
   useGetIncidents,
   useGetMonitors,
   useGetStatusPage,
+  useListStatusPageSubscribers,
   useListStatusPages,
   usePreviewStatusPage,
   usePublishStatusPage,
@@ -28,7 +33,18 @@ import {
   useUpdateStatusPage,
   useUpdateStatusPageIncident,
 } from "@/orion-sdk";
-import { CheckCircle2, ExternalLink, Eye, Globe2, Link2, Plus, RadioTower } from "lucide-react";
+import {
+  CheckCircle2,
+  ExternalLink,
+  Eye,
+  Globe2,
+  Link2,
+  Plus,
+  RadioTower,
+  ShieldX,
+  Trash2,
+  UserX,
+} from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
@@ -49,6 +65,7 @@ type PageSettingsFormState = {
   logoAlt: string;
   headerStyle: string;
   componentDensity: string;
+  themeMode: string;
   showUptimeSummary: boolean;
   showIncidentHistory: boolean;
   defaultIncidentVisibility: string;
@@ -109,6 +126,7 @@ const emptyPageSettingsForm: PageSettingsFormState = {
   logoAlt: "",
   headerStyle: "standard",
   componentDensity: "comfortable",
+  themeMode: "light",
   showUptimeSummary: true,
   showIncidentHistory: true,
   defaultIncidentVisibility: "draft",
@@ -194,6 +212,21 @@ const componentDensityOptions = [
   { label: "Compact", value: "compact" },
 ];
 
+const themeModeOptions = [
+  { label: "Light", value: "light" },
+  { label: "Dark", value: "dark" },
+  { label: "System", value: "system" },
+];
+
+const subscriberStateOptions = [
+  { label: "All subscribers", value: "" },
+  { label: "Pending", value: "pending" },
+  { label: "Confirmed", value: "confirmed" },
+  { label: "Unsubscribed", value: "unsubscribed" },
+  { label: "Bounced", value: "bounced" },
+  { label: "Disabled", value: "disabled" },
+];
+
 const statusBadgeStatus = (status?: string) => {
   switch (status) {
     case "operational":
@@ -205,6 +238,22 @@ const statusBadgeStatus = (status?: string) => {
       return "maintenance";
     case "degraded":
       return "degraded";
+    default:
+      return "unknown";
+  }
+};
+
+const subscriberBadgeStatus = (state?: string) => {
+  switch (state) {
+    case "confirmed":
+      return "up";
+    case "pending":
+      return "maintenance";
+    case "bounced":
+      return "degraded";
+    case "unsubscribed":
+    case "disabled":
+      return "stale";
     default:
       return "unknown";
   }
@@ -267,6 +316,59 @@ const themeBoolean = (
 const validAccentColor = (value: string) =>
   /^#[0-9a-f]{6}$/i.test(value) ? value : emptyPageSettingsForm.accentColor;
 
+const uptimeStatusClass = (status?: string) => {
+  switch (status) {
+    case "operational":
+      return "bg-emerald-500";
+    case "degraded":
+      return "bg-amber-400";
+    case "partial_outage":
+    case "major_outage":
+    case "outage":
+      return "bg-red-500";
+    case "maintenance":
+      return "bg-blue-500";
+    case "no_data":
+    case "unknown":
+      return "bg-neutral-300";
+    default:
+      return "bg-neutral-300";
+  }
+};
+
+const previewStatusPanelClass = (status?: string) => {
+  switch (status) {
+    case "operational":
+      return "border-emerald-300 bg-emerald-50 text-emerald-950";
+    case "degraded":
+      return "border-amber-300 bg-amber-50 text-amber-950";
+    case "partial_outage":
+    case "major_outage":
+      return "border-red-300 bg-red-50 text-red-950";
+    case "maintenance":
+      return "border-blue-300 bg-blue-50 text-blue-950";
+    default:
+      return "border-neutral-200 bg-neutral-50 text-neutral-900";
+  }
+};
+
+const previewStatusMessage = (status?: string) => {
+  switch (status) {
+    case "operational":
+      return "All systems operational";
+    case "degraded":
+      return "Some systems degraded";
+    case "partial_outage":
+      return "Partial outage";
+    case "major_outage":
+      return "Major outage";
+    case "maintenance":
+      return "Maintenance in progress";
+    default:
+      return "Status unavailable";
+  }
+};
+
 const pageSettingsFormFromPage = (page?: ApiStatusPageResponse): PageSettingsFormState => {
   const themeSettings = page?.theme_settings;
   return {
@@ -288,6 +390,7 @@ const pageSettingsFormFromPage = (page?: ApiStatusPageResponse): PageSettingsFor
     openGraphImageUrl: page?.open_graph_image_url ?? "",
     seoDescription: page?.seo_description ?? "",
     seoTitle: page?.seo_title ?? "",
+    themeMode: themeString(themeSettings, "theme_mode", emptyPageSettingsForm.themeMode),
     showIncidentHistory: themeBoolean(themeSettings, "show_incident_history", true),
     showUptimeSummary: themeBoolean(themeSettings, "show_uptime_summary", true),
   };
@@ -305,6 +408,7 @@ const pageThemeSettings = (
   logo_url: form.logoUrl.trim() || undefined,
   show_incident_history: form.showIncidentHistory,
   show_uptime_summary: form.showUptimeSummary,
+  theme_mode: form.themeMode,
 });
 
 const incidentFormFromIncident = (incident?: ApiStatusPageIncidentResponse): IncidentFormState => ({
@@ -337,6 +441,162 @@ const Field = ({ label, children }: { label: string; children: ReactNode }) => (
   </label>
 );
 
+const StatusPageSubscribersTab = ({ pageId }: { pageId: string }) => {
+  const [stateFilter, setStateFilter] = useState("");
+  const subscribersResponse = useListStatusPageSubscribers(
+    pageId,
+    stateFilter ? { state: stateFilter } : undefined,
+    { query: { enabled: Boolean(pageId) } },
+  );
+  const subscribers = subscribersResponse.data?.subscribers ?? [];
+  const refreshSubscribers = () => {
+    void subscribersResponse.refetch();
+  };
+  const disableSubscriber = useDisableStatusPageSubscriber({
+    mutation: { onSuccess: refreshSubscribers },
+  });
+  const anonymizeSubscriber = useAnonymizeStatusPageSubscriber({
+    mutation: { onSuccess: refreshSubscribers },
+  });
+  const deleteSubscriber = useDeleteStatusPageSubscriber({
+    mutation: { onSuccess: refreshSubscribers },
+  });
+  const isMutating =
+    disableSubscriber.isPending || anonymizeSubscriber.isPending || deleteSubscriber.isPending;
+
+  const disable = (subscriber: ApiStatusPageSubscriberAdminResponse) => {
+    if (!pageId || !subscriber.id) return;
+    disableSubscriber.mutate({ id: pageId, subscriberId: subscriber.id });
+  };
+
+  const anonymize = (subscriber: ApiStatusPageSubscriberAdminResponse) => {
+    if (!pageId || !subscriber.id) return;
+    if (!window.confirm("Anonymize this subscriber and remove contact data?")) return;
+    anonymizeSubscriber.mutate({ id: pageId, subscriberId: subscriber.id });
+  };
+
+  const hardDelete = (subscriber: ApiStatusPageSubscriberAdminResponse) => {
+    if (!pageId || !subscriber.id) return;
+    if (!window.confirm("Hard-delete this subscriber and delivery history?")) return;
+    deleteSubscriber.mutate({ id: pageId, subscriberId: subscriber.id });
+  };
+
+  return (
+    <section className="space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-medium">Subscribers</h3>
+          <p className="mt-1 text-sm text-neutral-600">
+            {subscribersResponse.data?.count ?? 0} matching records
+          </p>
+        </div>
+        <Field label="State">
+          <select
+            className="h-9 w-full min-w-48 border border-neutral-200 bg-white px-3 text-sm"
+            value={stateFilter}
+            onChange={(event) => setStateFilter(event.target.value)}
+          >
+            {subscriberStateOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
+
+      {subscribersResponse.isLoading && <div className="text-sm text-neutral-600">Loading...</div>}
+      {subscribersResponse.isError && <div className="text-sm">Unable to load subscribers.</div>}
+      {!subscribersResponse.isLoading &&
+        !subscribersResponse.isError &&
+        subscribers.length === 0 && (
+          <EmptyState
+            title="No subscribers"
+            description="Confirmed public subscribers will appear here with masked destinations."
+          />
+        )}
+
+      <div className="space-y-3">
+        {subscribers.map((subscriber) => (
+          <div className="border border-neutral-200 p-3" key={subscriber.id}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium">{subscriber.masked_destination}</span>
+                  <StatusBadge
+                    fallback={subscriber.state}
+                    value={subscriberBadgeStatus(subscriber.state)}
+                  />
+                </div>
+                <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-neutral-600">
+                  <span>{subscriber.destination_type}</span>
+                  <span>Source {subscriber.source || "unknown"}</span>
+                  <span>Created {formatDateTime(subscriber.created_at)}</span>
+                  {subscriber.last_delivery_status && (
+                    <span>
+                      Last delivery {subscriber.last_delivery_status} -{" "}
+                      {formatDateTime(subscriber.last_delivery_at)}
+                    </span>
+                  )}
+                  {subscriber.bounce_count ? <span>Bounces {subscriber.bounce_count}</span> : null}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  disabled={isMutating || subscriber.state === "disabled"}
+                  onClick={() => disable(subscriber)}
+                  type="button"
+                  variant="outline"
+                >
+                  <UserX className="size-4" />
+                  Disable
+                </Button>
+                <Button
+                  disabled={isMutating || subscriber.masked_destination === "anonymized"}
+                  onClick={() => anonymize(subscriber)}
+                  type="button"
+                  variant="outline"
+                >
+                  <ShieldX className="size-4" />
+                  Anonymize
+                </Button>
+                <Button
+                  disabled={isMutating}
+                  onClick={() => hardDelete(subscriber)}
+                  type="button"
+                  variant="outline"
+                >
+                  <Trash2 className="size-4" />
+                  Delete
+                </Button>
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2 text-sm">
+              {(subscriber.components ?? []).map((component) => (
+                <span className="border border-neutral-200 px-2 py-1" key={component.id}>
+                  {component.name}
+                </span>
+              ))}
+              {(subscriber.components ?? []).length === 0 && (
+                <span className="text-neutral-600">All visible components</span>
+              )}
+            </div>
+            <div className="mt-3 grid gap-2 text-xs text-neutral-600 sm:grid-cols-3">
+              <span>Confirmed {formatDateTime(subscriber.confirmed_at)}</span>
+              <span>Unsubscribed {formatDateTime(subscriber.unsubscribed_at)}</span>
+              <span>Disabled {formatDateTime(subscriber.disabled_at)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {(disableSubscriber.isError || anonymizeSubscriber.isError || deleteSubscriber.isError) && (
+        <p className="text-sm">Unable to update subscriber.</p>
+      )}
+    </section>
+  );
+};
+
 export const StatusPagesPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedPageId = searchParams.get("page") ?? "";
@@ -364,6 +624,7 @@ export const StatusPagesPage = () => {
   const [editIncidentForm, setEditIncidentForm] = useState<IncidentFormState>(emptyIncidentForm);
   const [updateForm, setUpdateForm] = useState<IncidentUpdateFormState>(emptyIncidentUpdateForm);
   const [selectedIncidentId, setSelectedIncidentId] = useState("");
+  const [activePageTab, setActivePageTab] = useState<"setup" | "subscribers">("setup");
 
   useEffect(() => {
     if (!selectedPageId && pages[0]?.id) {
@@ -474,6 +735,18 @@ export const StatusPagesPage = () => {
   const unpublishPage = useUnpublishStatusPage({ mutation: { onSuccess: refreshStatusPages } });
 
   const preview = previewResponse.data?.preview;
+  const previewThemeMode = themeString(
+    preview?.page?.theme_settings,
+    "theme_mode",
+    emptyPageSettingsForm.themeMode,
+  );
+  const previewDark = previewThemeMode === "dark";
+  const previewActiveIncidents = (preview?.incidents ?? []).filter(
+    (incident) => incident.public_status !== "resolved",
+  );
+  const previewRecentIncidents = (preview?.incidents ?? []).filter(
+    (incident) => incident.public_status === "resolved",
+  );
   const monitors = monitorsResponse.data?.monitors ?? [];
   const agents = agentsResponse.data?.agents ?? [];
   const internalIncidents = internalIncidentsResponse.data?.incidents ?? [];
@@ -851,6 +1124,31 @@ export const StatusPagesPage = () => {
               )}
             </section>
 
+            <div className="inline-flex border border-neutral-800">
+              <button
+                className={`px-3 py-1.5 text-sm ${
+                  activePageTab === "setup" ? "bg-neutral-800 text-white" : "bg-white"
+                }`}
+                onClick={() => setActivePageTab("setup")}
+                type="button"
+              >
+                Setup
+              </button>
+              <button
+                className={`border-l border-neutral-800 px-3 py-1.5 text-sm ${
+                  activePageTab === "subscribers" ? "bg-neutral-800 text-white" : "bg-white"
+                }`}
+                onClick={() => setActivePageTab("subscribers")}
+                type="button"
+              >
+                Subscribers
+              </button>
+            </div>
+
+            {activePageTab === "subscribers" ? (
+              <StatusPageSubscribersTab pageId={pageId} />
+            ) : (
+              <>
             <form className="space-y-4" onSubmit={submitPageSettings}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h3 className="text-sm font-medium">Page Settings</h3>
@@ -1003,6 +1301,26 @@ export const StatusPagesPage = () => {
                         ))}
                       </select>
                     </Field>
+                    <Field label="Theme mode">
+                      <select
+                        className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                        value={pageSettingsForm.themeMode}
+                        onChange={(event) =>
+                          setPageSettingsForm((current) => ({
+                            ...current,
+                            themeMode: event.target.value,
+                          }))
+                        }
+                      >
+                        {themeModeOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
                     <Field label="Component density">
                       <select
                         className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
@@ -1776,36 +2094,167 @@ export const StatusPagesPage = () => {
                   <div className="text-sm text-neutral-600">Loading...</div>
                 )}
                 {preview && (
-                  <div className="border border-neutral-200 p-3">
-                    <div className="flex items-center justify-between gap-2">
+                  <div
+                    className={`space-y-4 border p-4 ${
+                      previewDark
+                        ? "border-neutral-800 bg-neutral-950 text-neutral-100"
+                        : "border-neutral-200 bg-neutral-50 text-neutral-950"
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <div className="font-medium">{preview.page?.title}</div>
-                        <div className="text-sm text-neutral-600">{preview.page?.slug}</div>
+                        <div className="font-semibold">{preview.page?.title}</div>
+                        <div
+                          className={
+                            previewDark ? "text-sm text-neutral-400" : "text-sm text-neutral-600"
+                          }
+                        >
+                          {preview.page?.description || preview.page?.slug}
+                        </div>
                       </div>
-                      <StatusBadge
-                        fallback={preview.overall_status}
-                        value={statusBadgeStatus(preview.overall_status)}
-                      />
+                      <Button size="sm" type="button" variant="outline">
+                        Get updates
+                      </Button>
                     </div>
-                    <div className="mt-4 space-y-3">
+
+                    <div
+                      className={`rounded border p-3 ${previewStatusPanelClass(
+                        preview.overall_status,
+                      )}`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="size-5" />
+                          <span className="font-semibold">
+                            {previewStatusMessage(preview.overall_status)}
+                          </span>
+                        </div>
+                        <span className="text-xs">
+                          Updated {formatDateTime(preview.last_updated)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {previewActiveIncidents.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="text-sm font-medium">Active events</div>
+                        {previewActiveIncidents.map((incident) => (
+                          <div
+                            className={
+                              previewDark
+                                ? "border border-neutral-800 bg-neutral-900 p-3 text-sm"
+                                : "border border-neutral-200 bg-white p-3 text-sm"
+                            }
+                            key={incident.id}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-medium">{incident.title}</span>
+                              <StatusBadge
+                                fallback={incident.public_status}
+                                value={incidentBadgeStatus(incident.public_status)}
+                              />
+                            </div>
+                            {incident.impact_summary && (
+                              <p
+                                className={
+                                  previewDark ? "mt-1 text-neutral-400" : "mt-1 text-neutral-600"
+                                }
+                              >
+                                {incident.impact_summary}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="space-y-4">
                       {(preview.sections ?? []).map((section) => (
                         <div key={section.id}>
-                          <div className="text-sm font-medium">{section.name}</div>
-                          <div className="mt-2 space-y-2">
+                          <div className="mb-2 text-sm font-medium">{section.name}</div>
+                          <div className="space-y-3">
                             {(section.components ?? []).map(
                               (component: ApiStatusPagePublicComponentResponse) => (
-                                <div
-                                  className="flex items-center justify-between text-sm"
-                                  key={component.id}
-                                >
-                                  <span>{component.name}</span>
-                                  <StatusBadge
-                                    fallback={component.status}
-                                    value={statusBadgeStatus(component.status)}
-                                  />
+                                <div className="space-y-2 text-sm" key={component.id}>
+                                  <div className="flex items-center justify-between gap-3">
+                                    <span className="font-medium">{component.name}</span>
+                                    <span className="flex items-center gap-2">
+                                      <span
+                                        className={
+                                          previewDark ? "text-neutral-400" : "text-neutral-600"
+                                        }
+                                      >
+                                        {component.uptime?.uptime_display ?? "No data"}
+                                      </span>
+                                      <StatusBadge
+                                        fallback={component.status}
+                                        value={statusBadgeStatus(component.status)}
+                                      />
+                                    </span>
+                                  </div>
+                                  {(component.uptime_history ?? []).length > 0 && (
+                                    <div
+                                      aria-label={`${component.name} uptime history`}
+                                      className="grid gap-0.5"
+                                      style={{
+                                        gridTemplateColumns: `repeat(${component.uptime_history?.length ?? 1}, minmax(1px, 1fr))`,
+                                      }}
+                                    >
+                                      {(component.uptime_history ?? []).map((bucket) => (
+                                        <span
+                                          aria-label={`${bucket.date}: ${bucket.uptime_display}`}
+                                          className={`h-6 rounded-sm ${uptimeStatusClass(bucket.status)}`}
+                                          key={bucket.date}
+                                          title={`${bucket.date}: ${bucket.uptime_display}`}
+                                        />
+                                      ))}
+                                    </div>
+                                  )}
+                                  <div
+                                    className={
+                                      previewDark
+                                        ? "flex justify-between text-xs text-neutral-500"
+                                        : "flex justify-between text-xs text-neutral-500"
+                                    }
+                                  >
+                                    <span>
+                                      {component.uptime_history?.[0]?.date ?? preview.uptime_window}
+                                    </span>
+                                    <span>today</span>
+                                  </div>
                                 </div>
                               ),
                             )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium">Recent events</div>
+                      {previewRecentIncidents.length === 0 && (
+                        <div
+                          className={
+                            previewDark ? "text-sm text-neutral-400" : "text-sm text-neutral-600"
+                          }
+                        >
+                          No recent incidents.
+                        </div>
+                      )}
+                      {previewRecentIncidents.slice(0, 3).map((incident) => (
+                        <div
+                          className={
+                            previewDark
+                              ? "border-t border-neutral-800 pt-2 text-sm"
+                              : "border-t border-neutral-200 pt-2 text-sm"
+                          }
+                          key={incident.id}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium">{incident.title}</span>
+                            <span className={previewDark ? "text-neutral-400" : "text-neutral-600"}>
+                              {incident.public_status}
+                            </span>
                           </div>
                         </div>
                       ))}
@@ -1814,6 +2263,8 @@ export const StatusPagesPage = () => {
                 )}
               </div>
             </section>
+              </>
+            )}
           </main>
         )}
       </div>

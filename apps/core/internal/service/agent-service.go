@@ -160,7 +160,7 @@ func (s *AgentService) RegisterAgent(req *RegisterRequest) (*RegisterResponse, e
 	}
 
 	// Update metadata if it has changed (OS, arch, name may change after system updates)
-	updates := make(map[string]interface{})
+	updates := make(map[string]any)
 	updates["last_seen"] = time.Now()
 	if req.ReportingIntervalSeconds > 0 && agent.ReportingIntervalSeconds != req.ReportingIntervalSeconds {
 		updates["reporting_interval_seconds"] = req.ReportingIntervalSeconds
@@ -300,7 +300,7 @@ func (s *AgentService) RevokeAgentToken(agentID string, input AgentTokenActionIn
 			return nil
 		}
 
-		updates := map[string]interface{}{
+		updates := map[string]any{
 			"token":                   revokedAgentTokenMarker(agent.ID, agent.TokenVersion+1),
 			"token_hash":              "",
 			"token_version":           normalizedAgentTokenVersion(agent.TokenVersion) + 1,
@@ -344,7 +344,7 @@ func (s *AgentService) issueAgentToken(agentID string, input AgentTokenActionInp
 		}
 
 		nextVersion := normalizedAgentTokenVersion(agent.TokenVersion) + 1
-		updates := map[string]interface{}{
+		updates := map[string]any{
 			"token":                   storedAgentTokenMarker(token),
 			"token_hash":              hashAgentToken(token),
 			"token_version":           nextVersion,
@@ -439,7 +439,7 @@ func recordAgentTokenAuditEvent(tx *gorm.DB, action string, agentID string, inpu
 	if actorID == "" {
 		actorID = "admin"
 	}
-	metadata, err := json.Marshal(map[string]interface{}{
+	metadata, err := json.Marshal(map[string]any{
 		"token_version": tokenVersion,
 		"reason":        sanitizeAgentTokenReason(input.Reason),
 		"request_id":    strings.TrimSpace(input.RequestID),
