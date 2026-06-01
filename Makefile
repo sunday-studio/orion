@@ -1,4 +1,4 @@
-.PHONY: generate-openapi generate-sdk console-sdk build-static docker-build docker-up docker-down agent-test core-test core-race core-modernize-check core-vulncheck core-contract-check core-backend-verify console-build repository-smoke generated-contracts-check release-core-build release-readiness core-build core-worker-build agent-build seed-demo-data
+.PHONY: generate-openapi generate-sdk console-sdk build-static docker-build docker-up docker-down agent-test core-test core-coverage core-race core-modernize-check core-vulncheck core-contract-check core-backend-verify console-build repository-smoke generated-contracts-check release-core-build release-readiness core-build core-worker-build agent-build seed-demo-data
 
 VERSION ?= latest
 CORE_IMAGE ?= ghcr.io/sunday-studio/orion-core
@@ -7,6 +7,8 @@ GOARCH ?= $(shell go env GOARCH)
 AGENT_OUTPUT ?= orion-agent
 CORE_OUTPUT ?= orion-core
 CORE_WORKER_OUTPUT ?= orion-core-worker
+CORE_COVERAGE_PROFILE ?= /tmp/orion-core-coverage.out
+CORE_COVERAGE_SUMMARY ?= /tmp/orion-core-coverage.txt
 AGENT_CGO_ENABLED ?= 1
 
 generate-openapi:
@@ -27,6 +29,11 @@ build-static: console-sdk
 # Run the full Core Go test suite.
 core-test:
 	cd apps/core && go test ./...
+
+# Run Core tests with package/function coverage output.
+core-coverage:
+	cd apps/core && go test -coverprofile=$(CORE_COVERAGE_PROFILE) ./...
+	cd apps/core && go tool cover -func=$(CORE_COVERAGE_PROFILE) | tee $(CORE_COVERAGE_SUMMARY)
 
 # Run race detection on Core packages with scheduler, worker, and lifecycle concurrency.
 core-race:

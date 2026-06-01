@@ -11,3 +11,12 @@
 - Checks:
 - Warning classification:
 - Release version impact:
+
+## Core Backend Coverage
+
+- [ ] This PR does not change Core backend behavior.
+- [ ] New or changed Core routes include API/integration coverage.
+- [ ] New or changed Core services include focused service coverage.
+- [ ] New or changed Core worker behavior includes success, failure, timeout, and redaction coverage where relevant.
+- [ ] New or changed Core migrations include migration or compatibility coverage when defaults, indexes, or existing rows are affected.
+- [ ] No Core backend test changes because:

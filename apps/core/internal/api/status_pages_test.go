@@ -1967,6 +1967,7 @@ func setupStatusPageAuthTestServer(t *testing.T) *Server {
 		AdminUsername:  "admin",
 		AdminPassword:  "correct-password",
 		JWTSecret:      "test-secret",
+		DataDir:        t.TempDir(),
 	})
 }
 
