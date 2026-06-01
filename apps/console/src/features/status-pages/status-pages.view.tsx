@@ -18,6 +18,11 @@ import {
   useCreateStatusPageIncident,
   useCreateStatusPageIncidentUpdate,
   useCreateStatusPageSection,
+  useDeleteStatusPage,
+  useDeleteStatusPageComponent,
+  useDeleteStatusPageComponentMapping,
+  useDeleteStatusPageIncident,
+  useDeleteStatusPageSection,
   useDeleteStatusPageSubscriber,
   useDisableStatusPageSubscriber,
   useGetAgents,
@@ -733,6 +738,31 @@ export const StatusPagesPage = () => {
   const updatePage = useUpdateStatusPage({ mutation: { onSuccess: refreshStatusPages } });
   const publishPage = usePublishStatusPage({ mutation: { onSuccess: refreshStatusPages } });
   const unpublishPage = useUnpublishStatusPage({ mutation: { onSuccess: refreshStatusPages } });
+  const deletePage = useDeleteStatusPage({
+    mutation: {
+      onSuccess: () => {
+        setSearchParams({});
+        void pagesResponse.refetch();
+      },
+    },
+  });
+  const deleteSection = useDeleteStatusPageSection({
+    mutation: { onSuccess: refreshStatusPages },
+  });
+  const deleteComponent = useDeleteStatusPageComponent({
+    mutation: { onSuccess: refreshStatusPages },
+  });
+  const deleteMapping = useDeleteStatusPageComponentMapping({
+    mutation: { onSuccess: refreshStatusPages },
+  });
+  const deleteIncident = useDeleteStatusPageIncident({
+    mutation: {
+      onSuccess: () => {
+        setSelectedIncidentId("");
+        refreshStatusPages();
+      },
+    },
+  });
 
   const preview = previewResponse.data?.preview;
   const previewThemeMode = themeString(
@@ -775,6 +805,12 @@ export const StatusPagesPage = () => {
     ...(previewResponse.error ? ["Public preview could not be loaded before publishing."] : []),
   ];
   const canPublish = publishBlockers.length === 0 && selectedPage?.visibility !== "public";
+  const deletePending =
+    deletePage.isPending ||
+    deleteSection.isPending ||
+    deleteComponent.isPending ||
+    deleteMapping.isPending ||
+    deleteIncident.isPending;
   const monitors = monitorsResponse.data?.monitors ?? [];
   const agents = agentsResponse.data?.agents ?? [];
   const internalIncidents = internalIncidentsResponse.data?.incidents ?? [];
@@ -802,6 +838,40 @@ export const StatusPagesPage = () => {
 
   const selectPage = (page: ApiStatusPageResponse) => {
     if (page.id) setSearchParams({ page: page.id });
+  };
+
+  const removePage = () => {
+    if (!selectedPage?.id) return;
+    if (
+      !window.confirm(`Delete ${selectedPage.title ?? "this status page"} and all nested data?`)
+    ) {
+      return;
+    }
+    deletePage.mutate({ id: selectedPage.id });
+  };
+
+  const removeSection = (sectionId?: string, label?: string) => {
+    if (!pageId || !sectionId) return;
+    if (!window.confirm(`Delete ${label ?? "this section"} and its components?`)) return;
+    deleteSection.mutate({ id: pageId, sectionId });
+  };
+
+  const removeComponent = (componentId?: string, label?: string) => {
+    if (!pageId || !componentId) return;
+    if (!window.confirm(`Delete ${label ?? "this component"} and its mappings?`)) return;
+    deleteComponent.mutate({ id: pageId, componentId });
+  };
+
+  const removeMapping = (componentId?: string, mappingId?: string) => {
+    if (!pageId || !componentId || !mappingId) return;
+    if (!window.confirm("Delete this component mapping?")) return;
+    deleteMapping.mutate({ id: pageId, componentId, mappingId });
+  };
+
+  const removeIncident = () => {
+    if (!pageId || !selectedIncident?.id) return;
+    if (!window.confirm(`Delete ${selectedIncident.title ?? "this public incident"}?`)) return;
+    deleteIncident.mutate({ id: pageId, incidentId: selectedIncident.id });
   };
 
   const submitPage = (event: FormEvent) => {
@@ -1144,6 +1214,15 @@ export const StatusPagesPage = () => {
                 >
                   {unpublishPage.isPending ? "Unpublishing..." : "Unpublish"}
                 </Button>
+                <Button
+                  disabled={deletePending}
+                  onClick={removePage}
+                  type="button"
+                  variant="outline"
+                >
+                  <Trash2 className="size-4" />
+                  {deletePage.isPending ? "Deleting..." : "Delete"}
+                </Button>
               </div>
               {publishPage.isError && (
                 <div className="basis-full text-sm">
@@ -1429,6 +1508,26 @@ export const StatusPagesPage = () => {
                       <Plus className="size-4" />
                       Add section
                     </Button>
+                    <div className="space-y-2">
+                      {(detail?.sections ?? []).map((section) => (
+                        <div
+                          className="flex items-center justify-between gap-2 border border-neutral-200 px-2 py-1.5 text-sm"
+                          key={section.id}
+                        >
+                          <span className="min-w-0 truncate">{section.name}</span>
+                          <Button
+                            disabled={deletePending}
+                            onClick={() => removeSection(section.id, section.name)}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            <Trash2 className="size-3.5" />
+                            Remove
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
                   </form>
 
                   <form className="space-y-3" onSubmit={submitComponent}>
@@ -2002,6 +2101,15 @@ export const StatusPagesPage = () => {
                               <CheckCircle2 className="size-4" />
                               Resolve
                             </Button>
+                            <Button
+                              disabled={deletePending}
+                              onClick={removeIncident}
+                              type="button"
+                              variant="outline"
+                            >
+                              <Trash2 className="size-4" />
+                              {deleteIncident.isPending ? "Deleting..." : "Delete"}
+                            </Button>
                           </div>
                           {updateIncident.isError && (
                             <p className="text-sm">Unable to update public incident.</p>
@@ -2132,17 +2240,46 @@ export const StatusPagesPage = () => {
                               {component.public_description}
                             </div>
                           </div>
-                          <StatusBadge
-                            fallback={component.manual_status || component.display_mode}
-                            value={statusBadgeStatus(component.manual_status)}
-                          />
+                          <div className="flex items-center gap-2">
+                            <StatusBadge
+                              fallback={component.manual_status || component.display_mode}
+                              value={statusBadgeStatus(component.manual_status)}
+                            />
+                            <Button
+                              disabled={deletePending}
+                              onClick={() => removeComponent(component.id, component.public_name)}
+                              size="sm"
+                              type="button"
+                              variant="outline"
+                            >
+                              <Trash2 className="size-3.5" />
+                              Remove
+                            </Button>
+                          </div>
                         </div>
                         <div className="mt-3 space-y-1 text-sm">
                           {(component.mappings ?? []).map((mapping) => (
-                            <div className="flex items-center gap-2" key={mapping.id}>
-                              <RadioTower className="size-3.5 text-neutral-500" />
-                              <span>{mapping.resource_type}</span>
-                              <span className="text-neutral-600">{mapping.resource_id}</span>
+                            <div
+                              className="flex flex-wrap items-center justify-between gap-2"
+                              key={mapping.id}
+                            >
+                              <div className="flex min-w-0 items-center gap-2">
+                                <RadioTower className="size-3.5 shrink-0 text-neutral-500" />
+                                <span>{mapping.resource_type}</span>
+                                <span className="min-w-0 truncate text-neutral-600">
+                                  {mapping.resource_id}
+                                </span>
+                              </div>
+                              <Button
+                                disabled={deletePending}
+                                onClick={() => removeMapping(component.id, mapping.id)}
+                                size="sm"
+                                type="button"
+                                variant="outline"
+                              >
+                                <Trash2 className="size-3.5" />
+                                Remove
+                              </Button>
                             </div>
                           ))}
                           {(component.mappings ?? []).length === 0 && (

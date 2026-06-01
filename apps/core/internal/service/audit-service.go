@@ -15,12 +15,17 @@ import (
 const (
 	StatusPageAuditActionPublished                   = "status_page_published"
 	StatusPageAuditActionUnpublished                 = "status_page_unpublished"
+	StatusPageAuditActionDeleted                     = "status_page_deleted"
+	StatusPageAuditActionSectionDeleted              = "status_page_section_deleted"
+	StatusPageAuditActionComponentDeleted            = "status_page_component_deleted"
 	StatusPageAuditActionComponentMappingCreated     = "status_page_component_mapping_created"
 	StatusPageAuditActionComponentMappingUpdated     = "status_page_component_mapping_updated"
+	StatusPageAuditActionComponentMappingDeleted     = "status_page_component_mapping_deleted"
 	StatusPageAuditActionPublicIncidentCreated       = "status_page_public_incident_created"
 	StatusPageAuditActionPublicIncidentUpdated       = "status_page_public_incident_updated"
 	StatusPageAuditActionPublicIncidentUpdateCreated = "status_page_public_incident_update_created"
 	StatusPageAuditActionPublicIncidentResolved      = "status_page_public_incident_resolved"
+	StatusPageAuditActionPublicIncidentDeleted       = "status_page_public_incident_deleted"
 	StatusPageAuditActionSubscriberUnsubscribed      = "status_page_subscriber_unsubscribed"
 	StatusPageAuditActionSubscriberAnonymized        = "status_page_subscriber_anonymized"
 	StatusPageAuditActionSubscriberHardDeleted       = "status_page_subscriber_hard_deleted"
@@ -189,12 +194,17 @@ func validStatusPageAuditAction(action string) bool {
 	for _, supported := range []string{
 		StatusPageAuditActionPublished,
 		StatusPageAuditActionUnpublished,
+		StatusPageAuditActionDeleted,
+		StatusPageAuditActionSectionDeleted,
+		StatusPageAuditActionComponentDeleted,
 		StatusPageAuditActionComponentMappingCreated,
 		StatusPageAuditActionComponentMappingUpdated,
+		StatusPageAuditActionComponentMappingDeleted,
 		StatusPageAuditActionPublicIncidentCreated,
 		StatusPageAuditActionPublicIncidentUpdated,
 		StatusPageAuditActionPublicIncidentUpdateCreated,
 		StatusPageAuditActionPublicIncidentResolved,
+		StatusPageAuditActionPublicIncidentDeleted,
 		StatusPageAuditActionSubscriberUnsubscribed,
 		StatusPageAuditActionSubscriberAnonymized,
 		StatusPageAuditActionSubscriberHardDeleted,
