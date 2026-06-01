@@ -208,6 +208,8 @@ Core monitor admin endpoints:
 - Server-authenticated report routes are for Server-owned monitors.
 - Core monitor worker reports use the same `monitor_reports` table and incident reconciliation service, but are authorized through an internal worker path or direct shared service access, not through a Server token.
 - Core-executed report payloads should identify `runner = core`, target summary, duration, result status, failure stage, redacted request metadata, and truncated response/error details.
+- Core redacts sensitive monitor report payload values before `monitor_reports.payload` is persisted. The redaction boundary covers nested JSON keys and embedded text markers for tokens, passwords, secrets, API keys, authorization, credentials, sessions, cookies, and private keys.
+- Incident evidence, incident timeline evidence, monitor report history, and report inspection UI must read only the redacted monitor report payload projection. They may show status, timing, failure stage, redacted target summaries, and bounded response/error snippets, but must not expose raw request headers, bearer tokens, heartbeat tokens, cookies, passwords, API keys, or original secret-bearing response samples.
 
 ## API Response Ownership Fields
 
@@ -292,6 +294,7 @@ Core behavior:
 - Secret values should not be returned to Console.
 - The synthetic Core owner token, if stored for schema compatibility, must not authenticate Server-scoped routes.
 - Core monitor URL, header, and future body configuration must be validated and redacted before persistence or response.
+- Monitor report payload redaction is a storage and API boundary, not only a Console presentation concern. Console should render the redacted payload it receives and should not rely on client-side filtering as the primary secret control.
 - Core monitor execution should deny or explicitly gate sensitive network targets according to deployment policy.
 
 ## Open Contract Decisions

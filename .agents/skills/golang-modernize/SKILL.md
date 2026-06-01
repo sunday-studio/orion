@@ -54,7 +54,7 @@ When invoked:
 
 ### `.modernize` file format
 
-```
+```text
 # Ignored modernization suggestions
 # Format: <date> <category> <description>
 2026-01-15 slog-migration Team decided to keep zap for now

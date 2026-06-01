@@ -111,7 +111,7 @@ func (s *HealthService) ComputeMonitorHealth(monitorID string, config HealthComp
 
 	// Update cache
 	now = time.Now()
-	if err := s.db.Model(&monitor).Updates(map[string]interface{}{
+	if err := s.db.Model(&monitor).Updates(map[string]any{
 		"computed_health":         computedHealth,
 		"last_health_computation": &now,
 	}).Error; err != nil {

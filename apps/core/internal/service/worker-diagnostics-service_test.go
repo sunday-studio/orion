@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"orion/core/internal/db"
 	"orion/core/internal/logging"
 	"testing"
@@ -23,7 +22,7 @@ func TestWorkerDiagnosticsRecordsFreshAndStaleWorkers(t *testing.T) {
 	diagnosticsService := NewWorkerDiagnosticsService(database, logging.NewLogger())
 	now := time.Date(2026, 5, 27, 10, 0, 0, 0, time.UTC)
 
-	if err := diagnosticsService.RecordHeartbeat(context.Background(), WorkerHeartbeat{
+	if err := diagnosticsService.RecordHeartbeat(t.Context(), WorkerHeartbeat{
 		WorkerID:        "worker-fresh",
 		Hostname:        "core-host",
 		Status:          "running",
@@ -47,7 +46,7 @@ func TestWorkerDiagnosticsRecordsFreshAndStaleWorkers(t *testing.T) {
 		t.Fatalf("create stale row: %v", err)
 	}
 
-	diagnostics, err := diagnosticsService.GetDiagnostics(context.Background(), time.Minute, now)
+	diagnostics, err := diagnosticsService.GetDiagnostics(t.Context(), time.Minute, now)
 	if err != nil {
 		t.Fatalf("get diagnostics: %v", err)
 	}

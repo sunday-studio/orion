@@ -204,8 +204,12 @@ var statusPageHTMLTemplate = template.Must(template.New("status-page").Parse(`<!
       </div>
       <nav class="nav" aria-label="Status page navigation">
         <a aria-current="page" href="#status">Status</a>
+        {{- if .ShowIncidentHistory }}
         <a href="#events">Events</a>
+        {{- end }}
+        {{- if .ShowUptimeSummary }}
         <a href="#components">Components</a>
+        {{- end }}
         <a class="button primary" href="#updates">Get updates</a>
       </nav>
     </header>
@@ -265,7 +269,7 @@ var statusPageHTMLTemplate = template.Must(template.New("status-page").Parse(`<!
             {{- if .Bars }}
             <div class="uptime-bars" style="--bars: {{ .BarCount }}" role="list" aria-label="{{ .Name }} uptime history">
               {{- range .Bars }}
-              <button class="bar {{ .Class }}" type="button" role="listitem" aria-label="{{ .Label }}" title="{{ .Label }}"></button>
+              <span class="bar {{ .Class }}" role="listitem" aria-label="{{ .Label }}" title="{{ .Label }}"></span>
               {{- end }}
             </div>
             <div class="uptime-meta"><span>{{ .WindowStart }}</span><span>{{ .WindowEnd }}</span></div>
@@ -436,7 +440,7 @@ type statusPagePublicHTMLThemeConfig struct {
 	ShowIncidentHistory bool
 }
 
-func statusPagePublicHTMLTheme(settings map[string]interface{}) statusPagePublicHTMLThemeConfig {
+func statusPagePublicHTMLTheme(settings map[string]any) statusPagePublicHTMLThemeConfig {
 	theme := statusPagePublicHTMLThemeConfig{
 		AccentColor:         "#2563eb",
 		HeaderClass:         "standard",

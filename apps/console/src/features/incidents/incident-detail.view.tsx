@@ -23,22 +23,38 @@ import { ReportInspectionDrawer } from "@/features/report-inspection/report-insp
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import {
   type ApiAlertDeliveryResponse,
+  type ApiIncidentNextActionResponse,
   type ApiIncidentResponse,
   type ApiIncidentTimelineItemResponse,
   type ApiMonitorReportResponse,
+  type ApiStatusPageIncidentDraftResponse,
+  type ApiStatusPageIncidentResponse,
+  type ApiStatusPageResponse,
   getGetIncidentQueryKey,
   getGetIncidentTimelineQueryKey,
   useAcknowledgeIncident,
   useCoverIncident,
+  useCreateStatusPageIncidentDraft,
   useGetIncident,
+  useListStatusPages,
+  usePreviewStatusPageIncidentDraft,
   useReopenIncident,
   useResolveIncident,
 } from "@/orion-sdk";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { CheckIcon, CircleCheckIcon, RotateCcwIcon, ShieldCheckIcon } from "lucide-react";
-import { type FormEvent, type ReactNode, useState } from "react";
+import {
+  BellRingIcon,
+  CheckIcon,
+  CircleCheckIcon,
+  MegaphoneIcon,
+  RotateCcwIcon,
+  ShieldCheckIcon,
+  WrenchIcon,
+} from "lucide-react";
+import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 
 const DetailItem = ({ label, value }: { label: string; value: ReactNode }) => (
   <div>
@@ -107,6 +123,121 @@ const ComponentImpactList = ({ components }: { components: IncidentComponentImpa
         );
       })}
     </div>
+  );
+};
+
+const actionIcon = (actionType?: string) => {
+  switch (actionType) {
+    case "acknowledge_incident":
+      return <CheckIcon />;
+    case "cover_incident":
+      return <ShieldCheckIcon />;
+    case "resolve_incident":
+      return <CircleCheckIcon />;
+    case "reopen_incident":
+      return <RotateCcwIcon />;
+    case "review_monitor_tuning":
+      return <WrenchIcon />;
+    case "review_failed_notifications":
+      return <BellRingIcon />;
+    default:
+      return <CheckIcon />;
+  }
+};
+
+const nextActionHref = (
+  action: ApiIncidentNextActionResponse,
+  incident: ApiIncidentResponse,
+) => {
+  if (action.target_kind === "monitor" && action.target_id) {
+    const params = new URLSearchParams();
+    if (action.target_tab) params.set("tab", action.target_tab);
+    if (incident.id) params.set("incident", incident.id);
+    const query = params.toString();
+    return `/monitors/${action.target_id}${query ? `?${query}` : ""}`;
+  }
+  if (action.target_kind === "alert_deliveries") {
+    const params = new URLSearchParams();
+    params.set("tab", action.target_tab || "logs");
+    params.set("incident", action.target_id || incident.id || "");
+    if (action.filter_status) params.set("status", action.filter_status);
+    return `/alerts?${params.toString()}`;
+  }
+  return undefined;
+};
+
+const isIncidentMutationAction = (actionType?: string) =>
+  actionType === "acknowledge_incident" ||
+  actionType === "cover_incident" ||
+  actionType === "resolve_incident" ||
+  actionType === "reopen_incident";
+
+type IncidentNextActionPanelProps = {
+  actions: ApiIncidentNextActionResponse[];
+  actionPending: boolean;
+  incident: ApiIncidentResponse;
+  onAction: (action: ApiIncidentNextActionResponse) => void;
+};
+
+const IncidentNextActionPanel = ({
+  actions,
+  actionPending,
+  incident,
+  onAction,
+}: IncidentNextActionPanelProps) => {
+  if (actions.length === 0) {
+    return (
+      <section className="space-y-2 bg-neutral-50 px-3 py-3">
+        <h2 className="text-sm font-medium">Next Actions</h2>
+        <p className="text-sm text-neutral-600">No operator action is currently suggested.</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="space-y-3 bg-neutral-50 px-3 py-3">
+      <h2 className="text-sm font-medium">Next Actions</h2>
+      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+        {actions.map((action) => {
+          const href = nextActionHref(action, incident);
+          return (
+            <div
+              key={action.id ?? action.action_type ?? action.label}
+              className="flex min-w-0 flex-col justify-between gap-3 border border-neutral-200 bg-white px-3 py-3"
+            >
+              <div className="min-w-0 space-y-1">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  {actionIcon(action.action_type)}
+                  <span className="truncate">{action.label ?? "Review action"}</span>
+                </div>
+                <p className="text-sm text-neutral-600">
+                  {action.description ?? "Review the incident context before continuing."}
+                </p>
+              </div>
+              {href ? (
+                <Link
+                  className="inline-flex h-8 items-center justify-center gap-2 border border-input bg-background px-3 text-xs font-medium shadow-xs hover:bg-accent hover:text-accent-foreground"
+                  to={href}
+                >
+                  {actionIcon(action.action_type)}
+                  Open
+                </Link>
+              ) : (
+                <Button
+                  disabled={actionPending || !isIncidentMutationAction(action.action_type)}
+                  onClick={() => onAction(action)}
+                  size="sm"
+                  variant={action.action_type === "resolve_incident" ? "default" : "outline"}
+                >
+                  {actionIcon(action.action_type)}
+                  {action.label ?? "Apply"}
+                </Button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 };
 
@@ -307,6 +438,133 @@ const CoverIncidentDialog = ({
   );
 };
 
+type PublicIncidentDraftDialogProps = {
+  open: boolean;
+  pages: ApiStatusPageResponse[];
+  selectedStatusPageID: string;
+  draft?: ApiStatusPageIncidentDraftResponse;
+  createdIncident?: ApiStatusPageIncidentResponse;
+  loadingPages: boolean;
+  loadingDraft: boolean;
+  pending: boolean;
+  hasError: boolean;
+  onOpenChange: (open: boolean) => void;
+  onStatusPageChange: (statusPageID: string) => void;
+  onCreate: () => void;
+};
+
+const PublicIncidentDraftDialog = ({
+  open,
+  pages,
+  selectedStatusPageID,
+  draft,
+  createdIncident,
+  loadingPages,
+  loadingDraft,
+  pending,
+  hasError,
+  onOpenChange,
+  onStatusPageChange,
+  onCreate,
+}: PublicIncidentDraftDialogProps) => {
+  const suggestions = draft?.suggestions ?? [];
+  const selectedPage = pages.find((page) => page.id === selectedStatusPageID);
+  const canCreate = Boolean(selectedStatusPageID && draft && !createdIncident && !pending);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Create public draft</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <label className="block space-y-1">
+            <span className="text-sm font-medium">status page</span>
+            <Select value={selectedStatusPageID} onValueChange={onStatusPageChange}>
+              <SelectTrigger className="w-full">
+                <span className="truncate">
+                  {selectedPage?.title ??
+                    selectedPage?.slug ??
+                    (loadingPages ? "Loading..." : "Select status page")}
+                </span>
+              </SelectTrigger>
+              <SelectContent align="start" position="popper">
+                {pages.map((page) => (
+                  <SelectItem key={page.id ?? page.slug} value={page.id ?? ""}>
+                    {page.title ?? page.slug ?? "Untitled status page"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
+
+          {pages.length === 0 && !loadingPages && (
+            <div className="text-sm text-neutral-600">No status pages available.</div>
+          )}
+
+          {selectedPage && (
+            <div className="grid gap-3 md:grid-cols-[0.9fr_1.1fr]">
+              <div className="space-y-2 bg-neutral-50 px-3 py-3">
+                <h3 className="text-sm font-medium">Suggested components</h3>
+                {loadingDraft && <div className="text-sm text-neutral-600">Loading draft...</div>}
+                {!loadingDraft && suggestions.length === 0 && (
+                  <div className="text-sm text-neutral-600">No mapped public components.</div>
+                )}
+                <div className="space-y-2">
+                  {suggestions.map((suggestion) => (
+                    <div
+                      key={suggestion.component_id}
+                      className="border border-neutral-200 bg-white px-3 py-2 text-sm"
+                    >
+                      <div className="font-medium">{suggestion.component_name}</div>
+                      <div className="text-xs text-neutral-500">
+                        {(suggestion.matches ?? []).map((match) => match.match_reason).join(", ")}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3 bg-neutral-50 px-3 py-3">
+                <h3 className="text-sm font-medium">Draft copy</h3>
+                {draft ? (
+                  <div className="space-y-3 text-sm">
+                    <DetailItem label="title" value={draft.title ?? "Untitled incident"} />
+                    <DetailItem label="impact" value={draft.impact_summary ?? "—"} />
+                    <DetailItem
+                      label="initial update"
+                      value={draft.initial_update_message ?? "—"}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <StatusBadge value={toStatus(draft.public_status)} />
+                      <SeverityBadge value={toSeverity(draft.severity)} />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm text-neutral-600">No draft generated.</div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {createdIncident && (
+            <div className="text-sm text-emerald-700">
+              Draft created: {createdIncident.title ?? "Untitled incident"}
+            </div>
+          )}
+          {hasError && <div className="text-sm text-rose-700">Unable to create public draft.</div>}
+        </div>
+        <DialogFooter showCloseButton>
+          <Button type="button" disabled={!canCreate} onClick={onCreate}>
+            <MegaphoneIcon />
+            {pending ? "Creating..." : "Create draft"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const EvidenceReportGroup = ({
   title,
   report,
@@ -349,9 +607,36 @@ export const IncidentDetailPage = () => {
   const resolveIncident = useResolveIncident({ mutation: { onSuccess: refreshIncident } });
   const coverIncident = useCoverIncident({ mutation: { onSuccess: refreshIncident } });
   const reopenIncident = useReopenIncident({ mutation: { onSuccess: refreshIncident } });
+  const [publicDraftDialogOpen, setPublicDraftDialogOpen] = useState(false);
+  const [selectedStatusPageID, setSelectedStatusPageID] = useState("");
+  const [createdPublicDraft, setCreatedPublicDraft] = useState<ApiStatusPageIncidentResponse>();
+  const statusPagesResponse = useListStatusPages({
+    query: { enabled: publicDraftDialogOpen },
+  });
   const incident = incidentResponse.data?.incident;
+  const incidentID = incident?.id ?? "";
+  const statusPages = statusPagesResponse.data?.pages ?? [];
+  const firstStatusPageID = statusPagesResponse.data?.pages?.[0]?.id ?? "";
+  const publicDraftPreview = usePreviewStatusPageIncidentDraft(
+    selectedStatusPageID,
+    { incident_id: incidentID },
+    {
+      query: {
+        enabled: publicDraftDialogOpen && selectedStatusPageID !== "" && incidentID !== "",
+      },
+    },
+  );
+  const createPublicDraft = useCreateStatusPageIncidentDraft({
+    mutation: {
+      onSuccess: (data) => {
+        setCreatedPublicDraft(data.incident);
+        void queryClient.invalidateQueries({ queryKey: ["/v1/status-pages"] });
+      },
+    },
+  });
   const impactedComponents = incident?.impacted_components ?? [];
   const evidence = incidentResponse.data?.evidence;
+  const nextActions = incidentResponse.data?.next_actions ?? [];
   const timeline = incidentResponse.data?.timeline ?? [];
   const alertDeliveries = incidentResponse.data?.alert_deliveries ?? [];
   const monitorReports = incidentResponse.data?.monitor_reports ?? [];
@@ -380,7 +665,13 @@ export const IncidentDetailPage = () => {
     acknowledgeIncident.isPending ||
     resolveIncident.isPending ||
     coverIncident.isPending ||
-    reopenIncident.isPending;
+    reopenIncident.isPending ||
+    createPublicDraft.isPending;
+
+  useEffect(() => {
+    if (!publicDraftDialogOpen || selectedStatusPageID || firstStatusPageID === "") return;
+    setSelectedStatusPageID(firstStatusPageID);
+  }, [firstStatusPageID, publicDraftDialogOpen, selectedStatusPageID]);
 
   const handleTabChange = (tab: string) => {
     if (!isDetailTab(tab)) return;
@@ -392,6 +683,44 @@ export const IncidentDetailPage = () => {
       { replace: true },
     );
   };
+
+  const handleNextAction = (action: ApiIncidentNextActionResponse) => {
+    const id = action.target_id || incident?.id || "";
+    switch (action.action_type) {
+      case "acknowledge_incident":
+        acknowledgeIncident.mutate({ id });
+        break;
+      case "cover_incident":
+        setCoverDialogOpen(true);
+        break;
+      case "resolve_incident":
+        resolveIncident.mutate({ id });
+        break;
+      case "reopen_incident":
+        reopenIncident.mutate({ id });
+        break;
+    }
+  };
+
+  const handlePublicDraftDialogOpenChange = (open: boolean) => {
+    setPublicDraftDialogOpen(open);
+    if (open) {
+      setCreatedPublicDraft(undefined);
+    }
+  };
+
+  const handleCreatePublicDraft = () => {
+    const draft = publicDraftPreview.data?.draft;
+    if (!incidentID || !selectedStatusPageID || !draft) return;
+    createPublicDraft.mutate({
+      id: selectedStatusPageID,
+      data: {
+        internal_incident_id: incidentID,
+        affected_component_ids: draft.affected_component_ids ?? [],
+      },
+    });
+  };
+
 
   if (incidentResponse.isLoading) {
     return <div className="py-3 text-sm text-neutral-600">Loading incident...</div>;
@@ -424,8 +753,16 @@ export const IncidentDetailPage = () => {
               {incident.latest_event ?? "No latest event recorded."}
             </p>
           </div>
-          {(canResolve || canReopen) && (
+          {nextActions.length === 0 && (canResolve || canReopen) && (
             <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                disabled={actionPending}
+                onClick={() => handlePublicDraftDialogOpenChange(true)}
+              >
+                <MegaphoneIcon />
+                Public draft
+              </Button>
               {canAcknowledge && (
                 <Button
                   variant="outline"
@@ -474,6 +811,13 @@ export const IncidentDetailPage = () => {
           reopenIncident.error) && (
           <div className="text-sm text-rose-700">Unable to update incident.</div>
         )}
+
+        <IncidentNextActionPanel
+          actions={nextActions}
+          actionPending={actionPending}
+          incident={incident}
+          onAction={handleNextAction}
+        />
 
         <div className="grid gap-3 lg:grid-cols-3">
           <DetailGroup title="Incident">
@@ -663,6 +1007,25 @@ export const IncidentDetailPage = () => {
             { onSuccess: () => setCoverDialogOpen(false) },
           )
         }
+      />
+      <PublicIncidentDraftDialog
+        open={publicDraftDialogOpen}
+        pages={statusPages}
+        selectedStatusPageID={selectedStatusPageID}
+        draft={publicDraftPreview.data?.draft}
+        createdIncident={createdPublicDraft}
+        loadingPages={statusPagesResponse.isLoading}
+        loadingDraft={publicDraftPreview.isLoading}
+        pending={createPublicDraft.isPending}
+        hasError={Boolean(
+          statusPagesResponse.error || publicDraftPreview.error || createPublicDraft.error,
+        )}
+        onOpenChange={handlePublicDraftDialogOpenChange}
+        onStatusPageChange={(statusPageID) => {
+          setSelectedStatusPageID(statusPageID);
+          setCreatedPublicDraft(undefined);
+        }}
+        onCreate={handleCreatePublicDraft}
       />
     </div>
   );

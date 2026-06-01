@@ -116,7 +116,7 @@ func (s *Server) enqueueStatusPageSubscriberIncidentUpdateDeliveries(tx *gorm.DB
 		}
 		if err := tx.Model(&db.StatusPageSubscriber{}).
 			Where("id = ?", subscriber.ID).
-			Updates(map[string]interface{}{
+			Updates(map[string]any{
 				"last_delivery_status": state,
 				"last_delivery_at":     now,
 			}).Error; err != nil {
