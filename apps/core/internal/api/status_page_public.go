@@ -103,7 +103,7 @@ func (s *Server) loadPublicStatusPageProjection(c *gin.Context, slug string) (St
 	if !ok {
 		return StatusPagePreviewResponse{}, false
 	}
-	return s.statusPagePreview(detail, false), true
+	return s.statusPagePreviewWithUptime(detail, false, statusPagePublicDefaultUptimeWindow), true
 }
 
 func (s *Server) loadPublicStatusPageProjectionWithUptime(c *gin.Context, slug string) (StatusPagePreviewResponse, bool) {
@@ -222,7 +222,7 @@ func (s *Server) statusPagePreviewProjection(detail StatusPageDetailResponse, in
 	}
 
 	page := detail.Page
-	page.ThemeSettings = publicStatusPageThemeSettings(page.ThemeSettings)
+	page.ThemeSettings = safeStatusPagePublicThemeSettings(page.ThemeSettings)
 
 	return StatusPagePreviewResponse{
 		Page: StatusPagePublicPageResponse{
@@ -237,8 +237,21 @@ func (s *Server) statusPagePreviewProjection(detail StatusPageDetailResponse, in
 		Incidents:            incidents,
 		OverallStatus:        overallStatus,
 		OverallStatusDisplay: publicStatusDisplay(overallStatus),
+		UptimeWindow:         window,
 		LastUpdated:          publicMinute(time.Now()),
 	}
+}
+
+func safeStatusPagePublicThemeSettings(settings map[string]interface{}) map[string]interface{} {
+	if settings == nil {
+		return map[string]interface{}{}
+	}
+	sanitized, err := sanitizeStatusPageThemeSettings(settings)
+	if err == nil {
+		return sanitized
+	}
+
+	return publicStatusPageThemeSettings(settings)
 }
 
 func publicStatusPageThemeSettings(settings map[string]interface{}) map[string]interface{} {

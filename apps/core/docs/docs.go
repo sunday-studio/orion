@@ -9668,6 +9668,9 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/api.StatusPagePublicSectionResponse"
                     }
+                },
+                "uptime_window": {
+                    "type": "string"
                 }
             }
         },
