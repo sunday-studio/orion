@@ -549,4 +549,3 @@ func writeStatusPageDraftError(c *gin.Context, err error) {
 	}
 	utils.InternalError(c, "Failed to generate status page incident draft", err)
 }
-

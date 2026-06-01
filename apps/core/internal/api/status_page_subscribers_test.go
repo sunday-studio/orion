@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"orion/core/internal/db"
+	"orion/core/internal/service"
 	"orion/core/internal/utils"
 
 	"github.com/gin-gonic/gin"
@@ -285,6 +286,18 @@ func TestPublicStatusPageSubscriberUnsubscribeIsIdempotent(t *testing.T) {
 	if stored.State != statusPageSubscriberStateUnsubscribed || stored.UnsubscribedAt == nil {
 		t.Fatalf("stored subscriber = %+v, want unsubscribed with timestamp", stored)
 	}
+	var auditEvents []db.AuditEvent
+	if err := server.db.Where("action = ? AND affected_object_id = ?", service.StatusPageAuditActionSubscriberUnsubscribed, subscriber.ID).Find(&auditEvents).Error; err != nil {
+		t.Fatalf("load unsubscribe audit events: %v", err)
+	}
+	if len(auditEvents) != 1 {
+		t.Fatalf("unsubscribe audit event count = %d, want one", len(auditEvents))
+	}
+	if !strings.Contains(auditEvents[0].MetadataJSON, `"previous_state":"confirmed"`) {
+		t.Fatalf("unsubscribe audit metadata = %q, want previous confirmed state", auditEvents[0].MetadataJSON)
+	}
+	assertNotContains(t, auditEvents[0].MetadataJSON, "Unsub.User")
+	assertNotContains(t, auditEvents[0].MetadataJSON, unsubscribeToken)
 }
 
 func TestPublicStatusPageSubscriberPreferencesSuppressHiddenComponents(t *testing.T) {

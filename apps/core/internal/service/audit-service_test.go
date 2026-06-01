@@ -21,6 +21,7 @@ func TestRecordStatusPageEventStoresMinimalAuditFields(t *testing.T) {
 		AffectedObjectID:   " status-page-1 ",
 		ActorType:          " user ",
 		ActorID:            " user-1 ",
+		Metadata:           map[string]interface{}{"reason": "release"},
 	})
 	if err != nil {
 		t.Fatalf("RecordStatusPageEvent() error = %v", err)
@@ -49,6 +50,9 @@ func TestRecordStatusPageEventStoresMinimalAuditFields(t *testing.T) {
 	}
 	if event.CreatedAt.IsZero() {
 		t.Fatal("CreatedAt was zero")
+	}
+	if !strings.Contains(event.MetadataJSON, "release") {
+		t.Fatalf("MetadataJSON = %q, want encoded metadata", event.MetadataJSON)
 	}
 
 	var stored db.AuditEvent

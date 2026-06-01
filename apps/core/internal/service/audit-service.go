@@ -21,6 +21,11 @@ const (
 	StatusPageAuditActionPublicIncidentUpdated       = "status_page_public_incident_updated"
 	StatusPageAuditActionPublicIncidentUpdateCreated = "status_page_public_incident_update_created"
 	StatusPageAuditActionPublicIncidentResolved      = "status_page_public_incident_resolved"
+	StatusPageAuditActionSubscriberUnsubscribed      = "status_page_subscriber_unsubscribed"
+	StatusPageAuditActionSubscriberAnonymized        = "status_page_subscriber_anonymized"
+	StatusPageAuditActionSubscriberHardDeleted       = "status_page_subscriber_hard_deleted"
+	StatusPageAuditActionSubscriberPendingPurged     = "status_page_subscriber_pending_purged"
+	StatusPageAuditActionSubscriberDeliveriesPurged  = "status_page_subscriber_deliveries_purged"
 
 	DataLifecycleAuditActionSettingsUpdated = "data_lifecycle_settings_updated"
 	DataLifecycleAuditActionRollupRun       = "data_lifecycle_rollup_run"
@@ -34,6 +39,7 @@ type StatusPageAuditEventInput struct {
 	AffectedObjectID   string
 	ActorType          string
 	ActorID            string
+	Metadata           map[string]interface{}
 }
 
 type AuditEventInput struct {
@@ -70,6 +76,7 @@ func (s *AuditService) RecordStatusPageEvent(input StatusPageAuditEventInput) (*
 		AffectedObjectID:   normalized.AffectedObjectID,
 		ActorType:          normalized.ActorType,
 		ActorID:            normalized.ActorID,
+		Metadata:           normalized.Metadata,
 	})
 }
 
@@ -142,6 +149,7 @@ func normalizeStatusPageAuditEventInput(input StatusPageAuditEventInput) StatusP
 		AffectedObjectID:   strings.TrimSpace(input.AffectedObjectID),
 		ActorType:          strings.TrimSpace(input.ActorType),
 		ActorID:            strings.TrimSpace(input.ActorID),
+		Metadata:           input.Metadata,
 	}
 }
 
@@ -176,6 +184,11 @@ func validStatusPageAuditAction(action string) bool {
 		StatusPageAuditActionPublicIncidentUpdated,
 		StatusPageAuditActionPublicIncidentUpdateCreated,
 		StatusPageAuditActionPublicIncidentResolved,
+		StatusPageAuditActionSubscriberUnsubscribed,
+		StatusPageAuditActionSubscriberAnonymized,
+		StatusPageAuditActionSubscriberHardDeleted,
+		StatusPageAuditActionSubscriberPendingPurged,
+		StatusPageAuditActionSubscriberDeliveriesPurged,
 	} {
 		if action == supported {
 			return true
