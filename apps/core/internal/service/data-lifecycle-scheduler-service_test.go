@@ -71,16 +71,26 @@ func TestDataLifecycleSchedulerSkipsManualMode(t *testing.T) {
 		t.Fatalf("update settings: %v", err)
 	}
 	oldReportID := insertArchiveMonitorReport(t, database, "monitor_manual", "down", now.AddDate(0, 0, -31))
+	expiredPending := insertLifecycleSubscriber(t, database, lifecycleSubscriberSeed{
+		ID:              "status_page_subscriber_manual_pending",
+		StatusPageID:    "status_page_manual",
+		State:           statusPageSubscriberStatePending,
+		Email:           "manual-pending@example.com",
+		ConfirmationDue: ptrTime(now.Add(-8 * 24 * time.Hour)),
+		CreatedAt:       now.Add(-10 * 24 * time.Hour),
+		UpdatedAt:       now.Add(-10 * 24 * time.Hour),
+	})
 
 	result, err := NewDataLifecycleSchedulerService(database, logger, dataDir, time.Hour).RunDue(now)
 	if err != nil {
 		t.Fatalf("RunDue() error = %v", err)
 	}
-	if !result.SkippedManual || result.RollupRan || result.ArchiveRan {
-		t.Fatalf("RunDue() result = %+v, want manual skip", result)
+	if !result.SkippedManual || result.RollupRan || result.ArchiveRan || !result.SubscriberPrivacyRetentionRan || result.SubscriberPrivacyRetentionCount != 1 {
+		t.Fatalf("RunDue() result = %+v, want manual archive skip with subscriber privacy retention", result)
 	}
 
 	assertArchiveReportExists(t, database, &db.MonitorReport{}, oldReportID)
+	assertLifecycleSubscriberMissing(t, database, expiredPending.ID)
 	var settings db.DataLifecycleSettings
 	if err := database.First(&settings, 1).Error; err != nil {
 		t.Fatalf("find settings: %v", err)
@@ -105,7 +115,7 @@ func TestDataLifecycleSchedulerRunsOncePerDay(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("update settings: %v", err)
 	}
-	if err := database.Model(&db.DataLifecycleSettings{}).Where("id = ?", 1).Updates(map[string]interface{}{
+	if err := database.Model(&db.DataLifecycleSettings{}).Where("id = ?", 1).Updates(map[string]any{
 		"last_rollup_run_at":  now.Add(-time.Hour),
 		"last_archive_run_at": now.Add(-time.Hour),
 	}).Error; err != nil {

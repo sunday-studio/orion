@@ -1,6 +1,7 @@
 import { IncidentSummary, type IncidentSummaryStatus } from "./incident-summary";
 import { DataTable } from "@/components/data-table";
 import { DataTableLink } from "@/components/data-table-link";
+import { EmptyState } from "@/components/empty-state";
 import {
   NotificationBadge,
   SeverityBadge,
@@ -12,6 +13,7 @@ import {
 import { type ApiIncidentResponse, useGetIncidents } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
 import { ListPagination } from "@/components/list-pagination";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -232,7 +234,25 @@ export const IncidentList = () => {
   }
 
   if (incidentsResponse.error || filteredIncidentsResponse.error) {
-    return <div className="py-3 text-sm">Unable to load incidents.</div>;
+    return (
+      <EmptyState
+        title="Unable to load incidents"
+        description="Retry after Core is reachable."
+        tone="error"
+        action={
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              void incidentsResponse.refetch();
+              void filteredIncidentsResponse.refetch();
+            }}
+          >
+            Retry
+          </Button>
+        }
+      />
+    );
   }
 
   return (
@@ -278,7 +298,15 @@ export const IncidentList = () => {
         <DataTable
           columns={columns}
           data={incidents}
-          emptyMessage="No incidents recorded."
+          emptyMessage={
+            status !== "all" ||
+            resolution !== "all" ||
+            actor !== "all" ||
+            covered !== "all" ||
+            notification !== "all"
+              ? "No incidents match the current filters."
+              : "No incidents recorded."
+          }
           getRowId={(incident) => incident.id ?? ""}
         />
       </div>

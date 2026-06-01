@@ -1,5 +1,6 @@
 import { DataTable } from "@/components/data-table";
 import { DataTableLink } from "@/components/data-table-link";
+import { EmptyState } from "@/components/empty-state";
 import { ListPagination } from "@/components/list-pagination";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,9 @@ const typeOptions = [
   { value: "alert_failed", label: "Alert failed" },
   { value: "alert_suppressed", label: "Alert suppressed" },
   { value: "alert_cooldown", label: "Alert cooldown" },
+  { value: "data_lifecycle_settings_updated", label: "Lifecycle settings updated" },
+  { value: "data_lifecycle_rollup_run", label: "Lifecycle rollup run" },
+  { value: "data_lifecycle_archive_run", label: "Lifecycle archive run" },
   { value: "retention_rollup_ran", label: "Retention rollup ran" },
   { value: "retention_archive_ran", label: "Retention archive ran" },
 ] as const;
@@ -335,7 +339,18 @@ export const LogsPage = () => {
               )}
             </div>
 
-            {eventsQuery.error && <div className="text-sm">Unable to load event log.</div>}
+            {eventsQuery.error && (
+              <EmptyState
+                title="Unable to load event log"
+                description="Retry after Core is reachable."
+                tone="error"
+                action={
+                  <Button size="sm" variant="outline" onClick={() => void eventsQuery.refetch()}>
+                    Retry
+                  </Button>
+                }
+              />
+            )}
             {!eventsQuery.error && (
               <DataTable
                 columns={columns}
@@ -348,12 +363,14 @@ export const LogsPage = () => {
                 loadingMessage="Loading event log..."
               />
             )}
-            <ListPagination
-              count={count}
-              limit={EVENT_LIMIT}
-              offset={offset}
-              onOffsetChange={setOffset}
-            />
+            {count > 0 && (
+              <ListPagination
+                count={count}
+                limit={EVENT_LIMIT}
+                offset={offset}
+                onOffsetChange={setOffset}
+              />
+            )}
           </section>
         </TabsContent>
 
@@ -411,7 +428,22 @@ export const LogsPage = () => {
               )}
             </div>
 
-            {serviceLogsQuery.error && <div className="text-sm">Unable to load service logs.</div>}
+            {serviceLogsQuery.error && (
+              <EmptyState
+                title="Unable to load service logs"
+                description="Retry after Core is reachable."
+                tone="error"
+                action={
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void serviceLogsQuery.refetch()}
+                  >
+                    Retry
+                  </Button>
+                }
+              />
+            )}
             {!serviceLogsQuery.error && (
               <DataTable
                 columns={serviceLogColumns}
@@ -426,12 +458,14 @@ export const LogsPage = () => {
                 loadingMessage="Loading service logs..."
               />
             )}
-            <ListPagination
-              count={serviceLogCount}
-              limit={SERVICE_LOG_LIMIT}
-              offset={serviceOffset}
-              onOffsetChange={setServiceOffset}
-            />
+            {serviceLogCount > 0 && (
+              <ListPagination
+                count={serviceLogCount}
+                limit={SERVICE_LOG_LIMIT}
+                offset={serviceOffset}
+                onOffsetChange={setServiceOffset}
+              />
+            )}
           </section>
         </TabsContent>
       </Tabs>

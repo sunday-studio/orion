@@ -2,16 +2,7 @@ import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badges";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { TabCount, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
   type ApiIncidentResponse,
@@ -19,6 +10,8 @@ import {
   type ApiStatusPageIncidentResponse,
   type ApiStatusPagePublicComponentResponse,
   type ApiStatusPageResponse,
+  type ApiStatusPageSubscriberAdminResponse,
+  useAnonymizeStatusPageSubscriber,
   useCreateStatusPage,
   useCreateStatusPageComponent,
   useCreateStatusPageComponentMapping,
@@ -30,10 +23,13 @@ import {
   useDeleteStatusPageComponentMapping,
   useDeleteStatusPageIncident,
   useDeleteStatusPageSection,
+  useDeleteStatusPageSubscriber,
+  useDisableStatusPageSubscriber,
   useGetAgents,
   useGetIncidents,
   useGetMonitors,
   useGetStatusPage,
+  useListStatusPageSubscribers,
   useListStatusPages,
   usePreviewStatusPage,
   usePublishStatusPage,
@@ -43,16 +39,16 @@ import {
   useUpdateStatusPageIncident,
 } from "@/orion-sdk";
 import {
-  AlertTriangle,
   CheckCircle2,
-  Copy,
   ExternalLink,
   Eye,
   Globe2,
   Link2,
   Plus,
   RadioTower,
+  ShieldX,
   Trash2,
+  UserX,
 } from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -74,6 +70,7 @@ type PageSettingsFormState = {
   logoAlt: string;
   headerStyle: string;
   componentDensity: string;
+  themeMode: string;
   showUptimeSummary: boolean;
   showIncidentHistory: boolean;
   defaultIncidentVisibility: string;
@@ -117,13 +114,6 @@ type IncidentUpdateFormState = {
   publishedAt: string;
 };
 
-type DeleteTarget =
-  | { kind: "page"; id: string; label: string }
-  | { kind: "section"; id: string; label: string }
-  | { kind: "component"; id: string; label: string }
-  | { kind: "mapping"; id: string; componentId: string; label: string }
-  | { kind: "incident"; id: string; label: string };
-
 const emptyPageForm: PageFormState = {
   slug: "",
   title: "",
@@ -141,6 +131,7 @@ const emptyPageSettingsForm: PageSettingsFormState = {
   logoAlt: "",
   headerStyle: "standard",
   componentDensity: "comfortable",
+  themeMode: "light",
   showUptimeSummary: true,
   showIncidentHistory: true,
   defaultIncidentVisibility: "draft",
@@ -226,6 +217,21 @@ const componentDensityOptions = [
   { label: "Compact", value: "compact" },
 ];
 
+const themeModeOptions = [
+  { label: "Light", value: "light" },
+  { label: "Dark", value: "dark" },
+  { label: "System", value: "system" },
+];
+
+const subscriberStateOptions = [
+  { label: "All subscribers", value: "" },
+  { label: "Pending", value: "pending" },
+  { label: "Confirmed", value: "confirmed" },
+  { label: "Unsubscribed", value: "unsubscribed" },
+  { label: "Bounced", value: "bounced" },
+  { label: "Disabled", value: "disabled" },
+];
+
 const statusBadgeStatus = (status?: string) => {
   switch (status) {
     case "operational":
@@ -237,6 +243,22 @@ const statusBadgeStatus = (status?: string) => {
       return "maintenance";
     case "degraded":
       return "degraded";
+    default:
+      return "unknown";
+  }
+};
+
+const subscriberBadgeStatus = (state?: string) => {
+  switch (state) {
+    case "confirmed":
+      return "up";
+    case "pending":
+      return "maintenance";
+    case "bounced":
+      return "degraded";
+    case "unsubscribed":
+    case "disabled":
+      return "stale";
     default:
       return "unknown";
   }
@@ -282,19 +304,6 @@ const formatDateTime = (value?: string) => {
   return date.toLocaleString();
 };
 
-const absoluteUrl = (path: string) => {
-  if (!path) return "";
-  if (typeof window === "undefined") return path;
-  return new URL(path, window.location.origin).toString();
-};
-
-const looksLikePrivateLabel = (value?: string) =>
-  Boolean(
-    value?.match(
-      /(^|\s)(localhost|127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|\.local|\.internal|\.lan)(\s|$)/i,
-    ),
-  );
-
 const themeString = (settings: Record<string, unknown> | undefined, key: string, fallback = "") => {
   const value = settings?.[key];
   return typeof value === "string" ? value : fallback;
@@ -311,6 +320,59 @@ const themeBoolean = (
 
 const validAccentColor = (value: string) =>
   /^#[0-9a-f]{6}$/i.test(value) ? value : emptyPageSettingsForm.accentColor;
+
+const uptimeStatusClass = (status?: string) => {
+  switch (status) {
+    case "operational":
+      return "bg-emerald-500";
+    case "degraded":
+      return "bg-amber-400";
+    case "partial_outage":
+    case "major_outage":
+    case "outage":
+      return "bg-red-500";
+    case "maintenance":
+      return "bg-blue-500";
+    case "no_data":
+    case "unknown":
+      return "bg-neutral-300";
+    default:
+      return "bg-neutral-300";
+  }
+};
+
+const previewStatusPanelClass = (status?: string) => {
+  switch (status) {
+    case "operational":
+      return "border-emerald-300 bg-emerald-50 text-emerald-950";
+    case "degraded":
+      return "border-amber-300 bg-amber-50 text-amber-950";
+    case "partial_outage":
+    case "major_outage":
+      return "border-red-300 bg-red-50 text-red-950";
+    case "maintenance":
+      return "border-blue-300 bg-blue-50 text-blue-950";
+    default:
+      return "border-neutral-200 bg-neutral-50 text-neutral-900";
+  }
+};
+
+const previewStatusMessage = (status?: string) => {
+  switch (status) {
+    case "operational":
+      return "All systems operational";
+    case "degraded":
+      return "Some systems degraded";
+    case "partial_outage":
+      return "Partial outage";
+    case "major_outage":
+      return "Major outage";
+    case "maintenance":
+      return "Maintenance in progress";
+    default:
+      return "Status unavailable";
+  }
+};
 
 const pageSettingsFormFromPage = (page?: ApiStatusPageResponse): PageSettingsFormState => {
   const themeSettings = page?.theme_settings;
@@ -333,6 +395,7 @@ const pageSettingsFormFromPage = (page?: ApiStatusPageResponse): PageSettingsFor
     openGraphImageUrl: page?.open_graph_image_url ?? "",
     seoDescription: page?.seo_description ?? "",
     seoTitle: page?.seo_title ?? "",
+    themeMode: themeString(themeSettings, "theme_mode", emptyPageSettingsForm.themeMode),
     showIncidentHistory: themeBoolean(themeSettings, "show_incident_history", true),
     showUptimeSummary: themeBoolean(themeSettings, "show_uptime_summary", true),
   };
@@ -350,6 +413,7 @@ const pageThemeSettings = (
   logo_url: form.logoUrl.trim() || undefined,
   show_incident_history: form.showIncidentHistory,
   show_uptime_summary: form.showUptimeSummary,
+  theme_mode: form.themeMode,
 });
 
 const incidentFormFromIncident = (incident?: ApiStatusPageIncidentResponse): IncidentFormState => ({
@@ -382,6 +446,162 @@ const Field = ({ label, children }: { label: string; children: ReactNode }) => (
   </label>
 );
 
+const StatusPageSubscribersTab = ({ pageId }: { pageId: string }) => {
+  const [stateFilter, setStateFilter] = useState("");
+  const subscribersResponse = useListStatusPageSubscribers(
+    pageId,
+    stateFilter ? { state: stateFilter } : undefined,
+    { query: { enabled: Boolean(pageId) } },
+  );
+  const subscribers = subscribersResponse.data?.subscribers ?? [];
+  const refreshSubscribers = () => {
+    void subscribersResponse.refetch();
+  };
+  const disableSubscriber = useDisableStatusPageSubscriber({
+    mutation: { onSuccess: refreshSubscribers },
+  });
+  const anonymizeSubscriber = useAnonymizeStatusPageSubscriber({
+    mutation: { onSuccess: refreshSubscribers },
+  });
+  const deleteSubscriber = useDeleteStatusPageSubscriber({
+    mutation: { onSuccess: refreshSubscribers },
+  });
+  const isMutating =
+    disableSubscriber.isPending || anonymizeSubscriber.isPending || deleteSubscriber.isPending;
+
+  const disable = (subscriber: ApiStatusPageSubscriberAdminResponse) => {
+    if (!pageId || !subscriber.id) return;
+    disableSubscriber.mutate({ id: pageId, subscriberId: subscriber.id });
+  };
+
+  const anonymize = (subscriber: ApiStatusPageSubscriberAdminResponse) => {
+    if (!pageId || !subscriber.id) return;
+    if (!window.confirm("Anonymize this subscriber and remove contact data?")) return;
+    anonymizeSubscriber.mutate({ id: pageId, subscriberId: subscriber.id });
+  };
+
+  const hardDelete = (subscriber: ApiStatusPageSubscriberAdminResponse) => {
+    if (!pageId || !subscriber.id) return;
+    if (!window.confirm("Hard-delete this subscriber and delivery history?")) return;
+    deleteSubscriber.mutate({ id: pageId, subscriberId: subscriber.id });
+  };
+
+  return (
+    <section className="space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-medium">Subscribers</h3>
+          <p className="mt-1 text-sm text-neutral-600">
+            {subscribersResponse.data?.count ?? 0} matching records
+          </p>
+        </div>
+        <Field label="State">
+          <select
+            className="h-9 w-full min-w-48 border border-neutral-200 bg-white px-3 text-sm"
+            value={stateFilter}
+            onChange={(event) => setStateFilter(event.target.value)}
+          >
+            {subscriberStateOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
+
+      {subscribersResponse.isLoading && <div className="text-sm text-neutral-600">Loading...</div>}
+      {subscribersResponse.isError && <div className="text-sm">Unable to load subscribers.</div>}
+      {!subscribersResponse.isLoading &&
+        !subscribersResponse.isError &&
+        subscribers.length === 0 && (
+          <EmptyState
+            title="No subscribers"
+            description="Confirmed public subscribers will appear here with masked destinations."
+          />
+        )}
+
+      <div className="space-y-3">
+        {subscribers.map((subscriber) => (
+          <div className="border border-neutral-200 p-3" key={subscriber.id}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium">{subscriber.masked_destination}</span>
+                  <StatusBadge
+                    fallback={subscriber.state}
+                    value={subscriberBadgeStatus(subscriber.state)}
+                  />
+                </div>
+                <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-neutral-600">
+                  <span>{subscriber.destination_type}</span>
+                  <span>Source {subscriber.source || "unknown"}</span>
+                  <span>Created {formatDateTime(subscriber.created_at)}</span>
+                  {subscriber.last_delivery_status && (
+                    <span>
+                      Last delivery {subscriber.last_delivery_status} -{" "}
+                      {formatDateTime(subscriber.last_delivery_at)}
+                    </span>
+                  )}
+                  {subscriber.bounce_count ? <span>Bounces {subscriber.bounce_count}</span> : null}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  disabled={isMutating || subscriber.state === "disabled"}
+                  onClick={() => disable(subscriber)}
+                  type="button"
+                  variant="outline"
+                >
+                  <UserX className="size-4" />
+                  Disable
+                </Button>
+                <Button
+                  disabled={isMutating || subscriber.masked_destination === "anonymized"}
+                  onClick={() => anonymize(subscriber)}
+                  type="button"
+                  variant="outline"
+                >
+                  <ShieldX className="size-4" />
+                  Anonymize
+                </Button>
+                <Button
+                  disabled={isMutating}
+                  onClick={() => hardDelete(subscriber)}
+                  type="button"
+                  variant="outline"
+                >
+                  <Trash2 className="size-4" />
+                  Delete
+                </Button>
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2 text-sm">
+              {(subscriber.components ?? []).map((component) => (
+                <span className="border border-neutral-200 px-2 py-1" key={component.id}>
+                  {component.name}
+                </span>
+              ))}
+              {(subscriber.components ?? []).length === 0 && (
+                <span className="text-neutral-600">All visible components</span>
+              )}
+            </div>
+            <div className="mt-3 grid gap-2 text-xs text-neutral-600 sm:grid-cols-3">
+              <span>Confirmed {formatDateTime(subscriber.confirmed_at)}</span>
+              <span>Unsubscribed {formatDateTime(subscriber.unsubscribed_at)}</span>
+              <span>Disabled {formatDateTime(subscriber.disabled_at)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {(disableSubscriber.isError || anonymizeSubscriber.isError || deleteSubscriber.isError) && (
+        <p className="text-sm">Unable to update subscriber.</p>
+      )}
+    </section>
+  );
+};
+
 export const StatusPagesPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedPageId = searchParams.get("page") ?? "";
@@ -409,9 +629,7 @@ export const StatusPagesPage = () => {
   const [editIncidentForm, setEditIncidentForm] = useState<IncidentFormState>(emptyIncidentForm);
   const [updateForm, setUpdateForm] = useState<IncidentUpdateFormState>(emptyIncidentUpdateForm);
   const [selectedIncidentId, setSelectedIncidentId] = useState("");
-  const [activeTab, setActiveTab] = useState("overview");
-  const [copiedLink, setCopiedLink] = useState("");
-  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [activePageTab, setActivePageTab] = useState<"setup" | "subscribers">("setup");
 
   useEffect(() => {
     if (!selectedPageId && pages[0]?.id) {
@@ -455,10 +673,8 @@ export const StatusPagesPage = () => {
 
   const refreshStatusPages = () => {
     void pagesResponse.refetch();
-    if (pageId) {
-      void detailResponse.refetch();
-      void previewResponse.refetch();
-    }
+    void detailResponse.refetch();
+    void previewResponse.refetch();
   };
 
   const createPage = useCreateStatusPage({
@@ -525,40 +741,23 @@ export const StatusPagesPage = () => {
   const deletePage = useDeleteStatusPage({
     mutation: {
       onSuccess: () => {
-        setDeleteTarget(null);
         setSearchParams({});
         void pagesResponse.refetch();
       },
     },
   });
   const deleteSection = useDeleteStatusPageSection({
-    mutation: {
-      onSuccess: () => {
-        setDeleteTarget(null);
-        refreshStatusPages();
-      },
-    },
+    mutation: { onSuccess: refreshStatusPages },
   });
   const deleteComponent = useDeleteStatusPageComponent({
-    mutation: {
-      onSuccess: () => {
-        setDeleteTarget(null);
-        refreshStatusPages();
-      },
-    },
+    mutation: { onSuccess: refreshStatusPages },
   });
   const deleteMapping = useDeleteStatusPageComponentMapping({
-    mutation: {
-      onSuccess: () => {
-        setDeleteTarget(null);
-        refreshStatusPages();
-      },
-    },
+    mutation: { onSuccess: refreshStatusPages },
   });
   const deleteIncident = useDeleteStatusPageIncident({
     mutation: {
       onSuccess: () => {
-        setDeleteTarget(null);
         setSelectedIncidentId("");
         refreshStatusPages();
       },
@@ -566,6 +765,52 @@ export const StatusPagesPage = () => {
   });
 
   const preview = previewResponse.data?.preview;
+  const previewThemeMode = themeString(
+    preview?.page?.theme_settings,
+    "theme_mode",
+    emptyPageSettingsForm.themeMode,
+  );
+  const previewDark = previewThemeMode === "dark";
+  const previewActiveIncidents = (preview?.incidents ?? []).filter(
+    (incident) => incident.public_status !== "resolved",
+  );
+  const previewRecentIncidents = (preview?.incidents ?? []).filter(
+    (incident) => incident.public_status === "resolved",
+  );
+  const sections = detail?.sections ?? [];
+  const components = detail?.components ?? [];
+  const unpublishedIncidents = incidents.filter((incident) => incident.visibility !== "published");
+  const publishedIncidents = incidents.filter((incident) => incident.visibility === "published");
+  const unmappedComponents = components.filter(
+    (component) => (component.mappings ?? []).length === 0,
+  );
+  const publishBlockers = [
+    ...(sections.length === 0 ? ["Add at least one section before publishing."] : []),
+    ...(components.length === 0 ? ["Add at least one public component before publishing."] : []),
+    ...(unmappedComponents.length > 0
+      ? [
+          `Map ${unmappedComponents.length} public component${unmappedComponents.length === 1 ? "" : "s"} before publishing.`,
+        ]
+      : []),
+  ];
+  const publishWarnings = [
+    ...(unpublishedIncidents.length > 0
+      ? [
+          `${unpublishedIncidents.length} public incident draft${unpublishedIncidents.length === 1 ? "" : "s"} will not appear on the public page.`,
+        ]
+      : []),
+    ...(publishedIncidents.length === 0
+      ? ["No public incidents are published. This is fine for a healthy page."]
+      : []),
+    ...(previewResponse.error ? ["Public preview could not be loaded before publishing."] : []),
+  ];
+  const canPublish = publishBlockers.length === 0 && selectedPage?.visibility !== "public";
+  const deletePending =
+    deletePage.isPending ||
+    deleteSection.isPending ||
+    deleteComponent.isPending ||
+    deleteMapping.isPending ||
+    deleteIncident.isPending;
   const monitors = monitorsResponse.data?.monitors ?? [];
   const agents = agentsResponse.data?.agents ?? [];
   const internalIncidents = internalIncidentsResponse.data?.incidents ?? [];
@@ -595,86 +840,38 @@ export const StatusPagesPage = () => {
     if (page.id) setSearchParams({ page: page.id });
   };
 
-  const publishValidation = useMemo(() => {
-    const errors: string[] = [];
-    const warnings: string[] = [];
-    const visibleComponents = (detail?.components ?? []).filter((component) => component.visible);
-
-    if (visibleComponents.length === 0) {
-      errors.push("Add at least one visible component before publishing.");
+  const removePage = () => {
+    if (!selectedPage?.id) return;
+    if (
+      !window.confirm(`Delete ${selectedPage.title ?? "this status page"} and all nested data?`)
+    ) {
+      return;
     }
-    visibleComponents.forEach((component) => {
-      if (!component.manual_status && (component.mappings ?? []).length === 0) {
-        errors.push(`${component.public_name} needs a mapped resource or manual status.`);
-      }
-      if (looksLikePrivateLabel(component.public_name)) {
-        errors.push(`${component.public_name} looks like a private host or internal label.`);
-      }
-    });
-    if (looksLikePrivateLabel(detailPage?.title)) {
-      warnings.push("Page title looks like a private host or internal label.");
-    }
-    (detail?.incidents ?? [])
-      .filter((incident) => incident.visibility === "published")
-      .forEach((incident) => {
-        const hasPublishedUpdate = (incident.updates ?? []).some(
-          (update) => update.published_at && update.message?.trim(),
-        );
-        if (!hasPublishedUpdate) {
-          errors.push(`${incident.title} is published without a published update.`);
-        }
-      });
-
-    return { errors, warnings };
-  }, [detail, detailPage?.title]);
-
-  const publicLinks = useMemo(() => {
-    const slug = selectedPage?.slug ?? "";
-    if (!slug) return [];
-    return [
-      { key: "page", label: "Public page", value: absoluteUrl(publicUrl(slug)) },
-      { key: "feed", label: "Atom feed", value: absoluteUrl(`/status/${slug}/feed.atom`) },
-      { key: "badge", label: "Page badge", value: absoluteUrl(`/status/${slug}/badge.svg`) },
-    ];
-  }, [selectedPage?.slug]);
-
-  const copyLink = async (key: string, value: string) => {
-    if (!value) return;
-    await navigator.clipboard.writeText(value);
-    setCopiedLink(key);
-    window.setTimeout(() => setCopiedLink((current) => (current === key ? "" : current)), 1500);
+    deletePage.mutate({ id: selectedPage.id });
   };
 
-  const deletePending =
-    deletePage.isPending ||
-    deleteSection.isPending ||
-    deleteComponent.isPending ||
-    deleteMapping.isPending ||
-    deleteIncident.isPending;
+  const removeSection = (sectionId?: string, label?: string) => {
+    if (!pageId || !sectionId) return;
+    if (!window.confirm(`Delete ${label ?? "this section"} and its components?`)) return;
+    deleteSection.mutate({ id: pageId, sectionId });
+  };
 
-  const confirmDelete = () => {
-    if (!pageId || !deleteTarget) return;
-    switch (deleteTarget.kind) {
-      case "page":
-        deletePage.mutate({ id: deleteTarget.id });
-        break;
-      case "section":
-        deleteSection.mutate({ id: pageId, sectionId: deleteTarget.id });
-        break;
-      case "component":
-        deleteComponent.mutate({ id: pageId, componentId: deleteTarget.id });
-        break;
-      case "mapping":
-        deleteMapping.mutate({
-          id: pageId,
-          componentId: deleteTarget.componentId,
-          mappingId: deleteTarget.id,
-        });
-        break;
-      case "incident":
-        deleteIncident.mutate({ id: pageId, incidentId: deleteTarget.id });
-        break;
-    }
+  const removeComponent = (componentId?: string, label?: string) => {
+    if (!pageId || !componentId) return;
+    if (!window.confirm(`Delete ${label ?? "this component"} and its mappings?`)) return;
+    deleteComponent.mutate({ id: pageId, componentId });
+  };
+
+  const removeMapping = (componentId?: string, mappingId?: string) => {
+    if (!pageId || !componentId || !mappingId) return;
+    if (!window.confirm("Delete this component mapping?")) return;
+    deleteMapping.mutate({ id: pageId, componentId, mappingId });
+  };
+
+  const removeIncident = () => {
+    if (!pageId || !selectedIncident?.id) return;
+    if (!window.confirm(`Delete ${selectedIncident.title ?? "this public incident"}?`)) return;
+    deleteIncident.mutate({ id: pageId, incidentId: selectedIncident.id });
   };
 
   const submitPage = (event: FormEvent) => {
@@ -913,7 +1110,7 @@ export const StatusPagesPage = () => {
 
       <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="space-y-4">
-          <form className="space-y-3 border border-neutral-200 p-3" onSubmit={submitPage}>
+          <form className="space-y-3" onSubmit={submitPage}>
             <h2 className="text-sm font-medium">New Page</h2>
             <Field label="Slug">
               <Input
@@ -942,7 +1139,7 @@ export const StatusPagesPage = () => {
                 rows={3}
               />
             </Field>
-            <Button className="w-full" disabled={createPage.isPending} type="submit">
+            <Button className="w-full" disabled={createPage.isPending}>
               <Plus className="size-4" />
               {createPage.isPending ? "Creating..." : "Create page"}
             </Button>
@@ -979,7 +1176,7 @@ export const StatusPagesPage = () => {
         )}
 
         {selectedPage && (
-          <main className="space-y-4">
+          <main className="space-y-6">
             <section className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -1004,11 +1201,7 @@ export const StatusPagesPage = () => {
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button
-                  disabled={
-                    publishPage.isPending ||
-                    selectedPage.visibility === "public" ||
-                    publishValidation.errors.length > 0
-                  }
+                  disabled={publishPage.isPending || !canPublish}
                   onClick={() => selectedPage.id && publishPage.mutate({ id: selectedPage.id })}
                 >
                   <Globe2 className="size-4" />
@@ -1022,19 +1215,13 @@ export const StatusPagesPage = () => {
                   {unpublishPage.isPending ? "Unpublishing..." : "Unpublish"}
                 </Button>
                 <Button
-                  onClick={() =>
-                    selectedPage.id &&
-                    setDeleteTarget({
-                      id: selectedPage.id,
-                      kind: "page",
-                      label: selectedPage.title ?? selectedPage.slug ?? "status page",
-                    })
-                  }
+                  disabled={deletePending}
+                  onClick={removePage}
                   type="button"
                   variant="outline"
                 >
                   <Trash2 className="size-4" />
-                  Delete
+                  {deletePage.isPending ? "Deleting..." : "Delete"}
                 </Button>
               </div>
               {publishPage.isError && (
@@ -1042,148 +1229,51 @@ export const StatusPagesPage = () => {
                   Unable to publish. Check visible components and mappings.
                 </div>
               )}
+              {(publishBlockers.length > 0 || publishWarnings.length > 0) && (
+                <div className="basis-full space-y-1 text-sm">
+                  {publishBlockers.map((blocker) => (
+                    <div className="text-rose-700" key={blocker}>
+                      {blocker}
+                    </div>
+                  ))}
+                  {publishWarnings.map((warning) => (
+                    <div className="text-amber-700" key={warning}>
+                      {warning}
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
 
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList>
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="settings">Settings</TabsTrigger>
-                <TabsTrigger value="components">
-                  Components <TabCount>{detail?.components?.length ?? 0}</TabCount>
-                </TabsTrigger>
-                <TabsTrigger value="incidents">
-                  Incidents <TabCount>{incidents.length}</TabCount>
-                </TabsTrigger>
-              </TabsList>
+            <div className="inline-flex border border-neutral-800">
+              <button
+                className={`px-3 py-1.5 text-sm ${
+                  activePageTab === "setup" ? "bg-neutral-800 text-white" : "bg-white"
+                }`}
+                onClick={() => setActivePageTab("setup")}
+                type="button"
+              >
+                Setup
+              </button>
+              <button
+                className={`border-l border-neutral-800 px-3 py-1.5 text-sm ${
+                  activePageTab === "subscribers" ? "bg-neutral-800 text-white" : "bg-white"
+                }`}
+                onClick={() => setActivePageTab("subscribers")}
+                type="button"
+              >
+                Subscribers
+              </button>
+            </div>
 
-              <TabsContent className="space-y-4 pt-3" value="overview">
-                <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-                  <div className="space-y-4">
-                    <div className="border border-neutral-200 p-3">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <h3 className="text-sm font-medium">Publish validation</h3>
-                        <StatusBadge
-                          fallback={publishValidation.errors.length > 0 ? "blocked" : "ready"}
-                          value={publishValidation.errors.length > 0 ? "down" : "up"}
-                        />
-                      </div>
-                      <div className="mt-3 space-y-2 text-sm">
-                        {publishValidation.errors.length === 0 &&
-                          publishValidation.warnings.length === 0 && (
-                            <div className="flex items-center gap-2 text-neutral-700">
-                              <CheckCircle2 className="size-4" />
-                              Ready to publish.
-                            </div>
-                          )}
-                        {publishValidation.errors.map((error) => (
-                          <div className="flex items-start gap-2" key={error}>
-                            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-                            <span>{error}</span>
-                          </div>
-                        ))}
-                        {publishValidation.warnings.map((warning) => (
-                          <div className="flex items-start gap-2 text-neutral-700" key={warning}>
-                            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-                            <span>{warning}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="border border-neutral-200 p-3">
-                      <h3 className="text-sm font-medium">Public links</h3>
-                      <div className="mt-3 space-y-2">
-                        {publicLinks.map((link) => (
-                          <div
-                            className="grid gap-2 text-sm md:grid-cols-[120px_minmax(0,1fr)_auto_auto]"
-                            key={link.key}
-                          >
-                            <div className="font-medium">{link.label}</div>
-                            <code className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap bg-neutral-50 px-2 py-1 text-xs">
-                              {link.value}
-                            </code>
-                            <Button
-                              onClick={() => void copyLink(link.key, link.value)}
-                              size="sm"
-                              type="button"
-                              variant="outline"
-                            >
-                              <Copy className="size-3.5" />
-                              {copiedLink === link.key ? "Copied" : "Copy"}
-                            </Button>
-                            <Button
-                              onClick={() => window.open(link.value, "_blank", "noreferrer")}
-                              size="sm"
-                              type="button"
-                              variant="outline"
-                            >
-                              <ExternalLink className="size-3.5" />
-                              Open
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-medium">Preview</h3>
-                      <Eye className="size-4 text-neutral-500" />
-                    </div>
-                    {previewResponse.isLoading && (
-                      <div className="text-sm text-neutral-600">Loading...</div>
-                    )}
-                    {preview && (
-                      <div className="border border-neutral-200 p-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <div>
-                            <div className="font-medium">{preview.page?.title}</div>
-                            <div className="text-sm text-neutral-600">{preview.page?.slug}</div>
-                          </div>
-                          <StatusBadge
-                            fallback={preview.overall_status}
-                            value={statusBadgeStatus(preview.overall_status)}
-                          />
-                        </div>
-                        <div className="mt-4 space-y-3">
-                          {(preview.sections ?? []).map((section) => (
-                            <div key={section.id}>
-                              <div className="text-sm font-medium">{section.name}</div>
-                              <div className="mt-2 space-y-2">
-                                {(section.components ?? []).map(
-                                  (component: ApiStatusPagePublicComponentResponse) => (
-                                    <div
-                                      className="flex items-center justify-between text-sm"
-                                      key={component.id}
-                                    >
-                                      <span>{component.name}</span>
-                                      <StatusBadge
-                                        fallback={component.status}
-                                        value={statusBadgeStatus(component.status)}
-                                      />
-                                    </div>
-                                  ),
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </section>
-              </TabsContent>
-
-              <TabsContent className="pt-3" value="settings">
+            {activePageTab === "subscribers" ? (
+              <StatusPageSubscribersTab pageId={pageId} />
+            ) : (
+              <>
                 <form className="space-y-4" onSubmit={submitPageSettings}>
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <h3 className="text-sm font-medium">Page settings</h3>
-                    <Button
-                      disabled={!pageId || updatePage.isPending}
-                      type="submit"
-                      variant="outline"
-                    >
+                    <h3 className="text-sm font-medium">Page Settings</h3>
+                    <Button disabled={!pageId || updatePage.isPending} variant="outline">
                       <CheckCircle2 className="size-4" />
                       {updatePage.isPending ? "Saving..." : "Save settings"}
                     </Button>
@@ -1332,6 +1422,26 @@ export const StatusPagesPage = () => {
                             ))}
                           </select>
                         </Field>
+                        <Field label="Theme mode">
+                          <select
+                            className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
+                            value={pageSettingsForm.themeMode}
+                            onChange={(event) =>
+                              setPageSettingsForm((current) => ({
+                                ...current,
+                                themeMode: event.target.value,
+                              }))
+                            }
+                          >
+                            {themeModeOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
                         <Field label="Component density">
                           <select
                             className="h-9 w-full border border-neutral-200 bg-white px-3 text-sm"
@@ -1383,14 +1493,9 @@ export const StatusPagesPage = () => {
                   </div>
                   {updatePage.isError && <p className="text-sm">Unable to save page settings.</p>}
                 </form>
-              </TabsContent>
 
-              <TabsContent className="space-y-4 pt-3" value="components">
                 <section className="grid gap-4 xl:grid-cols-3">
-                  <form
-                    className="space-y-3 border border-neutral-200 p-3"
-                    onSubmit={submitSection}
-                  >
+                  <form className="space-y-3" onSubmit={submitSection}>
                     <h3 className="text-sm font-medium">Sections</h3>
                     <Field label="Name">
                       <Input
@@ -1399,20 +1504,33 @@ export const StatusPagesPage = () => {
                         placeholder="API"
                       />
                     </Field>
-                    <Button
-                      disabled={!pageId || createSection.isPending}
-                      type="submit"
-                      variant="outline"
-                    >
+                    <Button disabled={!pageId || createSection.isPending} variant="outline">
                       <Plus className="size-4" />
                       Add section
                     </Button>
+                    <div className="space-y-2">
+                      {(detail?.sections ?? []).map((section) => (
+                        <div
+                          className="flex items-center justify-between gap-2 border border-neutral-200 px-2 py-1.5 text-sm"
+                          key={section.id}
+                        >
+                          <span className="min-w-0 truncate">{section.name}</span>
+                          <Button
+                            disabled={deletePending}
+                            onClick={() => removeSection(section.id, section.name)}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            <Trash2 className="size-3.5" />
+                            Remove
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
                   </form>
 
-                  <form
-                    className="space-y-3 border border-neutral-200 p-3"
-                    onSubmit={submitComponent}
-                  >
+                  <form className="space-y-3" onSubmit={submitComponent}>
                     <h3 className="text-sm font-medium">Components</h3>
                     <Field label="Section">
                       <select
@@ -1476,7 +1594,6 @@ export const StatusPagesPage = () => {
                     </Field>
                     <Button
                       disabled={!componentForm.sectionId || createComponent.isPending}
-                      type="submit"
                       variant="outline"
                     >
                       <Plus className="size-4" />
@@ -1484,10 +1601,7 @@ export const StatusPagesPage = () => {
                     </Button>
                   </form>
 
-                  <form
-                    className="space-y-3 border border-neutral-200 p-3"
-                    onSubmit={submitMapping}
-                  >
+                  <form className="space-y-3" onSubmit={submitMapping}>
                     <h3 className="text-sm font-medium">Mappings</h3>
                     <Field label="Component">
                       <select
@@ -1549,7 +1663,6 @@ export const StatusPagesPage = () => {
                         !mappingForm.resourceId ||
                         createMapping.isPending
                       }
-                      type="submit"
                       variant="outline"
                     >
                       <Link2 className="size-4" />
@@ -1558,154 +1671,6 @@ export const StatusPagesPage = () => {
                   </form>
                 </section>
 
-                <section className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
-                  <div className="space-y-2">
-                    <h3 className="text-sm font-medium">Configured Sections</h3>
-                    {(detail?.sections ?? []).map((section) => (
-                      <div
-                        className="flex items-center justify-between gap-2 border border-neutral-200 p-2 text-sm"
-                        key={section.id}
-                      >
-                        <div>
-                          <div className="font-medium">{section.name}</div>
-                          <div className="text-neutral-600">Order {section.sort_order ?? 0}</div>
-                        </div>
-                        <Button
-                          onClick={() =>
-                            section.id &&
-                            setDeleteTarget({
-                              id: section.id,
-                              kind: "section",
-                              label: section.name ?? "section",
-                            })
-                          }
-                          size="sm"
-                          type="button"
-                          variant="outline"
-                        >
-                          <Trash2 className="size-3.5" />
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
-                    {(detail?.sections ?? []).length === 0 && (
-                      <EmptyState
-                        title="No sections"
-                        description="Add a section before components."
-                      />
-                    )}
-                  </div>
-
-                  <div className="space-y-3">
-                    <h3 className="text-sm font-medium">Configured Components</h3>
-                    {(detail?.components ?? []).length === 0 && (
-                      <EmptyState
-                        title="No components"
-                        description="Add a section and component."
-                      />
-                    )}
-                    {(detail?.components ?? []).map((component) => (
-                      <div className="border border-neutral-200 p-3" key={component.id}>
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div>
-                            <div className="font-medium">{component.public_name}</div>
-                            <div className="text-sm text-neutral-600">
-                              {component.public_description}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <StatusBadge
-                              fallback={component.manual_status || component.display_mode}
-                              value={statusBadgeStatus(component.manual_status)}
-                            />
-                            <Button
-                              onClick={() =>
-                                component.id &&
-                                setDeleteTarget({
-                                  id: component.id,
-                                  kind: "component",
-                                  label: component.public_name ?? "component",
-                                })
-                              }
-                              size="sm"
-                              type="button"
-                              variant="outline"
-                            >
-                              <Trash2 className="size-3.5" />
-                              Remove
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="mt-3 space-y-1 text-sm">
-                          {(component.mappings ?? []).map((mapping) => (
-                            <div
-                              className="flex flex-wrap items-center justify-between gap-2 border-t border-neutral-100 pt-2"
-                              key={mapping.id}
-                            >
-                              <div className="flex min-w-0 items-center gap-2">
-                                <RadioTower className="size-3.5 shrink-0 text-neutral-500" />
-                                <span>{mapping.resource_type}</span>
-                                <span className="min-w-0 truncate text-neutral-600">
-                                  {mapping.resource_id}
-                                </span>
-                              </div>
-                              <Button
-                                onClick={() =>
-                                  mapping.id &&
-                                  component.id &&
-                                  setDeleteTarget({
-                                    componentId: component.id,
-                                    id: mapping.id,
-                                    kind: "mapping",
-                                    label: `${mapping.resource_type} mapping`,
-                                  })
-                                }
-                                size="sm"
-                                type="button"
-                                variant="outline"
-                              >
-                                <Trash2 className="size-3.5" />
-                                Remove
-                              </Button>
-                            </div>
-                          ))}
-                          {(component.mappings ?? []).length === 0 && (
-                            <div className="text-neutral-600">No mappings</div>
-                          )}
-                        </div>
-                        {selectedPage.slug && component.id && (
-                          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-neutral-100 pt-2 text-sm">
-                            <code className="min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap bg-neutral-50 px-2 py-1 text-xs">
-                              {absoluteUrl(
-                                `/status/${selectedPage.slug}/components/${component.id}/badge.svg`,
-                              )}
-                            </code>
-                            <Button
-                              onClick={() =>
-                                component.id &&
-                                void copyLink(
-                                  `component-${component.id}`,
-                                  absoluteUrl(
-                                    `/status/${selectedPage.slug}/components/${component.id}/badge.svg`,
-                                  ),
-                                )
-                              }
-                              size="sm"
-                              type="button"
-                              variant="outline"
-                            >
-                              <Copy className="size-3.5" />
-                              {copiedLink === `component-${component.id}` ? "Copied" : "Copy badge"}
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              </TabsContent>
-
-              <TabsContent className="pt-3" value="incidents">
                 <section className="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
                   <form className="space-y-3" onSubmit={submitCreateIncident}>
                     <h3 className="text-sm font-medium">New Public Incident</h3>
@@ -1871,7 +1836,6 @@ export const StatusPagesPage = () => {
                       disabled={
                         !pageId || !createIncidentForm.title.trim() || createIncident.isPending
                       }
-                      type="submit"
                       variant="outline"
                     >
                       <Plus className="size-4" />
@@ -2115,7 +2079,6 @@ export const StatusPagesPage = () => {
                           <div className="flex flex-wrap gap-2">
                             <Button
                               disabled={!editIncidentForm.title.trim() || updateIncident.isPending}
-                              type="submit"
                               variant="outline"
                             >
                               {updateIncident.isPending ? "Saving..." : "Save incident"}
@@ -2139,20 +2102,13 @@ export const StatusPagesPage = () => {
                               Resolve
                             </Button>
                             <Button
-                              disabled={updateIncident.isPending}
-                              onClick={() =>
-                                selectedIncident.id &&
-                                setDeleteTarget({
-                                  id: selectedIncident.id,
-                                  kind: "incident",
-                                  label: selectedIncident.title ?? "public incident",
-                                })
-                              }
+                              disabled={deletePending}
+                              onClick={removeIncident}
                               type="button"
                               variant="outline"
                             >
                               <Trash2 className="size-4" />
-                              Delete
+                              {deleteIncident.isPending ? "Deleting..." : "Delete"}
                             </Button>
                           </div>
                           {updateIncident.isError && (
@@ -2223,7 +2179,6 @@ export const StatusPagesPage = () => {
                               disabled={
                                 !updateForm.message.trim() || createIncidentUpdate.isPending
                               }
-                              type="submit"
                             >
                               <Plus className="size-4" />
                               {createIncidentUpdate.isPending ? "Adding..." : "Add update"}
@@ -2266,34 +2221,275 @@ export const StatusPagesPage = () => {
                     )}
                   </div>
                 </section>
-              </TabsContent>
-            </Tabs>
+
+                <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-medium">Configured Components</h3>
+                    {(detail?.components ?? []).length === 0 && (
+                      <EmptyState
+                        title="No components"
+                        description="Add a section and component."
+                      />
+                    )}
+                    {(detail?.components ?? []).map((component) => (
+                      <div className="border border-neutral-200 p-3" key={component.id}>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <div className="font-medium">{component.public_name}</div>
+                            <div className="text-sm text-neutral-600">
+                              {component.public_description}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <StatusBadge
+                              fallback={component.manual_status || component.display_mode}
+                              value={statusBadgeStatus(component.manual_status)}
+                            />
+                            <Button
+                              disabled={deletePending}
+                              onClick={() => removeComponent(component.id, component.public_name)}
+                              size="sm"
+                              type="button"
+                              variant="outline"
+                            >
+                              <Trash2 className="size-3.5" />
+                              Remove
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="mt-3 space-y-1 text-sm">
+                          {(component.mappings ?? []).map((mapping) => (
+                            <div
+                              className="flex flex-wrap items-center justify-between gap-2"
+                              key={mapping.id}
+                            >
+                              <div className="flex min-w-0 items-center gap-2">
+                                <RadioTower className="size-3.5 shrink-0 text-neutral-500" />
+                                <span>{mapping.resource_type}</span>
+                                <span className="min-w-0 truncate text-neutral-600">
+                                  {mapping.resource_id}
+                                </span>
+                              </div>
+                              <Button
+                                disabled={deletePending}
+                                onClick={() => removeMapping(component.id, mapping.id)}
+                                size="sm"
+                                type="button"
+                                variant="outline"
+                              >
+                                <Trash2 className="size-3.5" />
+                                Remove
+                              </Button>
+                            </div>
+                          ))}
+                          {(component.mappings ?? []).length === 0 && (
+                            <div className="text-neutral-600">No mappings</div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-medium">Preview</h3>
+                      <Eye className="size-4 text-neutral-500" />
+                    </div>
+                    {previewResponse.isLoading && (
+                      <div className="text-sm text-neutral-600">Loading...</div>
+                    )}
+                    {previewResponse.error && (
+                      <EmptyState
+                        className="min-h-32"
+                        title="Unable to load public preview"
+                        description="Retry after Core is reachable."
+                        tone="error"
+                      />
+                    )}
+                    {preview && (
+                      <div
+                        className={`space-y-4 border p-4 ${
+                          previewDark
+                            ? "border-neutral-800 bg-neutral-950 text-neutral-100"
+                            : "border-neutral-200 bg-neutral-50 text-neutral-950"
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <div className="font-semibold">{preview.page?.title}</div>
+                            <div
+                              className={
+                                previewDark
+                                  ? "text-sm text-neutral-400"
+                                  : "text-sm text-neutral-600"
+                              }
+                            >
+                              {preview.page?.description || preview.page?.slug}
+                            </div>
+                          </div>
+                          <Button size="sm" type="button" variant="outline">
+                            Get updates
+                          </Button>
+                        </div>
+
+                        <div
+                          className={`rounded border p-3 ${previewStatusPanelClass(
+                            preview.overall_status,
+                          )}`}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle2 className="size-5" />
+                              <span className="font-semibold">
+                                {previewStatusMessage(preview.overall_status)}
+                              </span>
+                            </div>
+                            <span className="text-xs">
+                              Updated {formatDateTime(preview.last_updated)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {previewActiveIncidents.length > 0 && (
+                          <div className="space-y-2">
+                            <div className="text-sm font-medium">Active events</div>
+                            {previewActiveIncidents.map((incident) => (
+                              <div
+                                className={
+                                  previewDark
+                                    ? "border border-neutral-800 bg-neutral-900 p-3 text-sm"
+                                    : "border border-neutral-200 bg-white p-3 text-sm"
+                                }
+                                key={incident.id}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="font-medium">{incident.title}</span>
+                                  <StatusBadge
+                                    fallback={incident.public_status}
+                                    value={incidentBadgeStatus(incident.public_status)}
+                                  />
+                                </div>
+                                {incident.impact_summary && (
+                                  <p
+                                    className={
+                                      previewDark
+                                        ? "mt-1 text-neutral-400"
+                                        : "mt-1 text-neutral-600"
+                                    }
+                                  >
+                                    {incident.impact_summary}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="space-y-4">
+                          {(preview.sections ?? []).map((section) => (
+                            <div key={section.id}>
+                              <div className="mb-2 text-sm font-medium">{section.name}</div>
+                              <div className="space-y-3">
+                                {(section.components ?? []).map(
+                                  (component: ApiStatusPagePublicComponentResponse) => (
+                                    <div className="space-y-2 text-sm" key={component.id}>
+                                      <div className="flex items-center justify-between gap-3">
+                                        <span className="font-medium">{component.name}</span>
+                                        <span className="flex items-center gap-2">
+                                          <span
+                                            className={
+                                              previewDark ? "text-neutral-400" : "text-neutral-600"
+                                            }
+                                          >
+                                            {component.uptime?.uptime_display ?? "No data"}
+                                          </span>
+                                          <StatusBadge
+                                            fallback={component.status}
+                                            value={statusBadgeStatus(component.status)}
+                                          />
+                                        </span>
+                                      </div>
+                                      {(component.uptime_history ?? []).length > 0 && (
+                                        <div
+                                          aria-label={`${component.name} uptime history`}
+                                          className="grid gap-0.5"
+                                          style={{
+                                            gridTemplateColumns: `repeat(${component.uptime_history?.length ?? 1}, minmax(1px, 1fr))`,
+                                          }}
+                                        >
+                                          {(component.uptime_history ?? []).map((bucket) => (
+                                            <span
+                                              aria-label={`${bucket.date}: ${bucket.uptime_display}`}
+                                              className={`h-6 rounded-sm ${uptimeStatusClass(bucket.status)}`}
+                                              key={bucket.date}
+                                              title={`${bucket.date}: ${bucket.uptime_display}`}
+                                            />
+                                          ))}
+                                        </div>
+                                      )}
+                                      <div
+                                        className={
+                                          previewDark
+                                            ? "flex justify-between text-xs text-neutral-500"
+                                            : "flex justify-between text-xs text-neutral-500"
+                                        }
+                                      >
+                                        <span>
+                                          {component.uptime_history?.[0]?.date ??
+                                            preview.uptime_window}
+                                        </span>
+                                        <span>today</span>
+                                      </div>
+                                    </div>
+                                  ),
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="text-sm font-medium">Recent events</div>
+                          {previewRecentIncidents.length === 0 && (
+                            <div
+                              className={
+                                previewDark
+                                  ? "text-sm text-neutral-400"
+                                  : "text-sm text-neutral-600"
+                              }
+                            >
+                              No recent incidents.
+                            </div>
+                          )}
+                          {previewRecentIncidents.slice(0, 3).map((incident) => (
+                            <div
+                              className={
+                                previewDark
+                                  ? "border-t border-neutral-800 pt-2 text-sm"
+                                  : "border-t border-neutral-200 pt-2 text-sm"
+                              }
+                              key={incident.id}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-medium">{incident.title}</span>
+                                <span
+                                  className={previewDark ? "text-neutral-400" : "text-neutral-600"}
+                                >
+                                  {incident.public_status}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              </>
+            )}
           </main>
         )}
       </div>
-
-      <Dialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Delete {deleteTarget?.kind ?? "item"}</DialogTitle>
-            <DialogDescription>
-              This removes {deleteTarget?.label ?? "the selected item"} from the status page
-              configuration.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              disabled={deletePending}
-              onClick={confirmDelete}
-              type="button"
-              variant="outline"
-            >
-              <Trash2 className="size-4" />
-              {deletePending ? "Deleting..." : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

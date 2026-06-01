@@ -35,7 +35,7 @@ func TestRunDueChecksStoresUpReportForDomainExpiration(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-domain-test", HTTPClient: httpClient})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 	if requestedURL != "https://rdap.org/domain/example.com" {
@@ -49,7 +49,7 @@ func TestRunDueChecksStoresUpReportForDomainExpiration(t *testing.T) {
 	if report.Health != "up" {
 		t.Fatalf("report health = %q, want up", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestRunDueChecksStoresDegradedReportForExpiringDomain(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-domain-test", HTTPClient: httpClient})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -89,7 +89,7 @@ func TestRunDueChecksStoresDegradedReportForExpiringDomain(t *testing.T) {
 	if report.Health != "degraded" {
 		t.Fatalf("report health = %q, want degraded", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -116,7 +116,7 @@ func TestRunDueChecksStoresDownReportForUnavailableDomainExpirationData(t *testi
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-domain-test", HTTPClient: httpClient})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -124,7 +124,7 @@ func TestRunDueChecksStoresDownReportForUnavailableDomainExpirationData(t *testi
 	if report.Health != "down" {
 		t.Fatalf("report health = %q, want down", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -161,7 +161,7 @@ func TestRunDueChecksFallsBackToWHOISForUnavailableRDAPDomainExpirationData(t *t
 			return conn, nil
 		},
 	})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 	if dialedAddress != "whois.verisign-grs.com:43" {
@@ -175,7 +175,7 @@ func TestRunDueChecksFallsBackToWHOISForUnavailableRDAPDomainExpirationData(t *t
 	if report.Health != "up" {
 		t.Fatalf("report health = %q, want up", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -216,7 +216,7 @@ func TestRunDueChecksStoresDownReportWhenRDAPAndWHOISDomainExpirationDataAreUnav
 			return conn, nil
 		},
 	})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -224,7 +224,7 @@ func TestRunDueChecksStoresDownReportWhenRDAPAndWHOISDomainExpirationDataAreUnav
 	if report.Health != "down" {
 		t.Fatalf("report health = %q, want down", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}

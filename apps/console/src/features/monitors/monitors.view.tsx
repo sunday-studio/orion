@@ -1,59 +1,29 @@
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import {
+  CoreWorkerDiagnosticsPanel,
+  coreWorkerDiagnosticsFromPayload,
+} from "@/features/monitors/components/core-worker-diagnostics";
+import {
   CoreMonitorDialog,
   type CoreMonitorSubmitAction,
 } from "@/features/monitors/components/core-monitor-dialog";
+import { coreMonitorMutationErrorMessage } from "@/features/monitors/components/core-monitor-errors";
 import { HeartbeatSetupPanel } from "@/features/monitors/components/heartbeat-setup-panel";
 import { MonitorList } from "@/features/monitors/components/monitor-list";
 import {
   type ApiCoreMonitorConfigResponse,
-  type ApiMonitorReportResponse,
   type ApiMonitorResponse,
   type ServiceCoreManagedMonitorCreateRequest,
   getMonitorHistory,
   testCoreMonitor,
   useCreateCoreMonitor,
+  useGetCoreWorkerDiagnostics,
 } from "@/orion-sdk";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useState } from "react";
-
-const mutationErrorMessage = (error: unknown, fallback: string) => {
-  if (!error) return "";
-  if (error instanceof Error) return error.message;
-  if (typeof error === "object" && "message" in error) {
-    return String((error as { message?: unknown }).message ?? fallback);
-  }
-  return fallback;
-};
-
-const parseReportPayload = (report?: ApiMonitorReportResponse) => {
-  if (!report?.payload) return {};
-  try {
-    const parsed = JSON.parse(report.payload);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : {};
-  } catch {
-    return {};
-  }
-};
-
-const describeTestResult = (health: string, report?: ApiMonitorReportResponse) => {
-  const payload = parseReportPayload(report);
-  const statusCode = payload.status_code;
-  const expectedStatus = payload.expected_status;
-  const error = payload.error;
-  if (health === "up") return "Core monitor test reported up.";
-  if (typeof statusCode === "number" && expectedStatus !== undefined) {
-    return `Core monitor test reported ${health}: received HTTP ${statusCode}, expected ${String(expectedStatus)}.`;
-  }
-  if (typeof error === "string" && error.trim() !== "") {
-    return `Core monitor test reported ${health}: ${error}`;
-  }
-  return `Core monitor test reported ${health}. Review the latest check history row.`;
-};
+import { explainMonitorFailure } from "./monitor-result-summary";
 
 export const MonitorsPage = () => {
   const [createOpen, setCreateOpen] = useState(false);
@@ -66,6 +36,10 @@ export const MonitorsPage = () => {
   }>();
   const [isTestingCreatedMonitor, setIsTestingCreatedMonitor] = useState(false);
   const queryClient = useQueryClient();
+  const workerDiagnosticsResponse = useGetCoreWorkerDiagnostics({
+    query: { refetchInterval: 30_000 },
+  });
+  const workerDiagnostics = coreWorkerDiagnosticsFromPayload(workerDiagnosticsResponse.data);
   const refreshMonitors = () => {
     void queryClient.invalidateQueries({ queryKey: ["/v1/monitors"] });
     void queryClient.invalidateQueries({ queryKey: ["/v1/monitors/summary"] });
@@ -100,8 +74,16 @@ export const MonitorsPage = () => {
         const tested = await testCoreMonitor(created.monitor.id);
         const history = await getMonitorHistory(created.monitor.id, { limit: 1, offset: 0 });
         const health =
-          tested.monitor?.computed_health ?? tested.monitor?.health ?? tested.result?.status ?? "unknown";
-        setCreateFeedback(describeTestResult(health, history.reports?.[0]));
+          tested.monitor?.computed_health ??
+          tested.monitor?.health ??
+          tested.result?.status ??
+          "unknown";
+        const explanation = explainMonitorFailure(history.reports?.[0], created.config?.kind);
+        setCreateFeedback(
+          health === "up"
+            ? "Core monitor test reported up."
+            : `Core monitor test reported ${health}: ${explanation}`,
+        );
         setCreateFeedbackTone(health === "up" ? "neutral" : "error");
       } finally {
         setIsTestingCreatedMonitor(false);
@@ -123,7 +105,11 @@ export const MonitorsPage = () => {
         </Button>
       </div>
       {createFeedback && (
-        <p className={createFeedbackTone === "error" ? "text-sm text-rose-700" : "text-sm text-neutral-600"}>
+        <p
+          className={
+            createFeedbackTone === "error" ? "text-sm text-rose-700" : "text-sm text-neutral-600"
+          }
+        >
           {createFeedback}
         </p>
       )}
@@ -134,9 +120,17 @@ export const MonitorsPage = () => {
           token={heartbeatSetup.token}
         />
       )}
-      <MonitorList />
+      <CoreWorkerDiagnosticsPanel
+        data={workerDiagnosticsResponse.data}
+        error={workerDiagnosticsResponse.error}
+        isLoading={workerDiagnosticsResponse.isLoading}
+      />
+      <MonitorList workerDiagnostics={workerDiagnostics} />
       <CoreMonitorDialog
-        error={mutationErrorMessage(createMonitor.error, "Unable to create Core monitor.")}
+        error={coreMonitorMutationErrorMessage(
+          createMonitor.error,
+          "Unable to create Core monitor.",
+        )}
         isSubmitting={createMonitor.isPending || isTestingCreatedMonitor}
         mode="create"
         onOpenChange={setCreateOpen}
