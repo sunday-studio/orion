@@ -443,7 +443,19 @@ export const AlertRulesTab = ({ channels }: AlertRulesTabProps) => {
       </div>
 
       {mutationError && <div className="text-sm text-red-700">{mutationError}</div>}
-      {Boolean(routesResponse.error) && <div className="text-sm">Unable to load alert rules.</div>}
+      {Boolean(routesResponse.error) && (
+        <EmptyState
+          className="min-h-40"
+          title="Unable to load alert rules"
+          description="Retry after Core is reachable."
+          tone="error"
+          action={
+            <Button size="sm" variant="outline" onClick={() => void routesResponse.refetch()}>
+              Retry
+            </Button>
+          }
+        />
+      )}
       {!routesResponse.error && (
         <DataTable
           columns={columns}
@@ -732,9 +744,12 @@ export const AlertRulesTab = ({ channels }: AlertRulesTabProps) => {
                 />
               </div>
               {dryRun.error && (
-                <div className="mt-3 text-sm text-red-700">
-                  {getMutationErrorMessage(dryRun.error, "Dry run failed.")}
-                </div>
+                <EmptyState
+                  className="mt-3 min-h-24"
+                  title="Unable to dry-run alert routes"
+                  description={getMutationErrorMessage(dryRun.error, "Dry run failed.")}
+                  tone="error"
+                />
               )}
               {dryRunResult && (
                 <div className="mt-4 grid gap-3 md:grid-cols-2">

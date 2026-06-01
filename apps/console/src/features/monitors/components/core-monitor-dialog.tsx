@@ -37,6 +37,7 @@ type CoreMonitorDialogProps = {
 };
 
 type FormState = {
+  advancedConfig: string;
   apiBody: string;
   apiHeaders: string;
   apiJSONAssertions: string;
@@ -44,6 +45,7 @@ type FormState = {
   confirmationCheckCount: string;
   confirmationPeriodSeconds: string;
   description: string;
+  domain: string;
   expectedStatus: string;
   expectedStatuses: string;
   expectedValues: string;
@@ -51,28 +53,46 @@ type FormState = {
   host: string;
   intervalSeconds: string;
   kind: CoreMonitorKind;
+  mailProtocol: string;
+  mailTlsMode: string;
   name: string;
   paused: boolean;
+  pingMethod: string;
   port: string;
+  rdapUrl: string;
   recordType: "A" | "AAAA" | "CNAME" | "TXT" | "MX" | "NS";
   requiredContains: string;
   recoveryPeriodSeconds: string;
   serverName: string;
   timeoutSeconds: string;
+  udpExpectedResponse: string;
+  udpPayload: string;
   url: string;
   warningDays: string;
+  whoisServer: string;
 };
 
 type CoreMonitorKind =
   | "heartbeat"
   | "http"
   | "http_keyword"
+  | "expected_status"
   | "tcp"
+  | "udp"
   | "dns"
   | "tls"
-  | "api_request";
+  | "api_request"
+  | "domain_expiration"
+  | "ping"
+  | "mail"
+  | "smtp"
+  | "imap"
+  | "pop"
+  | "synthetic"
+  | "playwright";
 
 const defaultForm: FormState = {
+  advancedConfig: '{\n  "steps": []\n}',
   apiBody: "",
   apiHeaders: "",
   apiJSONAssertions: "",
@@ -80,6 +100,7 @@ const defaultForm: FormState = {
   confirmationCheckCount: "0",
   confirmationPeriodSeconds: "0",
   description: "",
+  domain: "",
   expectedStatus: "200",
   expectedStatuses: "",
   expectedValues: "",
@@ -87,33 +108,65 @@ const defaultForm: FormState = {
   host: "",
   intervalSeconds: "60",
   kind: "http",
+  mailProtocol: "smtp",
+  mailTlsMode: "none",
   name: "",
   paused: false,
+  pingMethod: "tcp",
   port: "",
+  rdapUrl: "",
   recordType: "A",
   requiredContains: "",
   recoveryPeriodSeconds: "0",
   serverName: "",
   timeoutSeconds: "10",
+  udpExpectedResponse: "",
+  udpPayload: "",
   url: "",
   warningDays: "14",
+  whoisServer: "",
 };
 
 const coreMonitorKindOptions = [
   { value: "http", label: "HTTP status" },
   { value: "http_keyword", label: "HTTP keyword" },
+  { value: "expected_status", label: "Expected status" },
   { value: "api_request", label: "API request" },
   { value: "tcp", label: "TCP port" },
-  { value: "dns", label: "DNS" },
+  { value: "udp", label: "UDP response" },
+  { value: "dns", label: "DNS record" },
   { value: "tls", label: "TLS certificate" },
+  { value: "domain_expiration", label: "Domain expiration" },
+  { value: "ping", label: "Ping" },
+  { value: "smtp", label: "SMTP" },
+  { value: "imap", label: "IMAP" },
+  { value: "pop", label: "POP3" },
+  { value: "mail", label: "Mail protocol" },
+  { value: "synthetic", label: "Synthetic transaction" },
+  { value: "playwright", label: "Browser journey" },
   { value: "heartbeat", label: "Heartbeat" },
 ] as const;
 
 const apiMethodOptions = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"] as const;
 const dnsRecordTypeOptions = ["A", "AAAA", "CNAME", "TXT", "MX", "NS"] as const;
+const mailProtocols = ["smtp", "imap", "pop"] as const;
+const mailTlsModes = ["none", "implicit", "starttls"] as const;
+const pingMethods = ["tcp", "icmp"] as const;
 
 const isCoreMonitorKind = (value: string): value is CoreMonitorKind =>
   coreMonitorKindOptions.some((option) => option.value === value);
+
+const normalizeKind = (kind?: string): CoreMonitorKind => {
+  if (!kind) return "http";
+  if (isCoreMonitorKind(kind)) return kind;
+  if (kind === "pop3") return "pop";
+  if (kind === "http_status") return "http";
+  if (kind === "tcp_port") return "tcp";
+  if (kind === "tls_certificate") return "tls";
+  if (kind === "synthetic_multi_step") return "synthetic";
+  if (kind === "playwright_transaction") return "playwright";
+  return "http";
+};
 
 const isAPIMethod = (value: string): value is FormState["apiMethod"] =>
   apiMethodOptions.includes(value as FormState["apiMethod"]);
@@ -225,6 +278,25 @@ const parseJSONAssertions = (value: string) => {
   return parsed;
 };
 
+const formatConfigJSON = (config: ApiCoreMonitorConfigResponse | undefined, fallback: string) => {
+  try {
+    return JSON.stringify(config?.config ?? JSON.parse(fallback), null, 2);
+  } catch {
+    return fallback;
+  }
+};
+
+const parseJSONConfig = (value: string) => {
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 const buildConfigPayload = (form: FormState): Record<string, unknown> => {
   switch (form.kind) {
     case "heartbeat":
@@ -251,6 +323,15 @@ const buildConfigPayload = (form: FormState): Record<string, unknown> => {
         url: form.url.trim(),
       };
     }
+    case "expected_status": {
+      const expectedStatus = toPositiveInt(form.expectedStatus, 200);
+      const expectedStatuses = parseIntList(form.expectedStatuses, "Expected statuses");
+      return {
+        expected_status: expectedStatus,
+        ...(expectedStatuses.length > 0 ? { expected_statuses: expectedStatuses } : {}),
+        url: form.url.trim(),
+      };
+    }
     case "api_request": {
       const expectedStatus = toPositiveInt(form.expectedStatus, 200);
       const expectedStatuses = parseIntList(form.expectedStatuses, "Expected statuses");
@@ -271,6 +352,13 @@ const buildConfigPayload = (form: FormState): Record<string, unknown> => {
         host: form.host.trim(),
         port: toPositiveInt(form.port, 0),
       };
+    case "udp":
+      return {
+        expected_response: form.udpExpectedResponse,
+        host: form.host.trim(),
+        payload: form.udpPayload,
+        port: toPositiveInt(form.port, 53),
+      };
     case "dns": {
       const expectedValues = parseStringList(form.expectedValues);
       return {
@@ -286,6 +374,34 @@ const buildConfigPayload = (form: FormState): Record<string, unknown> => {
         ...(form.serverName.trim() ? { server_name: form.serverName.trim() } : {}),
         warning_days: toNonNegativeInt(form.warningDays, 14),
       };
+    case "domain_expiration":
+      return {
+        domain: form.domain.trim(),
+        ...(form.rdapUrl.trim() ? { rdap_url: form.rdapUrl.trim() } : {}),
+        warning_days: toNonNegativeInt(form.warningDays, 14),
+        ...(form.whoisServer.trim() ? { whois_server: form.whoisServer.trim() } : {}),
+      };
+    case "ping":
+      return {
+        host: form.host.trim(),
+        method: form.pingMethod,
+        ...(form.pingMethod === "tcp" && form.port.trim()
+          ? { port: toPositiveInt(form.port, 443) }
+          : {}),
+      };
+    case "mail":
+    case "smtp":
+    case "imap":
+    case "pop":
+      return {
+        host: form.host.trim(),
+        ...(form.kind === "mail" ? { protocol: form.mailProtocol } : {}),
+        ...(form.port.trim() ? { port: toPositiveInt(form.port, 25) } : {}),
+        tls_mode: form.mailTlsMode,
+      };
+    case "synthetic":
+    case "playwright":
+      return parseJSONConfig(form.advancedConfig) ?? {};
   }
 };
 
@@ -301,7 +417,6 @@ export const CoreMonitorDialog = ({
 }: CoreMonitorDialogProps) => {
   const [form, setForm] = useState<FormState>(defaultForm);
   const [localError, setLocalError] = useState("");
-  const [submitAction, setSubmitAction] = useState<CoreMonitorSubmitAction>("save");
 
   useEffect(() => {
     if (!open) return;
@@ -310,10 +425,11 @@ export const CoreMonitorDialog = ({
       setForm(defaultForm);
       return;
     }
-    const kind = isCoreMonitorKind(config?.kind ?? "") ? (config?.kind as CoreMonitorKind) : "http";
+    const kind = normalizeKind(config?.kind);
     const method = readConfigString(config, "method").toUpperCase();
     const recordType = readConfigString(config, "record_type").toUpperCase();
     setForm({
+      advancedConfig: formatConfigJSON(config, defaultForm.advancedConfig),
       apiBody: readConfigString(config, "body"),
       apiHeaders: readConfigObjectEntries(config, "headers"),
       apiJSONAssertions: readConfigJSON(config, "json_assertions"),
@@ -321,6 +437,7 @@ export const CoreMonitorDialog = ({
       confirmationCheckCount: String(config?.confirmation_check_count ?? 0),
       confirmationPeriodSeconds: String(config?.confirmation_period_seconds ?? 0),
       description: monitor?.description ?? "",
+      domain: readConfigString(config, "domain"),
       expectedStatus: readConfigNumber(config, "expected_status") || "200",
       expectedStatuses: readConfigIntList(config, "expected_statuses"),
       expectedValues: readConfigStringList(config, "expected_values"),
@@ -330,16 +447,23 @@ export const CoreMonitorDialog = ({
         config?.interval_seconds ?? monitor?.reporting_interval_seconds ?? 60,
       ),
       kind,
+      mailProtocol: readConfigString(config, "protocol") || (kind === "mail" ? "smtp" : kind),
+      mailTlsMode: readConfigString(config, "tls_mode") || "none",
       name: monitor?.name ?? "",
       paused: config?.paused ?? false,
+      pingMethod: readConfigString(config, "method") || "tcp",
       port: readConfigNumber(config, "port"),
+      rdapUrl: readConfigString(config, "rdap_url"),
       recordType: isDNSRecordType(recordType) ? recordType : "A",
       requiredContains: readConfigStringList(config, "required_contains"),
       recoveryPeriodSeconds: String(config?.recovery_period_seconds ?? 0),
       serverName: readConfigString(config, "server_name"),
       timeoutSeconds: String(config?.timeout_seconds ?? 10),
+      udpExpectedResponse: readConfigString(config, "expected_response"),
+      udpPayload: readConfigString(config, "payload"),
       url: readConfigString(config, "url"),
       warningDays: readConfigNumber(config, "warning_days") || "14",
+      whoisServer: readConfigString(config, "whois_server"),
     });
   }, [config, mode, monitor, open]);
 
@@ -348,6 +472,8 @@ export const CoreMonitorDialog = ({
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+    const action: CoreMonitorSubmitAction = submitter?.value === "save_test" ? "save_test" : "save";
     try {
       const configPayload = buildConfigPayload(form);
       setLocalError("");
@@ -365,7 +491,7 @@ export const CoreMonitorDialog = ({
         ...(isHeartbeat ? {} : { timeout_seconds: toPositiveInt(form.timeoutSeconds, 10) }),
         type: form.kind,
       };
-      onSubmit(payload, submitAction);
+      onSubmit(payload, action);
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : "Monitor configuration is invalid.");
     }
@@ -378,14 +504,36 @@ export const CoreMonitorDialog = ({
       : "Update the Core-owned check configuration.";
   const isHeartbeat = form.kind === "heartbeat";
   const isURLMonitor =
-    form.kind === "http" || form.kind === "http_keyword" || form.kind === "api_request";
-  const isHostMonitor = form.kind === "tcp" || form.kind === "dns" || form.kind === "tls";
-  const requiresPort = form.kind === "tcp";
+    form.kind === "http" ||
+    form.kind === "http_keyword" ||
+    form.kind === "expected_status" ||
+    form.kind === "api_request";
+  const isHostMonitor = [
+    "tcp",
+    "udp",
+    "dns",
+    "tls",
+    "ping",
+    "mail",
+    "smtp",
+    "imap",
+    "pop",
+  ].includes(form.kind);
+  const isDomainMonitor = form.kind === "domain_expiration";
+  const usesAdvancedJSON = form.kind === "synthetic" || form.kind === "playwright";
+  const advancedConfigError =
+    usesAdvancedJSON && !parseJSONConfig(form.advancedConfig)
+      ? "Configuration JSON must be an object."
+      : "";
+  const requiresPort = form.kind === "tcp" || form.kind === "udp";
   const canSubmit =
     form.name.trim() &&
+    !advancedConfigError &&
     (isHeartbeat ||
       (isURLMonitor && form.url.trim()) ||
-      (isHostMonitor && form.host.trim() && (!requiresPort || form.port.trim())));
+      (isHostMonitor && form.host.trim() && (!requiresPort || form.port.trim())) ||
+      (isDomainMonitor && form.domain.trim()) ||
+      usesAdvancedJSON);
   const visibleError = localError || error;
 
   return (
@@ -540,21 +688,43 @@ export const CoreMonitorDialog = ({
                     placeholder="api.example.com"
                   />
                 </label>
-                {(form.kind === "tcp" || form.kind === "tls") && (
+                {["tcp", "udp", "tls", "ping", "mail", "smtp", "imap", "pop"].includes(
+                  form.kind,
+                ) && (
                   <label className="space-y-1 text-sm">
                     <span className="font-medium">Port</span>
                     <Input
-                      required={form.kind === "tcp"}
+                      required={form.kind === "tcp" || form.kind === "udp"}
                       inputMode="numeric"
                       min={1}
                       max={65535}
                       type="number"
                       value={form.port}
                       onChange={(event) => updateForm({ port: event.target.value })}
-                      placeholder={form.kind === "tls" ? "443" : "5432"}
+                      placeholder={form.kind === "tls" || form.kind === "ping" ? "443" : "5432"}
                     />
                   </label>
                 )}
+              </>
+            )}
+            {form.kind === "udp" && (
+              <>
+                <label className="space-y-1 text-sm">
+                  <span className="font-medium">Payload</span>
+                  <Input
+                    value={form.udpPayload}
+                    onChange={(event) => updateForm({ udpPayload: event.target.value })}
+                    placeholder="optional UDP payload"
+                  />
+                </label>
+                <label className="space-y-1 text-sm">
+                  <span className="font-medium">Expected response</span>
+                  <Input
+                    value={form.udpExpectedResponse}
+                    onChange={(event) => updateForm({ udpExpectedResponse: event.target.value })}
+                    placeholder="optional response text"
+                  />
+                </label>
               </>
             )}
             {form.kind === "dns" && (
@@ -599,17 +769,125 @@ export const CoreMonitorDialog = ({
                     placeholder="api.example.com"
                   />
                 </label>
+              </>
+            )}
+            {form.kind === "ping" && (
+              <label className="space-y-1 text-sm">
+                <span className="font-medium">Method</span>
+                <Select
+                  value={form.pingMethod}
+                  onValueChange={(value) => updateForm({ pingMethod: value })}
+                >
+                  <SelectTrigger className="w-full">
+                    <span data-slot="select-value">{form.pingMethod.toUpperCase()}</span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pingMethods.map((method) => (
+                      <SelectItem key={method} value={method}>
+                        {method.toUpperCase()}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+            )}
+            {["mail", "smtp", "imap", "pop"].includes(form.kind) && (
+              <>
+                {form.kind === "mail" && (
+                  <label className="space-y-1 text-sm">
+                    <span className="font-medium">Protocol</span>
+                    <Select
+                      value={form.mailProtocol}
+                      onValueChange={(value) => updateForm({ mailProtocol: value })}
+                    >
+                      <SelectTrigger className="w-full">
+                        <span data-slot="select-value">{form.mailProtocol.toUpperCase()}</span>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {mailProtocols.map((protocol) => (
+                          <SelectItem key={protocol} value={protocol}>
+                            {protocol.toUpperCase()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </label>
+                )}
                 <label className="space-y-1 text-sm">
-                  <span className="font-medium">Warning days</span>
+                  <span className="font-medium">TLS mode</span>
+                  <Select
+                    value={form.mailTlsMode}
+                    onValueChange={(value) => updateForm({ mailTlsMode: value })}
+                  >
+                    <SelectTrigger className="w-full">
+                      <span data-slot="select-value">{form.mailTlsMode}</span>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {mailTlsModes.map((tlsMode) => (
+                        <SelectItem key={tlsMode} value={tlsMode}>
+                          {tlsMode}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </label>
+              </>
+            )}
+            {(form.kind === "tls" || form.kind === "domain_expiration") && (
+              <label className="space-y-1 text-sm">
+                <span className="font-medium">Warning days</span>
+                <Input
+                  inputMode="numeric"
+                  min={0}
+                  type="number"
+                  value={form.warningDays}
+                  onChange={(event) => updateForm({ warningDays: event.target.value })}
+                />
+              </label>
+            )}
+            {form.kind === "domain_expiration" && (
+              <>
+                <label className="space-y-1 text-sm">
+                  <span className="font-medium">Domain</span>
                   <Input
-                    inputMode="numeric"
-                    min={0}
-                    type="number"
-                    value={form.warningDays}
-                    onChange={(event) => updateForm({ warningDays: event.target.value })}
+                    required
+                    value={form.domain}
+                    onChange={(event) => updateForm({ domain: event.target.value })}
+                    placeholder="example.com"
+                  />
+                </label>
+                <label className="space-y-1 text-sm">
+                  <span className="font-medium">RDAP URL</span>
+                  <Input
+                    type="url"
+                    value={form.rdapUrl}
+                    onChange={(event) => updateForm({ rdapUrl: event.target.value })}
+                    placeholder="https://rdap.example.com/domain/example.com"
+                  />
+                </label>
+                <label className="space-y-1 text-sm">
+                  <span className="font-medium">WHOIS server</span>
+                  <Input
+                    value={form.whoisServer}
+                    onChange={(event) => updateForm({ whoisServer: event.target.value })}
+                    placeholder="whois.example.com:43"
                   />
                 </label>
               </>
+            )}
+            {usesAdvancedJSON && (
+              <label className="space-y-1 text-sm sm:col-span-2">
+                <span className="font-medium">Configuration JSON</span>
+                <Textarea
+                  value={form.advancedConfig}
+                  onChange={(event) => updateForm({ advancedConfig: event.target.value })}
+                  rows={10}
+                  spellCheck={false}
+                />
+                {advancedConfigError && (
+                  <span className="block text-rose-700">{advancedConfigError}</span>
+                )}
+              </label>
             )}
             <label className="space-y-1 text-sm">
               <span className="font-medium">Interval seconds</span>
@@ -711,20 +989,12 @@ export const CoreMonitorDialog = ({
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button
-              disabled={isSubmitting || !canSubmit}
-              type="submit"
-              onClick={() => setSubmitAction("save")}
-            >
+            <Button disabled={isSubmitting || !canSubmit} type="submit" value="save">
               <Save />
               {mode === "create" ? "Create" : "Save"}
             </Button>
             {mode === "create" && !isHeartbeat && (
-              <Button
-                disabled={isSubmitting || !canSubmit}
-                type="submit"
-                onClick={() => setSubmitAction("save_test")}
-              >
+              <Button disabled={isSubmitting || !canSubmit} type="submit" value="save_test">
                 <Play />
                 Create and test
               </Button>

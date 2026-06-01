@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { EmptyState } from "@/components/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -335,7 +336,17 @@ export const SettingsPage = () => {
         <div className="text-sm text-neutral-600">Loading data lifecycle settings...</div>
       )}
       {settingsResponse.error && (
-        <div className="text-sm text-red-700">Unable to load data lifecycle settings.</div>
+        <EmptyState
+          className="min-h-40"
+          title="Unable to load data lifecycle settings"
+          description="Retry after Core is reachable."
+          tone="error"
+          action={
+            <Button size="sm" variant="outline" onClick={() => void settingsResponse.refetch()}>
+              Retry
+            </Button>
+          }
+        />
       )}
 
       <Section
