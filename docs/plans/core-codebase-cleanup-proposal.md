@@ -193,6 +193,16 @@ Use the `golang-modernize` priority order, but apply it to Core in this order:
      Docker-image paths pass;
    - do not require Go 1.26 syntax until release CI and local contributor tooling are ready.
 
+Worker 7 readiness check, 2026-05-29:
+
+- Go 1.26.3 is the current Go 1.26 patch release in the official Go release history.
+- Core already targets `go 1.25.3`, so `any`, `slices`, `cmp`, and `t.Context()` are available
+  without raising the module directive.
+- This first modernization batch intentionally avoids Go 1.26-only syntax and experimental
+  `encoding/json/v2`, so it should remain compatible with the current Core module target.
+- A module upgrade to Go 1.26 should wait until Core tests, Agent tests, Console build, generated
+  OpenAPI/SDK checks, Docker image build, `govulncheck`, and the modernize linter all pass in CI.
+
 Avoid:
 
 - changing JSON semantics just to use newer APIs;
@@ -239,7 +249,7 @@ persistence rule, scheduler, security boundary, and public/private projection pa
 | Core worker runners | Worker tests per runner | Keep one focused file per runner covering success, failure, invalid config, timeout, payload shape, redaction, and target-policy behavior. |
 | Heartbeats | API integration plus worker tests | Cover token generation, success/failure ingest, payload truncation/redaction, pending state, missed-check reconciliation, recovery, and incident behavior. |
 | Incident lifecycle | API integration plus service tests | Cover open, acknowledge, resolve, cover, reopen, unregister cleanup, event timeline, filters, candidates, recurrence, and public-impact fields. |
-| Alerts | Service tests plus API integration tests | Cover channels, SMTP services, email destinations, routes, dry runs, grouping, cooldowns, maintenance suppression, test actions, delivery attempts, and secret redaction. |
+| Alerts | Service tests plus API integration tests | Cover webhook destinations, editable rules, dry runs, grouping, cooldowns, maintenance suppression, test actions, delivery attempts, outbound target policy, and secret redaction. |
 | Status pages admin | API integration tests | Cover page CRUD, sections, components, mappings, incidents, updates, publish validation, audit events, metadata, custom domains, and theme settings. |
 | Status pages public | API integration plus contract tests | Cover public payloads, HTML, Atom feed, badges, history, uptime, cache headers, ETags, custom-domain routing, and internal data isolation. |
 | Public subscribers | API integration plus service tests | Cover subscribe, confirm, preferences, unsubscribe, fan-out scoping, public mail sender config, token secrecy, and abuse controls. |
@@ -287,9 +297,9 @@ persistence rule, scheduler, security boundary, and public/private projection pa
 Minimum CI commands:
 
 ```sh
-cd apps/core && go test ./...
-cd apps/core && go test -race ./internal/service ./internal/worker
-make generate-openapi
+(cd apps/core && go test ./...)
+(cd apps/core && go test -race ./internal/service ./internal/worker)
+(cd apps/core && make generate-openapi)
 git diff --exit-code -- apps/core/docs apps/core/openapi.yaml apps/console/src/orion-sdk
 ```
 

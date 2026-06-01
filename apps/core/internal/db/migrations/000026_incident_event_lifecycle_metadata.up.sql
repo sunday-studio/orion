@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS incident_events (
   type TEXT NOT NULL,
   message TEXT,
   monitor_report_id TEXT,
-  created_at DATETIME
+  created_at DATETIME NOT NULL
 );
 
 ALTER TABLE incident_events ADD COLUMN actor_type TEXT NOT NULL DEFAULT 'system';

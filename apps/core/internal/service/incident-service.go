@@ -355,7 +355,7 @@ func (s *IncidentService) AcknowledgeIncident(incidentID string, metadata Incide
 
 	now := time.Now().UTC()
 	message := "Incident manually acknowledged"
-	if err := s.db.Model(&incident).Updates(map[string]interface{}{
+	if err := s.db.Model(&incident).Updates(map[string]any{
 		"status":        "acknowledged",
 		"last_event_at": now,
 		"latest_event":  message,
@@ -409,7 +409,7 @@ func (s *IncidentService) CoverIncident(incidentID string, coveredUntil *time.Ti
 	message := "Incident marked covered"
 	cleanNote := strings.TrimSpace(note)
 	metadata.Note = firstNonEmpty(metadata.Note, cleanNote)
-	updates := map[string]interface{}{
+	updates := map[string]any{
 		"status":          "covered",
 		"covered_at":      &now,
 		"covered_until":   coveredUntil,
@@ -449,7 +449,7 @@ func (s *IncidentService) ReopenIncident(incidentID string, metadata IncidentLif
 
 	now := time.Now().UTC()
 	message := "Incident reopened"
-	updates := map[string]interface{}{
+	updates := map[string]any{
 		"status":          "open",
 		"coverage_note":   "",
 		"resolution_kind": "",
@@ -521,7 +521,7 @@ func (s *IncidentService) openOrUpdateIncident(agent db.Agent, monitor db.Monito
 			return nil
 		}
 
-		updates := map[string]interface{}{
+		updates := map[string]any{
 			"severity":      severity,
 			"last_event_at": now,
 			"latest_event":  message,
@@ -585,7 +585,7 @@ func (s *IncidentService) resolveActiveIncident(monitor db.Monitor, monitorRepor
 		return s.updateMonitorIncidentState(monitor.ID, "", incidentState)
 	}
 
-	updates := map[string]interface{}{
+	updates := map[string]any{
 		"status":          "resolved",
 		"resolved_at":     &now,
 		"last_event_at":   now,
@@ -614,7 +614,7 @@ func (s *IncidentService) resolveActiveIncident(monitor db.Monitor, monitorRepor
 
 func (s *IncidentService) resolveIncidentRecord(incident *db.Incident, message string, monitorReportID string, incidentState string, resolutionKind string, notify bool, metadata IncidentLifecycleActionMetadata) error {
 	now := time.Now().UTC()
-	updates := map[string]interface{}{
+	updates := map[string]any{
 		"status":          "resolved",
 		"resolved_at":     &now,
 		"last_event_at":   now,
@@ -682,7 +682,7 @@ func (s *IncidentService) updateActiveIncidentByID(incidentID string, monitorID 
 		return true, nil
 	}
 
-	updates := map[string]interface{}{
+	updates := map[string]any{
 		"severity":      severity,
 		"last_event_at": now,
 		"latest_event":  message,
@@ -710,7 +710,7 @@ func (s *IncidentService) updateActiveIncidentByID(incidentID string, monitorID 
 
 func (s *IncidentService) resolveActiveIncidentByID(incidentID string, monitorID string, monitorReportID string, message string, incidentState string) (bool, error) {
 	now := time.Now().UTC()
-	updates := map[string]interface{}{
+	updates := map[string]any{
 		"status":          "resolved",
 		"resolved_at":     &now,
 		"last_event_at":   now,
@@ -750,7 +750,7 @@ func (s *IncidentService) handleCoveredIncidentFailure(incident *db.Incident, mo
 	}
 	if incidentCoverageActive(*incident, now) {
 		message := "Incident coverage suppressed failing monitor report"
-		if err := s.db.Model(incident).Updates(map[string]interface{}{
+		if err := s.db.Model(incident).Updates(map[string]any{
 			"last_event_at": now,
 			"latest_event":  message,
 		}).Error; err != nil {
@@ -776,7 +776,7 @@ func incidentCoverageActive(incident db.Incident, now time.Time) bool {
 
 func (s *IncidentService) expireIncidentCoverage(incident *db.Incident, monitorReportID string, now time.Time) error {
 	message := "Incident coverage expired"
-	if err := s.db.Model(incident).Updates(map[string]interface{}{
+	if err := s.db.Model(incident).Updates(map[string]any{
 		"status":          "open",
 		"coverage_note":   "",
 		"resolution_kind": "",
@@ -806,7 +806,7 @@ func (s *IncidentService) clearIncidentCoverageFields(incidentID string) error {
 }
 
 func (s *IncidentService) updateMonitorIncidentState(monitorID string, activeIncidentID string, incidentState string) error {
-	return s.db.Model(&db.Monitor{}).Where("id = ?", monitorID).Updates(map[string]interface{}{
+	return s.db.Model(&db.Monitor{}).Where("id = ?", monitorID).Updates(map[string]any{
 		"active_incident_id": activeIncidentID,
 		"incident_state":     incidentState,
 	}).Error
@@ -938,8 +938,8 @@ func isCoreProducedMonitorReport(payload MonitorReportPayload) bool {
 		mapFieldIsCore(payload.Error, "source")
 }
 
-func mapFieldIsCore(value interface{}, key string) bool {
-	fields, ok := value.(map[string]interface{})
+func mapFieldIsCore(value any, key string) bool {
+	fields, ok := value.(map[string]any)
 	if !ok {
 		return false
 	}
@@ -1001,7 +1001,7 @@ func (s *IncidentService) impactedComponentsForMonitorIncident(agent db.Agent, m
 	}
 
 	matchClauses := make([]string, 0, 2)
-	matchArgs := make([]interface{}, 0, 4)
+	matchArgs := make([]any, 0, 4)
 	if monitor.ID != "" {
 		matchClauses = append(matchClauses, "(mappings.resource_type = ? AND mappings.resource_id = ?)")
 		matchArgs = append(matchArgs, "monitor", monitor.ID)
@@ -1242,7 +1242,7 @@ func incidentStateForReport(reportedHealth string, tlsExpiring bool) string {
 	}
 }
 
-func (s *IncidentService) isTLSExpiring(metrics interface{}) bool {
+func (s *IncidentService) isTLSExpiring(metrics any) bool {
 	threshold := 14
 	if s.cfg != nil {
 		threshold = s.cfg.AlertTLSExpiryDays
@@ -1251,7 +1251,7 @@ func (s *IncidentService) isTLSExpiring(metrics interface{}) bool {
 		return false
 	}
 
-	metricsMap, ok := metrics.(map[string]interface{})
+	metricsMap, ok := metrics.(map[string]any)
 	if !ok {
 		return false
 	}
@@ -1265,7 +1265,7 @@ func (s *IncidentService) isTLSExpiring(metrics interface{}) bool {
 	return ok && days <= float64(threshold)
 }
 
-func numericValue(value interface{}) (float64, bool) {
+func numericValue(value any) (float64, bool) {
 	switch typed := value.(type) {
 	case float64:
 		return typed, true

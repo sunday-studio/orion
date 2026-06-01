@@ -34,6 +34,53 @@ func TestStatusPageAdminAPIRequiresFrontendJWTWhenConfigured(t *testing.T) {
 	}
 }
 
+func TestPublicStatusRoutesStayUnauthenticatedWhenFrontendAuthConfigured(t *testing.T) {
+	server := setupStatusPageAuthTestServer(t)
+	publishedAt := time.Now().UTC()
+	page := db.StatusPage{
+		ID:                        "status-page-auth-boundary",
+		Slug:                      "auth-boundary",
+		Title:                     "Auth Boundary",
+		Visibility:                "public",
+		ThemeSettings:             "{}",
+		DefaultIncidentVisibility: "draft",
+		PublishedAt:               &publishedAt,
+	}
+	section := db.StatusPageSection{
+		ID:           "status-page-auth-boundary-section",
+		StatusPageID: page.ID,
+		Name:         "Public",
+	}
+	component := db.StatusPageComponent{
+		ID:           "status-page-auth-boundary-component",
+		StatusPageID: page.ID,
+		SectionID:    section.ID,
+		PublicName:   "Public API",
+		DisplayMode:  "manual",
+		ManualStatus: "operational",
+		Visible:      true,
+	}
+	if err := server.db.Create(&page).Error; err != nil {
+		t.Fatalf("create status page: %v", err)
+	}
+	if err := server.db.Create(&section).Error; err != nil {
+		t.Fatalf("create status page section: %v", err)
+	}
+	if err := server.db.Create(&component).Error; err != nil {
+		t.Fatalf("create status page component: %v", err)
+	}
+
+	publicResp := performJSONRequest(t, server, http.MethodGet, "/status/auth-boundary", nil, "")
+	if publicResp.Code != http.StatusOK {
+		t.Fatalf("public status route status = %d, body = %s", publicResp.Code, publicResp.Body.String())
+	}
+
+	adminResp := performJSONRequest(t, server, http.MethodGet, "/v1/status-pages", nil, "")
+	if adminResp.Code != http.StatusUnauthorized {
+		t.Fatalf("admin status page route status = %d, body = %s, want 401", adminResp.Code, adminResp.Body.String())
+	}
+}
+
 func TestStatusPageAuditEventsRecordActorAndMinimalFields(t *testing.T) {
 	server := setupStatusPageAuthTestServer(t)
 	token := loginStatusPageTestAdmin(t, server)
@@ -340,6 +387,122 @@ func TestStatusPageIncidentComponentSuggestionsMatchAgentAndRedactInternals(t *t
 	}
 }
 
+func TestStatusPageIncidentDraftFromInternalIncidentUsesSafePublicCopy(t *testing.T) {
+	server := setupTestServer(t)
+	now := time.Now().UTC()
+
+	fixtures := createStatusPageSuggestionFixtures(t, server, now)
+	incident := db.Incident{
+		ID:                 "incident-public-draft-source",
+		Status:             "open",
+		Severity:           "critical",
+		Title:              "private checkout host db.internal.example failed",
+		AgentID:            "unmapped-agent-for-public-draft",
+		MonitorID:          fixtures.Monitor.ID,
+		OpenedAt:           now,
+		LastEventAt:        now,
+		LatestEvent:        "raw report payload token=super-secret host=db.internal.example monitor-private-suggestions",
+		NotificationStatus: "pending",
+		CreatedAt:          now,
+		UpdatedAt:          now,
+	}
+	if err := server.db.Create(&incident).Error; err != nil {
+		t.Fatalf("create incident: %v", err)
+	}
+	if err := server.db.Create(&db.MonitorReport{
+		ID:          "report-public-draft-secret",
+		MonitorID:   fixtures.Monitor.ID,
+		Payload:     `{"hostname":"db.internal.example","token":"super-secret"}`,
+		CollectedAt: now.Format(time.RFC3339),
+		Health:      "down",
+		CreatedAt:   now,
+	}).Error; err != nil {
+		t.Fatalf("create report: %v", err)
+	}
+
+	previewResp := performJSONRequest(t, server, http.MethodGet, "/v1/status-pages/"+fixtures.Page.ID+"/incidents/draft?incident_id="+incident.ID, nil, "")
+	if previewResp.Code != http.StatusOK {
+		t.Fatalf("draft preview status = %d, body = %s", previewResp.Code, previewResp.Body.String())
+	}
+
+	var preview struct {
+		Data struct {
+			Draft StatusPageIncidentDraftResponse `json:"draft"`
+		} `json:"data"`
+	}
+	decodeResponse(t, previewResp, &preview)
+	assertSafePublicDraftCopy(t, preview.Data.Draft, []string{
+		incident.Title,
+		incident.LatestEvent,
+		fixtures.Agent.Name,
+		fixtures.Agent.Token,
+		fixtures.Monitor.Name,
+		fixtures.Monitor.ID,
+		fixtures.Agent.ID,
+		"db.internal.example",
+		"super-secret",
+		"report-public-draft-secret",
+		fixtures.HiddenComponent.PublicName,
+	})
+	if preview.Data.Draft.PublicStatus != "investigating" || preview.Data.Draft.Severity != "critical" {
+		t.Fatalf("draft status/severity = %+v, want investigating critical", preview.Data.Draft)
+	}
+	if len(preview.Data.Draft.AffectedComponentIDs) != 1 || preview.Data.Draft.AffectedComponentIDs[0] != fixtures.MonitorComponent.ID {
+		t.Fatalf("draft affected components = %+v, want monitor component", preview.Data.Draft.AffectedComponentIDs)
+	}
+
+	createResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+fixtures.Page.ID+"/incidents/draft", gin.H{
+		"internal_incident_id":   incident.ID,
+		"affected_component_ids": []string{fixtures.MonitorComponent.ID},
+	}, "")
+	if createResp.Code != http.StatusCreated {
+		t.Fatalf("draft create status = %d, body = %s", createResp.Code, createResp.Body.String())
+	}
+
+	var created struct {
+		Data struct {
+			Draft    StatusPageIncidentDraftResponse  `json:"draft"`
+			Incident StatusPageIncidentResponse       `json:"incident"`
+			Update   StatusPageIncidentUpdateResponse `json:"update"`
+		} `json:"data"`
+	}
+	decodeResponse(t, createResp, &created)
+	assertSafePublicDraftCopy(t, created.Data.Draft, []string{
+		incident.Title,
+		incident.LatestEvent,
+		fixtures.Agent.Name,
+		fixtures.Agent.Token,
+		fixtures.Monitor.Name,
+		fixtures.Monitor.ID,
+		"db.internal.example",
+		"super-secret",
+	})
+	if created.Data.Incident.InternalIncidentID != incident.ID || created.Data.Incident.Visibility != statusPageIncidentVisibilityDraft {
+		t.Fatalf("created incident = %+v, want linked draft", created.Data.Incident)
+	}
+	if created.Data.Update.PublishedAt != nil || created.Data.Update.Message != created.Data.Draft.InitialUpdateMessage {
+		t.Fatalf("created update = %+v, want unpublished generated update", created.Data.Update)
+	}
+
+	if err := server.db.Model(&db.StatusPage{}).Where("id = ?", fixtures.Page.ID).Updates(map[string]interface{}{
+		"visibility":   statusPageVisibilityPublic,
+		"published_at": &now,
+	}).Error; err != nil {
+		t.Fatalf("publish status page fixture: %v", err)
+	}
+	publicDetailResp := performJSONRequest(t, server, http.MethodGet, "/status/"+fixtures.Page.Slug+"/incidents/"+created.Data.Incident.ID, nil, "")
+	if publicDetailResp.Code != http.StatusNotFound {
+		t.Fatalf("public draft incident status = %d, body = %s, want 404", publicDetailResp.Code, publicDetailResp.Body.String())
+	}
+	publicListResp := performJSONRequest(t, server, http.MethodGet, "/status/"+fixtures.Page.Slug+"/incidents", nil, "")
+	if publicListResp.Code != http.StatusOK {
+		t.Fatalf("public incident list status = %d, body = %s", publicListResp.Code, publicListResp.Body.String())
+	}
+	if strings.Contains(publicListResp.Body.String(), created.Data.Incident.Title) {
+		t.Fatalf("public incident list exposed draft incident: %s", publicListResp.Body.String())
+	}
+}
+
 func TestStatusPageThemeSettingsValidationAndPublicProjection(t *testing.T) {
 	server := setupTestServer(t)
 	createPageResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages", gin.H{
@@ -357,6 +520,7 @@ func TestStatusPageThemeSettingsValidationAndPublicProjection(t *testing.T) {
 			"open_graph_type":       "website",
 			"show_incident_history": false,
 			"show_uptime_summary":   true,
+			"theme_mode":            "dark",
 		},
 	}, "")
 	if createPageResp.Code != http.StatusCreated {
@@ -365,7 +529,7 @@ func TestStatusPageThemeSettingsValidationAndPublicProjection(t *testing.T) {
 	var createdPage struct {
 		Data struct {
 			Page struct {
-				ThemeSettings map[string]interface{} `json:"theme_settings"`
+				ThemeSettings map[string]any `json:"theme_settings"`
 			} `json:"page"`
 		} `json:"data"`
 	}
@@ -374,7 +538,8 @@ func TestStatusPageThemeSettingsValidationAndPublicProjection(t *testing.T) {
 		createdPage.Data.Page.ThemeSettings["logo_alt"] != "Acme status logo" ||
 		createdPage.Data.Page.ThemeSettings["header_style"] != "centered" ||
 		createdPage.Data.Page.ThemeSettings["component_density"] != "compact" ||
-		createdPage.Data.Page.ThemeSettings["show_incident_history"] != false {
+		createdPage.Data.Page.ThemeSettings["show_incident_history"] != false ||
+		createdPage.Data.Page.ThemeSettings["theme_mode"] != "dark" {
 		t.Fatalf("admin theme settings = %+v, want sanitized supported values", createdPage.Data.Page.ThemeSettings)
 	}
 
@@ -386,7 +551,7 @@ func TestStatusPageThemeSettingsValidationAndPublicProjection(t *testing.T) {
 		Data struct {
 			StatusPage struct {
 				Page struct {
-					ThemeSettings map[string]interface{} `json:"theme_settings"`
+					ThemeSettings map[string]any `json:"theme_settings"`
 				} `json:"page"`
 			} `json:"status_page"`
 		} `json:"data"`
@@ -403,6 +568,7 @@ func TestStatusPageThemeSettingsValidationAndPublicProjection(t *testing.T) {
 		{"logo_url": "javascript://status.example.test/logo.svg"},
 		{"header_style": "hero"},
 		{"component_density": "dense"},
+		{"theme_mode": "sepia"},
 		{"show_uptime_summary": "true"},
 		{"open_graph_type": "article"},
 		{"accent": "green"},
@@ -419,11 +585,189 @@ func TestStatusPageThemeSettingsValidationAndPublicProjection(t *testing.T) {
 	}
 }
 
+func TestPublicStatusPageProjectionSanitizesLegacyThemeSettings(t *testing.T) {
+	server := setupTestServer(t)
+	now := time.Date(2026, 5, 29, 17, 15, 0, 0, time.UTC)
+	page := db.StatusPage{
+		ID:                        "status-page-legacy-theme",
+		Slug:                      "legacy-theme-status",
+		Title:                     "Legacy Theme Status",
+		Description:               "Customer-facing availability",
+		Visibility:                statusPageVisibilityPublic,
+		ThemeSettings:             `{"accent_color":"#FFAA00","component_density":"compact","header_style":"centered","logo_alt":" Legacy logo ","logo_url":"javascript://do-not-render","mode":"private-dark-mode","internal_note":"do-not-leak","open_graph_description_extra":"bad-og-description","open_graph_site_name":"Legacy Trust","open_graph_title":"Legacy Public Title","open_graph_type":"article","show_incident_history":"false","show_uptime_summary":true}`,
+		DefaultIncidentVisibility: statusPageIncidentVisibilityDraft,
+		PublishedAt:               &now,
+		CreatedAt:                 now,
+		UpdatedAt:                 now,
+	}
+	section := db.StatusPageSection{
+		ID:           "legacy-theme-section",
+		StatusPageID: page.ID,
+		Name:         "Public services",
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+	component := db.StatusPageComponent{
+		ID:           "legacy-theme-component",
+		StatusPageID: page.ID,
+		SectionID:    section.ID,
+		PublicName:   "Public API",
+		DisplayMode:  "manual",
+		ManualStatus: "operational",
+		Visible:      true,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+	incident := db.StatusPageIncident{
+		ID:            "legacy-theme-incident",
+		StatusPageID:  page.ID,
+		Title:         "Public maintenance notice",
+		PublicStatus:  "resolved",
+		Severity:      "low",
+		ImpactSummary: "Maintenance completed.",
+		Visibility:    statusPageIncidentVisibilityPublished,
+		PublishedAt:   &now,
+		ResolvedAt:    &now,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	update := db.StatusPageIncidentUpdate{
+		ID:          "legacy-theme-update",
+		IncidentID:  incident.ID,
+		Status:      "resolved",
+		Message:     "Maintenance is complete.",
+		PublishedAt: &now,
+		CreatedAt:   now,
+	}
+	if err := server.db.Create(&page).Error; err != nil {
+		t.Fatalf("create status page: %v", err)
+	}
+	if err := server.db.Create(&section).Error; err != nil {
+		t.Fatalf("create section: %v", err)
+	}
+	if err := server.db.Create(&component).Error; err != nil {
+		t.Fatalf("create component: %v", err)
+	}
+	if err := server.db.Create(&incident).Error; err != nil {
+		t.Fatalf("create incident: %v", err)
+	}
+	if err := server.db.Create(&update).Error; err != nil {
+		t.Fatalf("create incident update: %v", err)
+	}
+
+	publicResp := performJSONRequest(t, server, http.MethodGet, "/status/legacy-theme-status", nil, "")
+	if publicResp.Code != http.StatusOK {
+		t.Fatalf("public status = %d, body = %s", publicResp.Code, publicResp.Body.String())
+	}
+	var publicPayload struct {
+		Data struct {
+			StatusPage StatusPagePreviewResponse `json:"status_page"`
+		} `json:"data"`
+	}
+	decodeResponse(t, publicResp, &publicPayload)
+	assertLegacyThemePublicProjection(t, publicPayload.Data.StatusPage.Page.ThemeSettings)
+	if publicPayload.Data.StatusPage.Metadata.OpenGraph.Title != "Legacy Public Title" ||
+		publicPayload.Data.StatusPage.Metadata.OpenGraph.SiteName != "Legacy Trust" ||
+		publicPayload.Data.StatusPage.Metadata.OpenGraph.Type != "website" {
+		t.Fatalf("metadata = %+v, want sanitized public metadata", publicPayload.Data.StatusPage.Metadata.OpenGraph)
+	}
+	assertPublicStatusPageBodyDoesNotContainLegacyThemeLeaks(t, publicResp.Body.String())
+
+	previewResp := performJSONRequest(t, server, http.MethodGet, "/v1/status-pages/"+page.ID+"/preview", nil, "")
+	if previewResp.Code != http.StatusOK {
+		t.Fatalf("preview status = %d, body = %s", previewResp.Code, previewResp.Body.String())
+	}
+	var previewPayload struct {
+		Data struct {
+			Preview StatusPagePreviewResponse `json:"preview"`
+		} `json:"data"`
+	}
+	decodeResponse(t, previewResp, &previewPayload)
+	assertLegacyThemePublicProjection(t, previewPayload.Data.Preview.Page.ThemeSettings)
+	assertPublicStatusPageBodyDoesNotContainLegacyThemeLeaks(t, previewResp.Body.String())
+
+	historyResp := performJSONRequest(t, server, http.MethodGet, "/status/legacy-theme-status/history?window=7d", nil, "")
+	if historyResp.Code != http.StatusOK {
+		t.Fatalf("history status = %d, body = %s", historyResp.Code, historyResp.Body.String())
+	}
+	assertPublicStatusPageBodyDoesNotContainLegacyThemeLeaks(t, historyResp.Body.String())
+
+	htmlReq := httptest.NewRequest(http.MethodGet, "/status/legacy-theme-status", nil)
+	htmlReq.Header.Set("Accept", "text/html")
+	htmlResp := httptest.NewRecorder()
+	server.router.ServeHTTP(htmlResp, htmlReq)
+	if htmlResp.Code != http.StatusOK {
+		t.Fatalf("HTML status = %d, body = %s", htmlResp.Code, htmlResp.Body.String())
+	}
+	assertContains(t, htmlResp.Body.String(), `<meta property="og:title" content="Legacy Public Title">`)
+	assertContains(t, htmlResp.Body.String(), `--accent: #ffaa00`)
+	assertPublicStatusPageBodyDoesNotContainLegacyThemeLeaks(t, htmlResp.Body.String())
+
+	feedResp := performJSONRequest(t, server, http.MethodGet, "/status/legacy-theme-status/feed.atom", nil, "")
+	if feedResp.Code != http.StatusOK {
+		t.Fatalf("feed status = %d, body = %s", feedResp.Code, feedResp.Body.String())
+	}
+	assertPublicStatusPageBodyDoesNotContainLegacyThemeLeaks(t, feedResp.Body.String())
+
+	badgeResp := performJSONRequest(t, server, http.MethodGet, "/status/legacy-theme-status/badge.svg", nil, "")
+	if badgeResp.Code != http.StatusOK {
+		t.Fatalf("badge status = %d, body = %s", badgeResp.Code, badgeResp.Body.String())
+	}
+	assertPublicStatusPageBodyDoesNotContainLegacyThemeLeaks(t, badgeResp.Body.String())
+
+	subscriberResp := performJSONRequest(t, server, http.MethodPost, "/status/legacy-theme-status/subscribers", gin.H{
+		"destination":   "legacy-subscriber@example.com",
+		"component_ids": []string{component.ID},
+	}, "")
+	if subscriberResp.Code != http.StatusAccepted {
+		t.Fatalf("subscriber status = %d, body = %s", subscriberResp.Code, subscriberResp.Body.String())
+	}
+	assertPublicStatusPageBodyDoesNotContainLegacyThemeLeaks(t, subscriberResp.Body.String())
+}
+
+func assertLegacyThemePublicProjection(t *testing.T, settings map[string]interface{}) {
+	t.Helper()
+	if settings["accent_color"] != "#ffaa00" ||
+		settings["component_density"] != "compact" ||
+		settings["header_style"] != "centered" ||
+		settings["logo_alt"] != "Legacy logo" ||
+		settings["open_graph_site_name"] != "Legacy Trust" ||
+		settings["open_graph_title"] != "Legacy Public Title" ||
+		settings["show_uptime_summary"] != true {
+		t.Fatalf("public theme settings = %+v, want only sanitized supported values", settings)
+	}
+	for _, key := range []string{
+		"internal_note",
+		"logo_url",
+		"mode",
+		"open_graph_description_extra",
+		"open_graph_type",
+		"show_incident_history",
+	} {
+		if _, ok := settings[key]; ok {
+			t.Fatalf("public theme settings = %+v, want %q omitted", settings, key)
+		}
+	}
+}
+
+func assertPublicStatusPageBodyDoesNotContainLegacyThemeLeaks(t *testing.T, body string) {
+	t.Helper()
+	for _, value := range []string{
+		"bad-og-description",
+		"do-not-leak",
+		"do-not-render",
+		"javascript:",
+		"private-dark-mode",
+	} {
+		assertNotContains(t, body, value)
+	}
+}
+
 func TestStatusPageAdminAPIFlow(t *testing.T) {
 	server := setupTestServer(t)
 	registered := registerTestAgent(t, server)
 	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
-	if err := server.db.Model(&db.Monitor{}).Where("id = ?", registeredMonitor.Data.MonitorID).Updates(map[string]interface{}{
+	if err := server.db.Model(&db.Monitor{}).Where("id = ?", registeredMonitor.Data.MonitorID).Updates(map[string]any{
 		"health":          "down",
 		"computed_health": "down",
 	}).Error; err != nil {
@@ -442,11 +786,11 @@ func TestStatusPageAdminAPIFlow(t *testing.T) {
 	var createdPage struct {
 		Data struct {
 			Page struct {
-				ID            string                 `json:"id"`
-				Slug          string                 `json:"slug"`
-				Title         string                 `json:"title"`
-				Visibility    string                 `json:"visibility"`
-				ThemeSettings map[string]interface{} `json:"theme_settings"`
+				ID            string         `json:"id"`
+				Slug          string         `json:"slug"`
+				Title         string         `json:"title"`
+				Visibility    string         `json:"visibility"`
+				ThemeSettings map[string]any `json:"theme_settings"`
 			} `json:"page"`
 		} `json:"data"`
 	}
@@ -696,9 +1040,11 @@ func TestStatusPageAdminAPIFlow(t *testing.T) {
 				OverallStatus string `json:"overall_status"`
 				Sections      []struct {
 					Components []struct {
-						ID     string `json:"id"`
-						Name   string `json:"name"`
-						Status string `json:"status"`
+						ID            string                                 `json:"id"`
+						Name          string                                 `json:"name"`
+						Status        string                                 `json:"status"`
+						Uptime        *StatusPagePublicUptimeResponse        `json:"uptime"`
+						UptimeHistory []StatusPagePublicUptimeBucketResponse `json:"uptime_history"`
 					} `json:"components"`
 				} `json:"sections"`
 				Incidents []struct {
@@ -718,6 +1064,11 @@ func TestStatusPageAdminAPIFlow(t *testing.T) {
 		len(publicPage.Data.StatusPage.Sections[0].Components) != 1 ||
 		len(publicPage.Data.StatusPage.Incidents) != 1 {
 		t.Fatalf("public page = %+v, want public-safe status projection", publicPage.Data.StatusPage)
+	}
+	componentProjection := publicPage.Data.StatusPage.Sections[0].Components[0]
+	if componentProjection.Uptime == nil || componentProjection.Uptime.Window != statusPagePublicDefaultUptimeWindow ||
+		len(componentProjection.UptimeHistory) != publicWindowDays(statusPagePublicDefaultUptimeWindow) {
+		t.Fatalf("public component uptime = %+v/%d, want default window history", componentProjection.Uptime, len(componentProjection.UptimeHistory))
 	}
 	if publicPage.Data.StatusPage.Incidents[0].ScheduledStartAt == "" ||
 		publicPage.Data.StatusPage.Incidents[0].ScheduledEndAt == "" {
@@ -752,6 +1103,238 @@ func TestStatusPageAdminAPIFlow(t *testing.T) {
 		resp := performJSONRequest(t, server, http.MethodGet, path, nil, "")
 		if resp.Code != http.StatusOK {
 			t.Fatalf("list %s status = %d, body = %s", path, resp.Code, resp.Body.String())
+		}
+	}
+}
+
+func TestStatusPageAdminDeleteRoutesRemoveNestedRecords(t *testing.T) {
+	server := setupTestServer(t)
+	registered := registerTestAgent(t, server)
+	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
+
+	createPageResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages", gin.H{
+		"slug":  "delete-status",
+		"title": "Delete Status",
+	}, "")
+	if createPageResp.Code != http.StatusCreated {
+		t.Fatalf("create status page status = %d, body = %s", createPageResp.Code, createPageResp.Body.String())
+	}
+	var createdPage struct {
+		Data struct {
+			Page struct {
+				ID string `json:"id"`
+			} `json:"page"`
+		} `json:"data"`
+	}
+	decodeResponse(t, createPageResp, &createdPage)
+
+	createSection := func(name string) string {
+		resp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+createdPage.Data.Page.ID+"/sections", gin.H{
+			"name": name,
+		}, "")
+		if resp.Code != http.StatusCreated {
+			t.Fatalf("create section status = %d, body = %s", resp.Code, resp.Body.String())
+		}
+		var payload struct {
+			Data struct {
+				Section struct {
+					ID string `json:"id"`
+				} `json:"section"`
+			} `json:"data"`
+		}
+		decodeResponse(t, resp, &payload)
+		return payload.Data.Section.ID
+	}
+
+	createComponent := func(sectionID string, name string) string {
+		resp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+createdPage.Data.Page.ID+"/components", gin.H{
+			"section_id":   sectionID,
+			"public_name":  name,
+			"display_mode": "single_resource",
+			"visible":      true,
+		}, "")
+		if resp.Code != http.StatusCreated {
+			t.Fatalf("create component status = %d, body = %s", resp.Code, resp.Body.String())
+		}
+		var payload struct {
+			Data struct {
+				Component struct {
+					ID string `json:"id"`
+				} `json:"component"`
+			} `json:"data"`
+		}
+		decodeResponse(t, resp, &payload)
+		return payload.Data.Component.ID
+	}
+
+	createMapping := func(componentID string) string {
+		resp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+createdPage.Data.Page.ID+"/components/"+componentID+"/mappings", gin.H{
+			"resource_type": "monitor",
+			"resource_id":   registeredMonitor.Data.MonitorID,
+		}, "")
+		if resp.Code != http.StatusCreated {
+			t.Fatalf("create mapping status = %d, body = %s", resp.Code, resp.Body.String())
+		}
+		var payload struct {
+			Data struct {
+				Mapping struct {
+					ID string `json:"id"`
+				} `json:"mapping"`
+			} `json:"data"`
+		}
+		decodeResponse(t, resp, &payload)
+		return payload.Data.Mapping.ID
+	}
+
+	createIncident := func(componentID string, title string) string {
+		resp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+createdPage.Data.Page.ID+"/incidents", gin.H{
+			"title":                  title,
+			"affected_component_ids": []string{componentID},
+		}, "")
+		if resp.Code != http.StatusCreated {
+			t.Fatalf("create public incident status = %d, body = %s", resp.Code, resp.Body.String())
+		}
+		var payload struct {
+			Data struct {
+				Incident struct {
+					ID string `json:"id"`
+				} `json:"incident"`
+			} `json:"data"`
+		}
+		decodeResponse(t, resp, &payload)
+		return payload.Data.Incident.ID
+	}
+
+	createDelivery := func(id string, subscriberID string, incidentID string) {
+		delivery := db.StatusPageSubscriberDelivery{
+			ID:               id,
+			SubscriberID:     subscriberID,
+			StatusPageID:     createdPage.Data.Page.ID,
+			PublicIncidentID: incidentID,
+			DeliveryType:     statusPageSubscriberDeliveryTypeEmail,
+			DeliveryState:    statusPageSubscriberDeliveryStateSent,
+		}
+		if err := server.db.Create(&delivery).Error; err != nil {
+			t.Fatalf("create subscriber delivery: %v", err)
+		}
+	}
+
+	countRows := func(model interface{}, query string, args ...interface{}) int64 {
+		var count int64
+		if err := server.db.Model(model).Where(query, args...).Count(&count).Error; err != nil {
+			t.Fatalf("count rows for %T: %v", model, err)
+		}
+		return count
+	}
+
+	sectionID := createSection("API")
+	componentID := createComponent(sectionID, "REST API")
+	mappingID := createMapping(componentID)
+	deleteMappingResp := performJSONRequest(t, server, http.MethodDelete, "/v1/status-pages/"+createdPage.Data.Page.ID+"/components/"+componentID+"/mappings/"+mappingID, nil, "")
+	if deleteMappingResp.Code != http.StatusOK {
+		t.Fatalf("delete mapping status = %d, body = %s", deleteMappingResp.Code, deleteMappingResp.Body.String())
+	}
+	if countRows(&db.StatusPageComponentMapping{}, "id = ?", mappingID) != 0 {
+		t.Fatalf("mapping %q still exists after delete", mappingID)
+	}
+
+	mappingID = createMapping(componentID)
+	now := time.Now().UTC()
+	createdIncidentID := createIncident(componentID, "Customer API issue")
+	createUpdateResp := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+createdPage.Data.Page.ID+"/incidents/"+createdIncidentID+"/updates", gin.H{
+		"status":       "investigating",
+		"message":      "We are investigating.",
+		"published_at": now,
+	}, "")
+	if createUpdateResp.Code != http.StatusCreated {
+		t.Fatalf("create public incident update status = %d, body = %s", createUpdateResp.Code, createUpdateResp.Body.String())
+	}
+	incidentSubscriber := seedStatusPageSubscriberForTest(t, server, createdPage.Data.Page.ID, "incident-delete@example.com", statusPageSubscriberStateConfirmed, "incident-delete-confirm", "incident-delete-manage", "incident-delete-unsubscribe", []string{componentID})
+	createDelivery("incident-delete-delivery", incidentSubscriber.ID, createdIncidentID)
+	deleteIncidentResp := performJSONRequest(t, server, http.MethodDelete, "/v1/status-pages/"+createdPage.Data.Page.ID+"/incidents/"+createdIncidentID, nil, "")
+	if deleteIncidentResp.Code != http.StatusOK {
+		t.Fatalf("delete incident status = %d, body = %s", deleteIncidentResp.Code, deleteIncidentResp.Body.String())
+	}
+	if countRows(&db.StatusPageIncident{}, "id = ?", createdIncidentID) != 0 ||
+		countRows(&db.StatusPageIncidentUpdate{}, "incident_id = ?", createdIncidentID) != 0 ||
+		countRows(&db.StatusPageSubscriberDelivery{}, "public_incident_id = ?", createdIncidentID) != 0 {
+		t.Fatalf("incident %q, its updates, or its deliveries still exist after delete", createdIncidentID)
+	}
+
+	componentPruneIncidentID := createIncident(componentID, "Component prune issue")
+	componentSubscriber := seedStatusPageSubscriberForTest(t, server, createdPage.Data.Page.ID, "component-delete@example.com", statusPageSubscriberStateConfirmed, "component-delete-confirm", "component-delete-manage", "component-delete-unsubscribe", []string{componentID})
+	createDelivery("component-delete-delivery", componentSubscriber.ID, componentPruneIncidentID)
+	deleteComponentResp := performJSONRequest(t, server, http.MethodDelete, "/v1/status-pages/"+createdPage.Data.Page.ID+"/components/"+componentID, nil, "")
+	if deleteComponentResp.Code != http.StatusOK {
+		t.Fatalf("delete component status = %d, body = %s", deleteComponentResp.Code, deleteComponentResp.Body.String())
+	}
+	if countRows(&db.StatusPageComponent{}, "id = ?", componentID) != 0 ||
+		countRows(&db.StatusPageComponentMapping{}, "id = ?", mappingID) != 0 {
+		t.Fatalf("component %q or mapping %q still exists after delete", componentID, mappingID)
+	}
+	if countRows(&db.StatusPageSubscriberComponent{}, "subscriber_id = ?", componentSubscriber.ID) != 0 {
+		t.Fatalf("subscriber component preferences still exist after component delete")
+	}
+	var componentPruneIncident db.StatusPageIncident
+	if err := server.db.Where("id = ?", componentPruneIncidentID).First(&componentPruneIncident).Error; err != nil {
+		t.Fatalf("load component prune incident: %v", err)
+	}
+	if got := decodeResponseList(componentPruneIncident.AffectedComponentIDs, nil); len(got) != 0 {
+		t.Fatalf("incident affected components after component delete = %+v, want empty", got)
+	}
+
+	componentID = createComponent(sectionID, "GraphQL API")
+	sectionPruneIncidentID := createIncident(componentID, "Section prune issue")
+	sectionSubscriber := seedStatusPageSubscriberForTest(t, server, createdPage.Data.Page.ID, "section-delete@example.com", statusPageSubscriberStateConfirmed, "section-delete-confirm", "section-delete-manage", "section-delete-unsubscribe", []string{componentID})
+	deleteSectionResp := performJSONRequest(t, server, http.MethodDelete, "/v1/status-pages/"+createdPage.Data.Page.ID+"/sections/"+sectionID, nil, "")
+	if deleteSectionResp.Code != http.StatusOK {
+		t.Fatalf("delete section status = %d, body = %s", deleteSectionResp.Code, deleteSectionResp.Body.String())
+	}
+	if countRows(&db.StatusPageSection{}, "id = ?", sectionID) != 0 ||
+		countRows(&db.StatusPageComponent{}, "id = ?", componentID) != 0 {
+		t.Fatalf("section %q or component %q still exists after delete", sectionID, componentID)
+	}
+	if countRows(&db.StatusPageSubscriberComponent{}, "subscriber_id = ?", sectionSubscriber.ID) != 0 {
+		t.Fatalf("subscriber component preferences still exist after section delete")
+	}
+	var sectionPruneIncident db.StatusPageIncident
+	if err := server.db.Where("id = ?", sectionPruneIncidentID).First(&sectionPruneIncident).Error; err != nil {
+		t.Fatalf("load section prune incident: %v", err)
+	}
+	if got := decodeResponseList(sectionPruneIncident.AffectedComponentIDs, nil); len(got) != 0 {
+		t.Fatalf("incident affected components after section delete = %+v, want empty", got)
+	}
+
+	sectionID = createSection("Web")
+	componentID = createComponent(sectionID, "Web App")
+	_ = createMapping(componentID)
+	pageIncidentID := createIncident(componentID, "Page delete issue")
+	pageSubscriber := seedStatusPageSubscriberForTest(t, server, createdPage.Data.Page.ID, "page-delete@example.com", statusPageSubscriberStateConfirmed, "page-delete-confirm", "page-delete-manage", "page-delete-unsubscribe", []string{componentID})
+	createDelivery("page-delete-delivery", pageSubscriber.ID, pageIncidentID)
+	deletePageResp := performJSONRequest(t, server, http.MethodDelete, "/v1/status-pages/"+createdPage.Data.Page.ID, nil, "")
+	if deletePageResp.Code != http.StatusOK {
+		t.Fatalf("delete page status = %d, body = %s", deletePageResp.Code, deletePageResp.Body.String())
+	}
+	if countRows(&db.StatusPage{}, "id = ?", createdPage.Data.Page.ID) != 0 ||
+		countRows(&db.StatusPageSection{}, "status_page_id = ?", createdPage.Data.Page.ID) != 0 ||
+		countRows(&db.StatusPageComponent{}, "status_page_id = ?", createdPage.Data.Page.ID) != 0 ||
+		countRows(&db.StatusPageComponentMapping{}, "component_id = ?", componentID) != 0 ||
+		countRows(&db.StatusPageIncident{}, "status_page_id = ?", createdPage.Data.Page.ID) != 0 ||
+		countRows(&db.StatusPageIncidentUpdate{}, "incident_id = ?", pageIncidentID) != 0 ||
+		countRows(&db.StatusPageSubscriber{}, "status_page_id = ?", createdPage.Data.Page.ID) != 0 ||
+		countRows(&db.StatusPageSubscriberComponent{}, "subscriber_id = ?", pageSubscriber.ID) != 0 ||
+		countRows(&db.StatusPageSubscriberDelivery{}, "status_page_id = ?", createdPage.Data.Page.ID) != 0 {
+		t.Fatalf("status page %q or nested rows still exist after delete", createdPage.Data.Page.ID)
+	}
+	for _, action := range []string{
+		service.StatusPageAuditActionDeleted,
+		service.StatusPageAuditActionSectionDeleted,
+		service.StatusPageAuditActionComponentDeleted,
+		service.StatusPageAuditActionComponentMappingDeleted,
+		service.StatusPageAuditActionPublicIncidentDeleted,
+	} {
+		if countRows(&db.AuditEvent{}, "action = ?", action) == 0 {
+			t.Fatalf("missing audit event for %s", action)
 		}
 	}
 }
@@ -887,7 +1470,7 @@ func TestPublicStatusPageHTMLRendersSafeMetadataAndTheme(t *testing.T) {
 		OpenGraphImageURL:         "https://cdn.acme.test/status.png",
 		CanonicalURL:              "https://status.acme.test/",
 		Visibility:                statusPageVisibilityPublic,
-		ThemeSettings:             `{"accent_color":"#10b981","component_density":"compact","header_style":"centered","logo_alt":"Acme logo","logo_url":"https://cdn.acme.test/logo.svg","open_graph_site_name":"Acme Trust","open_graph_title":"Acme Status Updates","open_graph_description":"Realtime public availability","open_graph_type":"website"}`,
+		ThemeSettings:             `{"accent_color":"#10b981","component_density":"compact","header_style":"centered","logo_alt":"Acme logo","logo_url":"https://cdn.acme.test/logo.svg","open_graph_site_name":"Acme Trust","open_graph_title":"Acme Status Updates","open_graph_description":"Realtime public availability","open_graph_type":"website","theme_mode":"dark"}`,
 		DefaultIncidentVisibility: statusPageIncidentVisibilityDraft,
 		PublishedAt:               &now,
 		CreatedAt:                 now,
@@ -955,6 +1538,9 @@ func TestPublicStatusPageHTMLRendersSafeMetadataAndTheme(t *testing.T) {
 	assertContains(t, body, `<meta property="og:description" content="Realtime public availability">`)
 	assertContains(t, body, `<meta property="og:image" content="https://cdn.acme.test/status.png">`)
 	assertContains(t, body, `<img src="https://cdn.acme.test/logo.svg" alt="Acme logo">`)
+	assertContains(t, body, `<body class="theme-dark">`)
+	assertContains(t, body, `data-subscribe-form`)
+	assertContains(t, body, `class="uptime-bars"`)
 	assertContains(t, body, "Checkout API")
 	assertContains(t, body, "Elevated latency")
 	assertContains(t, body, "Checkout latency")
@@ -987,7 +1573,7 @@ func TestPublicStatusPageMetadataDoesNotUseMappedInternalResources(t *testing.T)
 	server := setupTestServer(t)
 	registered := registerTestAgent(t, server)
 	registeredMonitor := registerTestMonitor(t, server, registered.Data.AgentID, registered.Data.Token)
-	if err := server.db.Model(&db.Monitor{}).Where("id = ?", registeredMonitor.Data.MonitorID).Updates(map[string]interface{}{
+	if err := server.db.Model(&db.Monitor{}).Where("id = ?", registeredMonitor.Data.MonitorID).Updates(map[string]any{
 		"name":            "internal-db-01.local",
 		"computed_health": "up",
 		"health":          "up",
@@ -1196,6 +1782,37 @@ func TestStatusPageCustomDomainHostRoutingAndIsolation(t *testing.T) {
 	}
 	assertContains(t, feedResp.Body.String(), "http://status.example.com")
 	assertNotContains(t, feedResp.Body.String(), "/status/custom-public")
+
+	historyResp := performHostRequest(t, server, http.MethodGet, "/status/custom-public/history", "status.example.com")
+	if historyResp.Code != http.StatusOK {
+		t.Fatalf("custom host history status = %d, body = %s", historyResp.Code, historyResp.Body.String())
+	}
+	assertContains(t, historyResp.Body.String(), "Custom Public")
+	assertNotContains(t, historyResp.Body.String(), "Other Public")
+
+	otherHistoryOnCustomHostResp := performHostRequest(t, server, http.MethodGet, "/status/other-public/history", "status.example.com")
+	if otherHistoryOnCustomHostResp.Code != http.StatusNotFound {
+		t.Fatalf("other history on custom host status = %d, body = %s, want 404", otherHistoryOnCustomHostResp.Code, otherHistoryOnCustomHostResp.Body.String())
+	}
+
+	otherBadgeOnCustomHostResp := performHostRequest(t, server, http.MethodGet, "/status/other-public/badge.svg", "status.example.com")
+	if otherBadgeOnCustomHostResp.Code != http.StatusNotFound {
+		t.Fatalf("other badge on custom host status = %d, body = %s, want 404", otherBadgeOnCustomHostResp.Code, otherBadgeOnCustomHostResp.Body.String())
+	}
+
+	otherSubscriberOnCustomHostResp := performHostJSONRequest(t, server, http.MethodPost, "/status/other-public/subscribers", "status.example.com", gin.H{
+		"destination": "other-status-subscriber@example.com",
+	})
+	if otherSubscriberOnCustomHostResp.Code != http.StatusNotFound {
+		t.Fatalf("other subscriber on custom host status = %d, body = %s, want 404", otherSubscriberOnCustomHostResp.Code, otherSubscriberOnCustomHostResp.Body.String())
+	}
+	var subscriberCount int64
+	if err := server.db.Model(&db.StatusPageSubscriber{}).Count(&subscriberCount).Error; err != nil {
+		t.Fatalf("count subscribers: %v", err)
+	}
+	if subscriberCount != 0 {
+		t.Fatalf("subscriber count = %d, want 0 after custom-domain mismatch", subscriberCount)
+	}
 }
 
 func TestStatusPagePublishValidation(t *testing.T) {
@@ -1317,6 +1934,21 @@ func performHostRequest(t *testing.T, server *Server, method string, path string
 	return recorder
 }
 
+func performHostJSONRequest(t *testing.T, server *Server, method string, path string, host string, body interface{}) *httptest.ResponseRecorder {
+	t.Helper()
+
+	payload, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal request body: %v", err)
+	}
+	req := httptest.NewRequest(method, path, strings.NewReader(string(payload)))
+	req.Host = host
+	req.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	server.router.ServeHTTP(recorder, req)
+	return recorder
+}
+
 func setupStatusPageAuthTestServer(t *testing.T) *Server {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
@@ -1335,6 +1967,7 @@ func setupStatusPageAuthTestServer(t *testing.T) *Server {
 		AdminUsername:  "admin",
 		AdminPassword:  "correct-password",
 		JWTSecret:      "test-secret",
+		DataDir:        t.TempDir(),
 	})
 }
 
@@ -1505,5 +2138,26 @@ func createStatusPageSuggestionFixtures(t *testing.T, server *Server, now time.T
 		MonitorComponent: monitorComponent,
 		AgentComponent:   agentComponent,
 		HiddenComponent:  hiddenComponent,
+	}
+}
+
+func assertSafePublicDraftCopy(t *testing.T, draft StatusPageIncidentDraftResponse, privateValues []string) {
+	t.Helper()
+
+	copyText := strings.Join([]string{
+		draft.Title,
+		draft.ImpactSummary,
+		draft.InitialUpdateMessage,
+	}, " ")
+	if !strings.Contains(copyText, "Checkout API") {
+		t.Fatalf("draft copy = %q, want public component name", copyText)
+	}
+	for _, privateValue := range privateValues {
+		if privateValue == "" {
+			continue
+		}
+		if strings.Contains(copyText, privateValue) {
+			t.Fatalf("draft copy leaked %q in %q", privateValue, copyText)
+		}
 	}
 }

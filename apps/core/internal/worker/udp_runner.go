@@ -158,8 +158,8 @@ func (a *App) storeUDPReport(monitorID string, result udpResult) error {
 	return err
 }
 
-func udpPayload(result udpResult, resultErr error) map[string]interface{} {
-	payload := map[string]interface{}{
+func udpPayload(result udpResult, resultErr error) map[string]any {
+	payload := map[string]any{
 		"runner":            "core",
 		"type":              "udp",
 		"host":              result.Host,

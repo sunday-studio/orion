@@ -21,7 +21,7 @@ if [ -z "${backend_changes}" ]; then
 fi
 
 test_changes="$(
-  printf '%s\n' "${changed_files}" |
+  git diff --name-only --diff-filter=ACMRT "${base_ref}...${head_ref}" -- |
     grep -E '^apps/core/.*_test\.go$' || true
 )"
 

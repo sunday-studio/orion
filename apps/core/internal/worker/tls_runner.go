@@ -214,8 +214,8 @@ func (a *App) storeTLSReport(monitorID string, result tlsResult) error {
 	return err
 }
 
-func tlsPayload(result tlsResult, resultErr error) map[string]interface{} {
-	payload := map[string]interface{}{
+func tlsPayload(result tlsResult, resultErr error) map[string]any {
+	payload := map[string]any{
 		"runner":             "core",
 		"type":               "tls",
 		"host":               result.Host,

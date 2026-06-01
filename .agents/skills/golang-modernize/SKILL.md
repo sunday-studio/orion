@@ -54,7 +54,7 @@ When invoked:
 
 ### `.modernize` file format
 
-```
+```text
 # Ignored modernization suggestions
 # Format: <date> <category> <description>
 2026-01-15 slog-migration Team decided to keep zap for now
@@ -90,11 +90,11 @@ For detailed before/after examples for each Go version (1.21–1.26) and general
 
 For CI tooling, govulncheck, PGO, golangci-lint v2, and AI-powered modernization pipelines, see [Tooling modernization](./references/tooling.md).
 
-## Deprecated Packages Migration
+## Deprecated APIs and Package Migration
 
-| Deprecated | Replacement | Since |
+| Deprecated API or package | Replacement | Since |
 | --- | --- | --- |
-| `math/rand` | `math/rand/v2` | Go 1.22 |
+| `math/rand.Seed`, `math/rand.Read`, and global-source-dependent random usage | Local generators or `math/rand/v2` when compatible | Go 1.22 |
 | `crypto/elliptic` (most functions) | `crypto/ecdh` | Go 1.21 |
 | `reflect.SliceHeader`, `StringHeader` | `unsafe.Slice`, `unsafe.String` | Go 1.21 |
 | `reflect.PtrTo` | `reflect.PointerTo` | Go 1.22 |
@@ -115,7 +115,7 @@ When modernizing a codebase, prioritize changes by impact:
 ### High priority (safety and correctness)
 
 1. Remove loop variable shadow copies _(Go 1.22+)_ — prevents subtle bugs
-2. Replace `math/rand` with `math/rand/v2` _(Go 1.22+)_ — remove `rand.Seed` calls
+2. Replace deprecated `math/rand` top-level APIs with local generators or `math/rand/v2` when compatible _(Go 1.22+)_ — remove `rand.Seed` calls
 3. Use `os.Root` for user-supplied file paths _(Go 1.24+)_ — prevents path traversal
 4. Run `govulncheck` _(Go 1.22+)_ — catch known vulnerabilities
 5. Use `errors.Is`/`errors.As` instead of direct comparison _(Go 1.13+)_

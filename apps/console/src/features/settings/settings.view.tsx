@@ -1,8 +1,17 @@
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/empty-state";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/page-header";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -20,8 +29,8 @@ import {
   useUpdateDataLifecycleSettings,
 } from "@/orion-sdk";
 import { useQueryClient } from "@tanstack/react-query";
-import { Archive, Database, History, Play, RotateCw, Save } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { ArchiveIcon, History, RotateCwIcon, Save } from "lucide-react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 type SettingsFormState = {
   rawReportHotDays: string;
@@ -32,8 +41,6 @@ type SettingsFormState = {
   rollupRetentionDays: string;
 };
 
-type ValidationErrors = Partial<Record<keyof SettingsFormState | "archiveRollup", string>>;
-
 const defaultFormState: SettingsFormState = {
   rawReportHotDays: "",
   archiveRawReports: false,
@@ -43,38 +50,71 @@ const defaultFormState: SettingsFormState = {
   rollupRetentionDays: "",
 };
 
-const toPositiveInteger = (value: string) => {
+type SettingsFieldKey = keyof SettingsFormState | "archiveRollupCompatibility";
+
+type SettingsFormErrors = Partial<Record<SettingsFieldKey, string>>;
+
+const asNumber = (value: string) => {
   const trimmed = value.trim();
   if (trimmed === "") return undefined;
   const parsed = Number(trimmed);
-  return Number.isInteger(parsed) && parsed >= 1 ? parsed : undefined;
+  return Number.isFinite(parsed) ? parsed : undefined;
 };
 
-const validateSettings = (formState: SettingsFormState): ValidationErrors => {
-  const errors: ValidationErrors = {};
-  const rawReportDays = formState.rawReportHotDays.trim();
-  const rollupRetentionDays = formState.rollupRetentionDays.trim();
+const getArchiveCutoff = (hotDays?: number) => {
+  if (!hotDays) return null;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - hotDays);
+  return cutoff.toISOString();
+};
 
-  if (rawReportDays === "") {
-    errors.rawReportHotDays = "Raw report days is required.";
-  } else if (!toPositiveInteger(rawReportDays)) {
-    errors.rawReportHotDays = "Use a whole number of 1 or more.";
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error && error.message) return error.message;
+  return "The maintenance action could not be completed.";
+};
+
+const isPositiveInteger = (value: string) => {
+  const trimmed = value.trim();
+  if (trimmed === "") return false;
+  const parsed = Number(trimmed);
+  return Number.isInteger(parsed) && parsed >= 1;
+};
+
+const optionalPositiveInteger = (value: string) => {
+  const trimmed = value.trim();
+  if (trimmed === "") return true;
+  const parsed = Number(trimmed);
+  return Number.isInteger(parsed) && parsed >= 1;
+};
+
+const validateSettingsForm = (formState: SettingsFormState): SettingsFormErrors => {
+  const errors: SettingsFormErrors = {};
+  if (!isPositiveInteger(formState.rawReportHotDays)) {
+    errors.rawReportHotDays = "Enter at least 1 day.";
   }
-
-  if (rollupRetentionDays !== "" && !toPositiveInteger(rollupRetentionDays)) {
-    errors.rollupRetentionDays = "Use a whole number of 1 or more, or leave blank.";
+  if (!optionalPositiveInteger(formState.rollupRetentionDays)) {
+    errors.rollupRetentionDays = "Enter at least 1 day, or leave it blank.";
   }
-
   if (formState.archiveRawReports && formState.archiveDir.trim() === "") {
-    errors.archiveDir = "Archive path is required when archiving is enabled.";
+    errors.archiveDir = "Archive directory is required when raw report archiving is enabled.";
   }
-
   if (formState.archiveRawReports && !formState.rollupsEnabled) {
-    errors.archiveRollup = "Archiving raw reports requires rollups to stay enabled.";
+    errors.archiveRollupCompatibility = "Enable rollups before archiving raw reports.";
   }
-
   return errors;
 };
+
+const safeInlineMessage = (value: unknown, fallback = "Unable to complete action.") => {
+  if (typeof value !== "string") return fallback;
+  const compact = value.replace(/\s+/g, " ").trim();
+  if (compact === "") return fallback;
+  return compact.length > 180 ? `${compact.slice(0, 177)}...` : compact;
+};
+
+const archiveCount = (result: {
+  agent_reports_archived?: number;
+  monitor_reports_archived?: number;
+}) => (result.agent_reports_archived ?? 0) + (result.monitor_reports_archived ?? 0);
 
 const Field = ({
   label,
@@ -95,20 +135,20 @@ const Field = ({
   </label>
 );
 
-const SettingsSection = ({
+const Section = ({
   title,
-  icon,
+  description,
   children,
 }: {
   title: string;
-  icon: ReactNode;
+  description?: string;
   children: ReactNode;
 }) => (
-  <section className="space-y-3 border-t border-neutral-200 pt-4">
-    <h2 className="flex items-center gap-2 text-sm font-medium">
-      <span className="text-neutral-500">{icon}</span>
-      {title}
-    </h2>
+  <section className="space-y-3 border-t border-neutral-200 pt-5">
+    <div className="space-y-1">
+      <h2 className="text-sm font-medium">{title}</h2>
+      {description && <p className="text-sm text-neutral-600">{description}</p>}
+    </div>
     {children}
   </section>
 );
@@ -116,34 +156,28 @@ const SettingsSection = ({
 const ActivityItem = ({
   label,
   value,
-  meta,
+  detail,
   tone = "neutral",
 }: {
   label: string;
   value: string;
-  meta?: ReactNode;
-  tone?: "neutral" | "success" | "warning" | "error";
-}) => {
-  const toneClass = {
-    error: "border-red-200 bg-red-50 text-red-900",
-    neutral: "border-neutral-200 bg-neutral-50 text-neutral-900",
-    success: "border-emerald-200 bg-emerald-50 text-emerald-900",
-    warning: "border-amber-200 bg-amber-50 text-amber-900",
-  }[tone];
-
-  return (
-    <div className={`space-y-1 border p-3 ${toneClass}`}>
-      <div className="text-xs font-medium uppercase tracking-wide text-neutral-500">{label}</div>
-      <div className="text-sm font-medium">{value}</div>
-      {meta && <div className="text-sm text-neutral-700">{meta}</div>}
-    </div>
-  );
-};
-
-const archiveReportCount = (result?: {
-  agent_reports_archived?: number;
-  monitor_reports_archived?: number;
-}) => (result?.agent_reports_archived ?? 0) + (result?.monitor_reports_archived ?? 0);
+  detail?: ReactNode;
+  tone?: "neutral" | "success" | "error" | "pending";
+}) => (
+  <div
+    className={cn(
+      "space-y-1 border-l-2 bg-neutral-50 px-3 py-2 text-sm",
+      tone === "success" && "border-emerald-500",
+      tone === "error" && "border-red-500",
+      tone === "pending" && "border-amber-500",
+      tone === "neutral" && "border-neutral-300",
+    )}
+  >
+    <div className="text-neutral-600">{label}</div>
+    <div className="font-medium">{value}</div>
+    {detail && <div className="text-neutral-600">{detail}</div>}
+  </div>
+);
 
 export const SettingsPage = () => {
   const queryClient = useQueryClient();
@@ -161,8 +195,13 @@ export const SettingsPage = () => {
 
   const settings = settingsResponse.data?.settings;
   const [formState, setFormState] = useState(defaultFormState);
-  const validationErrors = useMemo(() => validateSettings(formState), [formState]);
-  const hasValidationErrors = Object.keys(validationErrors).length > 0;
+  const archiveScheduleLabel = formState.archiveSchedule === "manual" ? "Manual only" : "Daily";
+  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+  const maintenanceActionInFlight = useRef(false);
+  const [touchedFields, setTouchedFields] = useState<Partial<Record<SettingsFieldKey, boolean>>>(
+    {},
+  );
+  const [showAllErrors, setShowAllErrors] = useState(false);
 
   useEffect(() => {
     if (!settings) return;
@@ -174,6 +213,8 @@ export const SettingsPage = () => {
       rollupsEnabled: Boolean(settings.rollups_enabled),
       rollupRetentionDays: String(settings.rollup_retention_days ?? ""),
     });
+    setTouchedFields({});
+    setShowAllErrors(false);
   }, [settings]);
 
   const updateField = <TKey extends keyof SettingsFormState>(
@@ -181,56 +222,111 @@ export const SettingsPage = () => {
     value: SettingsFormState[TKey],
   ) => {
     setFormState((current) => ({ ...current, [key]: value }));
+    setTouchedFields((current) => ({ ...current, [key]: true }));
   };
 
+  const formErrors = useMemo(() => validateSettingsForm(formState), [formState]);
+  const hasFormErrors = Object.keys(formErrors).length > 0;
+  const fieldError = (key: SettingsFieldKey) =>
+    showAllErrors || touchedFields[key] ? formErrors[key] : undefined;
+  const archiveCompatibilityError =
+    showAllErrors || touchedFields.archiveRawReports || touchedFields.rollupsEnabled
+      ? formErrors.archiveRollupCompatibility
+      : undefined;
+
   const saveSettings = () => {
-    if (hasValidationErrors) return;
+    if (hasFormErrors) {
+      setShowAllErrors(true);
+      return;
+    }
     const payload: ServiceDataLifecycleSettingsPayload = {
       archive_dir: formState.archiveDir.trim() || undefined,
       archive_raw_reports: formState.archiveRawReports,
       archive_schedule: formState.archiveSchedule,
-      raw_report_hot_days: toPositiveInteger(formState.rawReportHotDays) ?? 90,
-      rollup_retention_days: toPositiveInteger(formState.rollupRetentionDays),
+      raw_report_hot_days: asNumber(formState.rawReportHotDays) ?? 90,
+      rollup_retention_days: asNumber(formState.rollupRetentionDays),
       rollups_enabled: formState.rollupsEnabled,
     };
     updateSettings.mutate({ data: payload });
   };
 
+  const maintenancePending = rollupRun.isPending || archiveRun.isPending;
+
   const runRollup = () => {
-    rollupRun.mutate({ data: undefined });
+    if (maintenanceActionInFlight.current) return;
+    maintenanceActionInFlight.current = true;
+    rollupRun.mutate(
+      { data: undefined },
+      {
+        onSettled: () => {
+          maintenanceActionInFlight.current = false;
+        },
+      },
+    );
   };
 
   const runArchive = () => {
-    archiveRun.mutate(undefined);
+    if (maintenanceActionInFlight.current) return;
+    maintenanceActionInFlight.current = true;
+    archiveRun.mutate(undefined, {
+      onSettled: () => {
+        maintenanceActionInFlight.current = false;
+        setArchiveDialogOpen(false);
+      },
+    });
   };
 
-  const rollupResult = rollupRun.data?.result;
+  const archiveCutoff = getArchiveCutoff(settings?.raw_report_hot_days);
   const archiveResult = archiveRun.data?.result;
-  const archivedReports = archiveReportCount(archiveResult);
-  const lastArchiveStatus = archiveRun.isPending
-    ? "running"
-    : archiveRun.isError
-      ? "failed"
-      : archiveRun.isSuccess
-        ? archiveResult?.skipped_because_disabled || archiveResult?.skipped_because_no_reports
-          ? "skipped"
-          : "completed"
-        : settings?.last_archive_status || "not run";
-  const archiveTone =
-    lastArchiveStatus === "failed"
-      ? "error"
-      : lastArchiveStatus === "skipped"
-        ? "warning"
-        : lastArchiveStatus === "completed" || lastArchiveStatus === "success"
-          ? "success"
-          : "neutral";
-  const rollupTone = rollupRun.isError
-    ? "error"
-    : rollupRun.isSuccess
-      ? rollupResult?.skipped_today
-        ? "warning"
-        : "success"
-      : "neutral";
+  const archiveTotal =
+    (archiveResult?.agent_reports_archived ?? 0) + (archiveResult?.monitor_reports_archived ?? 0);
+  const rollupResult = rollupRun.data?.result;
+  const latestManualActivity = (() => {
+    if (rollupRun.isPending) {
+      return {
+        value: "Rollup running",
+        detail: "Core is computing daily uptime rollups.",
+        tone: "pending" as const,
+      };
+    }
+    if (archiveRun.isPending) {
+      return {
+        value: "Archive running",
+        detail: "Core is moving eligible raw reports into archive storage.",
+        tone: "pending" as const,
+      };
+    }
+    if (rollupRun.data?.result) {
+      const result = rollupRun.data.result;
+      return {
+        value: "Rollup completed",
+        detail: `${result.report_count ?? 0} reports across ${result.monitor_days ?? 0} monitor days.`,
+        tone: "success" as const,
+      };
+    }
+    if (archiveRun.data?.result) {
+      const result = archiveRun.data.result;
+      return {
+        value: "Archive completed",
+        detail: `${archiveCount(result)} reports archived${
+          result.archive_path ? ` to ${result.archive_path}` : ""
+        }.`,
+        tone: "success" as const,
+      };
+    }
+    if (rollupRun.isError || archiveRun.isError) {
+      return {
+        value: "Manual action failed",
+        detail: "Review Core logs if the action keeps failing.",
+        tone: "error" as const,
+      };
+    }
+    return {
+      value: "No manual action this session",
+      detail: "Run rollup or archive to see the latest action result here.",
+      tone: "neutral" as const,
+    };
+  })();
 
   return (
     <div className="space-y-7">
@@ -242,8 +338,8 @@ export const SettingsPage = () => {
       {settingsResponse.error && (
         <EmptyState
           className="min-h-40"
-          title="Unable to load settings"
-          description="Retry after Core is reachable before changing retention policy."
+          title="Unable to load data lifecycle settings"
+          description="Retry after Core is reachable."
           tone="error"
           action={
             <Button size="sm" variant="outline" onClick={() => void settingsResponse.refetch()}>
@@ -253,15 +349,19 @@ export const SettingsPage = () => {
         />
       )}
 
-      <SettingsSection title="Retention Policy" icon={<Database className="size-4" />}>
+      <Section
+        title="Retention Policy"
+        description="Control how much recent and rolled-up history Core keeps online."
+      >
         <div className="grid gap-3 sm:grid-cols-2">
           <Field
             label="Raw report days"
             description="Recent report history kept in Core."
-            error={validationErrors.rawReportHotDays}
+            error={fieldError("rawReportHotDays")}
           >
             <Input
-              aria-invalid={Boolean(validationErrors.rawReportHotDays)}
+              aria-invalid={Boolean(fieldError("rawReportHotDays"))}
+              className={fieldError("rawReportHotDays") ? "border-red-500" : undefined}
               type="number"
               min="1"
               step="1"
@@ -270,32 +370,36 @@ export const SettingsPage = () => {
             />
           </Field>
           <Field
-            label="Rollup retention days"
-            description="Daily uptime history to retain."
-            error={validationErrors.rollupRetentionDays}
+            label="Rollup days"
+            description="Daily uptime history to retain after raw reports age out."
+            error={fieldError("rollupRetentionDays")}
           >
             <Input
-              aria-invalid={Boolean(validationErrors.rollupRetentionDays)}
+              aria-invalid={Boolean(fieldError("rollupRetentionDays"))}
+              className={fieldError("rollupRetentionDays") ? "border-red-500" : undefined}
               type="number"
               min="1"
               step="1"
               value={formState.rollupRetentionDays}
               onChange={(event) => updateField("rollupRetentionDays", event.target.value)}
-              placeholder="Unlimited"
             />
           </Field>
         </div>
-      </SettingsSection>
+      </Section>
 
-      <SettingsSection title="Archive Storage" icon={<Archive className="size-4" />}>
-        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px]">
+      <Section
+        title="Archive Storage"
+        description="Choose where eligible raw reports are archived and when Core runs that job."
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
           <Field
             label="Archive directory"
             description="Local path for archived reports."
-            error={validationErrors.archiveDir}
+            error={fieldError("archiveDir")}
           >
             <Input
-              aria-invalid={Boolean(validationErrors.archiveDir)}
+              aria-invalid={Boolean(fieldError("archiveDir"))}
+              className={fieldError("archiveDir") ? "border-red-500" : undefined}
               value={formState.archiveDir}
               onChange={(event) => updateField("archiveDir", event.target.value)}
               placeholder="./data/archive"
@@ -306,8 +410,8 @@ export const SettingsPage = () => {
               value={formState.archiveSchedule}
               onValueChange={(value) => updateField("archiveSchedule", value)}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Archive schedule" />
+              <SelectTrigger aria-label="Archive schedule">
+                <SelectValue placeholder="Archive schedule">{archiveScheduleLabel}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="daily">Daily</SelectItem>
@@ -321,98 +425,208 @@ export const SettingsPage = () => {
             checked={formState.archiveRawReports}
             onCheckedChange={(checked) => updateField("archiveRawReports", checked === true)}
           />
-          Archive raw reports
+          Archive raw reports automatically
         </label>
-      </SettingsSection>
+      </Section>
 
-      <SettingsSection title="Rollups" icon={<RotateCw className="size-4" />}>
+      <Section
+        title="Rollups"
+        description="Keep compact uptime history available after raw reports are no longer hot."
+      >
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm">
             <Checkbox
               checked={formState.rollupsEnabled}
               onCheckedChange={(checked) => updateField("rollupsEnabled", checked === true)}
             />
-            Enable uptime rollups
+            Enable rollups
           </label>
-          {validationErrors.archiveRollup && (
-            <div className="text-sm text-red-700">{validationErrors.archiveRollup}</div>
+          {archiveCompatibilityError && (
+            <div className="text-sm text-red-700">{archiveCompatibilityError}</div>
           )}
         </div>
-      </SettingsSection>
 
-      <div className="flex flex-wrap items-center gap-3 border-t border-neutral-200 pt-4">
-        <Button
-          onClick={saveSettings}
-          disabled={updateSettings.isPending || !settings || hasValidationErrors}
-        >
-          <Save />
-          {updateSettings.isPending ? "Saving..." : "Save settings"}
-        </Button>
-        {updateSettings.isError && <span className="text-sm">Unable to save settings.</span>}
-        {updateSettings.isSuccess && (
-          <span className="text-sm text-neutral-600">Settings saved.</span>
-        )}
-      </div>
-
-      <SettingsSection title="Manual Maintenance" icon={<Play className="size-4" />}>
         <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={runRollup} disabled={rollupRun.isPending}>
-            <RotateCw />
-            {rollupRun.isPending ? "Running..." : "Run rollup"}
+          <Button onClick={saveSettings} disabled={updateSettings.isPending || !settings}>
+            <Save />
+            {updateSettings.isPending ? "Saving..." : "Save settings"}
           </Button>
-          <Button variant="outline" onClick={runArchive} disabled={archiveRun.isPending}>
-            <Archive />
-            {archiveRun.isPending ? "Running..." : "Run archive"}
-          </Button>
-          {rollupResult && (
-            <span className="text-sm text-neutral-600">
-              Rolled up {rollupResult.report_count ?? 0} reports.
+          {showAllErrors && hasFormErrors && (
+            <span className="text-sm text-red-700">
+              Fix the highlighted settings before saving.
             </span>
           )}
-          {archiveResult && (
-            <span className="text-sm text-neutral-600">Archived {archivedReports} reports.</span>
-          )}
-          {(rollupRun.isError || archiveRun.isError) && (
-            <span className="text-sm">Unable to run maintenance.</span>
+          {updateSettings.isError && <span className="text-sm">Unable to save settings.</span>}
+          {updateSettings.isSuccess && (
+            <span className="text-sm text-neutral-600">Settings saved.</span>
           )}
         </div>
-      </SettingsSection>
+      </Section>
 
-      <SettingsSection title="Recent Activity" icon={<History className="size-4" />}>
-        <div className="grid gap-3 text-sm lg:grid-cols-2">
-          <ActivityItem
-            label="Last rollup"
-            value={formatDate(settings?.last_rollup_run_at, DATE_TIME_FORMAT)}
-            tone={rollupTone}
-            meta={
-              rollupRun.isPending
-                ? "Running now"
-                : rollupRun.isError
-                  ? "Last manual rollup failed."
-                  : rollupResult
-                    ? `${rollupResult.report_count ?? 0} reports, ${
-                        rollupResult.monitor_days ?? 0
-                      } monitor-days.`
-                    : "No recent result count available."
-            }
-          />
-          <ActivityItem
-            label="Last archive"
-            value={formatDate(settings?.last_archive_run_at, DATE_TIME_FORMAT)}
-            tone={archiveTone}
-            meta={
-              <div className="space-y-1">
-                <div>Status: {lastArchiveStatus}</div>
-                {archiveResult && <div>{archivedReports} reports archived.</div>}
-                {archiveResult?.archive_path && <div>Path: {archiveResult.archive_path}</div>}
-                {settings?.last_archive_error && (
-                  <div className="text-red-800">Error: {settings.last_archive_error}</div>
-                )}
-              </div>
-            }
-          />
+      <Section
+        title="Manual Maintenance"
+        description="Run lifecycle jobs immediately without changing the saved schedule."
+      >
+        <div className="flex flex-wrap items-center gap-3">
+          <Button onClick={runRollup} disabled={maintenancePending}>
+            <RotateCwIcon />
+            {rollupRun.isPending ? "Running rollup..." : "Run rollup"}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setArchiveDialogOpen(true)}
+            disabled={maintenancePending || !settings}
+          >
+            <ArchiveIcon />
+            Run archive
+          </Button>
         </div>
-      </SettingsSection>
+
+        <Dialog open={archiveDialogOpen} onOpenChange={setArchiveDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Archive raw reports</DialogTitle>
+              <DialogDescription>
+                Confirm before old raw reports move out of the hot Core database.
+              </DialogDescription>
+            </DialogHeader>
+            <dl className="grid gap-3 text-sm">
+              <div className="bg-neutral-100 p-3">
+                <dt className="text-neutral-600">Reports older than</dt>
+                <dd className="font-medium">
+                  {formatDate(archiveCutoff, DATE_TIME_FORMAT)} ({settings?.raw_report_hot_days}{" "}
+                  days)
+                </dd>
+              </div>
+              <div className="bg-neutral-100 p-3">
+                <dt className="text-neutral-600">Archive destination</dt>
+                <dd className="break-all font-medium">{settings?.archive_dir}</dd>
+              </div>
+              {!settings?.archive_raw_reports && (
+                <div className="border border-neutral-300 p-3 text-neutral-700">
+                  Raw report archiving is disabled, so this run will record a skipped archive.
+                </div>
+              )}
+            </dl>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setArchiveDialogOpen(false)}
+                disabled={archiveRun.isPending}
+              >
+                Cancel
+              </Button>
+              <Button onClick={runArchive} disabled={maintenancePending || !settings}>
+                <ArchiveIcon />
+                {archiveRun.isPending ? "Running archive..." : "Run archive"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <div className="grid gap-3 text-sm lg:grid-cols-2">
+          {rollupResult && (
+            <div className="border border-neutral-200 p-3">
+              <div className="font-medium">
+                Rolled up {rollupResult.report_count ?? 0} reports for {rollupResult.date}.
+              </div>
+              <div className="mt-1 text-neutral-600">
+                {rollupResult.monitor_days ?? 0} monitor days updated.
+              </div>
+              {rollupResult.report_count === 0 && (
+                <div className="mt-1 text-neutral-600">
+                  No monitor reports matched this rollup day.
+                </div>
+              )}
+              {rollupResult.skipped_today && (
+                <div className="mt-1 text-neutral-600">
+                  Skipped because rollups only run after a day is complete.
+                </div>
+              )}
+            </div>
+          )}
+          {archiveResult && (
+            <div className="border border-neutral-200 p-3">
+              <div className="font-medium">Archived {archiveTotal} reports.</div>
+              <div className="mt-1 text-neutral-600">
+                {archiveResult.agent_reports_archived ?? 0} server reports and{" "}
+                {archiveResult.monitor_reports_archived ?? 0} monitor reports moved.
+              </div>
+              {archiveResult.cutoff && (
+                <div className="mt-1 text-neutral-600">
+                  Cutoff {formatDate(archiveResult.cutoff, DATE_TIME_FORMAT)}.
+                </div>
+              )}
+              {archiveResult.archive_path && (
+                <div className="mt-1 break-all text-neutral-600">
+                  Destination {archiveResult.archive_path}.
+                </div>
+              )}
+              {archiveResult.skipped_because_disabled && (
+                <div className="mt-1 text-neutral-600">
+                  Skipped because raw report archiving is disabled.
+                </div>
+              )}
+              {archiveResult.skipped_because_no_reports && (
+                <div className="mt-1 text-neutral-600">No raw reports matched the cutoff.</div>
+              )}
+            </div>
+          )}
+          {rollupRun.isError && (
+            <div className="border border-neutral-300 p-3">
+              <div className="font-medium">Rollup failed</div>
+              <div className="mt-1 text-neutral-600">{getErrorMessage(rollupRun.error)}</div>
+            </div>
+          )}
+          {archiveRun.isError && (
+            <div className="border border-neutral-300 p-3">
+              <div className="font-medium">Archive failed</div>
+              <div className="mt-1 text-neutral-600">{getErrorMessage(archiveRun.error)}</div>
+            </div>
+          )}
+        </div>
+      </Section>
+
+      <Section title="Recent Activity">
+        {settings ? (
+          <div className="grid gap-3 sm:grid-cols-3">
+            <ActivityItem
+              label="Last rollup"
+              value={formatDate(
+                settings.last_rollup_run_at,
+                DATE_TIME_FORMAT,
+                "No rollup recorded",
+              )}
+              detail="Latest persisted rollup timestamp."
+            />
+            <ActivityItem
+              label="Last archive"
+              value={formatDate(
+                settings.last_archive_run_at,
+                DATE_TIME_FORMAT,
+                "No archive recorded",
+              )}
+              detail={
+                settings.last_archive_error
+                  ? safeInlineMessage(settings.last_archive_error)
+                  : (settings.last_archive_status ?? "Latest persisted archive status.")
+              }
+              tone={settings.last_archive_error ? "error" : "neutral"}
+            />
+            <ActivityItem
+              label="This session"
+              value={latestManualActivity.value}
+              detail={latestManualActivity.detail}
+              tone={latestManualActivity.tone}
+            />
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-sm text-neutral-600">
+            <History className="size-4" />
+            Activity loads with lifecycle settings.
+          </div>
+        )}
+      </Section>
     </div>
   );
 };

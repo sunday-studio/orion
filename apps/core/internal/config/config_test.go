@@ -61,6 +61,16 @@ func TestLoadPublicStatusMailConfigFromEnvironment(t *testing.T) {
 	}
 }
 
+func TestLoadRequireFrontendAuthFromEnvironment(t *testing.T) {
+	t.Setenv("ORION_REQUIRE_FRONTEND_AUTH", "true")
+
+	cfg := Load()
+
+	if !cfg.RequireFrontendAuth {
+		t.Fatal("RequireFrontendAuth = false, want true")
+	}
+}
+
 func TestValidateRejectsPartialFrontendAuthConfig(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -92,6 +102,47 @@ func TestValidateRejectsPartialFrontendAuthConfig(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsMissingRequiredFrontendAuthConfig(t *testing.T) {
+	cfg := validRequiredFrontendAuthConfig()
+	cfg.AdminPassword = ""
+	cfg.FrontendAuthOn = false
+
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate() error = nil, want required frontend auth config error")
+	}
+}
+
+func TestValidateRejectsWeakRequiredFrontendAuthConfig(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*Config)
+	}{
+		{name: "short password", mutate: func(cfg *Config) { cfg.AdminPassword = "short" }},
+		{name: "placeholder password", mutate: func(cfg *Config) { cfg.AdminPassword = "change-me-now" }},
+		{name: "short jwt secret", mutate: func(cfg *Config) { cfg.JWTSecret = "short-secret" }},
+		{name: "placeholder jwt secret", mutate: func(cfg *Config) { cfg.JWTSecret = "change-me-to-a-long-random-secret" }},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := validRequiredFrontendAuthConfig()
+			tt.mutate(cfg)
+
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want weak required frontend auth config error")
+			}
+		})
+	}
+}
+
+func TestValidateAcceptsStrongRequiredFrontendAuthConfig(t *testing.T) {
+	cfg := validRequiredFrontendAuthConfig()
+
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+}
+
 func TestValidateAcceptsCompleteFrontendAuthConfig(t *testing.T) {
 	cfg := &Config{
 		AdminUsername:                 "admin",
@@ -108,29 +159,16 @@ func TestValidateAcceptsCompleteFrontendAuthConfig(t *testing.T) {
 	}
 }
 
-func TestValidateRequireFrontendAuth(t *testing.T) {
-	incomplete := &Config{
-		RequireFrontendAuth:           true,
-		CoreWorkerHeartbeatSeconds:    15,
-		CoreWorkerStaleSeconds:        60,
-		DataLifecycleSchedulerSeconds: 3600,
-	}
-	if err := incomplete.Validate(); err == nil {
-		t.Fatal("Validate() error = nil, want required frontend auth config error")
-	}
-
-	complete := &Config{
+func validRequiredFrontendAuthConfig() *Config {
+	return &Config{
 		AdminUsername:                 "admin",
-		AdminPassword:                 "secret",
-		JWTSecret:                     "jwt-secret",
+		AdminPassword:                 "correct-horse-battery-staple",
+		JWTSecret:                     "0123456789abcdef0123456789abcdef",
 		FrontendAuthOn:                true,
 		RequireFrontendAuth:           true,
 		CoreWorkerHeartbeatSeconds:    15,
 		CoreWorkerStaleSeconds:        60,
 		DataLifecycleSchedulerSeconds: 3600,
-	}
-	if err := complete.Validate(); err != nil {
-		t.Fatalf("Validate() error = %v", err)
 	}
 }
 

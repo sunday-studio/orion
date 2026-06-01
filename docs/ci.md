@@ -4,15 +4,17 @@ Orion uses `.github/workflows/ci.yml` for pull request and `main` branch validat
 
 The workflow is path-aware:
 
-- Server changes run Go formatting checks and `go test ./...` in `apps/agent`.
-- Core changes run `make core-coverage`, upload package/function coverage artifacts, and build the
-  Core API and worker binaries after Go formatting checks pass.
-- Console changes install dependencies with pnpm, generate the local SDK from committed OpenAPI,
-  run format and lint checks, and run the Console build.
-- API or generated-contract changes regenerate OpenAPI before generating the local Console SDK.
-  CI then fails if regenerated Core OpenAPI and Swagger files are not committed.
+- Server changes run `go test ./...` in `apps/agent`.
+- Core changes run `make core-coverage`, upload package/function coverage artifacts, run race
+  detection on the Core service and worker packages, run the Core modernization lint gate, run
+  `govulncheck`, and build the Core API and worker binaries.
+- Console changes install dependencies with pnpm and run the Console build.
+- API or generated-contract changes regenerate OpenAPI and the Console SDK, then fail if committed
+  Core generated files drift or SDK generation stops producing `apps/console/src/orion-sdk/index.ts`.
 - Deploy and documentation changes run repository smoke checks, including shell syntax and Docker
   Compose config validation.
+- The release readiness job aggregates path-aware job results and fails when any required gate fails
+  or is cancelled.
 
 Release-only jobs stay separate:
 
@@ -21,6 +23,40 @@ Release-only jobs stay separate:
 
 Those release jobs are intentionally manual because they publish external artifacts and require
 explicit version inputs.
+
+## Core backend verification
+
+Run these commands before opening a Core backend PR:
+
+```sh
+make core-test
+make core-coverage
+make core-race
+make core-modernize-check
+make core-vulncheck
+make core-contract-check
+make core-build CORE_OUTPUT=/tmp/orion-core
+make core-worker-build CORE_WORKER_OUTPUT=/tmp/orion-core-worker
+```
+
+`make core-backend-verify` runs the same local bundle.
+
+The modernization lint gate uses `golangci-lint` with only the `modernize` linter enabled. CI
+reports only new pull request issues, and the local Makefile target reports issues introduced after
+the merge base with `main`. Existing modernization findings stay with the dedicated Core
+modernization cleanup goal instead of blocking unrelated CI changes.
+
+The generated-contract job remains the OpenAPI drift and Console SDK generation check. `make
+core-contract-check` is the narrower backend-only drift check for generated Core Swagger docs and
+`apps/core/openapi.yaml`.
+
+## Release Readiness
+
+`make release-readiness` runs the local blocking gate for Server tests, Core tests, Console build,
+and repository smoke checks. Contract-changing PRs must also run `make generated-contracts-check`.
+
+The full matrix and warning classification rules live in
+[Release readiness gate](deployment/release-readiness.md).
 
 ## Coverage
 
@@ -39,5 +75,6 @@ The Console SDK stays ignored locally, so clean CI checkouts generate it before 
 `@/orion-sdk`. Backend contract changes regenerate OpenAPI first; frontend-only changes generate the
 SDK from the committed OpenAPI file.
 
-Coverage thresholds are still deferred. A raw percentage would be misleading until generated docs
-and integration-heavy packages have agreed package-level interpretation.
+Coverage thresholds are still deferred. The README shows the live CI workflow badge, but a coverage
+badge is deferred until Orion publishes coverage reports from CI to a durable provider or GitHub
+Pages artifact. Until then, adding a static coverage badge would be misleading.

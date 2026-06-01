@@ -1,15 +1,16 @@
-## Summary
+## Readiness
 
--
+- [ ] I ran the relevant checks or named why they are not applicable.
+- [ ] I classified every warning as blocking, conditional, or advisory.
+- [ ] I linked follow-up Maat tickets for conditional or advisory release warnings.
+- [ ] I updated generated files after API or contract changes, or this PR does not change contracts.
+- [ ] I updated deployment, release, or compatibility docs when deployment behavior changed.
 
-## Validation
+## Evidence
 
-- [ ] Core backend: `cd apps/core && go test ./...`
-- [ ] Core coverage: `make core-coverage`
-- [ ] Agent: `cd apps/agent && go test ./...`
-- [ ] Console: `cd apps/console && npm run build`
-- [ ] Generated contracts: `make generate-sdk` and committed generated output
-- [ ] Not applicable because:
+- Checks:
+- Warning classification:
+- Release version impact:
 
 ## Core Backend Coverage
 

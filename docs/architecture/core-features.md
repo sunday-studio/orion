@@ -142,41 +142,38 @@ Incident rules:
 
 ## Alerts
 
-Alert deliveries are created for incident opened/resolved events.
+Alert deliveries are created for incident opened/resolved events and are governed
+by editable alert rules.
 
 ```mermaid
 flowchart TD
-  Queue["Queue incident notifications"] --> LoadChannels["Load alert channels from SQLite"]
-  LoadChannels --> Channels{"Configured channels?"}
-  Channels -- "no" --> Suppressed["Create suppressed delivery: no channels"]
-  Channels -- "yes" --> Subscribed{"Subscribed to event?"}
-  Subscribed -- "no" --> Skip["Skip channel"]
-  Subscribed -- "yes" --> Enabled{"Channel enabled?"}
-  Enabled -- "no" --> Disabled["Create suppressed delivery"]
-  Enabled -- "yes" --> Cooldown{"Cooldown active?"}
+  Queue["Queue incident notification"] --> LoadRules["Load enabled alert rules"]
+  LoadRules --> Rules{"Matching rules?"}
+  Rules -- "no" --> Suppressed["Create suppressed delivery: no rule"]
+  Rules -- "yes" --> Filters{"Trigger and filters match?"}
+  Filters -- "no" --> Skip["Skip rule"]
+  Filters -- "yes" --> Suppress{"Rule suppresses?"}
+  Suppress -- "yes" --> SuppressedRule["Create suppressed delivery"]
+  Suppress -- "no" --> Cooldown{"Cooldown active?"}
   Cooldown -- "yes" --> CooldownDelivery["Mark cooldown"]
-  Cooldown -- "no" --> Type{"Channel type"}
-  Type -- "webhook" --> Webhook["POST webhook"]
-  Type -- "email" --> Email["Send SMTP email"]
+  Cooldown -- "no" --> Webhook["POST generic webhook"]
   Webhook --> Sent{"2xx?"}
-  Email --> Sent
   Sent -- "yes" --> MarkSent["Mark sent"]
   Sent -- "no" --> MarkFailed["Mark failed"]
 ```
 
-Implemented alert channels:
+Supported internal alert destination:
 
-- API-managed webhooks;
-- webhook event subscriptions for incident opened and incident resolved events;
-- none/suppressed when no channels exist.
+- generic webhook only.
 
 Configured behavior:
 
-- multiple channels can be created and toggled independently;
-- each webhook can subscribe to incident opened, incident resolved, or both;
-- disabled channels create suppressed delivery rows;
-- unsubscribed event/channel pairs are skipped and do not create delivery rows;
-- explicit alert routes evaluate incident alert events after incidents exist; Core maintenance mode stays outside route matching because it suppresses incident candidates before alert delivery is queued;
+- rules own trigger, filter, suppression, grouping, cooldown, recovery, and destination selection behavior;
+- rules can target one or more generic webhook destinations;
+- disabled rules do not create delivery rows;
+- suppressing rules create suppressed delivery rows;
+- unmatched events do not create webhook delivery rows;
+- Core maintenance mode stays outside rule matching because it suppresses incident candidates before alert delivery is queued;
 - cooldown can prevent repeated sent alerts;
 - recovery notifications can be disabled;
 - TLS expiry threshold defaults to 14 days.

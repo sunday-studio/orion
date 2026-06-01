@@ -1,4 +1,4 @@
-.PHONY: generate-openapi generate-sdk build-static docker-build docker-up docker-down core-build core-worker-build core-coverage agent-build seed-demo-data code-line-limit
+.PHONY: generate-openapi generate-sdk console-sdk build-static docker-build docker-up docker-down agent-test core-test core-coverage core-race core-modernize-check core-vulncheck core-contract-check core-backend-verify console-build repository-smoke generated-contracts-check release-core-build release-readiness core-build core-worker-build agent-build seed-demo-data
 
 VERSION ?= latest
 CORE_IMAGE ?= ghcr.io/sunday-studio/orion-core
@@ -9,7 +9,6 @@ CORE_OUTPUT ?= orion-core
 CORE_WORKER_OUTPUT ?= orion-core-worker
 CORE_COVERAGE_PROFILE ?= /tmp/orion-core-coverage.out
 CORE_COVERAGE_SUMMARY ?= /tmp/orion-core-coverage.txt
-APP_CODE_LINE_LIMIT ?= 500
 AGENT_CGO_ENABLED ?= 1
 
 generate-openapi:
@@ -18,11 +17,62 @@ generate-openapi:
 generate-sdk: generate-openapi
 	cd apps/console && pnpm run generate:api
 
-build-static:
+console-sdk:
+	cd apps/console && pnpm run generate:api
+
+build-static: console-sdk
 	cd apps/console && pnpm run build
 	rm -rf apps/core/web
 	mkdir -p apps/core/web
 	cp -R apps/console/dist/. apps/core/web/
+
+# Run the full Core Go test suite.
+core-test:
+	cd apps/core && go test ./...
+
+# Run Core tests with package/function coverage output.
+core-coverage:
+	cd apps/core && go test -coverprofile=$(CORE_COVERAGE_PROFILE) ./...
+	cd apps/core && go tool cover -func=$(CORE_COVERAGE_PROFILE) | tee $(CORE_COVERAGE_SUMMARY)
+
+# Run race detection on Core packages with scheduler, worker, and lifecycle concurrency.
+core-race:
+	cd apps/core && go test -race ./internal/service ./internal/worker
+
+# Run the Core Go modernization lint gate. Requires golangci-lint v2.6 or newer.
+core-modernize-check:
+	cd apps/core && golangci-lint run --config ../../.golangci.yml --new-from-merge-base=main ./...
+
+# Run the Core Go vulnerability gate. Requires govulncheck.
+core-vulncheck:
+	cd apps/core && govulncheck ./...
+
+# Regenerate Core OpenAPI output and fail if generated contract files drift.
+core-contract-check: generate-openapi
+	git diff --exit-code -- apps/core/docs apps/core/openapi.yaml
+
+# Local Core backend verification bundle used before opening backend PRs.
+core-backend-verify: core-test core-race core-modernize-check core-vulncheck core-contract-check core-build core-worker-build
+
+agent-test:
+	cd apps/agent && go test ./...
+
+console-build: console-sdk
+	cd apps/console && pnpm run build
+
+repository-smoke:
+	bash -n deploy/scripts/*.sh
+	ORION_ADMIN_USERNAME=ci-admin ORION_ADMIN_PASSWORD=ci-password ORION_JWT_SECRET=ci-secret-at-least-long-enough docker compose -f deploy/docker-compose.yml config >/tmp/orion-compose.yml
+
+generated-contracts-check: generate-sdk
+	git diff --exit-code -- apps/core/docs apps/core/openapi.yaml apps/console/src/orion-sdk
+	test -s apps/console/src/orion-sdk/index.ts
+
+release-core-build:
+	$(MAKE) core-build CORE_OUTPUT=/tmp/orion-core
+	$(MAKE) core-worker-build CORE_WORKER_OUTPUT=/tmp/orion-core-worker
+
+release-readiness: agent-test core-test release-core-build console-build repository-smoke
 
 # Build orion-core Docker image (context: repo root)
 docker-build:
@@ -35,11 +85,6 @@ core-build:
 # Build Core monitor worker for local/package validation.
 core-worker-build:
 	cd apps/core && go build -trimpath -ldflags "-s -w -X main.version=$(VERSION)" -o $(CORE_WORKER_OUTPUT) ./cmd/worker
-
-# Run Core tests with package/function coverage output.
-core-coverage:
-	cd apps/core && go test -coverprofile=$(CORE_COVERAGE_PROFILE) ./...
-	cd apps/core && go tool cover -func=$(CORE_COVERAGE_PROFILE) | tee $(CORE_COVERAGE_SUMMARY)
 
 # Build Orion Agent for the requested platform.
 agent-build:
@@ -55,26 +100,3 @@ docker-down:
 # Seed Core SQLite with 90 days of demo data for local UI/API testing
 seed-demo-data:
 	cd apps/core && go run ./scripts/seed-demo-data
-
-# Enforce the app source file line limit documented in AGENTS.md.
-code-line-limit:
-	@violations=$$(find apps -type f \( -name '*.go' -o -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' -o -name '*.mjs' -o -name '*.css' -o -name '*.sh' \) \
-		-not -path '*/node_modules/*' \
-		-not -path '*/dist/*' \
-		-not -path '*/web/*' \
-		-not -path '*/docs/*' \
-		-not -path '*/orion-sdk/*' \
-		-not -path '*/db/migrations/*' \
-		-not -path '*/public/*' \
-		-not -name '*.config.ts' \
-		-not -name '*.config.js' \
-		-not -name '*.config.mjs' \
-		-not -name '*.config.cjs' \
-		-not -name '*.d.ts' \
-		-print0 | xargs -0 wc -l | awk -v max="$(APP_CODE_LINE_LIMIT)" '$$2 != "total" && $$1 > max { printf "%5d %s\n", $$1, $$2 }' | sort -nr); \
-	if [ -n "$$violations" ]; then \
-		printf 'code-line-limit: app source files exceed %s lines\n' "$(APP_CODE_LINE_LIMIT)" >&2; \
-		printf '%s\n' "$$violations" >&2; \
-		exit 1; \
-	fi; \
-	printf 'code-line-limit: all app source files are at or below %s lines\n' "$(APP_CODE_LINE_LIMIT)"

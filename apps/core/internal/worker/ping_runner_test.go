@@ -33,7 +33,7 @@ func TestRunDueChecksStoresUpReportForPingTCPReachability(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-ping-test", TCPDialContext: tcpDialContext})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 	if dialedNetwork != "tcp" || dialedAddress != "example.com:443" {
@@ -44,7 +44,7 @@ func TestRunDueChecksStoresUpReportForPingTCPReachability(t *testing.T) {
 	if report.Health != "up" {
 		t.Fatalf("report health = %q, want up", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -78,7 +78,7 @@ func TestRunDueChecksStoresDownReportForPingTimeout(t *testing.T) {
 			return nil, timeoutTestError{}
 		},
 	})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -100,7 +100,7 @@ func TestRunDueChecksStoresDownReportForPingICMPPermission(t *testing.T) {
 	})
 
 	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-ping-test"})
-	if err := app.runDueChecks(context.Background()); err != nil {
+	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
 
@@ -108,7 +108,7 @@ func TestRunDueChecksStoresDownReportForPingICMPPermission(t *testing.T) {
 	if report.Health != "down" {
 		t.Fatalf("report health = %q, want down", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
@@ -124,7 +124,7 @@ func assertPingFailurePayload(t *testing.T, database *gorm.DB, monitorID string,
 	if report.Health != "down" {
 		t.Fatalf("report health = %q, want down", report.Health)
 	}
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(report.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal report payload: %v", err)
 	}
