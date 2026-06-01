@@ -297,9 +297,9 @@ persistence rule, scheduler, security boundary, and public/private projection pa
 Minimum CI commands:
 
 ```sh
-cd apps/core && go test ./...
-cd apps/core && go test -race ./internal/service ./internal/worker
-make generate-openapi
+(cd apps/core && go test ./...)
+(cd apps/core && go test -race ./internal/service ./internal/worker)
+(cd apps/core && make generate-openapi)
 git diff --exit-code -- apps/core/docs apps/core/openapi.yaml apps/console/src/orion-sdk
 ```
 
