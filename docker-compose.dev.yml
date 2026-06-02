@@ -63,5 +63,27 @@ services:
       retries: 3
       start_period: 10s
 
+  orion-core-seed:
+    image: orion-core:dev
+    build: *orion-core-dev-build
+    profiles: ["seed"]
+    command:
+      - orion-seed-demo-data
+      - "-data-dir"
+      - /data
+      - "-days"
+      - "${ORION_SEED_DAYS:-90}"
+      - "-agents"
+      - "${ORION_SEED_AGENTS:-10}"
+      - "-report-interval"
+      - "${ORION_SEED_REPORT_INTERVAL:-1h}"
+      - "-reset-seed=${ORION_SEED_RESET:-true}"
+      - "-update-settings=${ORION_SEED_UPDATE_SETTINGS:-true}"
+    depends_on:
+      orion-core:
+        condition: service_healthy
+    volumes:
+      - orion-dev-data:/data
+
 volumes:
   orion-dev-data:

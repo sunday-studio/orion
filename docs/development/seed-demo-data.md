@@ -10,6 +10,15 @@ Default run:
 make seed-demo-data
 ```
 
+Docker dev stack run:
+
+```sh
+make docker-dev-up
+make docker-dev-seed
+```
+
+The Docker command seeds the `orion-dev-data` Compose volume used by `docker-compose.dev.yml`.
+
 Equivalent command:
 
 ```sh
@@ -114,3 +123,20 @@ go run ./scripts/seed-demo-data -update-settings=false
 - `-report-interval`: generated report spacing, default `1h`.
 - `-reset-seed`: remove previous `seed-*` rows before inserting, default `true`.
 - `-update-settings`: upsert demo lifecycle settings, default `true`.
+
+## Docker Dev Overrides
+
+The Docker seed service uses the same defaults as the local script. Override them with environment
+variables:
+
+```sh
+ORION_SEED_DAYS=14 ORION_SEED_AGENTS=10 make docker-dev-seed
+```
+
+Supported Docker seed variables:
+
+- `ORION_SEED_DAYS`: maps to `-days`.
+- `ORION_SEED_AGENTS`: maps to `-agents`.
+- `ORION_SEED_REPORT_INTERVAL`: maps to `-report-interval`.
+- `ORION_SEED_RESET`: maps to `-reset-seed`.
+- `ORION_SEED_UPDATE_SETTINGS`: maps to `-update-settings`.

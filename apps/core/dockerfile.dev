@@ -10,9 +10,11 @@ RUN go mod download
 COPY cmd/ cmd/
 COPY docs/ docs/
 COPY internal/ internal/
+COPY scripts/ scripts/
 
 RUN go build -o /usr/local/bin/orion-core ./cmd/api
 RUN go build -o /usr/local/bin/orion-core-worker ./cmd/worker
+RUN go build -o /usr/local/bin/orion-seed-demo-data ./scripts/seed-demo-data
 
 RUN mkdir -p /data
 

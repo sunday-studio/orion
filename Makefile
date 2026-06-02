@@ -1,4 +1,4 @@
-.PHONY: generate-openapi generate-sdk console-sdk build-static docker-build docker-up docker-down agent-test core-test core-coverage core-race core-modernize-check core-vulncheck core-contract-check core-backend-verify console-build repository-smoke generated-contracts-check release-core-build release-readiness core-build core-worker-build agent-build seed-demo-data code-line-limit
+.PHONY: generate-openapi generate-sdk console-sdk build-static docker-build docker-up docker-down docker-dev-up docker-dev-down docker-dev-seed agent-test core-test core-coverage core-race core-modernize-check core-vulncheck core-contract-check core-backend-verify console-build repository-smoke generated-contracts-check release-core-build release-readiness core-build core-worker-build agent-build seed-demo-data code-line-limit
 
 VERSION ?= latest
 CORE_IMAGE ?= ghcr.io/sunday-studio/orion-core
@@ -97,6 +97,16 @@ docker-up:
 
 docker-down:
 	docker compose -f deploy/docker-compose.yml down
+
+docker-dev-up:
+	docker compose -f docker-compose.dev.yml up -d --build
+
+docker-dev-down:
+	docker compose -f docker-compose.dev.yml down
+
+docker-dev-seed:
+	docker compose -f docker-compose.dev.yml build orion-core-seed
+	docker compose -f docker-compose.dev.yml run --rm orion-core-seed
 
 # Seed Core SQLite with 90 days of demo data for local UI/API testing
 seed-demo-data:
