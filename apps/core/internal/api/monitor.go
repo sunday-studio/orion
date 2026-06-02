@@ -130,8 +130,8 @@ func (s *Server) listMonitors(c *gin.Context) {
 	healthFilter := c.Query("health")
 	lifecycleFilter := c.Query("lifecycle")
 
-	limit := queryInt(c, "limit", 50)
-	offset := queryInt(c, "offset", 0)
+	limit := utils.QueryInt(c, "limit", 50)
+	offset := utils.QueryInt(c, "offset", 0)
 
 	if _, err := s.agentService.GetAgent(agentID); err != nil {
 		utils.NotFound(c, "Agent not found")
@@ -185,8 +185,8 @@ func (s *Server) listMonitors(c *gin.Context) {
 // @Failure      500            {object}  utils.APIResponse
 // @Router       /v1/monitors [get]
 func (s *Server) listAllMonitors(c *gin.Context) {
-	limit := queryInt(c, "limit", 50)
-	offset := queryInt(c, "offset", 0)
+	limit := utils.QueryInt(c, "limit", 50)
+	offset := utils.QueryInt(c, "offset", 0)
 
 	monitors, count, err := s.monitorService.ListAllMonitors(service.ListAllMonitorsOpts{
 		Limit:        limit,
@@ -389,8 +389,8 @@ func (s *Server) getMonitorHistory(c *gin.Context) {
 		return
 	}
 
-	limit := queryInt(c, "limit", 50)
-	offset := queryInt(c, "offset", 0)
+	limit := utils.QueryInt(c, "limit", 50)
+	offset := utils.QueryInt(c, "offset", 0)
 
 	if _, err := s.monitorService.GetMonitor(monitorID); err != nil {
 		utils.NotFound(c, "Monitor not found")

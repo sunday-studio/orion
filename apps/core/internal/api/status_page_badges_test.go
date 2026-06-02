@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"orion/core/internal/db"
+	"orion/core/internal/utils"
 )
 
 func TestPublicStatusPageBadgeRendersCurrentStatusAndCacheHeaders(t *testing.T) {
@@ -19,8 +20,8 @@ func TestPublicStatusPageBadgeRendersCurrentStatusAndCacheHeaders(t *testing.T) 
 	if contentType := resp.Header().Get("Content-Type"); !strings.Contains(contentType, "image/svg+xml") {
 		t.Fatalf("page badge content-type = %q, want image/svg+xml", contentType)
 	}
-	if cacheControl := resp.Header().Get("Cache-Control"); cacheControl != statusPageBadgeCacheControl {
-		t.Fatalf("page badge cache-control = %q, want %q", cacheControl, statusPageBadgeCacheControl)
+	if cacheControl := resp.Header().Get("Cache-Control"); cacheControl != utils.StatusBadgeCacheControl {
+		t.Fatalf("page badge cache-control = %q, want %q", cacheControl, utils.StatusBadgeCacheControl)
 	}
 	body := resp.Body.String()
 	if !strings.Contains(body, "Customer Status") || !strings.Contains(body, "major outage") {

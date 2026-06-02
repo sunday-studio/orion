@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"strings"
 	"time"
 
@@ -37,10 +37,10 @@ type CompleteCoreMonitorCheckRequest struct {
 
 type CoreMonitorSchedulerService struct {
 	db     *gorm.DB
-	logger *logging.Logger
+	logger *utils.Logger
 }
 
-func NewCoreMonitorSchedulerService(database *gorm.DB, logger *logging.Logger) *CoreMonitorSchedulerService {
+func NewCoreMonitorSchedulerService(database *gorm.DB, logger *utils.Logger) *CoreMonitorSchedulerService {
 	return &CoreMonitorSchedulerService{
 		db:     database,
 		logger: logger,

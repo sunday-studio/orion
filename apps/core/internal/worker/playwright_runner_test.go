@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"strings"
 	"testing"
 	"time"
@@ -47,7 +47,7 @@ func TestRunDueChecksStoresUpReportForPlaywrightTransaction(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-playwright-test", PlaywrightRun: playwrightRun})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-playwright-test", PlaywrightRun: playwrightRun})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -112,7 +112,7 @@ func TestRunDueChecksStoresDownReportForPlaywrightFailureArtifact(t *testing.T) 
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-playwright-test", PlaywrightRun: playwrightRun})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-playwright-test", PlaywrightRun: playwrightRun})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -160,7 +160,7 @@ func TestRunDueChecksStoresDownReportForPlaywrightRuntimeFailure(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-playwright-test", PlaywrightRun: playwrightRun})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-playwright-test", PlaywrightRun: playwrightRun})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -194,7 +194,7 @@ func TestRunDueChecksStoresDownReportForPlaywrightInvalidConfig(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-playwright-test", PlaywrightRun: playwrightRun})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-playwright-test", PlaywrightRun: playwrightRun})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -231,7 +231,7 @@ func TestRunDueChecksRejectsPlaywrightPrivateTarget(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-playwright-test", PlaywrightRun: playwrightRun})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-playwright-test", PlaywrightRun: playwrightRun})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"log"
 	"orion/core/internal/config"
-	"orion/core/internal/logging"
 	"orion/core/internal/service"
-	"orion/core/internal/startup"
+	"orion/core/internal/shared"
+	"orion/core/internal/utils"
 	"orion/core/internal/worker"
 	"os"
 	"os/signal"
@@ -21,9 +21,9 @@ var version = "dev"
 const playwrightRunnerEnv = "ORION_PLAYWRIGHT_RUNNER"
 
 func main() {
-	logger := logging.NewLogger()
+	logger := utils.NewLogger()
 
-	cfg, err := startup.LoadConfig(".env")
+	cfg, err := shared.LoadConfig(".env")
 	if err != nil {
 		logger.Fatal("Failed to load config", "error", err)
 	}
@@ -42,11 +42,11 @@ func main() {
 		logger.Info("Playwright transaction runtime configured", "env", playwrightRunnerEnv)
 	}
 
-	database, err := startup.OpenMigratedDatabase(cfg)
+	database, err := shared.OpenMigratedDatabase(cfg)
 	if err != nil {
 		logger.Fatal("Failed to initialize database", "error", err)
 	}
-	defer startup.CloseDatabase(database, logger)
+	defer shared.CloseDatabase(database, logger)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -72,7 +72,7 @@ func main() {
 }
 
 func runHealthcheck(cfg *config.Config) error {
-	database, err := startup.OpenMigratedDatabase(cfg)
+	database, err := shared.OpenMigratedDatabase(cfg)
 	if err != nil {
 		return err
 	}
@@ -88,7 +88,7 @@ func runHealthcheck(cfg *config.Config) error {
 	return nil
 }
 
-func runHeartbeatLoop(ctx context.Context, diagnostics *service.WorkerDiagnosticsService, cfg *config.Config, logger *logging.Logger) error {
+func runHeartbeatLoop(ctx context.Context, diagnostics *service.WorkerDiagnosticsService, cfg *config.Config, logger *utils.Logger) error {
 	hostname, _ := os.Hostname()
 	startedAt := time.Now().UTC()
 	interval := time.Duration(cfg.CoreWorkerHeartbeatSeconds) * time.Second

@@ -85,7 +85,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -94,7 +94,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "status_page": {
-                                                    "$ref": "#/definitions/api.StatusPagePreviewResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPagePreviewResponse"
                                                 }
                                             }
                                         }
@@ -106,13 +106,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -148,13 +148,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -197,13 +197,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -252,7 +252,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -261,16 +261,16 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "component": {
-                                                    "$ref": "#/definitions/api.StatusPagePublicComponentResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPagePublicComponentResponse"
                                                 },
                                                 "history": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.StatusPagePublicUptimeBucketResponse"
+                                                        "$ref": "#/definitions/internal_api.StatusPagePublicUptimeBucketResponse"
                                                     }
                                                 },
                                                 "uptime": {
-                                                    "$ref": "#/definitions/api.StatusPagePublicUptimeResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPagePublicUptimeResponse"
                                                 }
                                             }
                                         }
@@ -282,19 +282,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -343,7 +343,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -352,10 +352,10 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "component": {
-                                                    "$ref": "#/definitions/api.StatusPagePublicComponentResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPagePublicComponentResponse"
                                                 },
                                                 "uptime": {
-                                                    "$ref": "#/definitions/api.StatusPagePublicUptimeResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPagePublicUptimeResponse"
                                                 }
                                             }
                                         }
@@ -367,19 +367,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -421,7 +421,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -430,7 +430,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "history": {
-                                                    "$ref": "#/definitions/api.StatusPagePublicHistoryResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPagePublicHistoryResponse"
                                                 }
                                             }
                                         }
@@ -442,19 +442,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -489,7 +489,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -503,7 +503,7 @@ const docTemplate = `{
                                                 "incidents": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.StatusPagePublicIncidentResponse"
+                                                        "$ref": "#/definitions/internal_api.StatusPagePublicIncidentResponse"
                                                     }
                                                 }
                                             }
@@ -516,13 +516,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -564,7 +564,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -573,7 +573,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "incident": {
-                                                    "$ref": "#/definitions/api.StatusPagePublicIncidentResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPagePublicIncidentResponse"
                                                 }
                                             }
                                         }
@@ -585,13 +585,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -633,7 +633,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -642,7 +642,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "history": {
-                                                    "$ref": "#/definitions/api.StatusPagePublicIncidentHistoryResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPagePublicIncidentHistoryResponse"
                                                 }
                                             }
                                         }
@@ -654,13 +654,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -694,7 +694,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.statusPageSubscriptionRequest"
+                            "$ref": "#/definitions/internal_api.statusPageSubscriptionRequest"
                         }
                     }
                 ],
@@ -704,7 +704,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -716,7 +716,7 @@ const docTemplate = `{
                                                     "type": "boolean"
                                                 },
                                                 "subscriber": {
-                                                    "$ref": "#/definitions/api.StatusPageSubscriberPublicResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPageSubscriberPublicResponse"
                                                 }
                                             }
                                         }
@@ -728,25 +728,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "429": {
                         "description": "Too Many Requests",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -788,7 +788,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -797,7 +797,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "subscriber": {
-                                                    "$ref": "#/definitions/api.StatusPageSubscriberPublicResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPageSubscriberPublicResponse"
                                                 }
                                             }
                                         }
@@ -809,19 +809,19 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "429": {
                         "description": "Too Many Requests",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -863,7 +863,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -872,7 +872,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "subscriber": {
-                                                    "$ref": "#/definitions/api.StatusPageSubscriberPublicResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPageSubscriberPublicResponse"
                                                 }
                                             }
                                         }
@@ -884,19 +884,19 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "429": {
                         "description": "Too Many Requests",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -935,7 +935,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.statusPageSubscriberPreferencesRequest"
+                            "$ref": "#/definitions/internal_api.statusPageSubscriberPreferencesRequest"
                         }
                     }
                 ],
@@ -945,7 +945,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -954,7 +954,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "subscriber": {
-                                                    "$ref": "#/definitions/api.StatusPageSubscriberPublicResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPageSubscriberPublicResponse"
                                                 }
                                             }
                                         }
@@ -966,25 +966,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "429": {
                         "description": "Too Many Requests",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -1026,7 +1026,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -1047,13 +1047,13 @@ const docTemplate = `{
                     "429": {
                         "description": "Too Many Requests",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -1125,7 +1125,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -1136,7 +1136,7 @@ const docTemplate = `{
                                                 "agents": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.AgentResponse"
+                                                        "$ref": "#/definitions/internal_api.AgentResponse"
                                                     }
                                                 },
                                                 "count": {
@@ -1150,7 +1150,7 @@ const docTemplate = `{
                                                     "type": "integer"
                                                 },
                                                 "pagination": {
-                                                    "$ref": "#/definitions/utils.PaginationMeta"
+                                                    "$ref": "#/definitions/orion_core_internal_utils.PaginationMeta"
                                                 }
                                             }
                                         }
@@ -1162,7 +1162,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -1188,13 +1188,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/api.AgentSummaryResponse"
+                                            "$ref": "#/definitions/internal_api.AgentSummaryResponse"
                                         }
                                     }
                                 }
@@ -1204,7 +1204,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -1243,7 +1243,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/service.ServiceLogBatchPayload"
+                            "$ref": "#/definitions/orion_core_internal_service.ServiceLogBatchPayload"
                         }
                     }
                 ],
@@ -1253,13 +1253,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/api.ServiceLogBatchResponse"
+                                            "$ref": "#/definitions/internal_api.ServiceLogBatchResponse"
                                         }
                                     }
                                 }
@@ -1269,19 +1269,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -1320,7 +1320,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/service.SetMaintenanceModeRequest"
+                            "$ref": "#/definitions/orion_core_internal_service.SetMaintenanceModeRequest"
                         }
                     }
                 ],
@@ -1328,25 +1328,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -1385,7 +1385,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/service.RegisterMonitorRequest"
+                            "$ref": "#/definitions/orion_core_internal_service.RegisterMonitorRequest"
                         }
                     }
                 ],
@@ -1395,13 +1395,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/service.RegisterMonitorResponse"
+                                            "$ref": "#/definitions/orion_core_internal_service.RegisterMonitorResponse"
                                         }
                                     }
                                 }
@@ -1411,19 +1411,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -1462,7 +1462,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/service.AgentReportPayload"
+                            "$ref": "#/definitions/orion_core_internal_service.AgentReportPayload"
                         }
                     }
                 ],
@@ -1472,13 +1472,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/api.ReportResponse"
+                                            "$ref": "#/definitions/internal_api.ReportResponse"
                                         }
                                     }
                                 }
@@ -1488,19 +1488,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -1533,7 +1533,7 @@ const docTemplate = `{
                         "name": "request",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/api.AgentTokenActionRequest"
+                            "$ref": "#/definitions/internal_api.AgentTokenActionRequest"
                         }
                     }
                 ],
@@ -1543,13 +1543,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/api.AgentTokenIssuedResponse"
+                                            "$ref": "#/definitions/internal_api.AgentTokenIssuedResponse"
                                         }
                                     }
                                 }
@@ -1559,19 +1559,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -1604,7 +1604,7 @@ const docTemplate = `{
                         "name": "request",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/api.AgentTokenActionRequest"
+                            "$ref": "#/definitions/internal_api.AgentTokenActionRequest"
                         }
                     }
                 ],
@@ -1614,13 +1614,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/api.AgentTokenStatusResponse"
+                                            "$ref": "#/definitions/internal_api.AgentTokenStatusResponse"
                                         }
                                     }
                                 }
@@ -1630,19 +1630,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -1675,7 +1675,7 @@ const docTemplate = `{
                         "name": "request",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/api.AgentTokenActionRequest"
+                            "$ref": "#/definitions/internal_api.AgentTokenActionRequest"
                         }
                     }
                 ],
@@ -1685,13 +1685,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/api.AgentTokenIssuedResponse"
+                                            "$ref": "#/definitions/internal_api.AgentTokenIssuedResponse"
                                         }
                                     }
                                 }
@@ -1701,19 +1701,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -1748,13 +1748,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/api.AgentTokenStatusResponse"
+                                            "$ref": "#/definitions/internal_api.AgentTokenStatusResponse"
                                         }
                                     }
                                 }
@@ -1764,13 +1764,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -1809,7 +1809,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/service.UnregisterMonitorRequest"
+                            "$ref": "#/definitions/orion_core_internal_service.UnregisterMonitorRequest"
                         }
                     }
                 ],
@@ -1819,13 +1819,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/service.UnregisterMonitorResponse"
+                                            "$ref": "#/definitions/orion_core_internal_service.UnregisterMonitorResponse"
                                         }
                                     }
                                 }
@@ -1835,19 +1835,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -1893,7 +1893,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/service.MonitorReportPayload"
+                            "$ref": "#/definitions/orion_core_internal_service.MonitorReportPayload"
                         }
                     }
                 ],
@@ -1901,25 +1901,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -1954,7 +1954,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -1963,7 +1963,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "agent": {
-                                                    "$ref": "#/definitions/api.AgentResponse"
+                                                    "$ref": "#/definitions/internal_api.AgentResponse"
                                                 },
                                                 "latest_report": {
                                                     "type": "object"
@@ -1978,13 +1978,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -2019,13 +2019,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/api.AgentHealthResponse"
+                                            "$ref": "#/definitions/internal_api.AgentHealthResponse"
                                         }
                                     }
                                 }
@@ -2035,19 +2035,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -2108,7 +2108,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -2126,14 +2126,14 @@ const docTemplate = `{
                                                 "monitors": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.MonitorResponse"
+                                                        "$ref": "#/definitions/internal_api.MonitorResponse"
                                                     }
                                                 },
                                                 "offset": {
                                                     "type": "integer"
                                                 },
                                                 "pagination": {
-                                                    "$ref": "#/definitions/utils.PaginationMeta"
+                                                    "$ref": "#/definitions/orion_core_internal_utils.PaginationMeta"
                                                 }
                                             }
                                         }
@@ -2145,19 +2145,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -2206,7 +2206,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -2225,12 +2225,12 @@ const docTemplate = `{
                                                     "type": "integer"
                                                 },
                                                 "pagination": {
-                                                    "$ref": "#/definitions/utils.PaginationMeta"
+                                                    "$ref": "#/definitions/orion_core_internal_utils.PaginationMeta"
                                                 },
                                                 "reports": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.AgentReportResponse"
+                                                        "$ref": "#/definitions/internal_api.AgentReportResponse"
                                                     }
                                                 }
                                             }
@@ -2243,19 +2243,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -2322,7 +2322,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -2340,14 +2340,14 @@ const docTemplate = `{
                                                 "logs": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.ServiceLogEntryResponse"
+                                                        "$ref": "#/definitions/internal_api.ServiceLogEntryResponse"
                                                     }
                                                 },
                                                 "offset": {
                                                     "type": "integer"
                                                 },
                                                 "pagination": {
-                                                    "$ref": "#/definitions/utils.PaginationMeta"
+                                                    "$ref": "#/definitions/orion_core_internal_utils.PaginationMeta"
                                                 }
                                             }
                                         }
@@ -2359,19 +2359,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -2407,36 +2407,48 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "daily_buckets": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/definitions/api.UptimeDayBucketResponse"
-                                    }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
-                                "uptime_percent": {
-                                    "type": "number"
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "daily_buckets": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/internal_api.UptimeDayBucketResponse"
+                                                    }
+                                                },
+                                                "uptime_percent": {
+                                                    "type": "number"
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
-                            }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -2462,7 +2474,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -2473,7 +2485,7 @@ const docTemplate = `{
                                                 "channels": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.AlertChannelResponse"
+                                                        "$ref": "#/definitions/internal_api.AlertChannelResponse"
                                                     }
                                                 },
                                                 "count": {
@@ -2489,7 +2501,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -2514,7 +2526,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.alertChannelRequest"
+                            "$ref": "#/definitions/internal_api.alertChannelRequest"
                         }
                     }
                 ],
@@ -2524,7 +2536,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -2533,7 +2545,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "channel": {
-                                                    "$ref": "#/definitions/api.AlertChannelResponse"
+                                                    "$ref": "#/definitions/internal_api.AlertChannelResponse"
                                                 }
                                             }
                                         }
@@ -2545,19 +2557,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -2590,19 +2602,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -2634,7 +2646,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.alertChannelRequest"
+                            "$ref": "#/definitions/internal_api.alertChannelRequest"
                         }
                     }
                 ],
@@ -2644,7 +2656,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -2653,7 +2665,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "channel": {
-                                                    "$ref": "#/definitions/api.AlertChannelResponse"
+                                                    "$ref": "#/definitions/internal_api.AlertChannelResponse"
                                                 }
                                             }
                                         }
@@ -2665,25 +2677,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -2718,7 +2730,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -2727,7 +2739,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "delivery": {
-                                                    "$ref": "#/definitions/api.AlertDeliveryResponse"
+                                                    "$ref": "#/definitions/internal_api.AlertDeliveryResponse"
                                                 }
                                             }
                                         }
@@ -2739,13 +2751,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -2817,7 +2829,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -2832,7 +2844,7 @@ const docTemplate = `{
                                                 "deliveries": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.AlertDeliveryResponse"
+                                                        "$ref": "#/definitions/internal_api.AlertDeliveryResponse"
                                                     }
                                                 },
                                                 "limit": {
@@ -2842,7 +2854,7 @@ const docTemplate = `{
                                                     "type": "integer"
                                                 },
                                                 "pagination": {
-                                                    "$ref": "#/definitions/utils.PaginationMeta"
+                                                    "$ref": "#/definitions/orion_core_internal_utils.PaginationMeta"
                                                 }
                                             }
                                         }
@@ -2854,7 +2866,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -2880,7 +2892,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -2894,7 +2906,7 @@ const docTemplate = `{
                                                 "routes": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.AlertRouteResponse"
+                                                        "$ref": "#/definitions/internal_api.AlertRouteResponse"
                                                     }
                                                 }
                                             }
@@ -2907,7 +2919,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -2932,7 +2944,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.alertRouteRequest"
+                            "$ref": "#/definitions/internal_api.alertRouteRequest"
                         }
                     }
                 ],
@@ -2942,7 +2954,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -2951,7 +2963,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "route": {
-                                                    "$ref": "#/definitions/api.AlertRouteResponse"
+                                                    "$ref": "#/definitions/internal_api.AlertRouteResponse"
                                                 }
                                             }
                                         }
@@ -2963,19 +2975,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -3002,7 +3014,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.alertRouteDryRunRequest"
+                            "$ref": "#/definitions/internal_api.alertRouteDryRunRequest"
                         }
                     }
                 ],
@@ -3012,7 +3024,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -3021,7 +3033,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "dry_run": {
-                                                    "$ref": "#/definitions/api.AlertRouteDryRunResponse"
+                                                    "$ref": "#/definitions/internal_api.AlertRouteDryRunResponse"
                                                 }
                                             }
                                         }
@@ -3033,19 +3045,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -3078,19 +3090,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -3122,7 +3134,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.alertRouteRequest"
+                            "$ref": "#/definitions/internal_api.alertRouteRequest"
                         }
                     }
                 ],
@@ -3132,7 +3144,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -3141,7 +3153,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "route": {
-                                                    "$ref": "#/definitions/api.AlertRouteResponse"
+                                                    "$ref": "#/definitions/internal_api.AlertRouteResponse"
                                                 }
                                             }
                                         }
@@ -3153,25 +3165,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -3197,7 +3209,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -3211,7 +3223,7 @@ const docTemplate = `{
                                                 "rules": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.AlertRuleResponse"
+                                                        "$ref": "#/definitions/internal_api.AlertRuleResponse"
                                                     }
                                                 }
                                             }
@@ -3224,7 +3236,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -3249,7 +3261,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.alertRuleRequest"
+                            "$ref": "#/definitions/internal_api.alertRuleRequest"
                         }
                     }
                 ],
@@ -3259,7 +3271,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -3268,7 +3280,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "rule": {
-                                                    "$ref": "#/definitions/api.AlertRuleResponse"
+                                                    "$ref": "#/definitions/internal_api.AlertRuleResponse"
                                                 }
                                             }
                                         }
@@ -3280,19 +3292,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -3319,7 +3331,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.alertRuleDryRunRequest"
+                            "$ref": "#/definitions/internal_api.alertRuleDryRunRequest"
                         }
                     }
                 ],
@@ -3329,7 +3341,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -3338,7 +3350,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "dry_run": {
-                                                    "$ref": "#/definitions/api.AlertRuleDryRunResponse"
+                                                    "$ref": "#/definitions/internal_api.AlertRuleDryRunResponse"
                                                 }
                                             }
                                         }
@@ -3350,19 +3362,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -3395,19 +3407,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -3439,7 +3451,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.alertRuleRequest"
+                            "$ref": "#/definitions/internal_api.alertRuleRequest"
                         }
                     }
                 ],
@@ -3449,7 +3461,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -3458,7 +3470,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "rule": {
-                                                    "$ref": "#/definitions/api.AlertRuleResponse"
+                                                    "$ref": "#/definitions/internal_api.AlertRuleResponse"
                                                 }
                                             }
                                         }
@@ -3470,25 +3482,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -3523,7 +3535,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -3532,7 +3544,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "rule": {
-                                                    "$ref": "#/definitions/api.AlertRuleResponse"
+                                                    "$ref": "#/definitions/internal_api.AlertRuleResponse"
                                                 }
                                             }
                                         }
@@ -3544,13 +3556,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -3585,7 +3597,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -3594,7 +3606,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "rule": {
-                                                    "$ref": "#/definitions/api.AlertRuleResponse"
+                                                    "$ref": "#/definitions/internal_api.AlertRuleResponse"
                                                 }
                                             }
                                         }
@@ -3606,13 +3618,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -3639,7 +3651,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.LoginRequest"
+                            "$ref": "#/definitions/internal_api.LoginRequest"
                         }
                     }
                 ],
@@ -3649,13 +3661,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/api.LoginResponse"
+                                            "$ref": "#/definitions/internal_api.LoginResponse"
                                         }
                                     }
                                 }
@@ -3665,19 +3677,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -3703,7 +3715,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -3715,7 +3727,7 @@ const docTemplate = `{
                                                     "type": "object"
                                                 },
                                                 "metrics": {
-                                                    "$ref": "#/definitions/service.RuntimeDiagnosticsSnapshot"
+                                                    "$ref": "#/definitions/orion_core_internal_service.RuntimeDiagnosticsSnapshot"
                                                 }
                                             }
                                         }
@@ -3727,7 +3739,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -3753,7 +3765,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -3777,7 +3789,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -3837,7 +3849,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -3851,7 +3863,7 @@ const docTemplate = `{
                                                 "events": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.OrionEventResponse"
+                                                        "$ref": "#/definitions/internal_api.OrionEventResponse"
                                                     }
                                                 },
                                                 "limit": {
@@ -3861,7 +3873,7 @@ const docTemplate = `{
                                                     "type": "integer"
                                                 },
                                                 "pagination": {
-                                                    "$ref": "#/definitions/utils.PaginationMeta"
+                                                    "$ref": "#/definitions/orion_core_internal_utils.PaginationMeta"
                                                 }
                                             }
                                         }
@@ -3873,7 +3885,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -3899,7 +3911,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -3926,7 +3938,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -3952,7 +3964,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -4004,7 +4016,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -4039,13 +4051,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/api.HeartbeatSignalResponse"
+                                            "$ref": "#/definitions/internal_api.HeartbeatSignalResponse"
                                         }
                                     }
                                 }
@@ -4055,13 +4067,13 @@ const docTemplate = `{
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -4096,13 +4108,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/api.HeartbeatSignalResponse"
+                                            "$ref": "#/definitions/internal_api.HeartbeatSignalResponse"
                                         }
                                     }
                                 }
@@ -4112,13 +4124,13 @@ const docTemplate = `{
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -4209,7 +4221,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -4224,11 +4236,11 @@ const docTemplate = `{
                                                 "incidents": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.IncidentResponse"
+                                                        "$ref": "#/definitions/internal_api.IncidentResponse"
                                                     }
                                                 },
                                                 "insights": {
-                                                    "$ref": "#/definitions/api.IncidentInsightsResponse"
+                                                    "$ref": "#/definitions/internal_api.IncidentInsightsResponse"
                                                 },
                                                 "limit": {
                                                     "type": "integer"
@@ -4237,7 +4249,7 @@ const docTemplate = `{
                                                     "type": "integer"
                                                 },
                                                 "pagination": {
-                                                    "$ref": "#/definitions/utils.PaginationMeta"
+                                                    "$ref": "#/definitions/orion_core_internal_utils.PaginationMeta"
                                                 },
                                                 "status": {
                                                     "type": "array",
@@ -4255,7 +4267,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -4281,7 +4293,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -4308,7 +4320,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -4343,7 +4355,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -4354,43 +4366,43 @@ const docTemplate = `{
                                                 "alert_deliveries": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.AlertDeliveryResponse"
+                                                        "$ref": "#/definitions/internal_api.AlertDeliveryResponse"
                                                     }
                                                 },
                                                 "events": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.IncidentEventResponse"
+                                                        "$ref": "#/definitions/internal_api.IncidentEventResponse"
                                                     }
                                                 },
                                                 "evidence": {
-                                                    "$ref": "#/definitions/api.IncidentEvidenceResponse"
+                                                    "$ref": "#/definitions/internal_api.IncidentEvidenceResponse"
                                                 },
                                                 "incident": {
-                                                    "$ref": "#/definitions/api.IncidentResponse"
+                                                    "$ref": "#/definitions/internal_api.IncidentResponse"
                                                 },
                                                 "monitor_reports": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.MonitorReportResponse"
+                                                        "$ref": "#/definitions/internal_api.MonitorReportResponse"
                                                     }
                                                 },
                                                 "next_actions": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.IncidentNextActionResponse"
+                                                        "$ref": "#/definitions/internal_api.IncidentNextActionResponse"
                                                     }
                                                 },
                                                 "related_incidents": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.IncidentRelatedIncidentResponse"
+                                                        "$ref": "#/definitions/internal_api.IncidentRelatedIncidentResponse"
                                                     }
                                                 },
                                                 "timeline": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.IncidentTimelineItemResponse"
+                                                        "$ref": "#/definitions/internal_api.IncidentTimelineItemResponse"
                                                     }
                                                 }
                                             }
@@ -4403,13 +4415,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -4442,7 +4454,7 @@ const docTemplate = `{
                         "name": "request",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/api.incidentLifecycleActionRequest"
+                            "$ref": "#/definitions/internal_api.incidentLifecycleActionRequest"
                         }
                     }
                 ],
@@ -4452,7 +4464,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -4461,7 +4473,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "incident": {
-                                                    "$ref": "#/definitions/api.IncidentResponse"
+                                                    "$ref": "#/definitions/internal_api.IncidentResponse"
                                                 }
                                             }
                                         }
@@ -4473,19 +4485,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -4518,7 +4530,7 @@ const docTemplate = `{
                         "name": "request",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/api.incidentCoverageRequest"
+                            "$ref": "#/definitions/internal_api.incidentCoverageRequest"
                         }
                     }
                 ],
@@ -4528,7 +4540,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -4537,7 +4549,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "incident": {
-                                                    "$ref": "#/definitions/api.IncidentResponse"
+                                                    "$ref": "#/definitions/internal_api.IncidentResponse"
                                                 }
                                             }
                                         }
@@ -4549,19 +4561,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -4594,7 +4606,7 @@ const docTemplate = `{
                         "name": "request",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/api.incidentLifecycleActionRequest"
+                            "$ref": "#/definitions/internal_api.incidentLifecycleActionRequest"
                         }
                     }
                 ],
@@ -4604,7 +4616,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -4613,7 +4625,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "incident": {
-                                                    "$ref": "#/definitions/api.IncidentResponse"
+                                                    "$ref": "#/definitions/internal_api.IncidentResponse"
                                                 }
                                             }
                                         }
@@ -4625,19 +4637,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -4670,7 +4682,7 @@ const docTemplate = `{
                         "name": "request",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/api.incidentLifecycleActionRequest"
+                            "$ref": "#/definitions/internal_api.incidentLifecycleActionRequest"
                         }
                     }
                 ],
@@ -4680,7 +4692,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -4689,7 +4701,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "incident": {
-                                                    "$ref": "#/definitions/api.IncidentResponse"
+                                                    "$ref": "#/definitions/internal_api.IncidentResponse"
                                                 }
                                             }
                                         }
@@ -4701,19 +4713,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -4748,7 +4760,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -4762,7 +4774,7 @@ const docTemplate = `{
                                                 "timeline": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.IncidentTimelineItemResponse"
+                                                        "$ref": "#/definitions/internal_api.IncidentTimelineItemResponse"
                                                     }
                                                 }
                                             }
@@ -4775,13 +4787,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -4859,7 +4871,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -4877,14 +4889,14 @@ const docTemplate = `{
                                                 "logs": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.ServiceLogEntryResponse"
+                                                        "$ref": "#/definitions/internal_api.ServiceLogEntryResponse"
                                                     }
                                                 },
                                                 "offset": {
                                                     "type": "integer"
                                                 },
                                                 "pagination": {
-                                                    "$ref": "#/definitions/utils.PaginationMeta"
+                                                    "$ref": "#/definitions/orion_core_internal_utils.PaginationMeta"
                                                 }
                                             }
                                         }
@@ -4896,7 +4908,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -5006,7 +5018,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -5024,14 +5036,14 @@ const docTemplate = `{
                                                 "monitors": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.MonitorResponse"
+                                                        "$ref": "#/definitions/internal_api.MonitorResponse"
                                                     }
                                                 },
                                                 "offset": {
                                                     "type": "integer"
                                                 },
                                                 "pagination": {
-                                                    "$ref": "#/definitions/utils.PaginationMeta"
+                                                    "$ref": "#/definitions/orion_core_internal_utils.PaginationMeta"
                                                 }
                                             }
                                         }
@@ -5043,7 +5055,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -5068,7 +5080,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/service.CoreManagedMonitorCreateRequest"
+                            "$ref": "#/definitions/orion_core_internal_service.CoreManagedMonitorCreateRequest"
                         }
                     }
                 ],
@@ -5078,13 +5090,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/api.CoreMonitorManagementResponse"
+                                            "$ref": "#/definitions/internal_api.CoreMonitorManagementResponse"
                                         }
                                     }
                                 }
@@ -5094,13 +5106,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -5126,13 +5138,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/service.MonitorSummary"
+                                            "$ref": "#/definitions/orion_core_internal_service.MonitorSummary"
                                         }
                                     }
                                 }
@@ -5142,7 +5154,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -5177,7 +5189,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -5189,12 +5201,12 @@ const docTemplate = `{
                                                     "type": "string"
                                                 },
                                                 "monitor": {
-                                                    "$ref": "#/definitions/api.MonitorResponse"
+                                                    "$ref": "#/definitions/internal_api.MonitorResponse"
                                                 },
                                                 "recent_reports": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.MonitorReportResponse"
+                                                        "$ref": "#/definitions/internal_api.MonitorReportResponse"
                                                     }
                                                 }
                                             }
@@ -5207,13 +5219,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -5243,7 +5255,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -5264,13 +5276,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -5302,7 +5314,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/service.CoreManagedMonitorUpdateRequest"
+                            "$ref": "#/definitions/orion_core_internal_service.CoreManagedMonitorUpdateRequest"
                         }
                     }
                 ],
@@ -5312,13 +5324,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/api.CoreMonitorManagementResponse"
+                                            "$ref": "#/definitions/internal_api.CoreMonitorManagementResponse"
                                         }
                                     }
                                 }
@@ -5328,19 +5340,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -5372,13 +5384,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/api.CoreMonitorManagementResponse"
+                                            "$ref": "#/definitions/internal_api.CoreMonitorManagementResponse"
                                         }
                                     }
                                 }
@@ -5388,13 +5400,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -5443,7 +5455,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -5462,12 +5474,12 @@ const docTemplate = `{
                                                     "type": "integer"
                                                 },
                                                 "pagination": {
-                                                    "$ref": "#/definitions/utils.PaginationMeta"
+                                                    "$ref": "#/definitions/orion_core_internal_utils.PaginationMeta"
                                                 },
                                                 "reports": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.MonitorReportResponse"
+                                                        "$ref": "#/definitions/internal_api.MonitorReportResponse"
                                                     }
                                                 }
                                             }
@@ -5480,19 +5492,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -5524,13 +5536,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/api.CoreMonitorManagementResponse"
+                                            "$ref": "#/definitions/internal_api.CoreMonitorManagementResponse"
                                         }
                                     }
                                 }
@@ -5540,13 +5552,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -5578,13 +5590,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/api.CoreMonitorManagementResponse"
+                                            "$ref": "#/definitions/internal_api.CoreMonitorManagementResponse"
                                         }
                                     }
                                 }
@@ -5594,13 +5606,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -5632,13 +5644,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/api.CoreMonitorManagementResponse"
+                                            "$ref": "#/definitions/internal_api.CoreMonitorManagementResponse"
                                         }
                                     }
                                 }
@@ -5648,19 +5660,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -5701,7 +5713,7 @@ const docTemplate = `{
                                 "daily_buckets": {
                                     "type": "array",
                                     "items": {
-                                        "$ref": "#/definitions/api.UptimeDayBucketResponse"
+                                        "$ref": "#/definitions/internal_api.UptimeDayBucketResponse"
                                     }
                                 },
                                 "uptime_percent": {
@@ -5713,19 +5725,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -5752,7 +5764,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/service.RegisterRequest"
+                            "$ref": "#/definitions/orion_core_internal_service.RegisterRequest"
                         }
                     }
                 ],
@@ -5762,13 +5774,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/service.RegisterResponse"
+                                            "$ref": "#/definitions/orion_core_internal_service.RegisterResponse"
                                         }
                                     }
                                 }
@@ -5778,13 +5790,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -5810,7 +5822,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -5819,7 +5831,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "settings": {
-                                                    "$ref": "#/definitions/db.DataLifecycleSettings"
+                                                    "$ref": "#/definitions/orion_core_internal_db.DataLifecycleSettings"
                                                 }
                                             }
                                         }
@@ -5831,7 +5843,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -5856,7 +5868,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/service.DataLifecycleSettingsPayload"
+                            "$ref": "#/definitions/orion_core_internal_service.DataLifecycleSettingsPayload"
                         }
                     }
                 ],
@@ -5866,7 +5878,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -5875,7 +5887,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "settings": {
-                                                    "$ref": "#/definitions/db.DataLifecycleSettings"
+                                                    "$ref": "#/definitions/orion_core_internal_db.DataLifecycleSettings"
                                                 }
                                             }
                                         }
@@ -5887,13 +5899,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -5919,7 +5931,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -5928,7 +5940,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "result": {
-                                                    "$ref": "#/definitions/service.ArchiveRunResult"
+                                                    "$ref": "#/definitions/orion_core_internal_service.ArchiveRunResult"
                                                 }
                                             }
                                         }
@@ -5940,7 +5952,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -5966,7 +5978,7 @@ const docTemplate = `{
                         "name": "request",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/api.DataLifecycleRollupRequest"
+                            "$ref": "#/definitions/internal_api.DataLifecycleRollupRequest"
                         }
                     }
                 ],
@@ -5976,7 +5988,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -5985,7 +5997,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "result": {
-                                                    "$ref": "#/definitions/service.RollupRunResult"
+                                                    "$ref": "#/definitions/orion_core_internal_service.RollupRunResult"
                                                 }
                                             }
                                         }
@@ -5997,13 +6009,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -6034,7 +6046,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -6048,7 +6060,7 @@ const docTemplate = `{
                                                 "pages": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.StatusPageResponse"
+                                                        "$ref": "#/definitions/internal_api.StatusPageResponse"
                                                     }
                                                 }
                                             }
@@ -6061,7 +6073,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -6091,7 +6103,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.statusPageRequest"
+                            "$ref": "#/definitions/internal_api.statusPageRequest"
                         }
                     }
                 ],
@@ -6101,7 +6113,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -6110,7 +6122,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "page": {
-                                                    "$ref": "#/definitions/api.StatusPageResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPageResponse"
                                                 }
                                             }
                                         }
@@ -6122,19 +6134,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -6174,13 +6186,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/api.StatusPageDetailResponse"
+                                            "$ref": "#/definitions/internal_api.StatusPageDetailResponse"
                                         }
                                     }
                                 }
@@ -6190,13 +6202,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -6233,7 +6245,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.statusPageRequest"
+                            "$ref": "#/definitions/internal_api.statusPageRequest"
                         }
                     }
                 ],
@@ -6243,7 +6255,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -6252,7 +6264,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "page": {
-                                                    "$ref": "#/definitions/api.StatusPageResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPageResponse"
                                                 }
                                             }
                                         }
@@ -6264,25 +6276,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -6320,7 +6332,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -6341,13 +6353,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -6387,7 +6399,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -6398,7 +6410,7 @@ const docTemplate = `{
                                                 "components": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.StatusPageComponentResponse"
+                                                        "$ref": "#/definitions/internal_api.StatusPageComponentResponse"
                                                     }
                                                 },
                                                 "count": {
@@ -6414,13 +6426,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -6457,7 +6469,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.statusPageComponentRequest"
+                            "$ref": "#/definitions/internal_api.statusPageComponentRequest"
                         }
                     }
                 ],
@@ -6467,7 +6479,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -6476,7 +6488,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "component": {
-                                                    "$ref": "#/definitions/api.StatusPageComponentResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPageComponentResponse"
                                                 }
                                             }
                                         }
@@ -6488,19 +6500,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -6546,7 +6558,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.statusPageComponentRequest"
+                            "$ref": "#/definitions/internal_api.statusPageComponentRequest"
                         }
                     }
                 ],
@@ -6556,7 +6568,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -6565,7 +6577,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "component": {
-                                                    "$ref": "#/definitions/api.StatusPageComponentResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPageComponentResponse"
                                                 }
                                             }
                                         }
@@ -6577,19 +6589,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -6634,7 +6646,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -6655,13 +6667,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -6708,7 +6720,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -6722,7 +6734,7 @@ const docTemplate = `{
                                                 "mappings": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.StatusPageComponentMappingResponse"
+                                                        "$ref": "#/definitions/internal_api.StatusPageComponentMappingResponse"
                                                     }
                                                 }
                                             }
@@ -6735,13 +6747,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -6785,7 +6797,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.statusPageComponentMappingRequest"
+                            "$ref": "#/definitions/internal_api.statusPageComponentMappingRequest"
                         }
                     }
                 ],
@@ -6795,7 +6807,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -6804,7 +6816,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "mapping": {
-                                                    "$ref": "#/definitions/api.StatusPageComponentMappingResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPageComponentMappingResponse"
                                                 }
                                             }
                                         }
@@ -6816,25 +6828,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -6887,7 +6899,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.statusPageComponentMappingRequest"
+                            "$ref": "#/definitions/internal_api.statusPageComponentMappingRequest"
                         }
                     }
                 ],
@@ -6897,7 +6909,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -6906,7 +6918,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "mapping": {
-                                                    "$ref": "#/definitions/api.StatusPageComponentMappingResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPageComponentMappingResponse"
                                                 }
                                             }
                                         }
@@ -6918,25 +6930,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -6988,7 +7000,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -7009,13 +7021,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -7055,7 +7067,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -7069,7 +7081,7 @@ const docTemplate = `{
                                                 "incidents": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.StatusPageIncidentResponse"
+                                                        "$ref": "#/definitions/internal_api.StatusPageIncidentResponse"
                                                     }
                                                 }
                                             }
@@ -7082,13 +7094,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -7125,7 +7137,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.statusPageIncidentRequest"
+                            "$ref": "#/definitions/internal_api.statusPageIncidentRequest"
                         }
                     }
                 ],
@@ -7135,7 +7147,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -7144,7 +7156,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "incident": {
-                                                    "$ref": "#/definitions/api.StatusPageIncidentResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPageIncidentResponse"
                                                 }
                                             }
                                         }
@@ -7156,19 +7168,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -7225,7 +7237,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -7234,7 +7246,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "draft": {
-                                                    "$ref": "#/definitions/api.StatusPageIncidentDraftResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPageIncidentDraftResponse"
                                                 }
                                             }
                                         }
@@ -7246,19 +7258,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -7295,7 +7307,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.statusPageIncidentDraftRequest"
+                            "$ref": "#/definitions/internal_api.statusPageIncidentDraftRequest"
                         }
                     }
                 ],
@@ -7305,7 +7317,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -7314,13 +7326,13 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "draft": {
-                                                    "$ref": "#/definitions/api.StatusPageIncidentDraftResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPageIncidentDraftResponse"
                                                 },
                                                 "incident": {
-                                                    "$ref": "#/definitions/api.StatusPageIncidentResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPageIncidentResponse"
                                                 },
                                                 "update": {
-                                                    "$ref": "#/definitions/api.StatusPageIncidentUpdateResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPageIncidentUpdateResponse"
                                                 }
                                             }
                                         }
@@ -7332,19 +7344,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -7391,7 +7403,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -7405,7 +7417,7 @@ const docTemplate = `{
                                                 "suggestions": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.StatusPageIncidentComponentSuggestionResponse"
+                                                        "$ref": "#/definitions/internal_api.StatusPageIncidentComponentSuggestionResponse"
                                                     }
                                                 }
                                             }
@@ -7418,19 +7430,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -7476,7 +7488,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.statusPageIncidentRequest"
+                            "$ref": "#/definitions/internal_api.statusPageIncidentRequest"
                         }
                     }
                 ],
@@ -7486,7 +7498,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -7495,7 +7507,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "incident": {
-                                                    "$ref": "#/definitions/api.StatusPageIncidentResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPageIncidentResponse"
                                                 }
                                             }
                                         }
@@ -7507,19 +7519,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -7564,7 +7576,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -7585,13 +7597,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -7637,7 +7649,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.statusPageIncidentUpdateRequest"
+                            "$ref": "#/definitions/internal_api.statusPageIncidentUpdateRequest"
                         }
                     }
                 ],
@@ -7647,7 +7659,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -7656,10 +7668,10 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "incident": {
-                                                    "$ref": "#/definitions/api.StatusPageIncidentResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPageIncidentResponse"
                                                 },
                                                 "update": {
-                                                    "$ref": "#/definitions/api.StatusPageIncidentUpdateResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPageIncidentUpdateResponse"
                                                 }
                                             }
                                         }
@@ -7671,19 +7683,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -7723,7 +7735,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -7732,7 +7744,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "preview": {
-                                                    "$ref": "#/definitions/api.StatusPagePreviewResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPagePreviewResponse"
                                                 }
                                             }
                                         }
@@ -7744,13 +7756,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -7790,7 +7802,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -7799,7 +7811,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "page": {
-                                                    "$ref": "#/definitions/api.StatusPageResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPageResponse"
                                                 }
                                             }
                                         }
@@ -7811,13 +7823,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -7857,7 +7869,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -7871,7 +7883,7 @@ const docTemplate = `{
                                                 "sections": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.StatusPageSectionResponse"
+                                                        "$ref": "#/definitions/internal_api.StatusPageSectionResponse"
                                                     }
                                                 }
                                             }
@@ -7884,13 +7896,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -7927,7 +7939,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.statusPageSectionRequest"
+                            "$ref": "#/definitions/internal_api.statusPageSectionRequest"
                         }
                     }
                 ],
@@ -7937,7 +7949,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -7946,7 +7958,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "section": {
-                                                    "$ref": "#/definitions/api.StatusPageSectionResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPageSectionResponse"
                                                 }
                                             }
                                         }
@@ -7958,19 +7970,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -8016,7 +8028,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.statusPageSectionRequest"
+                            "$ref": "#/definitions/internal_api.statusPageSectionRequest"
                         }
                     }
                 ],
@@ -8026,7 +8038,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -8035,7 +8047,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "section": {
-                                                    "$ref": "#/definitions/api.StatusPageSectionResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPageSectionResponse"
                                                 }
                                             }
                                         }
@@ -8047,19 +8059,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -8104,7 +8116,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -8125,13 +8137,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -8177,7 +8189,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -8191,7 +8203,7 @@ const docTemplate = `{
                                                 "subscribers": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/api.StatusPageSubscriberAdminResponse"
+                                                        "$ref": "#/definitions/internal_api.StatusPageSubscriberAdminResponse"
                                                     }
                                                 }
                                             }
@@ -8204,13 +8216,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -8257,7 +8269,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -8278,13 +8290,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -8331,7 +8343,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -8340,7 +8352,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "subscriber": {
-                                                    "$ref": "#/definitions/api.StatusPageSubscriberAdminResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPageSubscriberAdminResponse"
                                                 }
                                             }
                                         }
@@ -8352,13 +8364,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -8405,7 +8417,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -8414,7 +8426,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "subscriber": {
-                                                    "$ref": "#/definitions/api.StatusPageSubscriberAdminResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPageSubscriberAdminResponse"
                                                 }
                                             }
                                         }
@@ -8426,13 +8438,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -8472,7 +8484,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/utils.APIResponse"
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -8481,7 +8493,7 @@ const docTemplate = `{
                                             "type": "object",
                                             "properties": {
                                                 "page": {
-                                                    "$ref": "#/definitions/api.StatusPageResponse"
+                                                    "$ref": "#/definitions/internal_api.StatusPageResponse"
                                                 }
                                             }
                                         }
@@ -8493,13 +8505,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.APIResponse"
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     }
                 }
@@ -8507,7 +8519,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "api.AgentConfigSummaryResponse": {
+        "internal_api.AgentConfigSummaryResponse": {
             "type": "object",
             "properties": {
                 "monitor_count": {
@@ -8524,7 +8536,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.AgentHealthResponse": {
+        "internal_api.AgentHealthResponse": {
             "type": "object",
             "properties": {
                 "agent_id": {
@@ -8562,7 +8574,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.AgentReportResponse": {
+        "internal_api.AgentReportResponse": {
             "type": "object",
             "properties": {
                 "agent_id": {
@@ -8572,25 +8584,25 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "config_summary": {
-                    "$ref": "#/definitions/api.AgentConfigSummaryResponse"
+                    "$ref": "#/definitions/internal_api.AgentConfigSummaryResponse"
                 },
                 "cpu": {
-                    "$ref": "#/definitions/db.CPUStats"
+                    "$ref": "#/definitions/orion_core_internal_db.CPUStats"
                 },
                 "created_at": {
                     "type": "string"
                 },
                 "disk": {
-                    "$ref": "#/definitions/db.DiskStats"
+                    "$ref": "#/definitions/orion_core_internal_db.DiskStats"
                 },
                 "id": {
                     "type": "string"
                 },
                 "location": {
-                    "$ref": "#/definitions/db.GeoLocation"
+                    "$ref": "#/definitions/orion_core_internal_db.GeoLocation"
                 },
                 "memory": {
-                    "$ref": "#/definitions/db.MemoryStats"
+                    "$ref": "#/definitions/orion_core_internal_db.MemoryStats"
                 },
                 "timestamp": {
                     "type": "string"
@@ -8600,7 +8612,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.AgentResponse": {
+        "internal_api.AgentResponse": {
             "type": "object",
             "properties": {
                 "arch": {
@@ -8625,7 +8637,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "location": {
-                    "$ref": "#/definitions/db.GeoLocation"
+                    "$ref": "#/definitions/orion_core_internal_db.GeoLocation"
                 },
                 "maintenance_mode": {
                     "type": "boolean"
@@ -8659,7 +8671,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.AgentSummaryResponse": {
+        "internal_api.AgentSummaryResponse": {
             "type": "object",
             "properties": {
                 "degraded": {
@@ -8688,7 +8700,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.AgentTokenActionRequest": {
+        "internal_api.AgentTokenActionRequest": {
             "type": "object",
             "properties": {
                 "reason": {
@@ -8696,18 +8708,18 @@ const docTemplate = `{
                 }
             }
         },
-        "api.AgentTokenIssuedResponse": {
+        "internal_api.AgentTokenIssuedResponse": {
             "type": "object",
             "properties": {
                 "status": {
-                    "$ref": "#/definitions/api.AgentTokenStatusResponse"
+                    "$ref": "#/definitions/internal_api.AgentTokenStatusResponse"
                 },
                 "token": {
                     "type": "string"
                 }
             }
         },
-        "api.AgentTokenStatusResponse": {
+        "internal_api.AgentTokenStatusResponse": {
             "type": "object",
             "properties": {
                 "agent_id": {
@@ -8736,7 +8748,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.AlertChannelResponse": {
+        "internal_api.AlertChannelResponse": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -8780,7 +8792,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.AlertDeliveryAttemptResponse": {
+        "internal_api.AlertDeliveryAttemptResponse": {
             "type": "object",
             "properties": {
                 "alert_delivery_id": {
@@ -8815,7 +8827,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.AlertDeliveryResponse": {
+        "internal_api.AlertDeliveryResponse": {
             "type": "object",
             "properties": {
                 "alert_group_id": {
@@ -8827,7 +8839,7 @@ const docTemplate = `{
                 "attempts": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/api.AlertDeliveryAttemptResponse"
+                        "$ref": "#/definitions/internal_api.AlertDeliveryAttemptResponse"
                     }
                 },
                 "channel": {
@@ -8871,17 +8883,17 @@ const docTemplate = `{
                 }
             }
         },
-        "api.AlertRouteDryRunResponse": {
+        "internal_api.AlertRouteDryRunResponse": {
             "type": "object",
             "properties": {
                 "destination_decisions": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/service.AlertDestinationDecision"
+                        "$ref": "#/definitions/orion_core_internal_service.AlertDestinationDecision"
                     }
                 },
                 "event": {
-                    "$ref": "#/definitions/service.AlertRouteContext"
+                    "$ref": "#/definitions/orion_core_internal_service.AlertRouteContext"
                 },
                 "legacy_fallback": {
                     "type": "boolean"
@@ -8889,7 +8901,7 @@ const docTemplate = `{
                 "route_evaluations": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/api.AlertRouteEvaluationResponse"
+                        "$ref": "#/definitions/internal_api.AlertRouteEvaluationResponse"
                     }
                 },
                 "suppressed": {
@@ -8900,7 +8912,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.AlertRouteEvaluationResponse": {
+        "internal_api.AlertRouteEvaluationResponse": {
             "type": "object",
             "properties": {
                 "matched": {
@@ -8913,14 +8925,14 @@ const docTemplate = `{
                     }
                 },
                 "route": {
-                    "$ref": "#/definitions/api.AlertRouteResponse"
+                    "$ref": "#/definitions/internal_api.AlertRouteResponse"
                 },
                 "suppressed": {
                     "type": "boolean"
                 }
             }
         },
-        "api.AlertRouteResponse": {
+        "internal_api.AlertRouteResponse": {
             "type": "object",
             "properties": {
                 "agent_ids": {
@@ -8988,7 +9000,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.AlertRuleDestinationDecision": {
+        "internal_api.AlertRuleDestinationDecision": {
             "type": "object",
             "properties": {
                 "channel_id": {
@@ -9014,7 +9026,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.AlertRuleDryRunContext": {
+        "internal_api.AlertRuleDryRunContext": {
             "type": "object",
             "properties": {
                 "agent_id": {
@@ -9037,17 +9049,17 @@ const docTemplate = `{
                 }
             }
         },
-        "api.AlertRuleDryRunResponse": {
+        "internal_api.AlertRuleDryRunResponse": {
             "type": "object",
             "properties": {
                 "destination_decisions": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/api.AlertRuleDestinationDecision"
+                        "$ref": "#/definitions/internal_api.AlertRuleDestinationDecision"
                     }
                 },
                 "event": {
-                    "$ref": "#/definitions/api.AlertRuleDryRunContext"
+                    "$ref": "#/definitions/internal_api.AlertRuleDryRunContext"
                 },
                 "legacy_fallback": {
                     "type": "boolean"
@@ -9055,7 +9067,7 @@ const docTemplate = `{
                 "rule_evaluations": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/api.AlertRuleEvaluationResponse"
+                        "$ref": "#/definitions/internal_api.AlertRuleEvaluationResponse"
                     }
                 },
                 "suppressed": {
@@ -9066,7 +9078,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.AlertRuleEvaluationResponse": {
+        "internal_api.AlertRuleEvaluationResponse": {
             "type": "object",
             "properties": {
                 "matched": {
@@ -9079,14 +9091,14 @@ const docTemplate = `{
                     }
                 },
                 "rule": {
-                    "$ref": "#/definitions/api.AlertRuleResponse"
+                    "$ref": "#/definitions/internal_api.AlertRuleResponse"
                 },
                 "suppressed": {
                     "type": "boolean"
                 }
             }
         },
-        "api.AlertRuleResponse": {
+        "internal_api.AlertRuleResponse": {
             "type": "object",
             "properties": {
                 "agent_ids": {
@@ -9154,7 +9166,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.CoreMonitorConfigResponse": {
+        "internal_api.CoreMonitorConfigResponse": {
             "type": "object",
             "properties": {
                 "config": {
@@ -9215,21 +9227,21 @@ const docTemplate = `{
                 }
             }
         },
-        "api.CoreMonitorManagementResponse": {
+        "internal_api.CoreMonitorManagementResponse": {
             "type": "object",
             "properties": {
                 "config": {
-                    "$ref": "#/definitions/api.CoreMonitorConfigResponse"
+                    "$ref": "#/definitions/internal_api.CoreMonitorConfigResponse"
                 },
                 "monitor": {
-                    "$ref": "#/definitions/api.MonitorResponse"
+                    "$ref": "#/definitions/internal_api.MonitorResponse"
                 },
                 "result": {
-                    "$ref": "#/definitions/api.CoreMonitorTestNowResponse"
+                    "$ref": "#/definitions/internal_api.CoreMonitorTestNowResponse"
                 }
             }
         },
-        "api.CoreMonitorTestNowResponse": {
+        "internal_api.CoreMonitorTestNowResponse": {
             "type": "object",
             "properties": {
                 "monitor_id": {
@@ -9240,7 +9252,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.DataLifecycleRollupRequest": {
+        "internal_api.DataLifecycleRollupRequest": {
             "type": "object",
             "properties": {
                 "date": {
@@ -9249,7 +9261,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.HeartbeatSignalResponse": {
+        "internal_api.HeartbeatSignalResponse": {
             "type": "object",
             "properties": {
                 "health": {
@@ -9269,7 +9281,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.IncidentActionStateResponse": {
+        "internal_api.IncidentActionStateResponse": {
             "type": "object",
             "properties": {
                 "allowed": {
@@ -9280,24 +9292,24 @@ const docTemplate = `{
                 }
             }
         },
-        "api.IncidentAllowedActionsResponse": {
+        "internal_api.IncidentAllowedActionsResponse": {
             "type": "object",
             "properties": {
                 "acknowledge": {
-                    "$ref": "#/definitions/api.IncidentActionStateResponse"
+                    "$ref": "#/definitions/internal_api.IncidentActionStateResponse"
                 },
                 "cover": {
-                    "$ref": "#/definitions/api.IncidentActionStateResponse"
+                    "$ref": "#/definitions/internal_api.IncidentActionStateResponse"
                 },
                 "reopen": {
-                    "$ref": "#/definitions/api.IncidentActionStateResponse"
+                    "$ref": "#/definitions/internal_api.IncidentActionStateResponse"
                 },
                 "resolve": {
-                    "$ref": "#/definitions/api.IncidentActionStateResponse"
+                    "$ref": "#/definitions/internal_api.IncidentActionStateResponse"
                 }
             }
         },
-        "api.IncidentComponentImpactResponse": {
+        "internal_api.IncidentComponentImpactResponse": {
             "type": "object",
             "properties": {
                 "component_id": {
@@ -9314,7 +9326,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.IncidentEventResponse": {
+        "internal_api.IncidentEventResponse": {
             "type": "object",
             "properties": {
                 "actor_id": {
@@ -9346,35 +9358,35 @@ const docTemplate = `{
                 }
             }
         },
-        "api.IncidentEvidenceResponse": {
+        "internal_api.IncidentEvidenceResponse": {
             "type": "object",
             "properties": {
                 "latest_report": {
-                    "$ref": "#/definitions/api.MonitorReportResponse"
+                    "$ref": "#/definitions/internal_api.MonitorReportResponse"
                 },
                 "triggering_report": {
-                    "$ref": "#/definitions/api.MonitorReportResponse"
+                    "$ref": "#/definitions/internal_api.MonitorReportResponse"
                 }
             }
         },
-        "api.IncidentInsightsResponse": {
+        "internal_api.IncidentInsightsResponse": {
             "type": "object",
             "properties": {
                 "lifecycle_timing": {
-                    "$ref": "#/definitions/api.IncidentLifecycleTimingResponse"
+                    "$ref": "#/definitions/internal_api.IncidentLifecycleTimingResponse"
                 },
                 "notification_reliability": {
-                    "$ref": "#/definitions/api.IncidentNotificationReliabilityStats"
+                    "$ref": "#/definitions/internal_api.IncidentNotificationReliabilityStats"
                 },
                 "recurring_failures": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/api.IncidentRecurringFailureResponse"
+                        "$ref": "#/definitions/internal_api.IncidentRecurringFailureResponse"
                     }
                 }
             }
         },
-        "api.IncidentLifecycleTimingResponse": {
+        "internal_api.IncidentLifecycleTimingResponse": {
             "type": "object",
             "properties": {
                 "acknowledged_count": {
@@ -9391,7 +9403,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.IncidentNextActionResponse": {
+        "internal_api.IncidentNextActionResponse": {
             "type": "object",
             "properties": {
                 "action_type": {
@@ -9423,7 +9435,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.IncidentNotificationReliabilityStats": {
+        "internal_api.IncidentNotificationReliabilityStats": {
             "type": "object",
             "properties": {
                 "failed_deliveries": {
@@ -9443,7 +9455,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.IncidentRecurringFailureResponse": {
+        "internal_api.IncidentRecurringFailureResponse": {
             "type": "object",
             "properties": {
                 "incident_count": {
@@ -9460,7 +9472,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.IncidentRelatedIncidentResponse": {
+        "internal_api.IncidentRelatedIncidentResponse": {
             "type": "object",
             "properties": {
                 "id": {
@@ -9495,7 +9507,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.IncidentResponse": {
+        "internal_api.IncidentResponse": {
             "type": "object",
             "properties": {
                 "agent_id": {
@@ -9505,7 +9517,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "allowed_actions": {
-                    "$ref": "#/definitions/api.IncidentAllowedActionsResponse"
+                    "$ref": "#/definitions/internal_api.IncidentAllowedActionsResponse"
                 },
                 "coverage_note": {
                     "type": "string"
@@ -9525,7 +9537,7 @@ const docTemplate = `{
                 "impacted_components": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/api.IncidentComponentImpactResponse"
+                        "$ref": "#/definitions/internal_api.IncidentComponentImpactResponse"
                     }
                 },
                 "last_event_at": {
@@ -9575,7 +9587,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.IncidentTimelineItemResponse": {
+        "internal_api.IncidentTimelineItemResponse": {
             "type": "object",
             "properties": {
                 "actor_id": {
@@ -9619,7 +9631,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.LoginRequest": {
+        "internal_api.LoginRequest": {
             "type": "object",
             "required": [
                 "password",
@@ -9634,7 +9646,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.LoginResponse": {
+        "internal_api.LoginResponse": {
             "type": "object",
             "properties": {
                 "token": {
@@ -9642,7 +9654,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.MonitorReportResponse": {
+        "internal_api.MonitorReportResponse": {
             "type": "object",
             "properties": {
                 "collected_at": {
@@ -9665,7 +9677,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.MonitorResponse": {
+        "internal_api.MonitorResponse": {
             "type": "object",
             "properties": {
                 "active_incident_id": {
@@ -9733,7 +9745,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.OrionEventResponse": {
+        "internal_api.OrionEventResponse": {
             "type": "object",
             "properties": {
                 "agent_id": {
@@ -9762,7 +9774,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.ReportResponse": {
+        "internal_api.ReportResponse": {
             "type": "object",
             "properties": {
                 "message": {
@@ -9779,7 +9791,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.ServiceLogBatchResponse": {
+        "internal_api.ServiceLogBatchResponse": {
             "type": "object",
             "properties": {
                 "received": {
@@ -9790,7 +9802,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.ServiceLogEntryResponse": {
+        "internal_api.ServiceLogEntryResponse": {
             "type": "object",
             "properties": {
                 "agent_id": {
@@ -9837,7 +9849,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.StatusPageComponentMappingResponse": {
+        "internal_api.StatusPageComponentMappingResponse": {
             "type": "object",
             "properties": {
                 "component_id": {
@@ -9866,7 +9878,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.StatusPageComponentResponse": {
+        "internal_api.StatusPageComponentResponse": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -9887,7 +9899,7 @@ const docTemplate = `{
                 "mappings": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/api.StatusPageComponentMappingResponse"
+                        "$ref": "#/definitions/internal_api.StatusPageComponentMappingResponse"
                     }
                 },
                 "public_description": {
@@ -9913,33 +9925,33 @@ const docTemplate = `{
                 }
             }
         },
-        "api.StatusPageDetailResponse": {
+        "internal_api.StatusPageDetailResponse": {
             "type": "object",
             "properties": {
                 "components": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/api.StatusPageComponentResponse"
+                        "$ref": "#/definitions/internal_api.StatusPageComponentResponse"
                     }
                 },
                 "incidents": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/api.StatusPageIncidentResponse"
+                        "$ref": "#/definitions/internal_api.StatusPageIncidentResponse"
                     }
                 },
                 "page": {
-                    "$ref": "#/definitions/api.StatusPageResponse"
+                    "$ref": "#/definitions/internal_api.StatusPageResponse"
                 },
                 "sections": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/api.StatusPageSectionResponse"
+                        "$ref": "#/definitions/internal_api.StatusPageSectionResponse"
                     }
                 }
             }
         },
-        "api.StatusPageIncidentComponentSuggestionMatchResponse": {
+        "internal_api.StatusPageIncidentComponentSuggestionMatchResponse": {
             "type": "object",
             "properties": {
                 "match_reason": {
@@ -9950,7 +9962,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.StatusPageIncidentComponentSuggestionResponse": {
+        "internal_api.StatusPageIncidentComponentSuggestionResponse": {
             "type": "object",
             "properties": {
                 "component_id": {
@@ -9962,12 +9974,12 @@ const docTemplate = `{
                 "matches": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/api.StatusPageIncidentComponentSuggestionMatchResponse"
+                        "$ref": "#/definitions/internal_api.StatusPageIncidentComponentSuggestionMatchResponse"
                     }
                 }
             }
         },
-        "api.StatusPageIncidentDraftResponse": {
+        "internal_api.StatusPageIncidentDraftResponse": {
             "type": "object",
             "properties": {
                 "affected_component_ids": {
@@ -9991,7 +10003,7 @@ const docTemplate = `{
                 "suggestions": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/api.StatusPageIncidentComponentSuggestionResponse"
+                        "$ref": "#/definitions/internal_api.StatusPageIncidentComponentSuggestionResponse"
                     }
                 },
                 "title": {
@@ -9999,7 +10011,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.StatusPageIncidentResponse": {
+        "internal_api.StatusPageIncidentResponse": {
             "type": "object",
             "properties": {
                 "affected_component_ids": {
@@ -10050,7 +10062,7 @@ const docTemplate = `{
                 "updates": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/api.StatusPageIncidentUpdateResponse"
+                        "$ref": "#/definitions/internal_api.StatusPageIncidentUpdateResponse"
                     }
                 },
                 "visibility": {
@@ -10058,7 +10070,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.StatusPageIncidentUpdateResponse": {
+        "internal_api.StatusPageIncidentUpdateResponse": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -10084,20 +10096,20 @@ const docTemplate = `{
                 }
             }
         },
-        "api.StatusPagePreviewResponse": {
+        "internal_api.StatusPagePreviewResponse": {
             "type": "object",
             "properties": {
                 "incidents": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/api.StatusPagePublicIncidentResponse"
+                        "$ref": "#/definitions/internal_api.StatusPagePublicIncidentResponse"
                     }
                 },
                 "last_updated": {
                     "type": "string"
                 },
                 "metadata": {
-                    "$ref": "#/definitions/api.StatusPagePublicMetadataResponse"
+                    "$ref": "#/definitions/internal_api.StatusPagePublicMetadataResponse"
                 },
                 "overall_status": {
                     "type": "string"
@@ -10106,12 +10118,12 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "page": {
-                    "$ref": "#/definitions/api.StatusPagePublicPageResponse"
+                    "$ref": "#/definitions/internal_api.StatusPagePublicPageResponse"
                 },
                 "sections": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/api.StatusPagePublicSectionResponse"
+                        "$ref": "#/definitions/internal_api.StatusPagePublicSectionResponse"
                     }
                 },
                 "uptime_window": {
@@ -10119,24 +10131,24 @@ const docTemplate = `{
                 }
             }
         },
-        "api.StatusPagePublicComponentHistoryResponse": {
+        "internal_api.StatusPagePublicComponentHistoryResponse": {
             "type": "object",
             "properties": {
                 "component": {
-                    "$ref": "#/definitions/api.StatusPagePublicComponentResponse"
+                    "$ref": "#/definitions/internal_api.StatusPagePublicComponentResponse"
                 },
                 "history": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/api.StatusPagePublicUptimeBucketResponse"
+                        "$ref": "#/definitions/internal_api.StatusPagePublicUptimeBucketResponse"
                     }
                 },
                 "uptime": {
-                    "$ref": "#/definitions/api.StatusPagePublicUptimeResponse"
+                    "$ref": "#/definitions/internal_api.StatusPagePublicUptimeResponse"
                 }
             }
         },
-        "api.StatusPagePublicComponentResponse": {
+        "internal_api.StatusPagePublicComponentResponse": {
             "type": "object",
             "properties": {
                 "description": {
@@ -10161,23 +10173,23 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "uptime": {
-                    "$ref": "#/definitions/api.StatusPagePublicUptimeResponse"
+                    "$ref": "#/definitions/internal_api.StatusPagePublicUptimeResponse"
                 },
                 "uptime_history": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/api.StatusPagePublicUptimeBucketResponse"
+                        "$ref": "#/definitions/internal_api.StatusPagePublicUptimeBucketResponse"
                     }
                 }
             }
         },
-        "api.StatusPagePublicHistoryResponse": {
+        "internal_api.StatusPagePublicHistoryResponse": {
             "type": "object",
             "properties": {
                 "components": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/api.StatusPagePublicComponentHistoryResponse"
+                        "$ref": "#/definitions/internal_api.StatusPagePublicComponentHistoryResponse"
                     }
                 },
                 "generated_at": {
@@ -10186,29 +10198,29 @@ const docTemplate = `{
                 "incidents": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/api.StatusPagePublicIncidentResponse"
+                        "$ref": "#/definitions/internal_api.StatusPagePublicIncidentResponse"
                     }
                 },
                 "page": {
-                    "$ref": "#/definitions/api.StatusPagePublicPageResponse"
+                    "$ref": "#/definitions/internal_api.StatusPagePublicPageResponse"
                 }
             }
         },
-        "api.StatusPagePublicIncidentHistoryResponse": {
+        "internal_api.StatusPagePublicIncidentHistoryResponse": {
             "type": "object",
             "properties": {
                 "incident": {
-                    "$ref": "#/definitions/api.StatusPagePublicIncidentResponse"
+                    "$ref": "#/definitions/internal_api.StatusPagePublicIncidentResponse"
                 },
                 "updates": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/api.StatusPagePublicIncidentUpdateHistoryResponse"
+                        "$ref": "#/definitions/internal_api.StatusPagePublicIncidentUpdateHistoryResponse"
                     }
                 }
             }
         },
-        "api.StatusPagePublicIncidentResponse": {
+        "internal_api.StatusPagePublicIncidentResponse": {
             "type": "object",
             "properties": {
                 "affected_component_ids": {
@@ -10246,7 +10258,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.StatusPagePublicIncidentUpdateHistoryResponse": {
+        "internal_api.StatusPagePublicIncidentUpdateHistoryResponse": {
             "type": "object",
             "properties": {
                 "id": {
@@ -10263,7 +10275,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.StatusPagePublicMetadataResponse": {
+        "internal_api.StatusPagePublicMetadataResponse": {
             "type": "object",
             "properties": {
                 "canonical_url": {
@@ -10273,14 +10285,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "open_graph": {
-                    "$ref": "#/definitions/api.StatusPagePublicOpenGraphResponse"
+                    "$ref": "#/definitions/internal_api.StatusPagePublicOpenGraphResponse"
                 },
                 "title": {
                     "type": "string"
                 }
             }
         },
-        "api.StatusPagePublicOpenGraphResponse": {
+        "internal_api.StatusPagePublicOpenGraphResponse": {
             "type": "object",
             "properties": {
                 "description": {
@@ -10303,7 +10315,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.StatusPagePublicPageResponse": {
+        "internal_api.StatusPagePublicPageResponse": {
             "type": "object",
             "properties": {
                 "description": {
@@ -10324,7 +10336,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.StatusPagePublicSectionResponse": {
+        "internal_api.StatusPagePublicSectionResponse": {
             "type": "object",
             "properties": {
                 "collapsed_by_default": {
@@ -10333,7 +10345,7 @@ const docTemplate = `{
                 "components": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/api.StatusPagePublicComponentResponse"
+                        "$ref": "#/definitions/internal_api.StatusPagePublicComponentResponse"
                     }
                 },
                 "id": {
@@ -10344,7 +10356,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.StatusPagePublicUptimeBucketResponse": {
+        "internal_api.StatusPagePublicUptimeBucketResponse": {
             "type": "object",
             "properties": {
                 "date": {
@@ -10361,7 +10373,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.StatusPagePublicUptimeResponse": {
+        "internal_api.StatusPagePublicUptimeResponse": {
             "type": "object",
             "properties": {
                 "status": {
@@ -10378,7 +10390,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.StatusPageResponse": {
+        "internal_api.StatusPageResponse": {
             "type": "object",
             "properties": {
                 "canonical_url": {
@@ -10429,7 +10441,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.StatusPageSectionResponse": {
+        "internal_api.StatusPageSectionResponse": {
             "type": "object",
             "properties": {
                 "collapsed_by_default": {
@@ -10455,7 +10467,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.StatusPageSubscriberAdminComponentResponse": {
+        "internal_api.StatusPageSubscriberAdminComponentResponse": {
             "type": "object",
             "properties": {
                 "id": {
@@ -10466,7 +10478,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.StatusPageSubscriberAdminResponse": {
+        "internal_api.StatusPageSubscriberAdminResponse": {
             "type": "object",
             "properties": {
                 "bounce_count": {
@@ -10475,7 +10487,7 @@ const docTemplate = `{
                 "components": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/api.StatusPageSubscriberAdminComponentResponse"
+                        "$ref": "#/definitions/internal_api.StatusPageSubscriberAdminComponentResponse"
                     }
                 },
                 "confirmed_at": {
@@ -10519,7 +10531,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.StatusPageSubscriberComponentResponse": {
+        "internal_api.StatusPageSubscriberComponentResponse": {
             "type": "object",
             "properties": {
                 "id": {
@@ -10530,13 +10542,13 @@ const docTemplate = `{
                 }
             }
         },
-        "api.StatusPageSubscriberPublicResponse": {
+        "internal_api.StatusPageSubscriberPublicResponse": {
             "type": "object",
             "properties": {
                 "available_components": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/api.StatusPageSubscriberComponentResponse"
+                        "$ref": "#/definitions/internal_api.StatusPageSubscriberComponentResponse"
                     }
                 },
                 "component_ids": {
@@ -10556,7 +10568,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.UptimeDayBucketResponse": {
+        "internal_api.UptimeDayBucketResponse": {
             "type": "object",
             "properties": {
                 "date": {
@@ -10573,7 +10585,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.alertChannelRequest": {
+        "internal_api.alertChannelRequest": {
             "type": "object",
             "properties": {
                 "enabled": {
@@ -10599,7 +10611,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.alertRouteDryRunRequest": {
+        "internal_api.alertRouteDryRunRequest": {
             "type": "object",
             "properties": {
                 "agent_id": {
@@ -10622,7 +10634,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.alertRouteRequest": {
+        "internal_api.alertRouteRequest": {
             "type": "object",
             "properties": {
                 "agent_ids": {
@@ -10681,7 +10693,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.alertRuleDryRunRequest": {
+        "internal_api.alertRuleDryRunRequest": {
             "type": "object",
             "properties": {
                 "agent_id": {
@@ -10704,7 +10716,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.alertRuleRequest": {
+        "internal_api.alertRuleRequest": {
             "type": "object",
             "properties": {
                 "agent_ids": {
@@ -10763,7 +10775,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.incidentCoverageRequest": {
+        "internal_api.incidentCoverageRequest": {
             "type": "object",
             "properties": {
                 "covered_until": {
@@ -10774,7 +10786,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.incidentLifecycleActionRequest": {
+        "internal_api.incidentLifecycleActionRequest": {
             "type": "object",
             "properties": {
                 "note": {
@@ -10782,7 +10794,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.statusPageComponentMappingRequest": {
+        "internal_api.statusPageComponentMappingRequest": {
             "type": "object",
             "properties": {
                 "health_rollup_strategy": {
@@ -10799,7 +10811,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.statusPageComponentRequest": {
+        "internal_api.statusPageComponentRequest": {
             "type": "object",
             "properties": {
                 "display_mode": {
@@ -10828,7 +10840,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.statusPageIncidentDraftRequest": {
+        "internal_api.statusPageIncidentDraftRequest": {
             "type": "object",
             "properties": {
                 "affected_component_ids": {
@@ -10842,7 +10854,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.statusPageIncidentRequest": {
+        "internal_api.statusPageIncidentRequest": {
             "type": "object",
             "properties": {
                 "affected_component_ids": {
@@ -10883,7 +10895,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.statusPageIncidentUpdateRequest": {
+        "internal_api.statusPageIncidentUpdateRequest": {
             "type": "object",
             "properties": {
                 "created_by": {
@@ -10900,7 +10912,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.statusPageRequest": {
+        "internal_api.statusPageRequest": {
             "type": "object",
             "properties": {
                 "canonical_url": {
@@ -10939,7 +10951,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.statusPageSectionRequest": {
+        "internal_api.statusPageSectionRequest": {
             "type": "object",
             "properties": {
                 "collapsed_by_default": {
@@ -10953,7 +10965,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.statusPageSubscriberPreferencesRequest": {
+        "internal_api.statusPageSubscriberPreferencesRequest": {
             "type": "object",
             "properties": {
                 "component_ids": {
@@ -10964,7 +10976,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.statusPageSubscriptionRequest": {
+        "internal_api.statusPageSubscriptionRequest": {
             "type": "object",
             "properties": {
                 "component_ids": {
@@ -10981,7 +10993,7 @@ const docTemplate = `{
                 }
             }
         },
-        "db.CPUStats": {
+        "orion_core_internal_db.CPUStats": {
             "type": "object",
             "properties": {
                 "cores": {
@@ -11001,7 +11013,7 @@ const docTemplate = `{
                 }
             }
         },
-        "db.DataLifecycleSettings": {
+        "orion_core_internal_db.DataLifecycleSettings": {
             "type": "object",
             "properties": {
                 "archive_dir": {
@@ -11045,7 +11057,7 @@ const docTemplate = `{
                 }
             }
         },
-        "db.DiskStats": {
+        "orion_core_internal_db.DiskStats": {
             "type": "object",
             "properties": {
                 "free_bytes": {
@@ -11062,7 +11074,7 @@ const docTemplate = `{
                 }
             }
         },
-        "db.GeoLocation": {
+        "orion_core_internal_db.GeoLocation": {
             "type": "object",
             "properties": {
                 "city": {
@@ -11094,7 +11106,7 @@ const docTemplate = `{
                 }
             }
         },
-        "db.MemoryStats": {
+        "orion_core_internal_db.MemoryStats": {
             "type": "object",
             "properties": {
                 "available_bytes": {
@@ -11114,7 +11126,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.AgentReportPayload": {
+        "orion_core_internal_service.AgentReportPayload": {
             "type": "object",
             "properties": {
                 "agent_version": {
@@ -11122,16 +11134,16 @@ const docTemplate = `{
                 },
                 "config_summary": {},
                 "cpu": {
-                    "$ref": "#/definitions/db.CPUStats"
+                    "$ref": "#/definitions/orion_core_internal_db.CPUStats"
                 },
                 "disk": {
-                    "$ref": "#/definitions/db.DiskStats"
+                    "$ref": "#/definitions/orion_core_internal_db.DiskStats"
                 },
                 "location": {
-                    "$ref": "#/definitions/db.GeoLocation"
+                    "$ref": "#/definitions/orion_core_internal_db.GeoLocation"
                 },
                 "memory": {
-                    "$ref": "#/definitions/db.MemoryStats"
+                    "$ref": "#/definitions/orion_core_internal_db.MemoryStats"
                 },
                 "timestamp": {
                     "type": "string"
@@ -11141,7 +11153,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.AlertDestinationDecision": {
+        "orion_core_internal_service.AlertDestinationDecision": {
             "type": "object",
             "properties": {
                 "channel_id": {
@@ -11167,7 +11179,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.AlertRouteContext": {
+        "orion_core_internal_service.AlertRouteContext": {
             "type": "object",
             "properties": {
                 "agent_id": {
@@ -11190,7 +11202,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.ArchiveRunResult": {
+        "orion_core_internal_service.ArchiveRunResult": {
             "type": "object",
             "properties": {
                 "agent_reports_archived": {
@@ -11216,7 +11228,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.CoreManagedMonitorCreateRequest": {
+        "orion_core_internal_service.CoreManagedMonitorCreateRequest": {
             "type": "object",
             "required": [
                 "config",
@@ -11264,7 +11276,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.CoreManagedMonitorUpdateRequest": {
+        "orion_core_internal_service.CoreManagedMonitorUpdateRequest": {
             "type": "object",
             "properties": {
                 "config": {
@@ -11307,7 +11319,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.DataLifecycleSettingsPayload": {
+        "orion_core_internal_service.DataLifecycleSettingsPayload": {
             "type": "object",
             "properties": {
                 "archive_dir": {
@@ -11330,7 +11342,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.MonitorReportPayload": {
+        "orion_core_internal_service.MonitorReportPayload": {
             "type": "object",
             "required": [
                 "health",
@@ -11349,7 +11361,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.MonitorSummary": {
+        "orion_core_internal_service.MonitorSummary": {
             "type": "object",
             "properties": {
                 "degraded": {
@@ -11375,7 +11387,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.RegisterMonitorRequest": {
+        "orion_core_internal_service.RegisterMonitorRequest": {
             "type": "object",
             "required": [
                 "description",
@@ -11408,7 +11420,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.RegisterMonitorResponse": {
+        "orion_core_internal_service.RegisterMonitorResponse": {
             "type": "object",
             "properties": {
                 "monitor_id": {
@@ -11416,7 +11428,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.RegisterRequest": {
+        "orion_core_internal_service.RegisterRequest": {
             "type": "object",
             "required": [
                 "arch",
@@ -11445,7 +11457,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.RegisterResponse": {
+        "orion_core_internal_service.RegisterResponse": {
             "type": "object",
             "properties": {
                 "agent_id": {
@@ -11456,7 +11468,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.RollupRunResult": {
+        "orion_core_internal_service.RollupRunResult": {
             "type": "object",
             "properties": {
                 "date": {
@@ -11473,31 +11485,31 @@ const docTemplate = `{
                 }
             }
         },
-        "service.RuntimeDiagnosticsSnapshot": {
+        "orion_core_internal_service.RuntimeDiagnosticsSnapshot": {
             "type": "object",
             "properties": {
                 "active_incident_lookup": {
-                    "$ref": "#/definitions/service.RuntimeLookupStats"
+                    "$ref": "#/definitions/orion_core_internal_service.RuntimeLookupStats"
                 },
                 "incident_reconciliation": {
-                    "$ref": "#/definitions/service.RuntimeOperationStats"
+                    "$ref": "#/definitions/orion_core_internal_service.RuntimeOperationStats"
                 },
                 "ingestion_latency_ms": {
                     "type": "object",
                     "additionalProperties": {
-                        "$ref": "#/definitions/service.RuntimeLatencyPercentiles"
+                        "$ref": "#/definitions/orion_core_internal_service.RuntimeLatencyPercentiles"
                     }
                 },
                 "report_writes": {
                     "type": "object",
                     "additionalProperties": {
-                        "$ref": "#/definitions/service.RuntimeReportWriteStats"
+                        "$ref": "#/definitions/orion_core_internal_service.RuntimeReportWriteStats"
                     }
                 },
                 "request_latency_ms": {
                     "type": "object",
                     "additionalProperties": {
-                        "$ref": "#/definitions/service.RuntimeLatencyPercentiles"
+                        "$ref": "#/definitions/orion_core_internal_service.RuntimeLatencyPercentiles"
                     }
                 },
                 "requests": {
@@ -11513,11 +11525,11 @@ const docTemplate = `{
                 "slow_operations": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/service.RuntimeSlowOperation"
+                        "$ref": "#/definitions/orion_core_internal_service.RuntimeSlowOperation"
                     }
                 },
                 "sqlite": {
-                    "$ref": "#/definitions/service.RuntimeSQLiteStats"
+                    "$ref": "#/definitions/orion_core_internal_service.RuntimeSQLiteStats"
                 },
                 "started_at": {
                     "type": "string"
@@ -11530,7 +11542,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.RuntimeLatencyPercentiles": {
+        "orion_core_internal_service.RuntimeLatencyPercentiles": {
             "type": "object",
             "properties": {
                 "count": {
@@ -11550,7 +11562,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.RuntimeLookupStats": {
+        "orion_core_internal_service.RuntimeLookupStats": {
             "type": "object",
             "properties": {
                 "count": {
@@ -11573,7 +11585,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.RuntimeOperationStats": {
+        "orion_core_internal_service.RuntimeOperationStats": {
             "type": "object",
             "properties": {
                 "count": {
@@ -11596,7 +11608,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.RuntimeReportWriteStats": {
+        "orion_core_internal_service.RuntimeReportWriteStats": {
             "type": "object",
             "properties": {
                 "count": {
@@ -11619,7 +11631,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.RuntimeSQLiteStats": {
+        "orion_core_internal_service.RuntimeSQLiteStats": {
             "type": "object",
             "properties": {
                 "busy_total": {
@@ -11639,7 +11651,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.RuntimeSlowOperation": {
+        "orion_core_internal_service.RuntimeSlowOperation": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -11656,7 +11668,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.ServiceLogBatchPayload": {
+        "orion_core_internal_service.ServiceLogBatchPayload": {
             "type": "object",
             "required": [
                 "entries"
@@ -11665,12 +11677,12 @@ const docTemplate = `{
                 "entries": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/service.ServiceLogEntryPayload"
+                        "$ref": "#/definitions/orion_core_internal_service.ServiceLogEntryPayload"
                     }
                 }
             }
         },
-        "service.ServiceLogEntryPayload": {
+        "orion_core_internal_service.ServiceLogEntryPayload": {
             "type": "object",
             "required": [
                 "fingerprint",
@@ -11713,7 +11725,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.SetMaintenanceModeRequest": {
+        "orion_core_internal_service.SetMaintenanceModeRequest": {
             "type": "object",
             "required": [
                 "maintenance_mode"
@@ -11724,7 +11736,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.UnregisterMonitorRequest": {
+        "orion_core_internal_service.UnregisterMonitorRequest": {
             "type": "object",
             "required": [
                 "monitor_id"
@@ -11738,7 +11750,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.UnregisterMonitorResponse": {
+        "orion_core_internal_service.UnregisterMonitorResponse": {
             "type": "object",
             "properties": {
                 "success": {
@@ -11746,7 +11758,7 @@ const docTemplate = `{
                 }
             }
         },
-        "utils.APIResponse": {
+        "orion_core_internal_utils.APIResponse": {
             "type": "object",
             "properties": {
                 "data": {},
@@ -11761,7 +11773,7 @@ const docTemplate = `{
                 }
             }
         },
-        "utils.PaginationMeta": {
+        "orion_core_internal_utils.PaginationMeta": {
             "type": "object",
             "properties": {
                 "current_count": {

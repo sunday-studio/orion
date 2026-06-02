@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"embed"
 	"fmt"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"os"
 	"path/filepath"
 	"slices"
@@ -50,12 +50,12 @@ func Initialize(dataDir string) (*gorm.DB, error) {
 
 // Migrate runs explicit SQL migrations embedded in the Core binary.
 func Migrate(db *gorm.DB) error {
-	log := logging.NewLogger()
+	log := utils.NewLogger()
 	return MigrateWithFiles(db, "migrations", log)
 }
 
 // MigrateWithFiles runs embedded SQL migration files and records applied versions.
-func MigrateWithFiles(db *gorm.DB, migrationsPath string, logger *logging.Logger) error {
+func MigrateWithFiles(db *gorm.DB, migrationsPath string, logger *utils.Logger) error {
 	logger.Info("Running database migrations")
 
 	sqlDB, err := db.DB()

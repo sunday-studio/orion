@@ -7,7 +7,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/json"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"testing"
 	"time"
 )
@@ -35,7 +35,7 @@ func TestRunDueChecksStoresUpReportForHealthyTLSCertificate(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-tls-test", TLSCheck: tlsCheck})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-tls-test", TLSCheck: tlsCheck})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -82,7 +82,7 @@ func TestRunDueChecksStoresDegradedReportForExpiringTLSCertificate(t *testing.T)
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-tls-test", TLSCheck: tlsCheck})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-tls-test", TLSCheck: tlsCheck})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -125,7 +125,7 @@ func TestRunDueChecksStoresDownReportForInvalidTLSCertificate(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-tls-test", TLSCheck: tlsCheck})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-tls-test", TLSCheck: tlsCheck})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}

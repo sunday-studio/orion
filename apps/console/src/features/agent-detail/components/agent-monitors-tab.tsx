@@ -1,17 +1,17 @@
-import { DataTable } from "@/components/data-table";
-import { ListPagination } from "@/components/list-pagination";
-import { DataTableLink } from "@/components/data-table-link";
-import { StatusBadge, toStatus } from "@/components/status-badges";
+import { DataTable } from "@/components/shared/data-table";
+import { ListPagination } from "@/components/shared/list-pagination";
+import { DataTableLink } from "@/components/shared/data-table-link";
+import { StatusBadge, toStatus } from "@/components/shared/status-badges";
 import {
   type ApiIncidentResponse,
   type ApiMonitorResponse,
   useGetAgentMonitors,
 } from "@/orion-sdk";
-import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
-import { cn } from "@/lib/utils";
+import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
+import { cn } from "@/utils/cn";
 import type { ColumnDef } from "@tanstack/react-table";
 import { parseAsInteger, useQueryStates } from "nuqs";
-import { monitorHealth, monitorPriority } from "./agent-detail-utils";
+import { monitorHealth, monitorPriority } from "../agent-detail.domain";
 
 const AGENT_MONITOR_LIMIT = 20;
 

@@ -2,7 +2,7 @@ package service
 
 import (
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 
 	"gorm.io/gorm"
 )
@@ -10,11 +10,11 @@ import (
 // AuthService handles authentication-related operations
 type AuthService struct {
 	db     *gorm.DB
-	logger *logging.Logger
+	logger *utils.Logger
 }
 
 // NewAuthService creates a new authentication service
-func NewAuthService(database *gorm.DB, logger *logging.Logger) *AuthService {
+func NewAuthService(database *gorm.DB, logger *utils.Logger) *AuthService {
 	return &AuthService{
 		db:     database,
 		logger: logger,

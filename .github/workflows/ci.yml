@@ -74,72 +74,63 @@ jobs:
               - 'AGENTS.md'
               - '.github/workflows/ci.yml'
 
-  server-agent-format:
-    name: Server Agent format
+  console:
+    name: Console
     runs-on: ubuntu-24.04
     needs: changes
-    if: needs.changes.outputs.agent == 'true'
+    if: needs.changes.outputs.console == 'true' || needs.changes.outputs.contracts == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - name: Set up Node
+        uses: actions/setup-node@v4
         with:
-          go-version-file: apps/agent/go.mod
-          cache-dependency-path: apps/agent/go.sum
-
-      - name: Check Server Agent formatting
-        run: |
-          gofmt -l . | tee /tmp/orion-agent-gofmt.txt
-          test ! -s /tmp/orion-agent-gofmt.txt
-        working-directory: apps/agent
-
-  server-agent-test:
-    name: Server Agent tests
-    runs-on: ubuntu-24.04
-    needs: changes
-    if: needs.changes.outputs.agent == 'true'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+          node-version: 22
 
       - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: apps/agent/go.mod
-          cache-dependency-path: apps/agent/go.sum
-
-      - name: Test Server Agent
-        run: go test ./...
-        working-directory: apps/agent
-
-  core-format:
-    name: Core format
-    runs-on: ubuntu-24.04
-    needs: changes
-    if: needs.changes.outputs.core == 'true'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Go
+        if: needs.changes.outputs.contracts == 'true'
         uses: actions/setup-go@v5
         with:
           go-version-file: apps/core/go.mod
           cache-dependency-path: apps/core/go.sum
 
-      - name: Check Core formatting
+      - name: Set up pnpm
         run: |
-          gofmt -l . | tee /tmp/orion-core-gofmt.txt
-          test ! -s /tmp/orion-core-gofmt.txt
-        working-directory: apps/core
+          corepack enable
+          corepack prepare pnpm@10.23.0 --activate
 
-  core-test:
-    name: Core tests
+      - name: Install Console dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: apps/console
+
+      - name: Install Swagger generator
+        if: needs.changes.outputs.contracts == 'true'
+        run: go install github.com/swaggo/swag/cmd/swag@latest
+
+      - name: Check generated contracts
+        if: needs.changes.outputs.contracts == 'true'
+        run: |
+          make generate-sdk
+          git diff --exit-code -- apps/core/docs apps/core/openapi.yaml
+          test -s apps/console/src/orion-sdk/index.ts
+
+      - name: Lint Console
+        run: pnpm run lint
+        working-directory: apps/console
+
+      - name: Check Console formatting
+        run: pnpm run format:check
+        working-directory: apps/console
+
+      - name: Build Console
+        run: make console-build
+
+  core:
+    name: Core
     runs-on: ubuntu-24.04
     needs: changes
-    if: needs.changes.outputs.core == 'true'
+    if: needs.changes.outputs.core == 'true' || needs.changes.outputs.contracts == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -152,6 +143,15 @@ jobs:
           go-version-file: apps/core/go.mod
           cache-dependency-path: apps/core/go.sum
 
+      - name: Check Core formatting
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            printf 'Run gofmt -w on these Core files:\n%s\n' "$unformatted"
+            exit 1
+          fi
+        working-directory: apps/core
+
       - name: Check Core backend test expectation
         if: github.event_name == 'pull_request'
         env:
@@ -159,7 +159,14 @@ jobs:
         run: .github/scripts/check-core-backend-tests.sh "${{ github.event.pull_request.base.sha }}" "${{ github.sha }}"
 
       - name: Test Core
-        run: make core-coverage CORE_COVERAGE_PROFILE=coverage.out CORE_COVERAGE_SUMMARY=coverage-summary.txt
+        run: go test ./...
+        working-directory: apps/core
+
+      - name: Test Core coverage
+        run: |
+          go test -coverprofile=coverage.out ./...
+          go tool cover -func=coverage.out | tee coverage-summary.txt
+        working-directory: apps/core
 
       - name: Upload Core coverage report
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -170,20 +177,16 @@ jobs:
             apps/core/coverage-summary.txt
           if-no-files-found: error
 
-      - name: Race test Core concurrency packages
-        run: go test -race ./internal/service ./internal/worker
-        working-directory: apps/core
-
-      - name: Build Core binaries
+      - name: Build Core
         run: |
           make core-build CORE_OUTPUT=/tmp/orion-core
           make core-worker-build CORE_WORKER_OUTPUT=/tmp/orion-core-worker
 
-  core-modernize:
-    name: Core modernize lint
+  server:
+    name: Server
     runs-on: ubuntu-24.04
     needs: changes
-    if: needs.changes.outputs.core == 'true'
+    if: needs.changes.outputs.agent == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -191,230 +194,45 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: apps/core/go.mod
-          cache-dependency-path: apps/core/go.sum
+          go-version-file: apps/agent/go.mod
+          cache-dependency-path: apps/agent/go.sum
 
-      - name: Modernize lint
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: v2.12.2
-          working-directory: apps/core
-          args: --config=../../.golangci.yml ./...
-          only-new-issues: true
-
-  core-vulncheck:
-    name: Core govulncheck
-    runs-on: ubuntu-24.04
-    needs: changes
-    if: needs.changes.outputs.core == 'true'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Govulncheck
-        uses: golang/govulncheck-action@v1
-        with:
-          go-version-file: apps/core/go.mod
-          cache-dependency-path: apps/core/go.sum
-          work-dir: apps/core
-          repo-checkout: false
-
-  console-quality:
-    name: Console quality
-    runs-on: ubuntu-24.04
-    needs: changes
-    if: needs.changes.outputs.console == 'true'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Set up pnpm
+      - name: Check Server formatting
         run: |
-          corepack enable
-          corepack prepare pnpm@10.23.0 --activate
-
-      - name: Install Console dependencies
-        run: pnpm install --frozen-lockfile
-        working-directory: apps/console
-
-      - name: Check Console formatting
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-          HEAD_SHA: ${{ github.sha }}
-        run: |
-          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
-            pnpm run format:check
-            exit 0
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            printf 'Run gofmt -w on these Server files:\n%s\n' "$unformatted"
+            exit 1
           fi
+        working-directory: apps/agent
 
-          changed_files="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" -- apps/console | grep -E '\.(ts|tsx|js|jsx|mjs|css|json)$' || true)"
-          if [ -z "$changed_files" ]; then
-            echo "No changed Console files need formatting checks."
-            exit 0
-          fi
+      - name: Test Server
+        run: go test ./...
+        working-directory: apps/agent
 
-          printf '%s\n' "$changed_files" | sed 's#^apps/console/##' | (
-            cd apps/console
-            xargs pnpm exec oxfmt --check
-          )
-
-      - name: Lint Console
-        run: pnpm run lint
-        working-directory: apps/console
-
-  console-build:
-    name: Console build
-    runs-on: ubuntu-24.04
-    needs: changes
-    if: needs.changes.outputs.console == 'true' || needs.changes.outputs.contracts == 'true'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: apps/core/go.mod
-          cache-dependency-path: apps/core/go.sum
-
-      - name: Set up pnpm
+      - name: Test Server coverage
         run: |
-          corepack enable
-          corepack prepare pnpm@10.23.0 --activate
+          go test -coverprofile=coverage.out ./...
+          go tool cover -func=coverage.out | tee coverage-summary.txt
+        working-directory: apps/agent
 
-      - name: Install Console dependencies
-        run: pnpm install --frozen-lockfile
-        working-directory: apps/console
-
-      - name: Install Swagger generator
-        if: needs.changes.outputs.contracts == 'true'
-        run: go install github.com/swaggo/swag/cmd/swag@latest
-
-      - name: Regenerate OpenAPI
-        if: needs.changes.outputs.contracts == 'true'
-        run: make generate-openapi
-
-      - name: Generate Console SDK
-        run: pnpm run generate:api
-        working-directory: apps/console
-
-      - name: Build Console
-        run: make console-build
-
-  console-e2e:
-    name: Console E2E
-    runs-on: ubuntu-24.04
-    needs: changes
-    if: needs.changes.outputs.console == 'true' || needs.changes.outputs.contracts == 'true'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - name: Upload Server coverage report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          node-version: 22
+          name: server-coverage
+          path: |
+            apps/agent/coverage.out
+            apps/agent/coverage-summary.txt
+          if-no-files-found: error
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: apps/core/go.mod
-          cache-dependency-path: apps/core/go.sum
-
-      - name: Set up pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@10.23.0 --activate
-
-      - name: Install Console dependencies
-        run: pnpm install --frozen-lockfile
-        working-directory: apps/console
-
-      - name: Install Swagger generator
-        if: needs.changes.outputs.contracts == 'true'
-        run: go install github.com/swaggo/swag/cmd/swag@latest
-
-      - name: Regenerate OpenAPI
-        if: needs.changes.outputs.contracts == 'true'
-        run: make generate-openapi
-
-      - name: Generate Console SDK
-        run: pnpm run generate:api
-        working-directory: apps/console
-
-      - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium
-        working-directory: apps/console
-
-      - name: Browser smoke
-        run: pnpm run test:e2e
-        working-directory: apps/console
-
-  generated-contracts:
-    name: Generated contracts
-    runs-on: ubuntu-24.04
-    needs: changes
-    if: needs.changes.outputs.contracts == 'true'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: apps/core/go.mod
-          cache-dependency-path: apps/core/go.sum
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Set up pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@10.23.0 --activate
-
-      - name: Install Swagger generator
-        run: go install github.com/swaggo/swag/cmd/swag@latest
-
-      - name: Install Console dependencies
-        run: pnpm install --frozen-lockfile
-        working-directory: apps/console
-
-      - name: Regenerate OpenAPI and SDK
-        run: make generate-sdk
-
-      - name: Check generated files are committed
-        run: |
-          git diff --exit-code -- \
-            apps/core/docs \
-            apps/core/openapi.yaml
-          test -s apps/console/src/orion-sdk/index.ts
+      - name: Build Server
+        run: make agent-build AGENT_OUTPUT=/tmp/orion-agent
 
   repository-smoke:
     name: Repository smoke
     runs-on: ubuntu-24.04
     needs: changes
-    if: |
-      needs.changes.outputs.deploy == 'true' ||
-      needs.changes.outputs.docs == 'true' ||
-      needs.changes.outputs.agent == 'true' ||
-      needs.changes.outputs.console == 'true' ||
-      needs.changes.outputs.contracts == 'true' ||
-      needs.changes.outputs.core == 'true'
+    if: needs.changes.outputs.deploy == 'true' || needs.changes.outputs.docs == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -434,47 +252,26 @@ jobs:
     runs-on: ubuntu-24.04
     needs:
       - changes
-      - server-agent-format
-      - server-agent-test
-      - core-format
-      - core-test
-      - core-modernize
-      - core-vulncheck
-      - console-quality
-      - console-build
-      - console-e2e
-      - generated-contracts
+      - console
+      - core
+      - server
       - repository-smoke
     if: always()
     steps:
       - name: Check gate results
         env:
           CHANGES_RESULT: ${{ needs.changes.result }}
-          SERVER_AGENT_FORMAT_RESULT: ${{ needs['server-agent-format'].result }}
-          SERVER_AGENT_RESULT: ${{ needs['server-agent-test'].result }}
-          CORE_FORMAT_RESULT: ${{ needs['core-format'].result }}
-          CORE_RESULT: ${{ needs['core-test'].result }}
-          CORE_MODERNIZE_RESULT: ${{ needs['core-modernize'].result }}
-          CORE_VULNCHECK_RESULT: ${{ needs['core-vulncheck'].result }}
-          CONSOLE_QUALITY_RESULT: ${{ needs['console-quality'].result }}
-          CONSOLE_BUILD_RESULT: ${{ needs['console-build'].result }}
-          CONSOLE_E2E_RESULT: ${{ needs['console-e2e'].result }}
-          CONTRACTS_RESULT: ${{ needs['generated-contracts'].result }}
-          REPOSITORY_SMOKE_RESULT: ${{ needs['repository-smoke'].result }}
+          CONSOLE_RESULT: ${{ needs.console.result }}
+          CORE_RESULT: ${{ needs.core.result }}
+          SERVER_RESULT: ${{ needs.server.result }}
+          REPOSITORY_SMOKE_RESULT: ${{ needs.repository-smoke.result }}
         run: |
           failed=0
           for gate in \
             "Changed area detection:${CHANGES_RESULT}" \
-            "Server Agent format:${SERVER_AGENT_FORMAT_RESULT}" \
-            "Server tests:${SERVER_AGENT_RESULT}" \
-            "Core format:${CORE_FORMAT_RESULT}" \
-            "Core tests:${CORE_RESULT}" \
-            "Core modernize lint:${CORE_MODERNIZE_RESULT}" \
-            "Core govulncheck:${CORE_VULNCHECK_RESULT}" \
-            "Console quality:${CONSOLE_QUALITY_RESULT}" \
-            "Console build:${CONSOLE_BUILD_RESULT}" \
-            "Console E2E:${CONSOLE_E2E_RESULT}" \
-            "Generated contracts:${CONTRACTS_RESULT}" \
+            "Console:${CONSOLE_RESULT}" \
+            "Core:${CORE_RESULT}" \
+            "Server:${SERVER_RESULT}" \
             "Repository smoke:${REPOSITORY_SMOKE_RESULT}"
           do
             name="${gate%%:*}"

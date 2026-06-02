@@ -1,8 +1,16 @@
 import { defineConfig } from "orval";
 
 const HTTP_METHODS = ["get", "post", "put", "patch", "delete"] as const;
+const DEFINITION_PREFIXES = [
+  ["internal_api.", "api."],
+  ["orion_core_internal_service.", "service."],
+  ["orion_core_internal_db.", "db."],
+  ["orion_core_internal_utils.", "utils."],
+] as const;
 
 function unwrapSuccessEnvelope(spec: any): any {
+  normalizeDefinitionNames(spec);
+
   for (const path of Object.values(spec.paths ?? {})) {
     for (const method of HTTP_METHODS) {
       const operation = (path as Record<string, any>)[method];
@@ -22,6 +30,44 @@ function unwrapSuccessEnvelope(spec: any): any {
   }
 
   return spec;
+}
+
+function normalizeDefinitionNames(spec: any): void {
+  renameSchemaMap(spec.definitions);
+  renameSchemaMap(spec.components?.schemas);
+
+  rewriteDefinitionRefs(spec);
+}
+
+function renameSchemaMap(schemas: Record<string, unknown> | undefined): void {
+  if (!schemas) return;
+
+  for (const name of Object.keys(schemas)) {
+    const normalized = normalizeDefinitionName(name);
+    if (normalized === name) continue;
+
+    schemas[normalized] = schemas[name];
+    delete schemas[name];
+  }
+}
+
+function normalizeDefinitionName(name: string): string {
+  return DEFINITION_PREFIXES.reduce(
+    (normalized, [from, to]) => normalized.replaceAll(from, to),
+    name,
+  );
+}
+
+function rewriteDefinitionRefs(value: any): void {
+  if (!value || typeof value !== "object") return;
+
+  if (typeof value.$ref === "string") {
+    value.$ref = normalizeDefinitionName(value.$ref);
+  }
+
+  for (const child of Object.values(value)) {
+    rewriteDefinitionRefs(child);
+  }
 }
 
 function unwrapEnvelopeSchema(schema: any): any {
@@ -47,7 +93,7 @@ export default defineConfig({
           includeHttpResponseReturnType: false,
         },
         mutator: {
-          path: "./src/lib/custom-instance.ts",
+          path: "./src/api/client.ts",
           name: "orvalFetchClient",
         },
         query: {

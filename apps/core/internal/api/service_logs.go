@@ -88,8 +88,8 @@ func (s *Server) listServiceLogs(c *gin.Context) {
 		Level:     strings.TrimSpace(c.Query("level")),
 		Component: strings.TrimSpace(c.Query("component")),
 		Search:    strings.TrimSpace(c.Query("q")),
-		Limit:     queryInt(c, "limit", 50),
-		Offset:    queryInt(c, "offset", 0),
+		Limit:     utils.QueryInt(c, "limit", 50),
+		Offset:    utils.QueryInt(c, "offset", 0),
 	})
 }
 
@@ -127,8 +127,8 @@ func (s *Server) listAgentServiceLogs(c *gin.Context) {
 		Level:     strings.TrimSpace(c.Query("level")),
 		Component: strings.TrimSpace(c.Query("component")),
 		Search:    strings.TrimSpace(c.Query("q")),
-		Limit:     queryInt(c, "limit", 50),
-		Offset:    queryInt(c, "offset", 0),
+		Limit:     utils.QueryInt(c, "limit", 50),
+		Offset:    utils.QueryInt(c, "offset", 0),
 	})
 }
 

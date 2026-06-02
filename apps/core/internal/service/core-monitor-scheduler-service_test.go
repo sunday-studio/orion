@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -25,7 +25,7 @@ func TestClaimDueCoreMonitorConfigsClaimsDueConfigOnce(t *testing.T) {
 		NextRunAt:       now.Add(-time.Minute),
 	})
 
-	service := NewCoreMonitorSchedulerService(database, logging.NewLogger())
+	service := NewCoreMonitorSchedulerService(database, utils.NewLogger())
 	claimed, err := service.ClaimDueCoreMonitorConfigs(ClaimDueCoreMonitorConfigsRequest{
 		LeaseOwner:    "worker-a",
 		Limit:         10,
@@ -69,7 +69,7 @@ func TestClaimDueCoreMonitorConfigsRecoversOverdueUnleasedConfig(t *testing.T) {
 		NextRunAt:       now.Add(-6 * time.Hour),
 	})
 
-	service := NewCoreMonitorSchedulerService(database, logging.NewLogger())
+	service := NewCoreMonitorSchedulerService(database, utils.NewLogger())
 	claimed, err := service.ClaimDueCoreMonitorConfigs(ClaimDueCoreMonitorConfigsRequest{
 		LeaseOwner:    "worker-after-restart",
 		LeaseDuration: time.Minute,
@@ -99,7 +99,7 @@ func TestClaimDueCoreMonitorConfigsReclaimsExpiredLease(t *testing.T) {
 		LeaseExpiresAt:  &expiredAt,
 	})
 
-	service := NewCoreMonitorSchedulerService(database, logging.NewLogger())
+	service := NewCoreMonitorSchedulerService(database, utils.NewLogger())
 	claimed, err := service.ClaimDueCoreMonitorConfigs(ClaimDueCoreMonitorConfigsRequest{
 		LeaseOwner:    "worker-b",
 		LeaseDuration: 90 * time.Second,
@@ -137,7 +137,7 @@ func TestClaimDueCoreMonitorConfigsSkipsPausedAndInactiveMonitors(t *testing.T) 
 		NextRunAt:       now.Add(-time.Minute),
 	})
 
-	service := NewCoreMonitorSchedulerService(database, logging.NewLogger())
+	service := NewCoreMonitorSchedulerService(database, utils.NewLogger())
 	claimed, err := service.ClaimDueCoreMonitorConfigs(ClaimDueCoreMonitorConfigsRequest{
 		LeaseOwner: "worker-a",
 		Now:        now,
@@ -164,7 +164,7 @@ func TestClaimDueCoreMonitorConfigsClaimsResumedMonitor(t *testing.T) {
 		NextRunAt:       now.Add(-time.Minute),
 	})
 
-	service := NewCoreMonitorSchedulerService(database, logging.NewLogger())
+	service := NewCoreMonitorSchedulerService(database, utils.NewLogger())
 	pausedClaim, err := service.ClaimDueCoreMonitorConfigs(ClaimDueCoreMonitorConfigsRequest{
 		LeaseOwner: "worker-paused",
 		Now:        now,
@@ -208,7 +208,7 @@ func TestClaimDueCoreMonitorConfigsSkipsHeartbeatMonitors(t *testing.T) {
 		NextRunAt:       now.Add(-time.Minute),
 	})
 
-	service := NewCoreMonitorSchedulerService(database, logging.NewLogger())
+	service := NewCoreMonitorSchedulerService(database, utils.NewLogger())
 	claimed, err := service.ClaimDueCoreMonitorConfigs(ClaimDueCoreMonitorConfigsRequest{
 		LeaseOwner: "worker-a",
 		Now:        now,
@@ -235,7 +235,7 @@ func TestCompleteCoreMonitorCheckSchedulesNextRunAndClearsLease(t *testing.T) {
 		NextRunAt:       now.Add(-time.Minute),
 	})
 
-	service := NewCoreMonitorSchedulerService(database, logging.NewLogger())
+	service := NewCoreMonitorSchedulerService(database, utils.NewLogger())
 	if _, err := service.ClaimDueCoreMonitorConfigs(ClaimDueCoreMonitorConfigsRequest{
 		LeaseOwner:    "worker-a",
 		LeaseDuration: time.Minute,
@@ -283,7 +283,7 @@ func TestCompleteCoreMonitorCheckRejectsExpiredLease(t *testing.T) {
 		LeaseExpiresAt:  &expiredAt,
 	})
 
-	service := NewCoreMonitorSchedulerService(database, logging.NewLogger())
+	service := NewCoreMonitorSchedulerService(database, utils.NewLogger())
 	if _, err := service.CompleteCoreMonitorCheck(CompleteCoreMonitorCheckRequest{
 		MonitorID:  "monitor-expired-complete",
 		LeaseOwner: "worker-a",

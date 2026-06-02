@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"testing"
 	"time"
 
@@ -32,7 +32,7 @@ func TestRunDueChecksStoresUpReportForPingTCPReachability(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-ping-test", TCPDialContext: tcpDialContext})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-ping-test", TCPDialContext: tcpDialContext})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -72,7 +72,7 @@ func TestRunDueChecksStoresDownReportForPingTimeout(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{
+	app := NewApp(database, utils.NewLogger(), Options{
 		WorkerID: "worker-ping-test",
 		TCPDialContext: func(ctx context.Context, network string, address string) (net.Conn, error) {
 			return nil, timeoutTestError{}
@@ -99,7 +99,7 @@ func TestRunDueChecksStoresDownReportForPingICMPPermission(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-ping-test"})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-ping-test"})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}

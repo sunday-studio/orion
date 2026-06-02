@@ -1,5 +1,5 @@
 import type { ApiIncidentInsightsResponse, ApiIncidentResponse } from "@/orion-sdk";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/cn";
 
 export type IncidentSummaryStatus =
   | "all"

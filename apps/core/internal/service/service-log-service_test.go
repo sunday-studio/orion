@@ -2,7 +2,7 @@ package service
 
 import (
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"testing"
 	"time"
 
@@ -12,7 +12,7 @@ import (
 
 func TestStoreAgentLogBatchDedupesAndSanitizesFields(t *testing.T) {
 	database := openServiceLogTestDatabase(t)
-	service := NewServiceLogService(database, logging.NewLogger())
+	service := NewServiceLogService(database, utils.NewLogger())
 
 	payload := ServiceLogBatchPayload{Entries: []ServiceLogEntryPayload{
 		{
@@ -61,7 +61,7 @@ func TestStoreAgentLogBatchDedupesAndSanitizesFields(t *testing.T) {
 
 func TestListServiceLogsFiltersSearch(t *testing.T) {
 	database := openServiceLogTestDatabase(t)
-	service := NewServiceLogService(database, logging.NewLogger())
+	service := NewServiceLogService(database, utils.NewLogger())
 	_, err := service.StoreAgentLogBatch("agent-1", ServiceLogBatchPayload{Entries: []ServiceLogEntryPayload{
 		{
 			Timestamp:   "2026-05-27T20:00:00Z",

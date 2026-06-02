@@ -6,7 +6,7 @@ import (
 	"io"
 	"net"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"strings"
 	"testing"
 	"time"
@@ -30,7 +30,7 @@ func TestRunDueChecksStoresUpReportForSMTPMonitor(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{
+	app := NewApp(database, utils.NewLogger(), Options{
 		WorkerID: "worker-mail-test",
 		TCPDialContext: func(ctx context.Context, network string, address string) (net.Conn, error) {
 			dialedAddress = address
@@ -81,7 +81,7 @@ func TestRunDueChecksStoresUpReportForIMAPMonitor(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{
+	app := NewApp(database, utils.NewLogger(), Options{
 		WorkerID: "worker-mail-test",
 		TCPDialContext: func(ctx context.Context, network string, address string) (net.Conn, error) {
 			return conn, nil
@@ -123,7 +123,7 @@ func TestRunDueChecksStoresUpReportForPOPMonitor(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{
+	app := NewApp(database, utils.NewLogger(), Options{
 		WorkerID: "worker-mail-test",
 		TCPDialContext: func(ctx context.Context, network string, address string) (net.Conn, error) {
 			return conn, nil
@@ -165,7 +165,7 @@ func TestRunDueChecksStoresDownReportForMailMissingCapability(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{
+	app := NewApp(database, utils.NewLogger(), Options{
 		WorkerID: "worker-mail-test",
 		TCPDialContext: func(ctx context.Context, network string, address string) (net.Conn, error) {
 			return conn, nil
@@ -193,7 +193,7 @@ func TestRunDueChecksStoresDownReportForMailAuthEnabledConfig(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-mail-test"})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-mail-test"})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -219,7 +219,7 @@ func TestRunDueChecksStoresDownReportForMailTimeout(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{
+	app := NewApp(database, utils.NewLogger(), Options{
 		WorkerID: "worker-mail-test",
 		TCPDialContext: func(ctx context.Context, network string, address string) (net.Conn, error) {
 			return nil, timeoutTestError{}

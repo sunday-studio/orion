@@ -35,8 +35,8 @@ type orionEventFilters struct {
 // @Failure      500     {object}  utils.APIResponse
 // @Router       /v1/events [get]
 func (s *Server) listOrionEvents(c *gin.Context) {
-	limit := queryInt(c, "limit", 50)
-	offset := queryInt(c, "offset", 0)
+	limit := utils.QueryInt(c, "limit", 50)
+	offset := utils.QueryInt(c, "offset", 0)
 	filters := orionEventFilters{
 		Source: strings.TrimSpace(c.Query("source")),
 		Type:   strings.TrimSpace(c.Query("type")),

@@ -1,8 +1,8 @@
 import type { ApiUptimeDayBucketResponse } from "@/orion-sdk";
-import { formatPercent } from "./agent-detail-utils";
+import { formatPercent } from "../agent-detail.domain";
 import { Link } from "react-router-dom";
-import { cn } from "@/lib/utils";
-import { StatusBadge, toStatus } from "@/components/status-badges";
+import { cn } from "@/utils/cn";
+import { StatusBadge, toStatus } from "@/components/shared/status-badges";
 
 type AgentHealthSummaryProps = {
   activeIncidentCount: number;
