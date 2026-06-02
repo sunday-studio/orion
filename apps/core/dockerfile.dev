@@ -1,0 +1,25 @@
+FROM golang:1.25-alpine
+
+WORKDIR /app
+
+RUN apk add --no-cache build-base ca-certificates sqlite wget
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY cmd/ cmd/
+COPY docs/ docs/
+COPY internal/ internal/
+
+RUN go build -o /usr/local/bin/orion-core ./cmd/api
+RUN go build -o /usr/local/bin/orion-core-worker ./cmd/worker
+
+RUN mkdir -p /data
+
+ENV ORION_DATA_DIR=/data
+ENV ORION_PORT=8999
+
+EXPOSE 8999
+VOLUME /data
+
+CMD ["orion-core"]
