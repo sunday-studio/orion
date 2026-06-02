@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"orion/core/internal/api"
-	"orion/core/internal/utils"
 	"orion/core/internal/service"
 	"orion/core/internal/shared"
+	"orion/core/internal/utils"
 	"os/signal"
 	"syscall"
 	"time"

@@ -3,8 +3,8 @@ package worker
 import (
 	"encoding/json"
 	"orion/core/internal/db"
-	"orion/core/internal/utils"
 	"orion/core/internal/service"
+	"orion/core/internal/utils"
 	"strings"
 	"testing"
 	"time"

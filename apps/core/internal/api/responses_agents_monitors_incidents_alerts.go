@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// OrionEventResponse represents an operational Core event derived from stored records.
 type OrionEventResponse struct {
 	ID         string    `json:"id"`
 	Type       string    `json:"type"`
@@ -33,8 +34,7 @@ func agentListResponse(row service.AgentListRow) AgentResponse {
 	response.UptimeSeconds = row.UptimeSeconds
 	return response
 }
-func agentListResponses(rows []service.// OrionEventResponse represents an operational Core event derived from stored records.
-AgentListRow) []AgentResponse {
+func agentListResponses(rows []service.AgentListRow) []AgentResponse {
 	responses := make([]AgentResponse, 0, len(rows))
 	for _, row := range rows {
 		responses = append(responses, agentListResponse(row))
