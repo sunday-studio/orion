@@ -1,18 +1,59 @@
-import { DataTable } from "@/components/data-table";
-import { PageBreadcrumbs } from "@/components/page-breadcrumbs";
-import { NotificationBadge, SeverityBadge, StatusBadge, toNotificationStatus, toSeverity, toStatus } from "@/components/status-badges";
-import { Button } from "@/components/ui/button";
+import { DataTable } from "@/components/shared/data-table";
+import { PageBreadcrumbs } from "@/components/shared/page-breadcrumbs";
+import {
+  NotificationBadge,
+  SeverityBadge,
+  StatusBadge,
+  toNotificationStatus,
+  toSeverity,
+  toStatus,
+} from "@/components/shared/status-badges";
 import { TabCount, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ReportInspectionDrawer } from "@/features/report-inspection/report-inspection-drawer";
-import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
-import { type ApiIncidentNextActionResponse, type ApiMonitorReportResponse, type ApiStatusPageIncidentResponse, getGetIncidentQueryKey, getGetIncidentTimelineQueryKey, useAcknowledgeIncident, useCoverIncident, useCreateStatusPageIncidentDraft, useGetIncident, useListStatusPages, usePreviewStatusPageIncidentDraft, useReopenIncident, useResolveIncident } from "@/orion-sdk";
+import { ReportInspectionDrawer } from "@/features/report-inspection/components/report-inspection-drawer";
+import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
+import {
+  type ApiIncidentNextActionResponse,
+  type ApiMonitorReportResponse,
+  type ApiStatusPageIncidentResponse,
+  getGetIncidentQueryKey,
+  getGetIncidentTimelineQueryKey,
+  useAcknowledgeIncident,
+  useCoverIncident,
+  useCreateStatusPageIncidentDraft,
+  useGetIncident,
+  useListStatusPages,
+  usePreviewStatusPageIncidentDraft,
+  useReopenIncident,
+  useResolveIncident,
+} from "@/orion-sdk";
 import { useQueryClient } from "@tanstack/react-query";
-import { CheckIcon, CircleCheckIcon, MegaphoneIcon, RotateCcwIcon, ShieldCheckIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
-import { ActionNoteDialog, CoverIncidentDialog, EvidenceReportGroup, PublicIncidentDraftDialog } from "./incident-detail-dialogs";
-import { ComponentImpactList, DetailGroup, DetailItem, IncidentNextActionPanel, actionAllowed, durationLabel, isDetailTab, monitorReportColumns, notificationColumns, reportReason, reportSortTime, timelineColumns, type DetailTab, type IncidentWithAllowedActions, type LifecycleAction } from "./incident-detail-utils";
+import {
+  ActionNoteDialog,
+  CoverIncidentDialog,
+  EvidenceReportGroup,
+  PublicIncidentDraftDialog,
+} from "./components/incident-detail-dialogs";
+import { IncidentActionButtons } from "./components/incident-action-buttons";
+import {
+  ComponentImpactList,
+  DetailGroup,
+  DetailItem,
+  IncidentNextActionPanel,
+  actionAllowed,
+  durationLabel,
+  isDetailTab,
+  monitorReportColumns,
+  notificationColumns,
+  reportReason,
+  reportSortTime,
+  timelineColumns,
+  type DetailTab,
+  type IncidentWithAllowedActions,
+  type LifecycleAction,
+} from "./components/incident-detail-utils";
 
 export const IncidentDetailPage = () => {
   const { incidentId = "" } = useParams();
@@ -198,56 +239,19 @@ export const IncidentDetailPage = () => {
               {incident.latest_event ?? "No latest event recorded."}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              disabled={actionPending}
-              onClick={() => handlePublicDraftDialogOpenChange(true)}
-            >
-              <MegaphoneIcon />
-              Public draft
-            </Button>
-            {nextActions.length === 0 && (canResolve || canReopen) && (
-              <>
-                {canAcknowledge && (
-                  <Button
-                    variant="outline"
-                    disabled={actionPending}
-                    onClick={() => setActionDialog("acknowledge")}
-                  >
-                    <CheckIcon />
-                    Acknowledge
-                  </Button>
-                )}
-                {canCover && (
-                  <Button
-                    variant="outline"
-                    disabled={actionPending}
-                    onClick={() => setCoverDialogOpen(true)}
-                  >
-                    <ShieldCheckIcon />
-                    Cover
-                  </Button>
-                )}
-                {canResolve && (
-                  <Button disabled={actionPending} onClick={() => setActionDialog("resolve")}>
-                    <CircleCheckIcon />
-                    Resolve
-                  </Button>
-                )}
-                {canReopen && (
-                  <Button
-                    variant="outline"
-                    disabled={actionPending}
-                    onClick={() => setActionDialog("reopen")}
-                  >
-                    <RotateCcwIcon />
-                    Reopen
-                  </Button>
-                )}
-              </>
-            )}
-          </div>
+          <IncidentActionButtons
+            actionPending={actionPending}
+            canAcknowledge={canAcknowledge}
+            canCover={canCover}
+            canReopen={canReopen}
+            canResolve={canResolve}
+            hasNextActions={nextActions.length > 0}
+            onAcknowledge={() => setActionDialog("acknowledge")}
+            onCover={() => setCoverDialogOpen(true)}
+            onOpenPublicDraft={() => handlePublicDraftDialogOpenChange(true)}
+            onReopen={() => setActionDialog("reopen")}
+            onResolve={() => setActionDialog("resolve")}
+          />
         </div>
         {(acknowledgeIncident.error ||
           resolveIncident.error ||

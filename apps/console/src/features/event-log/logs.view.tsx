@@ -1,13 +1,13 @@
-import { DataTable } from "@/components/data-table";
-import { DataTableLink } from "@/components/data-table-link";
-import { EmptyState } from "@/components/empty-state";
-import { ListPagination } from "@/components/list-pagination";
-import { PageHeader } from "@/components/page-header";
+import { DataTable } from "@/components/shared/data-table";
+import { DataTableLink } from "@/components/shared/data-table-link";
+import { EmptyState } from "@/components/shared/empty-state";
+import { ListPagination } from "@/components/shared/list-pagination";
+import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
+import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import {
   type ApiOrionEventResponse,
   type ApiServiceLogEntryResponse,

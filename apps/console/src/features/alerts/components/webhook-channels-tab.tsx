@@ -1,4 +1,4 @@
-import { DataTable } from "@/components/data-table";
+import { DataTable } from "@/components/shared/data-table";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -7,7 +7,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
+import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import type { ApiAlertChannelResponse } from "@/orion-sdk";
 import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal, Pencil, Send, Trash2 } from "lucide-react";

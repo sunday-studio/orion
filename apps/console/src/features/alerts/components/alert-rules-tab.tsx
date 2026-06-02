@@ -1,6 +1,6 @@
-import { DataTable } from "@/components/data-table";
-import { EmptyState } from "@/components/empty-state";
-import { SeverityBadge, toSeverity } from "@/components/status-badges";
+import { DataTable } from "@/components/shared/data-table";
+import { EmptyState } from "@/components/shared/empty-state";
+import { SeverityBadge, toSeverity } from "@/components/shared/status-badges";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -44,7 +44,7 @@ import {
   routeToForm,
   routeToRequest,
   type RouteFormState,
-} from "./alert-rules-utils";
+} from "../alerts.domain";
 
 type AlertRulesTabProps = {
   channels: ApiAlertChannelResponse[];

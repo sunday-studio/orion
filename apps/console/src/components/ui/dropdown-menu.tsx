@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Menu as MenuPrimitive } from "@base-ui/react/menu";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/cn";
 
 function DropdownMenu({ ...props }: React.ComponentProps<typeof MenuPrimitive.Root>) {
   return <MenuPrimitive.Root data-slot="dropdown-menu" modal={false} {...props} />;

@@ -47,7 +47,7 @@ export default defineConfig({
           includeHttpResponseReturnType: false,
         },
         mutator: {
-          path: "./src/lib/custom-instance.ts",
+          path: "./src/api/client.ts",
           name: "orvalFetchClient",
         },
         query: {

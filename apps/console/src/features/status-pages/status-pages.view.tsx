@@ -1,7 +1,7 @@
-import { EmptyState } from "@/components/empty-state";
-import { PageHeader } from "@/components/page-header";
-import type { ApiStatusPageResponse } from "@/orion-sdk";
+import { EmptyState } from "@/components/shared/empty-state";
+import { PageHeader } from "@/components/shared/page-header";
 import {
+  type ApiStatusPageResponse,
   useCreateStatusPage,
   useCreateStatusPageComponent,
   useCreateStatusPageComponentMapping,
@@ -12,6 +12,7 @@ import {
   useDeleteStatusPageComponent,
   useDeleteStatusPageComponentMapping,
   useDeleteStatusPageIncident,
+  useDeleteStatusPageSection,
   useGetAgents,
   useGetIncidents,
   useGetMonitors,
@@ -26,11 +27,11 @@ import {
 } from "@/orion-sdk";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { deriveStatusPageViewState } from "./status-pages-derived";
-import { StatusPageHeader, StatusPageTabSwitch } from "./status-pages-header";
-import { StatusPagesSetupTab } from "./status-pages-setup-tab";
-import { StatusPagesSidebar } from "./status-pages-sidebar";
-import { StatusPageSubscribersTab } from "./status-pages-subscribers-tab";
+import { deriveStatusPageViewState } from "./status-pages.domain";
+import { StatusPageHeader, StatusPageTabSwitch } from "./components/status-pages-header";
+import { StatusPagesSetupTab } from "./components/status-pages-setup-tab";
+import { StatusPagesSidebar } from "./components/status-pages-sidebar";
+import { StatusPageSubscribersTab } from "./components/status-pages-subscribers-tab";
 import {
   dateTimeLocalToIso,
   emptyComponentForm,
@@ -45,7 +46,7 @@ import {
   isoToDateTimeLocal,
   pageSettingsFormFromPage,
   pageThemeSettings,
-} from "./status-pages-shared";
+} from "./components/status-pages-shared";
 export const StatusPagesPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedPageId = searchParams.get("page") ?? "";
@@ -72,13 +73,11 @@ export const StatusPagesPage = () => {
   const [updateForm, setUpdateForm] = useState(emptyIncidentUpdateForm);
   const [selectedIncidentId, setSelectedIncidentId] = useState("");
   const [activePageTab, setActivePageTab] = useState<"setup" | "subscribers">("setup");
-
   useEffect(() => {
     if (!selectedPageId && pages[0]?.id) {
       setSearchParams({ page: pages[0].id });
     }
   }, [pages, selectedPageId, setSearchParams]);
-
   useEffect(() => {
     const firstSection = detailResponse.data?.sections?.[0]?.id ?? "";
     setComponentForm((current) =>
@@ -91,34 +90,31 @@ export const StatusPagesPage = () => {
         : { ...current, componentId: firstComponent },
     );
   }, [detailResponse.data]);
-
   useEffect(() => {
     const pageIncidents = detailResponse.data?.incidents ?? [];
-    if (selectedIncidentId && pageIncidents.some((incident) => incident.id === selectedIncidentId)) {
+    if (
+      selectedIncidentId &&
+      pageIncidents.some((incident) => incident.id === selectedIncidentId)
+    ) {
       return;
     }
     setSelectedIncidentId(pageIncidents[0]?.id ?? "");
   }, [detailResponse.data, selectedIncidentId]);
-
   const detail = detailResponse.data;
   const detailPage = detail?.page ?? selectedPage;
   const incidents = detail?.incidents ?? [];
   const selectedIncident = incidents.find((incident) => incident.id === selectedIncidentId);
-
   useEffect(() => {
     setEditIncidentForm(incidentFormFromIncident(selectedIncident));
   }, [selectedIncident]);
-
   useEffect(() => {
     setPageSettingsForm(pageSettingsFormFromPage(detailPage));
   }, [detailPage]);
-
   const refreshStatusPages = () => {
     void pagesResponse.refetch();
     void detailResponse.refetch();
     void previewResponse.refetch();
   };
-
   const createPage = useCreateStatusPage({
     mutation: {
       onSuccess: (result) => {
@@ -205,29 +201,34 @@ export const StatusPagesPage = () => {
       },
     },
   });
-
   const preview = previewResponse.data?.preview;
   const sections = detail?.sections ?? [];
   const components = detail?.components ?? [];
-  const { canPublish, deletePending, previewDark, publishBlockers, publishWarnings, resourceOptions } =
-    deriveStatusPageViewState({
-      agents: agentsResponse.data?.agents ?? [],
-      components,
-      deleteFlags: [
-        deletePage.isPending,
-        deleteSection.isPending,
-        deleteComponent.isPending,
-        deleteMapping.isPending,
-        deleteIncident.isPending,
-      ],
-      incidents,
-      mappingResourceType: mappingForm.resourceType,
-      monitors: monitorsResponse.data?.monitors ?? [],
-      previewError: Boolean(previewResponse.error),
-      previewThemeSettings: preview?.page?.theme_settings,
-      sections,
-      selectedPageVisibility: selectedPage?.visibility,
-    });
+  const {
+    canPublish,
+    deletePending,
+    previewDark,
+    publishBlockers,
+    publishWarnings,
+    resourceOptions,
+  } = deriveStatusPageViewState({
+    agents: agentsResponse.data?.agents ?? [],
+    components,
+    deleteFlags: [
+      deletePage.isPending,
+      deleteSection.isPending,
+      deleteComponent.isPending,
+      deleteMapping.isPending,
+      deleteIncident.isPending,
+    ],
+    incidents,
+    mappingResourceType: mappingForm.resourceType,
+    monitors: monitorsResponse.data?.monitors ?? [],
+    previewError: Boolean(previewResponse.error),
+    previewThemeSettings: preview?.page?.theme_settings,
+    sections,
+    selectedPageVisibility: selectedPage?.visibility,
+  });
   const createSuggestionIncidentId = createIncidentForm.internalIncidentId.trim();
   const editSuggestionIncidentId = editIncidentForm.internalIncidentId.trim();
   const createSuggestionsResponse = useSuggestStatusPageIncidentComponents(
@@ -240,12 +241,12 @@ export const StatusPagesPage = () => {
     { incident_id: editSuggestionIncidentId },
     { query: { enabled: Boolean(pageId && editSuggestionIncidentId && selectedIncident) } },
   );
-  const selectPage = (page: ApiStatusPageResponse) => {
-    if (page.id) setSearchParams({ page: page.id });
-  };
+  const selectPage = (page: ApiStatusPageResponse) => page.id && setSearchParams({ page: page.id });
   const removePage = () => {
     if (!selectedPage?.id) return;
-    if (!window.confirm(`Delete ${selectedPage.title ?? "this status page"} and all nested data?`)) {
+    if (
+      !window.confirm(`Delete ${selectedPage.title ?? "this status page"} and all nested data?`)
+    ) {
       return;
     }
     deletePage.mutate({ id: selectedPage.id });
@@ -388,7 +389,6 @@ export const StatusPagesPage = () => {
       },
     });
   };
-
   return (
     <div className="space-y-6">
       <PageHeader title="Status Pages" description="Public availability pages and components." />

@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { EmptyState } from "@/components/empty-state";
+import { EmptyState } from "@/components/shared/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { PageHeader } from "@/components/page-header";
+import { PageHeader } from "@/components/shared/page-header";
 import {
   Select,
   SelectContent,
@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
+import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import {
   type ServiceDataLifecycleSettingsPayload,
   getGetDataLifecycleSettingsQueryKey,
@@ -30,7 +30,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { ArchiveIcon, History, RotateCwIcon, Save } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityItem, Field, Section } from "./settings-components";
+import { ActivityItem, Field, Section } from "./components/settings-components";
 import {
   archiveCount,
   asNumber,
@@ -41,7 +41,7 @@ import {
   type SettingsFieldKey,
   type SettingsFormState,
   validateSettingsForm,
-} from "./settings-utils";
+} from "./settings.domain";
 
 export const SettingsPage = () => {
   const queryClient = useQueryClient();

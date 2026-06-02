@@ -1,6 +1,6 @@
 import type { ApiAgentResponse } from "@/orion-sdk";
-import { StatusBadge, toStatus } from "@/components/status-badges";
-import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
+import { StatusBadge, toStatus } from "@/components/shared/status-badges";
+import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { ArrowRightIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";

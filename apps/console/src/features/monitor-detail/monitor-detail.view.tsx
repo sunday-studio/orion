@@ -1,6 +1,6 @@
-import { PageBreadcrumbs } from "@/components/page-breadcrumbs";
-import { PageHeader } from "@/components/page-header";
-import { StatusBadge, toStatus } from "@/components/status-badges";
+import { PageBreadcrumbs } from "@/components/shared/page-breadcrumbs";
+import { PageHeader } from "@/components/shared/page-header";
+import { StatusBadge, toStatus } from "@/components/shared/status-badges";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,10 +21,10 @@ import {
   explainMonitorFailure,
   parseMonitorPayload,
   summarizeMonitorResult,
-} from "@/features/monitors/monitor-result-summary";
-import { ReportInspectionDrawer } from "@/features/report-inspection/report-inspection-drawer";
-import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
-import { cn } from "@/lib/utils";
+} from "@/features/monitors/monitors.domain";
+import { ReportInspectionDrawer } from "@/features/report-inspection/components/report-inspection-drawer";
+import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
+import { cn } from "@/utils/cn";
 import {
   type ApiMonitorReportResponse,
   type ServiceCoreManagedMonitorUpdateRequest,
@@ -50,8 +50,11 @@ import { Pause, Play, RefreshCw, Save, Trash2 } from "lucide-react";
 import { parseAsInteger, useQueryStates } from "nuqs";
 import { useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { MonitorDetailOperationalData } from "./monitor-detail-operational-data";
-import { HighlightedIncidentBanner, MonitorDetailOverview } from "./monitor-detail-overview";
+import { MonitorDetailOperationalData } from "./components/monitor-detail-operational-data";
+import {
+  HighlightedIncidentBanner,
+  MonitorDetailOverview,
+} from "./components/monitor-detail-overview";
 import {
   HISTORY_LIMIT,
   isCoreOwnedMonitor,
@@ -59,7 +62,7 @@ import {
   isMonitorDetailTab,
   reportTimestamp,
   type MonitorDetailTab,
-} from "./monitor-detail-shared";
+} from "./components/monitor-detail-shared";
 
 export const MonitorDetailPage = () => {
   const { monitorId = "" } = useParams();

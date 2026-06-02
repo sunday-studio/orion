@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
+import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import {
   type ApiAgentTokenIssuedResponse,
   type ApiAgentTokenStatusResponse,

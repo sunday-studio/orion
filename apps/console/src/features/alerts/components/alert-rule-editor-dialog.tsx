@@ -1,4 +1,4 @@
-import { EmptyState } from "@/components/empty-state";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -10,7 +10,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type {
   ApiAlertChannelResponse,
@@ -27,7 +33,7 @@ import {
   type RouteFormState,
   severityOptions,
   toggleValue,
-} from "./alert-rules-utils";
+} from "../alerts.domain";
 
 type AlertRuleEditorDialogProps = {
   canSubmit: boolean;
@@ -337,9 +343,7 @@ export const AlertRuleEditorDialog = ({
                   <ul className="mt-2 space-y-2">
                     {dryRunResult.route_evaluations.map((evaluation, index) => (
                       <li key={`${evaluation.route?.id ?? "route"}-${index}`}>
-                        <span className="font-medium">
-                          {evaluation.route?.name ?? "Unnamed"}
-                        </span>
+                        <span className="font-medium">{evaluation.route?.name ?? "Unnamed"}</span>
                         {evaluation.matched ? " matched" : " did not match"}
                         {evaluation.reasons?.length ? `: ${evaluation.reasons.join(", ")}` : ""}
                       </li>
