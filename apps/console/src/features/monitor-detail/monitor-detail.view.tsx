@@ -57,11 +57,11 @@ import {
 } from "./components/monitor-detail-overview";
 import {
   HISTORY_LIMIT,
+  type MonitorDetailTab,
   isCoreOwnedMonitor,
   isHeartbeatPayload,
   isMonitorDetailTab,
   reportTimestamp,
-  type MonitorDetailTab,
 } from "./components/monitor-detail-shared";
 
 export const MonitorDetailPage = () => {

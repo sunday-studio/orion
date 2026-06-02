@@ -1,6 +1,6 @@
 basePath: /
 definitions:
-  api.AgentConfigSummaryResponse:
+  internal_api.AgentConfigSummaryResponse:
     properties:
       monitor_count:
         type: integer
@@ -11,7 +11,7 @@ definitions:
       reporting_interval:
         type: string
     type: object
-  api.AgentHealthResponse:
+  internal_api.AgentHealthResponse:
     properties:
       agent_id:
         type: string
@@ -36,32 +36,32 @@ definitions:
       up_count:
         type: integer
     type: object
-  api.AgentReportResponse:
+  internal_api.AgentReportResponse:
     properties:
       agent_id:
         type: string
       agent_version:
         type: string
       config_summary:
-        $ref: '#/definitions/api.AgentConfigSummaryResponse'
+        $ref: '#/definitions/internal_api.AgentConfigSummaryResponse'
       cpu:
-        $ref: '#/definitions/db.CPUStats'
+        $ref: '#/definitions/orion_core_internal_db.CPUStats'
       created_at:
         type: string
       disk:
-        $ref: '#/definitions/db.DiskStats'
+        $ref: '#/definitions/orion_core_internal_db.DiskStats'
       id:
         type: string
       location:
-        $ref: '#/definitions/db.GeoLocation'
+        $ref: '#/definitions/orion_core_internal_db.GeoLocation'
       memory:
-        $ref: '#/definitions/db.MemoryStats'
+        $ref: '#/definitions/orion_core_internal_db.MemoryStats'
       timestamp:
         type: string
       uptime_seconds:
         type: integer
     type: object
-  api.AgentResponse:
+  internal_api.AgentResponse:
     properties:
       arch:
         type: string
@@ -78,7 +78,7 @@ definitions:
       last_seen:
         type: string
       location:
-        $ref: '#/definitions/db.GeoLocation'
+        $ref: '#/definitions/orion_core_internal_db.GeoLocation'
       maintenance_mode:
         type: boolean
       monitor_count:
@@ -100,7 +100,7 @@ definitions:
       uptime_seconds:
         type: integer
     type: object
-  api.AgentSummaryResponse:
+  internal_api.AgentSummaryResponse:
     properties:
       degraded:
         type: integer
@@ -119,19 +119,19 @@ definitions:
       up:
         type: integer
     type: object
-  api.AgentTokenActionRequest:
+  internal_api.AgentTokenActionRequest:
     properties:
       reason:
         type: string
     type: object
-  api.AgentTokenIssuedResponse:
+  internal_api.AgentTokenIssuedResponse:
     properties:
       status:
-        $ref: '#/definitions/api.AgentTokenStatusResponse'
+        $ref: '#/definitions/internal_api.AgentTokenStatusResponse'
       token:
         type: string
     type: object
-  api.AgentTokenStatusResponse:
+  internal_api.AgentTokenStatusResponse:
     properties:
       agent_id:
         type: string
@@ -150,7 +150,7 @@ definitions:
       token_version:
         type: integer
     type: object
-  api.AlertChannelResponse:
+  internal_api.AlertChannelResponse:
     properties:
       created_at:
         type: string
@@ -179,7 +179,7 @@ definitions:
       webhook_url:
         type: string
     type: object
-  api.AlertDeliveryAttemptResponse:
+  internal_api.AlertDeliveryAttemptResponse:
     properties:
       alert_delivery_id:
         type: string
@@ -202,7 +202,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  api.AlertDeliveryResponse:
+  internal_api.AlertDeliveryResponse:
     properties:
       alert_group_id:
         type: string
@@ -210,7 +210,7 @@ definitions:
         type: integer
       attempts:
         items:
-          $ref: '#/definitions/api.AlertDeliveryAttemptResponse'
+          $ref: '#/definitions/internal_api.AlertDeliveryAttemptResponse'
         type: array
       channel:
         type: string
@@ -239,26 +239,26 @@ definitions:
       updated_at:
         type: string
     type: object
-  api.AlertRouteDryRunResponse:
+  internal_api.AlertRouteDryRunResponse:
     properties:
       destination_decisions:
         items:
-          $ref: '#/definitions/service.AlertDestinationDecision'
+          $ref: '#/definitions/orion_core_internal_service.AlertDestinationDecision'
         type: array
       event:
-        $ref: '#/definitions/service.AlertRouteContext'
+        $ref: '#/definitions/orion_core_internal_service.AlertRouteContext'
       legacy_fallback:
         type: boolean
       route_evaluations:
         items:
-          $ref: '#/definitions/api.AlertRouteEvaluationResponse'
+          $ref: '#/definitions/internal_api.AlertRouteEvaluationResponse'
         type: array
       suppressed:
         type: boolean
       suppression_reason:
         type: string
     type: object
-  api.AlertRouteEvaluationResponse:
+  internal_api.AlertRouteEvaluationResponse:
     properties:
       matched:
         type: boolean
@@ -267,11 +267,11 @@ definitions:
           type: string
         type: array
       route:
-        $ref: '#/definitions/api.AlertRouteResponse'
+        $ref: '#/definitions/internal_api.AlertRouteResponse'
       suppressed:
         type: boolean
     type: object
-  api.AlertRouteResponse:
+  internal_api.AlertRouteResponse:
     properties:
       agent_ids:
         items:
@@ -316,7 +316,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  api.AlertRuleDestinationDecision:
+  internal_api.AlertRuleDestinationDecision:
     properties:
       channel_id:
         type: string
@@ -333,7 +333,7 @@ definitions:
       status:
         type: string
     type: object
-  api.AlertRuleDryRunContext:
+  internal_api.AlertRuleDryRunContext:
     properties:
       agent_id:
         type: string
@@ -348,26 +348,26 @@ definitions:
       severity:
         type: string
     type: object
-  api.AlertRuleDryRunResponse:
+  internal_api.AlertRuleDryRunResponse:
     properties:
       destination_decisions:
         items:
-          $ref: '#/definitions/api.AlertRuleDestinationDecision'
+          $ref: '#/definitions/internal_api.AlertRuleDestinationDecision'
         type: array
       event:
-        $ref: '#/definitions/api.AlertRuleDryRunContext'
+        $ref: '#/definitions/internal_api.AlertRuleDryRunContext'
       legacy_fallback:
         type: boolean
       rule_evaluations:
         items:
-          $ref: '#/definitions/api.AlertRuleEvaluationResponse'
+          $ref: '#/definitions/internal_api.AlertRuleEvaluationResponse'
         type: array
       suppressed:
         type: boolean
       suppression_reason:
         type: string
     type: object
-  api.AlertRuleEvaluationResponse:
+  internal_api.AlertRuleEvaluationResponse:
     properties:
       matched:
         type: boolean
@@ -376,11 +376,11 @@ definitions:
           type: string
         type: array
       rule:
-        $ref: '#/definitions/api.AlertRuleResponse'
+        $ref: '#/definitions/internal_api.AlertRuleResponse'
       suppressed:
         type: boolean
     type: object
-  api.AlertRuleResponse:
+  internal_api.AlertRuleResponse:
     properties:
       agent_ids:
         items:
@@ -425,7 +425,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  api.CoreMonitorConfigResponse:
+  internal_api.CoreMonitorConfigResponse:
     properties:
       config:
         additionalProperties: {}
@@ -466,29 +466,29 @@ definitions:
       timeout_seconds:
         type: integer
     type: object
-  api.CoreMonitorManagementResponse:
+  internal_api.CoreMonitorManagementResponse:
     properties:
       config:
-        $ref: '#/definitions/api.CoreMonitorConfigResponse'
+        $ref: '#/definitions/internal_api.CoreMonitorConfigResponse'
       monitor:
-        $ref: '#/definitions/api.MonitorResponse'
+        $ref: '#/definitions/internal_api.MonitorResponse'
       result:
-        $ref: '#/definitions/api.CoreMonitorTestNowResponse'
+        $ref: '#/definitions/internal_api.CoreMonitorTestNowResponse'
     type: object
-  api.CoreMonitorTestNowResponse:
+  internal_api.CoreMonitorTestNowResponse:
     properties:
       monitor_id:
         type: string
       status:
         type: string
     type: object
-  api.DataLifecycleRollupRequest:
+  internal_api.DataLifecycleRollupRequest:
     properties:
       date:
         example: "2026-05-12"
         type: string
     type: object
-  api.HeartbeatSignalResponse:
+  internal_api.HeartbeatSignalResponse:
     properties:
       health:
         type: string
@@ -501,25 +501,25 @@ definitions:
       report_id:
         type: string
     type: object
-  api.IncidentActionStateResponse:
+  internal_api.IncidentActionStateResponse:
     properties:
       allowed:
         type: boolean
       reason:
         type: string
     type: object
-  api.IncidentAllowedActionsResponse:
+  internal_api.IncidentAllowedActionsResponse:
     properties:
       acknowledge:
-        $ref: '#/definitions/api.IncidentActionStateResponse'
+        $ref: '#/definitions/internal_api.IncidentActionStateResponse'
       cover:
-        $ref: '#/definitions/api.IncidentActionStateResponse'
+        $ref: '#/definitions/internal_api.IncidentActionStateResponse'
       reopen:
-        $ref: '#/definitions/api.IncidentActionStateResponse'
+        $ref: '#/definitions/internal_api.IncidentActionStateResponse'
       resolve:
-        $ref: '#/definitions/api.IncidentActionStateResponse'
+        $ref: '#/definitions/internal_api.IncidentActionStateResponse'
     type: object
-  api.IncidentComponentImpactResponse:
+  internal_api.IncidentComponentImpactResponse:
     properties:
       component_id:
         type: string
@@ -530,132 +530,14 @@ definitions:
       status:
         type: string
     type: object
-  api.IncidentEventResponse:
-    properties:
-      actor_id:
-        type: string
-      actor_type:
-        type: string
-      created_at:
-        type: string
-      id:
-        type: string
-      incident_id:
-        type: string
-      message:
-        type: string
-      monitor_report_id:
-        type: string
-      note:
-        type: string
-      type:
-        type: string
-    type: object
-  api.IncidentEvidenceResponse:
-    properties:
-      latest_report:
-        $ref: '#/definitions/api.MonitorReportResponse'
-      triggering_report:
-        $ref: '#/definitions/api.MonitorReportResponse'
-    type: object
-  api.IncidentInsightsResponse:
-    properties:
-      lifecycle_timing:
-        $ref: '#/definitions/api.IncidentLifecycleTimingResponse'
-      notification_reliability:
-        $ref: '#/definitions/api.IncidentNotificationReliabilityStats'
-      recurring_failures:
-        items:
-          $ref: '#/definitions/api.IncidentRecurringFailureResponse'
-        type: array
-    type: object
-  api.IncidentLifecycleTimingResponse:
-    properties:
-      acknowledged_count:
-        type: integer
-      mean_time_to_acknowledge_seconds:
-        type: integer
-      mean_time_to_resolve_seconds:
-        type: integer
-      resolved_count:
-        type: integer
-    type: object
-  api.IncidentNextActionResponse:
-    properties:
-      action_type:
-        type: string
-      description:
-        type: string
-      filter_status:
-        type: string
-      id:
-        type: string
-      label:
-        type: string
-      priority:
-        type: integer
-      target_id:
-        type: string
-      target_kind:
-        type: string
-      target_tab:
-        type: string
-    type: object
-  api.IncidentNotificationReliabilityStats:
-    properties:
-      failed_deliveries:
-        type: integer
-      sent_deliveries:
-        type: integer
-      success_rate_percent:
-        type: number
-      suppressed_deliveries:
-        type: integer
-      total_deliveries:
-        type: integer
-    type: object
-  api.IncidentRecurringFailureResponse:
-    properties:
-      incident_count:
-        type: integer
-      last_incident_at:
-        type: string
-      monitor_id:
-        type: string
-      monitor_name:
-        type: string
-    type: object
-  api.IncidentRelatedIncidentResponse:
-    properties:
-      id:
-        type: string
-      last_event_at:
-        type: string
-      latest_event:
-        type: string
-      notification_status:
-        type: string
-      opened_at:
-        type: string
-      resolution_kind:
-        type: string
-      resolved_at:
-        type: string
-      severity:
-        type: string
-      status:
-        type: string
-      title:
-        type: string
-    type: object
-  api.IncidentResponse:
+  internal_api.IncidentResponse:
     properties:
       agent_id:
         type: string
       agent_name:
         type: string
       allowed_actions:
-        $ref: '#/definitions/api.IncidentAllowedActionsResponse'
+        $ref: '#/definitions/internal_api.IncidentAllowedActionsResponse'
       coverage_note:
         type: string
       covered_at:
@@ -668,7 +550,7 @@ definitions:
         type: string
       impacted_components:
         items:
-          $ref: '#/definitions/api.IncidentComponentImpactResponse'
+          $ref: '#/definitions/internal_api.IncidentComponentImpactResponse'
         type: array
       last_event_at:
         type: string
@@ -701,36 +583,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  api.IncidentTimelineItemResponse:
-    properties:
-      actor_id:
-        type: string
-      actor_type:
-        type: string
-      alert_delivery_id:
-        type: string
-      channel:
-        type: string
-      created_at:
-        type: string
-      evidence:
-        type: string
-      id:
-        type: string
-      message:
-        type: string
-      monitor_report_id:
-        type: string
-      note:
-        type: string
-      source:
-        type: string
-      status:
-        type: string
-      type:
-        type: string
-    type: object
-  api.LoginRequest:
+  internal_api.LoginRequest:
     properties:
       password:
         type: string
@@ -740,12 +593,12 @@ definitions:
     - password
     - username
     type: object
-  api.LoginResponse:
+  internal_api.LoginResponse:
     properties:
       token:
         type: string
     type: object
-  api.MonitorReportResponse:
+  internal_api.MonitorReportResponse:
     properties:
       collected_at:
         type: string
@@ -760,7 +613,7 @@ definitions:
       payload:
         type: string
     type: object
-  api.MonitorResponse:
+  internal_api.MonitorResponse:
     properties:
       active_incident_id:
         type: string
@@ -805,7 +658,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  api.OrionEventResponse:
+  internal_api.OrionEventResponse:
     properties:
       agent_id:
         type: string
@@ -824,7 +677,7 @@ definitions:
       type:
         type: string
     type: object
-  api.ReportResponse:
+  internal_api.ReportResponse:
     properties:
       message:
         type: string
@@ -835,14 +688,14 @@ definitions:
       type:
         type: string
     type: object
-  api.ServiceLogBatchResponse:
+  internal_api.ServiceLogBatchResponse:
     properties:
       received:
         type: integer
       stored:
         type: integer
     type: object
-  api.ServiceLogEntryResponse:
+  internal_api.ServiceLogEntryResponse:
     properties:
       agent_id:
         type: string
@@ -873,7 +726,7 @@ definitions:
       stream:
         type: string
     type: object
-  api.StatusPageComponentMappingResponse:
+  internal_api.StatusPageComponentMappingResponse:
     properties:
       component_id:
         type: string
@@ -892,7 +745,7 @@ definitions:
       uptime_rollup_strategy:
         type: string
     type: object
-  api.StatusPageComponentResponse:
+  internal_api.StatusPageComponentResponse:
     properties:
       created_at:
         type: string
@@ -906,7 +759,7 @@ definitions:
         type: string
       mappings:
         items:
-          $ref: '#/definitions/api.StatusPageComponentMappingResponse'
+          $ref: '#/definitions/internal_api.StatusPageComponentMappingResponse'
         type: array
       public_description:
         type: string
@@ -923,63 +776,24 @@ definitions:
       visible:
         type: boolean
     type: object
-  api.StatusPageDetailResponse:
+  internal_api.StatusPageDetailResponse:
     properties:
       components:
         items:
-          $ref: '#/definitions/api.StatusPageComponentResponse'
+          $ref: '#/definitions/internal_api.StatusPageComponentResponse'
         type: array
       incidents:
         items:
-          $ref: '#/definitions/api.StatusPageIncidentResponse'
+          $ref: '#/definitions/internal_api.StatusPageIncidentResponse'
         type: array
       page:
-        $ref: '#/definitions/api.StatusPageResponse'
+        $ref: '#/definitions/internal_api.StatusPageResponse'
       sections:
         items:
-          $ref: '#/definitions/api.StatusPageSectionResponse'
+          $ref: '#/definitions/internal_api.StatusPageSectionResponse'
         type: array
     type: object
-  api.StatusPageIncidentComponentSuggestionMatchResponse:
-    properties:
-      match_reason:
-        type: string
-      resource_type:
-        type: string
-    type: object
-  api.StatusPageIncidentComponentSuggestionResponse:
-    properties:
-      component_id:
-        type: string
-      component_name:
-        type: string
-      matches:
-        items:
-          $ref: '#/definitions/api.StatusPageIncidentComponentSuggestionMatchResponse'
-        type: array
-    type: object
-  api.StatusPageIncidentDraftResponse:
-    properties:
-      affected_component_ids:
-        items:
-          type: string
-        type: array
-      impact_summary:
-        type: string
-      initial_update_message:
-        type: string
-      public_status:
-        type: string
-      severity:
-        type: string
-      suggestions:
-        items:
-          $ref: '#/definitions/api.StatusPageIncidentComponentSuggestionResponse'
-        type: array
-      title:
-        type: string
-    type: object
-  api.StatusPageIncidentResponse:
+  internal_api.StatusPageIncidentResponse:
     properties:
       affected_component_ids:
         items:
@@ -1013,12 +827,12 @@ definitions:
         type: string
       updates:
         items:
-          $ref: '#/definitions/api.StatusPageIncidentUpdateResponse'
+          $ref: '#/definitions/internal_api.StatusPageIncidentUpdateResponse'
         type: array
       visibility:
         type: string
     type: object
-  api.StatusPageIncidentUpdateResponse:
+  internal_api.StatusPageIncidentUpdateResponse:
     properties:
       created_at:
         type: string
@@ -1035,41 +849,30 @@ definitions:
       status:
         type: string
     type: object
-  api.StatusPagePreviewResponse:
+  internal_api.StatusPagePreviewResponse:
     properties:
       incidents:
         items:
-          $ref: '#/definitions/api.StatusPagePublicIncidentResponse'
+          $ref: '#/definitions/internal_api.StatusPagePublicIncidentResponse'
         type: array
       last_updated:
         type: string
       metadata:
-        $ref: '#/definitions/api.StatusPagePublicMetadataResponse'
+        $ref: '#/definitions/internal_api.StatusPagePublicMetadataResponse'
       overall_status:
         type: string
       overall_status_display:
         type: string
       page:
-        $ref: '#/definitions/api.StatusPagePublicPageResponse'
+        $ref: '#/definitions/internal_api.StatusPagePublicPageResponse'
       sections:
         items:
-          $ref: '#/definitions/api.StatusPagePublicSectionResponse'
+          $ref: '#/definitions/internal_api.StatusPagePublicSectionResponse'
         type: array
       uptime_window:
         type: string
     type: object
-  api.StatusPagePublicComponentHistoryResponse:
-    properties:
-      component:
-        $ref: '#/definitions/api.StatusPagePublicComponentResponse'
-      history:
-        items:
-          $ref: '#/definitions/api.StatusPagePublicUptimeBucketResponse'
-        type: array
-      uptime:
-        $ref: '#/definitions/api.StatusPagePublicUptimeResponse'
-    type: object
-  api.StatusPagePublicComponentResponse:
+  internal_api.StatusPagePublicComponentResponse:
     properties:
       description:
         type: string
@@ -1086,37 +889,13 @@ definitions:
       status_reason:
         type: string
       uptime:
-        $ref: '#/definitions/api.StatusPagePublicUptimeResponse'
+        $ref: '#/definitions/internal_api.StatusPagePublicUptimeResponse'
       uptime_history:
         items:
-          $ref: '#/definitions/api.StatusPagePublicUptimeBucketResponse'
+          $ref: '#/definitions/internal_api.StatusPagePublicUptimeBucketResponse'
         type: array
     type: object
-  api.StatusPagePublicHistoryResponse:
-    properties:
-      components:
-        items:
-          $ref: '#/definitions/api.StatusPagePublicComponentHistoryResponse'
-        type: array
-      generated_at:
-        type: string
-      incidents:
-        items:
-          $ref: '#/definitions/api.StatusPagePublicIncidentResponse'
-        type: array
-      page:
-        $ref: '#/definitions/api.StatusPagePublicPageResponse'
-    type: object
-  api.StatusPagePublicIncidentHistoryResponse:
-    properties:
-      incident:
-        $ref: '#/definitions/api.StatusPagePublicIncidentResponse'
-      updates:
-        items:
-          $ref: '#/definitions/api.StatusPagePublicIncidentUpdateHistoryResponse'
-        type: array
-    type: object
-  api.StatusPagePublicIncidentResponse:
+  internal_api.StatusPagePublicIncidentResponse:
     properties:
       affected_component_ids:
         items:
@@ -1141,29 +920,18 @@ definitions:
       title:
         type: string
     type: object
-  api.StatusPagePublicIncidentUpdateHistoryResponse:
-    properties:
-      id:
-        type: string
-      message:
-        type: string
-      published_at:
-        type: string
-      status:
-        type: string
-    type: object
-  api.StatusPagePublicMetadataResponse:
+  internal_api.StatusPagePublicMetadataResponse:
     properties:
       canonical_url:
         type: string
       description:
         type: string
       open_graph:
-        $ref: '#/definitions/api.StatusPagePublicOpenGraphResponse'
+        $ref: '#/definitions/internal_api.StatusPagePublicOpenGraphResponse'
       title:
         type: string
     type: object
-  api.StatusPagePublicOpenGraphResponse:
+  internal_api.StatusPagePublicOpenGraphResponse:
     properties:
       description:
         type: string
@@ -1178,7 +946,7 @@ definitions:
       url:
         type: string
     type: object
-  api.StatusPagePublicPageResponse:
+  internal_api.StatusPagePublicPageResponse:
     properties:
       description:
         type: string
@@ -1192,20 +960,20 @@ definitions:
       visibility:
         type: string
     type: object
-  api.StatusPagePublicSectionResponse:
+  internal_api.StatusPagePublicSectionResponse:
     properties:
       collapsed_by_default:
         type: boolean
       components:
         items:
-          $ref: '#/definitions/api.StatusPagePublicComponentResponse'
+          $ref: '#/definitions/internal_api.StatusPagePublicComponentResponse'
         type: array
       id:
         type: string
       name:
         type: string
     type: object
-  api.StatusPagePublicUptimeBucketResponse:
+  internal_api.StatusPagePublicUptimeBucketResponse:
     properties:
       date:
         type: string
@@ -1216,7 +984,7 @@ definitions:
       uptime_ratio:
         type: number
     type: object
-  api.StatusPagePublicUptimeResponse:
+  internal_api.StatusPagePublicUptimeResponse:
     properties:
       status:
         type: string
@@ -1227,7 +995,7 @@ definitions:
       window:
         type: string
     type: object
-  api.StatusPageResponse:
+  internal_api.StatusPageResponse:
     properties:
       canonical_url:
         type: string
@@ -1261,7 +1029,7 @@ definitions:
       visibility:
         type: string
     type: object
-  api.StatusPageSectionResponse:
+  internal_api.StatusPageSectionResponse:
     properties:
       collapsed_by_default:
         type: boolean
@@ -1278,20 +1046,20 @@ definitions:
       updated_at:
         type: string
     type: object
-  api.StatusPageSubscriberAdminComponentResponse:
+  internal_api.StatusPageSubscriberAdminComponentResponse:
     properties:
       id:
         type: string
       name:
         type: string
     type: object
-  api.StatusPageSubscriberAdminResponse:
+  internal_api.StatusPageSubscriberAdminResponse:
     properties:
       bounce_count:
         type: integer
       components:
         items:
-          $ref: '#/definitions/api.StatusPageSubscriberAdminComponentResponse'
+          $ref: '#/definitions/internal_api.StatusPageSubscriberAdminComponentResponse'
         type: array
       confirmed_at:
         type: string
@@ -1320,31 +1088,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  api.StatusPageSubscriberComponentResponse:
-    properties:
-      id:
-        type: string
-      name:
-        type: string
-    type: object
-  api.StatusPageSubscriberPublicResponse:
-    properties:
-      available_components:
-        items:
-          $ref: '#/definitions/api.StatusPageSubscriberComponentResponse'
-        type: array
-      component_ids:
-        items:
-          type: string
-        type: array
-      destination_type:
-        type: string
-      masked_destination:
-        type: string
-      state:
-        type: string
-    type: object
-  api.UptimeDayBucketResponse:
+  internal_api.UptimeDayBucketResponse:
     properties:
       date:
         type: string
@@ -1355,7 +1099,7 @@ definitions:
       uptime_percent:
         type: number
     type: object
-  api.alertChannelRequest:
+  internal_api.alertChannelRequest:
     properties:
       enabled:
         type: boolean
@@ -1372,7 +1116,7 @@ definitions:
       webhook_url:
         type: string
     type: object
-  api.alertRouteDryRunRequest:
+  internal_api.alertRouteDryRunRequest:
     properties:
       agent_id:
         type: string
@@ -1387,7 +1131,7 @@ definitions:
       severity:
         type: string
     type: object
-  api.alertRouteRequest:
+  internal_api.alertRouteRequest:
     properties:
       agent_ids:
         items:
@@ -1426,7 +1170,7 @@ definitions:
       suppress:
         type: boolean
     type: object
-  api.alertRuleDryRunRequest:
+  internal_api.alertRuleDryRunRequest:
     properties:
       agent_id:
         type: string
@@ -1441,7 +1185,7 @@ definitions:
       severity:
         type: string
     type: object
-  api.alertRuleRequest:
+  internal_api.alertRuleRequest:
     properties:
       agent_ids:
         items:
@@ -1480,19 +1224,19 @@ definitions:
       suppress:
         type: boolean
     type: object
-  api.incidentCoverageRequest:
+  internal_api.incidentCoverageRequest:
     properties:
       covered_until:
         type: string
       note:
         type: string
     type: object
-  api.incidentLifecycleActionRequest:
+  internal_api.incidentLifecycleActionRequest:
     properties:
       note:
         type: string
     type: object
-  api.statusPageComponentMappingRequest:
+  internal_api.statusPageComponentMappingRequest:
     properties:
       health_rollup_strategy:
         type: string
@@ -1503,7 +1247,7 @@ definitions:
       uptime_rollup_strategy:
         type: string
     type: object
-  api.statusPageComponentRequest:
+  internal_api.statusPageComponentRequest:
     properties:
       display_mode:
         type: string
@@ -1522,54 +1266,7 @@ definitions:
       visible:
         type: boolean
     type: object
-  api.statusPageIncidentDraftRequest:
-    properties:
-      affected_component_ids:
-        items:
-          type: string
-        type: array
-      internal_incident_id:
-        type: string
-    type: object
-  api.statusPageIncidentRequest:
-    properties:
-      affected_component_ids:
-        items:
-          type: string
-        type: array
-      impact_summary:
-        type: string
-      internal_incident_id:
-        type: string
-      public_status:
-        type: string
-      published_at:
-        type: string
-      resolved_at:
-        type: string
-      scheduled_end_at:
-        type: string
-      scheduled_start_at:
-        type: string
-      severity:
-        type: string
-      title:
-        type: string
-      visibility:
-        type: string
-    type: object
-  api.statusPageIncidentUpdateRequest:
-    properties:
-      created_by:
-        type: string
-      message:
-        type: string
-      published_at:
-        type: string
-      status:
-        type: string
-    type: object
-  api.statusPageRequest:
+  internal_api.statusPageRequest:
     properties:
       canonical_url:
         type: string
@@ -1595,7 +1292,7 @@ definitions:
       visibility:
         type: string
     type: object
-  api.statusPageSectionRequest:
+  internal_api.statusPageSectionRequest:
     properties:
       collapsed_by_default:
         type: boolean
@@ -1604,25 +1301,7 @@ definitions:
       sort_order:
         type: integer
     type: object
-  api.statusPageSubscriberPreferencesRequest:
-    properties:
-      component_ids:
-        items:
-          type: string
-        type: array
-    type: object
-  api.statusPageSubscriptionRequest:
-    properties:
-      component_ids:
-        items:
-          type: string
-        type: array
-      destination:
-        type: string
-      destination_type:
-        type: string
-    type: object
-  db.CPUStats:
+  orion_core_internal_db.CPUStats:
     properties:
       cores:
         type: integer
@@ -1635,7 +1314,7 @@ definitions:
       usage_percent:
         type: number
     type: object
-  db.DataLifecycleSettings:
+  orion_core_internal_db.DataLifecycleSettings:
     properties:
       archive_dir:
         type: string
@@ -1664,7 +1343,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  db.DiskStats:
+  orion_core_internal_db.DiskStats:
     properties:
       free_bytes:
         type: integer
@@ -1675,7 +1354,7 @@ definitions:
       used_percent:
         type: number
     type: object
-  db.GeoLocation:
+  orion_core_internal_db.GeoLocation:
     properties:
       city:
         type: string
@@ -1696,7 +1375,7 @@ definitions:
       timezone:
         type: string
     type: object
-  db.MemoryStats:
+  orion_core_internal_db.MemoryStats:
     properties:
       available_bytes:
         type: integer
@@ -1709,25 +1388,25 @@ definitions:
       used_percent:
         type: number
     type: object
-  service.AgentReportPayload:
+  orion_core_internal_service.AgentReportPayload:
     properties:
       agent_version:
         type: string
       config_summary: {}
       cpu:
-        $ref: '#/definitions/db.CPUStats'
+        $ref: '#/definitions/orion_core_internal_db.CPUStats'
       disk:
-        $ref: '#/definitions/db.DiskStats'
+        $ref: '#/definitions/orion_core_internal_db.DiskStats'
       location:
-        $ref: '#/definitions/db.GeoLocation'
+        $ref: '#/definitions/orion_core_internal_db.GeoLocation'
       memory:
-        $ref: '#/definitions/db.MemoryStats'
+        $ref: '#/definitions/orion_core_internal_db.MemoryStats'
       timestamp:
         type: string
       uptime_seconds:
         type: integer
     type: object
-  service.AlertDestinationDecision:
+  orion_core_internal_service.AlertDestinationDecision:
     properties:
       channel_id:
         type: string
@@ -1744,7 +1423,7 @@ definitions:
       status:
         type: string
     type: object
-  service.AlertRouteContext:
+  orion_core_internal_service.AlertRouteContext:
     properties:
       agent_id:
         type: string
@@ -1759,7 +1438,7 @@ definitions:
       severity:
         type: string
     type: object
-  service.ArchiveRunResult:
+  orion_core_internal_service.ArchiveRunResult:
     properties:
       agent_reports_archived:
         type: integer
@@ -1776,7 +1455,7 @@ definitions:
       skipped_because_no_reports:
         type: boolean
     type: object
-  service.CoreManagedMonitorCreateRequest:
+  orion_core_internal_service.CoreManagedMonitorCreateRequest:
     properties:
       config:
         additionalProperties: true
@@ -1809,7 +1488,7 @@ definitions:
     - kind
     - name
     type: object
-  service.CoreManagedMonitorUpdateRequest:
+  orion_core_internal_service.CoreManagedMonitorUpdateRequest:
     properties:
       config:
         additionalProperties: true
@@ -1838,7 +1517,7 @@ definitions:
       type:
         type: string
     type: object
-  service.DataLifecycleSettingsPayload:
+  orion_core_internal_service.DataLifecycleSettingsPayload:
     properties:
       archive_dir:
         type: string
@@ -1853,7 +1532,7 @@ definitions:
       rollups_enabled:
         type: boolean
     type: object
-  service.MonitorReportPayload:
+  orion_core_internal_service.MonitorReportPayload:
     properties:
       error: {}
       health:
@@ -1867,7 +1546,7 @@ definitions:
     - metrics
     - timestamp
     type: object
-  service.MonitorSummary:
+  orion_core_internal_service.MonitorSummary:
     properties:
       degraded:
         type: integer
@@ -1884,7 +1563,7 @@ definitions:
       up:
         type: integer
     type: object
-  service.RegisterMonitorRequest:
+  orion_core_internal_service.RegisterMonitorRequest:
     properties:
       agent_id:
         type: string
@@ -1907,12 +1586,12 @@ definitions:
     - name
     - type
     type: object
-  service.RegisterMonitorResponse:
+  orion_core_internal_service.RegisterMonitorResponse:
     properties:
       monitor_id:
         type: string
     type: object
-  service.RegisterRequest:
+  orion_core_internal_service.RegisterRequest:
     properties:
       arch:
         type: string
@@ -1932,14 +1611,14 @@ definitions:
     - name
     - os
     type: object
-  service.RegisterResponse:
+  orion_core_internal_service.RegisterResponse:
     properties:
       agent_id:
         type: string
       token:
         type: string
     type: object
-  service.RollupRunResult:
+  orion_core_internal_service.RollupRunResult:
     properties:
       date:
         type: string
@@ -1950,23 +1629,23 @@ definitions:
       skipped_today:
         type: boolean
     type: object
-  service.RuntimeDiagnosticsSnapshot:
+  orion_core_internal_service.RuntimeDiagnosticsSnapshot:
     properties:
       active_incident_lookup:
-        $ref: '#/definitions/service.RuntimeLookupStats'
+        $ref: '#/definitions/orion_core_internal_service.RuntimeLookupStats'
       incident_reconciliation:
-        $ref: '#/definitions/service.RuntimeOperationStats'
+        $ref: '#/definitions/orion_core_internal_service.RuntimeOperationStats'
       ingestion_latency_ms:
         additionalProperties:
-          $ref: '#/definitions/service.RuntimeLatencyPercentiles'
+          $ref: '#/definitions/orion_core_internal_service.RuntimeLatencyPercentiles'
         type: object
       report_writes:
         additionalProperties:
-          $ref: '#/definitions/service.RuntimeReportWriteStats'
+          $ref: '#/definitions/orion_core_internal_service.RuntimeReportWriteStats'
         type: object
       request_latency_ms:
         additionalProperties:
-          $ref: '#/definitions/service.RuntimeLatencyPercentiles'
+          $ref: '#/definitions/orion_core_internal_service.RuntimeLatencyPercentiles'
         type: object
       requests:
         additionalProperties:
@@ -1977,10 +1656,10 @@ definitions:
         type: object
       slow_operations:
         items:
-          $ref: '#/definitions/service.RuntimeSlowOperation'
+          $ref: '#/definitions/orion_core_internal_service.RuntimeSlowOperation'
         type: array
       sqlite:
-        $ref: '#/definitions/service.RuntimeSQLiteStats'
+        $ref: '#/definitions/orion_core_internal_service.RuntimeSQLiteStats'
       started_at:
         type: string
       status:
@@ -1988,7 +1667,7 @@ definitions:
       uptime_seconds:
         type: integer
     type: object
-  service.RuntimeLatencyPercentiles:
+  orion_core_internal_service.RuntimeLatencyPercentiles:
     properties:
       count:
         type: integer
@@ -2001,7 +1680,7 @@ definitions:
       p99:
         type: integer
     type: object
-  service.RuntimeLookupStats:
+  orion_core_internal_service.RuntimeLookupStats:
     properties:
       count:
         type: integer
@@ -2016,7 +1695,7 @@ definitions:
       p99:
         type: integer
     type: object
-  service.RuntimeOperationStats:
+  orion_core_internal_service.RuntimeOperationStats:
     properties:
       count:
         type: integer
@@ -2031,7 +1710,7 @@ definitions:
       p99:
         type: integer
     type: object
-  service.RuntimeReportWriteStats:
+  orion_core_internal_service.RuntimeReportWriteStats:
     properties:
       count:
         type: integer
@@ -2046,7 +1725,7 @@ definitions:
       p99:
         type: integer
     type: object
-  service.RuntimeSQLiteStats:
+  orion_core_internal_service.RuntimeSQLiteStats:
     properties:
       busy_total:
         type: integer
@@ -2059,7 +1738,7 @@ definitions:
       page_size_bytes:
         type: integer
     type: object
-  service.RuntimeSlowOperation:
+  orion_core_internal_service.RuntimeSlowOperation:
     properties:
       created_at:
         type: string
@@ -2070,16 +1749,16 @@ definitions:
       operation:
         type: string
     type: object
-  service.ServiceLogBatchPayload:
+  orion_core_internal_service.ServiceLogBatchPayload:
     properties:
       entries:
         items:
-          $ref: '#/definitions/service.ServiceLogEntryPayload'
+          $ref: '#/definitions/orion_core_internal_service.ServiceLogEntryPayload'
         type: array
     required:
     - entries
     type: object
-  service.ServiceLogEntryPayload:
+  orion_core_internal_service.ServiceLogEntryPayload:
     properties:
       component:
         type: string
@@ -2108,14 +1787,14 @@ definitions:
     - fingerprint
     - timestamp
     type: object
-  service.SetMaintenanceModeRequest:
+  orion_core_internal_service.SetMaintenanceModeRequest:
     properties:
       maintenance_mode:
         type: boolean
     required:
     - maintenance_mode
     type: object
-  service.UnregisterMonitorRequest:
+  orion_core_internal_service.UnregisterMonitorRequest:
     properties:
       agent_id:
         type: string
@@ -2124,12 +1803,12 @@ definitions:
     required:
     - monitor_id
     type: object
-  service.UnregisterMonitorResponse:
+  orion_core_internal_service.UnregisterMonitorResponse:
     properties:
       success:
         type: boolean
     type: object
-  utils.APIResponse:
+  orion_core_internal_utils.APIResponse:
     properties:
       data: {}
       error:
@@ -2139,7 +1818,7 @@ definitions:
       success:
         type: boolean
     type: object
-  utils.PaginationMeta:
+  orion_core_internal_utils.PaginationMeta:
     properties:
       current_count:
         type: integer
@@ -2221,22 +1900,22 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     status_page:
-                      $ref: '#/definitions/api.StatusPagePreviewResponse'
+                      $ref: '#/definitions/internal_api.StatusPagePreviewResponse'
                   type: object
               type: object
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get public status page
       tags:
       - public-status
@@ -2261,11 +1940,11 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get public status page badge
       tags:
       - public-status
@@ -2294,172 +1973,12 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get public status page component badge
-      tags:
-      - public-status
-  /status/{slug}/components/{component_id}/history:
-    get:
-      consumes:
-      - application/json
-      description: Get sanitized public uptime history for one visible component
-      operationId: getPublicStatusPageComponentHistory
-      parameters:
-      - description: Status page slug
-        in: path
-        name: slug
-        required: true
-        type: string
-      - description: Public component ID
-        in: path
-        name: component_id
-        required: true
-        type: string
-      - default: 90d
-        description: 'Uptime window: 24h, 7d, 30d, or 90d'
-        in: query
-        name: window
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    component:
-                      $ref: '#/definitions/api.StatusPagePublicComponentResponse'
-                    history:
-                      items:
-                        $ref: '#/definitions/api.StatusPagePublicUptimeBucketResponse'
-                      type: array
-                    uptime:
-                      $ref: '#/definitions/api.StatusPagePublicUptimeResponse'
-                  type: object
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-      summary: Get public status page component history
-      tags:
-      - public-status
-  /status/{slug}/components/{component_id}/uptime:
-    get:
-      consumes:
-      - application/json
-      description: Get a sanitized public uptime summary for one visible component
-      operationId: getPublicStatusPageComponentUptime
-      parameters:
-      - description: Status page slug
-        in: path
-        name: slug
-        required: true
-        type: string
-      - description: Public component ID
-        in: path
-        name: component_id
-        required: true
-        type: string
-      - default: 90d
-        description: 'Uptime window: 24h, 7d, 30d, or 90d'
-        in: query
-        name: window
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    component:
-                      $ref: '#/definitions/api.StatusPagePublicComponentResponse'
-                    uptime:
-                      $ref: '#/definitions/api.StatusPagePublicUptimeResponse'
-                  type: object
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-      summary: Get public status page component uptime
-      tags:
-      - public-status
-  /status/{slug}/history:
-    get:
-      consumes:
-      - application/json
-      description: Get sanitized public history for a published or unlisted status
-        page
-      operationId: getPublicStatusPageHistory
-      parameters:
-      - description: Status page slug
-        in: path
-        name: slug
-        required: true
-        type: string
-      - default: 90d
-        description: 'Uptime window: 24h, 7d, 30d, or 90d'
-        in: query
-        name: window
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    history:
-                      $ref: '#/definitions/api.StatusPagePublicHistoryResponse'
-                  type: object
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-      summary: Get public status page history
       tags:
       - public-status
   /status/{slug}/incidents:
@@ -2481,7 +2000,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
@@ -2489,18 +2008,18 @@ paths:
                       type: integer
                     incidents:
                       items:
-                        $ref: '#/definitions/api.StatusPagePublicIncidentResponse'
+                        $ref: '#/definitions/internal_api.StatusPagePublicIncidentResponse'
                       type: array
                   type: object
               type: object
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: List public status page incidents
       tags:
       - public-status
@@ -2528,314 +2047,23 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     incident:
-                      $ref: '#/definitions/api.StatusPagePublicIncidentResponse'
+                      $ref: '#/definitions/internal_api.StatusPagePublicIncidentResponse'
                   type: object
               type: object
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get public status page incident
-      tags:
-      - public-status
-  /status/{slug}/incidents/{incident_id}/history:
-    get:
-      consumes:
-      - application/json
-      description: Get published public updates for one public incident
-      operationId: getPublicStatusPageIncidentHistory
-      parameters:
-      - description: Status page slug
-        in: path
-        name: slug
-        required: true
-        type: string
-      - description: Public incident ID
-        in: path
-        name: incident_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    history:
-                      $ref: '#/definitions/api.StatusPagePublicIncidentHistoryResponse'
-                  type: object
-              type: object
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-      summary: Get public status page incident history
-      tags:
-      - public-status
-  /status/{slug}/subscribers:
-    post:
-      consumes:
-      - application/json
-      description: Create or refresh a pending public subscriber without exposing
-        confirmation tokens
-      operationId: createPublicStatusPageSubscriber
-      parameters:
-      - description: Status page slug
-        in: path
-        name: slug
-        required: true
-        type: string
-      - description: Subscription payload
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/api.statusPageSubscriptionRequest'
-      produces:
-      - application/json
-      responses:
-        "202":
-          description: Accepted
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    confirmation_required:
-                      type: boolean
-                    subscriber:
-                      $ref: '#/definitions/api.StatusPageSubscriberPublicResponse'
-                  type: object
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "429":
-          description: Too Many Requests
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-      summary: Request public status page subscription
-      tags:
-      - public-status
-  /status/{slug}/subscribers/confirm/{token}:
-    get:
-      consumes:
-      - application/json
-      description: Confirm a pending public subscriber by one-time token hash
-      operationId: confirmPublicStatusPageSubscriber
-      parameters:
-      - description: Status page slug
-        in: path
-        name: slug
-        required: true
-        type: string
-      - description: Confirmation token
-        in: path
-        name: token
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    subscriber:
-                      $ref: '#/definitions/api.StatusPageSubscriberPublicResponse'
-                  type: object
-              type: object
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "429":
-          description: Too Many Requests
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-      summary: Confirm public status page subscription
-      tags:
-      - public-status
-  /status/{slug}/subscribers/manage/{token}:
-    get:
-      consumes:
-      - application/json
-      description: Get masked subscriber preferences by manage token
-      operationId: getPublicStatusPageSubscriberPreferences
-      parameters:
-      - description: Status page slug
-        in: path
-        name: slug
-        required: true
-        type: string
-      - description: Manage token
-        in: path
-        name: token
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    subscriber:
-                      $ref: '#/definitions/api.StatusPageSubscriberPublicResponse'
-                  type: object
-              type: object
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "429":
-          description: Too Many Requests
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-      summary: Get public status page subscriber preferences
-      tags:
-      - public-status
-    put:
-      consumes:
-      - application/json
-      description: Update visible component preferences by manage token
-      operationId: updatePublicStatusPageSubscriberPreferences
-      parameters:
-      - description: Status page slug
-        in: path
-        name: slug
-        required: true
-        type: string
-      - description: Manage token
-        in: path
-        name: token
-        required: true
-        type: string
-      - description: Preference payload
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/api.statusPageSubscriberPreferencesRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    subscriber:
-                      $ref: '#/definitions/api.StatusPageSubscriberPublicResponse'
-                  type: object
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "429":
-          description: Too Many Requests
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-      summary: Update public status page subscriber preferences
-      tags:
-      - public-status
-  /status/{slug}/subscribers/unsubscribe/{token}:
-    post:
-      consumes:
-      - application/json
-      description: Idempotently unsubscribe a public status page subscriber by token
-      operationId: unsubscribePublicStatusPageSubscriber
-      parameters:
-      - description: Status page slug
-        in: path
-        name: slug
-        required: true
-        type: string
-      - description: Unsubscribe token
-        in: path
-        name: token
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    unsubscribed:
-                      type: boolean
-                  type: object
-              type: object
-        "429":
-          description: Too Many Requests
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-      summary: Unsubscribe public status page subscriber
       tags:
       - public-status
   /v1/agents:
@@ -2882,13 +2110,13 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     agents:
                       items:
-                        $ref: '#/definitions/api.AgentResponse'
+                        $ref: '#/definitions/internal_api.AgentResponse'
                       type: array
                     count:
                       format: int64
@@ -2898,13 +2126,13 @@ paths:
                     offset:
                       type: integer
                     pagination:
-                      $ref: '#/definitions/utils.PaginationMeta'
+                      $ref: '#/definitions/orion_core_internal_utils.PaginationMeta'
                   type: object
               type: object
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: List agents
       tags:
       - agents
@@ -2930,26 +2158,26 @@ paths:
         name: data
         required: true
         schema:
-          $ref: '#/definitions/service.MonitorReportPayload'
+          $ref: '#/definitions/orion_core_internal_service.MonitorReportPayload'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Receive monitor report
@@ -2973,7 +2201,7 @@ paths:
         name: data
         required: true
         schema:
-          $ref: '#/definitions/service.ServiceLogBatchPayload'
+          $ref: '#/definitions/orion_core_internal_service.ServiceLogBatchPayload'
       produces:
       - application/json
       responses:
@@ -2981,23 +2209,23 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/api.ServiceLogBatchResponse'
+                  $ref: '#/definitions/internal_api.ServiceLogBatchResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Receive agent service logs
@@ -3020,26 +2248,26 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/service.SetMaintenanceModeRequest'
+          $ref: '#/definitions/orion_core_internal_service.SetMaintenanceModeRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Set agent maintenance mode
@@ -3062,7 +2290,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/service.RegisterMonitorRequest'
+          $ref: '#/definitions/orion_core_internal_service.RegisterMonitorRequest'
       produces:
       - application/json
       responses:
@@ -3070,23 +2298,23 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/service.RegisterMonitorResponse'
+                  $ref: '#/definitions/orion_core_internal_service.RegisterMonitorResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Register a monitor
@@ -3109,7 +2337,7 @@ paths:
         name: data
         required: true
         schema:
-          $ref: '#/definitions/service.AgentReportPayload'
+          $ref: '#/definitions/orion_core_internal_service.AgentReportPayload'
       produces:
       - application/json
       responses:
@@ -3117,23 +2345,23 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/api.ReportResponse'
+                  $ref: '#/definitions/internal_api.ReportResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Receive agent report
@@ -3155,7 +2383,7 @@ paths:
         in: body
         name: request
         schema:
-          $ref: '#/definitions/api.AgentTokenActionRequest'
+          $ref: '#/definitions/internal_api.AgentTokenActionRequest'
       produces:
       - application/json
       responses:
@@ -3163,23 +2391,23 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/api.AgentTokenIssuedResponse'
+                  $ref: '#/definitions/internal_api.AgentTokenIssuedResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Reissue agent token
       tags:
       - agents
@@ -3200,7 +2428,7 @@ paths:
         in: body
         name: request
         schema:
-          $ref: '#/definitions/api.AgentTokenActionRequest'
+          $ref: '#/definitions/internal_api.AgentTokenActionRequest'
       produces:
       - application/json
       responses:
@@ -3208,23 +2436,23 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/api.AgentTokenStatusResponse'
+                  $ref: '#/definitions/internal_api.AgentTokenStatusResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Revoke agent token
       tags:
       - agents
@@ -3244,7 +2472,7 @@ paths:
         in: body
         name: request
         schema:
-          $ref: '#/definitions/api.AgentTokenActionRequest'
+          $ref: '#/definitions/internal_api.AgentTokenActionRequest'
       produces:
       - application/json
       responses:
@@ -3252,23 +2480,23 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/api.AgentTokenIssuedResponse'
+                  $ref: '#/definitions/internal_api.AgentTokenIssuedResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Rotate agent token
       tags:
       - agents
@@ -3291,19 +2519,19 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/api.AgentTokenStatusResponse'
+                  $ref: '#/definitions/internal_api.AgentTokenStatusResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get agent token status
       tags:
       - agents
@@ -3324,7 +2552,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/service.UnregisterMonitorRequest'
+          $ref: '#/definitions/orion_core_internal_service.UnregisterMonitorRequest'
       produces:
       - application/json
       responses:
@@ -3332,23 +2560,23 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/service.UnregisterMonitorResponse'
+                  $ref: '#/definitions/orion_core_internal_service.UnregisterMonitorResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Unregister a monitor
@@ -3374,12 +2602,12 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     agent:
-                      $ref: '#/definitions/api.AgentResponse'
+                      $ref: '#/definitions/internal_api.AgentResponse'
                     latest_report:
                       type: object
                   type: object
@@ -3387,11 +2615,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get agent details
       tags:
       - agents
@@ -3415,23 +2643,23 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/api.AgentHealthResponse'
+                  $ref: '#/definitions/internal_api.AgentHealthResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get agent health
       tags:
       - agents
@@ -3473,7 +2701,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
@@ -3484,26 +2712,26 @@ paths:
                       type: integer
                     monitors:
                       items:
-                        $ref: '#/definitions/api.MonitorResponse'
+                        $ref: '#/definitions/internal_api.MonitorResponse'
                       type: array
                     offset:
                       type: integer
                     pagination:
-                      $ref: '#/definitions/utils.PaginationMeta'
+                      $ref: '#/definitions/orion_core_internal_utils.PaginationMeta'
                   type: object
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: List monitors for an agent
       tags:
       - monitors
@@ -3536,7 +2764,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
@@ -3548,25 +2776,25 @@ paths:
                     offset:
                       type: integer
                     pagination:
-                      $ref: '#/definitions/utils.PaginationMeta'
+                      $ref: '#/definitions/orion_core_internal_utils.PaginationMeta'
                     reports:
                       items:
-                        $ref: '#/definitions/api.AgentReportResponse'
+                        $ref: '#/definitions/internal_api.AgentReportResponse'
                       type: array
                   type: object
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get agent reports
       tags:
       - agents
@@ -3611,7 +2839,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
@@ -3622,26 +2850,26 @@ paths:
                       type: integer
                     logs:
                       items:
-                        $ref: '#/definitions/api.ServiceLogEntryResponse'
+                        $ref: '#/definitions/internal_api.ServiceLogEntryResponse'
                       type: array
                     offset:
                       type: integer
                     pagination:
-                      $ref: '#/definitions/utils.PaginationMeta'
+                      $ref: '#/definitions/orion_core_internal_utils.PaginationMeta'
                   type: object
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: List agent service logs
       tags:
       - service-logs
@@ -3666,26 +2894,31 @@ paths:
         "200":
           description: OK
           schema:
-            properties:
-              daily_buckets:
-                items:
-                  $ref: '#/definitions/api.UptimeDayBucketResponse'
-                type: array
-              uptime_percent:
-                type: number
-            type: object
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    daily_buckets:
+                      items:
+                        $ref: '#/definitions/internal_api.UptimeDayBucketResponse'
+                      type: array
+                    uptime_percent:
+                      type: number
+                  type: object
+              type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get agent uptime
       tags:
       - agents
@@ -3703,15 +2936,15 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/api.AgentSummaryResponse'
+                  $ref: '#/definitions/internal_api.AgentSummaryResponse'
               type: object
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get agent summary
       tags:
       - agents
@@ -3728,13 +2961,13 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     channels:
                       items:
-                        $ref: '#/definitions/api.AlertChannelResponse'
+                        $ref: '#/definitions/internal_api.AlertChannelResponse'
                       type: array
                     count:
                       type: integer
@@ -3743,7 +2976,7 @@ paths:
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: List alert channels
       tags:
       - alerts
@@ -3759,7 +2992,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/api.alertChannelRequest'
+          $ref: '#/definitions/internal_api.alertChannelRequest'
       produces:
       - application/json
       responses:
@@ -3767,26 +3000,26 @@ paths:
           description: Created
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     channel:
-                      $ref: '#/definitions/api.AlertChannelResponse'
+                      $ref: '#/definitions/internal_api.AlertChannelResponse'
                   type: object
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Create alert channel
       tags:
       - alerts
@@ -3808,15 +3041,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Delete alert channel
       tags:
       - alerts
@@ -3836,7 +3069,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/api.alertChannelRequest'
+          $ref: '#/definitions/internal_api.alertChannelRequest'
       produces:
       - application/json
       responses:
@@ -3844,30 +3077,30 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     channel:
-                      $ref: '#/definitions/api.AlertChannelResponse'
+                      $ref: '#/definitions/internal_api.AlertChannelResponse'
                   type: object
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Update alert channel
       tags:
       - alerts
@@ -3891,22 +3124,22 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     delivery:
-                      $ref: '#/definitions/api.AlertDeliveryResponse'
+                      $ref: '#/definitions/internal_api.AlertDeliveryResponse'
                   type: object
               type: object
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Test alert channel
       tags:
       - alerts
@@ -3954,7 +3187,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
@@ -3963,20 +3196,20 @@ paths:
                       type: integer
                     deliveries:
                       items:
-                        $ref: '#/definitions/api.AlertDeliveryResponse'
+                        $ref: '#/definitions/internal_api.AlertDeliveryResponse'
                       type: array
                     limit:
                       type: integer
                     offset:
                       type: integer
                     pagination:
-                      $ref: '#/definitions/utils.PaginationMeta'
+                      $ref: '#/definitions/orion_core_internal_utils.PaginationMeta'
                   type: object
               type: object
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: List alert deliveries
       tags:
       - alerts
@@ -3993,7 +3226,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
@@ -4001,14 +3234,14 @@ paths:
                       type: integer
                     routes:
                       items:
-                        $ref: '#/definitions/api.AlertRouteResponse'
+                        $ref: '#/definitions/internal_api.AlertRouteResponse'
                       type: array
                   type: object
               type: object
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: List alert routes
       tags:
       - alerts
@@ -4024,7 +3257,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/api.alertRouteRequest'
+          $ref: '#/definitions/internal_api.alertRouteRequest'
       produces:
       - application/json
       responses:
@@ -4032,26 +3265,26 @@ paths:
           description: Created
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     route:
-                      $ref: '#/definitions/api.AlertRouteResponse'
+                      $ref: '#/definitions/internal_api.AlertRouteResponse'
                   type: object
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Create alert route
       tags:
       - alerts
@@ -4073,15 +3306,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Delete alert route
       tags:
       - alerts
@@ -4102,7 +3335,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/api.alertRouteRequest'
+          $ref: '#/definitions/internal_api.alertRouteRequest'
       produces:
       - application/json
       responses:
@@ -4110,30 +3343,30 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     route:
-                      $ref: '#/definitions/api.AlertRouteResponse'
+                      $ref: '#/definitions/internal_api.AlertRouteResponse'
                   type: object
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Update alert route
       tags:
       - alerts
@@ -4150,7 +3383,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/api.alertRouteDryRunRequest'
+          $ref: '#/definitions/internal_api.alertRouteDryRunRequest'
       produces:
       - application/json
       responses:
@@ -4158,26 +3391,26 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     dry_run:
-                      $ref: '#/definitions/api.AlertRouteDryRunResponse'
+                      $ref: '#/definitions/internal_api.AlertRouteDryRunResponse'
                   type: object
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Dry-run alert routes
       tags:
       - alerts
@@ -4194,7 +3427,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
@@ -4202,14 +3435,14 @@ paths:
                       type: integer
                     rules:
                       items:
-                        $ref: '#/definitions/api.AlertRuleResponse'
+                        $ref: '#/definitions/internal_api.AlertRuleResponse'
                       type: array
                   type: object
               type: object
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: List alert rules
       tags:
       - alerts
@@ -4225,7 +3458,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/api.alertRuleRequest'
+          $ref: '#/definitions/internal_api.alertRuleRequest'
       produces:
       - application/json
       responses:
@@ -4233,26 +3466,26 @@ paths:
           description: Created
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     rule:
-                      $ref: '#/definitions/api.AlertRuleResponse'
+                      $ref: '#/definitions/internal_api.AlertRuleResponse'
                   type: object
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Create alert rule
       tags:
       - alerts
@@ -4274,15 +3507,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Delete alert rule
       tags:
       - alerts
@@ -4303,7 +3536,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/api.alertRuleRequest'
+          $ref: '#/definitions/internal_api.alertRuleRequest'
       produces:
       - application/json
       responses:
@@ -4311,30 +3544,30 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     rule:
-                      $ref: '#/definitions/api.AlertRuleResponse'
+                      $ref: '#/definitions/internal_api.AlertRuleResponse'
                   type: object
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Update alert rule
       tags:
       - alerts
@@ -4357,22 +3590,22 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     rule:
-                      $ref: '#/definitions/api.AlertRuleResponse'
+                      $ref: '#/definitions/internal_api.AlertRuleResponse'
                   type: object
               type: object
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Disable alert rule
       tags:
       - alerts
@@ -4395,22 +3628,22 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     rule:
-                      $ref: '#/definitions/api.AlertRuleResponse'
+                      $ref: '#/definitions/internal_api.AlertRuleResponse'
                   type: object
               type: object
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Enable alert rule
       tags:
       - alerts
@@ -4427,7 +3660,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/api.alertRuleDryRunRequest'
+          $ref: '#/definitions/internal_api.alertRuleDryRunRequest'
       produces:
       - application/json
       responses:
@@ -4435,26 +3668,26 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     dry_run:
-                      $ref: '#/definitions/api.AlertRuleDryRunResponse'
+                      $ref: '#/definitions/internal_api.AlertRuleDryRunResponse'
                   type: object
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Dry-run alert rules
       tags:
       - alerts
@@ -4470,7 +3703,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/api.LoginRequest'
+          $ref: '#/definitions/internal_api.LoginRequest'
       produces:
       - application/json
       responses:
@@ -4478,23 +3711,23 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/api.LoginResponse'
+                  $ref: '#/definitions/internal_api.LoginResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Log in to Console
       tags:
       - auth
@@ -4512,20 +3745,20 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     api:
                       type: object
                     metrics:
-                      $ref: '#/definitions/service.RuntimeDiagnosticsSnapshot'
+                      $ref: '#/definitions/orion_core_internal_service.RuntimeDiagnosticsSnapshot'
                   type: object
               type: object
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get Core diagnostics
       tags:
       - health
@@ -4543,7 +3776,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
@@ -4556,7 +3789,7 @@ paths:
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get Core worker diagnostics
       tags:
       - health
@@ -4597,7 +3830,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
@@ -4605,20 +3838,20 @@ paths:
                       type: integer
                     events:
                       items:
-                        $ref: '#/definitions/api.OrionEventResponse'
+                        $ref: '#/definitions/internal_api.OrionEventResponse'
                       type: array
                     limit:
                       type: integer
                     offset:
                       type: integer
                     pagination:
-                      $ref: '#/definitions/utils.PaginationMeta'
+                      $ref: '#/definitions/orion_core_internal_utils.PaginationMeta'
                   type: object
               type: object
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: List Orion events
       tags:
       - events
@@ -4636,7 +3869,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
@@ -4651,7 +3884,7 @@ paths:
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get health issues
       tags:
       - health
@@ -4668,7 +3901,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
@@ -4699,7 +3932,7 @@ paths:
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get system health summary
       tags:
       - health
@@ -4723,19 +3956,19 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/api.HeartbeatSignalResponse'
+                  $ref: '#/definitions/internal_api.HeartbeatSignalResponse'
               type: object
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Record heartbeat failure
       tags:
       - heartbeats
@@ -4759,178 +3992,22 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/api.HeartbeatSignalResponse'
+                  $ref: '#/definitions/internal_api.HeartbeatSignalResponse'
               type: object
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Record heartbeat success
       tags:
       - heartbeats
-  /v1/incidents:
-    get:
-      consumes:
-      - application/json
-      description: Get a paginated list of persisted incidents. Defaults to active
-        incidents.
-      operationId: getIncidents
-      parameters:
-      - default: open,acknowledged,covered
-        description: Comma-separated incident statuses
-        in: query
-        name: status
-        type: string
-      - description: Filter incidents by agent ID
-        in: query
-        name: agent_id
-        type: string
-      - description: Filter incidents by monitor ID
-        in: query
-        name: monitor_id
-        type: string
-      - description: Filter incidents by resolution kind
-        in: query
-        name: resolution_kind
-        type: string
-      - description: 'Filter incidents by lifecycle actor: manual or system'
-        in: query
-        name: actor
-        type: string
-      - description: Filter incidents by covered lifecycle state
-        in: query
-        name: covered
-        type: boolean
-      - description: Filter incidents by notification status
-        in: query
-        name: notification_status
-        type: string
-      - description: Filter to incidents with failed notifications or high/critical/error
-          severity
-        in: query
-        name: needs_review
-        type: boolean
-      - default: 50
-        description: Maximum number of incidents to return
-        in: query
-        name: limit
-        type: integer
-      - default: 0
-        description: Number of incidents to skip
-        in: query
-        name: offset
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    count:
-                      format: int64
-                      type: integer
-                    incidents:
-                      items:
-                        $ref: '#/definitions/api.IncidentResponse'
-                      type: array
-                    insights:
-                      $ref: '#/definitions/api.IncidentInsightsResponse'
-                    limit:
-                      type: integer
-                    offset:
-                      type: integer
-                    pagination:
-                      $ref: '#/definitions/utils.PaginationMeta'
-                    status:
-                      items:
-                        type: string
-                      type: array
-                  type: object
-              type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-      summary: List incidents
-      tags:
-      - incidents
-  /v1/incidents/{id}:
-    get:
-      consumes:
-      - application/json
-      description: Get one incident with related timeline events, alert deliveries,
-        and monitor reports
-      operationId: getIncident
-      parameters:
-      - description: Incident ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    alert_deliveries:
-                      items:
-                        $ref: '#/definitions/api.AlertDeliveryResponse'
-                      type: array
-                    events:
-                      items:
-                        $ref: '#/definitions/api.IncidentEventResponse'
-                      type: array
-                    evidence:
-                      $ref: '#/definitions/api.IncidentEvidenceResponse'
-                    incident:
-                      $ref: '#/definitions/api.IncidentResponse'
-                    monitor_reports:
-                      items:
-                        $ref: '#/definitions/api.MonitorReportResponse'
-                      type: array
-                    next_actions:
-                      items:
-                        $ref: '#/definitions/api.IncidentNextActionResponse'
-                      type: array
-                    related_incidents:
-                      items:
-                        $ref: '#/definitions/api.IncidentRelatedIncidentResponse'
-                      type: array
-                    timeline:
-                      items:
-                        $ref: '#/definitions/api.IncidentTimelineItemResponse'
-                      type: array
-                  type: object
-              type: object
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-      summary: Get incident detail
-      tags:
-      - incidents
   /v1/incidents/{id}/acknowledge:
     post:
       consumes:
@@ -4948,7 +4025,7 @@ paths:
         in: body
         name: request
         schema:
-          $ref: '#/definitions/api.incidentLifecycleActionRequest'
+          $ref: '#/definitions/internal_api.incidentLifecycleActionRequest'
       produces:
       - application/json
       responses:
@@ -4956,26 +4033,26 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     incident:
-                      $ref: '#/definitions/api.IncidentResponse'
+                      $ref: '#/definitions/internal_api.IncidentResponse'
                   type: object
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Acknowledge incident
       tags:
       - incidents
@@ -4996,7 +4073,7 @@ paths:
         in: body
         name: request
         schema:
-          $ref: '#/definitions/api.incidentCoverageRequest'
+          $ref: '#/definitions/internal_api.incidentCoverageRequest'
       produces:
       - application/json
       responses:
@@ -5004,26 +4081,26 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     incident:
-                      $ref: '#/definitions/api.IncidentResponse'
+                      $ref: '#/definitions/internal_api.IncidentResponse'
                   type: object
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Cover incident
       tags:
       - incidents
@@ -5044,7 +4121,7 @@ paths:
         in: body
         name: request
         schema:
-          $ref: '#/definitions/api.incidentLifecycleActionRequest'
+          $ref: '#/definitions/internal_api.incidentLifecycleActionRequest'
       produces:
       - application/json
       responses:
@@ -5052,26 +4129,26 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     incident:
-                      $ref: '#/definitions/api.IncidentResponse'
+                      $ref: '#/definitions/internal_api.IncidentResponse'
                   type: object
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Reopen incident
       tags:
       - incidents
@@ -5092,7 +4169,7 @@ paths:
         in: body
         name: request
         schema:
-          $ref: '#/definitions/api.incidentLifecycleActionRequest'
+          $ref: '#/definitions/internal_api.incidentLifecycleActionRequest'
       produces:
       - application/json
       responses:
@@ -5100,70 +4177,27 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     incident:
-                      $ref: '#/definitions/api.IncidentResponse'
+                      $ref: '#/definitions/internal_api.IncidentResponse'
                   type: object
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Resolve incident
-      tags:
-      - incidents
-  /v1/incidents/{id}/timeline:
-    get:
-      consumes:
-      - application/json
-      description: Get normalized incident timeline events including alert delivery
-        attempts
-      operationId: getIncidentTimeline
-      parameters:
-      - description: Incident ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    count:
-                      type: integer
-                    timeline:
-                      items:
-                        $ref: '#/definitions/api.IncidentTimelineItemResponse'
-                      type: array
-                  type: object
-              type: object
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-      summary: Get incident timeline
       tags:
       - incidents
   /v1/incidents/candidates:
@@ -5180,7 +4214,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
@@ -5195,7 +4229,7 @@ paths:
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get incident candidates
       tags:
       - health
@@ -5247,7 +4281,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
@@ -5258,18 +4292,18 @@ paths:
                       type: integer
                     logs:
                       items:
-                        $ref: '#/definitions/api.ServiceLogEntryResponse'
+                        $ref: '#/definitions/internal_api.ServiceLogEntryResponse'
                       type: array
                     offset:
                       type: integer
                     pagination:
-                      $ref: '#/definitions/utils.PaginationMeta'
+                      $ref: '#/definitions/orion_core_internal_utils.PaginationMeta'
                   type: object
               type: object
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: List service logs
       tags:
       - service-logs
@@ -5343,7 +4377,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
@@ -5354,18 +4388,18 @@ paths:
                       type: integer
                     monitors:
                       items:
-                        $ref: '#/definitions/api.MonitorResponse'
+                        $ref: '#/definitions/internal_api.MonitorResponse'
                       type: array
                     offset:
                       type: integer
                     pagination:
-                      $ref: '#/definitions/utils.PaginationMeta'
+                      $ref: '#/definitions/orion_core_internal_utils.PaginationMeta'
                   type: object
               type: object
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: List monitors
       tags:
       - monitors
@@ -5380,7 +4414,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/service.CoreManagedMonitorCreateRequest'
+          $ref: '#/definitions/orion_core_internal_service.CoreManagedMonitorCreateRequest'
       produces:
       - application/json
       responses:
@@ -5388,19 +4422,19 @@ paths:
           description: Created
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/api.CoreMonitorManagementResponse'
+                  $ref: '#/definitions/internal_api.CoreMonitorManagementResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Create a Core monitor
       tags:
       - monitors
@@ -5421,7 +4455,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
@@ -5432,11 +4466,11 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Delete a Core monitor
       tags:
       - monitors
@@ -5459,28 +4493,28 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     computed_health:
                       type: string
                     monitor:
-                      $ref: '#/definitions/api.MonitorResponse'
+                      $ref: '#/definitions/internal_api.MonitorResponse'
                     recent_reports:
                       items:
-                        $ref: '#/definitions/api.MonitorReportResponse'
+                        $ref: '#/definitions/internal_api.MonitorReportResponse'
                       type: array
                   type: object
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get monitor details
       tags:
       - monitors
@@ -5500,7 +4534,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/service.CoreManagedMonitorUpdateRequest'
+          $ref: '#/definitions/orion_core_internal_service.CoreManagedMonitorUpdateRequest'
       produces:
       - application/json
       responses:
@@ -5508,23 +4542,23 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/api.CoreMonitorManagementResponse'
+                  $ref: '#/definitions/internal_api.CoreMonitorManagementResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Update a Core monitor
       tags:
       - monitors
@@ -5545,19 +4579,19 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/api.CoreMonitorManagementResponse'
+                  $ref: '#/definitions/internal_api.CoreMonitorManagementResponse'
               type: object
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get Core monitor config
       tags:
       - monitors
@@ -5590,7 +4624,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
@@ -5602,25 +4636,25 @@ paths:
                     offset:
                       type: integer
                     pagination:
-                      $ref: '#/definitions/utils.PaginationMeta'
+                      $ref: '#/definitions/orion_core_internal_utils.PaginationMeta'
                     reports:
                       items:
-                        $ref: '#/definitions/api.MonitorReportResponse'
+                        $ref: '#/definitions/internal_api.MonitorReportResponse'
                       type: array
                   type: object
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get monitor history
       tags:
       - monitors
@@ -5641,19 +4675,19 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/api.CoreMonitorManagementResponse'
+                  $ref: '#/definitions/internal_api.CoreMonitorManagementResponse'
               type: object
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Pause a Core monitor
       tags:
       - monitors
@@ -5674,19 +4708,19 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/api.CoreMonitorManagementResponse'
+                  $ref: '#/definitions/internal_api.CoreMonitorManagementResponse'
               type: object
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Resume a Core monitor
       tags:
       - monitors
@@ -5708,23 +4742,23 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/api.CoreMonitorManagementResponse'
+                  $ref: '#/definitions/internal_api.CoreMonitorManagementResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Test a Core monitor
       tags:
       - monitors
@@ -5752,7 +4786,7 @@ paths:
             properties:
               daily_buckets:
                 items:
-                  $ref: '#/definitions/api.UptimeDayBucketResponse'
+                  $ref: '#/definitions/internal_api.UptimeDayBucketResponse'
                 type: array
               uptime_percent:
                 type: number
@@ -5760,15 +4794,15 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get monitor uptime
       tags:
       - monitors
@@ -5786,15 +4820,15 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/service.MonitorSummary'
+                  $ref: '#/definitions/orion_core_internal_service.MonitorSummary'
               type: object
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get monitor summary
       tags:
       - monitors
@@ -5811,7 +4845,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/service.RegisterRequest'
+          $ref: '#/definitions/orion_core_internal_service.RegisterRequest'
       produces:
       - application/json
       responses:
@@ -5819,19 +4853,19 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/service.RegisterResponse'
+                  $ref: '#/definitions/orion_core_internal_service.RegisterResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Register an agent
       tags:
       - agents
@@ -5848,18 +4882,18 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     settings:
-                      $ref: '#/definitions/db.DataLifecycleSettings'
+                      $ref: '#/definitions/orion_core_internal_db.DataLifecycleSettings'
                   type: object
               type: object
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get data lifecycle settings
       tags:
       - settings
@@ -5874,7 +4908,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/service.DataLifecycleSettingsPayload'
+          $ref: '#/definitions/orion_core_internal_service.DataLifecycleSettingsPayload'
       produces:
       - application/json
       responses:
@@ -5882,22 +4916,22 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     settings:
-                      $ref: '#/definitions/db.DataLifecycleSettings'
+                      $ref: '#/definitions/orion_core_internal_db.DataLifecycleSettings'
                   type: object
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Update data lifecycle settings
       tags:
       - settings
@@ -5915,18 +4949,18 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     result:
-                      $ref: '#/definitions/service.ArchiveRunResult'
+                      $ref: '#/definitions/orion_core_internal_service.ArchiveRunResult'
                   type: object
               type: object
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Run data lifecycle archive
       tags:
       - settings
@@ -5942,7 +4976,7 @@ paths:
         in: body
         name: request
         schema:
-          $ref: '#/definitions/api.DataLifecycleRollupRequest'
+          $ref: '#/definitions/internal_api.DataLifecycleRollupRequest'
       produces:
       - application/json
       responses:
@@ -5950,22 +4984,22 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     result:
-                      $ref: '#/definitions/service.RollupRunResult'
+                      $ref: '#/definitions/orion_core_internal_service.RollupRunResult'
                   type: object
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Run data lifecycle rollup
       tags:
       - settings
@@ -5982,7 +5016,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
@@ -5990,14 +5024,14 @@ paths:
                       type: integer
                     pages:
                       items:
-                        $ref: '#/definitions/api.StatusPageResponse'
+                        $ref: '#/definitions/internal_api.StatusPageResponse'
                       type: array
                   type: object
               type: object
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: List status pages
@@ -6014,7 +5048,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/api.statusPageRequest'
+          $ref: '#/definitions/internal_api.statusPageRequest'
       produces:
       - application/json
       responses:
@@ -6022,26 +5056,26 @@ paths:
           description: Created
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     page:
-                      $ref: '#/definitions/api.StatusPageResponse'
+                      $ref: '#/definitions/internal_api.StatusPageResponse'
                   type: object
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Create status page
@@ -6067,7 +5101,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
@@ -6078,11 +5112,11 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Delete status page
@@ -6107,19 +5141,19 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/api.StatusPageDetailResponse'
+                  $ref: '#/definitions/internal_api.StatusPageDetailResponse'
               type: object
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Get status page
@@ -6141,7 +5175,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/api.statusPageRequest'
+          $ref: '#/definitions/internal_api.statusPageRequest'
       produces:
       - application/json
       responses:
@@ -6149,30 +5183,30 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     page:
-                      $ref: '#/definitions/api.StatusPageResponse'
+                      $ref: '#/definitions/internal_api.StatusPageResponse'
                   type: object
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Update status page
@@ -6197,13 +5231,13 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     components:
                       items:
-                        $ref: '#/definitions/api.StatusPageComponentResponse'
+                        $ref: '#/definitions/internal_api.StatusPageComponentResponse'
                       type: array
                     count:
                       type: integer
@@ -6212,11 +5246,11 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: List status page components
@@ -6238,7 +5272,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/api.statusPageComponentRequest'
+          $ref: '#/definitions/internal_api.statusPageComponentRequest'
       produces:
       - application/json
       responses:
@@ -6246,26 +5280,26 @@ paths:
           description: Created
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     component:
-                      $ref: '#/definitions/api.StatusPageComponentResponse'
+                      $ref: '#/definitions/internal_api.StatusPageComponentResponse'
                   type: object
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Create status page component
@@ -6296,7 +5330,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
@@ -6307,11 +5341,11 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Delete status page component
@@ -6338,7 +5372,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/api.statusPageComponentRequest'
+          $ref: '#/definitions/internal_api.statusPageComponentRequest'
       produces:
       - application/json
       responses:
@@ -6346,26 +5380,26 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     component:
-                      $ref: '#/definitions/api.StatusPageComponentResponse'
+                      $ref: '#/definitions/internal_api.StatusPageComponentResponse'
                   type: object
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Update status page component
@@ -6395,7 +5429,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
@@ -6403,18 +5437,18 @@ paths:
                       type: integer
                     mappings:
                       items:
-                        $ref: '#/definitions/api.StatusPageComponentMappingResponse'
+                        $ref: '#/definitions/internal_api.StatusPageComponentMappingResponse'
                       type: array
                   type: object
               type: object
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: List status page component mappings
@@ -6441,7 +5475,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/api.statusPageComponentMappingRequest'
+          $ref: '#/definitions/internal_api.statusPageComponentMappingRequest'
       produces:
       - application/json
       responses:
@@ -6449,30 +5483,30 @@ paths:
           description: Created
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     mapping:
-                      $ref: '#/definitions/api.StatusPageComponentMappingResponse'
+                      $ref: '#/definitions/internal_api.StatusPageComponentMappingResponse'
                   type: object
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Create status page component mapping
@@ -6507,7 +5541,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
@@ -6518,11 +5552,11 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Delete status page component mapping
@@ -6554,7 +5588,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/api.statusPageComponentMappingRequest'
+          $ref: '#/definitions/internal_api.statusPageComponentMappingRequest'
       produces:
       - application/json
       responses:
@@ -6562,126 +5596,33 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     mapping:
-                      $ref: '#/definitions/api.StatusPageComponentMappingResponse'
+                      $ref: '#/definitions/internal_api.StatusPageComponentMappingResponse'
                   type: object
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Update status page component mapping
-      tags:
-      - status-pages
-  /v1/status-pages/{id}/incidents:
-    get:
-      consumes:
-      - application/json
-      description: Get manual public incident records for a status page
-      operationId: listStatusPageIncidents
-      parameters:
-      - description: Status page ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    count:
-                      type: integer
-                    incidents:
-                      items:
-                        $ref: '#/definitions/api.StatusPageIncidentResponse'
-                      type: array
-                  type: object
-              type: object
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: List status page incidents
-      tags:
-      - status-pages
-    post:
-      consumes:
-      - application/json
-      description: Create a manual public incident for a status page
-      operationId: createStatusPageIncident
-      parameters:
-      - description: Status page ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Incident payload
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/api.statusPageIncidentRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    incident:
-                      $ref: '#/definitions/api.StatusPageIncidentResponse'
-                  type: object
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Create status page incident
       tags:
       - status-pages
   /v1/status-pages/{id}/incidents/{incident_id}:
@@ -6709,7 +5650,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
@@ -6720,290 +5661,14 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Delete status page incident
-      tags:
-      - status-pages
-    put:
-      consumes:
-      - application/json
-      description: Update a manual public incident for a status page
-      operationId: updateStatusPageIncident
-      parameters:
-      - description: Status page ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Incident ID
-        in: path
-        name: incident_id
-        required: true
-        type: string
-      - description: Incident payload
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/api.statusPageIncidentRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    incident:
-                      $ref: '#/definitions/api.StatusPageIncidentResponse'
-                  type: object
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Update status page incident
-      tags:
-      - status-pages
-  /v1/status-pages/{id}/incidents/{incident_id}/updates:
-    post:
-      consumes:
-      - application/json
-      description: Create a public timeline update for a manual status page incident
-      operationId: createStatusPageIncidentUpdate
-      parameters:
-      - description: Status page ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Incident ID
-        in: path
-        name: incident_id
-        required: true
-        type: string
-      - description: Incident update payload
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/api.statusPageIncidentUpdateRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    incident:
-                      $ref: '#/definitions/api.StatusPageIncidentResponse'
-                    update:
-                      $ref: '#/definitions/api.StatusPageIncidentUpdateResponse'
-                  type: object
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Create status page incident update
-      tags:
-      - status-pages
-  /v1/status-pages/{id}/incidents/draft:
-    get:
-      consumes:
-      - application/json
-      description: Generate safe public incident draft copy from an internal incident
-        using visible public component names and approved templates only
-      operationId: previewStatusPageIncidentDraft
-      parameters:
-      - description: Status page ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Internal incident ID
-        in: query
-        name: incident_id
-        required: true
-        type: string
-      - collectionFormat: csv
-        description: Visible public component IDs to include
-        in: query
-        items:
-          type: string
-        name: component_id
-        type: array
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    draft:
-                      $ref: '#/definitions/api.StatusPageIncidentDraftResponse'
-                  type: object
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Preview public incident draft
-      tags:
-      - status-pages
-    post:
-      consumes:
-      - application/json
-      description: Create a draft public incident and draft initial update from an
-        internal incident without copying internal details
-      operationId: createStatusPageIncidentDraft
-      parameters:
-      - description: Status page ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Draft source payload
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/api.statusPageIncidentDraftRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    draft:
-                      $ref: '#/definitions/api.StatusPageIncidentDraftResponse'
-                    incident:
-                      $ref: '#/definitions/api.StatusPageIncidentResponse'
-                    update:
-                      $ref: '#/definitions/api.StatusPageIncidentUpdateResponse'
-                  type: object
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Create public incident draft
-      tags:
-      - status-pages
-  /v1/status-pages/{id}/incidents/suggestions:
-    get:
-      consumes:
-      - application/json
-      description: Suggest public status page components mapped to the internal incident
-        monitor or agent without exposing internal incident details
-      operationId: suggestStatusPageIncidentComponents
-      parameters:
-      - description: Status page ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Internal incident ID
-        in: query
-        name: incident_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.APIResponse'
-            - properties:
-                data:
-                  properties:
-                    count:
-                      type: integer
-                    suggestions:
-                      items:
-                        $ref: '#/definitions/api.StatusPageIncidentComponentSuggestionResponse'
-                      type: array
-                  type: object
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Suggest status page incident components
       tags:
       - status-pages
   /v1/status-pages/{id}/preview:
@@ -7025,22 +5690,22 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     preview:
-                      $ref: '#/definitions/api.StatusPagePreviewResponse'
+                      $ref: '#/definitions/internal_api.StatusPagePreviewResponse'
                   type: object
               type: object
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Preview status page
@@ -7065,22 +5730,22 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     page:
-                      $ref: '#/definitions/api.StatusPageResponse'
+                      $ref: '#/definitions/internal_api.StatusPageResponse'
                   type: object
               type: object
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Publish status page
@@ -7105,7 +5770,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
@@ -7113,18 +5778,18 @@ paths:
                       type: integer
                     sections:
                       items:
-                        $ref: '#/definitions/api.StatusPageSectionResponse'
+                        $ref: '#/definitions/internal_api.StatusPageSectionResponse'
                       type: array
                   type: object
               type: object
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: List status page sections
@@ -7146,7 +5811,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/api.statusPageSectionRequest'
+          $ref: '#/definitions/internal_api.statusPageSectionRequest'
       produces:
       - application/json
       responses:
@@ -7154,26 +5819,26 @@ paths:
           description: Created
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     section:
-                      $ref: '#/definitions/api.StatusPageSectionResponse'
+                      $ref: '#/definitions/internal_api.StatusPageSectionResponse'
                   type: object
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Create status page section
@@ -7204,7 +5869,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
@@ -7215,11 +5880,11 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Delete status page section
@@ -7246,7 +5911,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/api.statusPageSectionRequest'
+          $ref: '#/definitions/internal_api.statusPageSectionRequest'
       produces:
       - application/json
       responses:
@@ -7254,26 +5919,26 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     section:
-                      $ref: '#/definitions/api.StatusPageSectionResponse'
+                      $ref: '#/definitions/internal_api.StatusPageSectionResponse'
                   type: object
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Update status page section
@@ -7303,7 +5968,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
@@ -7311,18 +5976,18 @@ paths:
                       type: integer
                     subscribers:
                       items:
-                        $ref: '#/definitions/api.StatusPageSubscriberAdminResponse'
+                        $ref: '#/definitions/internal_api.StatusPageSubscriberAdminResponse'
                       type: array
                   type: object
               type: object
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: List status page subscribers
@@ -7353,7 +6018,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
@@ -7364,11 +6029,11 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Delete status page subscriber
@@ -7399,22 +6064,22 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     subscriber:
-                      $ref: '#/definitions/api.StatusPageSubscriberAdminResponse'
+                      $ref: '#/definitions/internal_api.StatusPageSubscriberAdminResponse'
                   type: object
               type: object
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Anonymize status page subscriber
@@ -7445,22 +6110,22 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     subscriber:
-                      $ref: '#/definitions/api.StatusPageSubscriberAdminResponse'
+                      $ref: '#/definitions/internal_api.StatusPageSubscriberAdminResponse'
                   type: object
               type: object
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Disable status page subscriber
@@ -7486,22 +6151,22 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/utils.APIResponse'
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
                   properties:
                     page:
-                      $ref: '#/definitions/api.StatusPageResponse'
+                      $ref: '#/definitions/internal_api.StatusPageResponse'
                   type: object
               type: object
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.APIResponse'
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Unpublish status page

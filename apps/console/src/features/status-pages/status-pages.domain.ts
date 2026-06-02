@@ -52,10 +52,12 @@ export const deriveStatusPageViewState = ({
     ...(previewError ? ["Public preview could not be loaded before publishing."] : []),
   ];
   const resources = mappingResourceType === "monitor" ? monitors : agents;
-  const resourceOptions: ResourceOption[] = resources.map((resource) => ({
-    id: resource.id ?? "",
-    label: resource.name ?? resource.id ?? "",
-  }));
+  const resourceOptions: ResourceOption[] = resources
+    .filter((resource): resource is { id: string; name?: string } => Boolean(resource.id?.trim()))
+    .map((resource) => ({
+      id: resource.id,
+      label: resource.name ?? resource.id,
+    }));
   const previewThemeMode = themeSettingString(previewThemeSettings, "theme_mode", "light");
 
   return {

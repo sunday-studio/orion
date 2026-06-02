@@ -11,14 +11,14 @@ import type { FormEvent } from "react";
 import { AffectedComponents, SelectField } from "./status-pages-create-incident-form";
 import { IncidentSuggestions } from "./status-pages-incident-suggestions";
 import {
-  applySuggestedIncidentComponents,
   DateTimeInput,
   Field,
+  type IncidentFormState,
+  type StateSetter,
+  applySuggestedIncidentComponents,
   incidentSeverities,
   incidentStatuses,
   incidentVisibilities,
-  type IncidentFormState,
-  type StateSetter,
 } from "./status-pages-shared";
 
 type EditIncidentFormProps = {
@@ -153,7 +153,12 @@ export const EditIncidentForm = ({
         <CheckCircle2 className="size-4" />
         Resolve
       </Button>
-      <Button disabled={deletePending} onClick={onDelete} type="button" variant="outline">
+      <Button
+        disabled={deleteIncidentPending || deletePending}
+        onClick={onDelete}
+        type="button"
+        variant="outline"
+      >
         <Trash2 className="size-4" />
         {deleteIncidentPending ? "Deleting..." : "Delete"}
       </Button>

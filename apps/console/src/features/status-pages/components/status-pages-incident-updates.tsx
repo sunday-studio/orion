@@ -9,11 +9,11 @@ import { SelectField } from "./status-pages-create-incident-form";
 import {
   DateTimeInput,
   Field,
+  type IncidentUpdateFormState,
+  type StateSetter,
   formatDateTime,
   incidentBadgeStatus,
   incidentStatuses,
-  type IncidentUpdateFormState,
-  type StateSetter,
 } from "./status-pages-shared";
 
 type IncidentUpdatesPanelProps = {

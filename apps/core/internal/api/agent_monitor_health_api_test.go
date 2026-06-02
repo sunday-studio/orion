@@ -213,7 +213,7 @@ func TestListAllMonitorsAndSummaryUseDerivedStaleState(t *testing.T) {
 		} `json:"data"`
 	}
 	decodeResponse(t, downResp, &listed)
-	if !listed.Success || listed.Data.Count != 1 || listed.Data.Monitors[0].ID != "monitor-all-down" || listed.Data.Monitors[0].Health != "down" || listed.Data.Monitors[0].AgentName != agent.Name {
+	if !listed.Success || listed.Data.Count != 1 || len(listed.Data.Monitors) != 1 || listed.Data.Monitors[0].ID != "monitor-all-down" || listed.Data.Monitors[0].Health != "down" || listed.Data.Monitors[0].AgentName != agent.Name {
 		t.Fatalf("down monitor list = %+v, want fresh down monitor with agent name", listed)
 	}
 	upResp := performJSONRequest(t, server, http.MethodGet, "/v1/monitors?health=up", nil, "")
@@ -221,7 +221,7 @@ func TestListAllMonitorsAndSummaryUseDerivedStaleState(t *testing.T) {
 		t.Fatalf("up monitor list status = %d, body = %s", upResp.Code, upResp.Body.String())
 	}
 	decodeResponse(t, upResp, &listed)
-	if !listed.Success || listed.Data.Count != 1 || listed.Data.Monitors[0].ID != "monitor-all-up" {
+	if !listed.Success || listed.Data.Count != 1 || len(listed.Data.Monitors) != 1 || listed.Data.Monitors[0].ID != "monitor-all-up" {
 		t.Fatalf("up monitor list = %+v, want only fresh up monitor", listed)
 	}
 	typeResp := performJSONRequest(t, server, http.MethodGet, "/v1/monitors?type=tcp", nil, "")
@@ -229,7 +229,7 @@ func TestListAllMonitorsAndSummaryUseDerivedStaleState(t *testing.T) {
 		t.Fatalf("type monitor list status = %d, body = %s", typeResp.Code, typeResp.Body.String())
 	}
 	decodeResponse(t, typeResp, &listed)
-	if !listed.Success || listed.Data.Count != 1 || listed.Data.Monitors[0].ID != "monitor-all-down" {
+	if !listed.Success || listed.Data.Count != 1 || len(listed.Data.Monitors) != 1 || listed.Data.Monitors[0].ID != "monitor-all-down" {
 		t.Fatalf("type monitor list = %+v, want only tcp monitor", listed)
 	}
 	staleResp := performJSONRequest(t, server, http.MethodGet, "/v1/monitors?health=stale", nil, "")
@@ -237,7 +237,7 @@ func TestListAllMonitorsAndSummaryUseDerivedStaleState(t *testing.T) {
 		t.Fatalf("stale monitor list status = %d, body = %s", staleResp.Code, staleResp.Body.String())
 	}
 	decodeResponse(t, staleResp, &listed)
-	if !listed.Success || listed.Data.Count != 1 || listed.Data.Monitors[0].ID != "monitor-all-stale" || listed.Data.Monitors[0].Health != "stale" {
+	if !listed.Success || listed.Data.Count != 1 || len(listed.Data.Monitors) != 1 || listed.Data.Monitors[0].ID != "monitor-all-stale" || listed.Data.Monitors[0].Health != "stale" {
 		t.Fatalf("stale monitor list = %+v, want stale monitor with stale health", listed)
 	}
 	detailResp := performJSONRequest(t, server, http.MethodGet, "/v1/monitors/monitor-all-stale", nil, "")

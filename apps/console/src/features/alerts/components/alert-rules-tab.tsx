@@ -35,15 +35,15 @@ import { type FormEvent, useMemo, useState } from "react";
 import { boolLabel, eventLabel, getMutationErrorMessage } from "./alert-constants";
 import { AlertRuleEditorDialog } from "./alert-rule-editor-dialog";
 import {
+  type DryRunFormState,
+  type RouteFormState,
   channelName,
   defaultDryRunForm,
   defaultRouteForm,
   formToRequest,
   formatList,
-  type DryRunFormState,
   routeToForm,
   routeToRequest,
-  type RouteFormState,
 } from "../alerts.domain";
 
 type AlertRulesTabProps = {

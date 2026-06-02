@@ -13,12 +13,12 @@ import type {
 import {
   DetailItem,
   HISTORY_LIMIT,
+  type MonitorDetailTab,
   coreConfigArrayCount,
   coreConfigValue,
   formatJSON,
   historyColumns,
   incidentColumns,
-  type MonitorDetailTab,
 } from "./monitor-detail-shared";
 
 type MonitorDetailOperationalDataProps = {

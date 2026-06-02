@@ -1,15 +1,28 @@
 package api
 
 import (
-	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 	"net/http"
 	"orion/core/internal/db"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
 	"strings"
+
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
+// disableAlertRule disables a webhook alert rule.
+// @Summary      Disable alert rule
+// @Description  Disable an alert rule without changing its filters or webhook destinations.
+// @Tags         alerts
+// @Accept       json
+// @Produce      json
+// @ID           disableAlertRule
+// @Param        id   path      string  true  "Alert rule ID"
+// @Success      200  {object}  utils.APIResponse{data=object{rule=AlertRuleResponse}}
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/alerts/rules/{id}/disable [post]
 func (s *Server) disableAlertRule(c *gin.Context) {
 	s.setAlertRuleEnabled(c, false)
 }
@@ -33,6 +46,19 @@ func (s *Server) setAlertRuleEnabled(c *gin.Context, enabled bool) {
 	utils.SuccessResponse(c, http.StatusOK, "Alert rule updated successfully", gin.H{"rule": alertRuleResponse(rule)})
 }
 
+// dryRunAlertRules evaluates webhook alert rules without sending notifications.
+// @Summary      Dry-run alert rules
+// @Description  Explain rule event matching, suppression, cooldown, grouping, and webhook destination decisions without creating deliveries or sending notifications
+// @Tags         alerts
+// @Accept       json
+// @Produce      json
+// @ID           dryRunAlertRules
+// @Param        request  body      alertRuleDryRunRequest  true  "Alert rule dry-run payload"
+// @Success      200      {object}  utils.APIResponse{data=object{dry_run=AlertRuleDryRunResponse}}
+// @Failure      400      {object}  utils.APIResponse
+// @Failure      404      {object}  utils.APIResponse
+// @Failure      500      {object}  utils.APIResponse
+// @Router       /v1/alerts/rules/dry-run [post]
 func (s *Server) dryRunAlertRules(c *gin.Context) {
 	event, ok := s.alertRuleDryRunEventFromRequest(c)
 	if !ok {
@@ -249,32 +275,7 @@ func validateAlertRoute(route db.AlertRoute) error {
 	if route.Priority < 0 {
 		return &requestValidationError{message: "alert route priority must be zero or greater"}
 	}
-	for _, event := range // disableAlertRule disables a webhook alert rule.
-	// @Summary      Disable alert rule
-	// @Description  Disable an alert rule without changing its filters or webhook destinations.
-	// @Tags         alerts
-	// @Accept       json
-	// @Produce      json
-	// @ID           disableAlertRule
-	// @Param        id   path      string  true  "Alert rule ID"
-	// @Success      200  {object}  utils.APIResponse{data=object{rule=AlertRuleResponse}}
-	// @Failure      404  {object}  utils.APIResponse
-	// @Failure      500  {object}  utils.APIResponse
-	// @Router       /v1/alerts/rules/{id}/disable [post]
-	// dryRunAlertRules evaluates webhook alert rules without sending notifications.
-	// @Summary      Dry-run alert rules
-	// @Description  Explain rule event matching, suppression, cooldown, grouping, and webhook destination decisions without creating deliveries or sending notifications
-	// @Tags         alerts
-	// @Accept       json
-	// @Produce      json
-	// @ID           dryRunAlertRules
-	// @Param        request  body      alertRuleDryRunRequest  true  "Alert rule dry-run payload"
-	// @Success      200      {object}  utils.APIResponse{data=object{dry_run=AlertRuleDryRunResponse}}
-	// @Failure      400      {object}  utils.APIResponse
-	// @Failure      404      {object}  utils.APIResponse
-	// @Failure      500      {object}  utils.APIResponse
-	// @Router       /v1/alerts/rules/dry-run [post]
-	decodeResponseList(route.EventTypes, db.DefaultAlertEvents()) {
+	for _, event := range decodeResponseList(route.EventTypes, db.DefaultAlertEvents()) {
 		if !db.ValidAlertEvent(event) {
 			return &requestValidationError{message: "unsupported alert route event"}
 		}

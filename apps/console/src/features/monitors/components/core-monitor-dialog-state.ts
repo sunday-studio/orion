@@ -1,7 +1,4 @@
-import type {
-  ApiCoreMonitorConfigResponse,
-  ApiMonitorResponse,
-} from "@/orion-sdk";
+import type { ApiCoreMonitorConfigResponse, ApiMonitorResponse } from "@/orion-sdk";
 
 export type CoreMonitorSubmitAction = "save" | "save_test";
 
@@ -116,7 +113,15 @@ export const coreMonitorKindOptions = [
   { value: "heartbeat", label: "Heartbeat" },
 ] as const;
 
-export const apiMethodOptions = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"] as const;
+export const apiMethodOptions = [
+  "GET",
+  "POST",
+  "PUT",
+  "PATCH",
+  "DELETE",
+  "HEAD",
+  "OPTIONS",
+] as const;
 export const dnsRecordTypeOptions = ["A", "AAAA", "CNAME", "TXT", "MX", "NS"] as const;
 export const mailProtocols = ["smtp", "imap", "pop"] as const;
 export const mailTlsModes = ["none", "implicit", "starttls"] as const;
@@ -173,10 +178,7 @@ const readConfigIntList = (config: ApiCoreMonitorConfigResponse | undefined, key
     .join(", ");
 };
 
-const readConfigObjectEntries = (
-  config: ApiCoreMonitorConfigResponse | undefined,
-  key: string,
-) => {
+const readConfigObjectEntries = (config: ApiCoreMonitorConfigResponse | undefined, key: string) => {
   const value = config?.config?.[key];
   if (typeof value !== "object" || value === null || Array.isArray(value)) return "";
   return Object.entries(value)
@@ -194,6 +196,15 @@ const readConfigJSON = (config: ApiCoreMonitorConfigResponse | undefined, key: s
 export const toPositiveInt = (value: string, fallback: number) => {
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+export const requiredTCPPort = (value: string) => {
+  const trimmed = value.trim();
+  const parsed = Number(trimmed);
+  if (!trimmed || !Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
+    throw new Error("TCP port must be an integer from 1 to 65535.");
+  }
+  return parsed;
 };
 
 export const toNonNegativeInt = (value: string, fallback: number) => {
@@ -338,7 +349,7 @@ export const buildConfigPayload = (form: FormState): Record<string, unknown> => 
       };
     }
     case "tcp":
-      return { host: form.host.trim(), port: toPositiveInt(form.port, 0) };
+      return { host: form.host.trim(), port: requiredTCPPort(form.port) };
     case "udp":
       return {
         expected_response: form.udpExpectedResponse,

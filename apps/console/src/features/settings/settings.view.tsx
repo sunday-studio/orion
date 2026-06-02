@@ -32,14 +32,14 @@ import { ArchiveIcon, History, RotateCwIcon, Save } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityItem, Field, Section } from "./components/settings-components";
 import {
+  type SettingsFieldKey,
+  type SettingsFormState,
   archiveCount,
   asNumber,
   defaultFormState,
   getArchiveCutoff,
   getErrorMessage,
   safeInlineMessage,
-  type SettingsFieldKey,
-  type SettingsFormState,
   validateSettingsForm,
 } from "./settings.domain";
 

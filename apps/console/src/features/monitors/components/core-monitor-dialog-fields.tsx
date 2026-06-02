@@ -3,10 +3,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  type FormState,
   apiMethodOptions,
   coreMonitorKindOptions,
   dnsRecordTypeOptions,
-  type FormState,
   isAPIMethod,
   isCoreMonitorKind,
   isDNSRecordType,
@@ -267,7 +267,10 @@ export const CoreMonitorDialogFields = ({
       {form.kind === "ping" && (
         <label className="space-y-1 text-sm">
           <span className="font-medium">Method</span>
-          <Select value={form.pingMethod} onValueChange={(value) => updateForm({ pingMethod: value })}>
+          <Select
+            value={form.pingMethod}
+            onValueChange={(value) => updateForm({ pingMethod: value })}
+          >
             <SelectTrigger className="w-full">
               <span data-slot="select-value">{form.pingMethod.toUpperCase()}</span>
             </SelectTrigger>
@@ -374,7 +377,9 @@ export const CoreMonitorDialogFields = ({
             rows={10}
             spellCheck={false}
           />
-          {advancedConfigError && <span className="block text-rose-700">{advancedConfigError}</span>}
+          {advancedConfigError && (
+            <span className="block text-rose-700">{advancedConfigError}</span>
+          )}
         </label>
       )}
       <label className="space-y-1 text-sm">

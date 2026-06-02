@@ -200,9 +200,9 @@ export const MonitorDetailOverview = ({
       </div>
       {recentUptimeBuckets.length > 0 && (
         <div className="flex gap-0.5">
-          {recentUptimeBuckets.map((bucket) => (
+          {recentUptimeBuckets.map((bucket, index) => (
             <div
-              key={bucket.date}
+              key={`${bucket.date ?? index}-${bucket.uptime_percent ?? "na"}`}
               title={`${bucket.date}: ${formatUptime(bucket.uptime_percent)}`}
               className="flex h-7 w-2 items-end bg-neutral-100"
             >

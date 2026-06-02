@@ -29,8 +29,8 @@ import { alertEventOptions, getMutationErrorMessage } from "./alert-constants";
 import { Connector, FlowNode } from "./alert-flow-node";
 import {
   type DryRunFormState,
-  groupingOptions,
   type RouteFormState,
+  groupingOptions,
   severityOptions,
   toggleValue,
 } from "../alerts.domain";
@@ -269,7 +269,13 @@ export const AlertRuleEditorDialog = ({
               <FlaskConical className="size-4" />
               Dry Run
             </div>
-            <Button size="sm" variant="outline" disabled={dryRun.isPending} onClick={handleDryRun}>
+            <Button
+              size="sm"
+              type="button"
+              variant="outline"
+              disabled={dryRun.isPending}
+              onClick={handleDryRun}
+            >
               {dryRun.isPending ? "Running..." : "Run"}
             </Button>
           </div>
@@ -380,7 +386,7 @@ export const AlertRuleEditorDialog = ({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={closeEditor}>
+          <Button type="button" variant="outline" onClick={closeEditor}>
             Cancel
           </Button>
           <Button type="submit" disabled={!canSubmit}>

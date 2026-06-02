@@ -1,157 +1,34 @@
 package api
 
 import (
-	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 	"net/http"
 	"orion/core/internal/db"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
 	"strings"
+
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
+// listStatusPageSections lists sections for a status page.
+// @Summary      List status page sections
+// @Description  Get sections for a status page
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           listStatusPageSections
+// @Param        id   path      string  true  "Status page ID"
+// @Success      200  {object}  utils.APIResponse{data=object{sections=[]StatusPageSectionResponse,count=int}}
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/status-pages/{id}/sections [get]
 func (s *Server) listStatusPageSections(c *gin.Context) {
 	if !s.statusPageExists(c, c.Param("id")) {
 		return
 	}
-	var sections []db.// listStatusPageSections lists sections for a status page.
-	// @Summary      List status page sections
-	// @Description  Get sections for a status page
-	// @Tags         status-pages
-	// @Accept       json
-	// @Produce      json
-	// @Security     BearerAuth
-	// @ID           listStatusPageSections
-	// @Param        id   path      string  true  "Status page ID"
-	// @Success      200  {object}  utils.APIResponse{data=object{sections=[]StatusPageSectionResponse,count=int}}
-	// @Failure      404  {object}  utils.APIResponse
-	// @Failure      500  {object}  utils.APIResponse
-	// @Router       /v1/status-pages/{id}/sections [get]
-	// createStatusPageSection creates a section.
-	// @Summary      Create status page section
-	// @Description  Create a section for grouping public components
-	// @Tags         status-pages
-	// @Accept       json
-	// @Produce      json
-	// @Security     BearerAuth
-	// @ID           createStatusPageSection
-	// @Param        id       path      string                    true  "Status page ID"
-	// @Param        request  body      statusPageSectionRequest  true  "Section payload"
-	// @Success      201      {object}  utils.APIResponse{data=object{section=StatusPageSectionResponse}}
-	// @Failure      400      {object}  utils.APIResponse
-	// @Failure      404      {object}  utils.APIResponse
-	// @Failure      500      {object}  utils.APIResponse
-	// @Router       /v1/status-pages/{id}/sections [post]
-	// updateStatusPageSection updates a section.
-	// @Summary      Update status page section
-	// @Description  Update a status page section
-	// @Tags         status-pages
-	// @Accept       json
-	// @Produce      json
-	// @Security     BearerAuth
-	// @ID           updateStatusPageSection
-	// @Param        id          path      string                    true  "Status page ID"
-	// @Param        section_id  path      string                    true  "Section ID"
-	// @Param        request     body      statusPageSectionRequest  true  "Section payload"
-	// @Success      200         {object}  utils.APIResponse{data=object{section=StatusPageSectionResponse}}
-	// @Failure      400         {object}  utils.APIResponse
-	// @Failure      404         {object}  utils.APIResponse
-	// @Failure      500         {object}  utils.APIResponse
-	// @Router       /v1/status-pages/{id}/sections/{section_id} [put]
-	// listStatusPageComponents lists components for a status page.
-	// @Summary      List status page components
-	// @Description  Get components and mappings for a status page
-	// @Tags         status-pages
-	// @Accept       json
-	// @Produce      json
-	// @Security     BearerAuth
-	// @ID           listStatusPageComponents
-	// @Param        id   path      string  true  "Status page ID"
-	// @Success      200  {object}  utils.APIResponse{data=object{components=[]StatusPageComponentResponse,count=int}}
-	// @Failure      404  {object}  utils.APIResponse
-	// @Failure      500  {object}  utils.APIResponse
-	// @Router       /v1/status-pages/{id}/components [get]
-	// createStatusPageComponent creates a component.
-	// @Summary      Create status page component
-	// @Description  Create a public component for a status page
-	// @Tags         status-pages
-	// @Accept       json
-	// @Produce      json
-	// @Security     BearerAuth
-	// @ID           createStatusPageComponent
-	// @Param        id       path      string                      true  "Status page ID"
-	// @Param        request  body      statusPageComponentRequest  true  "Component payload"
-	// @Success      201      {object}  utils.APIResponse{data=object{component=StatusPageComponentResponse}}
-	// @Failure      400      {object}  utils.APIResponse
-	// @Failure      404      {object}  utils.APIResponse
-	// @Failure      500      {object}  utils.APIResponse
-	// @Router       /v1/status-pages/{id}/components [post]
-	// updateStatusPageComponent updates a component.
-	// @Summary      Update status page component
-	// @Description  Update a public component for a status page
-	// @Tags         status-pages
-	// @Accept       json
-	// @Produce      json
-	// @Security     BearerAuth
-	// @ID           updateStatusPageComponent
-	// @Param        id            path      string                      true  "Status page ID"
-	// @Param        component_id  path      string                      true  "Component ID"
-	// @Param        request       body      statusPageComponentRequest  true  "Component payload"
-	// @Success      200           {object}  utils.APIResponse{data=object{component=StatusPageComponentResponse}}
-	// @Failure      400           {object}  utils.APIResponse
-	// @Failure      404           {object}  utils.APIResponse
-	// @Failure      500           {object}  utils.APIResponse
-	// @Router       /v1/status-pages/{id}/components/{component_id} [put]
-	// listStatusPageComponentMappings lists component mappings.
-	// @Summary      List status page component mappings
-	// @Description  Get internal resource mappings for a public component
-	// @Tags         status-pages
-	// @Accept       json
-	// @Produce      json
-	// @Security     BearerAuth
-	// @ID           listStatusPageComponentMappings
-	// @Param        id            path      string  true  "Status page ID"
-	// @Param        component_id  path      string  true  "Component ID"
-	// @Success      200           {object}  utils.APIResponse{data=object{mappings=[]StatusPageComponentMappingResponse,count=int}}
-	// @Failure      404           {object}  utils.APIResponse
-	// @Failure      500           {object}  utils.APIResponse
-	// @Router       /v1/status-pages/{id}/components/{component_id}/mappings [get]
-	// createStatusPageComponentMapping creates a component mapping.
-	// @Summary      Create status page component mapping
-	// @Description  Map a public component to an internal agent or monitor
-	// @Tags         status-pages
-	// @Accept       json
-	// @Produce      json
-	// @Security     BearerAuth
-	// @ID           createStatusPageComponentMapping
-	// @Param        id            path      string                            true  "Status page ID"
-	// @Param        component_id  path      string                            true  "Component ID"
-	// @Param        request       body      statusPageComponentMappingRequest  true  "Mapping payload"
-	// @Success      201           {object}  utils.APIResponse{data=object{mapping=StatusPageComponentMappingResponse}}
-	// @Failure      400           {object}  utils.APIResponse
-	// @Failure      404           {object}  utils.APIResponse
-	// @Failure      409           {object}  utils.APIResponse
-	// @Failure      500           {object}  utils.APIResponse
-	// @Router       /v1/status-pages/{id}/components/{component_id}/mappings [post]
-	// updateStatusPageComponentMapping updates a component mapping.
-	// @Summary      Update status page component mapping
-	// @Description  Update a public component internal resource mapping
-	// @Tags         status-pages
-	// @Accept       json
-	// @Produce      json
-	// @Security     BearerAuth
-	// @ID           updateStatusPageComponentMapping
-	// @Param        id            path      string                            true  "Status page ID"
-	// @Param        component_id  path      string                            true  "Component ID"
-	// @Param        mapping_id    path      string                            true  "Mapping ID"
-	// @Param        request       body      statusPageComponentMappingRequest  true  "Mapping payload"
-	// @Success      200           {object}  utils.APIResponse{data=object{mapping=StatusPageComponentMappingResponse}}
-	// @Failure      400           {object}  utils.APIResponse
-	// @Failure      404           {object}  utils.APIResponse
-	// @Failure      409           {object}  utils.APIResponse
-	// @Failure      500           {object}  utils.APIResponse
-	// @Router       /v1/status-pages/{id}/components/{component_id}/mappings/{mapping_id} [put]
-	StatusPageSection
+	var sections []db.StatusPageSection
 	if err := s.db.Where("status_page_id = ?", c.Param("id")).Order("sort_order ASC, name ASC").Find(&sections).Error; err != nil {
 		s.logger.Error("Failed to list status page sections", "error", err)
 		utils.InternalError(c, "Failed to list status page sections", err)
@@ -161,6 +38,21 @@ func (s *Server) listStatusPageSections(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Status page sections retrieved successfully", gin.H{"sections": responses, "count": len(responses)})
 }
 
+// createStatusPageSection creates a section.
+// @Summary      Create status page section
+// @Description  Create a section for grouping public components
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           createStatusPageSection
+// @Param        id       path      string                    true  "Status page ID"
+// @Param        request  body      statusPageSectionRequest  true  "Section payload"
+// @Success      201      {object}  utils.APIResponse{data=object{section=StatusPageSectionResponse}}
+// @Failure      400      {object}  utils.APIResponse
+// @Failure      404      {object}  utils.APIResponse
+// @Failure      500      {object}  utils.APIResponse
+// @Router       /v1/status-pages/{id}/sections [post]
 func (s *Server) createStatusPageSection(c *gin.Context) {
 	if !s.statusPageExists(c, c.Param("id")) {
 		return
@@ -183,6 +75,22 @@ func (s *Server) createStatusPageSection(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusCreated, "Status page section created successfully", gin.H{"section": statusPageSectionResponse(section)})
 }
 
+// updateStatusPageSection updates a section.
+// @Summary      Update status page section
+// @Description  Update a status page section
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           updateStatusPageSection
+// @Param        id          path      string                    true  "Status page ID"
+// @Param        section_id  path      string                    true  "Section ID"
+// @Param        request     body      statusPageSectionRequest  true  "Section payload"
+// @Success      200         {object}  utils.APIResponse{data=object{section=StatusPageSectionResponse}}
+// @Failure      400         {object}  utils.APIResponse
+// @Failure      404         {object}  utils.APIResponse
+// @Failure      500         {object}  utils.APIResponse
+// @Router       /v1/status-pages/{id}/sections/{section_id} [put]
 func (s *Server) updateStatusPageSection(c *gin.Context) {
 	var section db.StatusPageSection
 	if err := s.db.Where("id = ? AND status_page_id = ?", c.Param("section_id"), c.Param("id")).First(&section).Error; err != nil {
@@ -206,6 +114,19 @@ func (s *Server) updateStatusPageSection(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Status page section updated successfully", gin.H{"section": statusPageSectionResponse(section)})
 }
 
+// listStatusPageComponents lists components for a status page.
+// @Summary      List status page components
+// @Description  Get components and mappings for a status page
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           listStatusPageComponents
+// @Param        id   path      string  true  "Status page ID"
+// @Success      200  {object}  utils.APIResponse{data=object{components=[]StatusPageComponentResponse,count=int}}
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/status-pages/{id}/components [get]
 func (s *Server) listStatusPageComponents(c *gin.Context) {
 	if !s.statusPageExists(c, c.Param("id")) {
 		return
@@ -219,6 +140,21 @@ func (s *Server) listStatusPageComponents(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Status page components retrieved successfully", gin.H{"components": components, "count": len(components)})
 }
 
+// createStatusPageComponent creates a component.
+// @Summary      Create status page component
+// @Description  Create a public component for a status page
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           createStatusPageComponent
+// @Param        id       path      string                      true  "Status page ID"
+// @Param        request  body      statusPageComponentRequest  true  "Component payload"
+// @Success      201      {object}  utils.APIResponse{data=object{component=StatusPageComponentResponse}}
+// @Failure      400      {object}  utils.APIResponse
+// @Failure      404      {object}  utils.APIResponse
+// @Failure      500      {object}  utils.APIResponse
+// @Router       /v1/status-pages/{id}/components [post]
 func (s *Server) createStatusPageComponent(c *gin.Context) {
 	if !s.statusPageExists(c, c.Param("id")) {
 		return
@@ -241,6 +177,22 @@ func (s *Server) createStatusPageComponent(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusCreated, "Status page component created successfully", gin.H{"component": statusPageComponentResponse(component, nil)})
 }
 
+// updateStatusPageComponent updates a component.
+// @Summary      Update status page component
+// @Description  Update a public component for a status page
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           updateStatusPageComponent
+// @Param        id            path      string                      true  "Status page ID"
+// @Param        component_id  path      string                      true  "Component ID"
+// @Param        request       body      statusPageComponentRequest  true  "Component payload"
+// @Success      200           {object}  utils.APIResponse{data=object{component=StatusPageComponentResponse}}
+// @Failure      400           {object}  utils.APIResponse
+// @Failure      404           {object}  utils.APIResponse
+// @Failure      500           {object}  utils.APIResponse
+// @Router       /v1/status-pages/{id}/components/{component_id} [put]
 func (s *Server) updateStatusPageComponent(c *gin.Context) {
 	component, ok := s.loadStatusPageComponentForRequest(c)
 	if !ok {
@@ -269,6 +221,20 @@ func (s *Server) updateStatusPageComponent(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Status page component updated successfully", gin.H{"component": statusPageComponentResponse(component, mappings)})
 }
 
+// listStatusPageComponentMappings lists component mappings.
+// @Summary      List status page component mappings
+// @Description  Get internal resource mappings for a public component
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           listStatusPageComponentMappings
+// @Param        id            path      string  true  "Status page ID"
+// @Param        component_id  path      string  true  "Component ID"
+// @Success      200           {object}  utils.APIResponse{data=object{mappings=[]StatusPageComponentMappingResponse,count=int}}
+// @Failure      404           {object}  utils.APIResponse
+// @Failure      500           {object}  utils.APIResponse
+// @Router       /v1/status-pages/{id}/components/{component_id}/mappings [get]
 func (s *Server) listStatusPageComponentMappings(c *gin.Context) {
 	component, ok := s.loadStatusPageComponentForRequest(c)
 	if !ok {
@@ -283,6 +249,23 @@ func (s *Server) listStatusPageComponentMappings(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Status page component mappings retrieved successfully", gin.H{"mappings": mappings, "count": len(mappings)})
 }
 
+// createStatusPageComponentMapping creates a component mapping.
+// @Summary      Create status page component mapping
+// @Description  Map a public component to an internal agent or monitor
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           createStatusPageComponentMapping
+// @Param        id            path      string                            true  "Status page ID"
+// @Param        component_id  path      string                            true  "Component ID"
+// @Param        request       body      statusPageComponentMappingRequest  true  "Mapping payload"
+// @Success      201           {object}  utils.APIResponse{data=object{mapping=StatusPageComponentMappingResponse}}
+// @Failure      400           {object}  utils.APIResponse
+// @Failure      404           {object}  utils.APIResponse
+// @Failure      409           {object}  utils.APIResponse
+// @Failure      500           {object}  utils.APIResponse
+// @Router       /v1/status-pages/{id}/components/{component_id}/mappings [post]
 func (s *Server) createStatusPageComponentMapping(c *gin.Context) {
 	component, ok := s.loadStatusPageComponentForRequest(c)
 	if !ok {
@@ -310,6 +293,24 @@ func (s *Server) createStatusPageComponentMapping(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusCreated, "Status page component mapping created successfully", gin.H{"mapping": statusPageComponentMappingResponse(mapping)})
 }
 
+// updateStatusPageComponentMapping updates a component mapping.
+// @Summary      Update status page component mapping
+// @Description  Update a public component internal resource mapping
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           updateStatusPageComponentMapping
+// @Param        id            path      string                            true  "Status page ID"
+// @Param        component_id  path      string                            true  "Component ID"
+// @Param        mapping_id    path      string                            true  "Mapping ID"
+// @Param        request       body      statusPageComponentMappingRequest  true  "Mapping payload"
+// @Success      200           {object}  utils.APIResponse{data=object{mapping=StatusPageComponentMappingResponse}}
+// @Failure      400           {object}  utils.APIResponse
+// @Failure      404           {object}  utils.APIResponse
+// @Failure      409           {object}  utils.APIResponse
+// @Failure      500           {object}  utils.APIResponse
+// @Router       /v1/status-pages/{id}/components/{component_id}/mappings/{mapping_id} [put]
 func (s *Server) updateStatusPageComponentMapping(c *gin.Context) {
 	component, ok := s.loadStatusPageComponentForRequest(c)
 	if !ok {

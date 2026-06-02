@@ -39,7 +39,10 @@ test("creates and manages a Core HTTP monitor", async ({ page }) => {
   await page.reload();
   await expect(page.getByRole("heading", { name: monitorName })).toBeVisible();
   await page.getByRole("tab", { name: "Check history" }).click();
-  await page.getByRole("row", { name: /unexpected HTTP status 200|expected 503|down/ }).first().click();
+  await page
+    .getByRole("row", { name: /unexpected HTTP status 200|expected 503|down/ })
+    .first()
+    .click();
   await expect(page.getByRole("dialog")).toContainText("Monitor Report");
   await expect(page.getByRole("dialog")).toContainText("expected_status");
   await expect(page.getByRole("dialog")).toContainText("503");
@@ -90,7 +93,8 @@ test("creates webhook alert destinations and records sanitized delivery logs", a
   const secretToken = "super-secret-failure-token";
 
   await signIn(page);
-  await page.request.delete(`${webhookReceiverURL}/captures`);
+  const resetCaptures = await page.request.delete(`${webhookReceiverURL}/captures`);
+  expect(resetCaptures.ok()).toBeTruthy();
   await page.getByRole("link", { name: "Alerts" }).click();
   await page.getByRole("tab", { name: "Channels" }).click();
   await expect(page.getByRole("heading", { name: "Webhook Channels" })).toBeVisible();
@@ -118,20 +122,32 @@ test("creates webhook alert destinations and records sanitized delivery logs", a
 
   await page.getByRole("tab", { name: "Channels" }).click();
   await sendWebhookTest(page, sentDestination);
-  await expect(page.getByText(`Test sent to ${sentDestination}. Delivery status: sent.`)).toBeVisible();
+  await expect(
+    page.getByText(`Test sent to ${sentDestination}. Delivery status: sent.`),
+  ).toBeVisible();
   const capturesResponse = await page.request.get(`${webhookReceiverURL}/captures`);
   expect(capturesResponse.ok()).toBeTruthy();
-  const captures = (await capturesResponse.json()) as { captures: { body: string; path: string }[] };
+  const captures = (await capturesResponse.json()) as {
+    captures: { body: string; path: string }[];
+  };
   expect(captures.captures.some((capture) => capture.path === "/webhook/success")).toBeTruthy();
-  expect(captures.captures.map((capture) => capture.body).join("\n")).toContain("Alert channel test");
+  expect(captures.captures.map((capture) => capture.body).join("\n")).toContain(
+    "Alert channel test",
+  );
 
-  await page.goto(`/alerts?tab=logs&status=sent&type=webhook&event_type=test&channel=${encodeURIComponent(sentDestination)}`);
+  await page.goto(
+    `/alerts?tab=logs&status=sent&type=webhook&event_type=test&channel=${encodeURIComponent(sentDestination)}`,
+  );
   await expect(page.getByRole("heading", { name: "Notification Log" })).toBeVisible();
   await expect(page.getByRole("row", { name: new RegExp(sentDestination) })).toContainText("sent");
   await page.getByRole("tab", { name: "Channels" }).click();
   await sendWebhookTest(page, failedDestination);
-  await expect(page.getByText(`Test sent to ${failedDestination}. Delivery status: failed.`)).toBeVisible();
-  await page.goto(`/alerts?tab=logs&status=failed&type=webhook&event_type=test&channel=${encodeURIComponent(failedDestination)}`);
+  await expect(
+    page.getByText(`Test sent to ${failedDestination}. Delivery status: failed.`),
+  ).toBeVisible();
+  await page.goto(
+    `/alerts?tab=logs&status=failed&type=webhook&event_type=test&channel=${encodeURIComponent(failedDestination)}`,
+  );
   await expect(page.getByRole("row", { name: new RegExp(failedDestination) })).toContainText(
     "delivery failed; check Core logs",
   );
@@ -154,14 +170,25 @@ test("creates a Core heartbeat monitor and shows setup affordances", async ({ pa
   await expect(page.getByText("Heartbeat monitor created.")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Heartbeat Setup" })).toBeVisible();
   const endpointFor = async (suffix: string) => {
-    const endpoint = await page.locator("pre").filter({ hasText: "/v1/heartbeats/" }).filter({ hasText: suffix }).first().textContent();
+    const endpoint = await page
+      .locator("pre")
+      .filter({ hasText: "/v1/heartbeats/" })
+      .filter({ hasText: suffix })
+      .first()
+      .textContent();
     expect(endpoint).toBeTruthy();
     return endpoint?.trim() ?? "";
   };
   const successEndpoint = await endpointFor("/success");
   const failureEndpoint = await endpointFor("/failure");
 
-  expect((await page.request.post(failureEndpoint, { data: "password=super-secret token=raw-token-value" })).ok()).toBeTruthy();
+  expect(
+    (
+      await page.request.post(failureEndpoint, {
+        data: "password=super-secret token=raw-token-value",
+      })
+    ).ok(),
+  ).toBeTruthy();
   expect((await page.request.post(successEndpoint, { data: "status=ok" })).ok()).toBeTruthy();
   await page.getByRole("link", { name: "Open monitor" }).click();
   await expect(page.getByRole("heading", { name: monitorName })).toBeVisible();

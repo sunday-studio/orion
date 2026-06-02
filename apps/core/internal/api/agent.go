@@ -2,14 +2,27 @@ package api
 
 import (
 	"errors"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"orion/core/internal/db"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
+// registerAgent registers a new agent or reconnects an existing one.
+// @Summary      Register an agent
+// @Description  Register a new agent or reconnect an existing agent by machine ID
+// @Tags         agents
+// @Accept       json
+// @Produce      json
+// @ID           registerAgent
+// @Param        request  body      service.RegisterRequest  true  "Agent registration request"
+// @Success      200      {object}  utils.APIResponse{data=service.RegisterResponse}
+// @Failure      400      {object}  utils.APIResponse
+// @Failure      500      {object}  utils.APIResponse
+// @Router       /v1/register [post]
 func (s *Server) registerAgent(c *gin.Context) {
 	var req service.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -54,6 +67,18 @@ type AgentTokenIssuedResponse struct {
 	Status AgentTokenStatusResponse `json:"status"`
 }
 
+// getAgentTokenStatus returns non-secret token lifecycle metadata for an agent.
+// @Summary      Get agent token status
+// @Description  Get non-secret token lifecycle metadata for an agent
+// @Tags         agents
+// @Accept       json
+// @Produce      json
+// @ID           getAgentTokenStatus
+// @Param        agent_id  path      string  true  "Agent ID"
+// @Success      200       {object}  utils.APIResponse{data=AgentTokenStatusResponse}
+// @Failure      400       {object}  utils.APIResponse
+// @Failure      404       {object}  utils.APIResponse
+// @Router       /v1/agents/{agent_id}/token/status [get]
 func (s *Server) getAgentTokenStatus(c *gin.Context) {
 	agentID := agentIDParam(c)
 	if agentID == "" {
@@ -68,14 +93,56 @@ func (s *Server) getAgentTokenStatus(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Agent token status retrieved successfully", agentTokenStatusResponse(*status, requestIDFromContext(c)))
 }
 
+// rotateAgentToken creates a replacement token for an active agent.
+// @Summary      Rotate agent token
+// @Description  Create a replacement token for an active agent and return it once
+// @Tags         agents
+// @Accept       json
+// @Produce      json
+// @ID           rotateAgentToken
+// @Param        agent_id  path      string                   true   "Agent ID"
+// @Param        request   body      AgentTokenActionRequest  false  "Token action request"
+// @Success      200       {object}  utils.APIResponse{data=AgentTokenIssuedResponse}
+// @Failure      400       {object}  utils.APIResponse
+// @Failure      404       {object}  utils.APIResponse
+// @Failure      409       {object}  utils.APIResponse
+// @Router       /v1/agents/{agent_id}/token/rotate [post]
 func (s *Server) rotateAgentToken(c *gin.Context) {
 	s.agentTokenIssueAction(c, s.agentService.RotateAgentToken, "Agent token rotated successfully")
 }
 
+// reissueAgentToken creates a replacement token for a revoked agent.
+// @Summary      Reissue agent token
+// @Description  Create a replacement token for a revoked agent and return it once
+// @Tags         agents
+// @Accept       json
+// @Produce      json
+// @ID           reissueAgentToken
+// @Param        agent_id  path      string                   true   "Agent ID"
+// @Param        request   body      AgentTokenActionRequest  false  "Token action request"
+// @Success      200       {object}  utils.APIResponse{data=AgentTokenIssuedResponse}
+// @Failure      400       {object}  utils.APIResponse
+// @Failure      404       {object}  utils.APIResponse
+// @Failure      409       {object}  utils.APIResponse
+// @Router       /v1/agents/{agent_id}/token/reissue [post]
 func (s *Server) reissueAgentToken(c *gin.Context) {
 	s.agentTokenIssueAction(c, s.agentService.ReissueAgentToken, "Agent token reissued successfully")
 }
 
+// revokeAgentToken revokes the active token for an agent.
+// @Summary      Revoke agent token
+// @Description  Revoke the active token for an agent without deleting the agent or monitors
+// @Tags         agents
+// @Accept       json
+// @Produce      json
+// @ID           revokeAgentToken
+// @Param        agent_id  path      string                   true   "Agent ID"
+// @Param        request   body      AgentTokenActionRequest  false  "Token action request"
+// @Success      200       {object}  utils.APIResponse{data=AgentTokenStatusResponse}
+// @Failure      400       {object}  utils.APIResponse
+// @Failure      404       {object}  utils.APIResponse
+// @Failure      409       {object}  utils.APIResponse
+// @Router       /v1/agents/{agent_id}/token/revoke [post]
 func (s *Server) revokeAgentToken(c *gin.Context) {
 	agentID := agentIDParam(c)
 	if agentID == "" {
@@ -159,6 +226,21 @@ func agentIDParam(c *gin.Context) string {
 	return c.Param("id")
 }
 
+// setMaintenanceMode sets the maintenance mode for an agent.
+// @Summary      Set agent maintenance mode
+// @Description  Enable or disable maintenance mode for a specific agent
+// @Tags         agents
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           setMaintenanceMode
+// @Param        agent_id  path      string                            true  "Agent ID"
+// @Param        request   body      service.SetMaintenanceModeRequest  true  "Maintenance mode request"
+// @Success      200       {object}  utils.APIResponse
+// @Failure      400       {object}  utils.APIResponse
+// @Failure      401       {object}  utils.APIResponse
+// @Failure      500       {object}  utils.APIResponse
+// @Router       /v1/agents/{agent_id}/maintenance [put]
 func (s *Server) setMaintenanceMode(c *gin.Context) {
 	agentID := c.Param("agent_id")
 	if agentID == "" {
@@ -180,6 +262,23 @@ func (s *Server) setMaintenanceMode(c *gin.Context) {
 	utils.SuccessResponse(c, 200, "Maintenance mode updated successfully", gin.H{"agent_id": agentID, "maintenance_mode": *req.MaintenanceMode})
 }
 
+// listAgents retrieves a paginated list of agents.
+// @Summary      List agents
+// @Description  Get a paginated list of all registered agents
+// @Tags         agents
+// @Accept       json
+// @Produce      json
+// @ID           getAgents
+// @Param        limit          query  int     false  "Maximum number of agents to return" default(50)
+// @Param        offset         query  int     false  "Number of agents to skip" default(0)
+// @Param        search         query  string  false  "Search by server or monitor name"
+// @Param        status         query  string  false  "Filter by computed server status"
+// @Param        maintenance    query  string  false  "Filter by maintenance mode true or false"
+// @Param        stale_only     query  bool    false  "Only return stale servers"
+// @Param        has_incidents  query  bool    false  "Only return servers with active incidents"
+// @Success      200            {object}  utils.APIResponse{data=object{agents=[]AgentResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta}}
+// @Failure      500            {object}  utils.APIResponse
+// @Router       /v1/agents [get]
 func (s *Server) listAgents(c *gin.Context) {
 	limit := utils.QueryInt(c, "limit", 50)
 	offset := utils.QueryInt(c, "offset", 0)
@@ -194,119 +293,20 @@ func (s *Server) listAgents(c *gin.Context) {
 	utils.SuccessResponse(c, 200, "Agents retrieved successfully", gin.H{"agents": responses, "count": count, "limit": limit, "offset": offset, "pagination": utils.NewPaginationMeta(count, limit, offset, len(responses))})
 }
 
+// getAgentSummary retrieves aggregate counts for the agent list.
+// @Summary      Get agent summary
+// @Description  Get aggregate counts for registered agents by health, maintenance, stale, and incident status
+// @Tags         agents
+// @Accept       json
+// @Produce      json
+// @ID           getAgentSummary
+// @Success      200  {object}  utils.APIResponse{data=AgentSummaryResponse}
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/agents/summary [get]
 func (s *Server) getAgentSummary(c *gin.Context) {
 	healthService := service.NewHealthService(s.db, s.logger)
 	config := service.DefaultHealthConfig()
-	var agents []db.// registerAgent registers a new agent or reconnects an existing one
-	// @Summary      Register an agent
-	// @Description  Register a new agent or reconnect an existing agent by machine ID
-	// @Tags         agents
-	// @Accept       json
-	// @Produce      json
-	// @ID           registerAgent
-	// @Param        request  body      service.RegisterRequest  true  "Agent registration request"
-	// @Success      200      {object}  utils.APIResponse{data=service.RegisterResponse}
-	// @Failure      400      {object}  utils.APIResponse
-	// @Failure      500      {object}  utils.APIResponse
-	// @Router       /v1/register [post]
-	// getAgentTokenStatus returns non-secret token lifecycle metadata for an agent.
-	// @Summary      Get agent token status
-	// @Description  Get non-secret token lifecycle metadata for an agent
-	// @Tags         agents
-	// @Accept       json
-	// @Produce      json
-	// @ID           getAgentTokenStatus
-	// @Param        agent_id  path      string  true  "Agent ID"
-	// @Success      200       {object}  utils.APIResponse{data=AgentTokenStatusResponse}
-	// @Failure      400       {object}  utils.APIResponse
-	// @Failure      404       {object}  utils.APIResponse
-	// @Router       /v1/agents/{agent_id}/token/status [get]
-	// rotateAgentToken creates a replacement token for an active agent.
-	// @Summary      Rotate agent token
-	// @Description  Create a replacement token for an active agent and return it once
-	// @Tags         agents
-	// @Accept       json
-	// @Produce      json
-	// @ID           rotateAgentToken
-	// @Param        agent_id  path      string                   true   "Agent ID"
-	// @Param        request   body      AgentTokenActionRequest  false  "Token action request"
-	// @Success      200       {object}  utils.APIResponse{data=AgentTokenIssuedResponse}
-	// @Failure      400       {object}  utils.APIResponse
-	// @Failure      404       {object}  utils.APIResponse
-	// @Failure      409       {object}  utils.APIResponse
-	// @Router       /v1/agents/{agent_id}/token/rotate [post]
-	// reissueAgentToken creates a replacement token for a revoked agent.
-	// @Summary      Reissue agent token
-	// @Description  Create a replacement token for a revoked agent and return it once
-	// @Tags         agents
-	// @Accept       json
-	// @Produce      json
-	// @ID           reissueAgentToken
-	// @Param        agent_id  path      string                   true   "Agent ID"
-	// @Param        request   body      AgentTokenActionRequest  false  "Token action request"
-	// @Success      200       {object}  utils.APIResponse{data=AgentTokenIssuedResponse}
-	// @Failure      400       {object}  utils.APIResponse
-	// @Failure      404       {object}  utils.APIResponse
-	// @Failure      409       {object}  utils.APIResponse
-	// @Router       /v1/agents/{agent_id}/token/reissue [post]
-	// revokeAgentToken revokes the active token for an agent.
-	// @Summary      Revoke agent token
-	// @Description  Revoke the active token for an agent without deleting the agent or monitors
-	// @Tags         agents
-	// @Accept       json
-	// @Produce      json
-	// @ID           revokeAgentToken
-	// @Param        agent_id  path      string                   true   "Agent ID"
-	// @Param        request   body      AgentTokenActionRequest  false  "Token action request"
-	// @Success      200       {object}  utils.APIResponse{data=AgentTokenStatusResponse}
-	// @Failure      400       {object}  utils.APIResponse
-	// @Failure      404       {object}  utils.APIResponse
-	// @Failure      409       {object}  utils.APIResponse
-	// @Router       /v1/agents/{agent_id}/token/revoke [post]
-	// setMaintenanceMode sets the maintenance mode for an agent
-	// @Summary      Set agent maintenance mode
-	// @Description  Enable or disable maintenance mode for a specific agent
-	// @Tags         agents
-	// @Accept       json
-	// @Produce      json
-	// @Security     BearerAuth
-	// @ID           setMaintenanceMode
-	// @Param        agent_id  path      string                           true  "Agent ID"
-	// @Param        request   body      service.SetMaintenanceModeRequest true  "Maintenance mode request"
-	// @Success      200       {object}  utils.APIResponse
-	// @Failure      400       {object}  utils.APIResponse
-	// @Failure      401       {object}  utils.APIResponse
-	// @Failure      500       {object}  utils.APIResponse
-	// @Router       /v1/agents/{agent_id}/maintenance [put]
-	// listAgents retrieves a paginated list of agents
-	// @Summary      List agents
-	// @Description  Get a paginated list of all registered agents
-	// @Tags         agents
-	// @Accept       json
-	// @Produce      json
-	// @ID           getAgents
-	// @Param        limit   query     int     false  "Maximum number of agents to return" default(50)
-	// @Param        offset  query     int     false  "Number of agents to skip" default(0)
-	// @Param        search  query     string  false  "Search by server or monitor name"
-	// @Param        status  query     string  false  "Filter by computed server status"
-	// @Param        maintenance  query  string  false  "Filter by maintenance mode true or false"
-	// @Param        stale_only  query   bool    false  "Only return stale servers"
-	// @Param        has_incidents  query  bool  false  "Only return servers with active incidents"
-	// @Success      200     {object}  utils.APIResponse{data=object{agents=[]AgentResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta}}
-	// @Failure      500     {object}  utils.APIResponse
-	// @Router       /v1/agents [get]
-	// getAgentSummary retrieves aggregate counts for the agent list.
-	// @Summary      Get agent summary
-	// @Description  Get aggregate counts for registered agents by health, maintenance, stale, and incident status
-	// @Tags         agents
-	// @Accept       json
-	// @Produce      json
-	// @ID           getAgentSummary
-	// @Success      200  {object}  utils.APIResponse{data=api.AgentSummaryResponse}
-	// @Failure      500  {object}  utils.APIResponse
-	// @Router       /v1/agents/summary [get]
-	// Maintenance is counted from agent state above and is not an unknown health state.
-	Agent
+	var agents []db.Agent
 	if err := s.db.Where("deleted_at IS NULL OR deleted_at = ?", time.Time{}).Find(&agents).Error; err != nil {
 		s.logger.Error("Failed to load agent summary", "error", err)
 		utils.InternalError(c, "Failed to get agent summary", err)

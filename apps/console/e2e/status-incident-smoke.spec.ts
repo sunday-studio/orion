@@ -69,7 +69,7 @@ test("creates a public status incident draft from an internal incident", async (
   const token = await page.evaluate(() => localStorage.getItem("orion_token"));
   expect(token).toBeTruthy();
   const adminIncidents = await page.request.get(
-    "http://127.0.0.1:18999/v1/status-pages/seed-status-page-main/incidents",
+    `${coreURL}/v1/status-pages/seed-status-page-main/incidents`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
   expect(adminIncidents.ok()).toBeTruthy();
@@ -82,13 +82,11 @@ test("creates a public status incident draft from an internal incident", async (
   expect(draftIncident?.visibility).toBe("draft");
   if (!draftIncident?.id) throw new Error("Draft incident was not created");
 
-  const publicList = await page.request.get(
-    "http://127.0.0.1:18999/status/seed-orion-status/incidents",
-  );
+  const publicList = await page.request.get(`${coreURL}/status/seed-orion-status/incidents`);
   expect(publicList.ok()).toBeTruthy();
   expect(await publicList.text()).not.toContain("Investigating an issue affecting Checkout");
   const publicDetail = await page.request.get(
-    `http://127.0.0.1:18999/status/seed-orion-status/incidents/${draftIncident.id}`,
+    `${coreURL}/status/seed-orion-status/incidents/${draftIncident.id}`,
   );
   expect(publicDetail.status()).toBe(404);
 });

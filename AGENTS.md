@@ -81,7 +81,7 @@ storage changes when allowed; if remote push is blocked, say so explicitly.
 
 ## App Code Size Rules
 
-- App source files under `apps/` must stay at or below 500 lines.
+- App source files under `apps/` with `.go`, `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.css`, and `.sh` extensions must stay at or below 500 lines.
 - This rule applies to product and test code in `apps/agent/`, `apps/core/`, and `apps/console/`.
 - This rule does not apply to docs, config files, generated SDK/OpenAPI/Swagger output, built web assets, public assets, or database migrations.
 - Before adding a new oversized file or expanding an existing oversized file, split it by responsibility instead.

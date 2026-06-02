@@ -49,11 +49,13 @@ test("reads, saves, validates, and runs Settings lifecycle controls", async ({ p
   await expect(page.getByText(/Archived \d+ reports\./)).toBeVisible();
 
   await rawReportDays.fill("30");
+  await rollupDays.fill("");
   await archiveSchedule.click();
   await page.getByRole("option", { name: "Manual only" }).click();
   await page.getByRole("button", { name: "Save settings" }).click();
   await expect(page.getByText("Settings saved.")).toBeVisible();
   await expect(rawReportDays).toHaveValue("30");
+  await expect(rollupDays).toHaveValue("");
 });
 
 test("confirms archive and prevents duplicate maintenance submissions", async ({ page }) => {
@@ -159,6 +161,11 @@ test("reads and saves data lifecycle settings", async ({ page }) => {
     page.getByRole("checkbox", { name: "Archive raw reports automatically" }),
   ).toBeChecked();
   await expect(page.getByRole("checkbox", { name: "Enable rollups" })).toBeChecked();
+
+  await page.getByLabel("Raw report days").fill("30");
+  await page.getByLabel("Rollup days").fill("");
+  await page.getByRole("button", { name: "Save settings" }).click();
+  await expect(page.getByText("Settings saved.")).toBeVisible();
 });
 
 test("validates settings and runs manual lifecycle actions", async ({ page }) => {
@@ -182,4 +189,10 @@ test("validates settings and runs manual lifecycle actions", async ({ page }) =>
   await expect(page.getByText(/Archived \d+ reports\./)).toBeVisible();
   await expect(page.getByText("Last archive")).toBeVisible();
   await expect(page.getByText("success")).toBeVisible();
+
+  await openSettings(page);
+  await page.getByLabel("Raw report days").fill("30");
+  await page.getByLabel("Rollup days").fill("");
+  await page.getByRole("button", { name: "Save settings" }).click();
+  await expect(page.getByText("Settings saved.")).toBeVisible();
 });

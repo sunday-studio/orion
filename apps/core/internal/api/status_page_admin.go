@@ -2,111 +2,30 @@ package api
 
 import (
 	"encoding/json"
-	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 	"net/http"
 	"orion/core/internal/db"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
 	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
+// listStatusPages retrieves status page drafts and publications.
+// @Summary      List status pages
+// @Description  Get status page publication configurations ordered by title
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           listStatusPages
+// @Success      200  {object}  utils.APIResponse{data=object{pages=[]StatusPageResponse,count=int}}
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/status-pages [get]
 func (s *Server) listStatusPages(c *gin.Context) {
-	var pages []db.// listStatusPages retrieves status page drafts and publications.
-	// @Summary      List status pages
-	// @Description  Get status page publication configurations ordered by title
-	// @Tags         status-pages
-	// @Accept       json
-	// @Produce      json
-	// @Security     BearerAuth
-	// @ID           listStatusPages
-	// @Success      200  {object}  utils.APIResponse{data=object{pages=[]StatusPageResponse,count=int}}
-	// @Failure      500  {object}  utils.APIResponse
-	// @Router       /v1/status-pages [get]
-	// createStatusPage creates a status page draft.
-	// @Summary      Create status page
-	// @Description  Create a draft status page publication configuration
-	// @Tags         status-pages
-	// @Accept       json
-	// @Produce      json
-	// @Security     BearerAuth
-	// @ID           createStatusPage
-	// @Param        request  body      statusPageRequest  true  "Status page payload"
-	// @Success      201      {object}  utils.APIResponse{data=object{page=StatusPageResponse}}
-	// @Failure      400      {object}  utils.APIResponse
-	// @Failure      409      {object}  utils.APIResponse
-	// @Failure      500      {object}  utils.APIResponse
-	// @Router       /v1/status-pages [post]
-	// getStatusPage retrieves a status page with nested admin configuration.
-	// @Summary      Get status page
-	// @Description  Get a status page with sections, components, mappings, incidents, and incident updates
-	// @Tags         status-pages
-	// @Accept       json
-	// @Produce      json
-	// @Security     BearerAuth
-	// @ID           getStatusPage
-	// @Param        id   path      string  true  "Status page ID"
-	// @Success      200  {object}  utils.APIResponse{data=StatusPageDetailResponse}
-	// @Failure      404  {object}  utils.APIResponse
-	// @Failure      500  {object}  utils.APIResponse
-	// @Router       /v1/status-pages/{id} [get]
-	// updateStatusPage updates page-level status page settings.
-	// @Summary      Update status page
-	// @Description  Update page-level status page publication settings
-	// @Tags         status-pages
-	// @Accept       json
-	// @Produce      json
-	// @Security     BearerAuth
-	// @ID           updateStatusPage
-	// @Param        id       path      string             true  "Status page ID"
-	// @Param        request  body      statusPageRequest  true  "Status page payload"
-	// @Success      200      {object}  utils.APIResponse{data=object{page=StatusPageResponse}}
-	// @Failure      400      {object}  utils.APIResponse
-	// @Failure      404      {object}  utils.APIResponse
-	// @Failure      409      {object}  utils.APIResponse
-	// @Failure      500      {object}  utils.APIResponse
-	// @Router       /v1/status-pages/{id} [put]
-	// publishStatusPage publishes a status page.
-	// @Summary      Publish status page
-	// @Description  Mark a status page as public and set published_at
-	// @Tags         status-pages
-	// @Accept       json
-	// @Produce      json
-	// @Security     BearerAuth
-	// @ID           publishStatusPage
-	// @Param        id   path      string  true  "Status page ID"
-	// @Success      200  {object}  utils.APIResponse{data=object{page=StatusPageResponse}}
-	// @Failure      404  {object}  utils.APIResponse
-	// @Failure      500  {object}  utils.APIResponse
-	// @Router       /v1/status-pages/{id}/publish [post]
-	// unpublishStatusPage unpublishes a status page.
-	// @Summary      Unpublish status page
-	// @Description  Return a status page to draft visibility while retaining published_at history
-	// @Tags         status-pages
-	// @Accept       json
-	// @Produce      json
-	// @Security     BearerAuth
-	// @ID           unpublishStatusPage
-	// @Param        id   path      string  true  "Status page ID"
-	// @Success      200  {object}  utils.APIResponse{data=object{page=StatusPageResponse}}
-	// @Failure      404  {object}  utils.APIResponse
-	// @Failure      500  {object}  utils.APIResponse
-	// @Router       /v1/status-pages/{id}/unpublish [post]
-	// previewStatusPage returns a public-safe draft preview.
-	// @Summary      Preview status page
-	// @Description  Preview the public-safe projection of a status page draft or publication
-	// @Tags         status-pages
-	// @Accept       json
-	// @Produce      json
-	// @Security     BearerAuth
-	// @ID           previewStatusPage
-	// @Param        id   path      string  true  "Status page ID"
-	// @Success      200  {object}  utils.APIResponse{data=object{preview=StatusPagePreviewResponse}}
-	// @Failure      404  {object}  utils.APIResponse
-	// @Failure      500  {object}  utils.APIResponse
-	// @Router       /v1/status-pages/{id}/preview [get]
-	StatusPage
+	var pages []db.StatusPage
 	if err := s.db.Order("title ASC").Find(&pages).Error; err != nil {
 		s.logger.Error("Failed to list status pages", "error", err)
 		utils.InternalError(c, "Failed to list status pages", err)
@@ -119,6 +38,20 @@ func (s *Server) listStatusPages(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Status pages retrieved successfully", gin.H{"pages": responses, "count": len(responses)})
 }
 
+// createStatusPage creates a status page draft.
+// @Summary      Create status page
+// @Description  Create a draft status page publication configuration
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           createStatusPage
+// @Param        request  body      statusPageRequest  true  "Status page payload"
+// @Success      201      {object}  utils.APIResponse{data=object{page=StatusPageResponse}}
+// @Failure      400      {object}  utils.APIResponse
+// @Failure      409      {object}  utils.APIResponse
+// @Failure      500      {object}  utils.APIResponse
+// @Router       /v1/status-pages [post]
 func (s *Server) createStatusPage(c *gin.Context) {
 	var request statusPageRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -137,6 +70,19 @@ func (s *Server) createStatusPage(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusCreated, "Status page created successfully", gin.H{"page": statusPageResponse(page)})
 }
 
+// getStatusPage retrieves a status page with nested admin configuration.
+// @Summary      Get status page
+// @Description  Get a status page with sections, components, mappings, incidents, and incident updates
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           getStatusPage
+// @Param        id   path      string  true  "Status page ID"
+// @Success      200  {object}  utils.APIResponse{data=StatusPageDetailResponse}
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/status-pages/{id} [get]
 func (s *Server) getStatusPage(c *gin.Context) {
 	detail, err := s.loadStatusPageDetail(c.Param("id"))
 	if err != nil {
@@ -146,6 +92,22 @@ func (s *Server) getStatusPage(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Status page retrieved successfully", detail)
 }
 
+// updateStatusPage updates page-level status page settings.
+// @Summary      Update status page
+// @Description  Update page-level status page publication settings
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           updateStatusPage
+// @Param        id       path      string             true  "Status page ID"
+// @Param        request  body      statusPageRequest  true  "Status page payload"
+// @Success      200      {object}  utils.APIResponse{data=object{page=StatusPageResponse}}
+// @Failure      400      {object}  utils.APIResponse
+// @Failure      404      {object}  utils.APIResponse
+// @Failure      409      {object}  utils.APIResponse
+// @Failure      500      {object}  utils.APIResponse
+// @Router       /v1/status-pages/{id} [put]
 func (s *Server) updateStatusPage(c *gin.Context) {
 	var page db.StatusPage
 	if err := s.db.Where("id = ?", c.Param("id")).First(&page).Error; err != nil {
@@ -168,6 +130,19 @@ func (s *Server) updateStatusPage(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Status page updated successfully", gin.H{"page": statusPageResponse(page)})
 }
 
+// publishStatusPage publishes a status page.
+// @Summary      Publish status page
+// @Description  Mark a status page as public and set published_at
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           publishStatusPage
+// @Param        id   path      string  true  "Status page ID"
+// @Success      200  {object}  utils.APIResponse{data=object{page=StatusPageResponse}}
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/status-pages/{id}/publish [post]
 func (s *Server) publishStatusPage(c *gin.Context) {
 	var page db.StatusPage
 	if err := s.db.Where("id = ?", c.Param("id")).First(&page).Error; err != nil {
@@ -200,10 +175,36 @@ func (s *Server) publishStatusPage(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Status page published successfully", gin.H{"page": statusPageResponse(page), "validation": validation})
 }
 
+// unpublishStatusPage unpublishes a status page.
+// @Summary      Unpublish status page
+// @Description  Return a status page to draft visibility while retaining published_at history
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           unpublishStatusPage
+// @Param        id   path      string  true  "Status page ID"
+// @Success      200  {object}  utils.APIResponse{data=object{page=StatusPageResponse}}
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/status-pages/{id}/unpublish [post]
 func (s *Server) unpublishStatusPage(c *gin.Context) {
 	s.setStatusPageVisibility(c, statusPageVisibilityDraft, false, "Status page unpublished successfully")
 }
 
+// previewStatusPage returns a public-safe draft preview.
+// @Summary      Preview status page
+// @Description  Preview the public-safe projection of a status page draft or publication
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           previewStatusPage
+// @Param        id   path      string  true  "Status page ID"
+// @Success      200  {object}  utils.APIResponse{data=object{preview=StatusPagePreviewResponse}}
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/status-pages/{id}/preview [get]
 func (s *Server) previewStatusPage(c *gin.Context) {
 	detail, err := s.loadStatusPageDetail(c.Param("id"))
 	if err != nil {

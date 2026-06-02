@@ -2,8 +2,6 @@ package api
 
 import (
 	"errors"
-	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 	"net/http"
 	"orion/core/internal/db"
 	"orion/core/internal/service"
@@ -11,65 +9,12 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
-func incidentNextActions(incident db.Incident, monitor db.Monitor, deliveries []db.// acknowledgeIncident manually acknowledges an active incident.
-// @Summary      Acknowledge incident
-// @Description  Mark an active incident as acknowledged and record a manual incident event
-// @Tags         incidents
-// @Accept       json
-// @Produce      json
-// @ID           acknowledgeIncident
-// @Param        id   path      string  true  "Incident ID"
-// @Param        request  body  incidentLifecycleActionRequest  false  "Lifecycle action metadata"
-// @Success      200  {object}  utils.APIResponse{data=object{incident=IncidentResponse}}
-// @Failure      400  {object}  utils.APIResponse
-// @Failure      404  {object}  utils.APIResponse
-// @Failure      500  {object}  utils.APIResponse
-// @Router       /v1/incidents/{id}/acknowledge [post]
-// resolveIncident manually resolves an active incident.
-// @Summary      Resolve incident
-// @Description  Mark an active incident as resolved, clear its monitor active incident path, and record a manual incident event
-// @Tags         incidents
-// @Accept       json
-// @Produce      json
-// @ID           resolveIncident
-// @Param        id   path      string  true  "Incident ID"
-// @Param        request  body  incidentLifecycleActionRequest  false  "Lifecycle action metadata"
-// @Success      200  {object}  utils.APIResponse{data=object{incident=IncidentResponse}}
-// @Failure      400  {object}  utils.APIResponse
-// @Failure      404  {object}  utils.APIResponse
-// @Failure      500  {object}  utils.APIResponse
-// @Router       /v1/incidents/{id}/resolve [post]
-// coverIncident marks an active incident as covered.
-// @Summary      Cover incident
-// @Description  Mark an active incident as covered, optionally until a future timestamp, and record a manual incident event
-// @Tags         incidents
-// @Accept       json
-// @Produce      json
-// @ID           coverIncident
-// @Param        id       path      string                   true   "Incident ID"
-// @Param        request  body      incidentCoverageRequest  false  "Coverage payload"
-// @Success      200      {object}  utils.APIResponse{data=object{incident=IncidentResponse}}
-// @Failure      400      {object}  utils.APIResponse
-// @Failure      404      {object}  utils.APIResponse
-// @Failure      500      {object}  utils.APIResponse
-// @Router       /v1/incidents/{id}/cover [post]
-// reopenIncident reopens a resolved or covered incident.
-// @Summary      Reopen incident
-// @Description  Reopen a covered or resolved incident, restore its monitor active incident path, and record a manual incident event
-// @Tags         incidents
-// @Accept       json
-// @Produce      json
-// @ID           reopenIncident
-// @Param        id   path      string  true  "Incident ID"
-// @Param        request  body  incidentLifecycleActionRequest  false  "Lifecycle action metadata"
-// @Success      200  {object}  utils.APIResponse{data=object{incident=IncidentResponse}}
-// @Failure      400  {object}  utils.APIResponse
-// @Failure      404  {object}  utils.APIResponse
-// @Failure      500  {object}  utils.APIResponse
-// @Router       /v1/incidents/{id}/reopen [post]
-AlertDelivery, reports []db.MonitorReport, related []IncidentRelatedIncidentResponse) []IncidentNextActionResponse {
+func incidentNextActions(incident db.Incident, monitor db.Monitor, deliveries []db.AlertDelivery, reports []db.MonitorReport, related []IncidentRelatedIncidentResponse) []IncidentNextActionResponse {
 	actions := make([]IncidentNextActionResponse, 0, 5)
 	switch incident.Status {
 	case "open":
@@ -130,6 +75,20 @@ func failedAlertDeliveryCount(deliveries []db.AlertDelivery) int {
 	return count
 }
 
+// acknowledgeIncident manually acknowledges an active incident.
+// @Summary      Acknowledge incident
+// @Description  Mark an active incident as acknowledged and record a manual incident event
+// @Tags         incidents
+// @Accept       json
+// @Produce      json
+// @ID           acknowledgeIncident
+// @Param        id       path  string                          true   "Incident ID"
+// @Param        request  body  incidentLifecycleActionRequest  false  "Lifecycle action metadata"
+// @Success      200      {object}  utils.APIResponse{data=object{incident=IncidentResponse}}
+// @Failure      400      {object}  utils.APIResponse
+// @Failure      404      {object}  utils.APIResponse
+// @Failure      500      {object}  utils.APIResponse
+// @Router       /v1/incidents/{id}/acknowledge [post]
 func (s *Server) acknowledgeIncident(c *gin.Context) {
 	request, ok := bindIncidentLifecycleActionRequest(c)
 	if !ok {
@@ -143,6 +102,20 @@ func (s *Server) acknowledgeIncident(c *gin.Context) {
 	s.writeIncidentActionResponse(c, "Incident acknowledged successfully", incident)
 }
 
+// resolveIncident manually resolves an active incident.
+// @Summary      Resolve incident
+// @Description  Mark an active incident as resolved, clear its monitor active incident path, and record a manual incident event
+// @Tags         incidents
+// @Accept       json
+// @Produce      json
+// @ID           resolveIncident
+// @Param        id       path  string                          true   "Incident ID"
+// @Param        request  body  incidentLifecycleActionRequest  false  "Lifecycle action metadata"
+// @Success      200      {object}  utils.APIResponse{data=object{incident=IncidentResponse}}
+// @Failure      400      {object}  utils.APIResponse
+// @Failure      404      {object}  utils.APIResponse
+// @Failure      500      {object}  utils.APIResponse
+// @Router       /v1/incidents/{id}/resolve [post]
 func (s *Server) resolveIncident(c *gin.Context) {
 	request, ok := bindIncidentLifecycleActionRequest(c)
 	if !ok {
@@ -156,6 +129,20 @@ func (s *Server) resolveIncident(c *gin.Context) {
 	s.writeIncidentActionResponse(c, "Incident resolved successfully", incident)
 }
 
+// coverIncident marks an active incident as covered.
+// @Summary      Cover incident
+// @Description  Mark an active incident as covered, optionally until a future timestamp, and record a manual incident event
+// @Tags         incidents
+// @Accept       json
+// @Produce      json
+// @ID           coverIncident
+// @Param        id       path      string                   true   "Incident ID"
+// @Param        request  body      incidentCoverageRequest  false  "Coverage payload"
+// @Success      200      {object}  utils.APIResponse{data=object{incident=IncidentResponse}}
+// @Failure      400      {object}  utils.APIResponse
+// @Failure      404      {object}  utils.APIResponse
+// @Failure      500      {object}  utils.APIResponse
+// @Router       /v1/incidents/{id}/cover [post]
 func (s *Server) coverIncident(c *gin.Context) {
 	var request incidentCoverageRequest
 	if c.Request.Body != nil && c.Request.ContentLength != 0 {
@@ -172,6 +159,20 @@ func (s *Server) coverIncident(c *gin.Context) {
 	s.writeIncidentActionResponse(c, "Incident covered successfully", incident)
 }
 
+// reopenIncident reopens a resolved or covered incident.
+// @Summary      Reopen incident
+// @Description  Reopen a covered or resolved incident, restore its monitor active incident path, and record a manual incident event
+// @Tags         incidents
+// @Accept       json
+// @Produce      json
+// @ID           reopenIncident
+// @Param        id       path  string                          true   "Incident ID"
+// @Param        request  body  incidentLifecycleActionRequest  false  "Lifecycle action metadata"
+// @Success      200      {object}  utils.APIResponse{data=object{incident=IncidentResponse}}
+// @Failure      400      {object}  utils.APIResponse
+// @Failure      404      {object}  utils.APIResponse
+// @Failure      500      {object}  utils.APIResponse
+// @Router       /v1/incidents/{id}/reopen [post]
 func (s *Server) reopenIncident(c *gin.Context) {
 	request, ok := bindIncidentLifecycleActionRequest(c)
 	if !ok {

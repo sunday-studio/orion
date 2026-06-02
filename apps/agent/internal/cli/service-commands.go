@@ -270,6 +270,10 @@ func doctorJSON(report DoctorReport) doctorJSONPayload {
 		}
 		checks = append(checks, item)
 	}
+	var serviceError string
+	if report.Service.Error != nil {
+		serviceError = report.Service.Error.Error()
+	}
 	return doctorJSONPayload{
 		ConfigPath: report.ConfigPath,
 		StatePath:  report.StatePath,
@@ -279,6 +283,7 @@ func doctorJSON(report DoctorReport) doctorJSONPayload {
 			State:   report.Service.State,
 			Running: report.Service.Running,
 			File:    report.Service.ServiceFile,
+			Error:   serviceError,
 		},
 		Checks:    checks,
 		HasErrors: report.HasErrors(),

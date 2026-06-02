@@ -11,10 +11,10 @@ import { CreateIncidentForm } from "./status-pages-create-incident-form";
 import { EditIncidentForm } from "./status-pages-edit-incident-form";
 import { IncidentUpdatesPanel } from "./status-pages-incident-updates";
 import {
-  incidentBadgeStatus,
   type IncidentFormState,
   type IncidentUpdateFormState,
   type StateSetter,
+  incidentBadgeStatus,
 } from "./status-pages-shared";
 
 type StatusPageIncidentsPanelProps = {

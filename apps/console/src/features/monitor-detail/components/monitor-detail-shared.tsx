@@ -3,7 +3,6 @@ import { StatusBadge, toStatus } from "@/components/shared/status-badges";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import type { ApiIncidentResponse, ApiMonitorReportResponse } from "@/orion-sdk";
 import type { ColumnDef } from "@tanstack/react-table";
-import type { ReactNode } from "react";
 import {
   type MonitorPayload,
   formatMonitorLatency,
@@ -32,19 +31,7 @@ export const heartbeatPayloadContext = (report?: ApiMonitorReportResponse) => {
   );
 };
 
-export const DetailItem = ({ label, value }: { label: string; value: ReactNode }) => (
-  <div>
-    <div className="text-sm text-neutral-600">{label}</div>
-    <div className="break-words text-sm font-medium">{value}</div>
-  </div>
-);
-
-export const DetailGroup = ({ title, children }: { title: string; children: ReactNode }) => (
-  <div className="space-y-3 bg-neutral-50 px-3 py-3">
-    <h2 className="text-sm font-medium">{title}</h2>
-    <div className="space-y-3">{children}</div>
-  </div>
-);
+export { DetailGroup, DetailItem, reportTimestamp } from "@/components/shared/detail-group";
 
 export const formatUptime = (value?: number) =>
   typeof value === "number" ? `${value.toFixed(1)}%` : "—";
@@ -71,9 +58,6 @@ export const coreConfigArrayCount = (
   const value = config?.config?.[key];
   return Array.isArray(value) ? value.length : 0;
 };
-
-export const reportTimestamp = (report?: ApiMonitorReportResponse) =>
-  report?.created_at ?? report?.collected_at;
 
 export const bucketFillClassName = (bucket: { total?: number; uptime_percent?: number }) => {
   const percent = bucket.uptime_percent ?? 0;

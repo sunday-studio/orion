@@ -1,11 +1,24 @@
 package api
 
 import (
-	"github.com/gin-gonic/gin"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
+
+	"github.com/gin-gonic/gin"
 )
 
+// getAgentDetail retrieves detailed information about a specific agent.
+// @Summary      Get agent details
+// @Description  Get detailed information about a specific agent including latest report
+// @Tags         agents
+// @Accept       json
+// @Produce      json
+// @ID           getAgent
+// @Param        id   path      string  true  "Agent ID"
+// @Success      200  {object}  utils.APIResponse{data=object{agent=AgentResponse,latest_report=object}}
+// @Failure      400  {object}  utils.APIResponse
+// @Failure      404  {object}  utils.APIResponse
+// @Router       /v1/agents/{id} [get]
 func (s *Server) getAgentDetail(c *gin.Context) {
 	agentID := c.Param("id")
 	if agentID == "" {
@@ -29,6 +42,19 @@ func (s *Server) getAgentDetail(c *gin.Context) {
 	utils.SuccessResponse(c, 200, "Agent retrieved successfully", gin.H{"agent": agentResponse(*agent), "latest_report": latestReport})
 }
 
+// getAgentHealth retrieves health status for a specific agent.
+// @Summary      Get agent health
+// @Description  Get split agent availability and monitor rollup health for a specific agent
+// @Tags         agents
+// @Accept       json
+// @Produce      json
+// @ID           getAgentHealth
+// @Param        id   path      string  true  "Agent ID"
+// @Success      200  {object}  utils.APIResponse{data=AgentHealthResponse}
+// @Failure      400  {object}  utils.APIResponse
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/agents/{id}/health [get]
 func (s *Server) getAgentHealth(c *gin.Context) {
 	agentID := c.Param("id")
 	if agentID == "" {
@@ -50,6 +76,21 @@ func (s *Server) getAgentHealth(c *gin.Context) {
 	utils.SuccessResponse(c, 200, "Agent health retrieved successfully", AgentHealthResponse{AgentID: agentID, OverallHealth: snapshot.OverallHealth, AvailabilityHealth: snapshot.AgentHealth, MonitorHealth: snapshot.MonitorHealth, StatusReason: snapshot.Reason, UpCount: snapshot.UpCount, DownCount: snapshot.DownCount, DegradedCount: snapshot.DegradedCount, StaleCount: snapshot.StaleCount, UnknownCount: snapshot.UnknownCount, TotalCount: snapshot.TotalCount})
 }
 
+// getAgentReports retrieves paginated system reports for a specific agent.
+// @Summary      Get agent reports
+// @Description  Get a paginated list of system metric reports for a specific agent
+// @Tags         agents
+// @Accept       json
+// @Produce      json
+// @ID           getAgentReports
+// @Param        id      path      string  true   "Agent ID"
+// @Param        limit   query     int     false  "Maximum number of reports to return" default(50)
+// @Param        offset  query     int     false  "Number of reports to skip" default(0)
+// @Success      200     {object}  utils.APIResponse{data=object{reports=[]AgentReportResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta}}
+// @Failure      400     {object}  utils.APIResponse
+// @Failure      404     {object}  utils.APIResponse
+// @Failure      500     {object}  utils.APIResponse
+// @Router       /v1/agents/{id}/reports [get]
 func (s *Server) getAgentReports(c *gin.Context) {
 	agentID := c.Param("id")
 	if agentID == "" {
@@ -77,6 +118,19 @@ func (s *Server) getAgentReports(c *gin.Context) {
 	utils.SuccessResponse(c, 200, "Agent reports retrieved successfully", gin.H{"reports": responses, "count": count, "limit": limit, "offset": offset, "pagination": utils.NewPaginationMeta(count, limit, offset, len(responses))})
 }
 
+// getAgentUptime returns agent uptime over a period.
+// @Summary      Get agent uptime
+// @Description  Returns daily uptime buckets and overall uptime percentage for an agent.
+// @Tags         agents
+// @Produce      json
+// @ID           getAgentUptime
+// @Param        id      path      string  true   "Agent ID"
+// @Param        period  query     string  false  "Uptime period such as 7d, 30d, or 90d"
+// @Success      200     {object}  utils.APIResponse{data=object{daily_buckets=[]UptimeDayBucketResponse,uptime_percent=number}}
+// @Failure      400     {object}  utils.APIResponse
+// @Failure      404     {object}  utils.APIResponse
+// @Failure      500     {object}  utils.APIResponse
+// @Router       /v1/agents/{id}/uptime [get]
 func (s *Server) getAgentUptime(c *gin.Context) {
 	agentID := c.Param("id")
 	if agentID == "" {
@@ -96,61 +150,3 @@ func (s *Server) getAgentUptime(c *gin.Context) {
 	}
 	utils.SuccessResponse(c, 200, "Agent uptime retrieved successfully", gin.H{"daily_buckets": result.DailyBuckets, "uptime_percent": result.UptimePercent})
 }
-
-// getAgentDetail retrieves detailed information about a specific agent
-// @Summary      Get agent details
-// @Description  Get detailed information about a specific agent including latest report
-// @Tags         agents
-// @Accept       json
-// @Produce      json
-// @ID           getAgent
-// @Param        id   path      string  true  "Agent ID"
-// @Success      200  {object}  utils.APIResponse{data=object{agent=AgentResponse,latest_report=object}}
-// @Failure      400  {object}  utils.APIResponse
-// @Failure      404  {object}  utils.APIResponse
-// @Router       /v1/agents/{id} [get]
-// Get latest agent report for system metrics
-// Don't fail if reports can't be retrieved
-// getAgentHealth retrieves health status for a specific agent
-// @Summary      Get agent health
-// @Description  Get split agent availability and monitor rollup health for a specific agent
-// @Tags         agents
-// @Accept       json
-// @Produce      json
-// @ID           getAgentHealth
-// @Param        id   path      string  true  "Agent ID"
-// @Success      200  {object}  utils.APIResponse{data=api.AgentHealthResponse}
-// @Failure      400  {object}  utils.APIResponse
-// @Failure      404  {object}  utils.APIResponse
-// @Failure      500  {object}  utils.APIResponse
-// @Router       /v1/agents/{id}/health [get]
-// getAgentReports retrieves paginated system reports for a specific agent.
-// @Summary      Get agent reports
-// @Description  Get a paginated list of system metric reports for a specific agent
-// @Tags         agents
-// @Accept       json
-// @Produce      json
-// @ID           getAgentReports
-// @Param        id      path      string  true   "Agent ID"
-// @Param        limit   query     int     false  "Maximum number of reports to return" default(50)
-// @Param        offset  query     int     false  "Number of reports to skip" default(0)
-// @Success      200     {object}  utils.APIResponse{data=object{reports=[]AgentReportResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta}}
-// @Failure      400     {object}  utils.APIResponse
-// @Failure      404     {object}  utils.APIResponse
-// @Failure      500     {object}  utils.APIResponse
-// @Router       /v1/agents/{id}/reports [get]
-// Don't fail the request
-// getAgentUptime returns agent uptime over a period.
-// @Summary      Get agent uptime
-// @Description  Returns daily uptime buckets and overall uptime percentage for an agent.
-// @Tags         agents
-// @Produce      json
-// @ID           getAgentUptime
-// @Param        id      path      string  true   "Agent ID"
-// @Param        period  query     string  false  "Uptime period such as 7d, 30d, or 90d"
-// @Success      200     {object}  object{daily_buckets=[]UptimeDayBucketResponse,uptime_percent=number}
-// @Failure      400     {object}  utils.APIResponse
-// @Failure      404     {object}  utils.APIResponse
-// @Failure      500     {object}  utils.APIResponse
-// @Router       /v1/agents/{id}/uptime [get]
-// Verify agent exists

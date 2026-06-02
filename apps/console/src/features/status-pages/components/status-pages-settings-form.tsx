@@ -4,13 +4,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle2 } from "lucide-react";
 import type { FormEvent } from "react";
 import {
-  componentDensityOptions,
   Field,
+  type PageSettingsFormState,
+  type StateSetter,
+  componentDensityOptions,
   headerStyleOptions,
   incidentVisibilities,
   themeModeOptions,
-  type PageSettingsFormState,
-  type StateSetter,
 } from "./status-pages-shared";
 
 type StatusPageSettingsFormProps = {

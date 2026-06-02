@@ -36,7 +36,7 @@ func TestListAllMonitorsFiltersCanonicalMonitorTypeAliases(t *testing.T) {
 			} `json:"data"`
 		}
 		decodeResponse(t, resp, &listed)
-		if !listed.Success || listed.Data.Count != 1 || listed.Data.Monitors[0].ID != tc.want {
+		if !listed.Success || listed.Data.Count != 1 || len(listed.Data.Monitors) != 1 || listed.Data.Monitors[0].ID != tc.want {
 			t.Fatalf("type %q monitor list = %+v, want %s", tc.query, listed, tc.want)
 		}
 	}
@@ -118,7 +118,7 @@ func TestListAllMonitorsFiltersByComputedHealth(t *testing.T) {
 		} `json:"data"`
 	}
 	decodeResponse(t, resp, &listed)
-	if !listed.Success || listed.Data.Count != 1 || listed.Data.Monitors[0].ID != monitor.ID || listed.Data.Monitors[0].Health != "degraded" || listed.Data.Monitors[0].ComputedHealth != "degraded" {
+	if !listed.Success || listed.Data.Count != 1 || len(listed.Data.Monitors) != 1 || listed.Data.Monitors[0].ID != monitor.ID || listed.Data.Monitors[0].Health != "degraded" || listed.Data.Monitors[0].ComputedHealth != "degraded" {
 		t.Fatalf("computed degraded monitor list = %+v, want computed degraded monitor", listed)
 	}
 }

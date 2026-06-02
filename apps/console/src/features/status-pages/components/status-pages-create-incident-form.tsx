@@ -10,15 +10,15 @@ import { Plus } from "lucide-react";
 import type { FormEvent } from "react";
 import { IncidentSuggestions } from "./status-pages-incident-suggestions";
 import {
-  applySuggestedIncidentComponents,
   DateTimeInput,
   Field,
+  type IncidentFormState,
+  type StateSetter,
+  applySuggestedIncidentComponents,
   incidentOptionLabel,
   incidentSeverities,
   incidentStatuses,
   toggleIncidentComponent,
-  type IncidentFormState,
-  type StateSetter,
 } from "./status-pages-shared";
 
 type CreateIncidentFormProps = {

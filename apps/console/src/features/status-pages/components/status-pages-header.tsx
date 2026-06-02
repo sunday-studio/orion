@@ -64,7 +64,12 @@ export const StatusPageHeader = ({
       >
         {unpublishPending ? "Unpublishing..." : "Unpublish"}
       </Button>
-      <Button disabled={deletePending} onClick={onDeletePage} type="button" variant="outline">
+      <Button
+        disabled={deletePagePending || deletePending}
+        onClick={onDeletePage}
+        type="button"
+        variant="outline"
+      >
         <Trash2 className="size-4" />
         {deletePagePending ? "Deleting..." : "Delete"}
       </Button>

@@ -1,13 +1,14 @@
 package api
 
 import (
-	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 	"net/http"
 	"orion/core/internal/db"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
 	"strings"
+
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type alertChannelRequest struct {
@@ -16,96 +17,7 @@ type alertChannelRequest struct {
 	Enabled              *bool    `json:"enabled"`
 	WebhookURL           string   `json:"webhook_url"`
 	WebhookSigningSecret *string  `json:"webhook_signing_secret"`
-	SubscribedEvents     []string `json:"subscribed_events"`// listAlertDeliveries retrieves alert delivery attempts.
-	// @Summary      List alert deliveries
-	// @Description  Get a paginated list of alert delivery attempts
-	// @Tags         alerts
-	// @Accept       json
-	// @Produce      json
-	// @ID           getAlertDeliveries
-	// @Param        incident_id  query     string  false  "Filter by incident ID"
-	// @Param        status       query     string  false  "Filter by delivery status"
-	// @Param        type         query     string  false  "Filter by delivery channel type"
-	// @Param        channel      query     string  false  "Filter by delivery channel name"
-	// @Param        event_type   query     string  false  "Filter by alert event type"
-	// @Param        limit        query     int     false  "Maximum number of deliveries to return" default(50)
-	// @Param        offset       query     int     false  "Number of deliveries to skip" default(0)
-	// @Success      200          {object}  utils.APIResponse{data=object{deliveries=[]AlertDeliveryResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta}}
-	// @Failure      500          {object}  utils.APIResponse
-	// @Router       /v1/alerts/deliveries [get]
-	// listAlertChannels retrieves alert channel configuration.
-	// @Summary      List alert channels
-	// @Description  Get persisted alert channels and their last delivery status
-	// @Tags         alerts
-	// @Accept       json
-	// @Produce      json
-	// @ID           getAlertChannels
-	// @Success      200  {object}  utils.APIResponse{data=object{channels=[]AlertChannelResponse,count=int}}
-	// @Failure      500  {object}  utils.APIResponse
-	// @Router       /v1/alerts/channels [get]
-	// createAlertChannel creates a persisted alert channel.
-	// @Summary      Create alert channel
-	// @Description  Create a generic webhook alert channel. Secret values are stored but never returned by the API.
-	// @Tags         alerts
-	// @Accept       json
-	// @Produce      json
-	// @ID           createAlertChannel
-	// @Param        request  body      alertChannelRequest  true  "Alert channel payload"
-	// @Success      201      {object}  utils.APIResponse{data=object{channel=AlertChannelResponse}}
-	// @Failure      400      {object}  utils.APIResponse
-	// @Failure      409      {object}  utils.APIResponse
-	// @Failure      500      {object}  utils.APIResponse
-	// @Router       /v1/alerts/channels [post]
-	// updateAlertChannel updates a persisted alert channel.
-	// @Summary      Update alert channel
-	// @Description  Update a generic webhook alert channel.
-	// @Tags         alerts
-	// @Accept       json
-	// @Produce      json
-	// @ID           updateAlertChannel
-	// @Param        id       path      string               true  "Alert channel ID"
-	// @Param        request  body      alertChannelRequest  true  "Alert channel payload"
-	// @Success      200      {object}  utils.APIResponse{data=object{channel=AlertChannelResponse}}
-	// @Failure      400      {object}  utils.APIResponse
-	// @Failure      404      {object}  utils.APIResponse
-	// @Failure      409      {object}  utils.APIResponse
-	// @Failure      500      {object}  utils.APIResponse
-	// @Router       /v1/alerts/channels/{id} [patch]
-	// testAlertChannel sends a manual test notification through a persisted alert channel.
-	// @Summary      Test alert channel
-	// @Description  Send a manual test notification through a configured generic webhook alert channel.
-	// @Tags         alerts
-	// @Accept       json
-	// @Produce      json
-	// @ID           testAlertChannel
-	// @Param        id   path      string  true  "Alert channel ID"
-	// @Success      200  {object}  utils.APIResponse{data=object{delivery=AlertDeliveryResponse}}
-	// @Failure      404  {object}  utils.APIResponse
-	// @Failure      500  {object}  utils.APIResponse
-	// @Router       /v1/alerts/channels/{id}/test [post]
-	// deleteAlertChannel deletes a persisted alert channel.
-	// @Summary      Delete alert channel
-	// @Description  Delete an alert channel. Existing delivery history is preserved.
-	// @Tags         alerts
-	// @Accept       json
-	// @Produce      json
-	// @ID           deleteAlertChannel
-	// @Param        id   path      string  true  "Alert channel ID"
-	// @Success      200  {object}  utils.APIResponse
-	// @Failure      404  {object}  utils.APIResponse
-	// @Failure      500  {object}  utils.APIResponse
-	// @Router       /v1/alerts/channels/{id} [delete]
-	// listAlertRoutes retrieves explicit alert routes.
-	// @Summary      List alert routes
-	// @Description  Get explicit alert routes ordered by priority
-	// @Tags         alerts
-	// @Accept       json
-	// @Produce      json
-	// @ID           getAlertRoutes
-	// @Success      200  {object}  utils.APIResponse{data=object{routes=[]AlertRouteResponse,count=int}}
-	// @Failure      500  {object}  utils.APIResponse
-	// @Router       /v1/alerts/routes [get]
-
+	SubscribedEvents     []string `json:"subscribed_events"`
 }
 type alertRouteRequest struct {
 	Name                 string   `json:"name"`
@@ -152,6 +64,23 @@ type alertRuleDryRunRequest struct {
 	MonitorType string `json:"monitor_type"`
 }
 
+// listAlertDeliveries retrieves alert delivery attempts.
+// @Summary      List alert deliveries
+// @Description  Get a paginated list of alert delivery attempts
+// @Tags         alerts
+// @Accept       json
+// @Produce      json
+// @ID           getAlertDeliveries
+// @Param        incident_id  query     string  false  "Filter by incident ID"
+// @Param        status       query     string  false  "Filter by delivery status"
+// @Param        type         query     string  false  "Filter by delivery channel type"
+// @Param        channel      query     string  false  "Filter by delivery channel name"
+// @Param        event_type   query     string  false  "Filter by alert event type"
+// @Param        limit        query     int     false  "Maximum number of deliveries to return" default(50)
+// @Param        offset       query     int     false  "Number of deliveries to skip" default(0)
+// @Success      200          {object}  utils.APIResponse{data=object{deliveries=[]AlertDeliveryResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta}}
+// @Failure      500          {object}  utils.APIResponse
+// @Router       /v1/alerts/deliveries [get]
 func (s *Server) listAlertDeliveries(c *gin.Context) {
 	limit := utils.QueryInt(c, "limit", 50)
 	offset := utils.QueryInt(c, "offset", 0)
@@ -189,6 +118,16 @@ func (s *Server) listAlertDeliveries(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Alert deliveries retrieved successfully", gin.H{"deliveries": responses, "count": count, "limit": limit, "offset": offset, "pagination": utils.NewPaginationMeta(count, limit, offset, len(responses))})
 }
 
+// listAlertChannels retrieves alert channel configuration.
+// @Summary      List alert channels
+// @Description  Get persisted alert channels and their last delivery status
+// @Tags         alerts
+// @Accept       json
+// @Produce      json
+// @ID           getAlertChannels
+// @Success      200  {object}  utils.APIResponse{data=object{channels=[]AlertChannelResponse,count=int}}
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/alerts/channels [get]
 func (s *Server) listAlertChannels(c *gin.Context) {
 	var dbChannels []db.AlertChannel
 	if err := s.db.Where("type = ?", "webhook").Order("name ASC").Find(&dbChannels).Error; err != nil {
@@ -203,6 +142,19 @@ func (s *Server) listAlertChannels(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Alert channels retrieved successfully", gin.H{"channels": channels, "count": len(channels)})
 }
 
+// createAlertChannel creates a persisted alert channel.
+// @Summary      Create alert channel
+// @Description  Create a generic webhook alert channel. Secret values are stored but never returned by the API.
+// @Tags         alerts
+// @Accept       json
+// @Produce      json
+// @ID           createAlertChannel
+// @Param        request  body      alertChannelRequest  true  "Alert channel payload"
+// @Success      201      {object}  utils.APIResponse{data=object{channel=AlertChannelResponse}}
+// @Failure      400      {object}  utils.APIResponse
+// @Failure      409      {object}  utils.APIResponse
+// @Failure      500      {object}  utils.APIResponse
+// @Router       /v1/alerts/channels [post]
 func (s *Server) createAlertChannel(c *gin.Context) {
 	var request alertChannelRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -242,6 +194,21 @@ func (s *Server) createAlertChannel(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusCreated, "Alert channel created successfully", gin.H{"channel": s.alertChannelResponse(channel)})
 }
 
+// updateAlertChannel updates a persisted alert channel.
+// @Summary      Update alert channel
+// @Description  Update a generic webhook alert channel.
+// @Tags         alerts
+// @Accept       json
+// @Produce      json
+// @ID           updateAlertChannel
+// @Param        id       path      string               true  "Alert channel ID"
+// @Param        request  body      alertChannelRequest  true  "Alert channel payload"
+// @Success      200      {object}  utils.APIResponse{data=object{channel=AlertChannelResponse}}
+// @Failure      400      {object}  utils.APIResponse
+// @Failure      404      {object}  utils.APIResponse
+// @Failure      409      {object}  utils.APIResponse
+// @Failure      500      {object}  utils.APIResponse
+// @Router       /v1/alerts/channels/{id} [patch]
 func (s *Server) updateAlertChannel(c *gin.Context) {
 	var channel db.AlertChannel
 	if err := s.db.Where("id = ?", c.Param("id")).First(&channel).Error; err != nil {
@@ -302,6 +269,18 @@ func (s *Server) updateAlertChannel(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Alert channel updated successfully", gin.H{"channel": s.alertChannelResponse(channel)})
 }
 
+// testAlertChannel sends a manual test notification through a persisted alert channel.
+// @Summary      Test alert channel
+// @Description  Send a manual test notification through a configured generic webhook alert channel.
+// @Tags         alerts
+// @Accept       json
+// @Produce      json
+// @ID           testAlertChannel
+// @Param        id   path      string  true  "Alert channel ID"
+// @Success      200  {object}  utils.APIResponse{data=object{delivery=AlertDeliveryResponse}}
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/alerts/channels/{id}/test [post]
 func (s *Server) testAlertChannel(c *gin.Context) {
 	delivery, err := service.NewAlertService(s.db, s.logger, s.cfg).TestChannel(c.Param("id"))
 	if err != nil {
@@ -316,6 +295,18 @@ func (s *Server) testAlertChannel(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Alert channel test completed", gin.H{"delivery": alertDeliveryResponse(*delivery)})
 }
 
+// deleteAlertChannel deletes a persisted alert channel.
+// @Summary      Delete alert channel
+// @Description  Delete an alert channel. Existing delivery history is preserved.
+// @Tags         alerts
+// @Accept       json
+// @Produce      json
+// @ID           deleteAlertChannel
+// @Param        id   path      string  true  "Alert channel ID"
+// @Success      200  {object}  utils.APIResponse
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/alerts/channels/{id} [delete]
 func (s *Server) deleteAlertChannel(c *gin.Context) {
 	result := s.db.Where("id = ?", c.Param("id")).Delete(&db.AlertChannel{})
 	if result.Error != nil {
@@ -330,6 +321,16 @@ func (s *Server) deleteAlertChannel(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Alert channel deleted successfully", gin.H{})
 }
 
+// listAlertRoutes retrieves explicit alert routes.
+// @Summary      List alert routes
+// @Description  Get explicit alert routes ordered by priority
+// @Tags         alerts
+// @Accept       json
+// @Produce      json
+// @ID           getAlertRoutes
+// @Success      200  {object}  utils.APIResponse{data=object{routes=[]AlertRouteResponse,count=int}}
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/alerts/routes [get]
 func (s *Server) listAlertRoutes(c *gin.Context) {
 	var routes []db.AlertRoute
 	if err := s.db.Order("priority ASC, name ASC").Find(&routes).Error; err != nil {

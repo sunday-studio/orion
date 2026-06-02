@@ -41,7 +41,10 @@ import {
   ComponentImpactList,
   DetailGroup,
   DetailItem,
+  type DetailTab,
   IncidentNextActionPanel,
+  type IncidentWithAllowedActions,
+  type LifecycleAction,
   actionAllowed,
   durationLabel,
   isDetailTab,
@@ -50,9 +53,6 @@ import {
   reportReason,
   reportSortTime,
   timelineColumns,
-  type DetailTab,
-  type IncidentWithAllowedActions,
-  type LifecycleAction,
 } from "./components/incident-detail-utils";
 
 export const IncidentDetailPage = () => {

@@ -22,22 +22,9 @@ import {
   ShieldCheckIcon,
   WrenchIcon,
 } from "lucide-react";
-import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
-export const DetailItem = ({ label, value }: { label: string; value: ReactNode }) => (
-  <div>
-    <div className="text-sm text-neutral-600">{label}</div>
-    <div className="text-sm font-medium">{value}</div>
-  </div>
-);
-
-export const DetailGroup = ({ title, children }: { title: string; children: ReactNode }) => (
-  <div className="space-y-3 bg-neutral-50 px-3 py-3">
-    <h2 className="text-sm font-medium">{title}</h2>
-    <div className="space-y-3">{children}</div>
-  </div>
-);
+export { DetailGroup, DetailItem, reportTimestamp } from "@/components/shared/detail-group";
 
 export const durationLabel = (incident: ApiIncidentResponse) => {
   const start = incident.opened_at ? new Date(incident.opened_at).getTime() : undefined;
@@ -267,9 +254,6 @@ export const readPayloadValue = (payload: MonitorPayload, keys: string[]) => {
   }
   return "—";
 };
-
-export const reportTimestamp = (report?: ApiMonitorReportResponse) =>
-  report?.created_at ?? report?.collected_at;
 
 export const reportReason = (report?: ApiMonitorReportResponse) => {
   if (!report) return "No linked monitor report.";

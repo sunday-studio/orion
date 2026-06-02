@@ -17,10 +17,10 @@ import { Play, Save } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import { CoreMonitorDialogFields } from "./core-monitor-dialog-fields";
 import {
-  buildConfigPayload,
   type CoreMonitorSubmitAction,
-  defaultForm,
   type FormState,
+  buildConfigPayload,
+  defaultForm,
   formFromMonitor,
   parseJSONConfig,
   toNonNegativeInt,

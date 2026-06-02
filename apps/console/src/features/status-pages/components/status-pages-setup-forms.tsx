@@ -4,12 +4,12 @@ import type { ApiStatusPageComponentResponse, ApiStatusPageSectionResponse } fro
 import { Link2, Plus, Trash2 } from "lucide-react";
 import type { FormEvent } from "react";
 import {
-  Field,
-  manualStatuses,
   type ComponentFormState,
+  Field,
   type MappingFormState,
   type SectionFormState,
   type StateSetter,
+  manualStatuses,
 } from "./status-pages-shared";
 
 type StatusPageSetupFormsProps = {

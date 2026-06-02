@@ -1,15 +1,29 @@
 package api
 
 import (
-	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 	"net/http"
 	"orion/core/internal/db"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
 	"strings"
+
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
+// createAlertRoute creates an explicit alert route.
+// @Summary      Create alert route
+// @Description  Create a priority-ordered alert route that can target channels or suppress matching events
+// @Tags         alerts
+// @Accept       json
+// @Produce      json
+// @ID           createAlertRoute
+// @Param        request  body      alertRouteRequest  true  "Alert route payload"
+// @Success      201      {object}  utils.APIResponse{data=object{route=AlertRouteResponse}}
+// @Failure      400      {object}  utils.APIResponse
+// @Failure      409      {object}  utils.APIResponse
+// @Failure      500      {object}  utils.APIResponse
+// @Router       /v1/alerts/routes [post]
 func (s *Server) createAlertRoute(c *gin.Context) {
 	var request alertRouteRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -57,6 +71,21 @@ func (s *Server) createAlertRoute(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusCreated, "Alert route created successfully", gin.H{"route": alertRouteResponse(route)})
 }
 
+// updateAlertRoute updates an explicit alert route.
+// @Summary      Update alert route
+// @Description  Update alert route match filters, destination channels, or suppression behavior
+// @Tags         alerts
+// @Accept       json
+// @Produce      json
+// @ID           updateAlertRoute
+// @Param        id       path      string             true  "Alert route ID"
+// @Param        request  body      alertRouteRequest  true  "Alert route payload"
+// @Success      200      {object}  utils.APIResponse{data=object{route=AlertRouteResponse}}
+// @Failure      400      {object}  utils.APIResponse
+// @Failure      404      {object}  utils.APIResponse
+// @Failure      409      {object}  utils.APIResponse
+// @Failure      500      {object}  utils.APIResponse
+// @Router       /v1/alerts/routes/{id} [patch]
 func (s *Server) updateAlertRoute(c *gin.Context) {
 	var route db.AlertRoute
 	if err := s.db.Where("id = ?", c.Param("id")).First(&route).Error; err != nil {
@@ -137,6 +166,18 @@ func (s *Server) updateAlertRoute(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Alert route updated successfully", gin.H{"route": alertRouteResponse(route)})
 }
 
+// deleteAlertRoute deletes an explicit alert route.
+// @Summary      Delete alert route
+// @Description  Delete an alert route. Existing delivery history is preserved.
+// @Tags         alerts
+// @Accept       json
+// @Produce      json
+// @ID           deleteAlertRoute
+// @Param        id   path      string  true  "Alert route ID"
+// @Success      200  {object}  utils.APIResponse
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/alerts/routes/{id} [delete]
 func (s *Server) deleteAlertRoute(c *gin.Context) {
 	result := s.db.Where("id = ?", c.Param("id")).Delete(&db.AlertRoute{})
 	if result.Error != nil {
@@ -151,6 +192,19 @@ func (s *Server) deleteAlertRoute(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Alert route deleted successfully", gin.H{})
 }
 
+// dryRunAlertRoutes evaluates alert routes without sending notifications.
+// @Summary      Dry-run alert routes
+// @Description  Explain route event matching, suppression, cooldown, and destination decisions without creating deliveries or sending notifications
+// @Tags         alerts
+// @Accept       json
+// @Produce      json
+// @ID           dryRunAlertRoutes
+// @Param        request  body      alertRouteDryRunRequest  true  "Alert route dry-run payload"
+// @Success      200      {object}  utils.APIResponse{data=object{dry_run=AlertRouteDryRunResponse}}
+// @Failure      400      {object}  utils.APIResponse
+// @Failure      404      {object}  utils.APIResponse
+// @Failure      500      {object}  utils.APIResponse
+// @Router       /v1/alerts/routes/dry-run [post]
 func (s *Server) dryRunAlertRoutes(c *gin.Context) {
 	var request alertRouteDryRunRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -185,123 +239,18 @@ func (s *Server) dryRunAlertRoutes(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Alert routes dry-run evaluated successfully", gin.H{"dry_run": alertRouteDryRunResponse(result)})
 }
 
+// listAlertRules retrieves webhook alert rules.
+// @Summary      List alert rules
+// @Description  Get persisted webhook alert rules ordered by priority
+// @Tags         alerts
+// @Accept       json
+// @Produce      json
+// @ID           getAlertRules
+// @Success      200  {object}  utils.APIResponse{data=object{rules=[]AlertRuleResponse,count=int}}
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/alerts/rules [get]
 func (s *Server) listAlertRules(c *gin.Context) {
-	var rules []db.// createAlertRoute creates an explicit alert route.
-	// @Summary      Create alert route
-	// @Description  Create a priority-ordered alert route that can target channels or suppress matching events
-	// @Tags         alerts
-	// @Accept       json
-	// @Produce      json
-	// @ID           createAlertRoute
-	// @Param        request  body      alertRouteRequest  true  "Alert route payload"
-	// @Success      201      {object}  utils.APIResponse{data=object{route=AlertRouteResponse}}
-	// @Failure      400      {object}  utils.APIResponse
-	// @Failure      409      {object}  utils.APIResponse
-	// @Failure      500      {object}  utils.APIResponse
-	// @Router       /v1/alerts/routes [post]
-	// updateAlertRoute updates an explicit alert route.
-	// @Summary      Update alert route
-	// @Description  Update alert route match filters, destination channels, or suppression behavior
-	// @Tags         alerts
-	// @Accept       json
-	// @Produce      json
-	// @ID           updateAlertRoute
-	// @Param        id       path      string             true  "Alert route ID"
-	// @Param        request  body      alertRouteRequest  true  "Alert route payload"
-	// @Success      200      {object}  utils.APIResponse{data=object{route=AlertRouteResponse}}
-	// @Failure      400      {object}  utils.APIResponse
-	// @Failure      404      {object}  utils.APIResponse
-	// @Failure      409      {object}  utils.APIResponse
-	// @Failure      500      {object}  utils.APIResponse
-	// @Router       /v1/alerts/routes/{id} [patch]
-	// deleteAlertRoute deletes an explicit alert route.
-	// @Summary      Delete alert route
-	// @Description  Delete an alert route. Existing delivery history is preserved.
-	// @Tags         alerts
-	// @Accept       json
-	// @Produce      json
-	// @ID           deleteAlertRoute
-	// @Param        id   path      string  true  "Alert route ID"
-	// @Success      200  {object}  utils.APIResponse
-	// @Failure      404  {object}  utils.APIResponse
-	// @Failure      500  {object}  utils.APIResponse
-	// @Router       /v1/alerts/routes/{id} [delete]
-	// dryRunAlertRoutes evaluates alert routes without sending notifications.
-	// @Summary      Dry-run alert routes
-	// @Description  Explain route event matching, suppression, cooldown, and destination decisions without creating deliveries or sending notifications
-	// @Tags         alerts
-	// @Accept       json
-	// @Produce      json
-	// @ID           dryRunAlertRoutes
-	// @Param        request  body      alertRouteDryRunRequest  true  "Alert route dry-run payload"
-	// @Success      200      {object}  utils.APIResponse{data=object{dry_run=AlertRouteDryRunResponse}}
-	// @Failure      400      {object}  utils.APIResponse
-	// @Failure      404      {object}  utils.APIResponse
-	// @Failure      500      {object}  utils.APIResponse
-	// @Router       /v1/alerts/routes/dry-run [post]
-	// listAlertRules retrieves webhook alert rules.
-	// @Summary      List alert rules
-	// @Description  Get persisted webhook alert rules ordered by priority
-	// @Tags         alerts
-	// @Accept       json
-	// @Produce      json
-	// @ID           getAlertRules
-	// @Success      200  {object}  utils.APIResponse{data=object{rules=[]AlertRuleResponse,count=int}}
-	// @Failure      500  {object}  utils.APIResponse
-	// @Router       /v1/alerts/rules [get]
-	// createAlertRule creates a webhook alert rule.
-	// @Summary      Create alert rule
-	// @Description  Create a priority-ordered alert rule that targets webhook channels or suppresses matching events
-	// @Tags         alerts
-	// @Accept       json
-	// @Produce      json
-	// @ID           createAlertRule
-	// @Param        request  body      alertRuleRequest  true  "Alert rule payload"
-	// @Success      201      {object}  utils.APIResponse{data=object{rule=AlertRuleResponse}}
-	// @Failure      400      {object}  utils.APIResponse
-	// @Failure      409      {object}  utils.APIResponse
-	// @Failure      500      {object}  utils.APIResponse
-	// @Router       /v1/alerts/rules [post]
-	// updateAlertRule updates a webhook alert rule.
-	// @Summary      Update alert rule
-	// @Description  Update alert rule match filters, webhook channels, or suppression behavior
-	// @Tags         alerts
-	// @Accept       json
-	// @Produce      json
-	// @ID           updateAlertRule
-	// @Param        id       path      string            true  "Alert rule ID"
-	// @Param        request  body      alertRuleRequest  true  "Alert rule payload"
-	// @Success      200      {object}  utils.APIResponse{data=object{rule=AlertRuleResponse}}
-	// @Failure      400      {object}  utils.APIResponse
-	// @Failure      404      {object}  utils.APIResponse
-	// @Failure      409      {object}  utils.APIResponse
-	// @Failure      500      {object}  utils.APIResponse
-	// @Router       /v1/alerts/rules/{id} [patch]
-	// deleteAlertRule deletes a webhook alert rule.
-	// @Summary      Delete alert rule
-	// @Description  Delete an alert rule. Existing delivery history is preserved.
-	// @Tags         alerts
-	// @Accept       json
-	// @Produce      json
-	// @ID           deleteAlertRule
-	// @Param        id   path      string  true  "Alert rule ID"
-	// @Success      200  {object}  utils.APIResponse
-	// @Failure      404  {object}  utils.APIResponse
-	// @Failure      500  {object}  utils.APIResponse
-	// @Router       /v1/alerts/rules/{id} [delete]
-	// enableAlertRule enables a webhook alert rule.
-	// @Summary      Enable alert rule
-	// @Description  Enable an alert rule without changing its filters or webhook destinations.
-	// @Tags         alerts
-	// @Accept       json
-	// @Produce      json
-	// @ID           enableAlertRule
-	// @Param        id   path      string  true  "Alert rule ID"
-	// @Success      200  {object}  utils.APIResponse{data=object{rule=AlertRuleResponse}}
-	// @Failure      404  {object}  utils.APIResponse
-	// @Failure      500  {object}  utils.APIResponse
-	// @Router       /v1/alerts/rules/{id}/enable [post]
-	AlertRoute
+	var rules []db.AlertRoute
 	if err := s.db.Order("priority ASC, name ASC").Find(&rules).Error; err != nil {
 		s.logger.Error("Failed to list alert rules", "error", err)
 		utils.InternalError(c, "Failed to list alert rules", err)
@@ -311,6 +260,19 @@ func (s *Server) listAlertRules(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Alert rules retrieved successfully", gin.H{"rules": responses, "count": len(responses)})
 }
 
+// createAlertRule creates a webhook alert rule.
+// @Summary      Create alert rule
+// @Description  Create a priority-ordered alert rule that targets webhook channels or suppresses matching events
+// @Tags         alerts
+// @Accept       json
+// @Produce      json
+// @ID           createAlertRule
+// @Param        request  body      alertRuleRequest  true  "Alert rule payload"
+// @Success      201      {object}  utils.APIResponse{data=object{rule=AlertRuleResponse}}
+// @Failure      400      {object}  utils.APIResponse
+// @Failure      409      {object}  utils.APIResponse
+// @Failure      500      {object}  utils.APIResponse
+// @Router       /v1/alerts/rules [post]
 func (s *Server) createAlertRule(c *gin.Context) {
 	var request alertRuleRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -347,6 +309,21 @@ func (s *Server) createAlertRule(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusCreated, "Alert rule created successfully", gin.H{"rule": alertRuleResponse(rule)})
 }
 
+// updateAlertRule updates a webhook alert rule.
+// @Summary      Update alert rule
+// @Description  Update alert rule match filters, webhook channels, or suppression behavior
+// @Tags         alerts
+// @Accept       json
+// @Produce      json
+// @ID           updateAlertRule
+// @Param        id       path      string            true  "Alert rule ID"
+// @Param        request  body      alertRuleRequest  true  "Alert rule payload"
+// @Success      200      {object}  utils.APIResponse{data=object{rule=AlertRuleResponse}}
+// @Failure      400      {object}  utils.APIResponse
+// @Failure      404      {object}  utils.APIResponse
+// @Failure      409      {object}  utils.APIResponse
+// @Failure      500      {object}  utils.APIResponse
+// @Router       /v1/alerts/rules/{id} [patch]
 func (s *Server) updateAlertRule(c *gin.Context) {
 	var rule db.AlertRoute
 	if err := s.db.Where("id = ?", c.Param("id")).First(&rule).Error; err != nil {
@@ -394,6 +371,18 @@ func (s *Server) updateAlertRule(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Alert rule updated successfully", gin.H{"rule": alertRuleResponse(rule)})
 }
 
+// deleteAlertRule deletes a webhook alert rule.
+// @Summary      Delete alert rule
+// @Description  Delete an alert rule. Existing delivery history is preserved.
+// @Tags         alerts
+// @Accept       json
+// @Produce      json
+// @ID           deleteAlertRule
+// @Param        id   path      string  true  "Alert rule ID"
+// @Success      200  {object}  utils.APIResponse
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/alerts/rules/{id} [delete]
 func (s *Server) deleteAlertRule(c *gin.Context) {
 	result := s.db.Where("id = ?", c.Param("id")).Delete(&db.AlertRoute{})
 	if result.Error != nil {
@@ -408,6 +397,18 @@ func (s *Server) deleteAlertRule(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Alert rule deleted successfully", gin.H{})
 }
 
+// enableAlertRule enables a webhook alert rule.
+// @Summary      Enable alert rule
+// @Description  Enable an alert rule without changing its filters or webhook destinations.
+// @Tags         alerts
+// @Accept       json
+// @Produce      json
+// @ID           enableAlertRule
+// @Param        id   path      string  true  "Alert rule ID"
+// @Success      200  {object}  utils.APIResponse{data=object{rule=AlertRuleResponse}}
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/alerts/rules/{id}/enable [post]
 func (s *Server) enableAlertRule(c *gin.Context) {
 	s.setAlertRuleEnabled(c, true)
 }

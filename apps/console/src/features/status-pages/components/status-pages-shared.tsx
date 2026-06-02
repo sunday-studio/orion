@@ -346,21 +346,23 @@ export const suggestionMatchLabel = (
     .join(", ");
 
 export const toggleIncidentComponent = (
-  form: IncidentFormState,
+  _form: IncidentFormState,
   setForm: StateSetter<IncidentFormState>,
   componentId: string,
 ) => {
-  const hasComponent = form.affectedComponentIds.includes(componentId);
-  setForm({
-    ...form,
-    affectedComponentIds: hasComponent
-      ? form.affectedComponentIds.filter((id) => id !== componentId)
-      : [...form.affectedComponentIds, componentId],
+  setForm((current) => {
+    const hasComponent = current.affectedComponentIds.includes(componentId);
+    return {
+      ...current,
+      affectedComponentIds: hasComponent
+        ? current.affectedComponentIds.filter((id) => id !== componentId)
+        : [...current.affectedComponentIds, componentId],
+    };
   });
 };
 
 export const applySuggestedIncidentComponents = (
-  form: IncidentFormState,
+  _form: IncidentFormState,
   setForm: StateSetter<IncidentFormState>,
   suggestions: ApiStatusPageIncidentComponentSuggestionResponse[],
 ) => {
@@ -369,12 +371,12 @@ export const applySuggestedIncidentComponents = (
     .filter((componentId): componentId is string => Boolean(componentId));
   if (suggestedComponentIds.length === 0) return;
 
-  setForm({
-    ...form,
+  setForm((current) => ({
+    ...current,
     affectedComponentIds: Array.from(
-      new Set([...form.affectedComponentIds, ...suggestedComponentIds]),
+      new Set([...current.affectedComponentIds, ...suggestedComponentIds]),
     ),
-  });
+  }));
 };
 
 export const incidentRequest = (form: IncidentFormState) => ({

@@ -118,7 +118,7 @@ func (a *Agent) runMonitorMetrics(monitor config.InternalStateMonitor, userMonit
 	}
 	logging.Debugf("monitor report sent: monitor=%s monitor_id=%s", monitor.Name, monitor.ID)
 
-	return err
+	return nil
 }
 
 func (a *Agent) enqueueSystemReport(report *transport.SystemReport, lastErr error) error {

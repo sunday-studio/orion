@@ -33,11 +33,11 @@ import { type FormEvent, useEffect, useState } from "react";
 import {
   DetailGroup,
   DetailItem,
+  type LifecycleAction,
   coverageUntilInputValue,
   coverageUntilPayload,
   lifecycleActionLabels,
   reportTimestamp,
-  type LifecycleAction,
 } from "./incident-detail-utils";
 
 export type CoverIncidentDialogProps = {
