@@ -3,7 +3,7 @@ package service
 import (
 	"errors"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"os"
 	"path/filepath"
 	"time"
@@ -25,7 +25,7 @@ type ArchiveRunResult struct {
 
 type ArchiveService struct {
 	db      *gorm.DB
-	logger  *logging.Logger
+	logger  *utils.Logger
 	dataDir string
 }
 
@@ -34,7 +34,7 @@ var (
 	errArchiveMoveFailed         = errors.New("failed to move old raw reports")
 )
 
-func NewArchiveService(database *gorm.DB, logger *logging.Logger, dataDir string) *ArchiveService {
+func NewArchiveService(database *gorm.DB, logger *utils.Logger, dataDir string) *ArchiveService {
 	return &ArchiveService{
 		db:      database,
 		logger:  logger,

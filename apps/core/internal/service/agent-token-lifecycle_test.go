@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -16,7 +16,7 @@ import (
 
 func TestAgentTokenLifecycleSupportsLegacyPlaintextThenHashesRotation(t *testing.T) {
 	database := setupAgentTokenLifecycleTestDatabase(t)
-	logger := logging.NewLogger()
+	logger := utils.NewLogger()
 	now := time.Now().UTC()
 	legacy := db.Agent{
 		ID:                       "agent-legacy-token",
@@ -82,7 +82,7 @@ func TestAgentTokenLifecycleSupportsLegacyPlaintextThenHashesRotation(t *testing
 
 func TestAgentTokenLifecycleRevocationClearsSecretsAndRequiresReissue(t *testing.T) {
 	database := setupAgentTokenLifecycleTestDatabase(t)
-	logger := logging.NewLogger()
+	logger := utils.NewLogger()
 	agentService := NewAgentService(database, logger)
 	registered, err := agentService.RegisterAgent(&RegisterRequest{
 		MachineId:                "machine-revoke-token",

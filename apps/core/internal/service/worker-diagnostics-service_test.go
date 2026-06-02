@@ -2,7 +2,7 @@ package service
 
 import (
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"testing"
 	"time"
 
@@ -19,7 +19,7 @@ func TestWorkerDiagnosticsRecordsFreshAndStaleWorkers(t *testing.T) {
 		t.Fatalf("migrate database: %v", err)
 	}
 
-	diagnosticsService := NewWorkerDiagnosticsService(database, logging.NewLogger())
+	diagnosticsService := NewWorkerDiagnosticsService(database, utils.NewLogger())
 	now := time.Date(2026, 5, 27, 10, 0, 0, 0, time.UTC)
 
 	if err := diagnosticsService.RecordHeartbeat(t.Context(), WorkerHeartbeat{

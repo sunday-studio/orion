@@ -1,4 +1,4 @@
-import { PageHeader } from "@/components/page-header";
+import { PageHeader } from "@/components/shared/page-header";
 import { IncidentList } from "@/features/incidents/components/incident-list";
 
 export const IncidentsPage = () => {

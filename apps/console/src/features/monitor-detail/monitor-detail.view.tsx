@@ -1,9 +1,6 @@
-import { DataTable } from "@/components/data-table";
-import { DataTableLink } from "@/components/data-table-link";
-import { ListPagination } from "@/components/list-pagination";
-import { PageBreadcrumbs } from "@/components/page-breadcrumbs";
-import { PageHeader } from "@/components/page-header";
-import { StatusBadge, toStatus } from "@/components/status-badges";
+import { PageBreadcrumbs } from "@/components/shared/page-breadcrumbs";
+import { PageHeader } from "@/components/shared/page-header";
+import { StatusBadge, toStatus } from "@/components/shared/status-badges";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,28 +10,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { TabCount, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   CoreWorkerWarning,
   coreWorkerDiagnosticsFromPayload,
   shouldWarnForCoreWorker,
 } from "@/features/monitors/components/core-worker-diagnostics";
-import { HeartbeatSetupPanel } from "@/features/monitors/components/heartbeat-setup-panel";
 import { coreMonitorMutationErrorMessage } from "@/features/monitors/components/core-monitor-errors";
 import { CoreMonitorDialog } from "@/features/monitors/components/core-monitor-dialog";
 import {
-  type MonitorPayload,
   explainMonitorFailure,
-  formatMonitorLatency,
   parseMonitorPayload,
-  readMonitorPayloadString,
   summarizeMonitorResult,
-} from "@/features/monitors/monitor-result-summary";
-import { ReportInspectionDrawer } from "@/features/report-inspection/report-inspection-drawer";
-import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
-import { cn } from "@/lib/utils";
+} from "@/features/monitors/monitors.domain";
+import { ReportInspectionDrawer } from "@/features/report-inspection/components/report-inspection-drawer";
+import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
+import { cn } from "@/utils/cn";
 import {
-  type ApiIncidentResponse,
   type ApiMonitorReportResponse,
   type ServiceCoreManagedMonitorUpdateRequest,
   getGetCoreMonitorConfigQueryKey,
@@ -55,138 +46,23 @@ import {
   useUpdateCoreMonitor,
 } from "@/orion-sdk";
 import { useQueryClient } from "@tanstack/react-query";
-import type { ColumnDef } from "@tanstack/react-table";
-import { FileJson, Pause, Play, RefreshCw, Save, Trash2 } from "lucide-react";
+import { Pause, Play, RefreshCw, Save, Trash2 } from "lucide-react";
 import { parseAsInteger, useQueryStates } from "nuqs";
-import { type ReactNode, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-
-const HISTORY_LIMIT = 20;
-const monitorDetailTabs = ["history", "incidents", "config"] as const;
-type MonitorDetailTab = (typeof monitorDetailTabs)[number];
-
-const isMonitorDetailTab = (value: string | null): value is MonitorDetailTab =>
-  monitorDetailTabs.includes(value as MonitorDetailTab);
-
-const isHeartbeatPayload = (payload: MonitorPayload) =>
-  payload.type === "heartbeat" || payload.runner === "heartbeat";
-
-const heartbeatPayloadContext = (report?: ApiMonitorReportResponse) => {
-  if (!report) return "—";
-  const payload = parseMonitorPayload(report.payload);
-  if (!isHeartbeatPayload(payload)) return "—";
-  return (
-    readMonitorPayloadString(payload, ["payload", "failure_stage", "status", "message", "error"]) ??
-    "—"
-  );
-};
-
-const DetailItem = ({ label, value }: { label: string; value: ReactNode }) => (
-  <div>
-    <div className="text-sm text-neutral-600">{label}</div>
-    <div className="break-words text-sm font-medium">{value}</div>
-  </div>
-);
-
-const DetailGroup = ({ title, children }: { title: string; children: ReactNode }) => (
-  <div className="space-y-3 bg-neutral-50 px-3 py-3">
-    <h2 className="text-sm font-medium">{title}</h2>
-    <div className="space-y-3">{children}</div>
-  </div>
-);
-
-const formatUptime = (value?: number) => (typeof value === "number" ? `${value.toFixed(1)}%` : "—");
-
-const isCoreOwnedMonitor = (monitor?: { owner_kind?: string; source?: string }) =>
-  monitor?.owner_kind === "core" || monitor?.source === "core";
-
-const formatJSON = (value?: Record<string, unknown>) => JSON.stringify(value ?? {}, null, 2);
-
-const coreConfigValue = (config: { config?: Record<string, unknown> } | undefined, key: string) => {
-  const value = config?.config?.[key];
-  if (typeof value === "number") return String(value);
-  if (typeof value === "string" && value.trim() !== "") return value;
-  return "—";
-};
-
-const coreConfigArrayCount = (
-  config: { config?: Record<string, unknown> } | undefined,
-  key: string,
-) => {
-  const value = config?.config?.[key];
-  return Array.isArray(value) ? value.length : 0;
-};
-
-const reportTimestamp = (report?: ApiMonitorReportResponse) =>
-  report?.created_at ?? report?.collected_at;
-
-const bucketFillClassName = (bucket: { total?: number; uptime_percent?: number }) => {
-  const percent = bucket.uptime_percent ?? 0;
-
-  if (!bucket.total) return "bg-neutral-300";
-  if (percent >= 99) return "bg-emerald-400";
-  if (percent >= 95) return "bg-amber-300";
-  return "bg-rose-400";
-};
-
-const historyColumns: ColumnDef<ApiMonitorReportResponse>[] = [
-  {
-    accessorKey: "created_at",
-    header: "Time",
-    cell: ({ row }) =>
-      formatDate(row.original.created_at ?? row.original.collected_at, DATE_TIME_FORMAT),
-  },
-  {
-    accessorKey: "health",
-    header: "Status",
-    cell: ({ row }) => <StatusBadge value={toStatus(row.original.health)} />,
-  },
-  {
-    id: "latency",
-    header: "Latency",
-    cell: ({ row }) => formatMonitorLatency(parseMonitorPayload(row.original.payload)),
-  },
-  {
-    id: "result",
-    header: "Result",
-    cell: ({ row }) => (
-      <div className="max-w-[22rem] truncate text-neutral-600">
-        {summarizeMonitorResult(row.original).headline}
-      </div>
-    ),
-  },
-];
-
-const incidentColumns: ColumnDef<ApiIncidentResponse>[] = [
-  {
-    accessorKey: "title",
-    header: "Incident",
-    cell: ({ row }) => (
-      <DataTableLink to={`/incidents/${row.original.id}`}>
-        {row.original.title ?? row.original.id ?? "Untitled incident"}
-      </DataTableLink>
-    ),
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => <StatusBadge value={toStatus(row.original.status)} />,
-  },
-  {
-    accessorKey: "opened_at",
-    header: "Opened",
-    cell: ({ row }) => formatDate(row.original.opened_at, DATE_TIME_FORMAT),
-  },
-  {
-    accessorKey: "latest_event",
-    header: "Latest event",
-    cell: ({ row }) => (
-      <div className="max-w-[22rem] truncate text-neutral-600">
-        {row.original.latest_event ?? "—"}
-      </div>
-    ),
-  },
-];
+import { useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { MonitorDetailOperationalData } from "./components/monitor-detail-operational-data";
+import {
+  HighlightedIncidentBanner,
+  MonitorDetailOverview,
+} from "./components/monitor-detail-overview";
+import {
+  HISTORY_LIMIT,
+  type MonitorDetailTab,
+  isCoreOwnedMonitor,
+  isHeartbeatPayload,
+  isMonitorDetailTab,
+  reportTimestamp,
+} from "./components/monitor-detail-shared";
 
 export const MonitorDetailPage = () => {
   const { monitorId = "" } = useParams();
@@ -454,299 +330,48 @@ export const MonitorDetailPage = () => {
         <CoreWorkerWarning worker={workerDiagnostics} />
       )}
 
-      {highlightedIncident && (
-        <section className="flex flex-wrap items-center justify-between gap-3 bg-rose-50 px-3 py-2.5 text-sm">
-          <div>
-            <div className="font-medium text-rose-900">
-              Highlighted incident: {highlightedIncident.title ?? highlightedIncident.id}
-            </div>
-            <div className="text-neutral-600">
-              {highlightedIncident.latest_event ?? "No latest event recorded."}
-            </div>
-          </div>
-          <Link
-            className="px-2 py-1.5 font-medium text-rose-900 hover:bg-rose-200"
-            to={`/incidents/${highlightedIncident.id}`}
-          >
-            View incident
-          </Link>
-        </section>
-      )}
+      <HighlightedIncidentBanner incident={highlightedIncident} />
 
-      <section className="space-y-4">
-        <div className="grid gap-3 lg:grid-cols-4">
-          <DetailGroup title="State">
-            <DetailItem label="health" value={<StatusBadge value={toStatus(health)} />} />
-            <DetailItem label="type" value={latestSummary.kindLabel} />
-            <DetailItem label="source" value={isCoreMonitor ? "Core" : "Server"} />
-            <DetailItem
-              label="owner"
-              value={monitor.owner_name ?? monitor.agent_name ?? "Unknown owner"}
-            />
-            <DetailItem label="lifecycle" value={monitor.lifecycle ?? "unknown"} />
-          </DetailGroup>
+      <MonitorDetailOverview
+        activeIncidents={activeIncidents}
+        coreConfig={coreConfig}
+        health={health}
+        highlightedIncident={highlightedIncident}
+        incidentContext={incidentContext}
+        incidentContextLabel={incidentContextLabel}
+        isCoreMonitor={isCoreMonitor}
+        latestHeartbeatFailure={latestHeartbeatFailure}
+        latestHeartbeatReport={latestHeartbeatReport}
+        latestReport={latestReport}
+        latestSummary={latestSummary}
+        monitor={monitor}
+        recentUptimeBuckets={recentUptimeBuckets}
+        relatedIncidents={relatedIncidents}
+        setSelectedReport={setSelectedReport}
+        uptimeBucketCount={uptimeBuckets.length}
+        uptimePercent={uptimeResponse.data?.uptime_percent}
+      />
 
-          <DetailGroup title="Schedule">
-            <DetailItem
-              label="last checked"
-              value={formatDate(reportTimestamp(latestReport), DATE_TIME_FORMAT)}
-            />
-            <DetailItem
-              label="last success"
-              value={formatDate(monitor.last_successful_report_at, DATE_TIME_FORMAT)}
-            />
-            <DetailItem
-              label="next run"
-              value={formatDate(coreConfig?.next_run_at, DATE_TIME_FORMAT)}
-            />
-            <DetailItem
-              label="interval"
-              value={`${coreConfig?.interval_seconds ?? monitor.reporting_interval_seconds ?? 0}s`}
-            />
-            {!isCoreMonitor && monitor.agent_id && (
-              <Link
-                className="text-sm font-medium hover:text-neutral-600"
-                to={`/servers/${monitor.agent_id}?tab=monitors`}
-              >
-                View server
-              </Link>
-            )}
-          </DetailGroup>
-
-          <DetailGroup title="Latest Result">
-            <DetailItem label="summary" value={latestSummary.headline} />
-            {latestSummary.items.slice(0, 5).map((detail) => (
-              <DetailItem key={detail.label} label={detail.label} value={detail.value} />
-            ))}
-            {latestReport && (
-              <Button size="sm" variant="outline" onClick={() => setSelectedReport(latestReport)}>
-                <FileJson />
-                Inspect raw report
-              </Button>
-            )}
-          </DetailGroup>
-
-          <DetailGroup title="Incident Context">
-            <DetailItem label="active" value={activeIncidents.length} />
-            <DetailItem label="related" value={relatedIncidents.length} />
-            <DetailItem label="focus" value={incidentContextLabel} />
-            {incidentContext && (
-              <DetailItem
-                label="latest event"
-                value={incidentContext.latest_event ?? "No latest event recorded."}
-              />
-            )}
-            {incidentContext && (
-              <Link
-                className="text-sm font-medium hover:text-neutral-600"
-                to={`/incidents/${incidentContext.id}`}
-              >
-                View incident
-              </Link>
-            )}
-          </DetailGroup>
-        </div>
-
-        <div className="space-y-1">
-          <h2 className="text-sm font-medium">Latest Explanation</h2>
-          <p className="max-w-3xl text-sm text-neutral-600">{latestSummary.explanation}</p>
-        </div>
-
-        {coreConfig?.kind === "heartbeat" && (
-          <div className="grid gap-3 lg:grid-cols-2">
-            <DetailGroup title="Latest Heartbeat">
-              <DetailItem
-                label="status"
-                value={<StatusBadge value={toStatus(latestHeartbeatReport?.health)} />}
-              />
-              <DetailItem
-                label="time"
-                value={formatDate(reportTimestamp(latestHeartbeatReport), DATE_TIME_FORMAT)}
-              />
-              <DetailItem label="payload" value={heartbeatPayloadContext(latestHeartbeatReport)} />
-            </DetailGroup>
-            <DetailGroup title="Latest Heartbeat Failure">
-              <DetailItem
-                label="status"
-                value={<StatusBadge value={toStatus(latestHeartbeatFailure?.health)} />}
-              />
-              <DetailItem
-                label="time"
-                value={formatDate(reportTimestamp(latestHeartbeatFailure), DATE_TIME_FORMAT)}
-              />
-              <DetailItem label="payload" value={heartbeatPayloadContext(latestHeartbeatFailure)} />
-            </DetailGroup>
-          </div>
-        )}
-
-        <div className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <DetailItem
-              label="90d uptime"
-              value={formatUptime(uptimeResponse.data?.uptime_percent)}
-            />
-            <DetailItem label="days sampled" value={uptimeBuckets.length} />
-          </div>
-          {recentUptimeBuckets.length > 0 && (
-            <div className="flex gap-0.5">
-              {recentUptimeBuckets.map((bucket) => (
-                <div
-                  key={bucket.date}
-                  title={`${bucket.date}: ${formatUptime(bucket.uptime_percent)}`}
-                  className="flex h-7 w-2 items-end bg-neutral-100"
-                >
-                  <div
-                    className={cn("mt-auto w-full", bucketFillClassName(bucket))}
-                    style={{ height: `${Math.max(4, bucket.uptime_percent ?? 0)}%` }}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <h2 className="text-sm font-medium">Operational Data</h2>
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-3">
-          <TabsList>
-            <TabsTrigger value="history">
-              Check history <TabCount>{reportCount}</TabCount>
-            </TabsTrigger>
-            <TabsTrigger value="incidents">
-              Incidents <TabCount>{relatedIncidents.length}</TabCount>
-            </TabsTrigger>
-            <TabsTrigger value="config">Configuration</TabsTrigger>
-          </TabsList>
-          <TabsContent value="history">
-            <div className="space-y-3">
-              {historyQuery.error && <div className="text-sm">Unable to load check history.</div>}
-              {!historyQuery.error && (
-                <DataTable
-                  columns={historyColumns}
-                  data={reports}
-                  emptyMessage="No check history recorded."
-                  getRowId={(report, index) =>
-                    report.id ?? `${report.monitor_id ?? "monitor"}-${index}`
-                  }
-                  isLoading={historyQuery.isLoading}
-                  loadingMessage="Loading check history..."
-                  onRowClick={setSelectedReport}
-                />
-              )}
-              {reportCount > 0 && (
-                <ListPagination
-                  count={reportCount}
-                  limit={HISTORY_LIMIT}
-                  offset={historyOffset}
-                  onOffsetChange={setHistoryOffset}
-                />
-              )}
-            </div>
-          </TabsContent>
-          <TabsContent value="incidents">
-            {incidentsResponse.error && (
-              <div className="text-sm">Unable to load related incidents.</div>
-            )}
-            {!incidentsResponse.error && (
-              <DataTable
-                columns={incidentColumns}
-                data={relatedIncidents}
-                emptyMessage="No related incidents recorded."
-                getRowId={(incident, index) => incident.id ?? `incident-${index}`}
-                isLoading={incidentsResponse.isLoading}
-                loadingMessage="Loading related incidents..."
-                rowClassName={(row) =>
-                  cn(row.original.id === highlightedIncidentId && "bg-amber-50")
-                }
-              />
-            )}
-          </TabsContent>
-          <TabsContent value="config">
-            <div className="space-y-3">
-              {!isCoreMonitor && (
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <DetailItem label="type" value={monitor.type ?? "unknown"} />
-                  <DetailItem
-                    label="interval"
-                    value={`${monitor.reporting_interval_seconds ?? 0}s`}
-                  />
-                  <DetailItem label="lifecycle" value={monitor.lifecycle ?? "unknown"} />
-                  <DetailItem label="owner" value="Server configuration" />
-                </div>
-              )}
-              {isCoreMonitor && coreConfigResponse.isLoading && (
-                <div className="text-sm text-neutral-600">
-                  Loading Core monitor configuration...
-                </div>
-              )}
-              {isCoreMonitor && coreConfigResponse.error && (
-                <div className="text-sm">Unable to load Core monitor configuration.</div>
-              )}
-              {isCoreMonitor && coreConfig && (
-                <div className="space-y-4">
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <DetailItem label="kind" value={coreConfig.kind ?? monitor.type ?? "unknown"} />
-                    <DetailItem label="interval" value={`${coreConfig.interval_seconds ?? 0}s`} />
-                    {coreConfig.kind === "heartbeat" ? (
-                      <DetailItem
-                        label="grace"
-                        value={`${coreConfigValue(coreConfig, "grace_seconds")}s`}
-                      />
-                    ) : (
-                      <DetailItem label="timeout" value={`${coreConfig.timeout_seconds ?? 0}s`} />
-                    )}
-                    <DetailItem
-                      label="confirmation"
-                      value={`${coreConfig.confirmation_period_seconds ?? 0}s / ${coreConfig.confirmation_check_count ?? 0} checks`}
-                    />
-                    <DetailItem
-                      label="recovery"
-                      value={`${coreConfig.recovery_period_seconds ?? 0}s`}
-                    />
-                    <DetailItem
-                      label="maintenance"
-                      value={`${coreConfigArrayCount(coreConfig, "maintenance_windows")} windows`}
-                    />
-                    <DetailItem label="paused" value={coreConfig.paused ? "yes" : "no"} />
-                    {coreConfig.kind === "heartbeat" && (
-                      <DetailItem
-                        label="last signal"
-                        value={formatDate(coreConfig.last_signal_at, DATE_TIME_FORMAT)}
-                      />
-                    )}
-                    <DetailItem
-                      label="last run"
-                      value={formatDate(coreConfig.last_run_at, DATE_TIME_FORMAT)}
-                    />
-                    <DetailItem
-                      label="next run"
-                      value={formatDate(coreConfig.next_run_at, DATE_TIME_FORMAT)}
-                    />
-                  </div>
-                  {coreConfig.kind === "heartbeat" && (
-                    <HeartbeatSetupPanel config={coreConfig} monitor={monitor} />
-                  )}
-                  <div className="grid gap-3 lg:grid-cols-2">
-                    <div className="space-y-2">
-                      <h3 className="text-sm font-medium">Redacted config</h3>
-                      <pre className="max-h-80 overflow-auto bg-neutral-950 p-3 text-xs text-neutral-50">
-                        {formatJSON(coreConfig.config)}
-                      </pre>
-                    </div>
-                    <div className="space-y-2">
-                      <h3 className="text-sm font-medium">Secret refs</h3>
-                      <pre className="max-h-80 overflow-auto bg-neutral-950 p-3 text-xs text-neutral-50">
-                        {formatJSON(coreConfig.secret_refs)}
-                      </pre>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </TabsContent>
-        </Tabs>
-      </section>
+      <MonitorDetailOperationalData
+        activeTab={activeTab}
+        coreConfig={coreConfig}
+        coreConfigError={coreConfigResponse.error}
+        coreConfigLoading={coreConfigResponse.isLoading}
+        handleTabChange={handleTabChange}
+        highlightedIncidentId={highlightedIncidentId}
+        historyError={historyQuery.error}
+        historyLoading={historyQuery.isLoading}
+        historyOffset={historyOffset}
+        incidentsError={incidentsResponse.error}
+        incidentsLoading={incidentsResponse.isLoading}
+        isCoreMonitor={isCoreMonitor}
+        monitor={monitor}
+        onHistoryOffsetChange={setHistoryOffset}
+        onReportClick={setSelectedReport}
+        relatedIncidents={relatedIncidents}
+        reportCount={reportCount}
+        reports={reports}
+      />
       <ReportInspectionDrawer
         kind="monitor"
         report={selectedReport}

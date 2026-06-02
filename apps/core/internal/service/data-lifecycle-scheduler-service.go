@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"errors"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"time"
 
 	"gorm.io/gorm"
@@ -21,12 +21,12 @@ type DataLifecycleScheduleResult struct {
 
 type DataLifecycleSchedulerService struct {
 	db       *gorm.DB
-	logger   *logging.Logger
+	logger   *utils.Logger
 	dataDir  string
 	interval time.Duration
 }
 
-func NewDataLifecycleSchedulerService(database *gorm.DB, logger *logging.Logger, dataDir string, interval time.Duration) *DataLifecycleSchedulerService {
+func NewDataLifecycleSchedulerService(database *gorm.DB, logger *utils.Logger, dataDir string, interval time.Duration) *DataLifecycleSchedulerService {
 	if interval <= 0 {
 		interval = defaultDataLifecycleSchedulerInterval
 	}

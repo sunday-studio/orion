@@ -1,12 +1,12 @@
-import { DataTable } from "@/components/data-table";
-import { ListPagination } from "@/components/list-pagination";
-import { ReportInspectionDrawer } from "@/features/report-inspection/report-inspection-drawer";
-import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
+import { DataTable } from "@/components/shared/data-table";
+import { ListPagination } from "@/components/shared/list-pagination";
+import { ReportInspectionDrawer } from "@/features/report-inspection/components/report-inspection-drawer";
+import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { type ApiAgentReportResponse, useGetAgentReports } from "@/orion-sdk";
 import type { ColumnDef } from "@tanstack/react-table";
 import { parseAsInteger, useQueryStates } from "nuqs";
 import { useState } from "react";
-import { formatDuration, formatPercent } from "./agent-detail-utils";
+import { formatDuration, formatPercent } from "../agent-detail.domain";
 
 const AGENT_LOG_LIMIT = 20;
 

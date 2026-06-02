@@ -1,9 +1,9 @@
-import { DataTable } from "@/components/data-table";
-import { ListPagination } from "@/components/list-pagination";
+import { DataTable } from "@/components/shared/data-table";
+import { ListPagination } from "@/components/shared/list-pagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
-import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
+import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { type ApiServiceLogEntryResponse, useGetAgentServiceLogs } from "@/orion-sdk";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Search } from "lucide-react";

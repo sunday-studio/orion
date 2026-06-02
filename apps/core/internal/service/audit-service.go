@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
 	"orion/core/internal/utils"
 	"strings"
 	"time"
@@ -59,10 +58,10 @@ type AuditEventInput struct {
 
 type AuditService struct {
 	db     *gorm.DB
-	logger *logging.Logger
+	logger *utils.Logger
 }
 
-func NewAuditService(database *gorm.DB, logger *logging.Logger) *AuditService {
+func NewAuditService(database *gorm.DB, logger *utils.Logger) *AuditService {
 	return &AuditService{
 		db:     database,
 		logger: logger,

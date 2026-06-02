@@ -1,5 +1,5 @@
 import type { ApiAgentSummaryResponse } from "@/orion-sdk";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/cn";
 
 export type AgentSummaryFilter =
   | "all"

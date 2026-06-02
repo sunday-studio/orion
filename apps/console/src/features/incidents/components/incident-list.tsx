@@ -1,7 +1,7 @@
 import { IncidentSummary, type IncidentSummaryStatus } from "./incident-summary";
-import { DataTable } from "@/components/data-table";
-import { DataTableLink } from "@/components/data-table-link";
-import { EmptyState } from "@/components/empty-state";
+import { DataTable } from "@/components/shared/data-table";
+import { DataTableLink } from "@/components/shared/data-table-link";
+import { EmptyState } from "@/components/shared/empty-state";
 import {
   NotificationBadge,
   SeverityBadge,
@@ -9,10 +9,10 @@ import {
   toNotificationStatus,
   toSeverity,
   toStatus,
-} from "@/components/status-badges";
+} from "@/components/shared/status-badges";
 import { type ApiIncidentResponse, useGetIncidents } from "@/orion-sdk";
-import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
-import { ListPagination } from "@/components/list-pagination";
+import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
+import { ListPagination } from "@/components/shared/list-pagination";
 import { Button } from "@/components/ui/button";
 import {
   Select,

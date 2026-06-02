@@ -9,7 +9,6 @@ import (
 
 	"orion/core/internal/config"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
 	"orion/core/internal/utils"
 
 	"gorm.io/driver/sqlite"
@@ -18,7 +17,7 @@ import (
 
 func TestStoreMonitorReportRedactsSensitivePayloadBeforePersistence(t *testing.T) {
 	database := openReportTestDatabase(t)
-	logger := logging.NewLogger()
+	logger := utils.NewLogger()
 	insertReportServiceAgent(t, database, "agent_redaction")
 	insertReportServiceMonitor(t, database, "monitor_redaction", "agent_redaction", "active")
 	if err := database.Model(&db.Monitor{}).Where("id = ?", "monitor_redaction").Update("incident_state", "up").Error; err != nil {
@@ -105,7 +104,7 @@ func TestSafeMonitorReportPayloadRedactsExistingRows(t *testing.T) {
 
 func TestGetMonitorUptimeUsesRollupsForArchivedDays(t *testing.T) {
 	database := openReportTestDatabase(t)
-	logger := logging.NewLogger()
+	logger := utils.NewLogger()
 	now := time.Date(2026, 5, 13, 12, 0, 0, 0, time.UTC)
 	dataDir := t.TempDir()
 
@@ -156,7 +155,7 @@ func TestGetMonitorUptimeUsesRollupsForArchivedDays(t *testing.T) {
 
 func TestGetAgentUptimeAggregatesActiveMonitorBuckets(t *testing.T) {
 	database := openReportTestDatabase(t)
-	logger := logging.NewLogger()
+	logger := utils.NewLogger()
 	now := time.Date(2026, 5, 13, 12, 0, 0, 0, time.UTC)
 	dataDir := t.TempDir()
 

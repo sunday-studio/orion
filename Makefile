@@ -1,4 +1,4 @@
-.PHONY: generate-openapi generate-sdk console-sdk build-static docker-build docker-up docker-down agent-test core-test core-coverage core-race core-modernize-check core-vulncheck core-contract-check core-backend-verify console-build repository-smoke generated-contracts-check release-core-build release-readiness core-build core-worker-build agent-build seed-demo-data
+.PHONY: generate-openapi generate-sdk console-sdk build-static docker-build docker-up docker-down docker-dev-up docker-dev-down docker-dev-seed agent-test core-test core-coverage core-race core-modernize-check core-vulncheck core-contract-check core-backend-verify console-build repository-smoke generated-contracts-check release-core-build release-readiness core-build core-worker-build agent-build seed-demo-data code-line-limit
 
 VERSION ?= latest
 CORE_IMAGE ?= ghcr.io/sunday-studio/orion-core
@@ -9,6 +9,7 @@ CORE_OUTPUT ?= orion-core
 CORE_WORKER_OUTPUT ?= orion-core-worker
 CORE_COVERAGE_PROFILE ?= /tmp/orion-core-coverage.out
 CORE_COVERAGE_SUMMARY ?= /tmp/orion-core-coverage.txt
+APP_CODE_LINE_LIMIT ?= 500
 AGENT_CGO_ENABLED ?= 1
 
 generate-openapi:
@@ -80,7 +81,7 @@ docker-build:
 
 # Build Core API for local/package validation.
 core-build:
-	cd apps/core && go build -trimpath -ldflags "-s -w" -o $(CORE_OUTPUT) .
+	cd apps/core && go build -trimpath -ldflags "-s -w" -o $(CORE_OUTPUT) ./cmd/api
 
 # Build Core monitor worker for local/package validation.
 core-worker-build:
@@ -97,6 +98,39 @@ docker-up:
 docker-down:
 	docker compose -f deploy/docker-compose.yml down
 
+docker-dev-up:
+	docker compose -f docker-compose.dev.yml up -d --build
+
+docker-dev-down:
+	docker compose -f docker-compose.dev.yml down
+
+docker-dev-seed:
+	docker compose -f docker-compose.dev.yml build orion-core-seed
+	docker compose -f docker-compose.dev.yml run --rm orion-core-seed
+
 # Seed Core SQLite with 90 days of demo data for local UI/API testing
 seed-demo-data:
 	cd apps/core && go run ./scripts/seed-demo-data
+
+# Enforce the app source file line limit documented in AGENTS.md.
+code-line-limit:
+	@violations=$$(find apps -type f \( -name '*.go' -o -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' -o -name '*.mjs' -o -name '*.css' -o -name '*.sh' \) \
+		-not -path '*/node_modules/*' \
+		-not -path '*/dist/*' \
+		-not -path '*/web/*' \
+		-not -path '*/docs/*' \
+		-not -path '*/orion-sdk/*' \
+		-not -path '*/db/migrations/*' \
+		-not -path '*/public/*' \
+		-not -name '*.config.ts' \
+		-not -name '*.config.js' \
+		-not -name '*.config.mjs' \
+		-not -name '*.config.cjs' \
+		-not -name '*.d.ts' \
+		-print0 | xargs -0 wc -l | awk -v max="$(APP_CODE_LINE_LIMIT)" '$$2 != "total" && $$1 > max { printf "%5d %s\n", $$1, $$2 }' | sort -nr); \
+	if [ -n "$$violations" ]; then \
+		printf 'code-line-limit: app source files exceed %s lines\n' "$(APP_CODE_LINE_LIMIT)" >&2; \
+		printf '%s\n' "$$violations" >&2; \
+		exit 1; \
+	fi; \
+	printf 'code-line-limit: all app source files are at or below %s lines\n' "$(APP_CODE_LINE_LIMIT)"

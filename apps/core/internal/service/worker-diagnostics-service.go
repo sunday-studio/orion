@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"time"
 
 	"gorm.io/gorm"
@@ -48,10 +48,10 @@ type CoreWorkerDiagnosticsRow struct {
 
 type WorkerDiagnosticsService struct {
 	db     *gorm.DB
-	logger *logging.Logger
+	logger *utils.Logger
 }
 
-func NewWorkerDiagnosticsService(database *gorm.DB, logger *logging.Logger) *WorkerDiagnosticsService {
+func NewWorkerDiagnosticsService(database *gorm.DB, logger *utils.Logger) *WorkerDiagnosticsService {
 	return &WorkerDiagnosticsService{
 		db:     database,
 		logger: logger,

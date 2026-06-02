@@ -1,0 +1,89 @@
+x-orion-core-dev-build: &orion-core-dev-build
+  context: ./apps/core
+  dockerfile: dockerfile.dev
+
+services:
+  orion-core:
+    image: orion-core:dev
+    build: *orion-core-dev-build
+    ports:
+      - "${ORION_HTTP_PORT:-8999}:8999"
+    volumes:
+      - orion-dev-data:/data
+    environment:
+      ORION_DATA_DIR: /data
+      ORION_PORT: "8999"
+      ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS: ${ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS:-3600}
+      ORION_REQUIRE_FRONTEND_AUTH: ${ORION_REQUIRE_FRONTEND_AUTH:-true}
+      ORION_ADMIN_USERNAME: ${ORION_ADMIN_USERNAME:-admin}
+      ORION_ADMIN_PASSWORD: ${ORION_ADMIN_PASSWORD:-local-admin-password-2026}
+      ORION_JWT_SECRET: ${ORION_JWT_SECRET:-local-jwt-secret-for-orion-dev-2026-06}
+      ORION_CORS_ORIGINS: ${ORION_CORS_ORIGINS:-http://localhost:5173,http://localhost:8999,http://127.0.0.1:8999}
+      ORION_PUBLIC_STATUS_MAIL_ENABLED: ${ORION_PUBLIC_STATUS_MAIL_ENABLED:-false}
+      ORION_PUBLIC_STATUS_MAIL_HOST: ${ORION_PUBLIC_STATUS_MAIL_HOST:-}
+      ORION_PUBLIC_STATUS_MAIL_PORT: ${ORION_PUBLIC_STATUS_MAIL_PORT:-587}
+      ORION_PUBLIC_STATUS_MAIL_USERNAME: ${ORION_PUBLIC_STATUS_MAIL_USERNAME:-}
+      ORION_PUBLIC_STATUS_MAIL_PASSWORD: ${ORION_PUBLIC_STATUS_MAIL_PASSWORD:-}
+      ORION_PUBLIC_STATUS_MAIL_FROM_EMAIL: ${ORION_PUBLIC_STATUS_MAIL_FROM_EMAIL:-}
+      ORION_PUBLIC_STATUS_MAIL_FROM_NAME: ${ORION_PUBLIC_STATUS_MAIL_FROM_NAME:-Orion Status}
+      ORION_PUBLIC_STATUS_MAIL_REPLY_TO: ${ORION_PUBLIC_STATUS_MAIL_REPLY_TO:-}
+      ORION_PUBLIC_STATUS_URL_ORIGIN: ${ORION_PUBLIC_STATUS_URL_ORIGIN:-}
+      ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET: ${ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET:-}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8999/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  orion-core-worker:
+    image: orion-core:dev
+    build: *orion-core-dev-build
+    command: ["orion-core-worker"]
+    depends_on:
+      orion-core:
+        condition: service_healthy
+    volumes:
+      - orion-dev-data:/data
+    environment:
+      ORION_DATA_DIR: /data
+      ORION_WORKER_ID: ${ORION_WORKER_ID:-core-monitor-worker-dev}
+      ORION_WORKER_HEARTBEAT_SECONDS: ${ORION_WORKER_HEARTBEAT_SECONDS:-15}
+      ORION_WORKER_STALE_SECONDS: ${ORION_WORKER_STALE_SECONDS:-60}
+      ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS: ${ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS:-true}
+      ORION_PLAYWRIGHT_RUNNER: ${ORION_PLAYWRIGHT_RUNNER:-}
+      ORION_REQUIRE_FRONTEND_AUTH: ${ORION_REQUIRE_FRONTEND_AUTH:-true}
+      ORION_ADMIN_USERNAME: ${ORION_ADMIN_USERNAME:-admin}
+      ORION_ADMIN_PASSWORD: ${ORION_ADMIN_PASSWORD:-local-admin-password-2026}
+      ORION_JWT_SECRET: ${ORION_JWT_SECRET:-local-jwt-secret-for-orion-dev-2026-06}
+    healthcheck:
+      test: ["CMD", "orion-core-worker", "healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  orion-core-seed:
+    image: orion-core:dev
+    build: *orion-core-dev-build
+    profiles: ["seed"]
+    command:
+      - orion-seed-demo-data
+      - "-data-dir"
+      - /data
+      - "-days"
+      - "${ORION_SEED_DAYS:-90}"
+      - "-agents"
+      - "${ORION_SEED_AGENTS:-10}"
+      - "-report-interval"
+      - "${ORION_SEED_REPORT_INTERVAL:-1h}"
+      - "-reset-seed=${ORION_SEED_RESET:-true}"
+      - "-update-settings=${ORION_SEED_UPDATE_SETTINGS:-true}"
+    depends_on:
+      orion-core:
+        condition: service_healthy
+    volumes:
+      - orion-dev-data:/data
+
+volumes:
+  orion-dev-data:

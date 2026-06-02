@@ -2,8 +2,8 @@ import { type GetAgentsParams, useGetAgentSummary, useGetAgents } from "@/orion-
 import { AgentRow } from "./agent-row";
 import { AgentSummary, type AgentSummaryFilter } from "./agent-summary";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/empty-state";
-import { ListPagination } from "@/components/list-pagination";
+import { EmptyState } from "@/components/shared/empty-state";
+import { ListPagination } from "@/components/shared/list-pagination";
 import { parseAsBoolean, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 import { Fragment } from "react/jsx-runtime";
 

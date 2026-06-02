@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
 	"orion/core/internal/utils"
 
 	"gorm.io/driver/sqlite"
@@ -17,7 +16,7 @@ import (
 
 func TestRunRawReportArchiveMovesOldReportsToArchiveDatabase(t *testing.T) {
 	database := openArchiveTestDatabase(t)
-	logger := logging.NewLogger()
+	logger := utils.NewLogger()
 	dataDir := t.TempDir()
 	archiveDir := filepath.Join(dataDir, "archive")
 	now := time.Date(2026, 5, 13, 12, 0, 0, 0, time.UTC)
@@ -69,7 +68,7 @@ func TestRunRawReportArchiveMovesOldReportsToArchiveDatabase(t *testing.T) {
 
 func TestRunRawReportArchiveSkipsWhenDisabled(t *testing.T) {
 	database := openArchiveTestDatabase(t)
-	logger := logging.NewLogger()
+	logger := utils.NewLogger()
 	dataDir := t.TempDir()
 	now := time.Date(2026, 5, 13, 12, 0, 0, 0, time.UTC)
 
@@ -98,7 +97,7 @@ func TestRunRawReportArchiveSkipsWhenDisabled(t *testing.T) {
 
 func TestRunRawReportArchiveRejectsSymlinkEscapingDataDir(t *testing.T) {
 	database := openArchiveTestDatabase(t)
-	logger := logging.NewLogger()
+	logger := utils.NewLogger()
 	dataDir := t.TempDir()
 	externalDir := t.TempDir()
 	archiveLink := filepath.Join(dataDir, "archive-link")

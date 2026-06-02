@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/page-header";
+import { PageHeader } from "@/components/shared/page-header";
 import {
   CoreWorkerDiagnosticsPanel,
   coreWorkerDiagnosticsFromPayload,
@@ -23,7 +23,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useState } from "react";
-import { explainMonitorFailure } from "./monitor-result-summary";
+import { explainMonitorFailure } from "./monitors.domain";
 
 export const MonitorsPage = () => {
   const [createOpen, setCreateOpen] = useState(false);

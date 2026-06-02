@@ -1,6 +1,6 @@
-import { StatusBadge, toStatus } from "@/components/status-badges";
-import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
-import { cn } from "@/lib/utils";
+import { StatusBadge, toStatus } from "@/components/shared/status-badges";
+import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
+import { cn } from "@/utils/cn";
 import type { GetCoreWorkerDiagnostics200 } from "@/orion-sdk";
 import { Activity, AlertTriangle } from "lucide-react";
 

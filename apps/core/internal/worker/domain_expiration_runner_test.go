@@ -6,7 +6,7 @@ import (
 	"net"
 	"net/http"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"strings"
 	"testing"
 	"time"
@@ -34,7 +34,7 @@ func TestRunDueChecksStoresUpReportForDomainExpiration(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-domain-test", HTTPClient: httpClient})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-domain-test", HTTPClient: httpClient})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -80,7 +80,7 @@ func TestRunDueChecksStoresDegradedReportForExpiringDomain(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-domain-test", HTTPClient: httpClient})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-domain-test", HTTPClient: httpClient})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -115,7 +115,7 @@ func TestRunDueChecksStoresDownReportForUnavailableDomainExpirationData(t *testi
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-domain-test", HTTPClient: httpClient})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-domain-test", HTTPClient: httpClient})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -153,7 +153,7 @@ func TestRunDueChecksFallsBackToWHOISForUnavailableRDAPDomainExpirationData(t *t
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{
+	app := NewApp(database, utils.NewLogger(), Options{
 		WorkerID:   "worker-domain-test",
 		HTTPClient: httpClient,
 		TCPDialContext: func(ctx context.Context, network string, address string) (net.Conn, error) {
@@ -209,7 +209,7 @@ func TestRunDueChecksStoresDownReportWhenRDAPAndWHOISDomainExpirationDataAreUnav
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{
+	app := NewApp(database, utils.NewLogger(), Options{
 		WorkerID:   "worker-domain-test",
 		HTTPClient: httpClient,
 		TCPDialContext: func(ctx context.Context, network string, address string) (net.Conn, error) {

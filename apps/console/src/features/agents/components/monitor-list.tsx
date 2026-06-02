@@ -1,10 +1,10 @@
 import { type ApiMonitorResponse, useGetAgentMonitors } from "@/orion-sdk";
 import type { ColumnDef } from "@tanstack/react-table";
-import { DataTable } from "@/components/data-table";
-import { DataTableLink } from "@/components/data-table-link";
-import { ListPagination } from "@/components/list-pagination";
-import { StatusBadge, toStatus } from "@/components/status-badges";
-import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
+import { DataTable } from "@/components/shared/data-table";
+import { DataTableLink } from "@/components/shared/data-table-link";
+import { ListPagination } from "@/components/shared/list-pagination";
+import { StatusBadge, toStatus } from "@/components/shared/status-badges";
+import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { useState } from "react";
 
 const MONITOR_LIMIT = 10;

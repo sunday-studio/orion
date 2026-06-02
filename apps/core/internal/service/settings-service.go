@@ -3,7 +3,7 @@ package service
 import (
 	"errors"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,11 +31,11 @@ type DataLifecycleSettingsPayload struct {
 
 type SettingsService struct {
 	db      *gorm.DB
-	logger  *logging.Logger
+	logger  *utils.Logger
 	dataDir string
 }
 
-func NewSettingsService(database *gorm.DB, logger *logging.Logger, dataDir string) *SettingsService {
+func NewSettingsService(database *gorm.DB, logger *utils.Logger, dataDir string) *SettingsService {
 	return &SettingsService{
 		db:      database,
 		logger:  logger,

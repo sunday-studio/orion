@@ -2,7 +2,7 @@ import * as React from "react";
 import { Select as SelectPrimitive } from "@base-ui/react";
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/cn";
 
 type BaseSelectProps = React.ComponentProps<typeof SelectPrimitive.Root<string>>;
 type SelectProps = Omit<BaseSelectProps, "onValueChange"> & {

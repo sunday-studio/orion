@@ -1,6 +1,6 @@
 import type { ApiAgentReportResponse, ApiAgentResponse } from "@/orion-sdk";
 import { DetailItem } from "./detail-item";
-import { formatBytes, formatDuration, formatPercent } from "./agent-detail-utils";
+import { formatBytes, formatDuration, formatPercent } from "../agent-detail.domain";
 
 type AgentCpuTabProps = {
   agent: ApiAgentResponse;

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
 	"orion/core/internal/utils"
 
 	"gorm.io/driver/sqlite"
@@ -14,7 +13,7 @@ import (
 
 func TestRollupMonitorUptimeDayCreatesDailyRows(t *testing.T) {
 	database := openRollupTestDatabase(t)
-	service := NewRollupService(database, logging.NewLogger())
+	service := NewRollupService(database, utils.NewLogger())
 	day := time.Date(2026, 5, 12, 10, 0, 0, 0, time.UTC)
 
 	insertRollupReport(t, database, "monitor_a", "up", day.Add(time.Hour))
@@ -46,7 +45,7 @@ func TestRollupMonitorUptimeDayCreatesDailyRows(t *testing.T) {
 
 func TestRollupMonitorUptimeDayIsIdempotent(t *testing.T) {
 	database := openRollupTestDatabase(t)
-	service := NewRollupService(database, logging.NewLogger())
+	service := NewRollupService(database, utils.NewLogger())
 	day := time.Date(2026, 5, 12, 10, 0, 0, 0, time.UTC)
 
 	insertRollupReport(t, database, "monitor_a", "up", day)

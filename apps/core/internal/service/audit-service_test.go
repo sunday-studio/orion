@@ -2,7 +2,7 @@ package service
 
 import (
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"strings"
 	"testing"
 
@@ -12,7 +12,7 @@ import (
 
 func TestRecordStatusPageEventStoresMinimalAuditFields(t *testing.T) {
 	database := openAuditServiceTestDatabase(t)
-	service := NewAuditService(database, logging.NewLogger())
+	service := NewAuditService(database, utils.NewLogger())
 
 	event, err := service.RecordStatusPageEvent(StatusPageAuditEventInput{
 		Action:             " " + StatusPageAuditActionPublished + " ",
@@ -66,7 +66,7 @@ func TestRecordStatusPageEventStoresMinimalAuditFields(t *testing.T) {
 
 func TestRecordStatusPageEventRejectsUnsupportedAction(t *testing.T) {
 	database := openAuditServiceTestDatabase(t)
-	service := NewAuditService(database, logging.NewLogger())
+	service := NewAuditService(database, utils.NewLogger())
 
 	_, err := service.RecordStatusPageEvent(StatusPageAuditEventInput{
 		Action:             "incident_payload_recorded",
@@ -83,7 +83,7 @@ func TestRecordStatusPageEventRejectsUnsupportedAction(t *testing.T) {
 
 func TestRecordStatusPageEventRequiresActor(t *testing.T) {
 	database := openAuditServiceTestDatabase(t)
-	service := NewAuditService(database, logging.NewLogger())
+	service := NewAuditService(database, utils.NewLogger())
 
 	_, err := service.RecordStatusPageEvent(StatusPageAuditEventInput{
 		Action:             StatusPageAuditActionUnpublished,

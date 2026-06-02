@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"orion/core/internal/config"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
 	"orion/core/internal/service"
+	"orion/core/internal/utils"
 	"strings"
 	"time"
 
@@ -71,7 +71,7 @@ type Options struct {
 // App is the independent Core monitor worker process.
 type App struct {
 	db             *gorm.DB
-	logger         *logging.Logger
+	logger         *utils.Logger
 	healthInterval time.Duration
 	checkInterval  time.Duration
 	leaseDuration  time.Duration
@@ -96,7 +96,7 @@ type checkRunResult struct {
 }
 
 // NewApp creates a worker app bound to the Core database.
-func NewApp(database *gorm.DB, logger *logging.Logger, opts Options) *App {
+func NewApp(database *gorm.DB, logger *utils.Logger, opts Options) *App {
 	healthInterval := opts.HealthInterval
 	if healthInterval <= 0 {
 		healthInterval = defaultHealthInterval

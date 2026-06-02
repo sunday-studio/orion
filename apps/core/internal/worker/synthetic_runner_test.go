@@ -5,7 +5,7 @@ import (
 	"io"
 	"net/http"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"strings"
 	"testing"
 	"time"
@@ -52,7 +52,7 @@ func TestRunDueChecksStoresUpReportForSyntheticAPISteps(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-synthetic-test", HTTPClient: httpClient})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-synthetic-test", HTTPClient: httpClient})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -111,7 +111,7 @@ func TestRunDueChecksStopsSyntheticOnStepFailure(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-synthetic-test", HTTPClient: httpClient})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-synthetic-test", HTTPClient: httpClient})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -158,7 +158,7 @@ func TestRunDueChecksStoresDownReportForSyntheticAssertionFailure(t *testing.T) 
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-synthetic-test", HTTPClient: httpClient})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-synthetic-test", HTTPClient: httpClient})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -192,7 +192,7 @@ func TestRunDueChecksStoresDownReportForSyntheticBrowserStepUnsupported(t *testi
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-synthetic-test"})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-synthetic-test"})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -229,7 +229,7 @@ func TestRunDueChecksStoresDownReportForSyntheticMissingVariable(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-synthetic-test", HTTPClient: httpClient})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-synthetic-test", HTTPClient: httpClient})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -266,7 +266,7 @@ func TestRunDueChecksRejectsSyntheticSubstitutedPrivateTarget(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-synthetic-test", HTTPClient: httpClient})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-synthetic-test", HTTPClient: httpClient})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -304,7 +304,7 @@ func TestRunDueChecksStoresTruncatedSyntheticResponseSample(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-synthetic-test", HTTPClient: httpClient})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-synthetic-test", HTTPClient: httpClient})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}

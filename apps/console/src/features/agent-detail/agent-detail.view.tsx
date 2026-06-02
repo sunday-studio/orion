@@ -1,4 +1,4 @@
-import { PageBreadcrumbs } from "@/components/page-breadcrumbs";
+import { PageBreadcrumbs } from "@/components/shared/page-breadcrumbs";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   type ApiAgentReportResponse,
@@ -8,7 +8,7 @@ import {
   useGetIncident,
   useGetIncidents,
 } from "@/orion-sdk";
-import { DATE_TIME_FORMAT, formatDate } from "@/lib/date-utils";
+import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { useCallback } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { AgentCpuTab } from "./components/agent-cpu-tab";
@@ -17,8 +17,8 @@ import { AgentLogsTab } from "./components/agent-logs-tab";
 import { AgentMonitorsTab } from "./components/agent-monitors-tab";
 import { AgentServiceLogsTab } from "./components/agent-service-logs-tab";
 import { AgentTokenPanel } from "./components/agent-token-panel";
-import { PageHeader } from "@/components/page-header";
-import { StatusBadge, toStatus } from "@/components/status-badges";
+import { PageHeader } from "@/components/shared/page-header";
+import { StatusBadge, toStatus } from "@/components/shared/status-badges";
 
 const AGENT_DETAIL_TABS = ["logs", "service-logs", "monitors", "cpu"] as const;
 type AgentDetailTab = (typeof AGENT_DETAIL_TABS)[number];

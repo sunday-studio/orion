@@ -2,7 +2,7 @@ package service
 
 import (
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"time"
 
 	"gorm.io/gorm"
@@ -18,10 +18,10 @@ type RollupRunResult struct {
 
 type RollupService struct {
 	db     *gorm.DB
-	logger *logging.Logger
+	logger *utils.Logger
 }
 
-func NewRollupService(database *gorm.DB, logger *logging.Logger) *RollupService {
+func NewRollupService(database *gorm.DB, logger *utils.Logger) *RollupService {
 	return &RollupService{
 		db:     database,
 		logger: logger,

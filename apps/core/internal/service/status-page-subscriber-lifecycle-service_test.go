@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
 	"orion/core/internal/utils"
 
 	"gorm.io/gorm"
@@ -15,7 +14,7 @@ import (
 func TestStatusPageSubscriberRetentionCleanupPurgesAndAnonymizesExpiredRows(t *testing.T) {
 	database := openArchiveTestDatabase(t)
 	now := time.Date(2026, 5, 29, 12, 0, 0, 0, time.UTC)
-	service := NewStatusPageSubscriberLifecycleService(database, logging.NewLogger())
+	service := NewStatusPageSubscriberLifecycleService(database, utils.NewLogger())
 
 	expiredPending := insertLifecycleSubscriber(t, database, lifecycleSubscriberSeed{
 		ID:              "status_page_subscriber_pending_expired",
@@ -100,7 +99,7 @@ func TestStatusPageSubscriberRetentionCleanupPurgesAndAnonymizesExpiredRows(t *t
 func TestStatusPageSubscriberLifecycleDirectHardDeleteRecordsAudit(t *testing.T) {
 	database := openArchiveTestDatabase(t)
 	now := time.Date(2026, 5, 29, 12, 0, 0, 0, time.UTC)
-	service := NewStatusPageSubscriberLifecycleService(database, logging.NewLogger())
+	service := NewStatusPageSubscriberLifecycleService(database, utils.NewLogger())
 	subscriber := insertLifecycleSubscriber(t, database, lifecycleSubscriberSeed{
 		ID:           "status_page_subscriber_delete_me",
 		StatusPageID: "status_page_direct",

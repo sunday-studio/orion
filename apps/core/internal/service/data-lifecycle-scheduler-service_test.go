@@ -6,12 +6,12 @@ import (
 	"time"
 
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 )
 
 func TestDataLifecycleSchedulerRunsDailyArchiveAndRollup(t *testing.T) {
 	database := openArchiveTestDatabase(t)
-	logger := logging.NewLogger()
+	logger := utils.NewLogger()
 	dataDir := t.TempDir()
 	archiveDir := filepath.Join(dataDir, "archive")
 	now := time.Date(2026, 5, 27, 9, 0, 0, 0, time.UTC)
@@ -57,7 +57,7 @@ func TestDataLifecycleSchedulerRunsDailyArchiveAndRollup(t *testing.T) {
 
 func TestDataLifecycleSchedulerSkipsManualMode(t *testing.T) {
 	database := openArchiveTestDatabase(t)
-	logger := logging.NewLogger()
+	logger := utils.NewLogger()
 	dataDir := t.TempDir()
 	now := time.Date(2026, 5, 27, 9, 0, 0, 0, time.UTC)
 
@@ -102,7 +102,7 @@ func TestDataLifecycleSchedulerSkipsManualMode(t *testing.T) {
 
 func TestDataLifecycleSchedulerRunsOncePerDay(t *testing.T) {
 	database := openArchiveTestDatabase(t)
-	logger := logging.NewLogger()
+	logger := utils.NewLogger()
 	dataDir := t.TempDir()
 	now := time.Date(2026, 5, 27, 9, 0, 0, 0, time.UTC)
 

@@ -3,7 +3,7 @@ package service
 import (
 	"fmt"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"time"
 
 	"gorm.io/gorm"
@@ -11,10 +11,10 @@ import (
 
 type HealthService struct {
 	db     *gorm.DB
-	logger *logging.Logger
+	logger *utils.Logger
 }
 
-func NewHealthService(database *gorm.DB, logger *logging.Logger) *HealthService {
+func NewHealthService(database *gorm.DB, logger *utils.Logger) *HealthService {
 	return &HealthService{
 		db:     database,
 		logger: logger,

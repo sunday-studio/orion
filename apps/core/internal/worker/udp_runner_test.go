@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"strings"
 	"testing"
 	"time"
@@ -34,7 +34,7 @@ func TestRunDueChecksStoresUpReportForUDPResponse(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-udp-test", UDPDialContext: udpDialContext})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-udp-test", UDPDialContext: udpDialContext})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -77,7 +77,7 @@ func TestRunDueChecksStoresDownReportForUDPTimeout(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{
+	app := NewApp(database, utils.NewLogger(), Options{
 		WorkerID: "worker-udp-test",
 		UDPDialContext: func(ctx context.Context, network string, address string) (net.Conn, error) {
 			return &fakeUDPConn{readErr: timeoutTestError{}}, nil
@@ -104,7 +104,7 @@ func TestRunDueChecksStoresDownReportForUDPResponseMismatch(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{
+	app := NewApp(database, utils.NewLogger(), Options{
 		WorkerID: "worker-udp-test",
 		UDPDialContext: func(ctx context.Context, network string, address string) (net.Conn, error) {
 			return &fakeUDPConn{response: "nope"}, nil
@@ -131,7 +131,7 @@ func TestRunDueChecksStoresDownReportForUDPNoResponseConfig(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-udp-test"})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-udp-test"})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
