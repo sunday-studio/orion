@@ -21,48 +21,17 @@ const (
 )
 
 type statusPageRequest struct {
-	Slug              *string `json:"slug"`
-	CustomDomain      *string `json:"custom_domain"`
-	Title             *string `json:"title"`
-	Description       *string `json:"description"`
-	SEOTitle          *string `json:"seo_title"`
-	SEODescription    *string `json:"seo_description"`
-	OpenGraphImageURL *string `json:"open_graph_image_url"`
-	CanonicalURL      *string `json:"canonical_url"`
-	Visibility        *string `json:"visibility"`
-	ThemeSettings     map[    // previewStatusPageIncidentDraft previews a safe public incident draft from an internal incident.
-	// @Summary      Preview public incident draft
-	// @Description  Generate safe public incident draft copy from an internal incident using visible public component names and approved templates only
-	// @Tags         status-pages
-	// @Accept       json
-	// @Produce      json
-	// @Security     BearerAuth
-	// @ID           previewStatusPageIncidentDraft
-	// @Param        id           path      string    true   "Status page ID"
-	// @Param        incident_id  query     string    true   "Internal incident ID"
-	// @Param        component_id query     []string  false  "Visible public component IDs to include"
-	// @Success      200          {object}  utils.APIResponse{data=object{draft=StatusPageIncidentDraftResponse}}
-	// @Failure      400          {object}  utils.APIResponse
-	// @Failure      404          {object}  utils.APIResponse
-	// @Failure      500          {object}  utils.APIResponse
-	// @Router       /v1/status-pages/{id}/incidents/draft [get]
-	// createStatusPageIncidentDraft creates a safe public incident draft from an internal incident.
-	// @Summary      Create public incident draft
-	// @Description  Create a draft public incident and draft initial update from an internal incident without copying internal details
-	// @Tags         status-pages
-	// @Accept       json
-	// @Produce      json
-	// @Security     BearerAuth
-	// @ID           createStatusPageIncidentDraft
-	// @Param        id       path      string                           true  "Status page ID"
-	// @Param        request  body      statusPageIncidentDraftRequest  true  "Draft source payload"
-	// @Success      201      {object}  utils.APIResponse{data=object{draft=StatusPageIncidentDraftResponse,incident=StatusPageIncidentResponse,update=StatusPageIncidentUpdateResponse}}
-	// @Failure      400      {object}  utils.APIResponse
-	// @Failure      404      {object}  utils.APIResponse
-	// @Failure      500      {object}  utils.APIResponse
-	// @Router       /v1/status-pages/{id}/incidents/draft [post]
-	string]interface{} `json:"theme_settings"`
-	DefaultIncidentVisibility *string `json:"default_incident_visibility"`
+	Slug                      *string                `json:"slug"`
+	CustomDomain              *string                `json:"custom_domain"`
+	Title                     *string                `json:"title"`
+	Description               *string                `json:"description"`
+	SEOTitle                  *string                `json:"seo_title"`
+	SEODescription            *string                `json:"seo_description"`
+	OpenGraphImageURL         *string                `json:"open_graph_image_url"`
+	CanonicalURL              *string                `json:"canonical_url"`
+	Visibility                *string                `json:"visibility"`
+	ThemeSettings             map[string]interface{} `json:"theme_settings"`
+	DefaultIncidentVisibility *string                `json:"default_incident_visibility"`
 }
 type statusPageSectionRequest struct {
 	Name               *string `json:"name"`
@@ -311,6 +280,22 @@ type StatusPageIncidentDraftResponse struct {
 	Suggestions          []StatusPageIncidentComponentSuggestionResponse `json:"suggestions"`
 }
 
+// previewStatusPageIncidentDraft previews a safe public incident draft from an internal incident.
+// @Summary      Preview public incident draft
+// @Description  Generate safe public incident draft copy from an internal incident using visible public component names and approved templates only
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           previewStatusPageIncidentDraft
+// @Param        id           path      string    true   "Status page ID"
+// @Param        incident_id  query     string    true   "Internal incident ID"
+// @Param        component_id query     []string  false  "Visible public component IDs to include"
+// @Success      200          {object}  utils.APIResponse{data=object{draft=StatusPageIncidentDraftResponse}}
+// @Failure      400          {object}  utils.APIResponse
+// @Failure      404          {object}  utils.APIResponse
+// @Failure      500          {object}  utils.APIResponse
+// @Router       /v1/status-pages/{id}/incidents/draft [get]
 func (s *Server) previewStatusPageIncidentDraft(c *gin.Context) {
 	pageID := c.Param("id")
 	if !s.statusPageExists(c, pageID) {
@@ -334,6 +319,21 @@ func (s *Server) previewStatusPageIncidentDraft(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Status page incident draft generated successfully", gin.H{"draft": draft})
 }
 
+// createStatusPageIncidentDraft creates a safe public incident draft from an internal incident.
+// @Summary      Create public incident draft
+// @Description  Create a draft public incident and draft initial update from an internal incident without copying internal details
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           createStatusPageIncidentDraft
+// @Param        id       path      string                           true  "Status page ID"
+// @Param        request  body      statusPageIncidentDraftRequest  true  "Draft source payload"
+// @Success      201      {object}  utils.APIResponse{data=object{draft=StatusPageIncidentDraftResponse,incident=StatusPageIncidentResponse,update=StatusPageIncidentUpdateResponse}}
+// @Failure      400      {object}  utils.APIResponse
+// @Failure      404      {object}  utils.APIResponse
+// @Failure      500      {object}  utils.APIResponse
+// @Router       /v1/status-pages/{id}/incidents/draft [post]
 func (s *Server) createStatusPageIncidentDraft(c *gin.Context) {
 	pageID := c.Param("id")
 	if !s.statusPageExists(c, pageID) {

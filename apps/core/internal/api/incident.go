@@ -19,51 +19,7 @@ type incidentLifecycleActionRequest struct {
 	Note string `json:"note"`
 }
 type incidentListFilters struct {
-	statuses []string// listIncidents retrieves persisted incidents.
-	// @Summary      List incidents
-	// @Description  Get a paginated list of persisted incidents. Defaults to active incidents.
-	// @Tags         incidents
-	// @Accept       json
-	// @Produce      json
-	// @ID           getIncidents
-	// @Param        status  query     string  false  "Comma-separated incident statuses" default(open,acknowledged,covered)
-	// @Param        agent_id  query   string  false  "Filter incidents by agent ID"
-	// @Param        monitor_id  query  string  false  "Filter incidents by monitor ID"
-	// @Param        resolution_kind  query  string  false  "Filter incidents by resolution kind"
-	// @Param        actor  query     string  false  "Filter incidents by lifecycle actor: manual or system"
-	// @Param        covered  query   bool    false  "Filter incidents by covered lifecycle state"
-	// @Param        notification_status  query  string  false  "Filter incidents by notification status"
-	// @Param        needs_review  query  bool  false  "Filter to incidents with failed notifications or high/critical/error severity"
-	// @Param        limit   query     int     false  "Maximum number of incidents to return" default(50)
-	// @Param        offset  query     int     false  "Number of incidents to skip" default(0)
-	// @Success      200     {object}  utils.APIResponse{data=object{incidents=[]IncidentResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta,status=[]string,insights=IncidentInsightsResponse}}
-	// @Failure      500     {object}  utils.APIResponse
-	// @Router       /v1/incidents [get]
-	// getIncidentDetail retrieves one incident with linked operational data.
-	// @Summary      Get incident detail
-	// @Description  Get one incident with related timeline events, alert deliveries, and monitor reports
-	// @Tags         incidents
-	// @Accept       json
-	// @Produce      json
-	// @ID           getIncident
-	// @Param        id   path      string  true  "Incident ID"
-	// @Success      200  {object}  utils.APIResponse{data=object{incident=IncidentResponse,evidence=IncidentEvidenceResponse,next_actions=[]IncidentNextActionResponse,related_incidents=[]IncidentRelatedIncidentResponse,timeline=[]IncidentTimelineItemResponse,events=[]IncidentEventResponse,alert_deliveries=[]AlertDeliveryResponse,monitor_reports=[]MonitorReportResponse}}
-	// @Failure      404  {object}  utils.APIResponse
-	// @Failure      500  {object}  utils.APIResponse
-	// @Router       /v1/incidents/{id} [get]
-	// getIncidentTimeline retrieves one incident timeline.
-	// @Summary      Get incident timeline
-	// @Description  Get normalized incident timeline events including alert delivery attempts
-	// @Tags         incidents
-	// @Accept       json
-	// @Produce      json
-	// @ID           getIncidentTimeline
-	// @Param        id   path      string  true  "Incident ID"
-	// @Success      200  {object}  utils.APIResponse{data=object{timeline=[]IncidentTimelineItemResponse,count=int}}
-	// @Failure      404  {object}  utils.APIResponse
-	// @Failure      500  {object}  utils.APIResponse
-	// @Router       /v1/incidents/{id}/timeline [get]
-
+	statuses           []string
 	agentID            string
 	monitorID          string
 	resolutionKind     string
@@ -73,6 +29,26 @@ type incidentListFilters struct {
 	needsReview        bool
 }
 
+// listIncidents retrieves persisted incidents.
+// @Summary      List incidents
+// @Description  Get a paginated list of persisted incidents. Defaults to active incidents.
+// @Tags         incidents
+// @Accept       json
+// @Produce      json
+// @ID           getIncidents
+// @Param        status  query     string  false  "Comma-separated incident statuses" default(open,acknowledged,covered)
+// @Param        agent_id  query   string  false  "Filter incidents by agent ID"
+// @Param        monitor_id  query  string  false  "Filter incidents by monitor ID"
+// @Param        resolution_kind  query  string  false  "Filter incidents by resolution kind"
+// @Param        actor  query     string  false  "Filter incidents by lifecycle actor: manual or system"
+// @Param        covered  query   bool    false  "Filter incidents by covered lifecycle state"
+// @Param        notification_status  query  string  false  "Filter incidents by notification status"
+// @Param        needs_review  query  bool  false  "Filter to incidents with failed notifications or high/critical/error severity"
+// @Param        limit   query     int     false  "Maximum number of incidents to return" default(50)
+// @Param        offset  query     int     false  "Number of incidents to skip" default(0)
+// @Success      200     {object}  utils.APIResponse{data=object{incidents=[]IncidentResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta,status=[]string,insights=IncidentInsightsResponse}}
+// @Failure      500     {object}  utils.APIResponse
+// @Router       /v1/incidents [get]
 func (s *Server) listIncidents(c *gin.Context) {
 	limit := utils.QueryInt(c, "limit", 50)
 	offset := utils.QueryInt(c, "offset", 0)
@@ -276,6 +252,18 @@ func (s *Server) incidentNotificationReliability(incidentIDs []string) IncidentN
 	return stats
 }
 
+// getIncidentDetail retrieves one incident with linked operational data.
+// @Summary      Get incident detail
+// @Description  Get one incident with related timeline events, alert deliveries, and monitor reports
+// @Tags         incidents
+// @Accept       json
+// @Produce      json
+// @ID           getIncident
+// @Param        id   path      string  true  "Incident ID"
+// @Success      200  {object}  utils.APIResponse{data=object{incident=IncidentResponse,evidence=IncidentEvidenceResponse,next_actions=[]IncidentNextActionResponse,related_incidents=[]IncidentRelatedIncidentResponse,timeline=[]IncidentTimelineItemResponse,events=[]IncidentEventResponse,alert_deliveries=[]AlertDeliveryResponse,monitor_reports=[]MonitorReportResponse}}
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/incidents/{id} [get]
 func (s *Server) getIncidentDetail(c *gin.Context) {
 	incident, agent, monitor, ok := s.loadIncidentContext(c)
 	if !ok {
@@ -314,6 +302,18 @@ func (s *Server) getIncidentDetail(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Incident retrieved successfully", gin.H{"incident": incidentResponse(incident, agent, monitor), "evidence": evidence, "next_actions": incidentNextActions(incident, monitor, deliveries, reports, relatedIncidents), "related_incidents": relatedIncidents, "timeline": incidentTimeline(events, deliveries, reports), "events": incidentEventResponses(events), "alert_deliveries": alertDeliveryResponses(deliveries), "monitor_reports": monitorReportResponses(reports)})
 }
 
+// getIncidentTimeline retrieves one incident timeline.
+// @Summary      Get incident timeline
+// @Description  Get normalized incident timeline events including alert delivery attempts
+// @Tags         incidents
+// @Accept       json
+// @Produce      json
+// @ID           getIncidentTimeline
+// @Param        id   path      string  true  "Incident ID"
+// @Success      200  {object}  utils.APIResponse{data=object{timeline=[]IncidentTimelineItemResponse,count=int}}
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/incidents/{id}/timeline [get]
 func (s *Server) getIncidentTimeline(c *gin.Context) {
 	incident, _, _, ok := s.loadIncidentContext(c)
 	if !ok {

@@ -26,79 +26,7 @@ const (
 type statusPageSubscriptionRequest struct {
 	DestinationType *string  `json:"destination_type"`
 	Destination     *string  `json:"destination"`
-	ComponentIDs    []string `json:"component_ids"`// createPublicStatusPageSubscriber records a pending public subscriber.
-	// @Summary      Request public status page subscription
-	// @Description  Create or refresh a pending public subscriber without exposing confirmation tokens
-	// @Tags         public-status
-	// @Accept       json
-	// @Produce      json
-	// @ID           createPublicStatusPageSubscriber
-	// @Param        slug     path      string                         true  "Status page slug"
-	// @Param        request  body      statusPageSubscriptionRequest  true  "Subscription payload"
-	// @Success      202      {object}  utils.APIResponse{data=object{subscriber=StatusPageSubscriberPublicResponse,confirmation_required=bool}}
-	// @Failure      400      {object}  utils.APIResponse
-	// @Failure      404      {object}  utils.APIResponse
-	// @Failure      429      {object}  utils.APIResponse
-	// @Failure      500      {object}  utils.APIResponse
-	// @Router       /status/{slug}/subscribers [post]
-	// confirmPublicStatusPageSubscriber confirms a pending public subscriber.
-	// @Summary      Confirm public status page subscription
-	// @Description  Confirm a pending public subscriber by one-time token hash
-	// @Tags         public-status
-	// @Accept       json
-	// @Produce      json
-	// @ID           confirmPublicStatusPageSubscriber
-	// @Param        slug   path      string  true  "Status page slug"
-	// @Param        token  path      string  true  "Confirmation token"
-	// @Success      200    {object}  utils.APIResponse{data=object{subscriber=StatusPageSubscriberPublicResponse}}
-	// @Failure      404    {object}  utils.APIResponse
-	// @Failure      429    {object}  utils.APIResponse
-	// @Failure      500    {object}  utils.APIResponse
-	// @Router       /status/{slug}/subscribers/confirm/{token} [get]
-	// getPublicStatusPageSubscriberPreferences returns masked subscriber preferences.
-	// @Summary      Get public status page subscriber preferences
-	// @Description  Get masked subscriber preferences by manage token
-	// @Tags         public-status
-	// @Accept       json
-	// @Produce      json
-	// @ID           getPublicStatusPageSubscriberPreferences
-	// @Param        slug   path      string  true  "Status page slug"
-	// @Param        token  path      string  true  "Manage token"
-	// @Success      200    {object}  utils.APIResponse{data=object{subscriber=StatusPageSubscriberPublicResponse}}
-	// @Failure      404    {object}  utils.APIResponse
-	// @Failure      429    {object}  utils.APIResponse
-	// @Failure      500    {object}  utils.APIResponse
-	// @Router       /status/{slug}/subscribers/manage/{token} [get]
-	// updatePublicStatusPageSubscriberPreferences updates component preferences.
-	// @Summary      Update public status page subscriber preferences
-	// @Description  Update visible component preferences by manage token
-	// @Tags         public-status
-	// @Accept       json
-	// @Produce      json
-	// @ID           updatePublicStatusPageSubscriberPreferences
-	// @Param        slug     path      string                                  true  "Status page slug"
-	// @Param        token    path      string                                  true  "Manage token"
-	// @Param        request  body      statusPageSubscriberPreferencesRequest  true  "Preference payload"
-	// @Success      200      {object}  utils.APIResponse{data=object{subscriber=StatusPageSubscriberPublicResponse}}
-	// @Failure      400      {object}  utils.APIResponse
-	// @Failure      404      {object}  utils.APIResponse
-	// @Failure      429      {object}  utils.APIResponse
-	// @Failure      500      {object}  utils.APIResponse
-	// @Router       /status/{slug}/subscribers/manage/{token} [put]
-	// unsubscribePublicStatusPageSubscriber unsubscribes by bearer token.
-	// @Summary      Unsubscribe public status page subscriber
-	// @Description  Idempotently unsubscribe a public status page subscriber by token
-	// @Tags         public-status
-	// @Accept       json
-	// @Produce      json
-	// @ID           unsubscribePublicStatusPageSubscriber
-	// @Param        slug   path      string  true  "Status page slug"
-	// @Param        token  path      string  true  "Unsubscribe token"
-	// @Success      200    {object}  utils.APIResponse{data=object{unsubscribed=bool}}
-	// @Failure      429    {object}  utils.APIResponse
-	// @Failure      500    {object}  utils.APIResponse
-	// @Router       /status/{slug}/subscribers/unsubscribe/{token} [post]
-
+	ComponentIDs    []string `json:"component_ids"`
 }
 type statusPageSubscriberPreferencesRequest struct {
 	ComponentIDs []string `json:"component_ids"`
@@ -115,6 +43,21 @@ type StatusPageSubscriberComponentResponse struct {
 	Name string `json:"name"`
 }
 
+// createPublicStatusPageSubscriber records a pending public subscriber.
+// @Summary      Request public status page subscription
+// @Description  Create or refresh a pending public subscriber without exposing confirmation tokens
+// @Tags         public-status
+// @Accept       json
+// @Produce      json
+// @ID           createPublicStatusPageSubscriber
+// @Param        slug     path      string                         true  "Status page slug"
+// @Param        request  body      statusPageSubscriptionRequest  true  "Subscription payload"
+// @Success      202      {object}  utils.APIResponse{data=object{subscriber=StatusPageSubscriberPublicResponse,confirmation_required=bool}}
+// @Failure      400      {object}  utils.APIResponse
+// @Failure      404      {object}  utils.APIResponse
+// @Failure      429      {object}  utils.APIResponse
+// @Failure      500      {object}  utils.APIResponse
+// @Router       /status/{slug}/subscribers [post]
 func (s *Server) createPublicStatusPageSubscriber(c *gin.Context) {
 	if !s.allowPublicSubscriberRequest(c, "create") {
 		return
@@ -223,6 +166,20 @@ func (s *Server) createPublicStatusPageSubscriber(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusAccepted, "Status page subscription requested successfully", gin.H{"subscriber": response, "confirmation_required": confirmationRequired, "confirmation_delivery": confirmationDelivery, "production_fanout_live": s.ensurePublicStatusMailConfigured() == nil})
 }
 
+// confirmPublicStatusPageSubscriber confirms a pending public subscriber.
+// @Summary      Confirm public status page subscription
+// @Description  Confirm a pending public subscriber by one-time token hash
+// @Tags         public-status
+// @Accept       json
+// @Produce      json
+// @ID           confirmPublicStatusPageSubscriber
+// @Param        slug   path      string  true  "Status page slug"
+// @Param        token  path      string  true  "Confirmation token"
+// @Success      200    {object}  utils.APIResponse{data=object{subscriber=StatusPageSubscriberPublicResponse}}
+// @Failure      404    {object}  utils.APIResponse
+// @Failure      429    {object}  utils.APIResponse
+// @Failure      500    {object}  utils.APIResponse
+// @Router       /status/{slug}/subscribers/confirm/{token} [get]
 func (s *Server) confirmPublicStatusPageSubscriber(c *gin.Context) {
 	if !s.allowPublicSubscriberRequest(c, "confirm") {
 		return
@@ -263,6 +220,20 @@ func (s *Server) confirmPublicStatusPageSubscriber(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Status page subscription confirmed successfully", gin.H{"subscriber": response})
 }
 
+// getPublicStatusPageSubscriberPreferences returns masked subscriber preferences.
+// @Summary      Get public status page subscriber preferences
+// @Description  Get masked subscriber preferences by manage token
+// @Tags         public-status
+// @Accept       json
+// @Produce      json
+// @ID           getPublicStatusPageSubscriberPreferences
+// @Param        slug   path      string  true  "Status page slug"
+// @Param        token  path      string  true  "Manage token"
+// @Success      200    {object}  utils.APIResponse{data=object{subscriber=StatusPageSubscriberPublicResponse}}
+// @Failure      404    {object}  utils.APIResponse
+// @Failure      429    {object}  utils.APIResponse
+// @Failure      500    {object}  utils.APIResponse
+// @Router       /status/{slug}/subscribers/manage/{token} [get]
 func (s *Server) getPublicStatusPageSubscriberPreferences(c *gin.Context) {
 	if !s.allowPublicSubscriberRequest(c, "manage") {
 		return
@@ -280,6 +251,22 @@ func (s *Server) getPublicStatusPageSubscriberPreferences(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Status page subscriber preferences retrieved successfully", gin.H{"subscriber": response})
 }
 
+// updatePublicStatusPageSubscriberPreferences updates component preferences.
+// @Summary      Update public status page subscriber preferences
+// @Description  Update visible component preferences by manage token
+// @Tags         public-status
+// @Accept       json
+// @Produce      json
+// @ID           updatePublicStatusPageSubscriberPreferences
+// @Param        slug     path      string                                  true  "Status page slug"
+// @Param        token    path      string                                  true  "Manage token"
+// @Param        request  body      statusPageSubscriberPreferencesRequest  true  "Preference payload"
+// @Success      200      {object}  utils.APIResponse{data=object{subscriber=StatusPageSubscriberPublicResponse}}
+// @Failure      400      {object}  utils.APIResponse
+// @Failure      404      {object}  utils.APIResponse
+// @Failure      429      {object}  utils.APIResponse
+// @Failure      500      {object}  utils.APIResponse
+// @Router       /status/{slug}/subscribers/manage/{token} [put]
 func (s *Server) updatePublicStatusPageSubscriberPreferences(c *gin.Context) {
 	if !s.allowPublicSubscriberRequest(c, "manage") {
 		return
@@ -331,6 +318,19 @@ func (s *Server) updatePublicStatusPageSubscriberPreferences(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Status page subscriber preferences updated successfully", gin.H{"subscriber": response})
 }
 
+// unsubscribePublicStatusPageSubscriber unsubscribes by bearer token.
+// @Summary      Unsubscribe public status page subscriber
+// @Description  Idempotently unsubscribe a public status page subscriber by token
+// @Tags         public-status
+// @Accept       json
+// @Produce      json
+// @ID           unsubscribePublicStatusPageSubscriber
+// @Param        slug   path      string  true  "Status page slug"
+// @Param        token  path      string  true  "Unsubscribe token"
+// @Success      200    {object}  utils.APIResponse{data=object{unsubscribed=bool}}
+// @Failure      429    {object}  utils.APIResponse
+// @Failure      500    {object}  utils.APIResponse
+// @Router       /status/{slug}/subscribers/unsubscribe/{token} [post]
 func (s *Server) unsubscribePublicStatusPageSubscriber(c *gin.Context) {
 	if !s.allowPublicSubscriberRequest(c, "unsubscribe") {
 		return

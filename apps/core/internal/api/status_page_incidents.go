@@ -11,6 +11,19 @@ import (
 	"time"
 )
 
+// listStatusPageIncidents lists manual public incidents.
+// @Summary      List status page incidents
+// @Description  Get manual public incident records for a status page
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           listStatusPageIncidents
+// @Param        id   path      string  true  "Status page ID"
+// @Success      200  {object}  utils.APIResponse{data=object{incidents=[]StatusPageIncidentResponse,count=int}}
+// @Failure      404  {object}  utils.APIResponse
+// @Failure      500  {object}  utils.APIResponse
+// @Router       /v1/status-pages/{id}/incidents [get]
 func (s *Server) listStatusPageIncidents(c *gin.Context) {
 	if !s.statusPageExists(c, c.Param("id")) {
 		return
@@ -24,6 +37,21 @@ func (s *Server) listStatusPageIncidents(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Status page incidents retrieved successfully", gin.H{"incidents": incidents, "count": len(incidents)})
 }
 
+// suggestStatusPageIncidentComponents suggests public components affected by an internal incident.
+// @Summary      Suggest status page incident components
+// @Description  Suggest public status page components mapped to the internal incident monitor or agent without exposing internal incident details
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           suggestStatusPageIncidentComponents
+// @Param        id           path      string  true  "Status page ID"
+// @Param        incident_id  query     string  true  "Internal incident ID"
+// @Success      200          {object}  utils.APIResponse{data=object{suggestions=[]StatusPageIncidentComponentSuggestionResponse,count=int}}
+// @Failure      400          {object}  utils.APIResponse
+// @Failure      404          {object}  utils.APIResponse
+// @Failure      500          {object}  utils.APIResponse
+// @Router       /v1/status-pages/{id}/incidents/suggestions [get]
 func (s *Server) suggestStatusPageIncidentComponents(c *gin.Context) {
 	pageID := c.Param("id")
 	if !s.statusPageExists(c, pageID) {
@@ -48,6 +76,21 @@ func (s *Server) suggestStatusPageIncidentComponents(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Status page incident component suggestions retrieved successfully", gin.H{"suggestions": suggestions, "count": len(suggestions)})
 }
 
+// createStatusPageIncident creates a manual public incident.
+// @Summary      Create status page incident
+// @Description  Create a manual public incident for a status page
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           createStatusPageIncident
+// @Param        id       path      string                     true  "Status page ID"
+// @Param        request  body      statusPageIncidentRequest  true  "Incident payload"
+// @Success      201      {object}  utils.APIResponse{data=object{incident=StatusPageIncidentResponse}}
+// @Failure      400      {object}  utils.APIResponse
+// @Failure      404      {object}  utils.APIResponse
+// @Failure      500      {object}  utils.APIResponse
+// @Router       /v1/status-pages/{id}/incidents [post]
 func (s *Server) createStatusPageIncident(c *gin.Context) {
 	if !s.statusPageExists(c, c.Param("id")) {
 		return
@@ -75,6 +118,22 @@ func (s *Server) createStatusPageIncident(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusCreated, "Status page incident created successfully", gin.H{"incident": statusPageIncidentResponse(incident, nil)})
 }
 
+// updateStatusPageIncident updates a manual public incident.
+// @Summary      Update status page incident
+// @Description  Update a manual public incident for a status page
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           updateStatusPageIncident
+// @Param        id           path      string                     true  "Status page ID"
+// @Param        incident_id  path      string                     true  "Incident ID"
+// @Param        request      body      statusPageIncidentRequest  true  "Incident payload"
+// @Success      200          {object}  utils.APIResponse{data=object{incident=StatusPageIncidentResponse}}
+// @Failure      400          {object}  utils.APIResponse
+// @Failure      404          {object}  utils.APIResponse
+// @Failure      500          {object}  utils.APIResponse
+// @Router       /v1/status-pages/{id}/incidents/{incident_id} [put]
 func (s *Server) updateStatusPageIncident(c *gin.Context) {
 	var incident db.StatusPageIncident
 	if err := s.db.Where("id = ? AND status_page_id = ?", c.Param("incident_id"), c.Param("id")).First(&incident).Error; err != nil {
@@ -116,6 +175,22 @@ func (s *Server) updateStatusPageIncident(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Status page incident updated successfully", gin.H{"incident": statusPageIncidentResponse(incident, updates)})
 }
 
+// createStatusPageIncidentUpdate creates a public incident update.
+// @Summary      Create status page incident update
+// @Description  Create a public timeline update for a manual status page incident
+// @Tags         status-pages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @ID           createStatusPageIncidentUpdate
+// @Param        id           path      string                           true  "Status page ID"
+// @Param        incident_id  path      string                           true  "Incident ID"
+// @Param        request      body      statusPageIncidentUpdateRequest  true  "Incident update payload"
+// @Success      201          {object}  utils.APIResponse{data=object{update=StatusPageIncidentUpdateResponse,incident=StatusPageIncidentResponse}}
+// @Failure      400          {object}  utils.APIResponse
+// @Failure      404          {object}  utils.APIResponse
+// @Failure      500          {object}  utils.APIResponse
+// @Router       /v1/status-pages/{id}/incidents/{incident_id}/updates [post]
 func (s *Server) createStatusPageIncidentUpdate(c *gin.Context) {
 	var incident db.StatusPageIncident
 	if err := s.db.Where("id = ? AND status_page_id = ?", c.Param("incident_id"), c.Param("id")).First(&incident).Error; err != nil {
@@ -164,82 +239,7 @@ func (s *Server) createStatusPageIncidentUpdate(c *gin.Context) {
 		utils.InternalError(c, "Failed to create status page incident update", err)
 		return
 	}
-	utils.SuccessResponse(c, http.StatusCreated, "Status page incident update created successfully", gin.H{"update": statusPageIncidentUpdateResponse(update), "incident": statusPageIncidentResponse(incident, []StatusPageIncidentUpdateResponse{// listStatusPageIncidents lists manual public incidents.
-	// @Summary      List status page incidents
-	// @Description  Get manual public incident records for a status page
-	// @Tags         status-pages
-	// @Accept       json
-	// @Produce      json
-	// @Security     BearerAuth
-	// @ID           listStatusPageIncidents
-	// @Param        id   path      string  true  "Status page ID"
-	// @Success      200  {object}  utils.APIResponse{data=object{incidents=[]StatusPageIncidentResponse,count=int}}
-	// @Failure      404  {object}  utils.APIResponse
-	// @Failure      500  {object}  utils.APIResponse
-	// @Router       /v1/status-pages/{id}/incidents [get]
-	// suggestStatusPageIncidentComponents suggests public components affected by an internal incident.
-	// @Summary      Suggest status page incident components
-	// @Description  Suggest public status page components mapped to the internal incident monitor or agent without exposing internal incident details
-	// @Tags         status-pages
-	// @Accept       json
-	// @Produce      json
-	// @Security     BearerAuth
-	// @ID           suggestStatusPageIncidentComponents
-	// @Param        id           path      string  true  "Status page ID"
-	// @Param        incident_id  query     string  true  "Internal incident ID"
-	// @Success      200          {object}  utils.APIResponse{data=object{suggestions=[]StatusPageIncidentComponentSuggestionResponse,count=int}}
-	// @Failure      400          {object}  utils.APIResponse
-	// @Failure      404          {object}  utils.APIResponse
-	// @Failure      500          {object}  utils.APIResponse
-	// @Router       /v1/status-pages/{id}/incidents/suggestions [get]
-	// createStatusPageIncident creates a manual public incident.
-	// @Summary      Create status page incident
-	// @Description  Create a manual public incident for a status page
-	// @Tags         status-pages
-	// @Accept       json
-	// @Produce      json
-	// @Security     BearerAuth
-	// @ID           createStatusPageIncident
-	// @Param        id       path      string                     true  "Status page ID"
-	// @Param        request  body      statusPageIncidentRequest  true  "Incident payload"
-	// @Success      201      {object}  utils.APIResponse{data=object{incident=StatusPageIncidentResponse}}
-	// @Failure      400      {object}  utils.APIResponse
-	// @Failure      404      {object}  utils.APIResponse
-	// @Failure      500      {object}  utils.APIResponse
-	// @Router       /v1/status-pages/{id}/incidents [post]
-	// updateStatusPageIncident updates a manual public incident.
-	// @Summary      Update status page incident
-	// @Description  Update a manual public incident for a status page
-	// @Tags         status-pages
-	// @Accept       json
-	// @Produce      json
-	// @Security     BearerAuth
-	// @ID           updateStatusPageIncident
-	// @Param        id           path      string                     true  "Status page ID"
-	// @Param        incident_id  path      string                     true  "Incident ID"
-	// @Param        request      body      statusPageIncidentRequest  true  "Incident payload"
-	// @Success      200          {object}  utils.APIResponse{data=object{incident=StatusPageIncidentResponse}}
-	// @Failure      400          {object}  utils.APIResponse
-	// @Failure      404          {object}  utils.APIResponse
-	// @Failure      500          {object}  utils.APIResponse
-	// @Router       /v1/status-pages/{id}/incidents/{incident_id} [put]
-	// createStatusPageIncidentUpdate creates a public incident update.
-	// @Summary      Create status page incident update
-	// @Description  Create a public timeline update for a manual status page incident
-	// @Tags         status-pages
-	// @Accept       json
-	// @Produce      json
-	// @Security     BearerAuth
-	// @ID           createStatusPageIncidentUpdate
-	// @Param        id           path      string                           true  "Status page ID"
-	// @Param        incident_id  path      string                           true  "Incident ID"
-	// @Param        request      body      statusPageIncidentUpdateRequest  true  "Incident update payload"
-	// @Success      201          {object}  utils.APIResponse{data=object{update=StatusPageIncidentUpdateResponse,incident=StatusPageIncidentResponse}}
-	// @Failure      400          {object}  utils.APIResponse
-	// @Failure      404          {object}  utils.APIResponse
-	// @Failure      500          {object}  utils.APIResponse
-	// @Router       /v1/status-pages/{id}/incidents/{incident_id}/updates [post]
-	statusPageIncidentUpdateResponse(update)})})
+	utils.SuccessResponse(c, http.StatusCreated, "Status page incident update created successfully", gin.H{"update": statusPageIncidentUpdateResponse(update), "incident": statusPageIncidentResponse(incident, []StatusPageIncidentUpdateResponse{statusPageIncidentUpdateResponse(update)})})
 }
 func (s *Server) loadStatusPageIncidents(pageID string) ([]StatusPageIncidentResponse, error) {
 	var incidents []db.StatusPageIncident

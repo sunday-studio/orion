@@ -29,64 +29,7 @@ type StatusPagePublicUptimeBucketResponse struct {
 type StatusPagePublicComponentHistoryResponse struct {
 	Component StatusPagePublicComponentResponse      `json:"component"`
 	Uptime    StatusPagePublicUptimeResponse         `json:"uptime"`
-	History   []StatusPagePublicUptimeBucketResponse `json:"history,omitempty"`// getPublicStatusPageHistory returns public incident and component uptime history.
-	// @Summary      Get public status page history
-	// @Description  Get sanitized public history for a published or unlisted status page
-	// @Tags         public-status
-	// @Accept       json
-	// @Produce      json
-	// @ID           getPublicStatusPageHistory
-	// @Param        slug    path   string  true   "Status page slug"
-	// @Param        window  query  string  false  "Uptime window: 24h, 7d, 30d, or 90d" default(90d)
-	// @Success      200     {object}  utils.APIResponse{data=object{history=StatusPagePublicHistoryResponse}}
-	// @Failure      400     {object}  utils.APIResponse
-	// @Failure      404     {object}  utils.APIResponse
-	// @Failure      500     {object}  utils.APIResponse
-	// @Router       /status/{slug}/history [get]
-	// getPublicStatusPageComponentUptime returns a public component uptime summary.
-	// @Summary      Get public status page component uptime
-	// @Description  Get a sanitized public uptime summary for one visible component
-	// @Tags         public-status
-	// @Accept       json
-	// @Produce      json
-	// @ID           getPublicStatusPageComponentUptime
-	// @Param        slug          path   string  true   "Status page slug"
-	// @Param        component_id  path   string  true   "Public component ID"
-	// @Param        window        query  string  false  "Uptime window: 24h, 7d, 30d, or 90d" default(90d)
-	// @Success      200           {object}  utils.APIResponse{data=object{component=StatusPagePublicComponentResponse,uptime=StatusPagePublicUptimeResponse}}
-	// @Failure      400           {object}  utils.APIResponse
-	// @Failure      404           {object}  utils.APIResponse
-	// @Failure      500           {object}  utils.APIResponse
-	// @Router       /status/{slug}/components/{component_id}/uptime [get]
-	// getPublicStatusPageComponentHistory returns public component uptime history.
-	// @Summary      Get public status page component history
-	// @Description  Get sanitized public uptime history for one visible component
-	// @Tags         public-status
-	// @Accept       json
-	// @Produce      json
-	// @ID           getPublicStatusPageComponentHistory
-	// @Param        slug          path   string  true   "Status page slug"
-	// @Param        component_id  path   string  true   "Public component ID"
-	// @Param        window        query  string  false  "Uptime window: 24h, 7d, 30d, or 90d" default(90d)
-	// @Success      200           {object}  utils.APIResponse{data=object{component=StatusPagePublicComponentResponse,uptime=StatusPagePublicUptimeResponse,history=[]StatusPagePublicUptimeBucketResponse}}
-	// @Failure      400           {object}  utils.APIResponse
-	// @Failure      404           {object}  utils.APIResponse
-	// @Failure      500           {object}  utils.APIResponse
-	// @Router       /status/{slug}/components/{component_id}/history [get]
-	// getPublicStatusPageIncidentHistory returns public incident update history.
-	// @Summary      Get public status page incident history
-	// @Description  Get published public updates for one public incident
-	// @Tags         public-status
-	// @Accept       json
-	// @Produce      json
-	// @ID           getPublicStatusPageIncidentHistory
-	// @Param        slug         path  string  true  "Status page slug"
-	// @Param        incident_id  path  string  true  "Public incident ID"
-	// @Success      200          {object}  utils.APIResponse{data=object{history=StatusPagePublicIncidentHistoryResponse}}
-	// @Failure      404          {object}  utils.APIResponse
-	// @Failure      500          {object}  utils.APIResponse
-	// @Router       /status/{slug}/incidents/{incident_id}/history [get]
-
+	History   []StatusPagePublicUptimeBucketResponse `json:"history,omitempty"`
 }
 type StatusPagePublicHistoryResponse struct {
 	Page        StatusPagePublicPageResponse               `json:"page"`
@@ -115,6 +58,20 @@ type statusPagePublicMappedResourceUptime struct {
 	ok     bool
 }
 
+// getPublicStatusPageHistory returns public incident and component uptime history.
+// @Summary      Get public status page history
+// @Description  Get sanitized public history for a published or unlisted status page
+// @Tags         public-status
+// @Accept       json
+// @Produce      json
+// @ID           getPublicStatusPageHistory
+// @Param        slug    path   string  true   "Status page slug"
+// @Param        window  query  string  false  "Uptime window: 24h, 7d, 30d, or 90d" default(90d)
+// @Success      200     {object}  utils.APIResponse{data=object{history=StatusPagePublicHistoryResponse}}
+// @Failure      400     {object}  utils.APIResponse
+// @Failure      404     {object}  utils.APIResponse
+// @Failure      500     {object}  utils.APIResponse
+// @Router       /status/{slug}/history [get]
 func (s *Server) getPublicStatusPageHistory(c *gin.Context) {
 	window, ok := publicStatusPageWindow(c)
 	if !ok {
@@ -128,6 +85,21 @@ func (s *Server) getPublicStatusPageHistory(c *gin.Context) {
 	s.writePublicStatusPageJSON(c, http.StatusOK, "Status page history retrieved successfully", gin.H{"history": StatusPagePublicHistoryResponse{Page: preview.Page, Components: s.publicStatusPageComponentHistories(detail, window, false), Incidents: preview.Incidents, GeneratedAt: publicMinute(time.Now())}})
 }
 
+// getPublicStatusPageComponentUptime returns a public component uptime summary.
+// @Summary      Get public status page component uptime
+// @Description  Get a sanitized public uptime summary for one visible component
+// @Tags         public-status
+// @Accept       json
+// @Produce      json
+// @ID           getPublicStatusPageComponentUptime
+// @Param        slug          path   string  true   "Status page slug"
+// @Param        component_id  path   string  true   "Public component ID"
+// @Param        window        query  string  false  "Uptime window: 24h, 7d, 30d, or 90d" default(90d)
+// @Success      200           {object}  utils.APIResponse{data=object{component=StatusPagePublicComponentResponse,uptime=StatusPagePublicUptimeResponse}}
+// @Failure      400           {object}  utils.APIResponse
+// @Failure      404           {object}  utils.APIResponse
+// @Failure      500           {object}  utils.APIResponse
+// @Router       /status/{slug}/components/{component_id}/uptime [get]
 func (s *Server) getPublicStatusPageComponentUptime(c *gin.Context) {
 	window, ok := publicStatusPageWindow(c)
 	if !ok {
@@ -141,6 +113,21 @@ func (s *Server) getPublicStatusPageComponentUptime(c *gin.Context) {
 	s.writePublicStatusPageJSON(c, http.StatusOK, "Status page component uptime retrieved successfully", gin.H{"component": s.statusPagePublicComponentResponse(component, s.statusPageComponentStatus(component)), "uptime": uptime})
 }
 
+// getPublicStatusPageComponentHistory returns public component uptime history.
+// @Summary      Get public status page component history
+// @Description  Get sanitized public uptime history for one visible component
+// @Tags         public-status
+// @Accept       json
+// @Produce      json
+// @ID           getPublicStatusPageComponentHistory
+// @Param        slug          path   string  true   "Status page slug"
+// @Param        component_id  path   string  true   "Public component ID"
+// @Param        window        query  string  false  "Uptime window: 24h, 7d, 30d, or 90d" default(90d)
+// @Success      200           {object}  utils.APIResponse{data=object{component=StatusPagePublicComponentResponse,uptime=StatusPagePublicUptimeResponse,history=[]StatusPagePublicUptimeBucketResponse}}
+// @Failure      400           {object}  utils.APIResponse
+// @Failure      404           {object}  utils.APIResponse
+// @Failure      500           {object}  utils.APIResponse
+// @Router       /status/{slug}/components/{component_id}/history [get]
 func (s *Server) getPublicStatusPageComponentHistory(c *gin.Context) {
 	window, ok := publicStatusPageWindow(c)
 	if !ok {
@@ -154,6 +141,19 @@ func (s *Server) getPublicStatusPageComponentHistory(c *gin.Context) {
 	s.writePublicStatusPageJSON(c, http.StatusOK, "Status page component history retrieved successfully", gin.H{"component": s.statusPagePublicComponentResponse(component, s.statusPageComponentStatus(component)), "uptime": uptime, "history": history})
 }
 
+// getPublicStatusPageIncidentHistory returns public incident update history.
+// @Summary      Get public status page incident history
+// @Description  Get published public updates for one public incident
+// @Tags         public-status
+// @Accept       json
+// @Produce      json
+// @ID           getPublicStatusPageIncidentHistory
+// @Param        slug         path  string  true  "Status page slug"
+// @Param        incident_id  path  string  true  "Public incident ID"
+// @Success      200          {object}  utils.APIResponse{data=object{history=StatusPagePublicIncidentHistoryResponse}}
+// @Failure      404          {object}  utils.APIResponse
+// @Failure      500          {object}  utils.APIResponse
+// @Router       /status/{slug}/incidents/{incident_id}/history [get]
 func (s *Server) getPublicStatusPageIncidentHistory(c *gin.Context) {
 	preview, ok := s.loadPublicStatusPageProjection(c, c.Param("slug"))
 	if !ok {

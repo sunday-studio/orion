@@ -146,42 +146,9 @@ type ServiceLogEntryResponse struct {
 }
 
 type AgentConfigSummaryResponse struct {
-	ReportingInterval string `json:"reporting_interval,omitempty"`
-	MonitorCount      int    `json:"monitor_count,omitempty"`
-	MonitorTypes      map[   // AgentResponse represents an agent in API responses (without generics for OpenAPI compatibility)
-	// AgentSummaryResponse represents aggregate agent counts for list summary cards.
-	// AgentHealthResponse represents split agent availability and monitor health.
-	// MonitorResponse represents a monitor in API responses
-	// MonitorReportResponse represents a monitor report in API responses
-	// IncidentEvidenceResponse summarizes report evidence for an incident detail page.
-	// IncidentNextActionResponse represents an operator action suggested by incident detail context.
-	// IncidentRelatedIncidentResponse summarizes a nearby incident on the same monitor.
-	// AgentReportResponse represents a system report in frontend API responses.
-	// AgentConfigSummaryResponse is the frontend-safe subset of an agent's reported config summary.
-	// IncidentResponse represents a persisted incident in frontend API responses.
-	// IncidentAllowedActionsResponse describes whether each lifecycle action can run.
-	// IncidentActionStateResponse describes one incident lifecycle action.
-	// IncidentInsightsResponse represents aggregate incident metrics for the current incident filters.
-	// IncidentRecurringFailureResponse highlights monitors with repeated incidents.
-	// IncidentLifecycleTimingResponse summarizes incident acknowledgement and resolution timing.
-	// IncidentNotificationReliabilityStats summarizes alert delivery outcomes for incidents.
-	// IncidentComponentImpactResponse represents one affected public-facing component snapshot.
-	// IncidentEventResponse represents an incident event in frontend API responses.
-	// UptimeDayBucketResponse represents one daily uptime bucket.
-	// UptimeResponse represents uptime over a requested period.
-	// AlertDeliveryResponse represents a frontend-safe alert delivery record.
-	// AlertDeliveryAttemptResponse represents one sanitized delivery try.
-	// AlertRouteResponse represents an explicit alert route.
-	// AlertChannelResponse represents a configured alert channel.
-	// AlertRuleResponse represents a webhook alert rule.
-	// AlertRouteDryRunResponse explains route matching and destination decisions.
-	// AlertRouteEvaluationResponse explains one route's match result.
-	// AlertRuleDryRunResponse explains rule matching and destination decisions.
-	// AlertRuleDryRunContext represents an alert rule dry-run event.
-	// AlertRuleEvaluationResponse explains one rule's match result.
-	// AlertRuleDestinationDecision explains one alert rule destination decision.
-	// IncidentTimelineItemResponse represents a normalized incident timeline item.
-	string]int `json:"monitor_types,omitempty"`
+	ReportingInterval string         `json:"reporting_interval,omitempty"`
+	MonitorCount      int            `json:"monitor_count,omitempty"`
+	MonitorTypes      map[string]int `json:"monitor_types,omitempty"`
 }
 
 type IncidentResponse struct {

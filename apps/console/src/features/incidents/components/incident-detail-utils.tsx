@@ -4,6 +4,7 @@ import {
   toNotificationStatus,
   toStatus,
 } from "@/components/shared/status-badges";
+import { DetailGroup, DetailItem, reportTimestamp } from "@/components/shared/detail-group";
 import { Button } from "@/components/ui/button";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import type {
@@ -24,7 +25,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-export { DetailGroup, DetailItem, reportTimestamp } from "@/components/shared/detail-group";
+export { DetailGroup, DetailItem, reportTimestamp };
 
 export const durationLabel = (incident: ApiIncidentResponse) => {
   const start = incident.opened_at ? new Date(incident.opened_at).getTime() : undefined;

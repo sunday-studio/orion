@@ -530,6 +530,124 @@ definitions:
       status:
         type: string
     type: object
+  internal_api.IncidentEventResponse:
+    properties:
+      actor_id:
+        type: string
+      actor_type:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      incident_id:
+        type: string
+      message:
+        type: string
+      monitor_report_id:
+        type: string
+      note:
+        type: string
+      type:
+        type: string
+    type: object
+  internal_api.IncidentEvidenceResponse:
+    properties:
+      latest_report:
+        $ref: '#/definitions/internal_api.MonitorReportResponse'
+      triggering_report:
+        $ref: '#/definitions/internal_api.MonitorReportResponse'
+    type: object
+  internal_api.IncidentInsightsResponse:
+    properties:
+      lifecycle_timing:
+        $ref: '#/definitions/internal_api.IncidentLifecycleTimingResponse'
+      notification_reliability:
+        $ref: '#/definitions/internal_api.IncidentNotificationReliabilityStats'
+      recurring_failures:
+        items:
+          $ref: '#/definitions/internal_api.IncidentRecurringFailureResponse'
+        type: array
+    type: object
+  internal_api.IncidentLifecycleTimingResponse:
+    properties:
+      acknowledged_count:
+        type: integer
+      mean_time_to_acknowledge_seconds:
+        type: integer
+      mean_time_to_resolve_seconds:
+        type: integer
+      resolved_count:
+        type: integer
+    type: object
+  internal_api.IncidentNextActionResponse:
+    properties:
+      action_type:
+        type: string
+      description:
+        type: string
+      filter_status:
+        type: string
+      id:
+        type: string
+      label:
+        type: string
+      priority:
+        type: integer
+      target_id:
+        type: string
+      target_kind:
+        type: string
+      target_tab:
+        type: string
+    type: object
+  internal_api.IncidentNotificationReliabilityStats:
+    properties:
+      failed_deliveries:
+        type: integer
+      sent_deliveries:
+        type: integer
+      success_rate_percent:
+        type: number
+      suppressed_deliveries:
+        type: integer
+      total_deliveries:
+        type: integer
+    type: object
+  internal_api.IncidentRecurringFailureResponse:
+    properties:
+      incident_count:
+        type: integer
+      last_incident_at:
+        type: string
+      monitor_id:
+        type: string
+      monitor_name:
+        type: string
+    type: object
+  internal_api.IncidentRelatedIncidentResponse:
+    properties:
+      id:
+        type: string
+      last_event_at:
+        type: string
+      latest_event:
+        type: string
+      notification_status:
+        type: string
+      opened_at:
+        type: string
+      resolution_kind:
+        type: string
+      resolved_at:
+        type: string
+      severity:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+    type: object
   internal_api.IncidentResponse:
     properties:
       agent_id:
@@ -581,6 +699,35 @@ definitions:
       title:
         type: string
       updated_at:
+        type: string
+    type: object
+  internal_api.IncidentTimelineItemResponse:
+    properties:
+      actor_id:
+        type: string
+      actor_type:
+        type: string
+      alert_delivery_id:
+        type: string
+      channel:
+        type: string
+      created_at:
+        type: string
+      evidence:
+        type: string
+      id:
+        type: string
+      message:
+        type: string
+      monitor_report_id:
+        type: string
+      note:
+        type: string
+      source:
+        type: string
+      status:
+        type: string
+      type:
         type: string
     type: object
   internal_api.LoginRequest:
@@ -793,6 +940,45 @@ definitions:
           $ref: '#/definitions/internal_api.StatusPageSectionResponse'
         type: array
     type: object
+  internal_api.StatusPageIncidentComponentSuggestionMatchResponse:
+    properties:
+      match_reason:
+        type: string
+      resource_type:
+        type: string
+    type: object
+  internal_api.StatusPageIncidentComponentSuggestionResponse:
+    properties:
+      component_id:
+        type: string
+      component_name:
+        type: string
+      matches:
+        items:
+          $ref: '#/definitions/internal_api.StatusPageIncidentComponentSuggestionMatchResponse'
+        type: array
+    type: object
+  internal_api.StatusPageIncidentDraftResponse:
+    properties:
+      affected_component_ids:
+        items:
+          type: string
+        type: array
+      impact_summary:
+        type: string
+      initial_update_message:
+        type: string
+      public_status:
+        type: string
+      severity:
+        type: string
+      suggestions:
+        items:
+          $ref: '#/definitions/internal_api.StatusPageIncidentComponentSuggestionResponse'
+        type: array
+      title:
+        type: string
+    type: object
   internal_api.StatusPageIncidentResponse:
     properties:
       affected_component_ids:
@@ -872,6 +1058,17 @@ definitions:
       uptime_window:
         type: string
     type: object
+  internal_api.StatusPagePublicComponentHistoryResponse:
+    properties:
+      component:
+        $ref: '#/definitions/internal_api.StatusPagePublicComponentResponse'
+      history:
+        items:
+          $ref: '#/definitions/internal_api.StatusPagePublicUptimeBucketResponse'
+        type: array
+      uptime:
+        $ref: '#/definitions/internal_api.StatusPagePublicUptimeResponse'
+    type: object
   internal_api.StatusPagePublicComponentResponse:
     properties:
       description:
@@ -893,6 +1090,30 @@ definitions:
       uptime_history:
         items:
           $ref: '#/definitions/internal_api.StatusPagePublicUptimeBucketResponse'
+        type: array
+    type: object
+  internal_api.StatusPagePublicHistoryResponse:
+    properties:
+      components:
+        items:
+          $ref: '#/definitions/internal_api.StatusPagePublicComponentHistoryResponse'
+        type: array
+      generated_at:
+        type: string
+      incidents:
+        items:
+          $ref: '#/definitions/internal_api.StatusPagePublicIncidentResponse'
+        type: array
+      page:
+        $ref: '#/definitions/internal_api.StatusPagePublicPageResponse'
+    type: object
+  internal_api.StatusPagePublicIncidentHistoryResponse:
+    properties:
+      incident:
+        $ref: '#/definitions/internal_api.StatusPagePublicIncidentResponse'
+      updates:
+        items:
+          $ref: '#/definitions/internal_api.StatusPagePublicIncidentUpdateHistoryResponse'
         type: array
     type: object
   internal_api.StatusPagePublicIncidentResponse:
@@ -918,6 +1139,17 @@ definitions:
       severity:
         type: string
       title:
+        type: string
+    type: object
+  internal_api.StatusPagePublicIncidentUpdateHistoryResponse:
+    properties:
+      id:
+        type: string
+      message:
+        type: string
+      published_at:
+        type: string
+      status:
         type: string
     type: object
   internal_api.StatusPagePublicMetadataResponse:
@@ -1086,6 +1318,30 @@ definitions:
       unsubscribed_at:
         type: string
       updated_at:
+        type: string
+    type: object
+  internal_api.StatusPageSubscriberComponentResponse:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  internal_api.StatusPageSubscriberPublicResponse:
+    properties:
+      available_components:
+        items:
+          $ref: '#/definitions/internal_api.StatusPageSubscriberComponentResponse'
+        type: array
+      component_ids:
+        items:
+          type: string
+        type: array
+      destination_type:
+        type: string
+      masked_destination:
+        type: string
+      state:
         type: string
     type: object
   internal_api.UptimeDayBucketResponse:
@@ -1266,6 +1522,53 @@ definitions:
       visible:
         type: boolean
     type: object
+  internal_api.statusPageIncidentDraftRequest:
+    properties:
+      affected_component_ids:
+        items:
+          type: string
+        type: array
+      internal_incident_id:
+        type: string
+    type: object
+  internal_api.statusPageIncidentRequest:
+    properties:
+      affected_component_ids:
+        items:
+          type: string
+        type: array
+      impact_summary:
+        type: string
+      internal_incident_id:
+        type: string
+      public_status:
+        type: string
+      published_at:
+        type: string
+      resolved_at:
+        type: string
+      scheduled_end_at:
+        type: string
+      scheduled_start_at:
+        type: string
+      severity:
+        type: string
+      title:
+        type: string
+      visibility:
+        type: string
+    type: object
+  internal_api.statusPageIncidentUpdateRequest:
+    properties:
+      created_by:
+        type: string
+      message:
+        type: string
+      published_at:
+        type: string
+      status:
+        type: string
+    type: object
   internal_api.statusPageRequest:
     properties:
       canonical_url:
@@ -1300,6 +1603,24 @@ definitions:
         type: string
       sort_order:
         type: integer
+    type: object
+  internal_api.statusPageSubscriberPreferencesRequest:
+    properties:
+      component_ids:
+        items:
+          type: string
+        type: array
+    type: object
+  internal_api.statusPageSubscriptionRequest:
+    properties:
+      component_ids:
+        items:
+          type: string
+        type: array
+      destination:
+        type: string
+      destination_type:
+        type: string
     type: object
   orion_core_internal_db.CPUStats:
     properties:
@@ -1981,6 +2302,166 @@ paths:
       summary: Get public status page component badge
       tags:
       - public-status
+  /status/{slug}/components/{component_id}/history:
+    get:
+      consumes:
+      - application/json
+      description: Get sanitized public uptime history for one visible component
+      operationId: getPublicStatusPageComponentHistory
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Public component ID
+        in: path
+        name: component_id
+        required: true
+        type: string
+      - default: 90d
+        description: 'Uptime window: 24h, 7d, 30d, or 90d'
+        in: query
+        name: window
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    component:
+                      $ref: '#/definitions/internal_api.StatusPagePublicComponentResponse'
+                    history:
+                      items:
+                        $ref: '#/definitions/internal_api.StatusPagePublicUptimeBucketResponse'
+                      type: array
+                    uptime:
+                      $ref: '#/definitions/internal_api.StatusPagePublicUptimeResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Get public status page component history
+      tags:
+      - public-status
+  /status/{slug}/components/{component_id}/uptime:
+    get:
+      consumes:
+      - application/json
+      description: Get a sanitized public uptime summary for one visible component
+      operationId: getPublicStatusPageComponentUptime
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Public component ID
+        in: path
+        name: component_id
+        required: true
+        type: string
+      - default: 90d
+        description: 'Uptime window: 24h, 7d, 30d, or 90d'
+        in: query
+        name: window
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    component:
+                      $ref: '#/definitions/internal_api.StatusPagePublicComponentResponse'
+                    uptime:
+                      $ref: '#/definitions/internal_api.StatusPagePublicUptimeResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Get public status page component uptime
+      tags:
+      - public-status
+  /status/{slug}/history:
+    get:
+      consumes:
+      - application/json
+      description: Get sanitized public history for a published or unlisted status
+        page
+      operationId: getPublicStatusPageHistory
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - default: 90d
+        description: 'Uptime window: 24h, 7d, 30d, or 90d'
+        in: query
+        name: window
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    history:
+                      $ref: '#/definitions/internal_api.StatusPagePublicHistoryResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Get public status page history
+      tags:
+      - public-status
   /status/{slug}/incidents:
     get:
       consumes:
@@ -2064,6 +2545,297 @@ paths:
           schema:
             $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get public status page incident
+      tags:
+      - public-status
+  /status/{slug}/incidents/{incident_id}/history:
+    get:
+      consumes:
+      - application/json
+      description: Get published public updates for one public incident
+      operationId: getPublicStatusPageIncidentHistory
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Public incident ID
+        in: path
+        name: incident_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    history:
+                      $ref: '#/definitions/internal_api.StatusPagePublicIncidentHistoryResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Get public status page incident history
+      tags:
+      - public-status
+  /status/{slug}/subscribers:
+    post:
+      consumes:
+      - application/json
+      description: Create or refresh a pending public subscriber without exposing
+        confirmation tokens
+      operationId: createPublicStatusPageSubscriber
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Subscription payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.statusPageSubscriptionRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    confirmation_required:
+                      type: boolean
+                    subscriber:
+                      $ref: '#/definitions/internal_api.StatusPageSubscriberPublicResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Request public status page subscription
+      tags:
+      - public-status
+  /status/{slug}/subscribers/confirm/{token}:
+    get:
+      consumes:
+      - application/json
+      description: Confirm a pending public subscriber by one-time token hash
+      operationId: confirmPublicStatusPageSubscriber
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Confirmation token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    subscriber:
+                      $ref: '#/definitions/internal_api.StatusPageSubscriberPublicResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Confirm public status page subscription
+      tags:
+      - public-status
+  /status/{slug}/subscribers/manage/{token}:
+    get:
+      consumes:
+      - application/json
+      description: Get masked subscriber preferences by manage token
+      operationId: getPublicStatusPageSubscriberPreferences
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Manage token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    subscriber:
+                      $ref: '#/definitions/internal_api.StatusPageSubscriberPublicResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Get public status page subscriber preferences
+      tags:
+      - public-status
+    put:
+      consumes:
+      - application/json
+      description: Update visible component preferences by manage token
+      operationId: updatePublicStatusPageSubscriberPreferences
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Manage token
+        in: path
+        name: token
+        required: true
+        type: string
+      - description: Preference payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.statusPageSubscriberPreferencesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    subscriber:
+                      $ref: '#/definitions/internal_api.StatusPageSubscriberPublicResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Update public status page subscriber preferences
+      tags:
+      - public-status
+  /status/{slug}/subscribers/unsubscribe/{token}:
+    post:
+      consumes:
+      - application/json
+      description: Idempotently unsubscribe a public status page subscriber by token
+      operationId: unsubscribePublicStatusPageSubscriber
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Unsubscribe token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    unsubscribed:
+                      type: boolean
+                  type: object
+              type: object
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Unsubscribe public status page subscriber
       tags:
       - public-status
   /v1/agents:
@@ -4008,6 +4780,162 @@ paths:
       summary: Record heartbeat success
       tags:
       - heartbeats
+  /v1/incidents:
+    get:
+      consumes:
+      - application/json
+      description: Get a paginated list of persisted incidents. Defaults to active
+        incidents.
+      operationId: getIncidents
+      parameters:
+      - default: open,acknowledged,covered
+        description: Comma-separated incident statuses
+        in: query
+        name: status
+        type: string
+      - description: Filter incidents by agent ID
+        in: query
+        name: agent_id
+        type: string
+      - description: Filter incidents by monitor ID
+        in: query
+        name: monitor_id
+        type: string
+      - description: Filter incidents by resolution kind
+        in: query
+        name: resolution_kind
+        type: string
+      - description: 'Filter incidents by lifecycle actor: manual or system'
+        in: query
+        name: actor
+        type: string
+      - description: Filter incidents by covered lifecycle state
+        in: query
+        name: covered
+        type: boolean
+      - description: Filter incidents by notification status
+        in: query
+        name: notification_status
+        type: string
+      - description: Filter to incidents with failed notifications or high/critical/error
+          severity
+        in: query
+        name: needs_review
+        type: boolean
+      - default: 50
+        description: Maximum number of incidents to return
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of incidents to skip
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      format: int64
+                      type: integer
+                    incidents:
+                      items:
+                        $ref: '#/definitions/internal_api.IncidentResponse'
+                      type: array
+                    insights:
+                      $ref: '#/definitions/internal_api.IncidentInsightsResponse'
+                    limit:
+                      type: integer
+                    offset:
+                      type: integer
+                    pagination:
+                      $ref: '#/definitions/orion_core_internal_utils.PaginationMeta'
+                    status:
+                      items:
+                        type: string
+                      type: array
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: List incidents
+      tags:
+      - incidents
+  /v1/incidents/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get one incident with related timeline events, alert deliveries,
+        and monitor reports
+      operationId: getIncident
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    alert_deliveries:
+                      items:
+                        $ref: '#/definitions/internal_api.AlertDeliveryResponse'
+                      type: array
+                    events:
+                      items:
+                        $ref: '#/definitions/internal_api.IncidentEventResponse'
+                      type: array
+                    evidence:
+                      $ref: '#/definitions/internal_api.IncidentEvidenceResponse'
+                    incident:
+                      $ref: '#/definitions/internal_api.IncidentResponse'
+                    monitor_reports:
+                      items:
+                        $ref: '#/definitions/internal_api.MonitorReportResponse'
+                      type: array
+                    next_actions:
+                      items:
+                        $ref: '#/definitions/internal_api.IncidentNextActionResponse'
+                      type: array
+                    related_incidents:
+                      items:
+                        $ref: '#/definitions/internal_api.IncidentRelatedIncidentResponse'
+                      type: array
+                    timeline:
+                      items:
+                        $ref: '#/definitions/internal_api.IncidentTimelineItemResponse'
+                      type: array
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Get incident detail
+      tags:
+      - incidents
   /v1/incidents/{id}/acknowledge:
     post:
       consumes:
@@ -4198,6 +5126,49 @@ paths:
           schema:
             $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Resolve incident
+      tags:
+      - incidents
+  /v1/incidents/{id}/timeline:
+    get:
+      consumes:
+      - application/json
+      description: Get normalized incident timeline events including alert delivery
+        attempts
+      operationId: getIncidentTimeline
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    timeline:
+                      items:
+                        $ref: '#/definitions/internal_api.IncidentTimelineItemResponse'
+                      type: array
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Get incident timeline
       tags:
       - incidents
   /v1/incidents/candidates:
@@ -5625,6 +6596,99 @@ paths:
       summary: Update status page component mapping
       tags:
       - status-pages
+  /v1/status-pages/{id}/incidents:
+    get:
+      consumes:
+      - application/json
+      description: Get manual public incident records for a status page
+      operationId: listStatusPageIncidents
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    incidents:
+                      items:
+                        $ref: '#/definitions/internal_api.StatusPageIncidentResponse'
+                      type: array
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List status page incidents
+      tags:
+      - status-pages
+    post:
+      consumes:
+      - application/json
+      description: Create a manual public incident for a status page
+      operationId: createStatusPageIncident
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Incident payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.statusPageIncidentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    incident:
+                      $ref: '#/definitions/internal_api.StatusPageIncidentResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create status page incident
+      tags:
+      - status-pages
   /v1/status-pages/{id}/incidents/{incident_id}:
     delete:
       consumes:
@@ -5669,6 +6733,282 @@ paths:
       security:
       - BearerAuth: []
       summary: Delete status page incident
+      tags:
+      - status-pages
+    put:
+      consumes:
+      - application/json
+      description: Update a manual public incident for a status page
+      operationId: updateStatusPageIncident
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Incident ID
+        in: path
+        name: incident_id
+        required: true
+        type: string
+      - description: Incident payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.statusPageIncidentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    incident:
+                      $ref: '#/definitions/internal_api.StatusPageIncidentResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update status page incident
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/incidents/{incident_id}/updates:
+    post:
+      consumes:
+      - application/json
+      description: Create a public timeline update for a manual status page incident
+      operationId: createStatusPageIncidentUpdate
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Incident ID
+        in: path
+        name: incident_id
+        required: true
+        type: string
+      - description: Incident update payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.statusPageIncidentUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    incident:
+                      $ref: '#/definitions/internal_api.StatusPageIncidentResponse'
+                    update:
+                      $ref: '#/definitions/internal_api.StatusPageIncidentUpdateResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create status page incident update
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/incidents/draft:
+    get:
+      consumes:
+      - application/json
+      description: Generate safe public incident draft copy from an internal incident
+        using visible public component names and approved templates only
+      operationId: previewStatusPageIncidentDraft
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Internal incident ID
+        in: query
+        name: incident_id
+        required: true
+        type: string
+      - collectionFormat: csv
+        description: Visible public component IDs to include
+        in: query
+        items:
+          type: string
+        name: component_id
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    draft:
+                      $ref: '#/definitions/internal_api.StatusPageIncidentDraftResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Preview public incident draft
+      tags:
+      - status-pages
+    post:
+      consumes:
+      - application/json
+      description: Create a draft public incident and draft initial update from an
+        internal incident without copying internal details
+      operationId: createStatusPageIncidentDraft
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Draft source payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.statusPageIncidentDraftRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    draft:
+                      $ref: '#/definitions/internal_api.StatusPageIncidentDraftResponse'
+                    incident:
+                      $ref: '#/definitions/internal_api.StatusPageIncidentResponse'
+                    update:
+                      $ref: '#/definitions/internal_api.StatusPageIncidentUpdateResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create public incident draft
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/incidents/suggestions:
+    get:
+      consumes:
+      - application/json
+      description: Suggest public status page components mapped to the internal incident
+        monitor or agent without exposing internal incident details
+      operationId: suggestStatusPageIncidentComponents
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Internal incident ID
+        in: query
+        name: incident_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    suggestions:
+                      items:
+                        $ref: '#/definitions/internal_api.StatusPageIncidentComponentSuggestionResponse'
+                      type: array
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Suggest status page incident components
       tags:
       - status-pages
   /v1/status-pages/{id}/preview:
