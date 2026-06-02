@@ -2,13 +2,11 @@ package api
 
 import (
 	"encoding/json"
-	"github.com/gin-gonic/gin"
 	"orion/core/internal/db"
 	"orion/core/internal/service"
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 )
 
 func incidentTimeline(events []db.IncidentEvent, deliveries []db.AlertDelivery, reports []db.MonitorReport) []IncidentTimelineItemResponse {
@@ -68,52 +66,4 @@ func monitorReportEvidenceValue(value interface{}) string {
 	default:
 		return ""
 	}
-}
-func queryInt(c *gin.Context, key string, fallback int) int {
-	value, err := strconv.Atoi(c.DefaultQuery(key, strconv.Itoa(fallback)))
-	if err != nil || value < 0 {
-		return fallback
-	}
-	return value
-}
-func queryBool(c *gin.Context, key string, fallback bool) bool {
-	value := strings.TrimSpace(c.Query(key))
-	if value == "" {
-		return fallback
-	}
-	parsed, err := strconv.ParseBool(value)
-	if err != nil {
-		return fallback
-	}
-	return parsed
-}
-func queryOptionalBool(c *gin.Context, key string) *bool {
-	value := strings.TrimSpace(c.Query(key))
-	if value == "" {
-		return nil
-	}
-	parsed, err := strconv.ParseBool(value)
-	if err != nil {
-		return nil
-	}
-	return &parsed
-}
-func queryStatuses(value string) []string {
-	statuses := []string{}
-	for _, status := range strings.Split(value, ",") {
-		status = strings.TrimSpace(status)
-		if status != "" {
-			statuses = append(statuses, status)
-		}
-	}
-	if len(statuses) == 0 {
-		return []string{"open", "acknowledged", "covered"}
-	}
-	return statuses
-}
-func nonNegativeDurationSeconds(duration time.Duration) int64 {
-	if duration < 0 {
-		return 0
-	}
-	return int64(duration.Seconds())
 }

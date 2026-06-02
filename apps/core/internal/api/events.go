@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"orion/core/internal/api/queryparams"
 	"orion/core/internal/db"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
@@ -35,8 +36,8 @@ type orionEventFilters struct {
 // @Failure      500     {object}  utils.APIResponse
 // @Router       /v1/events [get]
 func (s *Server) listOrionEvents(c *gin.Context) {
-	limit := queryInt(c, "limit", 50)
-	offset := queryInt(c, "offset", 0)
+	limit := queryparams.Int(c, "limit", 50)
+	offset := queryparams.Int(c, "offset", 0)
 	filters := orionEventFilters{
 		Source: strings.TrimSpace(c.Query("source")),
 		Type:   strings.TrimSpace(c.Query("type")),

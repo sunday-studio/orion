@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"orion/core/internal/api/queryparams"
 	"orion/core/internal/db"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
@@ -181,8 +182,8 @@ func (s *Server) setMaintenanceMode(c *gin.Context) {
 }
 
 func (s *Server) listAgents(c *gin.Context) {
-	limit := queryInt(c, "limit", 50)
-	offset := queryInt(c, "offset", 0)
+	limit := queryparams.Int(c, "limit", 50)
+	offset := queryparams.Int(c, "offset", 0)
 	opts := service.ListAgentsOpts{Limit: limit, Offset: offset, Search: c.Query("search"), Status: c.Query("status"), Maintenance: c.Query("maintenance"), StaleOnly: c.Query("stale_only") == "true", HasIncidents: c.Query("has_incidents") == "true", LastSeen: c.Query("last_seen"), Uptime: c.Query("uptime"), Sort: c.DefaultQuery("sort", "last_seen"), Order: c.DefaultQuery("order", "desc")}
 	agents, count, err := s.agentService.ListAgents(opts)
 	if err != nil {

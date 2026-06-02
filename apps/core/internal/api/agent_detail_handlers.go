@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/gin-gonic/gin"
+	"orion/core/internal/api/queryparams"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
 )
@@ -56,8 +57,8 @@ func (s *Server) getAgentReports(c *gin.Context) {
 		utils.BadRequest(c, "Agent ID is required")
 		return
 	}
-	limit := queryInt(c, "limit", 50)
-	offset := queryInt(c, "offset", 0)
+	limit := queryparams.Int(c, "limit", 50)
+	offset := queryparams.Int(c, "offset", 0)
 	if _, err := s.agentService.GetAgent(agentID); err != nil {
 		utils.NotFound(c, "Agent not found")
 		return
