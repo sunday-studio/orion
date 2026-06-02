@@ -5,7 +5,7 @@ Core is the Go API server for Orion. It receives Server reports, stores runtime 
 ## Run Locally
 
 ```sh
-go run .
+go run ./cmd/api
 ```
 
 Core listens on `:8999` by default and stores data under `data/orion.db`.

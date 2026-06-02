@@ -4,7 +4,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"net/http"
-	"orion/core/internal/api/queryparams"
 	"orion/core/internal/db"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
@@ -154,8 +153,8 @@ type alertRuleDryRunRequest struct {
 }
 
 func (s *Server) listAlertDeliveries(c *gin.Context) {
-	limit := queryparams.Int(c, "limit", 50)
-	offset := queryparams.Int(c, "offset", 0)
+	limit := utils.QueryInt(c, "limit", 50)
+	offset := utils.QueryInt(c, "offset", 0)
 	query := s.db.Model(&db.AlertDelivery{})
 	if incidentID := c.Query("incident_id"); incidentID != "" {
 		query = query.Where("incident_id = ?", incidentID)

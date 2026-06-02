@@ -8,7 +8,7 @@ import (
 
 	"orion/core/internal/config"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 )
 
 func TestAlertServiceStopsRetryingAfterMaxAttempts(t *testing.T) {
@@ -16,7 +16,7 @@ func TestAlertServiceStopsRetryingAfterMaxAttempts(t *testing.T) {
 	createTestIncident(t, database, "incident-max-attempts")
 	createTestAlertChannel(t, database, db.AlertChannel{Name: "ops-webhook", Type: "webhook", Enabled: true, WebhookURL: "https://alerts.example.com/hook"})
 
-	service := NewAlertService(database, logging.NewLogger(), &config.Config{})
+	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
 		return nil, fmt.Errorf("connection refused")
 	})

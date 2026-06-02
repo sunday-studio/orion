@@ -2,14 +2,14 @@ package worker
 
 import (
 	"context"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"testing"
 	"time"
 )
 
 func TestAppRunStopsWhenContextIsCanceled(t *testing.T) {
 	database := openWorkerTestDatabase(t)
-	app := NewApp(database, logging.NewLogger(), Options{HealthInterval: time.Millisecond})
+	app := NewApp(database, utils.NewLogger(), Options{HealthInterval: time.Millisecond})
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
@@ -20,7 +20,7 @@ func TestAppRunStopsWhenContextIsCanceled(t *testing.T) {
 
 func TestAppUsesDefaultHealthInterval(t *testing.T) {
 	database := openWorkerTestDatabase(t)
-	app := NewApp(database, logging.NewLogger(), Options{})
+	app := NewApp(database, utils.NewLogger(), Options{})
 
 	if app.healthInterval != defaultHealthInterval {
 		t.Fatalf("healthInterval = %v, want %v", app.healthInterval, defaultHealthInterval)
@@ -29,7 +29,7 @@ func TestAppUsesDefaultHealthInterval(t *testing.T) {
 
 func TestAppCheckDatabasePassesForOpenDatabase(t *testing.T) {
 	database := openWorkerTestDatabase(t)
-	app := NewApp(database, logging.NewLogger(), Options{})
+	app := NewApp(database, utils.NewLogger(), Options{})
 
 	if err := app.checkDatabase(t.Context()); err != nil {
 		t.Fatalf("checkDatabase() error = %v", err)

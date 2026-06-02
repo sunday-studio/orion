@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -17,7 +17,7 @@ import (
 func TestSettingsServiceCreatesDataLifecycleDefaults(t *testing.T) {
 	database := openSettingsTestDatabase(t)
 	dataDir := filepath.Join(t.TempDir(), "data")
-	service := NewSettingsService(database, logging.NewLogger(), dataDir)
+	service := NewSettingsService(database, utils.NewLogger(), dataDir)
 
 	settings, err := service.GetDataLifecycleSettings()
 	if err != nil {
@@ -38,7 +38,7 @@ func TestSettingsServiceCreatesDataLifecycleDefaults(t *testing.T) {
 func TestSettingsServiceUpdatesDataLifecycleSettings(t *testing.T) {
 	database := openSettingsTestDatabase(t)
 	dataDir := t.TempDir()
-	service := NewSettingsService(database, logging.NewLogger(), dataDir)
+	service := NewSettingsService(database, utils.NewLogger(), dataDir)
 	retentionDays := 365
 
 	settings, err := service.UpdateDataLifecycleSettings(DataLifecycleSettingsPayload{
@@ -70,7 +70,7 @@ func TestSettingsServiceUpdatesDataLifecycleSettings(t *testing.T) {
 
 func TestSettingsServiceRejectsArchivingWithoutRollups(t *testing.T) {
 	database := openSettingsTestDatabase(t)
-	service := NewSettingsService(database, logging.NewLogger(), t.TempDir())
+	service := NewSettingsService(database, utils.NewLogger(), t.TempDir())
 
 	_, err := service.UpdateDataLifecycleSettings(DataLifecycleSettingsPayload{
 		RawReportHotDays:  90,
@@ -112,7 +112,7 @@ func TestSettingsServiceRejectsUnsafeArchiveDirectories(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			database := openSettingsTestDatabase(t)
-			service := NewSettingsService(database, logging.NewLogger(), dataDir)
+			service := NewSettingsService(database, utils.NewLogger(), dataDir)
 
 			_, err := service.UpdateDataLifecycleSettings(DataLifecycleSettingsPayload{
 				RawReportHotDays:  90,
@@ -140,7 +140,7 @@ func TestSettingsServiceRejectsSymlinkArchiveEscape(t *testing.T) {
 	}
 
 	database := openSettingsTestDatabase(t)
-	service := NewSettingsService(database, logging.NewLogger(), dataDir)
+	service := NewSettingsService(database, utils.NewLogger(), dataDir)
 
 	_, err := service.UpdateDataLifecycleSettings(DataLifecycleSettingsPayload{
 		RawReportHotDays:  90,
@@ -210,7 +210,7 @@ func TestSettingsServiceRejectsInvalidLifecycleValues(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			database := openSettingsTestDatabase(t)
-			service := NewSettingsService(database, logging.NewLogger(), t.TempDir())
+			service := NewSettingsService(database, utils.NewLogger(), t.TempDir())
 
 			_, err := service.UpdateDataLifecycleSettings(tt.payload)
 			if err == nil {

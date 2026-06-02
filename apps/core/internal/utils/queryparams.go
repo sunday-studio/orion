@@ -1,4 +1,4 @@
-package queryparams
+package utils
 
 import (
 	"strconv"
@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Int(c *gin.Context, key string, fallback int) int {
+func QueryInt(c *gin.Context, key string, fallback int) int {
 	value, err := strconv.Atoi(c.DefaultQuery(key, strconv.Itoa(fallback)))
 	if err != nil || value < 0 {
 		return fallback
@@ -16,7 +16,7 @@ func Int(c *gin.Context, key string, fallback int) int {
 	return value
 }
 
-func Bool(c *gin.Context, key string, fallback bool) bool {
+func QueryBool(c *gin.Context, key string, fallback bool) bool {
 	value := strings.TrimSpace(c.Query(key))
 	if value == "" {
 		return fallback
@@ -28,7 +28,7 @@ func Bool(c *gin.Context, key string, fallback bool) bool {
 	return parsed
 }
 
-func OptionalBool(c *gin.Context, key string) *bool {
+func QueryOptionalBool(c *gin.Context, key string) *bool {
 	value := strings.TrimSpace(c.Query(key))
 	if value == "" {
 		return nil
@@ -40,7 +40,7 @@ func OptionalBool(c *gin.Context, key string) *bool {
 	return &parsed
 }
 
-func Statuses(value string) []string {
+func QueryStatuses(value string) []string {
 	statuses := []string{}
 	for _, status := range strings.Split(value, ",") {
 		status = strings.TrimSpace(status)

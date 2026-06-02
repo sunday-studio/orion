@@ -1,4 +1,4 @@
-package statusbadges
+package utils
 
 import (
 	"fmt"
@@ -8,9 +8,9 @@ import (
 	"unicode/utf8"
 )
 
-const CacheControl = "public, max-age=60, stale-while-revalidate=120"
+const StatusBadgeCacheControl = "public, max-age=60, stale-while-revalidate=120"
 
-func RenderSVG(label string, message string, color string) string {
+func StatusBadgeSVG(label string, message string, color string) string {
 	label = truncateText(label, 48)
 	message = truncateText(message, 32)
 
@@ -43,7 +43,7 @@ func RenderSVG(label string, message string, color string) string {
 	)
 }
 
-func Color(status string) string {
+func StatusBadgeColor(status string) string {
 	switch status {
 	case "operational":
 		return "#15803d"

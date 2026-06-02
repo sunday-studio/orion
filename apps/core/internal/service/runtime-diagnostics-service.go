@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 
 	"gorm.io/gorm"
 )
@@ -26,7 +26,7 @@ const (
 
 type RuntimeDiagnosticsService struct {
 	db        *gorm.DB
-	logger    *logging.Logger
+	logger    *utils.Logger
 	startedAt time.Time
 
 	mu                            sync.Mutex
@@ -110,7 +110,7 @@ type RuntimeSlowOperation struct {
 	CreatedAt  time.Time `json:"created_at"`
 }
 
-func NewRuntimeDiagnosticsService(database *gorm.DB, logger *logging.Logger) *RuntimeDiagnosticsService {
+func NewRuntimeDiagnosticsService(database *gorm.DB, logger *utils.Logger) *RuntimeDiagnosticsService {
 	service := &RuntimeDiagnosticsService{
 		db:                   database,
 		logger:               logger,

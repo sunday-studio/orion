@@ -4,7 +4,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"net/http"
-	"orion/core/internal/api/queryparams"
 	"orion/core/internal/db"
 	"orion/core/internal/utils"
 	"sort"
@@ -75,9 +74,9 @@ type incidentListFilters struct {
 }
 
 func (s *Server) listIncidents(c *gin.Context) {
-	limit := queryparams.Int(c, "limit", 50)
-	offset := queryparams.Int(c, "offset", 0)
-	filters := incidentListFilters{statuses: queryparams.Statuses(c.DefaultQuery("status", "open,acknowledged,covered")), agentID: strings.TrimSpace(c.Query("agent_id")), monitorID: strings.TrimSpace(c.Query("monitor_id")), resolutionKind: strings.TrimSpace(c.Query("resolution_kind")), actor: strings.ToLower(strings.TrimSpace(c.Query("actor"))), covered: queryparams.OptionalBool(c, "covered"), notificationStatus: strings.TrimSpace(c.Query("notification_status")), needsReview: queryparams.Bool(c, "needs_review", false)}
+	limit := utils.QueryInt(c, "limit", 50)
+	offset := utils.QueryInt(c, "offset", 0)
+	filters := incidentListFilters{statuses: utils.QueryStatuses(c.DefaultQuery("status", "open,acknowledged,covered")), agentID: strings.TrimSpace(c.Query("agent_id")), monitorID: strings.TrimSpace(c.Query("monitor_id")), resolutionKind: strings.TrimSpace(c.Query("resolution_kind")), actor: strings.ToLower(strings.TrimSpace(c.Query("actor"))), covered: utils.QueryOptionalBool(c, "covered"), notificationStatus: strings.TrimSpace(c.Query("notification_status")), needsReview: utils.QueryBool(c, "needs_review", false)}
 	query := s.incidentListQuery(filters)
 	var count int64
 	if err := query.Count(&count).Error; err != nil {
@@ -239,11 +238,11 @@ func (s *Server) incidentLifecycleTiming(incidents []db.Incident, incidentIDs []
 	for _, incident := range incidents {
 		if acknowledgedAt, found := firstAckByIncident[incident.ID]; found {
 			acknowledgedCount++
-			acknowledgeSeconds += queryparams.NonNegativeDurationSeconds(acknowledgedAt.Sub(incident.OpenedAt))
+			acknowledgeSeconds += utils.NonNegativeDurationSeconds(acknowledgedAt.Sub(incident.OpenedAt))
 		}
 		if incident.ResolvedAt != nil {
 			resolvedCount++
-			resolveSeconds += queryparams.NonNegativeDurationSeconds(incident.ResolvedAt.Sub(incident.OpenedAt))
+			resolveSeconds += utils.NonNegativeDurationSeconds(incident.ResolvedAt.Sub(incident.OpenedAt))
 		}
 	}
 	timing := IncidentLifecycleTimingResponse{AcknowledgedCount: acknowledgedCount, ResolvedCount: resolvedCount}

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"net"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"testing"
 	"time"
 )
@@ -31,7 +31,7 @@ func TestRunDueChecksStoresUpReportForTCPConnection(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-tcp-test", TCPDialContext: tcpDialContext})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-tcp-test", TCPDialContext: tcpDialContext})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -71,7 +71,7 @@ func TestRunDueChecksStoresDownReportForTCPRefusedConnection(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{
+	app := NewApp(database, utils.NewLogger(), Options{
 		WorkerID: "worker-tcp-test",
 		TCPDialContext: func(ctx context.Context, network string, address string) (net.Conn, error) {
 			return nil, errors.New("connect: connection refused")
@@ -99,7 +99,7 @@ func TestRunDueChecksRejectsBlockedTCPHost(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{
+	app := NewApp(database, utils.NewLogger(), Options{
 		WorkerID: "worker-tcp-test",
 		TCPDialContext: func(ctx context.Context, network string, address string) (net.Conn, error) {
 			calls++
@@ -130,7 +130,7 @@ func TestRunDueChecksStoresDownReportForTCPDNSFailure(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{
+	app := NewApp(database, utils.NewLogger(), Options{
 		WorkerID: "worker-tcp-test",
 		TCPDialContext: func(ctx context.Context, network string, address string) (net.Conn, error) {
 			return nil, &net.DNSError{Name: "missing.example.invalid", Err: "no such host"}
@@ -157,7 +157,7 @@ func TestRunDueChecksStoresDownReportForTCPTimeout(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{
+	app := NewApp(database, utils.NewLogger(), Options{
 		WorkerID: "worker-tcp-test",
 		TCPDialContext: func(ctx context.Context, network string, address string) (net.Conn, error) {
 			return nil, timeoutTestError{}
@@ -243,7 +243,7 @@ func TestRunDueChecksStoresUpReportForDNSRecords(t *testing.T) {
 				NextRunAt:       time.Now().UTC().Add(-time.Minute),
 			})
 
-			app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-dns-test", DNSResolver: resolver})
+			app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-dns-test", DNSResolver: resolver})
 			if err := app.runDueChecks(t.Context()); err != nil {
 				t.Fatalf("runDueChecks() error = %v", err)
 			}
@@ -281,7 +281,7 @@ func TestRunDueChecksStoresDownReportForDNSExpectedValueMiss(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-dns-test", DNSResolver: resolver})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-dns-test", DNSResolver: resolver})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -317,7 +317,7 @@ func TestRunDueChecksStoresDownReportForDNSLookupFailure(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-dns-test", DNSResolver: resolver})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-dns-test", DNSResolver: resolver})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}

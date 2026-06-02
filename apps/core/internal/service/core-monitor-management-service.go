@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"orion/core/internal/config"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
 	"orion/core/internal/monitorvalidation"
 	"orion/core/internal/utils"
 	"strings"
@@ -61,11 +60,11 @@ type CoreManagedMonitorRecord struct {
 
 type CoreMonitorManagementService struct {
 	db           *gorm.DB
-	logger       *logging.Logger
+	logger       *utils.Logger
 	targetPolicy CoreMonitorTargetPolicy
 }
 
-func NewCoreMonitorManagementService(database *gorm.DB, logger *logging.Logger, cfg ...*config.Config) *CoreMonitorManagementService {
+func NewCoreMonitorManagementService(database *gorm.DB, logger *utils.Logger, cfg ...*config.Config) *CoreMonitorManagementService {
 	var runtimeConfig *config.Config
 	if len(cfg) > 0 {
 		runtimeConfig = cfg[0]

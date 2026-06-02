@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 )
 
 func TestComputeAgentHealthWithoutMonitors(t *testing.T) {
@@ -77,7 +77,7 @@ func TestComputeAgentHealthWithoutMonitors(t *testing.T) {
 				t.Fatalf("create agent: %v", err)
 			}
 
-			service := NewHealthService(database, logging.NewLogger())
+			service := NewHealthService(database, utils.NewLogger())
 			got, upCount, downCount, degradedCount, err := service.ComputeAgentHealth(tt.agent.ID, DefaultHealthConfig())
 			if err != nil {
 				t.Fatalf("ComputeAgentHealth() error = %v", err)
@@ -138,7 +138,7 @@ func TestComputeAgentHealthCountsStoredMonitorHealthForStaleAgent(t *testing.T) 
 		t.Fatalf("create monitors: %v", err)
 	}
 
-	service := NewHealthService(database, logging.NewLogger())
+	service := NewHealthService(database, utils.NewLogger())
 	got, upCount, downCount, degradedCount, err := service.ComputeAgentHealth(agent.ID, DefaultHealthConfig())
 	if err != nil {
 		t.Fatalf("ComputeAgentHealth() error = %v", err)
@@ -186,7 +186,7 @@ func TestComputeAgentHealthSnapshotSeparatesAvailabilityFromMonitorFailures(t *t
 		t.Fatalf("create reports: %v", err)
 	}
 
-	service := NewHealthService(database, logging.NewLogger())
+	service := NewHealthService(database, utils.NewLogger())
 	snapshot, err := service.ComputeAgentHealthSnapshot(agent.ID, DefaultHealthConfig())
 	if err != nil {
 		t.Fatalf("ComputeAgentHealthSnapshot() error = %v", err)
@@ -235,7 +235,7 @@ func TestComputeAgentHealthSnapshotDownOnlyWhenAllMonitorsFail(t *testing.T) {
 		t.Fatalf("create reports: %v", err)
 	}
 
-	service := NewHealthService(database, logging.NewLogger())
+	service := NewHealthService(database, utils.NewLogger())
 	snapshot, err := service.ComputeAgentHealthSnapshot(agent.ID, DefaultHealthConfig())
 	if err != nil {
 		t.Fatalf("ComputeAgentHealthSnapshot() error = %v", err)
@@ -308,7 +308,7 @@ func TestDetectStaleMonitorsUsesReportingInterval(t *testing.T) {
 		t.Fatalf("create reports: %v", err)
 	}
 
-	service := NewHealthService(database, logging.NewLogger())
+	service := NewHealthService(database, utils.NewLogger())
 	staleMonitors, err := service.DetectStaleMonitors(DefaultHealthConfig())
 	if err != nil {
 		t.Fatalf("DetectStaleMonitors() error = %v", err)
@@ -360,7 +360,7 @@ func TestComputeMonitorHealthReturnsStaleForExpiredReport(t *testing.T) {
 		t.Fatalf("create report: %v", err)
 	}
 
-	service := NewHealthService(database, logging.NewLogger())
+	service := NewHealthService(database, utils.NewLogger())
 	health, err := service.ComputeMonitorHealth(monitor.ID, DefaultHealthConfig())
 	if err != nil {
 		t.Fatalf("ComputeMonitorHealth() error = %v", err)
@@ -409,7 +409,7 @@ func TestMonitorWithoutReportsBecomesStaleAfterReportingWindow(t *testing.T) {
 		t.Fatalf("create monitors: %v", err)
 	}
 
-	service := NewHealthService(database, logging.NewLogger())
+	service := NewHealthService(database, utils.NewLogger())
 	freshHealth, err := service.ComputeMonitorHealth(freshMonitor.ID, DefaultHealthConfig())
 	if err != nil {
 		t.Fatalf("ComputeMonitorHealth(fresh) error = %v", err)
@@ -475,7 +475,7 @@ func TestComputeMonitorHealthDetectsFlappingTransitions(t *testing.T) {
 		t.Fatalf("create reports: %v", err)
 	}
 
-	service := NewHealthService(database, logging.NewLogger())
+	service := NewHealthService(database, utils.NewLogger())
 	health, err := service.ComputeMonitorHealth(monitor.ID, DefaultHealthConfig())
 	if err != nil {
 		t.Fatalf("ComputeMonitorHealth() error = %v", err)

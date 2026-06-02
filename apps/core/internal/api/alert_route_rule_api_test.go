@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"orion/core/internal/config"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"strings"
 	"testing"
 )
@@ -23,7 +23,7 @@ func TestAlertRouteWriteAndDryRunEndpoints(t *testing.T) {
 	if err := db.Migrate(database); err != nil {
 		t.Fatalf("migrate database: %v", err)
 	}
-	server := NewServer(database, logging.NewLogger(), &config.Config{})
+	server := NewServer(database, utils.NewLogger(), &config.Config{})
 	if err := server.db.Create(&db.AlertChannel{ID: "channel-ops-webhook", Name: "ops-webhook", Type: "webhook", Enabled: true, WebhookURL: "https://alerts.example.com/hook"}).Error; err != nil {
 		t.Fatalf("create alert channel: %v", err)
 	}

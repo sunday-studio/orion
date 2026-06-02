@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"orion/core/internal/config"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"strings"
 	"testing"
 	"time"
@@ -33,7 +33,7 @@ func TestAlertServiceQueuesConfiguredChannels(t *testing.T) {
 		}, nil
 	})
 
-	service := NewAlertService(database, logging.NewLogger(), &config.Config{})
+	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
 	if err := service.QueueIncidentNotifications("incident-1", "incident_opened"); err != nil {
@@ -63,7 +63,7 @@ func TestAlertServiceIgnoresLegacyEmailChannels(t *testing.T) {
 	createTestIncident(t, database, "incident-1")
 	createTestAlertChannel(t, database, db.AlertChannel{Name: "ops-email", Type: "email", Enabled: true})
 
-	service := NewAlertService(database, logging.NewLogger(), &config.Config{})
+	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	if err := service.QueueIncidentNotifications("incident-1", "incident_opened"); err != nil {
 		t.Fatalf("QueueIncidentNotifications() error = %v", err)
 	}
@@ -95,7 +95,7 @@ func TestAlertServiceRecordsFailedAttemptAndRetriesDueDelivery(t *testing.T) {
 		}, nil
 	})
 
-	service := NewAlertService(database, logging.NewLogger(), &config.Config{})
+	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
 	if err := service.QueueIncidentNotifications("incident-1", "incident_opened"); err != nil {
@@ -160,7 +160,7 @@ func TestAlertServiceSuppressesRetiredDueDeliveries(t *testing.T) {
 		t.Fatalf("create retired delivery: %v", err)
 	}
 
-	service := NewAlertService(database, logging.NewLogger(), &config.Config{})
+	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	processed, err := service.ProcessDueDeliveries(10)
 	if err != nil {
 		t.Fatalf("ProcessDueDeliveries() error = %v", err)
@@ -219,7 +219,7 @@ func TestAlertServiceWebhookUsesPayloadV1(t *testing.T) {
 		}, nil
 	})
 
-	service := NewAlertService(database, logging.NewLogger(), &config.Config{})
+	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
 	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentOpened); err != nil {
@@ -269,7 +269,7 @@ func TestAlertServiceWebhookAppliesConfiguredSignature(t *testing.T) {
 		}, nil
 	})
 
-	service := NewAlertService(database, logging.NewLogger(), &config.Config{})
+	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
 	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentOpened); err != nil {
@@ -318,7 +318,7 @@ func TestAlertServiceCooldownSuppressesRecentDuplicate(t *testing.T) {
 		}, nil
 	})
 
-	service := NewAlertService(database, logging.NewLogger(), &config.Config{
+	service := NewAlertService(database, utils.NewLogger(), &config.Config{
 		AlertCooldownSeconds: 300,
 	})
 	service.httpClient.Transport = transport

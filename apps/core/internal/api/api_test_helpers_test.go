@@ -15,7 +15,7 @@ import (
 
 	"orion/core/internal/config"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"orion/core/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -40,7 +40,7 @@ func setupTestServerWithConfig(t *testing.T, cfg *config.Config) *Server {
 		t.Fatalf("migrate database: %v", err)
 	}
 
-	return NewServer(database, logging.NewLogger(), cfg)
+	return NewServer(database, utils.NewLogger(), cfg)
 }
 
 func registerTestAgent(t *testing.T, server *Server) struct {

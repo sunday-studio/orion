@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"orion/core/internal/config"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"time"
 
 	"gorm.io/gorm"
@@ -93,12 +93,12 @@ type alertGroupingDecision struct {
 
 type AlertService struct {
 	db         *gorm.DB
-	logger     *logging.Logger
+	logger     *utils.Logger
 	cfg        *config.Config
 	httpClient *http.Client
 }
 
-func NewAlertService(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *AlertService {
+func NewAlertService(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *AlertService {
 	return &AlertService{
 		db:         database,
 		logger:     logger,

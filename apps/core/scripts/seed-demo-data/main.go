@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -87,7 +87,7 @@ func main() {
 	}
 	defer sqlDB.Close()
 
-	if err := db.MigrateWithFiles(database, "migrations", logging.NewLogger()); err != nil {
+	if err := db.MigrateWithFiles(database, "migrations", utils.NewLogger()); err != nil {
 		log.Fatalf("run migrations: %v", err)
 	}
 

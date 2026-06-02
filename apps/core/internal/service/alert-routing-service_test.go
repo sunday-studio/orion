@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"orion/core/internal/config"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"strings"
 	"testing"
 	"time"
@@ -32,7 +32,7 @@ func TestAlertServiceSkipsUnsubscribedEvents(t *testing.T) {
 			Header:     make(http.Header),
 		}, nil
 	})
-	service := NewAlertService(database, logging.NewLogger(), &config.Config{})
+	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
 	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentResolved); err != nil {
@@ -70,7 +70,7 @@ func TestAlertServiceUsesMatchingAlertRoute(t *testing.T) {
 			Header:     make(http.Header),
 		}, nil
 	})
-	service := NewAlertService(database, logging.NewLogger(), &config.Config{})
+	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
 	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentOpened); err != nil {
@@ -111,7 +111,7 @@ func TestAlertServiceDryRunExplainsRouteSuppression(t *testing.T) {
 		Severities: encodeTestStringList([]string{"high"}),
 		ChannelIDs: encodeTestStringList([]string{"channel-ops-webhook"}),
 	})
-	service := NewAlertService(database, logging.NewLogger(), &config.Config{})
+	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 
 	event, err := service.LoadAlertRouteContext("incident-1", db.AlertEventIncidentOpened)
 	if err != nil {
@@ -147,7 +147,7 @@ func TestAlertServiceGroupsSiblingIncidentNotifications(t *testing.T) {
 			Header:     make(http.Header),
 		}, nil
 	})
-	service := NewAlertService(database, logging.NewLogger(), &config.Config{})
+	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
 	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentOpened); err != nil {
@@ -212,7 +212,7 @@ func TestAlertServiceDelaysGroupedSummaryForRoutePolicy(t *testing.T) {
 			Header:     make(http.Header),
 		}, nil
 	})
-	service := NewAlertService(database, logging.NewLogger(), &config.Config{})
+	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
 	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentOpened); err != nil {
@@ -287,7 +287,7 @@ func TestAlertServiceRouteCanDisableGrouping(t *testing.T) {
 			Header:     make(http.Header),
 		}, nil
 	})
-	service := NewAlertService(database, logging.NewLogger(), &config.Config{})
+	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
 	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentOpened); err != nil {
@@ -323,7 +323,7 @@ func TestAlertServiceSuppressesRecoveryUntilGroupedSiblingsResolve(t *testing.T)
 			Header:     make(http.Header),
 		}, nil
 	})
-	service := NewAlertService(database, logging.NewLogger(), &config.Config{})
+	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
 	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentOpened); err != nil {
@@ -381,7 +381,7 @@ func TestAlertServiceTestsConfiguredWebhookChannel(t *testing.T) {
 			Header:     make(http.Header),
 		}, nil
 	})
-	service := NewAlertService(database, logging.NewLogger(), &config.Config{})
+	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
 	delivery, err := service.TestChannel("channel-ops-webhook")
@@ -404,7 +404,7 @@ func TestAlertServiceTestsConfiguredEmailChannel(t *testing.T) {
 		Type:    "email",
 		Enabled: true,
 	})
-	service := NewAlertService(database, logging.NewLogger(), &config.Config{})
+	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 
 	if _, err := service.TestChannel("channel-ops-email"); err != gorm.ErrRecordNotFound {
 		t.Fatalf("TestChannel() error = %v, want legacy email channel hidden", err)

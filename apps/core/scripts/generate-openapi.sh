@@ -20,7 +20,7 @@ if ! command -v swag >/dev/null 2>&1; then
     exit 1
 fi
 
-swag init -g main.go -o docs --parseDependency --parseInternal
+swag init -g cmd/api/main.go -o docs --parseDependency --parseInternal
 cp docs/swagger.yaml openapi.yaml
 
 echo "Generated $CORE_DIR/openapi.yaml"

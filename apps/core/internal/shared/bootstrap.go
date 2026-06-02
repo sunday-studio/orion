@@ -1,10 +1,10 @@
-package startup
+package shared
 
 import (
 	"fmt"
 	"orion/core/internal/config"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"os"
 
 	"gorm.io/gorm"
@@ -37,7 +37,7 @@ func OpenMigratedDatabase(cfg *config.Config) (*gorm.DB, error) {
 }
 
 // CloseDatabase closes the underlying SQL handle and logs close failures.
-func CloseDatabase(database *gorm.DB, logger *logging.Logger) {
+func CloseDatabase(database *gorm.DB, logger *utils.Logger) {
 	if database == nil {
 		return
 	}

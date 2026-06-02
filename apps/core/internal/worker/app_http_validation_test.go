@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"testing"
 	"time"
 )
@@ -26,7 +26,7 @@ func TestRunDueChecksAcceptsHTTPKeywordKindAlias(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -61,7 +61,7 @@ func TestRunDueChecksStoresDownReportForForbiddenKeyword(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -93,7 +93,7 @@ func TestRunDueChecksStoresDownReportForInvalidConfig(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test"})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-http-test"})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}

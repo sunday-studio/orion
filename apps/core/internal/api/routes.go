@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"orion/core/internal/config"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"orion/core/internal/service"
 	"os"
 	"path/filepath"
@@ -22,7 +22,7 @@ import (
 
 type Server struct {
 	db                           *gorm.DB
-	logger                       *logging.Logger
+	logger                       *utils.Logger
 	cfg                          *config.Config
 	agentService                 *service.AgentService
 	authService                  *service.AuthService
@@ -41,7 +41,7 @@ type Server struct {
 	router                       *gin.Engine
 }
 
-func NewServer(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *Server {
+func NewServer(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *Server {
 	agentService := service.NewAgentService(database, logger)
 	authService := service.NewAuthService(database, logger)
 	reportService := service.NewReportService(database, logger, cfg)
@@ -284,7 +284,7 @@ func (s *Server) Start(ctx context.Context, addr string) error {
 }
 
 // RequestIDMiddleware generates a unique request ID for each request
-func RequestIDMiddleware(logger *logging.Logger) gin.HandlerFunc {
+func RequestIDMiddleware(logger *utils.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Check if request ID is already in header (for tracing across services)
 		requestID := c.GetHeader("X-Request-ID")

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -52,7 +52,7 @@ func TestMonitorSummaryUsesComputedHealth(t *testing.T) {
 		t.Fatalf("create reports: %v", err)
 	}
 
-	service := NewMonitorService(database, logging.NewLogger())
+	service := NewMonitorService(database, utils.NewLogger())
 	summary, err := service.GetMonitorSummary()
 	if err != nil {
 		t.Fatalf("GetMonitorSummary() error = %v", err)

@@ -10,7 +10,7 @@ import (
 	"net/http/httptest"
 	"orion/core/internal/config"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"strings"
 	"testing"
 	"time"
@@ -272,7 +272,7 @@ func setupStatusPageAuthTestServer(t *testing.T) *Server {
 	if err := db.Migrate(database); err != nil {
 		t.Fatalf("migrate database: %v", err)
 	}
-	return NewServer(database, logging.NewLogger(), &config.Config{FrontendAuthOn: true, AdminUsername: "admin", AdminPassword: "correct-password", JWTSecret: "test-secret", DataDir: t.TempDir()})
+	return NewServer(database, utils.NewLogger(), &config.Config{FrontendAuthOn: true, AdminUsername: "admin", AdminPassword: "correct-password", JWTSecret: "test-secret", DataDir: t.TempDir()})
 }
 func loginStatusPageTestAdmin(t *testing.T, server *Server) string {
 	t.Helper()

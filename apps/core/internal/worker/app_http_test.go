@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"orion/core/internal/config"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"strings"
 	"testing"
 	"time"
@@ -33,7 +33,7 @@ func TestRunDueChecksStoresUpReportAndCompletesLease(t *testing.T) {
 		NextRunAt:       now.Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{
+	app := NewApp(database, utils.NewLogger(), Options{
 		WorkerID:      "worker-http-test",
 		LeaseDuration: time.Minute,
 		HTTPClient:    httpClient,
@@ -85,7 +85,7 @@ func TestRunDueChecksRecordsSanitizedFinalTarget(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -125,7 +125,7 @@ func TestRunDueChecksRejectsBlockedHTTPRedirect(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -168,7 +168,7 @@ func TestRunDueChecksRejectsBlockedPrivateHTTPRedirect(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
 	if err := app.runDueChecks(context.Background()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -207,7 +207,7 @@ func TestRunDueChecksRejectsBlockedHTTPConfigBeforeTransport(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
 	if err := app.runDueChecks(context.Background()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -245,7 +245,7 @@ func TestRunDueChecksAllowsPrivateHTTPWhenConfigured(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{
+	app := NewApp(database, utils.NewLogger(), Options{
 		WorkerID:   "worker-http-test",
 		HTTPClient: httpClient,
 		Config:     &config.Config{CoreMonitorAllowPrivateTargets: true},
@@ -277,7 +277,7 @@ func TestRunDueChecksStoresDownReportForUnexpectedStatus(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -317,7 +317,7 @@ func TestRunDueChecksAcceptsExpectedStatusSet(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -353,7 +353,7 @@ func TestRunDueChecksAcceptsExpectedStatusKindAlias(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}
@@ -388,7 +388,7 @@ func TestRunDueChecksStoresDownReportForMissingRequiredKeyword(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Minute),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-http-test", HTTPClient: httpClient})
 	if err := app.runDueChecks(t.Context()); err != nil {
 		t.Fatalf("runDueChecks() error = %v", err)
 	}

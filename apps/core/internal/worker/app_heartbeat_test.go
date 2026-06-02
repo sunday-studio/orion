@@ -3,7 +3,7 @@ package worker
 import (
 	"encoding/json"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"orion/core/internal/service"
 	"strings"
 	"testing"
@@ -22,7 +22,7 @@ func TestReconcileMissedHeartbeatsLeavesPendingMonitorUnknown(t *testing.T) {
 		NextRunAt:       time.Now().UTC().Add(-time.Hour),
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-heartbeat-test"})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-heartbeat-test"})
 	if err := app.reconcileMissedHeartbeats(t.Context(), time.Now().UTC().Add(time.Hour)); err != nil {
 		t.Fatalf("reconcileMissedHeartbeats() error = %v", err)
 	}
@@ -58,7 +58,7 @@ func TestReconcileMissedHeartbeatsIgnoresSignalsInsideGraceWindow(t *testing.T) 
 		LastSuccessAt:   &lastSignalAt,
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-heartbeat-test"})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-heartbeat-test"})
 	if err := app.reconcileMissedHeartbeats(t.Context(), now); err != nil {
 		t.Fatalf("reconcileMissedHeartbeats() error = %v", err)
 	}
@@ -86,7 +86,7 @@ func TestReconcileMissedHeartbeatsOpensAndRecoveryResolvesIncident(t *testing.T)
 		LastSuccessAt:   &lastSignalAt,
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-heartbeat-test"})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-heartbeat-test"})
 	if err := app.reconcileMissedHeartbeats(t.Context(), now); err != nil {
 		t.Fatalf("reconcileMissedHeartbeats() error = %v", err)
 	}
@@ -163,7 +163,7 @@ func TestReconcileMissedHeartbeatsDoesNotOverrideFailedSignal(t *testing.T) {
 		LastFailureAt:   &lastSignalAt,
 	})
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-heartbeat-test"})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-heartbeat-test"})
 	if _, err := app.reports.StoreMonitorReport("monitor-heartbeat-failed", service.MonitorReportPayload{
 		Timestamp: lastSignalAt.Format(time.RFC3339),
 		Health:    "down",
@@ -223,7 +223,7 @@ func TestReconcileMissedHeartbeatsSkipsPausedDeletedAndNonHeartbeatMonitors(t *t
 		})
 	}
 
-	app := NewApp(database, logging.NewLogger(), Options{WorkerID: "worker-heartbeat-test"})
+	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-heartbeat-test"})
 	if err := app.reconcileMissedHeartbeats(t.Context(), now); err != nil {
 		t.Fatalf("reconcileMissedHeartbeats() error = %v", err)
 	}

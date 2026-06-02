@@ -9,7 +9,6 @@ import (
 	"gorm.io/gorm"
 
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
 	"orion/core/internal/utils"
 )
 
@@ -74,7 +73,7 @@ func parseListUptime(s string) (uint64, bool) {
 
 type AgentService struct {
 	db     *gorm.DB
-	logger *logging.Logger
+	logger *utils.Logger
 }
 
 const (
@@ -92,7 +91,7 @@ var (
 	ErrAgentTokenNotRevoked      = errors.New("agent_token_not_revoked")
 )
 
-func NewAgentService(database *gorm.DB, logger *logging.Logger) *AgentService {
+func NewAgentService(database *gorm.DB, logger *utils.Logger) *AgentService {
 	return &AgentService{
 		db:     database,
 		logger: logger,

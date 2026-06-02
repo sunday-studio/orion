@@ -4,7 +4,7 @@ import (
 	"errors"
 	"orion/core/internal/config"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"time"
 
 	"gorm.io/gorm"
@@ -32,12 +32,12 @@ type IncidentLifecycleActionMetadata struct {
 
 type IncidentService struct {
 	db          *gorm.DB
-	logger      *logging.Logger
+	logger      *utils.Logger
 	cfg         *config.Config
 	diagnostics *RuntimeDiagnosticsService
 }
 
-func NewIncidentService(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *IncidentService {
+func NewIncidentService(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *IncidentService {
 	return &IncidentService{
 		db:     database,
 		logger: logger,

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"orion/core/internal/config"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
 	"orion/core/internal/utils"
 	"time"
 
@@ -32,12 +31,12 @@ type MonitorReportPayload struct {
 
 type ReportService struct {
 	db          *gorm.DB
-	logger      *logging.Logger
+	logger      *utils.Logger
 	cfg         *config.Config
 	diagnostics *RuntimeDiagnosticsService
 }
 
-func NewReportService(database *gorm.DB, logger *logging.Logger, cfg *config.Config) *ReportService {
+func NewReportService(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *ReportService {
 	return &ReportService{
 		db:     database,
 		logger: logger,

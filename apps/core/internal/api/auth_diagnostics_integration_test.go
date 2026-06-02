@@ -9,7 +9,7 @@ import (
 	"net/http/httptest"
 	"orion/core/internal/config"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"strings"
 	"testing"
 	"time"
@@ -140,7 +140,7 @@ func TestLoginReturnsTokenForValidConfiguredCredentials(t *testing.T) {
 	if err := db.Migrate(database); err != nil {
 		t.Fatalf("migrate database: %v", err)
 	}
-	server := NewServer(database, logging.NewLogger(), &config.Config{FrontendAuthOn: true, AdminUsername: "admin", AdminPassword: "correct-password", JWTSecret: "test-secret"})
+	server := NewServer(database, utils.NewLogger(), &config.Config{FrontendAuthOn: true, AdminUsername: "admin", AdminPassword: "correct-password", JWTSecret: "test-secret"})
 	badResp := performJSONRequest(t, server, http.MethodPost, "/v1/auth/login", map[string]string{"username": "admin", "password": "wrong-password"}, "")
 	if badResp.Code != http.StatusUnauthorized {
 		t.Fatalf("bad login status = %d, body = %s, want 401", badResp.Code, badResp.Body.String())

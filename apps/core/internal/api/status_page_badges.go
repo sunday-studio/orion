@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"strings"
 
-	"orion/core/internal/api/statusbadges"
 	"orion/core/internal/utils"
 
 	"github.com/gin-gonic/gin"
@@ -85,8 +84,8 @@ func (s *Server) writeStatusPageBadge(c *gin.Context, badge statusPageBadge) {
 		statusDisplay = publicStatusDisplay(badge.Status)
 	}
 
-	svg := statusbadges.RenderSVG(label, strings.ToLower(statusDisplay), statusbadges.Color(badge.Status))
-	c.Header("Cache-Control", statusbadges.CacheControl)
+	svg := utils.StatusBadgeSVG(label, strings.ToLower(statusDisplay), utils.StatusBadgeColor(badge.Status))
+	c.Header("Cache-Control", utils.StatusBadgeCacheControl)
 	c.Header("X-Content-Type-Options", "nosniff")
 	c.Data(http.StatusOK, "image/svg+xml; charset=utf-8", []byte(svg))
 }

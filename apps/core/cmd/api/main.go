@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"orion/core/internal/api"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"orion/core/internal/service"
-	"orion/core/internal/startup"
+	"orion/core/internal/shared"
 	"os/signal"
 	"syscall"
 	"time"
@@ -32,19 +32,19 @@ import (
 // @description Type "Bearer" followed by a space and JWT token.
 
 func main() {
-	logger := logging.NewLogger()
+	logger := utils.NewLogger()
 	logger.Info("Starting Orion Core Server")
 
-	cfg, err := startup.LoadConfig(".env")
+	cfg, err := shared.LoadConfig(".env")
 	if err != nil {
 		logger.Fatal("Failed to load config", "error", err)
 	}
 
-	database, err := startup.OpenMigratedDatabase(cfg)
+	database, err := shared.OpenMigratedDatabase(cfg)
 	if err != nil {
 		logger.Fatal("Failed to initialize database", "error", err)
 	}
-	defer startup.CloseDatabase(database, logger)
+	defer shared.CloseDatabase(database, logger)
 
 	// Initialize and start HTTP server
 	server := api.NewServer(database, logger, cfg)

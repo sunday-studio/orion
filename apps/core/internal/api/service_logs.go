@@ -2,7 +2,6 @@ package api
 
 import (
 	"net/http"
-	"orion/core/internal/api/queryparams"
 	"orion/core/internal/db"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
@@ -89,8 +88,8 @@ func (s *Server) listServiceLogs(c *gin.Context) {
 		Level:     strings.TrimSpace(c.Query("level")),
 		Component: strings.TrimSpace(c.Query("component")),
 		Search:    strings.TrimSpace(c.Query("q")),
-		Limit:     queryparams.Int(c, "limit", 50),
-		Offset:    queryparams.Int(c, "offset", 0),
+		Limit:     utils.QueryInt(c, "limit", 50),
+		Offset:    utils.QueryInt(c, "offset", 0),
 	})
 }
 
@@ -128,8 +127,8 @@ func (s *Server) listAgentServiceLogs(c *gin.Context) {
 		Level:     strings.TrimSpace(c.Query("level")),
 		Component: strings.TrimSpace(c.Query("component")),
 		Search:    strings.TrimSpace(c.Query("q")),
-		Limit:     queryparams.Int(c, "limit", 50),
-		Offset:    queryparams.Int(c, "offset", 0),
+		Limit:     utils.QueryInt(c, "limit", 50),
+		Offset:    utils.QueryInt(c, "offset", 0),
 	})
 }
 

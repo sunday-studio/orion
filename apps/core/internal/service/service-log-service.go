@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
 	"orion/core/internal/utils"
 	"regexp"
 	"strings"
@@ -57,10 +56,10 @@ type ServiceLogListResult struct {
 
 type ServiceLogService struct {
 	db     *gorm.DB
-	logger *logging.Logger
+	logger *utils.Logger
 }
 
-func NewServiceLogService(database *gorm.DB, logger *logging.Logger) *ServiceLogService {
+func NewServiceLogService(database *gorm.DB, logger *utils.Logger) *ServiceLogService {
 	return &ServiceLogService{db: database, logger: logger}
 }
 

@@ -3,7 +3,6 @@ package service
 import (
 	"errors"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
 	"orion/core/internal/utils"
 	"strings"
 	"time"
@@ -62,10 +61,10 @@ type MonitorSummary struct {
 
 type MonitorService struct {
 	db     *gorm.DB
-	logger *logging.Logger
+	logger *utils.Logger
 }
 
-func NewMonitorService(database *gorm.DB, logger *logging.Logger) *MonitorService {
+func NewMonitorService(database *gorm.DB, logger *utils.Logger) *MonitorService {
 	return &MonitorService{
 		db:     database,
 		logger: logger,

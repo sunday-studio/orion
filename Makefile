@@ -81,7 +81,7 @@ docker-build:
 
 # Build Core API for local/package validation.
 core-build:
-	cd apps/core && go build -trimpath -ldflags "-s -w" -o $(CORE_OUTPUT) .
+	cd apps/core && go build -trimpath -ldflags "-s -w" -o $(CORE_OUTPUT) ./cmd/api
 
 # Build Core monitor worker for local/package validation.
 core-worker-build:

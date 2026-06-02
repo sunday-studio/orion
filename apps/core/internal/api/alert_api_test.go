@@ -10,7 +10,7 @@ import (
 	"net/http/httptest"
 	"orion/core/internal/config"
 	"orion/core/internal/db"
-	"orion/core/internal/logging"
+	"orion/core/internal/utils"
 	"strings"
 	"testing"
 	"time"
@@ -26,7 +26,7 @@ func TestAlertReadEndpointsShowWebhookURLAndRedactSecrets(t *testing.T) {
 	if err := db.Migrate(database); err != nil {
 		t.Fatalf("migrate database: %v", err)
 	}
-	server := NewServer(database, logging.NewLogger(), &config.Config{AlertRecoveryNotifications: true, AlertTLSExpiryDays: 14, AlertCooldownSeconds: 300})
+	server := NewServer(database, utils.NewLogger(), &config.Config{AlertRecoveryNotifications: true, AlertTLSExpiryDays: 14, AlertCooldownSeconds: 300})
 	if err := server.db.Create(&db.AlertChannel{ID: "alert-channel-webhook", Name: "ops-webhook", Type: "webhook", Enabled: true, WebhookURL: "https://secret.example.com/hook", WebhookSigningSecret: "webhook-signing-secret"}).Error; err != nil {
 		t.Fatalf("create webhook channel: %v", err)
 	}
@@ -232,7 +232,7 @@ func TestAlertChannelWriteEndpointsPersistWebhookConfiguration(t *testing.T) {
 	if err := db.Migrate(database); err != nil {
 		t.Fatalf("migrate database: %v", err)
 	}
-	server := NewServer(database, logging.NewLogger(), &config.Config{})
+	server := NewServer(database, utils.NewLogger(), &config.Config{})
 	createResp := performJSONRequest(t, server, http.MethodPost, "/v1/alerts/channels", gin.H{"name": "ops-webhook", "type": "webhook", "enabled": true, "webhook_url": "https://secret.example.com/hook", "webhook_signing_secret": "initial-signing-secret", "subscribed_events": []string{db.AlertEventIncidentOpened}}, "")
 	if createResp.Code != http.StatusCreated {
 		t.Fatalf("create channel status = %d, body = %s", createResp.Code, createResp.Body.String())
@@ -300,7 +300,7 @@ func TestAlertChannelWriteEndpointsRejectNonWebhookTypes(t *testing.T) {
 	if err := db.Migrate(database); err != nil {
 		t.Fatalf("migrate database: %v", err)
 	}
-	server := NewServer(database, logging.NewLogger(), &config.Config{})
+	server := NewServer(database, utils.NewLogger(), &config.Config{})
 	for _, channelType := range []string{"slack", "discord", "email"} {
 		createResp := performJSONRequest(t, server, http.MethodPost, "/v1/alerts/channels", gin.H{"name": "ops-" + channelType, "type": channelType, "webhook_url": "https://alerts.example.com/" + channelType}, "")
 		if createResp.Code != http.StatusBadRequest || !strings.Contains(createResp.Body.String(), "unsupported alert channel type") {
