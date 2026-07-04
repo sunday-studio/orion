@@ -37,8 +37,8 @@ export const AppHeader = () => {
   };
 
   return (
-    <header className="sticky inset-x-0 top-0 z-50 backdrop-blur h-14  flex items-center bg-neutral-100">
-      <div className="flex w-full items-center justify-between gap-4 px-4 sm:px-6 max-w-7xl mx-auto">
+    <header className="z-50 flex h-14 shrink-0 items-center bg-neutral-100 backdrop-blur">
+      <div className="flex w-full items-center justify-between gap-4 px-4 sm:px-6">
         <NavLink to="/incidents" className="font-medium">
           Orion
         </NavLink>
