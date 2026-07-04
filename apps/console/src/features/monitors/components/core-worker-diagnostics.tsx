@@ -57,12 +57,6 @@ export const coreWorkerDiagnosticsFromPayload = (
   return (payload as CoreWorkerDiagnosticsPayload | undefined)?.worker;
 };
 
-export const coreWorkerAPIStatusFromPayload = (
-  payload?: GetCoreWorkerDiagnostics200,
-): string | undefined => {
-  return (payload as CoreWorkerDiagnosticsPayload | undefined)?.api?.status;
-};
-
 export const shouldWarnForCoreWorker = (worker?: CoreWorkerDiagnostics) => {
   const status = worker?.status ?? "unknown";
   const workerCount = worker?.worker_count ?? 0;
@@ -121,18 +115,6 @@ export const CoreWorkerWarning = ({ worker, className }: CoreWorkerWarningProps)
   );
 };
 
-type MetricProps = {
-  label: string;
-  value: string | number;
-};
-
-const Metric = ({ label, value }: MetricProps) => (
-  <div className="min-w-24">
-    <div className="text-xs text-neutral-500">{label}</div>
-    <div className="text-sm font-medium text-neutral-950">{value}</div>
-  </div>
-);
-
 type CoreWorkerDiagnosticsPanelProps = {
   data?: GetCoreWorkerDiagnostics200;
   isLoading?: boolean;
@@ -144,61 +126,38 @@ export const CoreWorkerDiagnosticsPanel = ({
   isLoading = false,
   error,
 }: CoreWorkerDiagnosticsPanelProps) => {
-  const apiStatus = coreWorkerAPIStatusFromPayload(data) ?? (error ? "unknown" : "healthy");
   const worker = coreWorkerDiagnosticsFromPayload(data);
   const workerStatus = worker?.status ?? (error ? "unknown" : "unknown");
   const latestWorker = worker?.workers?.[0];
   const warning = describeCoreWorkerWarning(worker);
+  const onlineCount = worker?.online_count ?? 0;
+  const workerCount = worker?.worker_count ?? 0;
+  const latestHeartbeat = latestWorker?.last_heartbeat_at
+    ? formatDate(latestWorker.last_heartbeat_at, DATE_TIME_FORMAT)
+    : "none";
+  const workerSummary = isLoading
+    ? "Loading worker status..."
+    : error
+      ? "Unable to load worker status."
+      : `${onlineCount}/${workerCount} online, latest heartbeat ${latestHeartbeat}`;
 
   return (
     <section
       aria-label="Core worker diagnostics"
       className="border border-neutral-200 bg-white px-4 py-3"
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
-          <Activity className="mt-1 size-4 text-neutral-500" />
-          <div>
-            <h2 className="text-sm font-medium text-neutral-950">Core execution health</h2>
-            <p className="text-sm text-neutral-600">
-              API availability and monitor worker capacity are tracked separately.
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-neutral-500">Core API</span>
-          <StatusBadge value={toStatus(statusToBadge(apiStatus))} fallback={apiStatus} />
-          <span className="ml-2 text-xs text-neutral-500">Monitor worker</span>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <Activity className="size-4 shrink-0 text-neutral-500" />
+          <h2 className="text-sm font-medium text-neutral-950">Core monitor worker</h2>
           <StatusBadge
             value={toStatus(statusToBadge(workerStatus))}
             fallback={workerStatusLabel[workerStatus] ?? workerStatus}
           />
         </div>
+        <div className="text-sm text-neutral-600">{workerSummary}</div>
       </div>
-
-      {isLoading && (
-        <div className="mt-3 text-sm text-neutral-600">Loading worker diagnostics...</div>
-      )}
-      {Boolean(error) && (
-        <div className="mt-3 text-sm text-rose-700">Unable to load worker diagnostics.</div>
-      )}
       {!isLoading && !error && warning && <CoreWorkerWarning worker={worker} className="mt-3" />}
-
-      <div className="mt-3 flex flex-wrap gap-x-8 gap-y-3">
-        <Metric label="workers" value={worker?.worker_count ?? 0} />
-        <Metric label="online" value={worker?.online_count ?? 0} />
-        <Metric label="stale" value={worker?.stale_count ?? 0} />
-        <Metric label="stale after" value={`${worker?.stale_after_seconds ?? 0}s`} />
-        <Metric
-          label="latest heartbeat"
-          value={
-            latestWorker?.last_heartbeat_at
-              ? formatDate(latestWorker.last_heartbeat_at, DATE_TIME_FORMAT)
-              : "none"
-          }
-        />
-        <Metric label="latest state" value={latestWorker?.health ?? "unknown"} />
-      </div>
     </section>
   );
 };

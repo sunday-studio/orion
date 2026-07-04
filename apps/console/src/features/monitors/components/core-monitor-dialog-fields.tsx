@@ -47,7 +47,7 @@ export const CoreMonitorDialogFields = ({
   const usesAdvancedJSON = form.kind === "synthetic" || form.kind === "playwright";
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
       <label className="space-y-1 text-sm">
         <span className="font-medium">Name</span>
         <Input

@@ -133,7 +133,7 @@ export const CoreMonitorDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="max-h-[min(90vh,900px)] overflow-y-auto sm:max-w-3xl">
         <form className="space-y-5" onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
@@ -153,8 +153,8 @@ export const CoreMonitorDialog = ({
             </p>
           )}
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button disabled={isSubmitting || !canSubmit} type="submit" value="save">

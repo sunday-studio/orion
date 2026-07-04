@@ -13,8 +13,10 @@ import {
   shouldWarnForCoreWorker,
 } from "@/features/monitors/components/core-worker-diagnostics";
 import {
+  type ApiAgentResponse,
   type ApiMonitorResponse,
   type GetMonitorsParams,
+  useGetAgents,
   useGetMonitorSummary,
   useGetMonitors,
 } from "@/orion-sdk";
@@ -31,8 +33,6 @@ import { MonitorSummary, type MonitorSummaryFilter } from "./monitor-summary";
 
 const MONITOR_LIMIT = 20;
 const monitorStatusFilters = ["all", "up", "down", "degraded", "unknown", "stale"] as const;
-const monitorOwnerFilters = ["all", "agent", "core"] as const;
-const monitorSourceFilters = ["all", "agent", "core"] as const;
 const monitorTypeFilters = [
   "all",
   "http-healthcheck",
@@ -101,24 +101,6 @@ const monitorStatusOptions: Array<{
   { value: "stale", label: "Stale" },
 ];
 
-const monitorOwnerOptions: Array<{
-  value: (typeof monitorOwnerFilters)[number];
-  label: string;
-}> = [
-  { value: "all", label: "All owners" },
-  { value: "agent", label: "Server" },
-  { value: "core", label: "Core" },
-];
-
-const monitorSourceOptions: Array<{
-  value: (typeof monitorSourceFilters)[number];
-  label: string;
-}> = [
-  { value: "all", label: "All sources" },
-  { value: "agent", label: "Server" },
-  { value: "core", label: "Core" },
-];
-
 const isStaleMonitor = (monitor: ApiMonitorResponse) => {
   return monitor.health === "stale" || monitor.computed_health === "stale";
 };
@@ -135,6 +117,10 @@ const ownerLabel = (monitor: ApiMonitorResponse) => {
 
 const isCoreOwnedMonitor = (monitor: ApiMonitorResponse) =>
   monitor.owner_kind === "core" || monitor.source === "core";
+
+const serverFilterValue = (agentID: string) => `server:${agentID}`;
+
+const serverLabel = (agent: ApiAgentResponse) => agent.name ?? agent.id ?? "Unknown server";
 
 const monitorColumns = (
   workerDiagnostics?: CoreWorkerDiagnostics,
@@ -168,22 +154,18 @@ const monitorColumns = (
   },
   {
     accessorKey: "owner_name",
-    header: "Owner",
+    header: "Target",
     cell: ({ row }) => {
       const monitor = row.original;
       const kind = ownerLabel(monitor);
-      const name = monitor.owner_name ?? monitor.agent_name ?? monitor.agent_id ?? "Unknown owner";
       const labelClass =
         kind === "Core"
           ? "border-sky-200 bg-sky-50 text-sky-700"
           : "border-emerald-200 bg-emerald-50 text-emerald-700";
       const owner = (
-        <div className="flex min-w-44 flex-wrap items-center gap-2">
-          <span className={`rounded border px-2 py-0.5 text-xs font-medium ${labelClass}`}>
-            {kind}
-          </span>
-          <span className="truncate">{name}</span>
-        </div>
+        <span className={`rounded border px-2 py-0.5 text-xs font-medium ${labelClass}`}>
+          {kind}
+        </span>
       );
 
       if (isCoreOwnedMonitor(monitor) || !monitor.agent_id) {
@@ -225,19 +207,17 @@ type MonitorListProps = {
 };
 
 export const MonitorList = ({ workerDiagnostics }: MonitorListProps) => {
-  const [{ search, status, type, owner, ownerName, source, incidents, page }, setMonitorQuery] =
-    useQueryStates({
-      search: parseAsString.withDefault(""),
-      status: parseAsStringLiteral(monitorStatusFilters).withDefault("all"),
-      type: parseAsStringLiteral(monitorTypeFilters).withDefault("all"),
-      owner: parseAsStringLiteral(monitorOwnerFilters).withDefault("all"),
-      ownerName: parseAsString.withDefault(""),
-      source: parseAsStringLiteral(monitorSourceFilters).withDefault("all"),
-      incidents: parseAsBoolean.withDefault(false),
-      page: parseAsInteger.withDefault(1),
-    });
+  const [{ search, status, type, target, incidents, page }, setMonitorQuery] = useQueryStates({
+    search: parseAsString.withDefault(""),
+    status: parseAsStringLiteral(monitorStatusFilters).withDefault("all"),
+    type: parseAsStringLiteral(monitorTypeFilters).withDefault("all"),
+    target: parseAsString.withDefault("all"),
+    incidents: parseAsBoolean.withDefault(false),
+    page: parseAsInteger.withDefault(1),
+  });
   const currentPage = Math.max(page, 1);
   const offset = (currentPage - 1) * MONITOR_LIMIT;
+  const selectedServerID = target.startsWith("server:") ? target.slice("server:".length) : "";
 
   const params: GetMonitorsParams = {
     limit: MONITOR_LIMIT,
@@ -245,35 +225,35 @@ export const MonitorList = ({ workerDiagnostics }: MonitorListProps) => {
     search: search.trim() || undefined,
     health: status === "all" ? undefined : status,
     type: type === "all" ? undefined : type,
-    owner_kind: owner === "all" ? undefined : owner,
-    owner_name: ownerName.trim() || undefined,
-    source: source === "all" ? undefined : source,
+    owner_kind: target === "core" ? "core" : selectedServerID ? "agent" : undefined,
+    owner_name: selectedServerID || undefined,
     has_incidents: incidents || undefined,
     sort: "updated_at",
     order: "desc",
   };
 
+  const agentsResponse = useGetAgents({ limit: 200 });
   const monitorsResponse = useGetMonitors(params);
   const summaryResponse = useGetMonitorSummary();
+  const serverOptions = (agentsResponse.data?.agents ?? [])
+    .filter((agent): agent is ApiAgentResponse & { id: string } => Boolean(agent.id))
+    .map((agent) => ({ value: serverFilterValue(agent.id), label: serverLabel(agent) }))
+    .sort((first, second) => first.label.localeCompare(second.label));
   const monitors = monitorsResponse.data?.monitors ?? [];
   const count = monitorsResponse.data?.count ?? monitors.length;
   const hasCoreMonitors = monitors.some(isCoreOwnedMonitor);
   const selectedSummaryFilter: MonitorSummaryFilter = incidents ? "incidents" : status;
   const hasFilters =
-    Boolean(search.trim()) ||
-    status !== "all" ||
-    type !== "all" ||
-    owner !== "all" ||
-    Boolean(ownerName.trim()) ||
-    source !== "all" ||
-    incidents;
+    Boolean(search.trim()) || status !== "all" || type !== "all" || target !== "all" || incidents;
   const statusLabel =
     monitorStatusOptions.find((option) => option.value === status)?.label ?? status;
   const typeLabel = monitorTypeOptions.find((option) => option.value === type)?.label ?? type;
-  const ownerFilterLabel =
-    monitorOwnerOptions.find((option) => option.value === owner)?.label ?? owner;
-  const sourceLabel =
-    monitorSourceOptions.find((option) => option.value === source)?.label ?? source;
+  const targetLabel =
+    target === "all"
+      ? "All targets"
+      : target === "core"
+        ? "Core"
+        : (serverOptions.find((option) => option.value === target)?.label ?? "Server");
 
   const setOffset = (nextOffset: number) => {
     void setMonitorQuery({ page: Math.floor(nextOffset / MONITOR_LIMIT) + 1 });
@@ -305,21 +285,8 @@ export const MonitorList = ({ workerDiagnostics }: MonitorListProps) => {
     void setMonitorQuery({ type: nextType as (typeof monitorTypeFilters)[number], page: 1 });
   };
 
-  const setOwner = (nextOwner: string) => {
-    if (!monitorOwnerFilters.includes(nextOwner as (typeof monitorOwnerFilters)[number])) return;
-    void setMonitorQuery({ owner: nextOwner as (typeof monitorOwnerFilters)[number], page: 1 });
-  };
-
-  const setOwnerName = (nextOwnerName: string) => {
-    void setMonitorQuery({ ownerName: nextOwnerName, page: 1 });
-  };
-
-  const setSource = (nextSource: string) => {
-    if (!monitorSourceFilters.includes(nextSource as (typeof monitorSourceFilters)[number])) return;
-    void setMonitorQuery({
-      source: nextSource as (typeof monitorSourceFilters)[number],
-      page: 1,
-    });
+  const setTarget = (nextTarget: string) => {
+    void setMonitorQuery({ target: nextTarget, page: 1 });
   };
 
   const clearFilters = () => {
@@ -327,9 +294,7 @@ export const MonitorList = ({ workerDiagnostics }: MonitorListProps) => {
       search: "",
       status: "all",
       type: "all",
-      owner: "all",
-      ownerName: "",
-      source: "all",
+      target: "all",
       incidents: false,
       page: 1,
     });
@@ -346,8 +311,8 @@ export const MonitorList = ({ workerDiagnostics }: MonitorListProps) => {
       {hasCoreMonitors && shouldWarnForCoreWorker(workerDiagnostics) && (
         <CoreWorkerWarning worker={workerDiagnostics} className="mt-4" />
       )}
-      <div className="mt-6 flex flex-wrap items-center gap-2">
-        <div className="relative w-full max-w-sm">
+      <div className="mt-6 grid items-center gap-2 md:grid-cols-2 lg:grid-cols-[minmax(16rem,1fr)_10rem_12rem_12rem_auto]">
+        <div className="relative min-w-0">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-400" />
           <Input
             value={search}
@@ -357,7 +322,7 @@ export const MonitorList = ({ workerDiagnostics }: MonitorListProps) => {
           />
         </div>
         <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="min-w-44 text-xs">
+          <SelectTrigger className="w-full text-xs">
             <span data-slot="select-value">Status: {statusLabel}</span>
           </SelectTrigger>
           <SelectContent>
@@ -370,7 +335,7 @@ export const MonitorList = ({ workerDiagnostics }: MonitorListProps) => {
         </Select>
 
         <Select value={type} onValueChange={setType}>
-          <SelectTrigger className="min-w-48 text-xs">
+          <SelectTrigger className="w-full text-xs">
             <span data-slot="select-value">Type: {typeLabel}</span>
           </SelectTrigger>
           <SelectContent>
@@ -381,38 +346,24 @@ export const MonitorList = ({ workerDiagnostics }: MonitorListProps) => {
             ))}
           </SelectContent>
         </Select>
-        <Select value={owner} onValueChange={setOwner}>
-          <SelectTrigger className="min-w-44 text-xs">
-            <span data-slot="select-value">Owner: {ownerFilterLabel}</span>
+        <Select value={target} onValueChange={setTarget}>
+          <SelectTrigger className="w-full text-xs">
+            <span data-slot="select-value">Target: {targetLabel}</span>
           </SelectTrigger>
           <SelectContent>
-            {monitorOwnerOptions.map((option) => (
+            {[
+              { value: "all", label: "All targets" },
+              { value: "core", label: "Core" },
+              ...serverOptions,
+            ].map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 {option.label}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <Select value={source} onValueChange={setSource}>
-          <SelectTrigger className="min-w-44 text-xs">
-            <span data-slot="select-value">Source: {sourceLabel}</span>
-          </SelectTrigger>
-          <SelectContent>
-            {monitorSourceOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Input
-          value={ownerName}
-          onChange={(event) => setOwnerName(event.target.value)}
-          placeholder="Owner name"
-          className="w-full max-w-48"
-        />
         {hasFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters}>
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="justify-self-start">
             Clear
           </Button>
         )}
