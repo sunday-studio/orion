@@ -1,3 +1,4 @@
+import { DetailCard } from "@/components/shared/detail-card";
 import type { ApiAgentReportResponse, ApiAgentResponse } from "@/orion-sdk";
 import { DetailItem } from "./detail-item";
 import { formatBytes, formatDuration, formatPercent } from "../agent-detail.domain";
@@ -39,8 +40,12 @@ export const AgentCpuTab = ({ agent, latestReport }: AgentCpuTabProps) => {
 };
 
 const MetricCard = ({ label, value }: { label: string; value: string | number }) => (
-  <div className="flex min-h-24 flex-col justify-between bg-neutral-100 px-3 py-2">
+  <DetailCard
+    className="min-h-24"
+    contentClassName="flex min-h-16 flex-col justify-between"
+    variant="violet"
+  >
     <div className="text-neutral-600 text-sm capitalize">{label}</div>
     <div className="font-medium text-2xl text-neutral-950">{value}</div>
-  </div>
+  </DetailCard>
 );

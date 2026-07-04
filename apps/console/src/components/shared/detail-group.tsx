@@ -1,5 +1,6 @@
 import { cn } from "@/utils/cn";
 import type { ReactNode } from "react";
+import { DetailCard, type DetailCardVariant } from "./detail-card";
 
 type TimestampedReport = {
   collected_at?: string;
@@ -21,11 +22,18 @@ export const DetailItem = ({
   </div>
 );
 
-export const DetailGroup = ({ title, children }: { title: string; children: ReactNode }) => (
-  <div className="space-y-3 bg-neutral-50 px-3 py-3">
-    <h2 className="text-sm font-medium">{title}</h2>
-    <div className="space-y-3">{children}</div>
-  </div>
+export const DetailGroup = ({
+  children,
+  title,
+  variant = "neutral",
+}: {
+  children: ReactNode;
+  title: string;
+  variant?: DetailCardVariant;
+}) => (
+  <DetailCard title={title} variant={variant}>
+    {children}
+  </DetailCard>
 );
 
 export const reportTimestamp = (report?: TimestampedReport) =>

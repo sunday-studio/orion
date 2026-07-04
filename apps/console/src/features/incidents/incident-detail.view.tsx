@@ -1,4 +1,5 @@
 import { DataTable } from "@/components/shared/data-table";
+import { DetailCard } from "@/components/shared/detail-card";
 import { PageBreadcrumbs } from "@/components/shared/page-breadcrumbs";
 import {
   NotificationBadge,
@@ -240,7 +241,10 @@ export const IncidentDetailPage = () => {
         )}
 
         <div className="grid gap-3 lg:grid-cols-3">
-          <DetailGroup title="Incident">
+          <DetailGroup
+            title="Incident"
+            variant={incident.status === "resolved" ? "emerald" : "rose"}
+          >
             <DetailItem label="status" value={<StatusBadge value={toStatus(incident.status)} />} />
             <DetailItem
               label="severity"
@@ -262,7 +266,7 @@ export const IncidentDetailPage = () => {
             />
           </DetailGroup>
 
-          <DetailGroup title="Affected">
+          <DetailGroup title="Affected" variant="indigo">
             <DetailItem label="server" value={incident.agent_name ?? "Unknown server"} />
             <DetailItem label="monitor" value={incident.monitor_name ?? "Unknown monitor"} />
             <DetailItem label="monitor type" value={incident.monitor_type ?? "unknown"} />
@@ -290,7 +294,7 @@ export const IncidentDetailPage = () => {
             </div>
           </DetailGroup>
 
-          <DetailGroup title="Timing">
+          <DetailGroup title="Timing" variant="amber">
             <DetailItem label="opened" value={formatDate(incident.opened_at, DATE_TIME_FORMAT)} />
             <DetailItem
               label="latest event"
@@ -338,8 +342,7 @@ export const IncidentDetailPage = () => {
           </DetailGroup>
         </div>
         {relatedIncidents.length > 0 && (
-          <div className="space-y-2 bg-neutral-50 px-3 py-3">
-            <h3 className="text-sm font-medium">Related incidents</h3>
+          <DetailCard title="Related incidents" variant="violet">
             <div className="divide-y divide-neutral-200">
               {relatedIncidents.slice(0, 5).map((related) => (
                 <Link
@@ -356,7 +359,7 @@ export const IncidentDetailPage = () => {
                 </Link>
               ))}
             </div>
-          </div>
+          </DetailCard>
         )}
       </section>
 

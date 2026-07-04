@@ -1,3 +1,4 @@
+import { DetailCard } from "@/components/shared/detail-card";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -131,47 +132,48 @@ export const AgentTokenPanel = ({ agentId }: AgentTokenPanelProps) => {
     await refreshStatus();
   };
 
-  return (
-    <section className="space-y-4 border border-neutral-200 p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="flex items-center gap-2 text-sm font-medium">
-            <KeyRound className="size-4" />
-            Server Token
-          </h2>
-          <p className="text-sm text-neutral-600">
-            Non-secret lifecycle metadata and replacement-token actions.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {revoked || !hasToken ? (
-            <Button size="sm" onClick={() => void handleReissue()} disabled={isMutating}>
-              <RotateCcw />
-              {reissueToken.isPending ? "Reissuing..." : "Reissue"}
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => void handleRotate()}
-              disabled={isMutating}
-            >
-              <RotateCcw />
-              {rotateToken.isPending ? "Rotating..." : "Rotate"}
-            </Button>
-          )}
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={() => setIsRevokeOpen(true)}
-            disabled={isMutating || revoked || !hasToken}
-          >
-            <ShieldOff />
-            Revoke
-          </Button>
-        </div>
-      </div>
+  const tokenActions = (
+    <div className="flex flex-wrap gap-2">
+      {revoked || !hasToken ? (
+        <Button size="sm" onClick={() => void handleReissue()} disabled={isMutating}>
+          <RotateCcw />
+          {reissueToken.isPending ? "Reissuing..." : "Reissue"}
+        </Button>
+      ) : (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => void handleRotate()}
+          disabled={isMutating}
+        >
+          <RotateCcw />
+          {rotateToken.isPending ? "Rotating..." : "Rotate"}
+        </Button>
+      )}
+      <Button
+        size="sm"
+        variant="destructive"
+        onClick={() => setIsRevokeOpen(true)}
+        disabled={isMutating || revoked || !hasToken}
+      >
+        <ShieldOff />
+        Revoke
+      </Button>
+    </div>
+  );
 
+  return (
+    <DetailCard
+      action={tokenActions}
+      description="Non-secret lifecycle metadata and replacement-token actions."
+      title={
+        <span className="flex items-center gap-2">
+          <KeyRound className="size-4" />
+          Server Token
+        </span>
+      }
+      variant={revoked ? "rose" : "indigo"}
+    >
       {tokenStatus.isLoading ? (
         <div className="text-sm text-neutral-600">Loading token metadata...</div>
       ) : tokenStatus.error ? (
@@ -267,6 +269,6 @@ export const AgentTokenPanel = ({ agentId }: AgentTokenPanelProps) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </section>
+    </DetailCard>
   );
 };

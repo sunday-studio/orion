@@ -89,7 +89,7 @@ export const MonitorDetailOverview = ({
 }: MonitorDetailOverviewProps) => (
   <section className="space-y-4">
     <div className="grid gap-3 lg:grid-cols-4">
-      <DetailGroup title="State">
+      <DetailGroup title="State" variant={health === "up" ? "emerald" : "indigo"}>
         <DetailItem label="health" value={<StatusBadge value={toStatus(health)} />} />
         <DetailItem label="type" value={latestSummary.kindLabel} />
         <DetailItem label="source" value={isCoreMonitor ? "Core" : "Server"} />
@@ -127,7 +127,10 @@ export const MonitorDetailOverview = ({
         )}
       </DetailGroup>
 
-      <DetailGroup title="Latest Result">
+      <DetailGroup
+        title="Latest Result"
+        variant={latestReport?.health === "down" ? "rose" : "amber"}
+      >
         <DetailItem label="summary" value={latestSummary.headline} />
         {latestSummary.items.slice(0, 5).map((detail) => (
           <DetailItem key={detail.label} label={detail.label} value={detail.value} />
@@ -140,7 +143,10 @@ export const MonitorDetailOverview = ({
         )}
       </DetailGroup>
 
-      <DetailGroup title="Incident Context">
+      <DetailGroup
+        title="Incident Context"
+        variant={activeIncidents.length > 0 ? "rose" : "neutral"}
+      >
         <DetailItem label="active" value={activeIncidents.length} />
         <DetailItem label="related" value={relatedIncidents.length} />
         <DetailItem label="focus" value={incidentContextLabel} />
