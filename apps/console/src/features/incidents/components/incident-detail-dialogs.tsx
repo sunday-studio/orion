@@ -291,19 +291,26 @@ export const EvidenceReportGroup = ({
   reason: string;
   onInspect: () => void;
 }) => (
-  <DetailGroup title={title}>
-    <DetailItem
-      label="result"
-      value={
-        <span className="inline-flex items-center gap-2">
+  <DetailGroup
+    title={title}
+    description={report ? formatDate(reportTimestamp(report), DATE_TIME_FORMAT) : undefined}
+    variant={report?.health && report.health !== "up" ? "rose" : "neutral"}
+    contentClassName="space-y-4"
+  >
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="min-w-0">
+        <div className="text-xs font-medium text-neutral-500">result</div>
+        <div className="mt-2">
           <StatusBadge value={toStatus(report?.health)} />
-          <span>{formatDate(reportTimestamp(report), DATE_TIME_FORMAT)}</span>
-        </span>
-      }
-    />
-    <DetailItem label="reason" value={reason} />
-    <Button type="button" variant="outline" size="sm" disabled={!report} onClick={onInspect}>
-      Inspect report
-    </Button>
+        </div>
+      </div>
+      <Button type="button" variant="outline" size="sm" disabled={!report} onClick={onInspect}>
+        Inspect report
+      </Button>
+    </div>
+    <div className="border-l-2 border-neutral-200 pl-3">
+      <div className="text-xs font-medium text-neutral-500">reason</div>
+      <div className="mt-1 break-words text-sm font-medium text-neutral-950">{reason}</div>
+    </div>
   </DetailGroup>
 );

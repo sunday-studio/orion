@@ -17,21 +17,32 @@ export const DetailItem = ({
   value: ReactNode;
 }) => (
   <div>
-    <div className="text-sm text-neutral-600">{label}</div>
-    <div className={cn("break-words text-sm font-medium", className)}>{value}</div>
+    <div className="text-xs font-medium text-neutral-500">{label}</div>
+    <div className={cn("mt-1 break-words text-sm font-medium text-neutral-950", className)}>
+      {value}
+    </div>
   </div>
 );
 
 export const DetailGroup = ({
   children,
+  contentClassName,
+  description,
   title,
   variant = "neutral",
 }: {
   children: ReactNode;
+  contentClassName?: string;
+  description?: ReactNode;
   title: string;
   variant?: DetailCardVariant;
 }) => (
-  <DetailCard title={title} variant={variant}>
+  <DetailCard
+    title={title}
+    description={description}
+    variant={variant}
+    contentClassName={contentClassName}
+  >
     {children}
   </DetailCard>
 );

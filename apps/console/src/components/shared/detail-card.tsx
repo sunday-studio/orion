@@ -9,31 +9,31 @@ const variantClassNames: Record<
 > = {
   neutral: {
     card: "border-neutral-200 bg-white",
-    accent: "bg-neutral-300",
+    accent: "bg-neutral-200",
     title: "text-neutral-950",
   },
   indigo: {
-    card: "border-indigo-200 bg-indigo-50/70",
+    card: "border-indigo-200 bg-white",
     accent: "bg-indigo-500",
     title: "text-indigo-950",
   },
   emerald: {
-    card: "border-emerald-200 bg-emerald-50/70",
+    card: "border-emerald-200 bg-white",
     accent: "bg-emerald-500",
     title: "text-emerald-950",
   },
   amber: {
-    card: "border-amber-200 bg-amber-50/70",
+    card: "border-amber-200 bg-white",
     accent: "bg-amber-400",
     title: "text-amber-950",
   },
   rose: {
-    card: "border-rose-200 bg-rose-50/70",
+    card: "border-rose-200 bg-white",
     accent: "bg-rose-500",
     title: "text-rose-950",
   },
   violet: {
-    card: "border-violet-200 bg-violet-50/70",
+    card: "border-violet-200 bg-white",
     accent: "bg-violet-500",
     title: "text-violet-950",
   },
@@ -64,12 +64,12 @@ export const DetailCard = ({
   return (
     <section
       className={cn(
-        "relative overflow-hidden rounded-lg border px-3 py-3 shadow-xs",
+        "relative overflow-hidden rounded-lg border px-4 py-4 shadow-xs",
         variantClasses.card,
         className,
       )}
     >
-      <div className={cn("absolute inset-x-0 top-0 h-1", variantClasses.accent)} />
+      <div className={cn("absolute inset-x-0 top-0 h-0.5", variantClasses.accent)} />
       {hasHeader && (
         <div className="mb-3 flex flex-wrap items-start justify-between gap-3 pt-1">
           <div className="min-w-0 space-y-0.5">
