@@ -1,14 +1,6 @@
 import { DataTable } from "@/components/shared/data-table";
 import { DetailCard } from "@/components/shared/detail-card";
 import { PageBreadcrumbs } from "@/components/shared/page-breadcrumbs";
-import {
-  NotificationBadge,
-  SeverityBadge,
-  StatusBadge,
-  toNotificationStatus,
-  toSeverity,
-  toStatus,
-} from "@/components/shared/status-badges";
 import { TabCount, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ReportInspectionDrawer } from "@/features/report-inspection/components/report-inspection-drawer";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
@@ -38,14 +30,10 @@ import {
 } from "./components/incident-detail-dialogs";
 import { IncidentActionButtons } from "./components/incident-action-buttons";
 import {
-  ComponentImpactList,
-  DetailGroup,
-  DetailItem,
   type DetailTab,
   type IncidentWithAllowedActions,
   type LifecycleAction,
   actionAllowed,
-  durationLabel,
   isDetailTab,
   monitorReportColumns,
   notificationColumns,
@@ -53,6 +41,7 @@ import {
   reportSortTime,
   timelineColumns,
 } from "./components/incident-detail-utils";
+import { IncidentEvidenceCards, IncidentOverviewCards } from "./components/incident-summary-cards";
 
 export const IncidentDetailPage = () => {
   const { incidentId = "" } = useParams();
@@ -240,79 +229,7 @@ export const IncidentDetailPage = () => {
           <div className="text-sm text-rose-700">Unable to update incident.</div>
         )}
 
-        <div className="grid gap-3 lg:grid-cols-3">
-          <DetailGroup
-            title="Incident"
-            variant={incident.status === "resolved" ? "emerald" : "rose"}
-          >
-            <DetailItem label="status" value={<StatusBadge value={toStatus(incident.status)} />} />
-            <DetailItem
-              label="severity"
-              value={<SeverityBadge value={toSeverity(incident.severity)} />}
-            />
-            <DetailItem
-              label="notification"
-              value={
-                <NotificationBadge
-                  value={toNotificationStatus(incident.notification_status)}
-                  fallback="no notification status"
-                />
-              }
-            />
-            <DetailItem label="duration" value={durationLabel(incident)} />
-            <DetailItem
-              label="resolution"
-              value={incident.resolution_kind || (incident.status === "covered" ? "covered" : "—")}
-            />
-          </DetailGroup>
-
-          <DetailGroup title="Affected" variant="indigo">
-            <DetailItem label="server" value={incident.agent_name ?? "Unknown server"} />
-            <DetailItem label="monitor" value={incident.monitor_name ?? "Unknown monitor"} />
-            <DetailItem label="monitor type" value={incident.monitor_type ?? "unknown"} />
-            <DetailItem
-              label="components"
-              value={<ComponentImpactList components={impactedComponents} />}
-            />
-            <div className="flex flex-wrap gap-4 text-sm">
-              {incident.agent_id && (
-                <Link
-                  to={`/servers/${incident.agent_id}?tab=monitors&incident=${encodeURIComponent(incident.id ?? "")}`}
-                  className="font-medium hover:text-neutral-600"
-                >
-                  View server
-                </Link>
-              )}
-              {incident.monitor_id && (
-                <Link
-                  to={`/monitors/${incident.monitor_id}?incident=${encodeURIComponent(incident.id ?? "")}`}
-                  className="font-medium hover:text-neutral-600"
-                >
-                  View monitor
-                </Link>
-              )}
-            </div>
-          </DetailGroup>
-
-          <DetailGroup title="Timing" variant="amber">
-            <DetailItem label="opened" value={formatDate(incident.opened_at, DATE_TIME_FORMAT)} />
-            <DetailItem
-              label="latest event"
-              value={formatDate(incident.last_event_at, DATE_TIME_FORMAT)}
-            />
-            <DetailItem
-              label="resolved"
-              value={formatDate(incident.resolved_at, DATE_TIME_FORMAT)}
-            />
-            <DetailItem
-              label="covered until"
-              value={formatDate(incident.covered_until, DATE_TIME_FORMAT)}
-            />
-            {incident.coverage_note && (
-              <DetailItem label="coverage note" value={incident.coverage_note} />
-            )}
-          </DetailGroup>
-        </div>
+        <IncidentOverviewCards incident={incident} impactedComponents={impactedComponents} />
       </section>
 
       <section className="space-y-3">
@@ -332,14 +249,7 @@ export const IncidentDetailPage = () => {
             onInspect={() => setSelectedMonitorReport(latestReport)}
           />
 
-          <DetailGroup title="Latest Timeline Event">
-            <DetailItem label="type" value={latestTimelineItem?.type ?? "—"} />
-            <DetailItem
-              label="time"
-              value={formatDate(latestTimelineItem?.created_at, DATE_TIME_FORMAT)}
-            />
-            <DetailItem label="message" value={latestTimelineItem?.message ?? "—"} />
-          </DetailGroup>
+          <IncidentEvidenceCards latestTimelineItem={latestTimelineItem} />
         </div>
         {relatedIncidents.length > 0 && (
           <DetailCard title="Related incidents" variant="violet">
