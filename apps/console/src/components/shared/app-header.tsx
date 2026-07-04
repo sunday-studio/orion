@@ -38,7 +38,7 @@ export const AppHeader = () => {
 
   return (
     <header className="z-50 flex h-14 shrink-0 items-center bg-neutral-100 backdrop-blur">
-      <div className="flex w-full items-center justify-between gap-4 px-4 sm:px-6">
+      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
         <NavLink to="/incidents" className="font-medium">
           Orion
         </NavLink>
