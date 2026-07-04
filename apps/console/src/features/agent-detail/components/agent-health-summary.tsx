@@ -1,3 +1,4 @@
+import { DetailCard, type DetailCardVariant } from "@/components/shared/detail-card";
 import type { ApiUptimeDayBucketResponse } from "@/orion-sdk";
 import { formatPercent } from "../agent-detail.domain";
 import { Link } from "react-router-dom";
@@ -30,6 +31,13 @@ const bucketFillClassName = (bucket: ApiUptimeDayBucketResponse) => {
   return "bg-rose-400";
 };
 
+const statusVariant = (status?: string): DetailCardVariant => {
+  if (status === "up" || status === "healthy") return "emerald";
+  if (status === "down" || status === "error") return "rose";
+  if (status === "degraded" || status === "stale" || status === "maintenance") return "amber";
+  return "neutral";
+};
+
 export const AgentHealthSummary = ({
   activeIncidentCount,
   availabilityHealth,
@@ -56,18 +64,21 @@ export const AgentHealthSummary = ({
           label="server availability"
           status={availabilityHealth ?? status}
           detail={statusReason}
+          variant={statusVariant(availabilityHealth ?? status)}
         />
         <StatusCell
           label="monitor rollup"
           status={monitorHealth ?? "unknown"}
           detail={`${totalCount} active`}
+          variant={statusVariant(monitorHealth)}
         />
         <SummaryCell
           label="monitor issues"
           value={downCount + degradedCount + staleCount + unknownCount}
           detail={`${upCount} up / ${downCount} down / ${degradedCount} degraded / ${staleCount} stale / ${unknownCount} unknown`}
+          variant={downCount + degradedCount + staleCount + unknownCount > 0 ? "rose" : "emerald"}
         />
-        <SummaryCell label="90d uptime" value={formatPercent(uptimePercent)} />
+        <SummaryCell label="90d uptime" value={formatPercent(uptimePercent)} variant="indigo" />
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
@@ -107,35 +118,47 @@ export const AgentHealthSummary = ({
 const SummaryCell = ({
   detail,
   label,
+  variant = "neutral",
   value,
 }: {
   detail?: string;
   label: string;
+  variant?: DetailCardVariant;
   value: string | number;
 }) => (
-  <div className="flex min-h-24 flex-col justify-between bg-neutral-100 px-3 py-2">
+  <DetailCard
+    className="min-h-24"
+    contentClassName="flex min-h-16 flex-col justify-between"
+    variant={variant}
+  >
     <div className="text-neutral-600 text-sm capitalize">{label}</div>
     <div className="space-y-1">
       <div className="font-medium text-2xl text-neutral-950">{value}</div>
       {detail && <div className="text-xs leading-snug text-neutral-600">{detail}</div>}
     </div>
-  </div>
+  </DetailCard>
 );
 
 const StatusCell = ({
   detail,
   label,
   status,
+  variant = "neutral",
 }: {
   detail?: string;
   label: string;
   status: string;
+  variant?: DetailCardVariant;
 }) => (
-  <div className="flex min-h-24 flex-col justify-between bg-neutral-100 px-3 py-2">
+  <DetailCard
+    className="min-h-24"
+    contentClassName="flex min-h-16 flex-col justify-between"
+    variant={variant}
+  >
     <div className="text-neutral-600 text-sm capitalize">{label}</div>
     <div className="space-y-1">
       <StatusBadge value={toStatus(status)} />
       {detail && <div className="text-xs leading-snug text-neutral-600">{detail}</div>}
     </div>
-  </div>
+  </DetailCard>
 );
