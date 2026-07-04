@@ -13,7 +13,6 @@ type IncidentActionButtonsProps = {
   canCover: boolean;
   canReopen: boolean;
   canResolve: boolean;
-  hasNextActions: boolean;
   onAcknowledge: () => void;
   onCover: () => void;
   onOpenPublicDraft: () => void;
@@ -27,7 +26,6 @@ export const IncidentActionButtons = ({
   canCover,
   canReopen,
   canResolve,
-  hasNextActions,
   onAcknowledge,
   onCover,
   onOpenPublicDraft,
@@ -35,37 +33,33 @@ export const IncidentActionButtons = ({
   onResolve,
 }: IncidentActionButtonsProps) => (
   <div className="flex flex-wrap gap-2">
+    {canAcknowledge && (
+      <Button variant="outline" disabled={actionPending} onClick={onAcknowledge}>
+        <CheckIcon />
+        Acknowledge
+      </Button>
+    )}
+    {canCover && (
+      <Button variant="outline" disabled={actionPending} onClick={onCover}>
+        <ShieldCheckIcon />
+        Cover
+      </Button>
+    )}
+    {canResolve && (
+      <Button disabled={actionPending} onClick={onResolve}>
+        <CircleCheckIcon />
+        Resolve
+      </Button>
+    )}
+    {canReopen && (
+      <Button variant="outline" disabled={actionPending} onClick={onReopen}>
+        <RotateCcwIcon />
+        Reopen
+      </Button>
+    )}
     <Button variant="outline" disabled={actionPending} onClick={onOpenPublicDraft}>
       <MegaphoneIcon />
       Public draft
     </Button>
-    {!hasNextActions && (canResolve || canReopen) && (
-      <>
-        {canAcknowledge && (
-          <Button variant="outline" disabled={actionPending} onClick={onAcknowledge}>
-            <CheckIcon />
-            Acknowledge
-          </Button>
-        )}
-        {canCover && (
-          <Button variant="outline" disabled={actionPending} onClick={onCover}>
-            <ShieldCheckIcon />
-            Cover
-          </Button>
-        )}
-        {canResolve && (
-          <Button disabled={actionPending} onClick={onResolve}>
-            <CircleCheckIcon />
-            Resolve
-          </Button>
-        )}
-        {canReopen && (
-          <Button variant="outline" disabled={actionPending} onClick={onReopen}>
-            <RotateCcwIcon />
-            Reopen
-          </Button>
-        )}
-      </>
-    )}
   </div>
 );

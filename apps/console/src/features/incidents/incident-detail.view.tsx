@@ -12,7 +12,6 @@ import { TabCount, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components
 import { ReportInspectionDrawer } from "@/features/report-inspection/components/report-inspection-drawer";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import {
-  type ApiIncidentNextActionResponse,
   type ApiMonitorReportResponse,
   type ApiStatusPageIncidentResponse,
   getGetIncidentQueryKey,
@@ -42,7 +41,6 @@ import {
   DetailGroup,
   DetailItem,
   type DetailTab,
-  IncidentNextActionPanel,
   type IncidentWithAllowedActions,
   type LifecycleAction,
   actionAllowed,
@@ -98,7 +96,6 @@ export const IncidentDetailPage = () => {
   });
   const impactedComponents = incident?.impacted_components ?? [];
   const evidence = incidentResponse.data?.evidence;
-  const nextActions = incidentResponse.data?.next_actions ?? [];
   const timeline = incidentResponse.data?.timeline ?? [];
   const alertDeliveries = incidentResponse.data?.alert_deliveries ?? [];
   const monitorReports = incidentResponse.data?.monitor_reports ?? [];
@@ -155,23 +152,6 @@ export const IncidentDetailPage = () => {
       },
       { replace: true },
     );
-  };
-
-  const handleNextAction = (action: ApiIncidentNextActionResponse) => {
-    switch (action.action_type) {
-      case "acknowledge_incident":
-        setActionDialog("acknowledge");
-        break;
-      case "cover_incident":
-        setCoverDialogOpen(true);
-        break;
-      case "resolve_incident":
-        setActionDialog("resolve");
-        break;
-      case "reopen_incident":
-        setActionDialog("reopen");
-        break;
-    }
   };
 
   const handleLifecycleAction = (payload: { note?: string }) => {
@@ -245,7 +225,6 @@ export const IncidentDetailPage = () => {
             canCover={canCover}
             canReopen={canReopen}
             canResolve={canResolve}
-            hasNextActions={nextActions.length > 0}
             onAcknowledge={() => setActionDialog("acknowledge")}
             onCover={() => setCoverDialogOpen(true)}
             onOpenPublicDraft={() => handlePublicDraftDialogOpenChange(true)}
@@ -259,13 +238,6 @@ export const IncidentDetailPage = () => {
           reopenIncident.error) && (
           <div className="text-sm text-rose-700">Unable to update incident.</div>
         )}
-
-        <IncidentNextActionPanel
-          actions={nextActions}
-          actionPending={actionPending}
-          incident={incident}
-          onAction={handleNextAction}
-        />
 
         <div className="grid gap-3 lg:grid-cols-3">
           <DetailGroup title="Incident">

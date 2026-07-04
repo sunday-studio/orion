@@ -19,7 +19,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { type ColumnDef } from "@tanstack/react-table";
 import { parseAsInteger, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
@@ -38,6 +37,12 @@ const notificationStatuses = [
   "cooldown",
 ] as const;
 const allIncidentStatuses = "open,acknowledged,covered,resolved";
+const filterLabels = {
+  actor: "Actor",
+  covered: "Coverage",
+  notification: "Notification",
+  resolution: "Resolution",
+} as const;
 
 const incidentAgentPath = (incident: ApiIncidentResponse) =>
   incident.agent_id
@@ -264,32 +269,31 @@ export const IncidentList = () => {
         coveredCount={coveredIncidentsResponse.data?.count ?? 0}
         resolvedCount={resolvedIncidentsResponse.data?.count ?? 0}
         visibleIncidents={incidents}
-        insights={filteredIncidentsResponse.data?.insights}
         selectedStatus={status}
         onStatusChange={setStatus}
       />
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <IncidentSelect
           value={resolution}
-          label="resolution"
+          label={filterLabels.resolution}
           options={resolutionKinds}
           onValueChange={(value) => setFilter("resolution", value)}
         />
         <IncidentSelect
           value={actor}
-          label="actor"
+          label={filterLabels.actor}
           options={actorKinds}
           onValueChange={(value) => setFilter("actor", value)}
         />
         <IncidentSelect
           value={covered}
-          label="coverage"
+          label={filterLabels.covered}
           options={coveredStates}
           onValueChange={(value) => setFilter("covered", value)}
         />
         <IncidentSelect
           value={notification}
-          label="notification"
+          label={filterLabels.notification}
           options={notificationStatuses}
           onValueChange={(value) => setFilter("notification", value)}
         />
@@ -336,15 +340,28 @@ const IncidentSelect = <T extends readonly string[]>({
   onValueChange,
 }: IncidentSelectProps<T>) => (
   <Select value={value} onValueChange={(nextValue) => onValueChange(nextValue as T[number])}>
-    <SelectTrigger size="sm" aria-label={label}>
-      <SelectValue placeholder={label} />
+    <SelectTrigger className="min-w-44 text-xs" size="sm" aria-label={label}>
+      <span data-slot="select-value">
+        {label}: {formatIncidentFilterValue(value)}
+      </span>
     </SelectTrigger>
     <SelectContent align="start">
       {options.map((option) => (
         <SelectItem key={option} value={option}>
-          {option === "all" ? `${label}: all` : option.replace("_", " ")}
+          {formatIncidentFilterItem(label, option)}
         </SelectItem>
       ))}
     </SelectContent>
   </Select>
 );
+
+const formatIncidentFilterValue = (value: string) =>
+  value === "all"
+    ? "All"
+    : value
+        .split("_")
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ");
+
+const formatIncidentFilterItem = (label: string, value: string) =>
+  value === "all" ? `All ${label.toLowerCase()}` : formatIncidentFilterValue(value);
