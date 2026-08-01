@@ -1,7 +1,8 @@
 import { cn } from "@/utils/cn";
 import type { ReactNode } from "react";
 
-export type DetailCardVariant = "neutral" | "indigo" | "emerald" | "amber" | "rose" | "violet";
+export type DetailCardVariant =
+  "neutral" | "indigo" | "emerald" | "amber" | "rose" | "violet";
 
 const variantClassNames: Record<
   DetailCardVariant,
@@ -69,12 +70,23 @@ export const DetailCard = ({
         className,
       )}
     >
-      <div className={cn("absolute inset-x-0 top-0 h-0.5", variantClasses.accent)} />
+      <div
+        className={cn(
+          "absolute inset-x-0 top-0 h-0.5 bg-white",
+          variantClasses.accent,
+        )}
+      />
       {hasHeader && (
         <div className="mb-3 flex flex-wrap items-start justify-between gap-3 pt-1">
           <div className="min-w-0 space-y-0.5">
-            {title && <h2 className={cn("text-sm font-medium", variantClasses.title)}>{title}</h2>}
-            {description && <p className="text-sm text-neutral-600">{description}</p>}
+            {title && (
+              <h2 className={cn("text-sm font-medium", variantClasses.title)}>
+                {title}
+              </h2>
+            )}
+            {description && (
+              <p className="text-sm text-neutral-600">{description}</p>
+            )}
           </div>
           {action}
         </div>
