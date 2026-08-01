@@ -5,8 +5,9 @@ const consoleURL = `http://127.0.0.1:${consolePort}`;
 
 export default defineConfig({
   testDir: "./e2e",
-  fullyParallel: true,
+  fullyParallel: false,
   reporter: "list",
+  workers: 1,
   use: {
     baseURL: consoleURL,
     trace: "on-first-retry",

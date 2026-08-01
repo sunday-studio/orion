@@ -2,9 +2,10 @@ import { type Page, expect } from "@playwright/test";
 
 export const username = "admin";
 export const password = "change-me";
-export const coreApiURL = "http://127.0.0.1:18999/v1";
+const corePort = process.env.ORION_E2E_CORE_PORT ?? "18999";
+export const coreApiURL = `http://127.0.0.1:${corePort}/v1`;
 export const webhookReceiverURL = "http://127.0.0.1:19080";
-export const coreURL = "http://127.0.0.1:18999";
+export const coreURL = `http://127.0.0.1:${corePort}`;
 
 export const signIn = async (page: Page) => {
   await page.goto("/login");
