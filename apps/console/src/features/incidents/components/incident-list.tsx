@@ -14,12 +14,7 @@ import { type ApiIncidentResponse, useGetIncidents } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { ListPagination } from "@/components/shared/list-pagination";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { type ColumnDef } from "@tanstack/react-table";
 import { parseAsInteger, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 
