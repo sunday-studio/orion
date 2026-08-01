@@ -176,7 +176,7 @@ await run("pnpm", ["run", "generate:api"], {
 webhookServer = await startWebhookReceiver();
 await waitFor(`${webhookURL}/health`, 10_000);
 
-start("go", ["run", "."], {
+start("go", ["run", "./cmd/api"], {
   cwd: coreDir,
   env: {
     ...process.env,
