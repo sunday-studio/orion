@@ -115,6 +115,29 @@ storage changes when allowed; if remote push is blocked, say so explicitly.
 - Prefer small, contract-aware changes over cross-cutting rewrites.
 - Keep generated files separate from source files in summaries and reviews.
 
+## Mandatory Staff Review Before PRs
+
+Before an agent pushes or opens a pull request, an independent agent must review its work using
+[.agents/personas/staff-engineer-review.md](.agents/personas/staff-engineer-review.md). The
+implementation agent must not review or approve its own change. Local commits are allowed when they
+make a completed change easier to review.
+
+- The implementation agent first provides the persona's required review inputs, including the base
+  revision, current `HEAD`, local diff, and untracked paths, then stops before the push/PR step.
+- A separate reviewer reads the complete `base...HEAD` range plus local and untracked changes,
+  performs the persona's review procedure, and returns `APPROVED` or `CHANGES REQUESTED` in the
+  required review-packet format.
+- `CHANGES REQUESTED` blocks push and PR creation until the findings are resolved and the reviewer
+  issues a new `APPROVED` verdict.
+- An approval applies only to the reviewed base revision, `HEAD`, local diff, and untracked paths.
+  Any change to that state after review invalidates approval and requires a new recorded verdict
+  before push or PR creation.
+- Record the verdict and validation evidence in the linked Maat ticket. Include the approved review
+  packet in the PR description or handoff.
+- This policy applies to every repository change, including docs, deployment assets, generated
+  contracts, and code. Purely local scratch output under `tmp/` is exempt unless it is proposed for
+  commit.
+
 ## Common Commands
 
 Run Core tests:
