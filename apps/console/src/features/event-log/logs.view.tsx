@@ -287,8 +287,6 @@ export const LogsPage = () => {
                 getRowId={(event) => event.id ?? ""}
                 isLoading={eventsQuery.isLoading}
                 loadingMessage="Loading event log..."
-                sort={eventTable.sort}
-                onSortChange={eventTable.setSort}
               />
             )}
             {count > 0 && (
@@ -356,8 +354,6 @@ export const LogsPage = () => {
                 getRowId={(log) => log.id ?? ""}
                 isLoading={serviceLogsQuery.isLoading}
                 loadingMessage="Loading service logs..."
-                sort={serviceTable.sort}
-                onSortChange={serviceTable.setSort}
               />
             )}
             {serviceLogCount > 0 && (

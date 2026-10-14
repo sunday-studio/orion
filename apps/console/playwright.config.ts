@@ -10,7 +10,8 @@ export default defineConfig({
   workers: 1,
   use: {
     baseURL: consoleURL,
-    trace: "on-first-retry",
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
   },
   webServer: {
     command: "node e2e/support/start-core-smoke.mjs",

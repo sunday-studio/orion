@@ -23,7 +23,8 @@ export function LoginPage() {
     try {
       await authLogin(username, password);
       const from = searchParams.get("from");
-      const safeFrom = from && from.startsWith("/") && !from.startsWith("//") ? from : "/incidents";
+      const safeFrom =
+        from && /^\/(?![/\\])/.test(from) && !from.startsWith("/login") ? from : "/incidents";
       navigate(safeFrom, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to sign in.");
