@@ -1,18 +1,50 @@
+import { lazy } from "react";
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { LoginPage } from "@/features/auth/login.view";
 import { Layout } from "@/components/shared/layout";
 import { NotFound } from "@/components/shared/not-found";
 import { RequireAuth } from "@/components/shared/require-auth";
-import { AgentDetailPage } from "@/features/agent-detail/agent-detail.view";
-import { MonitorDetailPage } from "@/features/monitor-detail/monitor-detail.view";
-import { IncidentDetailPage } from "@/features/incidents/incident-detail.view";
-import { IncidentsPage } from "@/features/incidents/incidents.view";
-import { AlertsPage } from "@/features/alerts/alerts.view";
-import { LogsPage } from "@/features/event-log/logs.view";
-import { AgentsPage } from "@/features/agents/agents.view";
-import { SettingsPage } from "@/features/settings/settings.view";
-import { MonitorsPage } from "@/features/monitors/monitors.view";
-import { StatusPagesPage } from "@/features/status-pages/status-pages.view";
+
+const AgentDetailPage = lazy(() =>
+  import("@/features/agent-detail/agent-detail.view").then((module) => ({
+    default: module.AgentDetailPage,
+  })),
+);
+const MonitorDetailPage = lazy(() =>
+  import("@/features/monitor-detail/monitor-detail.view").then((module) => ({
+    default: module.MonitorDetailPage,
+  })),
+);
+const IncidentDetailPage = lazy(() =>
+  import("@/features/incidents/incident-detail.view").then((module) => ({
+    default: module.IncidentDetailPage,
+  })),
+);
+const IncidentsPage = lazy(() =>
+  import("@/features/incidents/incidents.view").then((module) => ({
+    default: module.IncidentsPage,
+  })),
+);
+const AlertsPage = lazy(() =>
+  import("@/features/alerts/alerts.view").then((module) => ({ default: module.AlertsPage })),
+);
+const LogsPage = lazy(() =>
+  import("@/features/event-log/logs.view").then((module) => ({ default: module.LogsPage })),
+);
+const AgentsPage = lazy(() =>
+  import("@/features/agents/agents.view").then((module) => ({ default: module.AgentsPage })),
+);
+const SettingsPage = lazy(() =>
+  import("@/features/settings/settings.view").then((module) => ({ default: module.SettingsPage })),
+);
+const MonitorsPage = lazy(() =>
+  import("@/features/monitors/monitors.view").then((module) => ({ default: module.MonitorsPage })),
+);
+const StatusPagesPage = lazy(() =>
+  import("@/features/status-pages/status-pages.view").then((module) => ({
+    default: module.StatusPagesPage,
+  })),
+);
 
 const AgentDetailRedirect = () => {
   const { agentId = "" } = useParams();
