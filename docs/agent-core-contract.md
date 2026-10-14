@@ -94,9 +94,9 @@ availability only; Core worker state is exposed through `/v1/diagnostics/core-wo
 ## Endpoints
 
 - `POST /v1/register`
+  Registers or returns a server by `machine_id`. No bearer auth (see enrollment below).
   - Rate limited per client IP (`ORION_REGISTER_RATE_LIMIT_PER_MINUTE`, default 30; `429` when exceeded, rejected attempts count).
   - When Core sets `ORION_ENROLLMENT_TOKEN`, the Agent must send the same value in the `X-Orion-Enrollment-Token` header or Core returns `401`. The Agent reads it from `enrollment_token` in its config, or the `ORION_ENROLLMENT_TOKEN` environment variable (which wins). Only first registration needs it; an Agent that already holds state does not re-register. Without the setting Core logs a warning and registration is rate limited only.
-  Registers or returns a server by `machine_id`. No auth.
 - `POST /v1/agents/:agent_id/register-monitor`
   Registers, revives, or rejects duplicate monitors. Requires auth.
 - `POST /v1/agents/:agent_id/unregister-monitor`
@@ -251,6 +251,7 @@ Server health rules:
 - A fresh server reports `overall_health = down` only when all active monitors are failing.
 - Maintenance suppresses incident candidates and should suppress future alert delivery.
 - Core detects silent Agent monitors itself. The Worker sweeps every 30s and opens a `stale` incident for any active, Agent-reported monitor whose last report (by Core receive time, not Agent clock) is older than the stale window, `max(5m, 5 x reporting interval)`. Agents in maintenance mode and Core-managed monitors are skipped. The next successful report resolves the incident through the normal path.
+- Alert webhook URLs are validated on create/update and re-checked at dial time with the Core monitor target policy: link-local, multicast and cloud-metadata addresses are always rejected; loopback and private ranges are rejected unless `ORION_ALERT_ALLOW_PRIVATE_WEBHOOKS=true`. URLs with embedded credentials are rejected and redirects are never followed (a 3xx fails the delivery).
 - Alert delivery is asynchronous. Incident open/resolve only persists `pending` `alert_deliveries` rows; the Core Worker dispatcher (every 15s) sends them, retries failures with backoff up to `max_attempts`, and sends delayed grouped summaries when due. A delivery is leased (`locked_by`, `locked_until`) while in flight so concurrent dispatchers never double-send. Agent report requests never wait on webhook HTTP.
 
 Stale rules:

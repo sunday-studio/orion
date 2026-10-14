@@ -108,7 +108,7 @@ func NewAlertService(database *gorm.DB, logger *utils.Logger, cfg *config.Config
 		db:         database,
 		logger:     logger,
 		cfg:        cfg,
-		httpClient: &http.Client{Timeout: 10 * time.Second},
+		httpClient: newAlertWebhookClient(cfg),
 	}
 }
 
