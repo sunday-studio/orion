@@ -21,7 +21,7 @@ func TestAlertServiceStopsRetryingAfterMaxAttempts(t *testing.T) {
 		return nil, fmt.Errorf("connection refused")
 	})
 
-	if err := service.QueueIncidentNotifications("incident-max-attempts", db.AlertEventIncidentOpened); err != nil {
+	if err := queueAndDispatch(service, "incident-max-attempts", db.AlertEventIncidentOpened); err != nil {
 		t.Fatalf("QueueIncidentNotifications() error = %v", err)
 	}
 
