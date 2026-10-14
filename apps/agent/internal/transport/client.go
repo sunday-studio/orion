@@ -102,6 +102,7 @@ type Client struct {
 	coreURL    string
 	httpClient *http.Client
 	authToken  string
+	enrollment string
 	retry      RetryConfig
 	sleep      func(time.Duration)
 }
@@ -128,6 +129,12 @@ func NewClient(coreURL, authToken string) *Client {
 		},
 		sleep: time.Sleep,
 	}
+}
+
+// SetEnrollmentToken sets the shared secret sent on first registration. Core only
+// requires it when ORION_ENROLLMENT_TOKEN is configured.
+func (c *Client) SetEnrollmentToken(token string) {
+	c.enrollment = strings.TrimSpace(token)
 }
 
 func (c *Client) SetAuthToken(authToken string) {
@@ -372,7 +379,11 @@ func (c *Client) SendServiceLogs(batch ServiceLogBatch, agentID string) error {
 }
 
 func (c *Client) RegisterAgent(req AgentRegistrationRequest) (*AgentRegistrationResponse, error) {
-	resp, err := c.makeRequest("POST", "/v1/register", req, nil)
+	var headers map[string]string
+	if c.enrollment != "" {
+		headers = map[string]string{"X-Orion-Enrollment-Token": c.enrollment}
+	}
+	resp, err := c.makeRequest("POST", "/v1/register", req, headers)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send registration request: %w", err)
 	}

@@ -27,6 +27,8 @@ type Config struct {
 	FrontendAuthOn                 bool
 	RequireFrontendAuth            bool
 	AllowInsecureNoAuth            bool
+	EnrollmentToken                string
+	RegisterRateLimitPerMinute     int
 	LoginRateLimitAttempts         int
 	LoginRateLimitWindowSecs       int
 	AlertCooldownSeconds           int
@@ -71,6 +73,8 @@ func Load() *Config {
 		FrontendAuthOn:                 frontendAuthOn,
 		RequireFrontendAuth:            getEnvBool("ORION_REQUIRE_FRONTEND_AUTH", false),
 		AllowInsecureNoAuth:            getEnvBool("ORION_ALLOW_INSECURE_NO_AUTH", false),
+		EnrollmentToken:                os.Getenv("ORION_ENROLLMENT_TOKEN"),
+		RegisterRateLimitPerMinute:     getEnvInt("ORION_REGISTER_RATE_LIMIT_PER_MINUTE", 30),
 		LoginRateLimitAttempts:         getEnvInt("ORION_LOGIN_RATE_LIMIT_ATTEMPTS", 5),
 		LoginRateLimitWindowSecs:       getEnvInt("ORION_LOGIN_RATE_LIMIT_WINDOW_SECONDS", 60),
 		AlertCooldownSeconds:           getEnvInt("ORION_ALERT_COOLDOWN_SECONDS", 300),
@@ -197,6 +201,9 @@ func (c *Config) Validate() error {
 	}
 	if c.RequireFrontendAuth && authValueCount != len(authValues) {
 		return &ValidationError{Msg: "ORION_REQUIRE_FRONTEND_AUTH requires ORION_ADMIN_USERNAME, ORION_ADMIN_PASSWORD, and ORION_JWT_SECRET"}
+	}
+	if c.RegisterRateLimitPerMinute < 0 {
+		return &ValidationError{Msg: "ORION_REGISTER_RATE_LIMIT_PER_MINUTE must be >= 0"}
 	}
 	if c.LoginRateLimitAttempts < 0 {
 		return &ValidationError{Msg: "ORION_LOGIN_RATE_LIMIT_ATTEMPTS must be >= 0"}

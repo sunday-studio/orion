@@ -131,12 +131,15 @@ type UserMonitor struct {
 }
 
 type UserConfig struct {
-	Meta        map[string]interface{} `yaml:"meta,omitempty"`
-	CoreURL     string                 `yaml:"core_url"`
-	Interval    string                 `yaml:"interval"`
-	GeoLocation bool                   `yaml:"geo_location,omitempty"`
-	Logging     LoggingConfig          `yaml:"logging,omitempty"`
-	Monitors    []UserMonitor          `yaml:"monitors"`
+	Meta    map[string]interface{} `yaml:"meta,omitempty"`
+	CoreURL string                 `yaml:"core_url"`
+	// EnrollmentToken is the shared secret for first registration when Core sets
+	// ORION_ENROLLMENT_TOKEN. The ORION_ENROLLMENT_TOKEN env var overrides it.
+	EnrollmentToken string        `yaml:"enrollment_token,omitempty"`
+	Interval        string        `yaml:"interval"`
+	GeoLocation     bool          `yaml:"geo_location,omitempty"`
+	Logging         LoggingConfig `yaml:"logging,omitempty"`
+	Monitors        []UserMonitor `yaml:"monitors"`
 }
 
 type LoggingConfig struct {

@@ -94,6 +94,8 @@ availability only; Core worker state is exposed through `/v1/diagnostics/core-wo
 ## Endpoints
 
 - `POST /v1/register`
+  - Rate limited per client IP (`ORION_REGISTER_RATE_LIMIT_PER_MINUTE`, default 30; `429` when exceeded, rejected attempts count).
+  - When Core sets `ORION_ENROLLMENT_TOKEN`, the Agent must send the same value in the `X-Orion-Enrollment-Token` header or Core returns `401`. The Agent reads it from `enrollment_token` in its config, or the `ORION_ENROLLMENT_TOKEN` environment variable (which wins). Only first registration needs it; an Agent that already holds state does not re-register. Without the setting Core logs a warning and registration is rate limited only.
   Registers or returns a server by `machine_id`. No auth.
 - `POST /v1/agents/:agent_id/register-monitor`
   Registers, revives, or rejects duplicate monitors. Requires auth.

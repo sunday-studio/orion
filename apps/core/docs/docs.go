@@ -5772,6 +5772,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_service.RegisterRequest"
                         }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Enrollment secret; required when ORION_ENROLLMENT_TOKEN is set on Core",
+                        "name": "X-Orion-Enrollment-Token",
+                        "in": "header"
                     }
                 ],
                 "responses": {
@@ -5795,6 +5801,18 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }

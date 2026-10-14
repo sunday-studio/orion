@@ -20,10 +20,22 @@ import (
 // @ID           registerAgent
 // @Param        request  body      service.RegisterRequest  true  "Agent registration request"
 // @Success      200      {object}  utils.APIResponse{data=service.RegisterResponse}
+// @Param        X-Orion-Enrollment-Token  header  string  false  "Enrollment secret; required when ORION_ENROLLMENT_TOKEN is set on Core"
 // @Failure      400      {object}  utils.APIResponse
+// @Failure      401      {object}  utils.APIResponse
+// @Failure      429      {object}  utils.APIResponse
 // @Failure      500      {object}  utils.APIResponse
 // @Router       /v1/register [post]
 func (s *Server) registerAgent(c *gin.Context) {
+	if !s.registerLimiter.Allow(c.ClientIP()) {
+		utils.ErrorResponse(c, http.StatusTooManyRequests, "Too many registration attempts", nil)
+		return
+	}
+	if !s.enrollmentTokenValid(c.GetHeader(enrollmentTokenHeader)) {
+		utils.Unauthorized(c, "Valid enrollment token required")
+		return
+	}
+
 	var req service.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		s.logger.Error("Invalid registration request", "error", err)
