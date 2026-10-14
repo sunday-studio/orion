@@ -9,6 +9,8 @@ import {
   type ApiStatusPageIncidentResponse,
   getGetIncidentQueryKey,
   getGetIncidentTimelineQueryKey,
+  getGetIncidentsQueryKey,
+  getListStatusPagesQueryKey,
   useAcknowledgeIncident,
   useCoverIncident,
   useCreateStatusPageIncidentDraft,
@@ -50,7 +52,7 @@ export const IncidentDetailPage = () => {
   const refreshIncident = () => {
     void queryClient.invalidateQueries({ queryKey: getGetIncidentQueryKey(incidentId) });
     void queryClient.invalidateQueries({ queryKey: getGetIncidentTimelineQueryKey(incidentId) });
-    void queryClient.invalidateQueries({ queryKey: ["/v1/incidents"] });
+    void queryClient.invalidateQueries({ queryKey: getGetIncidentsQueryKey() });
   };
   const incidentResponse = useGetIncident(incidentId);
   const acknowledgeIncident = useAcknowledgeIncident({ mutation: { onSuccess: refreshIncident } });
@@ -80,7 +82,7 @@ export const IncidentDetailPage = () => {
     mutation: {
       onSuccess: (data) => {
         setCreatedPublicDraft(data.incident);
-        void queryClient.invalidateQueries({ queryKey: ["/v1/status-pages"] });
+        void queryClient.invalidateQueries({ queryKey: getListStatusPagesQueryKey() });
       },
     },
   });
