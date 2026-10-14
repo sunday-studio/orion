@@ -13,6 +13,7 @@ import (
 // Config holds runtime configuration from environment.
 type Config struct {
 	DataDir                        string
+	DBLogLevel                     string
 	Port                           string
 	CORSOrigins                    []string
 	CoreWorkerID                   string
@@ -55,6 +56,7 @@ func Load() *Config {
 
 	return &Config{
 		DataDir:                        getEnv("ORION_DATA_DIR", "data"),
+		DBLogLevel:                     getEnv("ORION_DB_LOG_LEVEL", "warn"),
 		Port:                           getEnv("ORION_PORT", "8999"),
 		CORSOrigins:                    getEnvList("ORION_CORS_ORIGINS", []string{"http://localhost:5173", "http://127.0.0.1:5173"}),
 		CoreWorkerID:                   getEnv("ORION_WORKER_ID", "core-monitor-worker"),

@@ -24,11 +24,18 @@ Stop Core before replacing the active database:
 
 ```sh
 make docker-down
+rm -f "$ORION_DATA_DIR/orion.db-wal" "$ORION_DATA_DIR/orion.db-shm"
 cp ./orion-backup.db "$ORION_DATA_DIR/orion.db"
 make docker-up
 ```
 
 For a local binary run, stop the process first, replace `orion.db`, then start Core again.
+
+Core runs SQLite in WAL mode, so `orion.db-wal` and `orion.db-shm` sit beside the database. Always back up with `sqlite3 ... ".backup"` (above), never by copying `orion.db` alone, and remove stale `-wal`/`-shm` files before restoring so old log frames are not replayed onto the restored database. The API and Worker must share one host and data volume.
+
+## Logging
+
+`ORION_DB_LOG_LEVEL` (`silent`, `error`, `warn`, `info`; default `warn`) controls SQL logging. Bound values are never logged at any level; `warn` logs only slow (>200ms) queries and errors.
 
 ## Verify
 
