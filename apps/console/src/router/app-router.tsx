@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { LoginPage } from "@/features/auth/login.view";
 import { Layout } from "@/components/shared/layout";
+import { NotFound } from "@/components/shared/not-found";
+import { RequireAuth } from "@/components/shared/require-auth";
 import { AgentDetailPage } from "@/features/agent-detail/agent-detail.view";
 import { MonitorDetailPage } from "@/features/monitor-detail/monitor-detail.view";
 import { IncidentDetailPage } from "@/features/incidents/incident-detail.view";
@@ -21,20 +23,23 @@ function AppRouter() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/" element={<Layout />}>
-        <Route index element={<Navigate to="/incidents" replace />} />
-        <Route path="incidents" element={<IncidentsPage />} />
-        <Route path="alerts" element={<AlertsPage />} />
-        <Route path="status-pages" element={<StatusPagesPage />} />
-        <Route path="logs" element={<LogsPage />} />
-        <Route path="agents" element={<Navigate to="/servers" replace />} />
-        <Route path="agents/:agentId" element={<AgentDetailRedirect />} />
-        <Route path="servers" element={<AgentsPage />} />
-        <Route path="servers/:agentId" element={<AgentDetailPage />} />
-        <Route path="monitors" element={<MonitorsPage />} />
-        <Route path="monitors/:monitorId" element={<MonitorDetailPage />} />
-        <Route path="incidents/:incidentId" element={<IncidentDetailPage />} />
-        <Route path="settings" element={<SettingsPage />} />
+      <Route element={<RequireAuth />}>
+        <Route path="/" element={<Layout />}>
+          <Route index element={<Navigate to="/incidents" replace />} />
+          <Route path="incidents" element={<IncidentsPage />} />
+          <Route path="alerts" element={<AlertsPage />} />
+          <Route path="status-pages" element={<StatusPagesPage />} />
+          <Route path="logs" element={<LogsPage />} />
+          <Route path="agents" element={<Navigate to="/servers" replace />} />
+          <Route path="agents/:agentId" element={<AgentDetailRedirect />} />
+          <Route path="servers" element={<AgentsPage />} />
+          <Route path="servers/:agentId" element={<AgentDetailPage />} />
+          <Route path="monitors" element={<MonitorsPage />} />
+          <Route path="monitors/:monitorId" element={<MonitorDetailPage />} />
+          <Route path="incidents/:incidentId" element={<IncidentDetailPage />} />
+          <Route path="settings" element={<SettingsPage />} />
+          <Route path="*" element={<NotFound />} />
+        </Route>
       </Route>
     </Routes>
   );
