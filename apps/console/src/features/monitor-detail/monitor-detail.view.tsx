@@ -31,6 +31,8 @@ import {
   getGetCoreMonitorConfigQueryKey,
   getGetMonitorHistoryQueryKey,
   getGetMonitorQueryKey,
+  getGetMonitorSummaryQueryKey,
+  getGetMonitorsQueryKey,
   getMonitorHistory,
   useDeleteCoreMonitor,
   useGetCoreMonitorConfig,
@@ -145,8 +147,8 @@ export const MonitorDetailPage = () => {
     void queryClient.invalidateQueries({ queryKey: getGetMonitorQueryKey(monitorId) });
     void queryClient.invalidateQueries({ queryKey: getGetCoreMonitorConfigQueryKey(monitorId) });
     void queryClient.invalidateQueries({ queryKey: getGetMonitorHistoryQueryKey(monitorId) });
-    void queryClient.invalidateQueries({ queryKey: ["/v1/monitors"] });
-    void queryClient.invalidateQueries({ queryKey: ["/v1/monitors/summary"] });
+    void queryClient.invalidateQueries({ queryKey: getGetMonitorsQueryKey() });
+    void queryClient.invalidateQueries({ queryKey: getGetMonitorSummaryQueryKey() });
   };
   const updateMonitor = useUpdateCoreMonitor({
     mutation: {
@@ -204,8 +206,8 @@ export const MonitorDetailPage = () => {
   const deleteMonitor = useDeleteCoreMonitor({
     mutation: {
       onSuccess: () => {
-        void queryClient.invalidateQueries({ queryKey: ["/v1/monitors"] });
-        void queryClient.invalidateQueries({ queryKey: ["/v1/monitors/summary"] });
+        void queryClient.invalidateQueries({ queryKey: getGetMonitorsQueryKey() });
+        void queryClient.invalidateQueries({ queryKey: getGetMonitorSummaryQueryKey() });
         setDeleteOpen(false);
         navigate("/monitors");
       },
