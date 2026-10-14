@@ -40,6 +40,13 @@ func main() {
 		logger.Fatal("Failed to load config", "error", err)
 	}
 
+	if err := cfg.ValidateAPIAuth(); err != nil {
+		logger.Fatal("Refusing to start", "error", err)
+	}
+	if cfg.RunsWithoutAuth() {
+		logger.Warn("INSECURE: admin API authentication is disabled via ORION_ALLOW_INSECURE_NO_AUTH; anyone who can reach this port can manage agents, alerts and incidents")
+	}
+
 	database, err := shared.OpenMigratedDatabase(cfg)
 	if err != nil {
 		logger.Fatal("Failed to initialize database", "error", err)
