@@ -26,6 +26,7 @@ type Config struct {
 	JWTSecret                      string
 	FrontendAuthOn                 bool
 	RequireFrontendAuth            bool
+	AllowInsecureNoAuth            bool
 	LoginRateLimitAttempts         int
 	LoginRateLimitWindowSecs       int
 	AlertCooldownSeconds           int
@@ -69,6 +70,7 @@ func Load() *Config {
 		JWTSecret:                      jwtSecret,
 		FrontendAuthOn:                 frontendAuthOn,
 		RequireFrontendAuth:            getEnvBool("ORION_REQUIRE_FRONTEND_AUTH", false),
+		AllowInsecureNoAuth:            getEnvBool("ORION_ALLOW_INSECURE_NO_AUTH", false),
 		LoginRateLimitAttempts:         getEnvInt("ORION_LOGIN_RATE_LIMIT_ATTEMPTS", 5),
 		LoginRateLimitWindowSecs:       getEnvInt("ORION_LOGIN_RATE_LIMIT_WINDOW_SECONDS", 60),
 		AlertCooldownSeconds:           getEnvInt("ORION_ALERT_COOLDOWN_SECONDS", 300),
@@ -149,6 +151,21 @@ func parseDotEnvValue(value string) string {
 		value = value[:hashIndex]
 	}
 	return strings.TrimSpace(value)
+}
+
+// ValidateAPIAuth refuses to start the admin API without authentication unless
+// the operator explicitly opts out with ORION_ALLOW_INSECURE_NO_AUTH=true. Only
+// the API process calls it; the Worker serves no admin routes.
+func (c *Config) ValidateAPIAuth() error {
+	if c.FrontendAuthOn || c.AllowInsecureNoAuth {
+		return nil
+	}
+	return &ValidationError{Msg: "admin API authentication is not configured: set ORION_ADMIN_USERNAME, ORION_ADMIN_PASSWORD and ORION_JWT_SECRET, or set ORION_ALLOW_INSECURE_NO_AUTH=true to run without authentication (not recommended)"}
+}
+
+// RunsWithoutAuth reports whether the admin API will accept unauthenticated requests.
+func (c *Config) RunsWithoutAuth() bool {
+	return !c.FrontendAuthOn
 }
 
 // Validate returns an error if config is invalid (e.g. frontend auth on but JWT_SECRET empty).

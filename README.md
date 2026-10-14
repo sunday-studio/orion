@@ -124,6 +124,10 @@ printf 'ORION_ADMIN_PASSWORD=%s\nORION_JWT_SECRET=%s\n' "$ADMIN_PASSWORD" "$JWT_
 with a non-placeholder admin password of at least 12 characters and a non-placeholder JWT secret of
 at least 32 characters. Keep these values out of source control.
 
+Independently of that flag, the Core API now refuses to start when no admin credentials are set.
+To run without authentication (local experiments only) set `ORION_ALLOW_INSECURE_NO_AUTH=true`;
+Core then logs a warning at startup and every admin route is open to anyone who can reach the port.
+
 Optional public status page subscriber email uses a dedicated public sender. Set
 `ORION_PUBLIC_STATUS_MAIL_ENABLED=true` plus the `ORION_PUBLIC_STATUS_MAIL_*`,
 `ORION_PUBLIC_STATUS_URL_ORIGIN`, and `ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET` variables documented in
