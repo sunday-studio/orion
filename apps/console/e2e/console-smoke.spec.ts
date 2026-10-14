@@ -70,3 +70,18 @@ test("renders primary operations pages with seeded Core data", async ({ page }) 
   ).toBeChecked();
   await expect(page.getByRole("checkbox", { name: "Enable rollups" })).toBeChecked();
 });
+
+test("redirects unauthenticated visits to login and returns after sign in", async ({ page }) => {
+  await page.goto("/monitors");
+  await expect(page).toHaveURL(/\/login\?from=%2Fmonitors/);
+  await page.getByPlaceholder("Username").fill(username);
+  await page.getByPlaceholder("Password").fill(password);
+  await page.getByRole("button", { name: "Enter" }).click();
+  await expect(page).toHaveURL(/\/monitors$/);
+});
+
+test("renders a not-found page for unknown routes", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/no-such-page");
+  await expect(page.getByText("Page not found")).toBeVisible();
+});

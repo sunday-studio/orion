@@ -22,7 +22,9 @@ export function LoginPage() {
     setIsSubmitting(true);
     try {
       await authLogin(username, password);
-      navigate("/incidents", { replace: true });
+      const from = searchParams.get("from");
+      const safeFrom = from && from.startsWith("/") && !from.startsWith("//") ? from : "/incidents";
+      navigate(safeFrom, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to sign in.");
     } finally {
