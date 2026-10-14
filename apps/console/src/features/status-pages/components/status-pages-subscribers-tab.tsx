@@ -134,6 +134,17 @@ export const StatusPageSubscribersTab = ({ pageId }: { pageId: string }) => {
       cell: ({ row }) => formatDateTime(row.original.created_at),
     },
     {
+      id: "lifecycle",
+      header: "Lifecycle",
+      cell: ({ row }) => (
+        <div className="space-y-0.5 text-xs text-neutral-600">
+          <div>Confirmed {formatDateTime(row.original.confirmed_at)}</div>
+          <div>Unsubscribed {formatDateTime(row.original.unsubscribed_at)}</div>
+          <div>Disabled {formatDateTime(row.original.disabled_at)}</div>
+        </div>
+      ),
+    },
+    {
       id: "actions",
       header: "Actions",
       cell: ({ row }) => {
@@ -197,8 +208,6 @@ export const StatusPageSubscribersTab = ({ pageId }: { pageId: string }) => {
           getRowId={(subscriber, index) => subscriber.id ?? `subscriber-${index}`}
           isLoading={subscribersResponse.isLoading}
           loadingMessage="Loading subscribers..."
-          sort={table.sort}
-          onSortChange={table.setSort}
         />
       )}
 
