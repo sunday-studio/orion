@@ -146,25 +146,39 @@ func (s *MonitorService) RegisterMonitor(req *RegisterMonitorRequest) (*Register
 	}
 }
 
+// ErrMonitorNotOwned is returned when a monitor does not exist or belongs to another agent.
+var ErrMonitorNotOwned = errors.New("monitor not found for agent")
+
 func (s *MonitorService) UnregisterMonitor(req *UnregisterMonitorRequest) (*UnregisterMonitorResponse, error) {
 	now := time.Now()
 
-	if err := s.db.Model(&db.Monitor{}).
+	result := s.db.Model(&db.Monitor{}).
 		Where("agent_id = ? AND id = ? AND (deleted_at IS NULL OR deleted_at = ?)", req.AgentID, req.MonitorID, time.Time{}).
 		Updates(map[string]any{
 			"lifecycle":  "deleted",
 			"health":     "unknown",
 			"updated_at": now,
 			"deleted_at": &now,
-		}).Error; err != nil {
-
+		})
+	if result.Error != nil {
 		s.logger.Error(
 			"Failed to unregister monitor",
 			"agent_id", req.AgentID,
 			"monitor_id", req.MonitorID,
-			"error", err,
+			"error", result.Error,
 		)
-		return nil, err
+		return nil, result.Error
+	}
+	if result.RowsAffected == 0 {
+		// Unregistering an already-deleted monitor the agent owns stays idempotent;
+		// anything else (unknown id, another agent's monitor) is rejected.
+		var owned int64
+		if err := s.db.Model(&db.Monitor{}).Where("agent_id = ? AND id = ?", req.AgentID, req.MonitorID).Count(&owned).Error; err != nil {
+			return nil, err
+		}
+		if owned == 0 {
+			return nil, ErrMonitorNotOwned
+		}
 	}
 
 	return &UnregisterMonitorResponse{Success: true}, nil
