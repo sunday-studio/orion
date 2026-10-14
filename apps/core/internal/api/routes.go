@@ -36,6 +36,7 @@ type Server struct {
 	workerDiagnosticsService     *service.WorkerDiagnosticsService
 	runtimeDiagnosticsService    *service.RuntimeDiagnosticsService
 	loginLimiter                 *RateLimiter
+	registerLimiter              *RateLimiter
 	publicSubscriberLimiter      *RateLimiter
 	publicStatusMailSend         func(publicStatusMailMessage) error
 	router                       *gin.Engine
@@ -87,6 +88,7 @@ func NewServer(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *Ser
 		workerDiagnosticsService:     workerDiagnosticsService,
 		runtimeDiagnosticsService:    runtimeDiagnosticsService,
 		loginLimiter:                 NewRateLimiter(cfg.LoginRateLimitAttempts, time.Duration(cfg.LoginRateLimitWindowSecs)*time.Second),
+		registerLimiter:              NewRateLimiter(cfg.RegisterRateLimitPerMinute, time.Minute),
 		publicSubscriberLimiter:      NewRateLimiter(10, time.Minute),
 		router:                       router,
 	}

@@ -3,6 +3,8 @@ package registration
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
 	"time"
 
 	"orion/agent/internal/config"
@@ -20,9 +22,11 @@ type RegistrationService struct {
 }
 
 func New(userConfig *config.UserConfig, userConfigPath string, stateStore *state.Store) *RegistrationService {
+	client := transport.NewClient(userConfig.CoreURL, "")
+	client.SetEnrollmentToken(enrollmentToken(userConfig))
 	return &RegistrationService{
 		userConfig:     userConfig,
-		client:         transport.NewClient(userConfig.CoreURL, ""),
+		client:         client,
 		userConfigPath: userConfigPath,
 		stateStore:     stateStore,
 	}
@@ -187,4 +191,13 @@ func buildStateMonitorMap(monitors []config.InternalStateMonitor) map[string]con
 		m[monitor.Name] = monitor
 	}
 	return m
+}
+
+// enrollmentToken prefers the environment so the secret can live in a root-only
+// systemd EnvironmentFile instead of the world-readable agent config.
+func enrollmentToken(userConfig *config.UserConfig) string {
+	if token := strings.TrimSpace(os.Getenv("ORION_ENROLLMENT_TOKEN")); token != "" {
+		return token
+	}
+	return userConfig.EnrollmentToken
 }

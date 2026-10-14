@@ -128,3 +128,41 @@ type roundTripFunc func(*http.Request) (*http.Response, error)
 func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
+
+func TestRegisterAgentSendsEnrollmentTokenHeader(t *testing.T) {
+	var got string
+	client := newRetryTestClient(func(req *http.Request) (*http.Response, error) {
+		got = req.Header.Get("X-Orion-Enrollment-Token")
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(`{"success":true,"data":{"agent_id":"a1","token":"t1"}}`)),
+			Header:     make(http.Header),
+		}, nil
+	})
+	client.SetEnrollmentToken("  enroll-secret ")
+
+	if _, err := client.RegisterAgent(AgentRegistrationRequest{MachineId: "m1"}); err != nil {
+		t.Fatalf("RegisterAgent() error = %v", err)
+	}
+	if got != "enroll-secret" {
+		t.Fatalf("enrollment header = %q, want trimmed secret", got)
+	}
+}
+
+func TestRegisterAgentOmitsEnrollmentHeaderWhenUnset(t *testing.T) {
+	var present bool
+	client := newRetryTestClient(func(req *http.Request) (*http.Response, error) {
+		_, present = req.Header["X-Orion-Enrollment-Token"]
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(`{"success":true,"data":{"agent_id":"a1","token":"t1"}}`)),
+			Header:     make(http.Header),
+		}, nil
+	})
+	if _, err := client.RegisterAgent(AgentRegistrationRequest{MachineId: "m1"}); err != nil {
+		t.Fatalf("RegisterAgent() error = %v", err)
+	}
+	if present {
+		t.Fatal("enrollment header sent although no token configured")
+	}
+}
