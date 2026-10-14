@@ -61,3 +61,28 @@ func TestAppDispatchAlertsProcessesDueDeliveries(t *testing.T) {
 		t.Fatalf("delivery status = %q, want suppressed", got.Status)
 	}
 }
+
+func TestAppSweepSilentMonitorsOpensIncidentForQuietAgentMonitor(t *testing.T) {
+	database := openWorkerMigratedTestDatabase(t)
+	app := NewApp(database, utils.NewLogger(), Options{Config: &config.Config{}})
+	if app.sweepEvery != defaultSweepInterval {
+		t.Fatalf("sweepEvery = %v, want %v", app.sweepEvery, defaultSweepInterval)
+	}
+	old := time.Now().UTC().Add(-time.Hour)
+	agent := db.Agent{ID: "agent-quiet", MachineId: "machine-quiet", Name: "quiet", OS: "linux", Arch: "amd64", Token: "t", LastSeen: old}
+	monitor := db.Monitor{ID: "monitor-quiet", AgentID: agent.ID, Name: "api", Type: "http", Lifecycle: "active", Health: "up", ComputedHealth: "up", IncidentState: "up", ReportingIntervalSeconds: 60, CreatedAt: old}
+	if err := database.Create(&agent).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := database.Create(&monitor).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	app.sweepSilentMonitors()
+
+	var count int64
+	database.Model(&db.Incident{}).Where("monitor_id = ? AND status = ?", monitor.ID, "open").Count(&count)
+	if count != 1 {
+		t.Fatalf("open incidents = %d, want 1 from the Worker sweep", count)
+	}
+}

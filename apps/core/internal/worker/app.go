@@ -68,6 +68,8 @@ type Options struct {
 	Config         *config.Config
 	// DispatchInterval controls how often due alert deliveries are sent (default 15s).
 	DispatchInterval time.Duration
+	// SweepInterval controls how often silent agent monitors are checked (default 30s).
+	SweepInterval time.Duration
 }
 
 // App is the independent Core monitor worker process.
@@ -90,6 +92,8 @@ type App struct {
 	scheduler      *service.CoreMonitorSchedulerService
 	reports        *service.ReportService
 	alerts         *service.AlertService
+	incidents      *service.IncidentService
+	sweepEvery     time.Duration
 	dispatchEvery  time.Duration
 }
 
@@ -166,6 +170,8 @@ func NewApp(database *gorm.DB, logger *utils.Logger, opts Options) *App {
 		scheduler:      service.NewCoreMonitorSchedulerService(database, logger),
 		reports:        service.NewReportService(database, logger, opts.Config),
 		alerts:         service.NewAlertService(database, logger, opts.Config),
+		incidents:      service.NewIncidentService(database, logger, opts.Config),
+		sweepEvery:     sweepInterval(opts.SweepInterval),
 		dispatchEvery:  dispatchInterval(opts.DispatchInterval),
 	}
 }
@@ -187,7 +193,10 @@ func (a *App) Run(ctx context.Context) error {
 	defer checkTicker.Stop()
 	dispatchTicker := time.NewTicker(a.dispatchEvery)
 	defer dispatchTicker.Stop()
+	sweepTicker := time.NewTicker(a.sweepEvery)
+	defer sweepTicker.Stop()
 	a.dispatchAlerts()
+	a.sweepSilentMonitors()
 
 	for {
 		select {
@@ -198,6 +207,8 @@ func (a *App) Run(ctx context.Context) error {
 			a.logHealth(ctx)
 		case <-dispatchTicker.C:
 			a.dispatchAlerts()
+		case <-sweepTicker.C:
+			a.sweepSilentMonitors()
 		case <-checkTicker.C:
 			if err := a.runDueChecks(ctx); err != nil {
 				a.logger.Error("Core monitor worker due check sweep failed", "error", err)
@@ -206,22 +217,6 @@ func (a *App) Run(ctx context.Context) error {
 				a.logger.Error("Core monitor worker heartbeat reconciliation failed", "error", err)
 			}
 		}
-	}
-}
-
-const defaultDispatchInterval = 15 * time.Second
-
-func dispatchInterval(configured time.Duration) time.Duration {
-	if configured <= 0 {
-		return defaultDispatchInterval
-	}
-	return configured
-}
-
-// dispatchAlerts sends due alert deliveries (new, retried and delayed summaries).
-func (a *App) dispatchAlerts() {
-	if _, err := a.alerts.ProcessDueDeliveries(100); err != nil {
-		a.logger.Error("Core worker alert dispatch failed", "error", err)
 	}
 }
 

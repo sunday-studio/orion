@@ -248,6 +248,7 @@ Server health rules:
 - Monitor failures roll up separately as `monitor_health`; mixed monitor failures make the server `overall_health = degraded`, not `down`.
 - A fresh server reports `overall_health = down` only when all active monitors are failing.
 - Maintenance suppresses incident candidates and should suppress future alert delivery.
+- Core detects silent Agent monitors itself. The Worker sweeps every 30s and opens a `stale` incident for any active, Agent-reported monitor whose last report (by Core receive time, not Agent clock) is older than the stale window, `max(5m, 5 x reporting interval)`. Agents in maintenance mode and Core-managed monitors are skipped. The next successful report resolves the incident through the normal path.
 - Alert delivery is asynchronous. Incident open/resolve only persists `pending` `alert_deliveries` rows; the Core Worker dispatcher (every 15s) sends them, retries failures with backoff up to `max_attempts`, and sends delayed grouped summaries when due. A delivery is leased (`locked_by`, `locked_until`) while in flight so concurrent dispatchers never double-send. Agent report requests never wait on webhook HTTP.
 
 Stale rules:
