@@ -1844,6 +1844,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
