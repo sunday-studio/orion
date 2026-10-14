@@ -25,7 +25,7 @@ func LoadConfig(dotEnvPath string) (*config.Config, error) {
 
 // OpenMigratedDatabase opens the Core SQLite database and applies embedded migrations.
 func OpenMigratedDatabase(cfg *config.Config) (*gorm.DB, error) {
-	database, err := db.Initialize(cfg.DataDir)
+	database, err := db.Initialize(cfg.DataDir, cfg.DBLogLevel)
 	if err != nil {
 		return nil, fmt.Errorf("initialize database: %w", err)
 	}

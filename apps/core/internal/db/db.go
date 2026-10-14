@@ -15,23 +15,21 @@ import (
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
 //go:embed migrations/*.up.sql
 var migrationFiles embed.FS
 
-func Initialize(dataDir string) (*gorm.DB, error) {
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+func Initialize(dataDir string, logLevel string) (*gorm.DB, error) {
+	if err := os.MkdirAll(dataDir, 0700); err != nil {
 		return nil, err
 	}
 
 	dbPath := filepath.Join(dataDir, "orion.db")
 
-	gormLogger := logger.Default.LogMode(logger.Info)
-
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{
-		Logger: gormLogger,
+	db, err := gorm.Open(sqlite.Open(sqliteDSN(dbPath)), &gorm.Config{
+		Logger:  newGormLogger(logLevel),
+		NowFunc: func() time.Time { return time.Now().UTC() },
 	})
 	if err != nil {
 		return nil, err
@@ -42,8 +40,13 @@ func Initialize(dataDir string) (*gorm.DB, error) {
 		return nil, err
 	}
 
-	sqlDB.SetMaxIdleConns(10)
-	sqlDB.SetMaxOpenConns(100)
+	sqlDB.SetMaxIdleConns(sqliteMaxIdleConns)
+	sqlDB.SetMaxOpenConns(sqliteMaxOpenConns)
+
+	// The DB holds webhook secrets and token hashes; keep it owner-only.
+	if err := os.Chmod(dbPath, 0600); err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
 
 	return db, nil
 }
