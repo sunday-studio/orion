@@ -2,10 +2,12 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"orion/core/internal/config"
 	"orion/core/internal/db"
 	"orion/core/internal/utils"
+	"os"
 	"time"
 
 	"gorm.io/gorm"
@@ -14,6 +16,7 @@ import (
 const (
 	defaultAlertDeliveryMaxAttempts = 3
 	defaultAlertDeliveryRetryDelay  = 5 * time.Minute
+	alertDeliveryLeaseDuration      = 2 * time.Minute
 	alertEventGroupSummary          = "group_summary"
 	alertGroupedSummaryPending      = "alert grouped summary pending"
 	retiredAlertDeliveryMessage     = "retired alert delivery type suppressed"
@@ -90,6 +93,8 @@ type alertGroupingDecision struct {
 	SummaryDelay time.Duration
 	Reason       string
 }
+
+var alertDispatcherID = fmt.Sprintf("dispatcher-%d", os.Getpid())
 
 type AlertService struct {
 	db         *gorm.DB
@@ -174,18 +179,6 @@ func (s *AlertService) queueLegacyIncidentNotifications(incidentID string, event
 		if createdDelivery.Status != "pending" {
 			continue
 		}
-		if s.inCooldown(incidentID, channel.Name, eventType, createdDelivery.ID) {
-			if err := s.updateDelivery(createdDelivery.ID, "cooldown", "alert cooldown active"); err != nil {
-				return err
-			}
-			continue
-		}
-		if err := s.attemptDelivery(createdDelivery, func() error {
-			return s.deliver(channel, incidentID, eventType)
-		}); err != nil {
-			s.logger.Error("Alert delivery failed", "incident_id", incidentID, "channel", channel.Name, "error", err)
-			continue
-		}
 	}
 
 	return nil
@@ -246,23 +239,11 @@ func (s *AlertService) queueRouteIncidentNotifications(event AlertRouteContext, 
 			continue
 		}
 
-		channel, err := s.alertChannelByID(decision.ChannelID)
+		_, err = s.alertChannelByID(decision.ChannelID)
 		if err != nil {
 			if updateErr := s.updateDelivery(createdDelivery.ID, "suppressed", "alert route destination missing"); updateErr != nil {
 				return updateErr
 			}
-			continue
-		}
-		if s.inCooldown(event.IncidentID, channel.Name, event.EventType, createdDelivery.ID) {
-			if err := s.updateDelivery(createdDelivery.ID, "cooldown", "alert cooldown active"); err != nil {
-				return err
-			}
-			continue
-		}
-		if err := s.attemptDelivery(createdDelivery, func() error {
-			return s.deliver(channel, event.IncidentID, event.EventType)
-		}); err != nil {
-			s.logger.Error("Alert delivery failed", "incident_id", event.IncidentID, "route_id", decision.RouteID, "channel", channel.Name, "error", err)
 			continue
 		}
 	}

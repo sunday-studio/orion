@@ -18,6 +18,8 @@ type AlertDelivery struct {
 	MaxAttempts   int                    `json:"max_attempts" gorm:"not null;default:3"`
 	NextAttemptAt *time.Time             `json:"next_attempt_at" gorm:"index:idx_alert_deliveries_next_attempt_at"`
 	LastAttemptAt *time.Time             `json:"last_attempt_at"`
+	LockedBy      string                 `json:"-" gorm:"not null;default:''"`
+	LockedUntil   *time.Time             `json:"-"`
 	Attempts      []AlertDeliveryAttempt `json:"attempts,omitempty" gorm:"foreignKey:AlertDeliveryID"`
 	CreatedAt     time.Time              `json:"created_at" gorm:"index:idx_alert_deliveries_created_at"`
 	UpdatedAt     time.Time              `json:"updated_at"`

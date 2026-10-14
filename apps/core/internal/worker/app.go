@@ -66,6 +66,8 @@ type Options struct {
 	UDPDialContext dialContextFunc
 	PlaywrightRun  playwrightRunFunc
 	Config         *config.Config
+	// DispatchInterval controls how often due alert deliveries are sent (default 15s).
+	DispatchInterval time.Duration
 }
 
 // App is the independent Core monitor worker process.
@@ -87,6 +89,8 @@ type App struct {
 	targetPolicy   service.CoreMonitorTargetPolicy
 	scheduler      *service.CoreMonitorSchedulerService
 	reports        *service.ReportService
+	alerts         *service.AlertService
+	dispatchEvery  time.Duration
 }
 
 type checkRunResult struct {
@@ -161,6 +165,8 @@ func NewApp(database *gorm.DB, logger *utils.Logger, opts Options) *App {
 		targetPolicy:   targetPolicy,
 		scheduler:      service.NewCoreMonitorSchedulerService(database, logger),
 		reports:        service.NewReportService(database, logger, opts.Config),
+		alerts:         service.NewAlertService(database, logger, opts.Config),
+		dispatchEvery:  dispatchInterval(opts.DispatchInterval),
 	}
 }
 
@@ -179,6 +185,9 @@ func (a *App) Run(ctx context.Context) error {
 	defer healthTicker.Stop()
 	checkTicker := time.NewTicker(a.checkInterval)
 	defer checkTicker.Stop()
+	dispatchTicker := time.NewTicker(a.dispatchEvery)
+	defer dispatchTicker.Stop()
+	a.dispatchAlerts()
 
 	for {
 		select {
@@ -187,6 +196,8 @@ func (a *App) Run(ctx context.Context) error {
 			return nil
 		case <-healthTicker.C:
 			a.logHealth(ctx)
+		case <-dispatchTicker.C:
+			a.dispatchAlerts()
 		case <-checkTicker.C:
 			if err := a.runDueChecks(ctx); err != nil {
 				a.logger.Error("Core monitor worker due check sweep failed", "error", err)
@@ -195,6 +206,22 @@ func (a *App) Run(ctx context.Context) error {
 				a.logger.Error("Core monitor worker heartbeat reconciliation failed", "error", err)
 			}
 		}
+	}
+}
+
+const defaultDispatchInterval = 15 * time.Second
+
+func dispatchInterval(configured time.Duration) time.Duration {
+	if configured <= 0 {
+		return defaultDispatchInterval
+	}
+	return configured
+}
+
+// dispatchAlerts sends due alert deliveries (new, retried and delayed summaries).
+func (a *App) dispatchAlerts() {
+	if _, err := a.alerts.ProcessDueDeliveries(100); err != nil {
+		a.logger.Error("Core worker alert dispatch failed", "error", err)
 	}
 }
 
