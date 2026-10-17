@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -98,4 +99,13 @@ func (d *daemonControl) Reload() error {
 		return (*fn)()
 	}
 	return errors.New("hot config reload is not available yet; restart the service")
+}
+
+// TokenStatus probes Core with the agent token; the token stays in the daemon.
+func (d *daemonControl) TokenStatus() (int, error) {
+	st, err := d.store.Get()
+	if err != nil {
+		return 0, err
+	}
+	return probeToken(context.Background(), st.CoreURL, st.AgentID, st.Token)
 }

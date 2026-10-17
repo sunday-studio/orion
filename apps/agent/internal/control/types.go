@@ -71,4 +71,12 @@ type Handler interface {
 	// LogPath is the daemon's JSONL log file; empty if file logging is off.
 	LogPath() string
 	Reload() error
+	// TokenStatus asks Core, with the agent token, for a cheap authenticated
+	// resource and returns the HTTP status (the token itself never leaves the daemon).
+	TokenStatus() (int, error)
+}
+
+// TokenCheck is the result of a daemon-side token probe.
+type TokenCheck struct {
+	HTTPStatus int `json:"http_status"`
 }

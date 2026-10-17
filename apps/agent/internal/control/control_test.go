@@ -25,8 +25,9 @@ func (f *fakeHandler) ApplyToken(t string) error {
 	f.token = t
 	return nil
 }
-func (f *fakeHandler) LogPath() string { return f.logPath }
-func (f *fakeHandler) Reload() error   { f.reloads++; return nil }
+func (f *fakeHandler) LogPath() string           { return f.logPath }
+func (f *fakeHandler) Reload() error             { f.reloads++; return nil }
+func (f *fakeHandler) TokenStatus() (int, error) { return 401, nil }
 
 func start(t *testing.T, h Handler) (*Server, *Client) {
 	t.Helper()
@@ -68,6 +69,9 @@ func TestRoundTrip(t *testing.T) {
 	}
 	if err := c.ApplyToken("bad"); err == nil || err.Error() != "rejected" {
 		t.Fatalf("expected handler error, got %v", err)
+	}
+	if code, err := c.TokenCheck(); err != nil || code != 401 {
+		t.Fatalf("token check = %d, %v", code, err)
 	}
 	if err := c.Reload(); err != nil || h.reloads != 1 {
 		t.Fatalf("reload: %d %v", h.reloads, err)

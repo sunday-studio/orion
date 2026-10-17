@@ -39,6 +39,7 @@ func NewServer(path string, h Handler) *Server {
 	mux.HandleFunc("POST /v1/token", s.token)
 	mux.HandleFunc("POST /v1/reload", s.reload)
 	mux.HandleFunc("GET /v1/logs", s.logs)
+	mux.HandleFunc("GET /v1/token-check", s.tokenCheck)
 	s.http = &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
 	return s
 }
@@ -192,4 +193,13 @@ func (s *Server) logs(w http.ResponseWriter, _ *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/x-ndjson")
 	_, _ = io.Copy(w, f)
+}
+
+func (s *Server) tokenCheck(w http.ResponseWriter, _ *http.Request) {
+	code, err := s.handler.TokenStatus()
+	if err != nil {
+		writeErr(w, http.StatusBadGateway, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, TokenCheck{HTTPStatus: code})
 }
