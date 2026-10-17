@@ -17,15 +17,15 @@ Typeface: `--font-sans` is `"TWK Lausanne", system-ui, ...`. The licensed files 
 (trial builds in `fonts/` must never be committed). To ship the licence, add `@font-face` rules for
 TWK Lausanne 300 and 500 and optionally set `--font-weight-body: 300`.
 
-Do not name new tokens `accent`, `muted`, `primary`, `background`, `input` or `ring`: legacy
-`components/ui` code still uses those shadcn-style utilities and a definition would change it.
+The legacy shadcn-style `components/ui` folder and its `bg-accent`/`bg-muted` style tokens are gone.
+Every screen imports from `@/design-system`; keep token names descriptive (`brand`, `quiet`, `hairline`).
 
 ## Components
 
 | Component | Notes |
 |---|---|
 | `Button` | variants `primary secondary destructive ghost link`; sizes `sm md icon icon-sm`. `buttonStyles()` styles trigger elements. |
-| `Badge`, `StatusBadge` | label plus glyph shape (dot, square, half, hollow, pause), so status is never colour-only. `StatusBadge status="down"` maps API strings to a tone. |
+| `Badge`, `StatusBadge` | tones: up down degraded unknown maintenance stale covered resolved info critical medium. label plus glyph shape (dot, square, half, hollow, pause), so status is never colour-only. `StatusBadge status="down"` maps API strings to a tone. |
 | `Input`, `Checkbox`, `Switch` | pass `aria-label` when there is no visible label. |
 | `Select` | typed `options`, optional `label` prefix. `Combobox` is the searchable variant. |
 | `Tabs`, `TabsList`, `TabsTab`, `TabsPanel` | centered; arrow keys activate. |
@@ -34,6 +34,7 @@ Do not name new tokens `accent`, `muted`, `primary`, `background`, `input` or `r
 | `Popover*`, `Tooltip`, `Menu*` | Tooltip wraps one focusable child and also shows on focus. |
 | `ToastProvider`, `useToast().add({ title, description })` | mount the provider once; the close button appears when the toast is hovered or focused (Base UI behaviour). |
 | `Card*`, `Field` | `Field` is the pale container for groups of cards. |
+| `Textarea`, `Breadcrumb*`, `DetailCard`, `DetailGroup`, `ListPagination`, `PageHeader`, `DataTableLink` | shared layout and detail pieces moved here from `components/shared`. |
 | `EmptyState`, `Skeleton` | empty and error states end in a button. |
 | `DataTable`, `FilterBar`, `Table*` | see below. |
 
@@ -60,7 +61,7 @@ page, so skip it on server-paginated tables. Rows are keyboard operable when `on
 
 ## Rules for new UI
 
-- Build from these components; do not add new one-off controls to `components/ui` or `components/shared`.
+- Build from these components; put new shared controls in `design-system/`, not in feature folders.
 - Every control has a visible focus ring (`focusRing` in `styles.ts`) and a keyboard path.
 - Destructive actions use `ConfirmDialog` and name what will be lost.
 - Files stay under 500 lines; names are kebab-case.

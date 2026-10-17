@@ -1,7 +1,4 @@
-import { EmptyState } from "@/components/shared/empty-state";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Button, EmptyState, Input, Textarea } from "@/design-system";
 import type { ApiStatusPageResponse } from "@/orion-sdk";
 import { Plus } from "lucide-react";
 import type { FormEvent } from "react";

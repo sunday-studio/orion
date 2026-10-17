@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import { PageHeader } from "@/components/shared/page-header";
 import {
   Button,
   Card,
@@ -8,6 +7,7 @@ import {
   CardTitle,
   EmptyState,
   Field,
+  PageHeader,
   Skeleton,
   StatusBadge,
 } from "@/design-system";

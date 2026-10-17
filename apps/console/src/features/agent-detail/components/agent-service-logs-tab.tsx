@@ -1,8 +1,4 @@
-import { DataTable } from "@/components/shared/data-table";
-import { ListPagination } from "@/components/shared/list-pagination";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { Button, DataTable, Input, ListPagination, Select } from "@/design-system";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { type ApiServiceLogEntryResponse, useGetAgentServiceLogs } from "@/orion-sdk";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -68,8 +64,6 @@ export const AgentServiceLogsTab = ({ agentId }: AgentServiceLogsTabProps) => {
   });
   const logs = logsQuery.data?.logs ?? [];
   const count = logsQuery.data?.count ?? logs.length;
-  const levelLabel =
-    levelOptions.find((option) => option.value === serviceLogsLevel)?.label ?? serviceLogsLevel;
   const hasFilters = Boolean(serviceLogsQ.trim()) || serviceLogsLevel !== "all";
 
   const setOffset = (nextOffset: number) => {
@@ -102,18 +96,12 @@ export const AgentServiceLogsTab = ({ agentId }: AgentServiceLogsTabProps) => {
             className="pl-9"
           />
         </div>
-        <Select value={serviceLogsLevel} onValueChange={setLevel}>
-          <SelectTrigger className="min-w-44 text-xs">
-            <span data-slot="select-value">Level: {levelLabel}</span>
-          </SelectTrigger>
-          <SelectContent>
-            {levelOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Select
+          label="Level"
+          value={serviceLogsLevel}
+          onValueChange={setLevel}
+          options={levelOptions}
+        />
         {hasFilters && (
           <Button variant="ghost" size="sm" onClick={clearFilters}>
             Clear
@@ -130,7 +118,6 @@ export const AgentServiceLogsTab = ({ agentId }: AgentServiceLogsTabProps) => {
           }
           getRowId={(log, index) => log.id ?? `${log.agent_id ?? "server"}-${index}`}
           isLoading={logsQuery.isLoading}
-          loadingMessage="Loading service logs..."
         />
       )}
       {count > 0 && (

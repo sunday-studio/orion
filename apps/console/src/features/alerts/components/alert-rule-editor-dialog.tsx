@@ -1,23 +1,17 @@
-import { EmptyState } from "@/components/shared/empty-state";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
+  Button,
+  Checkbox,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import {
+  EmptyState,
+  Input,
   Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+  Textarea,
+} from "@/design-system";
 import type {
   ApiAlertChannelResponse,
   ApiAlertRouteDryRunResponse,
@@ -205,20 +199,11 @@ export const AlertRuleEditorDialog = ({
               <label className="block space-y-1">
                 <span className="text-xs font-medium text-neutral-700">Policy</span>
                 <Select
+                  className="w-full"
                   value={form.groupingPolicy}
                   onValueChange={(value) => setForm({ ...form, groupingPolicy: value })}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {groupingOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  options={groupingOptions}
+                />
               </label>
               <label className="block space-y-1">
                 <span className="text-xs font-medium text-neutral-700">Delay seconds</span>
@@ -272,7 +257,7 @@ export const AlertRuleEditorDialog = ({
             <Button
               size="sm"
               type="button"
-              variant="outline"
+              variant="secondary"
               disabled={dryRun.isPending}
               onClick={handleDryRun}
             >
@@ -281,35 +266,17 @@ export const AlertRuleEditorDialog = ({
           </div>
           <div className="grid gap-3 md:grid-cols-3">
             <Select
+              className="w-full"
               value={dryRunForm.eventType}
               onValueChange={(value) => setDryRunForm({ ...dryRunForm, eventType: value })}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {alertEventOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={alertEventOptions}
+            />
             <Select
+              className="w-full"
               value={dryRunForm.severity}
               onValueChange={(value) => setDryRunForm({ ...dryRunForm, severity: value })}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {severityOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={severityOptions}
+            />
             <Input
               placeholder="incident id"
               value={dryRunForm.incidentId}
@@ -386,7 +353,7 @@ export const AlertRuleEditorDialog = ({
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={closeEditor}>
+          <Button type="button" variant="secondary" onClick={closeEditor}>
             Cancel
           </Button>
           <Button type="submit" disabled={!canSubmit}>

@@ -1,9 +1,8 @@
-import { DetailCard, type DetailCardVariant } from "@/components/shared/detail-card";
+import { DetailCard, type DetailCardVariant, StatusBadge } from "@/design-system";
 import type { ApiUptimeDayBucketResponse } from "@/orion-sdk";
 import { formatPercent } from "../agent-detail.domain";
 import { Link } from "react-router-dom";
 import { cn } from "@/utils/cn";
-import { StatusBadge, toStatus } from "@/components/shared/status-badges";
 
 type AgentHealthSummaryProps = {
   activeIncidentCount: number;
@@ -157,7 +156,7 @@ const StatusCell = ({
   >
     <div className="text-neutral-600 text-sm capitalize">{label}</div>
     <div className="space-y-1">
-      <StatusBadge value={toStatus(status)} />
+      <StatusBadge status={status} />
       {detail && <div className="text-xs leading-snug text-neutral-600">{detail}</div>}
     </div>
   </DetailCard>

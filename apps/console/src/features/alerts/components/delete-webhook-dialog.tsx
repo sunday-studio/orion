@@ -1,12 +1,12 @@
-import { Button } from "@/components/ui/button";
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/design-system";
 import type { ApiAlertChannelResponse } from "@/orion-sdk";
 
 type DeleteWebhookDialogProps = {

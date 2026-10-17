@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@/design-system/components/button";
 import { cn } from "@/utils/cn";
 
 type ListPaginationProps = {
@@ -26,11 +26,11 @@ export const ListPagination = ({
   return (
     <div
       className={cn(
-        "sticky bottom-0 z-10 flex h-9 items-center justify-between gap-3 bg-[#fdfdfc]/95 px-3 text-sm backdrop-blur",
+        "sticky bottom-0 z-10 flex h-9 items-center justify-between gap-3 bg-page/95 px-3 text-sm backdrop-blur",
         className,
       )}
     >
-      <span className="text-neutral-600 tabular-nums">
+      <span className="text-quiet tabular-nums">
         {pageStart} - {pageEnd} of {count}
       </span>
       <div className="flex items-center gap-2">

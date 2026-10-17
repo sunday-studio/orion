@@ -1,6 +1,4 @@
-import { EmptyState } from "@/components/shared/empty-state";
-import { StatusBadge } from "@/components/shared/status-badges";
-import { Button } from "@/components/ui/button";
+import { Button, EmptyState, StatusBadge } from "@/design-system";
 import type {
   ApiStatusPagePreviewResponse,
   ApiStatusPagePublicComponentResponse,
@@ -139,7 +137,7 @@ const PreviewHeader = ({
         {preview.page?.description || preview.page?.slug}
       </div>
     </div>
-    <Button size="sm" type="button" variant="outline">
+    <Button size="sm" type="button" variant="secondary">
       Get updates
     </Button>
   </div>
@@ -166,10 +164,9 @@ const PreviewActiveIncidents = ({
         >
           <div className="flex items-center justify-between gap-2">
             <span className="font-medium">{incident.title}</span>
-            <StatusBadge
-              fallback={incident.public_status}
-              value={incidentBadgeStatus(incident.public_status)}
-            />
+            <StatusBadge status={incidentBadgeStatus(incident.public_status)}>
+              {incidentBadgeStatus(incident.public_status) ?? incident.public_status}
+            </StatusBadge>
           </div>
           {incident.impact_summary && (
             <p className={previewDark ? "mt-1 text-neutral-400" : "mt-1 text-neutral-600"}>
@@ -201,10 +198,9 @@ const PreviewSections = ({
                   <span className={previewDark ? "text-neutral-400" : "text-neutral-600"}>
                     {component.uptime?.uptime_display ?? "No data"}
                   </span>
-                  <StatusBadge
-                    fallback={component.status}
-                    value={statusBadgeStatus(component.status)}
-                  />
+                  <StatusBadge status={statusBadgeStatus(component.status)}>
+                    {statusBadgeStatus(component.status) ?? component.status}
+                  </StatusBadge>
                 </span>
               </div>
               {(component.uptime_history ?? []).length > 0 && (
