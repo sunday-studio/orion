@@ -11,4 +11,4 @@ Recorded 2026-10-17 on branch `claude/hungry-archimedes-61fc59` after WP 0.1 and
 
 Ingest latency (p50/p95/p99), `SQLITE_BUSY` counts and RSS are produced by the load harness (T17, `apps/core/scripts/loadtest`); the same harness is run against base commit `810ac82` to fill the "before" column in `backend-hardening-load-results.md`.
 
-Coverage floors enforced in CI: Core 70% with `-coverpkg`, Agent 60% total is a target not yet met (agent total is below it today); the Agent floor is set to the current value and ratcheted up by T10.
+Coverage floors enforced in CI: Core 70% with `-coverpkg` (72.0% at the first snapshot, 73.4% now). The plan's Agent target is 60%; the Agent total is **52% today** (was 41.5% in the audit), so CI enforces a 50% floor and the 60% target is **not yet met**. The remaining gap is mostly `internal/cli` (service manager, doctor, logs and update commands, about 33% covered), which needs OS-specific fixtures.
