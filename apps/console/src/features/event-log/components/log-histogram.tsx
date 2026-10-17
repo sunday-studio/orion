@@ -3,6 +3,12 @@ import { type GetLogHistogramParams, useGetLogHistogram } from "@/orion-sdk";
 
 type LogHistogramProps = { params: GetLogHistogramParams };
 
+const SEVERITY_ORDER = ["trace", "debug", "info", "warn", "error", "fatal"];
+const severityRank = (severity: string) => {
+  const index = SEVERITY_ORDER.indexOf(severity);
+  return index === -1 ? -1 : index;
+};
+
 const SEVERITY_COLORS: Record<string, string> = {
   fatal: "bg-dot-down",
   error: "bg-dot-down",
@@ -32,18 +38,21 @@ export const LogHistogram = ({ params }: LogHistogramProps) => {
             className="flex min-w-0 flex-1 flex-col-reverse"
             style={{ height: `${((bucket.total ?? 0) / max) * 100}%` }}
           >
-            {Object.entries(bucket.severity ?? {}).map(([severity, count]) => (
-              <div
-                key={severity}
-                className={SEVERITY_COLORS[severity] ?? "bg-dot-idle"}
-                style={{ height: `${(count / Math.max(1, bucket.total ?? 1)) * 100}%` }}
-              />
-            ))}
+            {Object.entries(bucket.severity ?? {})
+              .sort(([a], [b]) => severityRank(a) - severityRank(b))
+              .map(([severity, count]) => (
+                <div
+                  key={severity}
+                  className={SEVERITY_COLORS[severity] ?? "bg-dot-idle"}
+                  style={{ height: `${(count / Math.max(1, bucket.total ?? 1)) * 100}%` }}
+                />
+              ))}
           </div>
         ))}
       </div>
       <figcaption className="text-xs text-faint">
-        As of {new Date().toLocaleTimeString()}, bucket {query.data?.bucket_seconds ?? 0}s
+        As of {new Date(query.dataUpdatedAt).toLocaleTimeString()}, bucket{" "}
+        {query.data?.bucket_seconds ?? 0}s
       </figcaption>
     </figure>
   );

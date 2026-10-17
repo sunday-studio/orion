@@ -76,4 +76,12 @@ test("connect-first-app flow detects the first log", async ({ page }) => {
   });
   expect(response.ok()).toBeTruthy();
   await expect(dialog.getByTestId("first-log-received")).toBeVisible({ timeout: 15_000 });
+
+  // The key is shown once: the dialog stays open until the user confirms they stored it.
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Done" })).toBeDisabled();
+  await dialog.getByRole("checkbox", { name: "I stored the key" }).click();
+  await dialog.getByRole("button", { name: "Done" }).click();
+  await expect(dialog).toHaveCount(0);
 });

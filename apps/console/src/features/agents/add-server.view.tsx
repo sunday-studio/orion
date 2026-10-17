@@ -21,11 +21,15 @@ export const AddServerPage = () => {
   const [coreURL, setCoreURL] = useState(() => getApiBase() || window.location.origin);
   const [copied, setCopied] = useState(false);
   const [baseline, setBaseline] = useState<Set<string> | null>(null);
-  const agentsQuery = useGetAgents({ limit: 200 }, { query: { refetchInterval: 3000 } });
+  const agentsQuery = useGetAgents(
+    { limit: 200 },
+    { query: { refetchInterval: 3000, refetchOnMount: "always" } },
+  );
   const agents = useMemo(() => agentsQuery.data?.agents ?? [], [agentsQuery.data]);
 
   // The first successful load is the baseline; anything that appears afterwards is the new Server.
-  if (baseline === null && agentsQuery.isSuccess) {
+  // Only fresh data counts: a cached list could predate servers that registered since.
+  if (baseline === null && agentsQuery.isSuccess && agentsQuery.isFetchedAfterMount) {
     setBaseline(new Set(agents.map((agent) => agent.id ?? "")));
   }
   const registered = baseline

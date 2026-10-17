@@ -17,6 +17,7 @@ export const KeyReveal = ({ secret, onDone, hideDone = false }: KeyRevealProps) 
     try {
       await navigator.clipboard.writeText(secret);
       setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
     } catch {
       setCopied(false);
     }
@@ -34,7 +35,7 @@ export const KeyReveal = ({ secret, onDone, hideDone = false }: KeyRevealProps) 
         >
           {secret}
         </code>
-        <Button size="sm" variant="secondary" onClick={() => void copy()}>
+        <Button size="sm" variant="secondary" aria-live="polite" onClick={() => void copy()}>
           {copied ? "Copied" : "Copy"}
         </Button>
       </div>
