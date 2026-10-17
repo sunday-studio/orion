@@ -6,7 +6,10 @@ test.describe.configure({ mode: "serial" });
 test("reads, saves, validates, and runs Settings lifecycle controls", async ({ page }) => {
   await signIn(page);
 
-  await page.getByRole("link", { name: "Settings" }).click();
+  await page
+    .getByLabel("Primary navigation")
+    .getByRole("link", { name: "Settings", exact: true })
+    .click();
   await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
 
   const rawReportDays = page.getByLabel("Raw report days");
@@ -60,7 +63,10 @@ test("reads, saves, validates, and runs Settings lifecycle controls", async ({ p
 
 test("confirms archive and prevents duplicate maintenance submissions", async ({ page }) => {
   await signIn(page);
-  await page.getByRole("link", { name: "Settings" }).click();
+  await page
+    .getByLabel("Primary navigation")
+    .getByRole("link", { name: "Settings", exact: true })
+    .click();
   await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
 
   let rollupRequests = 0;

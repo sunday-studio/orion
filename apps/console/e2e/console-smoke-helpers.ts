@@ -12,7 +12,7 @@ export const signIn = async (page: Page) => {
   await page.getByPlaceholder("Username").fill(username);
   await page.getByPlaceholder("Password").fill(password);
   await page.getByRole("button", { name: "Enter" }).click();
-  await expect(page.getByRole("heading", { name: "Incidents" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
 };
 
 export const authHeaders = async (page: Page) => {
@@ -40,6 +40,9 @@ export const sendWebhookTest = async (page: Page, name: string) => {
 
 export const openSettings = async (page: Page) => {
   await signIn(page);
-  await page.getByRole("link", { name: "Settings" }).click();
+  await page
+    .getByLabel("Primary navigation")
+    .getByRole("link", { name: "Settings", exact: true })
+    .click();
   await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
 };
