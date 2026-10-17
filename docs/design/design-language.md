@@ -66,11 +66,17 @@ Status colors are reserved for status. Badge fills and text:
 
 Row status indicators use an 8px dot: red `#e5484d`, amber `#f59e0b`, green `#2a9f69`, gray `#a1a1aa`.
 
-Dark mode: Overview is drawn dark as the reference (page `#0f1311`, field `#161a18`, cards `#1e2321`, border `#2a302d`). Other dark screens follow the same mapping. Light is the default.
+Dark mode (Overview is the reference artboard): the sunken look comes from layering, never from white borders.
+- Page `#111513`; header the same with a `#1d2321` bottom rule.
+- Field is sunken: `#0c0f0e`, 1px `#171c1a` border, inner shadow `inset 0 2px 6px rgba(0,0,0,.55)`.
+- Cards and tables sit above the field: `#1a201e`, 1px `#252c29` border, top highlight `inset 0 1px 0 rgba(255,255,255,.035)`, soft drop shadow.
+- Nav tray is sunken (`#0b0e0d`, inner shadow); the active chip is raised (`#222926`).
+- Text `#e9efec`, muted `#8b9892`. Badges use dark tints: up `#0f2e22`/`#6ee7b7`, down `#3a1720`/`#fda4af`, degraded `#3a2a0a`/`#fcd34d`, unknown `#232a27`/`#a8b4ad`, critical solid `#e5484d`.
+- Light is the default.
 
 ## 6. Shape and elevation
 
-Radii: fields 14px, cards and tables 10px, buttons and inputs 8px, tray and chips 6 to 9px, badges 4px. No pills, no fully rounded controls except avatars and dots. Empty-state containers are square cornered (no rounded top under a square header).
+Radii: fields 14px, cards and tables 10px, buttons and inputs 8px, tray and chips 6 to 9px, badges 4px. No pills, no fully rounded controls except avatars and dots. Empty states use a single solid hairline container (white, 10px radius). No dashed borders and no border inside a border; inside an existing card the empty state has no border of its own.
 
 Buttons are layered: a 1px border, an inset top highlight and a soft drop shadow. Primary is a green gradient with white text; secondary is white; destructive is rose; ghost is text only. Heights: 36px default, 28px small (`sm`), 24px inside table rows.
 
@@ -123,12 +129,20 @@ Names match the "Components" artboard. "Exists" means a Console component alread
 The full list with routes is in `screen-map.md`; flows are on the Flows artboard (twenty journeys). Patterns specific to an area:
 
 - Overview (D-003, D-006): "Needs you now" field holding the highest-severity open incident with the lifecycle tracker; service health with 90 day strips; ongoing incidents table; stat cards; recent incidents. First run is the same route with one sentence and one button (Add your first server); it is not a separate route and carries a dismiss action. When all is well the first field reads "All systems normal".
-- Incidents: table (id, title, status, severity, monitor, opened). Bulk bar on selection (Acknowledge, Cover, Resolve). Detail: tracker, expected vs actual, timeline, facts panel, public update dialog. Declare incident is a dialog. Triage lists candidates with Dismiss and Open incident (D-004).
+- Incidents: table (id, title, status, severity, monitor, opened). Bulk actions appear in a floating bar at the bottom of the screen with standard buttons; selected rows get a light green tint. Resolved detail shows one status badge, a muted meta line, one primary action and a More menu. Detail: tracker, expected vs actual, timeline, facts panel, public update dialog. Declare incident is a dialog. Triage lists candidates with Dismiss and Open incident (D-004).
 - Servers: table with CPU sparkline. Detail tabs: Overview (needs attention first, chart), Reports, Monitors (filter, issues first), Token. States: no reports (checklist), edit, remove with monitor-count preview, token reveal.
 - Monitors: table with target as a column, uptime strip. Create dialog per type (HTTP, TCP, Heartbeat, Agent). Configure is a page. Bulk bar (Pause, Maintenance, Clone, Delete). Paused state banner.
 - Alerts: tabs Notification log, Channels, Rules, Routes. Channels are Webhook and Email only. Webhook: URL, signing secret, headers, payload preview, send test. Email: recipients as chips, each confirmed by a public confirmation page, instant or digest. Failed deliveries can be retried (D-004).
-- Status: list of pages; per page tabs Setup, Components, Incidents, Subscribers, Preview. Custom domain verification, schedule maintenance, publish and unpublish dialogs. Public pages keep their own calm document style.
-- Logs: one query bar (field:value), time range menu, view toggle List, Live, Patterns. List has histogram, facet rail, dense one-line rows, cursor paging. Detail drawer, saved views, background export.
+- Status: list of pages; per page tabs Setup, Components, Incidents, Subscribers, Preview. Custom domain verification, schedule maintenance, publish and unpublish dialogs. Public pages keep a calm document style but use the same components (stat cards, fields, one-line tables).
+- Logs (D-011, `docs/plans/product-logs-plan.md`): tabs Service logs, Status logs, Internal logs (owner's names).
+  - **Service logs** is the unified product log page for all sources (apps and agents). Query bar (free text plus `field:value`), source and time selects, filter tokens, a volume histogram stacked by severity, a facet rail (Severity, Source, Event, Environment, then Fields from the app's field catalog with type tag and cardinality), and a one-line table: Time, Severity, Source, Message. Message is the title (event, else the first line of the body) followed by muted promoted attributes. Header actions: Copy link, Save view, Live tail (pausable). Severity has six levels: Trace, Debug, Info, Warn, Error, Fatal.
+  - **Uniform display from read-time normalization:** the same page renders an app with rich attributes (logs-rich: columns from its display profile, fields facets with value distributions) and a plain-text-only app (logs-plain: Time, Severity, Message only, "severity inferred" tag, a Fields note with a link to set up a text parser).
+  - Detail drawer: key facts, message, attribute tree (collapsible, redacted values shown as "redacted"), Copy as JSON and link, related logs (same request or trace), "Show all N logs for this request". Plain-text variant: full body in a code block, no attributes, hint to set up a parser, nearby lines.
+  - States: no apps yet (connect your first app), no results (widen range, clear filters), query failed and ingest behind banner (429 backpressure).
+  - **Status logs** (what Orion saw: filter by server and monitor) and **Internal logs** (Orion backend internals) keep the same layout.
+  - Severity uses the standard badge (dot plus label: Error down, Warn degraded, Info and Debug neutral, Fatal critical), never a separate pill style. The volume histogram is stacked by severity (info soft green, warn amber, error red) with a brush selection and a hover tooltip.
+- Apps (Settings, Apps tab): list with status (Receiving, Quiet, Never), rate, retention; per app tabs Ingest (keys, endpoints, send test), Retention (days, size cap, debug sampling, rate limit, purge), Display (title, columns, hidden fields, live preview), Redaction (default keys, custom key and regex rules, test box). Ingest keys are write-only and shown once. Send a test log offers curl, OpenTelemetry environment variables, TypeScript, Go and Python.
+- Connect your first app (onboarding path from the Overview card and from Logs empty state): Create app, Add the key (shown once, snippet), Waiting for the first log (live check, send test log), First log received (open in Logs).
 - Settings: tabs Data lifecycle, General, Security (API tokens), System, Audit log.
 
 ## 10. Accessibility and states

@@ -36,12 +36,20 @@ Read `design-language.md` (rules and tokens) first, then this file. The canvas i
 | status-setup, status-components, status-incidents, status-subscribers, status-preview | `/status-pages/:id` (tabs) | `features/status-pages/` | existing |
 | status-domain, status-maintenance, status-publish | dialogs and panel | `features/status-pages/` | domain verify and maintenance windows proposed; publish exists |
 | public-* , status-badge | `/status/:slug/*` | Core-served | existing JSON and badge API; HTML is Core's |
-| logs-events, logs-service | `/logs` | `features/event-log/logs.view.tsx` | `/v1/events`, `/v1/logs/service`; query, cursor and facets proposed |
-| logs-live | `/logs` (view) | same | `GET /v1/events/stream` (SSE) proposed |
-| logs-patterns | `/logs` (view) | same | `GET /v1/events/patterns` proposed |
-| logs-detail | drawer | same | `/v1/events/{id}` and surrounding events proposed |
-| logs-views | menus | same | saved views in localStorage first |
-| logs-export | dialog | same | `POST /v1/events/export` (async) proposed |
+| logs, logs-rich, logs-plain, logs-no-apps, logs-no-results, logs-error | `/logs` | `features/event-log/` rebuilt as the unified product logs page (tab Service logs) | L2 (D-011): `GET /v1/logs` (filters, FTS `q`, cursor), `/v1/logs/histogram`, `/v1/logs/facets`, `/v1/logs/fields` (field catalog) |
+| logs-detail, logs-detail-plain | drawer | same | `GET /v1/logs/{id}`; related logs by `request_id` or `trace_id` (L2) |
+| logs-live | `/logs` live | same | `GET /v1/logs/stream` SSE (L3) |
+| logs-views | menus | same | saved views in localStorage first, `/v1/log-views` later (L3) |
+| logs-export | dialog | same | `POST /v1/logs/export` async, proposed (D-009) |
+| logs-patterns | `/logs` patterns view | same | `GET /v1/logs/patterns`, proposed (D-009) |
+| logs-events, logs-service | `/logs/events`, `/logs/service` | same | existing events and Orion service logs; query and cursor proposed (D-009) |
+| settings-apps, settings-app-new | `/settings/apps` | `features/settings/` | `GET/POST /v1/apps` (L1) |
+| app-keys, app-key-new | `/settings/apps/:id` | same | `/v1/apps/{id}/keys` create (shown once), rotate, revoke (L1) |
+| app-retention | same | same | `PATCH /v1/apps/{id}`: retention days, size cap, rate limit, debug sample rate; purge (L1) |
+| app-display | same | same | `PATCH /v1/apps/{id}` display profile (L3) |
+| app-redaction | same | same | `PATCH /v1/apps/{id}` rules; `POST /v1/apps/{id}/redaction/test` (L1) |
+| app-send-test | same | same | `POST /v1/apps/{id}/test-log`; receipt shown from the logs list (L1) |
+| app-connect-create, app-connect-snippet, app-connect-waiting, app-connect-received | `/apps/new` (linked from the Overview card, D-006) | new | same app and key endpoints; waiting step polls `last_log_at` on `GET /v1/apps/{id}` |
 | settings-lifecycle, settings-system | `/settings/*` | `features/settings/` | existing |
 | settings-general | `/settings/general` | same | instance name, public URL, timezone proposed |
 | settings-tokens, settings-token-new | `/settings/security` | same | API token CRUD proposed |
@@ -55,12 +63,13 @@ Approved (D-004): retry delivery (`POST /v1/alerts/deliveries/{id}/retry`), dism
 
 Proposed, grouped by value:
 
-1. Logs at scale: `q` (field:value query), `level`, `source`, `from`, `to`, `cursor` on events; `/v1/events/histogram`; `/v1/events/stream` (SSE); `/v1/events/patterns`; async export. These make the Logs redesign real and are the largest item.
-2. Channels: `type = webhook | email`; email recipients with a confirmation token and resend; public confirmation endpoint; webhook signing secret (HMAC SHA-256, `X-Orion-Signature`) with regenerate; custom headers; disable flag.
-3. Servers: `PATCH` name, labels, notes; list monitors by agent with a status filter; delete with `keep_history`.
-4. Incidents and monitors: declare incident; bulk acknowledge, resolve, cover; bulk pause, maintenance, clone, delete; `runbook_url` on monitors; TLS expiry.
-5. Status pages: custom domain verification, maintenance windows (hold alerts for mapped components).
-6. Settings: general (instance name, public URL, timezone), API tokens, audit log.
+1. Product logs: follow `docs/plans/product-logs-plan.md` (L0 to L4). Console needs: ingest keys per App, field catalog, facets, FTS search, SSE tail, redaction test endpoint, per-app limits. Events filter by `server_id` and `monitor_id`; Orion service logs by `component`.
+2. Logs at scale: `q` (field:value query), `level`, `source`, `from`, `to`, `cursor` on events; `/v1/events/histogram`; `/v1/events/stream` (SSE); `/v1/events/patterns`; async export. These make the Logs redesign real and are the largest item.
+3. Channels: `type = webhook | email`; email recipients with a confirmation token and resend; public confirmation endpoint; webhook signing secret (HMAC SHA-256, `X-Orion-Signature`) with regenerate; custom headers; disable flag.
+4. Servers: `PATCH` name, labels, notes; list monitors by agent with a status filter; delete with `keep_history`.
+5. Incidents and monitors: declare incident; bulk acknowledge, resolve, cover; bulk pause, maintenance, clone, delete; `runbook_url` on monitors; TLS expiry.
+6. Status pages: custom domain verification, maintenance windows (hold alerts for mapped components).
+7. Settings: general (instance name, public URL, timezone), API tokens, audit log.
 
 ## 4. Copy and content rules
 
