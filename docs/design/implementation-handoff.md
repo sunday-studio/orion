@@ -2,6 +2,8 @@
 
 Read `design-language.md` (rules and tokens) first, then this file. The canvas is https://claude.ai/artifact/L7gFM2gipuTveU5hkGqMRY; artboard names below match its file names (`<name>.dc.html`). `screen-map.md` numbers screens; this file maps them to code and API. API items marked "approved" are covered by D-004; items marked "proposed" need a Core route, OpenAPI annotations and `docs/agent-core-contract.md` review before the UI can ship, so build the screen against a typed stub and a feature flag.
 
+**Artboard exports (build 1:1 from these).** Every canvas artboard is exported to `docs/design/artboards/`: `<name>.html` (self-contained, shared `orion.css`), `png/<name>-light.png` and `-dark.png` at 1280px, and `README.md` with the artboard to screen-map to route to Console file index. Artboard names in the table below match those files. Compare each screen to its PNG during review.
+
 ## 1. Build order
 
 1. **Foundation.** Tokens and type in `index.css` (TWK Lausanne, tabular figures, color and radius tokens from design-language sections 4 to 6). New header with the tray, account menu and health chip. Restyle `status-badges`, `page-header`, `tabs`, `dialog`, `empty-state`, `data-table` (one-line rows, 38px, dense 30px).
