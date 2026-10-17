@@ -1117,6 +1117,12 @@ const docTemplate = `{
                         "description": "Only return servers with active incidents",
                         "name": "has_incidents",
                         "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Include Core's own system agent (default false)",
+                        "name": "include_system",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -7483,6 +7489,12 @@ const docTemplate = `{
                         "description": "Sort order (asc|desc)",
                         "name": "order",
                         "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Include Core self-monitors such as worker liveness (default false)",
+                        "name": "include_system",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -11258,6 +11270,9 @@ const docTemplate = `{
                 "status_reason": {
                     "type": "string"
                 },
+                "system": {
+                    "type": "boolean"
+                },
                 "uptime_seconds": {
                     "type": "integer"
                 }
@@ -13256,6 +13271,9 @@ const docTemplate = `{
                 },
                 "source": {
                     "type": "string"
+                },
+                "system": {
+                    "type": "boolean"
                 },
                 "type": {
                     "type": "string"

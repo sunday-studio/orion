@@ -105,7 +105,9 @@ type DiskStats struct {
 
 // one agent to one machine/server
 type Agent struct {
-	ID                       string                          `json:"id" gorm:"primaryKey"`
+	ID string `json:"id" gorm:"primaryKey"`
+	// System marks Core's own owner agent; it is not a user server and is hidden from counts and default lists.
+	System                   bool                            `json:"system" gorm:"not null;default:false"`
 	MachineId                string                          `json:"machine_id" gorm:"uniqueIndex;not null"`
 	Name                     string                          `json:"name" gorm:"not null"`
 	OS                       string                          `json:"os" gorm:"not null"`
@@ -161,7 +163,9 @@ type ServiceLogEntry struct {
 }
 
 type Monitor struct {
-	ID                       string     `json:"id" gorm:"primaryKey"`
+	ID string `json:"id" gorm:"primaryKey"`
+	// System marks Core's self-monitoring (worker liveness, agent connectivity); hidden from counts and default lists.
+	System                   bool       `json:"system" gorm:"not null;default:false"`
 	Description              *string    `json:"description"`
 	Type                     string     `json:"type" gorm:"not null"`
 	Name                     string     `json:"name" gorm:"not null"`

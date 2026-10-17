@@ -156,6 +156,7 @@ func (s *SelfMonitorService) ensureWorkerMonitor() error {
 		ID:                       coreWorkerMonitorID,
 		AgentID:                  owner.ID,
 		Name:                     coreWorkerMonitorName,
+		System:                   true,
 		Description:              &description,
 		Type:                     "core-worker",
 		Lifecycle:                "active",
