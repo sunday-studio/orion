@@ -4,15 +4,12 @@ import (
 	"net/http"
 	"orion/core/internal/config"
 	"orion/core/internal/db"
+	"orion/core/internal/testkit"
 	"orion/core/internal/utils"
-	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
-
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 )
 
 func TestQueueIncidentNotificationsDoesNotSendInline(t *testing.T) {
@@ -88,7 +85,7 @@ func TestProcessDueDeliveriesRetriesFailedWebhookUntilSent(t *testing.T) {
 }
 
 func TestConcurrentDispatchersNeverDoubleSend(t *testing.T) {
-	database := openFileBackedAlertDatabase(t)
+	database := testkit.NewDB(t)
 	createTestIncident(t, database, "incident-1")
 	createTestAlertChannel(t, database, db.AlertChannel{Name: "ops-webhook", Type: "webhook", Enabled: true, WebhookURL: "https://alerts.example.com/hook"})
 	if err := NewAlertService(database, utils.NewLogger(), &config.Config{}).QueueIncidentNotifications("incident-1", "incident_opened"); err != nil {
@@ -146,17 +143,4 @@ func TestExpiredDeliveryLeaseIsReclaimed(t *testing.T) {
 	if n, _ := svc.ProcessDueDeliveries(10); n != 1 {
 		t.Fatalf("processed after lease expiry = %d, want 1", n)
 	}
-}
-
-func openFileBackedAlertDatabase(t *testing.T) *gorm.DB {
-	t.Helper()
-	dsn := "file:" + filepath.Join(t.TempDir(), "alerts.db") + "?_busy_timeout=5000&_journal_mode=WAL"
-	database, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("open database: %v", err)
-	}
-	if err := db.Migrate(database); err != nil {
-		t.Fatalf("migrate database: %v", err)
-	}
-	return database
 }

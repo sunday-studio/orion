@@ -106,7 +106,7 @@ jobs:
 
       - name: Install Swagger generator
         if: needs.changes.outputs.contracts == 'true'
-        run: go install github.com/swaggo/swag/cmd/swag@latest
+        run: go install github.com/swaggo/swag/cmd/swag@v1.16.6
 
       - name: Check generated contracts
         if: needs.changes.outputs.contracts == 'true'
@@ -158,14 +158,43 @@ jobs:
           PR_BODY: ${{ github.event.pull_request.body || '' }}
         run: .github/scripts/check-core-backend-tests.sh "${{ github.event.pull_request.base.sha }}" "${{ github.sha }}"
 
+      - name: Vet Core
+        run: go vet ./...
+        working-directory: apps/core
+
       - name: Test Core
         run: go test ./...
         working-directory: apps/core
+
+      - name: Race-test Core
+        run: go test -race ./...
+        working-directory: apps/core
+
+      - name: Vulnerability scan Core
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+          govulncheck ./...
+        working-directory: apps/core
+
+      - name: Lint Core
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.6.2
+          working-directory: apps/core
+          args: --config ../../.golangci.yml --new-from-merge-base=origin/main ./...
 
       - name: Test Core coverage
         run: |
           go test -coverprofile=coverage.out ./...
           go tool cover -func=coverage.out | tee coverage-summary.txt
+        working-directory: apps/core
+
+      - name: Enforce Core coverage floor (70% with -coverpkg)
+        run: |
+          go test -coverpkg=./internal/... -coverprofile=coverpkg.out ./... >/dev/null
+          total="$(go tool cover -func=coverpkg.out | awk '/^total:/ {gsub("%","",$3); print $3}')"
+          echo "Core coverage with -coverpkg: ${total}%"
+          awk -v t="$total" 'BEGIN { exit (t+0 >= 70.0) ? 0 : 1 }' || { echo "Core coverage ${total}% is below the 70% floor"; exit 1; }
         working-directory: apps/core
 
       - name: Upload Core coverage report
@@ -206,8 +235,16 @@ jobs:
           fi
         working-directory: apps/agent
 
+      - name: Vet Server
+        run: go vet ./...
+        working-directory: apps/agent
+
       - name: Test Server
         run: go test ./...
+        working-directory: apps/agent
+
+      - name: Race-test Server
+        run: go test -race ./...
         working-directory: apps/agent
 
       - name: Test Server coverage
