@@ -1,5 +1,4 @@
-import { DataTableLink } from "@/components/shared/data-table-link";
-import { StatusBadge, toStatus } from "@/components/shared/status-badges";
+import { DataTableLink, StatusBadge } from "@/design-system";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import type { ApiIncidentResponse, ApiMonitorReportResponse } from "@/orion-sdk";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -31,7 +30,7 @@ export const heartbeatPayloadContext = (report?: ApiMonitorReportResponse) => {
   );
 };
 
-export { DetailGroup, DetailItem, reportTimestamp } from "@/components/shared/detail-group";
+export { DetailGroup, DetailItem, reportTimestamp } from "@/design-system";
 
 export const formatUptime = (value?: number) =>
   typeof value === "number" ? `${value.toFixed(1)}%` : "—";
@@ -77,7 +76,7 @@ export const historyColumns: ColumnDef<ApiMonitorReportResponse>[] = [
   {
     accessorKey: "health",
     header: "Status",
-    cell: ({ row }) => <StatusBadge value={toStatus(row.original.health)} />,
+    cell: ({ row }) => <StatusBadge status={row.original.health} />,
   },
   {
     id: "latency",
@@ -108,7 +107,7 @@ export const incidentColumns: ColumnDef<ApiIncidentResponse>[] = [
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => <StatusBadge value={toStatus(row.original.status)} />,
+    cell: ({ row }) => <StatusBadge status={row.original.status} />,
   },
   {
     accessorKey: "opened_at",

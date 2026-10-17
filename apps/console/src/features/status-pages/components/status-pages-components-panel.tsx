@@ -1,6 +1,4 @@
-import { EmptyState } from "@/components/shared/empty-state";
-import { StatusBadge } from "@/components/shared/status-badges";
-import { Button } from "@/components/ui/button";
+import { Button, EmptyState, StatusBadge } from "@/design-system";
 import type { ApiStatusPageComponentResponse } from "@/orion-sdk";
 import { RadioTower, Trash2 } from "lucide-react";
 import { statusBadgeStatus } from "./status-pages-shared";
@@ -31,16 +29,16 @@ export const StatusPageComponentsPanel = ({
             <div className="text-sm text-neutral-600">{component.public_description}</div>
           </div>
           <div className="flex items-center gap-2">
-            <StatusBadge
-              fallback={component.manual_status || component.display_mode}
-              value={statusBadgeStatus(component.manual_status)}
-            />
+            <StatusBadge status={statusBadgeStatus(component.manual_status)}>
+              {statusBadgeStatus(component.manual_status) ??
+                (component.manual_status || component.display_mode)}
+            </StatusBadge>
             <Button
               disabled={deletePending}
               onClick={() => onRemoveComponent(component.id, component.public_name)}
               size="sm"
               type="button"
-              variant="outline"
+              variant="secondary"
             >
               <Trash2 className="size-3.5" />
               Remove
@@ -60,7 +58,7 @@ export const StatusPageComponentsPanel = ({
                 onClick={() => onRemoveMapping(component.id, mapping.id)}
                 size="sm"
                 type="button"
-                variant="outline"
+                variant="secondary"
               >
                 <Trash2 className="size-3.5" />
                 Remove

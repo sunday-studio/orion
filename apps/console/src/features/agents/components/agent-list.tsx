@@ -1,8 +1,7 @@
 import { type GetAgentsParams, useGetAgentSummary, useGetAgents } from "@/orion-sdk";
 import { AgentRow } from "./agent-row";
 import { AgentSummary, type AgentSummaryFilter } from "./agent-summary";
-import { Button, EmptyState, Skeleton } from "@/design-system";
-import { ListPagination } from "@/components/shared/list-pagination";
+import { Button, EmptyState, ListPagination, Skeleton } from "@/design-system";
 import { parseAsBoolean, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 import { Fragment } from "react/jsx-runtime";
 

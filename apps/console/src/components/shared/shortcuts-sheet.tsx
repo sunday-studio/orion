@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/design-system";
 
 const shortcuts = [
   { keys: "Ctrl/Cmd + K", action: "Open the command palette" },

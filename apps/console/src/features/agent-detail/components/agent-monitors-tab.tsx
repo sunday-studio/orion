@@ -1,7 +1,4 @@
-import { DataTable } from "@/components/shared/data-table";
-import { ListPagination } from "@/components/shared/list-pagination";
-import { DataTableLink } from "@/components/shared/data-table-link";
-import { StatusBadge, toStatus } from "@/components/shared/status-badges";
+import { DataTable, DataTableLink, ListPagination, StatusBadge } from "@/design-system";
 import {
   type ApiIncidentResponse,
   type ApiMonitorResponse,
@@ -45,7 +42,7 @@ const monitorColumns = (
   {
     id: "health",
     header: "Health",
-    cell: ({ row }) => <StatusBadge value={toStatus(monitorHealth(row.original))} />,
+    cell: ({ row }) => <StatusBadge status={monitorHealth(row.original)} />,
   },
   {
     accessorKey: "type",
@@ -83,7 +80,6 @@ export const AgentMonitorsTab = ({ agentId, highlightedIncident }: AgentMonitors
           emptyMessage="No monitors registered"
           getRowId={(monitor) => monitor.id ?? ""}
           isLoading={monitorsResponse.isLoading}
-          loadingMessage="Loading monitors..."
           rowClassName={(row) =>
             cn(highlightedIncident?.monitor_id === row.original.id && "bg-amber-50")
           }

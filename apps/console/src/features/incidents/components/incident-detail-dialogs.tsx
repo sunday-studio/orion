@@ -1,20 +1,15 @@
 import {
-  SeverityBadge,
-  StatusBadge,
-  toSeverity,
-  toStatus,
-} from "@/components/shared/status-badges";
-import { Button } from "@/components/ui/button";
-import {
+  Button,
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+  Input,
+  Select,
+  StatusBadge,
+  Textarea,
+} from "@/design-system";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import type {
   ApiMonitorReportResponse,
@@ -195,22 +190,15 @@ export const PublicIncidentDraftDialog = ({
         <div className="space-y-4">
           <label className="block space-y-1">
             <span className="text-sm font-medium">status page</span>
-            <Select value={selectedStatusPageID} onValueChange={onStatusPageChange}>
-              <SelectTrigger className="w-full">
-                <span className="truncate">
-                  {selectedPage?.title ??
-                    selectedPage?.slug ??
-                    (loadingPages ? "Loading..." : "Select status page")}
-                </span>
-              </SelectTrigger>
-              <SelectContent align="start" position="popper">
-                {pages.map((page) => (
-                  <SelectItem key={page.id ?? page.slug} value={page.id ?? ""}>
-                    {page.title ?? page.slug ?? "Untitled status page"}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Select
+              className="w-full"
+              value={selectedStatusPageID}
+              onValueChange={onStatusPageChange}
+              options={pages.map((page) => ({
+                value: page.id ?? "",
+                label: page.title ?? page.slug ?? "Untitled status page",
+              }))}
+            />
           </label>
 
           {pages.length === 0 && !loadingPages && (
@@ -251,8 +239,8 @@ export const PublicIncidentDraftDialog = ({
                       value={draft.initial_update_message ?? "—"}
                     />
                     <div className="flex flex-wrap gap-2">
-                      <StatusBadge value={toStatus(draft.public_status)} />
-                      <SeverityBadge value={toSeverity(draft.severity)} />
+                      <StatusBadge status={draft.public_status} />
+                      <StatusBadge status={draft.severity} />
                     </div>
                   </div>
                 ) : (
@@ -301,10 +289,10 @@ export const EvidenceReportGroup = ({
       <div className="min-w-0">
         <div className="text-xs font-medium text-neutral-500">result</div>
         <div className="mt-2">
-          <StatusBadge value={toStatus(report?.health)} />
+          <StatusBadge status={report?.health} />
         </div>
       </div>
-      <Button type="button" variant="outline" size="sm" disabled={!report} onClick={onInspect}>
+      <Button type="button" variant="secondary" size="sm" disabled={!report} onClick={onInspect}>
         Inspect report
       </Button>
     </div>

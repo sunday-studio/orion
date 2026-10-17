@@ -1,4 +1,4 @@
-import { StatusBadge, toStatus } from "@/components/shared/status-badges";
+import { StatusBadge } from "@/design-system";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { cn } from "@/utils/cn";
 import type { GetCoreWorkerDiagnostics200 } from "@/orion-sdk";
@@ -150,10 +150,9 @@ export const CoreWorkerDiagnosticsPanel = ({
         <div className="flex min-w-0 items-center gap-3">
           <Activity className="size-4 shrink-0 text-neutral-500" />
           <h2 className="text-sm font-medium text-neutral-950">Core monitor worker</h2>
-          <StatusBadge
-            value={toStatus(statusToBadge(workerStatus))}
-            fallback={workerStatusLabel[workerStatus] ?? workerStatus}
-          />
+          <StatusBadge status={statusToBadge(workerStatus)}>
+            {statusToBadge(workerStatus) ?? workerStatusLabel[workerStatus] ?? workerStatus}
+          </StatusBadge>
         </div>
         <div className="text-sm text-neutral-600">{workerSummary}</div>
       </div>

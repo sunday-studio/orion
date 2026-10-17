@@ -1,5 +1,4 @@
-import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/shared/page-header";
+import { Button, PageHeader } from "@/design-system";
 import {
   CoreWorkerDiagnosticsPanel,
   coreWorkerDiagnosticsFromPayload,

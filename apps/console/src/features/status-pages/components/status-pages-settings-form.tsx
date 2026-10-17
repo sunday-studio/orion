@@ -1,6 +1,4 @@
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Button, Input, Textarea } from "@/design-system";
 import { CheckCircle2 } from "lucide-react";
 import type { FormEvent } from "react";
 import {
@@ -33,7 +31,7 @@ export const StatusPageSettingsForm = ({
   <form className="space-y-4" onSubmit={onSubmit}>
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h3 className="text-sm font-medium">Page Settings</h3>
-      <Button disabled={!pageId || isPending} variant="outline">
+      <Button disabled={!pageId || isPending} variant="secondary">
         <CheckCircle2 className="size-4" />
         {isPending ? "Saving..." : "Save settings"}
       </Button>

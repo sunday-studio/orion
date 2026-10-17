@@ -1,6 +1,5 @@
+import { Button, EmptyState } from "@/design-system";
 import { Component, type ErrorInfo, type ReactNode } from "react";
-import { EmptyState } from "@/components/shared/empty-state";
-import { Button } from "@/components/ui/button";
 
 type Props = { children: ReactNode };
 type State = { error: Error | null };
@@ -36,7 +35,7 @@ export class RouteErrorBoundary extends Component<Props, State> {
             : "Reload the page. If it keeps failing, check that Core is reachable."
         }
         action={
-          <Button size="sm" variant="outline" onClick={() => window.location.reload()}>
+          <Button size="sm" variant="secondary" onClick={() => window.location.reload()}>
             Reload
           </Button>
         }

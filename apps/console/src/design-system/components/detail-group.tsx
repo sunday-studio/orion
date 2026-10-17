@@ -17,10 +17,8 @@ export const DetailItem = ({
   value: ReactNode;
 }) => (
   <div>
-    <div className="text-xs font-medium text-neutral-500">{label}</div>
-    <div className={cn("mt-1 break-words text-sm font-medium text-neutral-950", className)}>
-      {value}
-    </div>
+    <div className="text-xs font-medium text-quiet">{label}</div>
+    <div className={cn("mt-1 break-words text-sm font-medium text-ink", className)}>{value}</div>
   </div>
 );
 

@@ -1,14 +1,14 @@
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
+  Button,
+  Checkbox,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+  Input,
+} from "@/design-system";
 import type { FormEvent } from "react";
 import { alertChannelTypeOptions, alertEventOptions } from "./alert-constants";
 

@@ -52,6 +52,8 @@
   --tone-stale-fg: #334155;
   --tone-covered-bg: #cffafe;
   --tone-covered-fg: #155e75;
+  --tone-info-bg: #e0f2fe;
+  --tone-info-fg: #075985;
   --tone-resolved-bg: #dbeafe;
   --tone-resolved-fg: #1e40af;
   --tone-critical-bg: #f43f5e;
@@ -95,13 +97,15 @@
   --tone-stale-fg: #cbd5e1;
   --tone-covered-bg: #083344;
   --tone-covered-fg: #67e8f9;
+  --tone-info-bg: #082f49;
+  --tone-info-fg: #7dd3fc;
   --tone-resolved-bg: #172554;
   --tone-resolved-fg: #93c5fd;
   --tone-critical-bg: #e11d48;
   --tone-critical-fg: #ffffff;
   --tone-medium-bg: #422006;
   --tone-medium-fg: #fde047;
-  --button-from: #248a5a;
+  --button-from: #207f53;
   --button-to: #1a6a45;
   --button-border: #3ecf8e;
 }

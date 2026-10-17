@@ -1,14 +1,14 @@
-import { DetailCard } from "@/components/shared/detail-card";
-import { Button } from "@/components/ui/button";
 import {
+  Button,
+  DetailCard,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
+  Textarea,
+} from "@/design-system";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import {
   type ApiAgentTokenIssuedResponse,
@@ -65,7 +65,7 @@ const CopyButton = ({ value }: { value: string }) => {
   };
 
   return (
-    <Button size="sm" variant="outline" onClick={() => void copy()}>
+    <Button size="sm" variant="secondary" onClick={() => void copy()}>
       {copied ? <Check /> : <Clipboard />}
       {copied ? "Copied" : "Copy token"}
     </Button>
@@ -142,7 +142,7 @@ export const AgentTokenPanel = ({ agentId }: AgentTokenPanelProps) => {
       ) : (
         <Button
           size="sm"
-          variant="outline"
+          variant="secondary"
           onClick={() => void handleRotate()}
           disabled={isMutating}
         >

@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@/design-system";
 import type { ApiStatusPageIncidentComponentSuggestionResponse } from "@/orion-sdk";
 import { suggestionMatchLabel } from "./status-pages-shared";
 
@@ -27,7 +27,7 @@ export const IncidentSuggestions = ({
           disabled={isLoading || suggestions.length === 0}
           onClick={onApply}
           type="button"
-          variant="outline"
+          variant="secondary"
         >
           Apply suggestions
         </Button>
