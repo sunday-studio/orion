@@ -36,7 +36,7 @@ Read `design-language.md` (rules and tokens) first, then this file. The canvas i
 | status-setup, status-components, status-incidents, status-subscribers, status-preview | `/status-pages/:id` (tabs) | `features/status-pages/` | existing |
 | status-domain, status-maintenance, status-publish | dialogs and panel | `features/status-pages/` | domain verify and maintenance windows proposed; publish exists |
 | public-* , status-badge | `/status/:slug/*` | Core-served | existing JSON and badge API; HTML is Core's |
-| logs, logs-rich, logs-plain, logs-no-apps, logs-no-results, logs-error | `/logs` | `features/event-log/` rebuilt as the unified product logs page | L2 (D-011): `GET /v1/logs` (filters, FTS `q`, cursor), `/v1/logs/histogram`, `/v1/logs/facets`, `/v1/logs/fields` (field catalog) |
+| logs, logs-rich, logs-plain, logs-no-apps, logs-no-results, logs-error | `/logs` | `features/event-log/` rebuilt as the unified product logs page (tab Service logs) | L2 (D-011): `GET /v1/logs` (filters, FTS `q`, cursor), `/v1/logs/histogram`, `/v1/logs/facets`, `/v1/logs/fields` (field catalog) |
 | logs-detail, logs-detail-plain | drawer | same | `GET /v1/logs/{id}`; related logs by `request_id` or `trace_id` (L2) |
 | logs-live | `/logs` live | same | `GET /v1/logs/stream` SSE (L3) |
 | logs-views | menus | same | saved views in localStorage first, `/v1/log-views` later (L3) |
