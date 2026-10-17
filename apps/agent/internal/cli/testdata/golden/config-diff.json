@@ -1,0 +1,6 @@
+{
+  "against": "string",
+  "changes": "null",
+  "identical": "bool",
+  "schema_version": "number"
+}

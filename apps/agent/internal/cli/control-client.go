@@ -65,6 +65,9 @@ func maintenanceViaDaemon(opts *Options, enabled bool, reason string) (bool, err
 	if !handled || err != nil {
 		return handled, err
 	}
+	if opts.JSON {
+		return true, renderJSON(outputWriter, maintenanceResult{OK: true, Enabled: enabled, Reason: reason, Via: "daemon"})
+	}
 	PrintHeader("maintenance")
 	if enabled {
 		PrintOK("maintenance mode enabled (via daemon)")
@@ -86,9 +89,19 @@ func applyTokenViaDaemon(opts *Options) (bool, error) {
 	if !handled || err != nil {
 		return handled, err
 	}
+	if opts.JSON {
+		return true, renderJSON(outputWriter, map[string]any{"ok": true, "identity": "preserved", "restart_required": true, "via": "daemon"})
+	}
 	PrintHeader("token apply")
 	PrintOK("replacement token applied (via daemon)")
 	PrintInfo("identity", "preserved")
 	PrintInfo("next", "orion-agent restart")
 	return true, nil
+}
+
+type maintenanceResult struct {
+	OK      bool   `json:"ok"`
+	Enabled bool   `json:"enabled"`
+	Reason  string `json:"reason,omitempty"`
+	Via     string `json:"via"`
 }

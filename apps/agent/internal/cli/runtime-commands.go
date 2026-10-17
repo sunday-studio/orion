@@ -114,6 +114,9 @@ func runMaintenance(_ context.Context, opts *Options, action string, reason stri
 			return NewCommandError("could not save state", err)
 		}
 		PrintOK("maintenance mode disabled")
+		if opts.JSON {
+			return renderJSON(outputWriter, maintenanceResult{OK: true, Enabled: false, Via: "state"})
+		}
 	case "-down":
 		var reasonPtr *string
 		if reason != "" {
@@ -129,6 +132,9 @@ func runMaintenance(_ context.Context, opts *Options, action string, reason stri
 		PrintOK("maintenance mode enabled")
 		if reason != "" {
 			PrintInfo("maintenance reason", reason)
+		}
+		if opts.JSON {
+			return renderJSON(outputWriter, maintenanceResult{OK: true, Enabled: true, Reason: reason, Via: "state"})
 		}
 	}
 	return nil
@@ -247,6 +253,9 @@ func runTokenApply(_ context.Context, opts *Options) error {
 	PrintOK("replacement token applied")
 	PrintInfo("identity", "preserved")
 	PrintInfo("next", "orion-agent restart")
+	if opts.JSON {
+		return renderJSON(outputWriter, map[string]any{"ok": true, "identity": "preserved", "restart_required": true})
+	}
 	return nil
 }
 

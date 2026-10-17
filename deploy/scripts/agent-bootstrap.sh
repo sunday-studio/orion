@@ -24,6 +24,7 @@ OVERWRITE_CONFIG="false"
 DRY_RUN="false"
 USER_MODE="false"
 ASSUME_YES="false"
+PURGE="false"
 ACTION="install"
 STEP=0
 
@@ -47,6 +48,7 @@ Options:
   --pubkey FILE                minisign public key used to verify SHA256SUMS.minisig.
   --require-signature          Abort unless the signature verifies.
   --yes                        Do not prompt.
+  --purge                      With uninstall: also remove config, state, logs and the service user.
   --dry-run                    Download and verify into a temp dir, print what would
                                change, and change nothing.
   -h, --help                   Show this help.
@@ -80,6 +82,7 @@ while [ "$#" -gt 0 ]; do
     --no-start) START_SERVICE="false"; shift ;;
     --overwrite-config) OVERWRITE_CONFIG="true"; shift ;;
     --yes|-y) ASSUME_YES="true"; shift ;;
+    --purge) PURGE="true"; shift ;;
     --dry-run) DRY_RUN="true"; shift ;;
     -h|--help) usage; exit 0 ;;
     *) printf 'Unknown option: %s\n' "$1" >&2; usage >&2; exit 1 ;;
@@ -134,7 +137,7 @@ if [ "$ACTION" = "uninstall" ]; then
   want="$(awk '$2=="orion-agent-uninstall.sh"||$2=="*orion-agent-uninstall.sh"{print $1}' "$WORK/SHA256SUMS")"
   [ -n "$want" ] && [ "$(sha256_of "$WORK/uninstall.sh")" = "$want" ] || die "uninstaller failed checksum verification" "" 2
   chmod +x "$WORK/uninstall.sh"
-  args=(); [ "$DRY_RUN" = "true" ] && args+=(--dry-run); [ "$ASSUME_YES" = "true" ] && args+=(--yes)
+  args=(); [ "$DRY_RUN" = "true" ] && args+=(--dry-run); [ "$ASSUME_YES" = "true" ] && args+=(--yes); [ "$PURGE" = "true" ] && args+=(--purge); [ "$USER_MODE" = "true" ] && args+=(--user)
   if [ "$(id -u)" -ne 0 ] && [ "$USER_MODE" != "true" ]; then exec sudo "$WORK/uninstall.sh" ${args[@]+"${args[@]}"}; fi
   exec "$WORK/uninstall.sh" ${args[@]+"${args[@]}"}
 fi

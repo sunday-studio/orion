@@ -1,0 +1,6 @@
+{
+  "arch": "string",
+  "os": "string",
+  "schema_version": "number",
+  "version": "string"
+}
