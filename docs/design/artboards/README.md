@@ -21,9 +21,9 @@ Screen-map ref is the row number in `../screen-map.md` (`9.x` is section 9, prod
 
 | Artboard | Height | Screen map | Route | Console file |
 |---|---|---|---|---|
-| [Main](Main.html) ([light](png/Main-light.png), [dark](png/Main-dark.png)) | 788 | 38 | / | apps/console/src/features/overview/ (new) |
+| [Main](Main.html) ([light](png/Main-light.png), [dark](png/Main-dark.png)) | 779 | 38 | / | apps/console/src/features/overview/ (new) |
 | [add-server](add-server.html) ([light](png/add-server-light.png), [dark](png/add-server-dark.png)) | 623 | 37 | /servers/new | new |
-| [add-server-connected](add-server-connected.html) ([light](png/add-server-connected-light.png), [dark](png/add-server-connected-dark.png)) | 738 | 37 | /servers/new | new |
+| [add-server-connected](add-server-connected.html) ([light](png/add-server-connected-light.png), [dark](png/add-server-connected-dark.png)) | 708 | 37 | /servers/new | new |
 | [add-server-failed](add-server-failed.html) ([light](png/add-server-failed-light.png), [dark](png/add-server-failed-dark.png)) | 523 | 37 | /servers/new | new |
 | [add-server-waiting](add-server-waiting.html) ([light](png/add-server-waiting-light.png), [dark](png/add-server-waiting-dark.png)) | 481 | 37 | /servers/new | new |
 | [alerts-channels](alerts-channels.html) ([light](png/alerts-channels-light.png), [dark](png/alerts-channels-dark.png)) | 460 | 8 | /alerts/channels | apps/console/src/features/alerts/ |
@@ -53,7 +53,7 @@ Screen-map ref is the row number in `../screen-map.md` (`9.x` is section 9, prod
 | [cli-setup](cli-setup.html) ([light](png/cli-setup-light.png), [dark](png/cli-setup-dark.png)) | 1206 | 10 (CLI) | terminal | apps/agent |
 | [cli-status](cli-status.html) ([light](png/cli-status-light.png), [dark](png/cli-status-dark.png)) | 747 | 10 (CLI) | terminal | apps/agent |
 | [command-palette](command-palette.html) ([light](png/command-palette-light.png), [dark](png/command-palette-dark.png)) | 640 | 52 | global dialog | components/shared/ (new) |
-| [dashboard-dark](dashboard-dark.html) ([light](png/dashboard-dark-light.png), [dark](png/dashboard-dark-dark.png)) | 790 | 38 | / | dark reference |
+| [dashboard-dark](dashboard-dark.html) ([light](png/dashboard-dark-light.png), [dark](png/dashboard-dark-dark.png)) | 783 | 38 | / | dark reference |
 | [delete-confirm](delete-confirm.html) ([light](png/delete-confirm-light.png), [dark](png/delete-confirm-dark.png)) | 640 | 44 | dialogs | components/ui/dialog.tsx |
 | [delivery-detail](delivery-detail.html) ([light](png/delivery-detail-light.png), [dark](png/delivery-detail-dark.png)) | 511 | 47 | /alerts/deliveries/:id | apps/console/src/features/alerts/ |
 | [design-language](design-language.html) ([light](png/design-language-light.png), [dark](png/design-language-dark.png)) | 4500 | reference | component library | docs/design/design-language.md |
@@ -72,7 +72,11 @@ Screen-map ref is the row number in `../screen-map.md` (`9.x` is section 9, prod
 | [incidents-list](incidents-list.html) ([light](png/incidents-list-light.png), [dark](png/incidents-list-dark.png)) | 508 | 2 | /incidents | apps/console/src/features/incidents/incidents.view.tsx |
 | [login](login.html) ([light](png/login-light.png), [dark](png/login-dark.png)) | 720 | 1 | /login | apps/console/src/features/auth/login.view.tsx |
 | [logs](logs.html) ([light](png/logs-light.png), [dark](png/logs-dark.png)) | 1285 | 10 | /logs (Service logs) | apps/console/src/features/event-log/logs.view.tsx |
-| [logs-detail](logs-detail.html) ([light](png/logs-detail-light.png), [dark](png/logs-detail-dark.png)) | 814 | 48 | drawer | apps/console/src/features/event-log/ |
+| [logs-app](logs-app.html) ([light](png/logs-app-light.png), [dark](png/logs-app-dark.png)) | 1072 |  |  |  |
+| [logs-app-connect](logs-app-connect.html) ([light](png/logs-app-connect-light.png), [dark](png/logs-app-connect-dark.png)) | 921 |  |  |  |
+| [logs-app-detail](logs-app-detail.html) ([light](png/logs-app-detail-light.png), [dark](png/logs-app-detail-dark.png)) | 616 |  |  |  |
+| [logs-app-empty](logs-app-empty.html) ([light](png/logs-app-empty-light.png), [dark](png/logs-app-empty-dark.png)) | 464 |  |  |  |
+| [logs-detail](logs-detail.html) ([light](png/logs-detail-light.png), [dark](png/logs-detail-dark.png)) | 522 | 48 | drawer | apps/console/src/features/event-log/ |
 | [logs-detail-plain](logs-detail-plain.html) ([light](png/logs-detail-plain-light.png), [dark](png/logs-detail-plain-dark.png)) | 556 | 48 | drawer | apps/console/src/features/event-log/ |
 | [logs-error](logs-error.html) ([light](png/logs-error-light.png), [dark](png/logs-error-dark.png)) | 576 | 9.x | /logs | apps/console/src/features/event-log/ |
 | [logs-events](logs-events.html) ([light](png/logs-events-light.png), [dark](png/logs-events-dark.png)) | 1063 | 10 | /logs (Status logs) | apps/console/src/features/event-log/ |
@@ -84,6 +88,7 @@ Screen-map ref is the row number in `../screen-map.md` (`9.x` is section 9, prod
 | [logs-plain](logs-plain.html) ([light](png/logs-plain-light.png), [dark](png/logs-plain-dark.png)) | 859 | 9.x | /logs | apps/console/src/features/event-log/ |
 | [logs-rich](logs-rich.html) ([light](png/logs-rich-light.png), [dark](png/logs-rich-dark.png)) | 1016 | 9.x | /logs | apps/console/src/features/event-log/ |
 | [logs-service](logs-service.html) ([light](png/logs-service-light.png), [dark](png/logs-service-dark.png)) | 567 | 10 | /logs (Internal logs) | apps/console/src/features/event-log/ |
+| [logs-sources](logs-sources.html) ([light](png/logs-sources-light.png), [dark](png/logs-sources-dark.png)) | 568 |  |  |  |
 | [logs-views](logs-views.html) ([light](png/logs-views-light.png), [dark](png/logs-views-dark.png)) | 460 | 9.x | menus | apps/console/src/features/event-log/ |
 | [monitor-agent-setup](monitor-agent-setup.html) ([light](png/monitor-agent-setup-light.png), [dark](png/monitor-agent-setup-dark.png)) | 775 | 13 | dialog | apps/console/src/features/monitors/ |
 | [monitor-create](monitor-create.html) ([light](png/monitor-create-light.png), [dark](png/monitor-create-dark.png)) | 640 | 13 | dialog | apps/console/src/features/monitors/ |
