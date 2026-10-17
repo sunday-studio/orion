@@ -162,7 +162,13 @@ export function DataTable<TData>({
                 onKeyDown={
                   onRowClick
                     ? (event) => {
-                        if (event.target === event.currentTarget && event.key === "Enter") {
+                        if (event.key === " " && event.target === event.currentTarget) {
+                          event.preventDefault();
+                        }
+                        if (
+                          event.target === event.currentTarget &&
+                          (event.key === "Enter" || event.key === " ")
+                        ) {
                           onRowClick(row.original);
                         }
                       }
