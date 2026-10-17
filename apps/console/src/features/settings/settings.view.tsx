@@ -10,14 +10,8 @@ import {
   EmptyState,
   Input,
   PageHeader,
-} from "@/design-system";
-import {
   Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+} from "@/design-system";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import {
   type ServiceDataLifecycleSettingsPayload,
@@ -59,7 +53,6 @@ export const SettingsPage = () => {
 
   const settings = settingsResponse.data?.settings;
   const [formState, setFormState] = useState(defaultFormState);
-  const archiveScheduleLabel = formState.archiveSchedule === "manual" ? "Manual only" : "Daily";
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const maintenanceActionInFlight = useRef(false);
   const [touchedFields, setTouchedFields] = useState<Partial<Record<SettingsFieldKey, boolean>>>(
@@ -271,17 +264,15 @@ export const SettingsPage = () => {
           </Field>
           <Field label="Archive schedule" description="Automatic archive cadence.">
             <Select
+              className="w-full"
+              aria-label="Archive schedule"
               value={formState.archiveSchedule}
               onValueChange={(value) => updateField("archiveSchedule", value)}
-            >
-              <SelectTrigger aria-label="Archive schedule">
-                <SelectValue placeholder="Archive schedule">{archiveScheduleLabel}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="daily">Daily</SelectItem>
-                <SelectItem value="manual">Manual only</SelectItem>
-              </SelectContent>
-            </Select>
+              options={[
+                { value: "daily", label: "Daily" },
+                { value: "manual", label: "Manual only" },
+              ]}
+            />
           </Field>
         </div>
         <label className="flex items-center gap-2 text-sm">

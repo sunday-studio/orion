@@ -9,15 +9,9 @@ import {
   DialogTitle,
   EmptyState,
   Input,
+  Select,
   Textarea,
 } from "@/design-system";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import type {
   ApiAlertChannelResponse,
   ApiAlertRouteDryRunResponse,
@@ -205,20 +199,11 @@ export const AlertRuleEditorDialog = ({
               <label className="block space-y-1">
                 <span className="text-xs font-medium text-neutral-700">Policy</span>
                 <Select
+                  className="w-full"
                   value={form.groupingPolicy}
                   onValueChange={(value) => setForm({ ...form, groupingPolicy: value })}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {groupingOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  options={groupingOptions}
+                />
               </label>
               <label className="block space-y-1">
                 <span className="text-xs font-medium text-neutral-700">Delay seconds</span>
@@ -281,35 +266,17 @@ export const AlertRuleEditorDialog = ({
           </div>
           <div className="grid gap-3 md:grid-cols-3">
             <Select
+              className="w-full"
               value={dryRunForm.eventType}
               onValueChange={(value) => setDryRunForm({ ...dryRunForm, eventType: value })}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {alertEventOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={alertEventOptions}
+            />
             <Select
+              className="w-full"
               value={dryRunForm.severity}
               onValueChange={(value) => setDryRunForm({ ...dryRunForm, severity: value })}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {severityOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={severityOptions}
+            />
             <Input
               placeholder="incident id"
               value={dryRunForm.incidentId}

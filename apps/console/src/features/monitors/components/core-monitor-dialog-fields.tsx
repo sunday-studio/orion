@@ -1,5 +1,4 @@
-import { Checkbox, Input, Textarea } from "@/design-system";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { Checkbox, Input, Select, Textarea } from "@/design-system";
 import {
   type FormState,
   apiMethodOptions,
@@ -58,24 +57,13 @@ export const CoreMonitorDialogFields = ({
       <label className="space-y-1 text-sm">
         <span className="font-medium">Type</span>
         <Select
+          className="w-full"
           value={form.kind}
           onValueChange={(value) => {
             if (isCoreMonitorKind(value)) updateForm({ kind: value });
           }}
-        >
-          <SelectTrigger className="w-full">
-            <span data-slot="select-value">
-              {coreMonitorKindOptions.find((option) => option.value === form.kind)?.label}
-            </span>
-          </SelectTrigger>
-          <SelectContent>
-            {coreMonitorKindOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          options={coreMonitorKindOptions}
+        />
         <select
           aria-label="Core monitor type"
           className="sr-only"
@@ -121,22 +109,13 @@ export const CoreMonitorDialogFields = ({
           <label className="space-y-1 text-sm">
             <span className="font-medium">Method</span>
             <Select
+              className="w-full"
               value={form.apiMethod}
               onValueChange={(value) => {
                 if (isAPIMethod(value)) updateForm({ apiMethod: value });
               }}
-            >
-              <SelectTrigger className="w-full">
-                <span data-slot="select-value">{form.apiMethod}</span>
-              </SelectTrigger>
-              <SelectContent>
-                {apiMethodOptions.map((method) => (
-                  <SelectItem key={method} value={method}>
-                    {method}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={apiMethodOptions.map((value) => ({ value, label: value }))}
+            />
           </label>
           <label className="space-y-1 text-sm">
             <span className="font-medium">Expected statuses</span>
@@ -225,22 +204,13 @@ export const CoreMonitorDialogFields = ({
           <label className="space-y-1 text-sm">
             <span className="font-medium">Record type</span>
             <Select
+              className="w-full"
               value={form.recordType}
               onValueChange={(value) => {
                 if (isDNSRecordType(value)) updateForm({ recordType: value });
               }}
-            >
-              <SelectTrigger className="w-full">
-                <span data-slot="select-value">{form.recordType}</span>
-              </SelectTrigger>
-              <SelectContent>
-                {dnsRecordTypeOptions.map((recordType) => (
-                  <SelectItem key={recordType} value={recordType}>
-                    {recordType}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={dnsRecordTypeOptions.map((value) => ({ value, label: value }))}
+            />
           </label>
           <label className="space-y-1 text-sm sm:col-span-2">
             <span className="font-medium">Expected values</span>
@@ -266,20 +236,11 @@ export const CoreMonitorDialogFields = ({
         <label className="space-y-1 text-sm">
           <span className="font-medium">Method</span>
           <Select
+            className="w-full"
             value={form.pingMethod}
             onValueChange={(value) => updateForm({ pingMethod: value })}
-          >
-            <SelectTrigger className="w-full">
-              <span data-slot="select-value">{form.pingMethod.toUpperCase()}</span>
-            </SelectTrigger>
-            <SelectContent>
-              {pingMethods.map((method) => (
-                <SelectItem key={method} value={method}>
-                  {method.toUpperCase()}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            options={pingMethods.map((method) => ({ value: method, label: method.toUpperCase() }))}
+          />
         </label>
       )}
       {["mail", "smtp", "imap", "pop"].includes(form.kind) && (
@@ -288,39 +249,24 @@ export const CoreMonitorDialogFields = ({
             <label className="space-y-1 text-sm">
               <span className="font-medium">Protocol</span>
               <Select
+                className="w-full"
                 value={form.mailProtocol}
                 onValueChange={(value) => updateForm({ mailProtocol: value })}
-              >
-                <SelectTrigger className="w-full">
-                  <span data-slot="select-value">{form.mailProtocol.toUpperCase()}</span>
-                </SelectTrigger>
-                <SelectContent>
-                  {mailProtocols.map((protocol) => (
-                    <SelectItem key={protocol} value={protocol}>
-                      {protocol.toUpperCase()}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                options={mailProtocols.map((protocol) => ({
+                  value: protocol,
+                  label: protocol.toUpperCase(),
+                }))}
+              />
             </label>
           )}
           <label className="space-y-1 text-sm">
             <span className="font-medium">TLS mode</span>
             <Select
+              className="w-full"
               value={form.mailTlsMode}
               onValueChange={(value) => updateForm({ mailTlsMode: value })}
-            >
-              <SelectTrigger className="w-full">
-                <span data-slot="select-value">{form.mailTlsMode}</span>
-              </SelectTrigger>
-              <SelectContent>
-                {mailTlsModes.map((tlsMode) => (
-                  <SelectItem key={tlsMode} value={tlsMode}>
-                    {tlsMode}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={mailTlsModes.map((value) => ({ value, label: value }))}
+            />
           </label>
         </>
       )}
