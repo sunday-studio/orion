@@ -72,6 +72,7 @@ type Ingester struct {
 	cache    map[string]cachedKey // by key hash
 	lastUsed map[string]time.Time // key id -> last persisted last_used_at
 	ttl      time.Duration
+	gen      uint64 // bumped by Invalidate so a lookup that raced a revoke is not cached
 	now      func() time.Time
 }
 
@@ -83,6 +84,7 @@ func NewIngester(main *gorm.DB, store *Store, limiter *AppLimiter) *Ingester {
 func (i *Ingester) Invalidate() {
 	i.mu.Lock()
 	i.cache = map[string]cachedKey{}
+	i.gen++
 	i.mu.Unlock()
 }
 
@@ -99,6 +101,7 @@ func (i *Ingester) Authenticate(authorization string) (*AppContext, error) {
 		i.mu.Unlock()
 		return hit.ctx, nil
 	}
+	gen := i.gen
 	i.mu.Unlock()
 
 	var key db.AppIngestKey
@@ -120,7 +123,9 @@ func (i *Ingester) Authenticate(authorization string) (*AppContext, error) {
 	ctx := &AppContext{App: app, KeyID: key.ID, Redactor: NewRedactor(redaction.ExtraKeys, redaction.DisableDefaults), loadedAt: i.now()}
 
 	i.mu.Lock()
-	i.cache[hash] = cachedKey{ctx: ctx, expires: i.now().Add(i.ttl)}
+	if gen == i.gen { // an Invalidate during the lookup means this read may be stale: serve it once, do not cache it
+		i.cache[hash] = cachedKey{ctx: ctx, expires: i.now().Add(i.ttl)}
+	}
 	i.mu.Unlock()
 	return ctx, nil
 }
@@ -153,7 +158,7 @@ func (i *Ingester) Ingest(app *AppContext, contentType string, body []byte) (Res
 		entry.AppID = app.App.ID
 		entry.ID = NewEntryID(now)
 		app.Redactor.Apply(&entry)
-		if entry.SeverityNumber <= 8 && app.App.DebugSampleRate > 0 && app.App.DebugSampleRate < 1 && mrand.Float64() >= app.App.DebugSampleRate {
+		if entry.SeverityNumber <= 8 && app.App.DebugSampleRate < 1 && (app.App.DebugSampleRate <= 0 || mrand.Float64() >= app.App.DebugSampleRate) {
 			result.Accepted++ // sampled out: accepted from the caller's point of view
 			continue
 		}

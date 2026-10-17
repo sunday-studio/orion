@@ -79,7 +79,7 @@ OTLP log records map to Orion entries: `body`, `severityNumber`/`severityText`, 
 | Limit | Value |
 |---|---|
 | Entry size | 64 KiB |
-| Request size | 1 MiB (JSON), 5 MiB (NDJSON) |
+| Request size | 1 MiB (JSON), 5 MiB (NDJSON), at most 10,000 entries (413 beyond that) |
 | Attributes | depth 8, 128 keys per entry |
 | Retention | 14 days by default, per app; also capped by a per-app storage limit |
 
@@ -93,11 +93,15 @@ OTLP log records map to Orion entries: `body`, `severityNumber`/`severityText`, 
 | `429` | App rate limit or ingest queue full; has `Retry-After` | wait that many seconds, then retry the same batch |
 | `5xx` | Orion is unavailable | retry with exponential backoff |
 
-Retry only on `429` and `5xx`. Set a client `id` on entries if duplicates would matter.
+Retry only on `429` and `5xx`. `debug_sample_rate` per app keeps that fraction of `trace` and `debug` entries (0 drops them all, 1 keeps all); sampled-out entries still count as accepted. Set a client `id` on entries if duplicates would matter.
 
 ## 6. Secrets
 
-Orion redacts the values of common secret keys before storing anything: `password`, `passwd`, `secret`, `token`, `authorization`, `api_key`, `apikey`, `cookie`, `set-cookie`, `private_key`, `credit_card` (case-insensitive, at any depth, in attributes and structured bodies). Add more key names per app in its redaction settings. Redaction is a safety net; do not log secrets on purpose.
+Orion redacts the values of common secret keys before storing anything: `password`, `passwd`, `secret`, `token`, `authorization`, `api_key`, `apikey`, `cookie`, `set-cookie`, `private_key`, `credit_card` (case-insensitive, at any depth, in attributes and structured bodies). Add more key names per app in its redaction settings. Redaction is a safety net; do not log secrets on purpose. Know its limits:
+
+- It matches **key names** by substring, so harmless keys such as `tokens_used` or `max_tokens` are redacted too; rename them or turn the defaults off per app (`redaction.disable_defaults`) and list your own keys.
+- It does not scan plain-text message bodies. A secret inside `"body": "login with password hunter2"` is stored as sent.
+- Storage caps are approximate: an entry's size is counted from the bytes received, not the bytes stored.
 
 ## 7. Reading logs (Console and API)
 

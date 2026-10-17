@@ -5586,7 +5586,7 @@
                         "IngestKey": []
                     }
                 ],
-                "description": "Send one entry, a JSON array of entries, or newline-delimited JSON (Content-Type application/x-ndjson). Authenticate with an app ingest key. Entries are validated individually: invalid ones are rejected without failing the batch. Limits: 64 KiB per entry, 1 MiB per request (5 MiB for NDJSON). Responds 202 once queued; 429 with Retry-After when the app is rate limited or the queue is full.",
+                "description": "Send one entry, a JSON array of entries, or newline-delimited JSON (Content-Type application/x-ndjson). Authenticate with an app ingest key. Entries are validated individually: invalid ones are rejected without failing the batch. Limits: 64 KiB per entry, 10,000 entries and 1 MiB per request (5 MiB for NDJSON). Responds 202 once queued; 429 with Retry-After when the app is rate limited or the queue is full.",
                 "consumes": [
                     "application/json"
                 ],
@@ -5633,6 +5633,12 @@
                     },
                     "413": {
                         "description": "Request Entity Too Large",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "415": {
+                        "description": "Unsupported Media Type",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }

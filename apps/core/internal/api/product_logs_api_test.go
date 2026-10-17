@@ -390,3 +390,15 @@ func TestSendTestLogAndNotEnabledAnd501Stubs(t *testing.T) {
 	var buf bytes.Buffer
 	_ = buf
 }
+
+func TestTooManyEntriesInOneRequestIs413(t *testing.T) {
+	server := setupLogsServer(t, nil)
+	_, key := createAppWithKey(t, server, "bulk")
+	var b strings.Builder
+	for i := 0; i <= logstore.MaxEntriesPerRequest; i++ {
+		b.WriteString("{\"body\":\"x\"}\n")
+	}
+	if got := ingest(server, key, "application/x-ndjson", b.String()).Code; got != http.StatusRequestEntityTooLarge {
+		t.Fatalf("10001 entries status = %d, want 413", got)
+	}
+}
