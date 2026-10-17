@@ -1,4 +1,5 @@
 import { getApiBase } from "@/api/client";
+import { toZoned } from "@/utils/date";
 
 export const NOT_CONNECTED_AFTER_MS = 5 * 60 * 1000;
 
@@ -25,6 +26,6 @@ const pad = (value: number) => String(value).padStart(2, "0");
 
 export const clockWithSeconds = (iso?: string) => {
   if (!iso) return "-";
-  const date = new Date(iso);
+  const date = toZoned(new Date(iso));
   return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 };

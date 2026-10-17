@@ -1,43 +1,23 @@
 import { FieldPanel, RaisedCard, StepRows } from "@/design-system";
 import type { ApiEnrollmentResponse } from "@/orion-sdk";
-import { clockWithSeconds } from "./enrollment";
 
 /**
- * Live progress from the enrollment. Core sees the token being accepted and the agent
- * registering; the installer's download and doctor steps never reach Core, so they are not listed.
+ * The installer's steps are a static list (D-028): Core never sees the download or doctor
+ * results, so only the last row is live.
  */
 export const AddServerProgress = ({ enrollment }: { enrollment: ApiEnrollmentResponse }) => {
-  const registered = Boolean(enrollment.agent_id);
-  const platform = [enrollment.agent_os, enrollment.agent_arch].filter(Boolean).join("/");
+  const name = enrollment.agent_name;
   return (
-    <FieldPanel title="Progress" aside="Live from Core">
+    <FieldPanel title="The command will:" aside="Static list">
       <RaisedCard>
         <StepRows
           rows={[
+            { tone: "idle", title: "Download and verify the agent" },
+            { tone: "idle", title: "Register this server with Core" },
+            { tone: "idle", title: "Run orion-agent doctor" },
             {
-              tone: "done",
-              title: "Command started",
-              detail: `Token accepted, ${clockWithSeconds(enrollment.claimed_at)}`,
-            },
-            registered
-              ? {
-                  tone: "done",
-                  title: `Registered as ${enrollment.agent_name ?? "the new server"}`,
-                  detail: [
-                    platform,
-                    enrollment.agent_version && `agent ${enrollment.agent_version}`,
-                  ]
-                    .filter(Boolean)
-                    .join(" · "),
-                }
-              : {
-                  tone: "pending",
-                  title: "Registering the agent",
-                  detail: "Usually a few seconds",
-                },
-            {
-              tone: registered ? "pending" : "idle",
-              title: "Waiting for the first report",
+              tone: "pending",
+              title: name ? `Waiting for ${name} to report` : "Waiting for the server",
               detail: "Usually within 30 seconds",
             },
           ]}

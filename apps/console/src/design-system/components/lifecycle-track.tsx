@@ -21,7 +21,7 @@ export const LifecycleTrack = ({ steps }: { steps: readonly LifecycleStep[] }) =
     >
       <span
         aria-hidden
-        className="absolute left-[12.5%] right-[12.5%] top-[9px] h-0.5 bg-[#e4e4e7]"
+        className="absolute left-[12.5%] right-[12.5%] top-[9px] h-0.5 bg-input-border"
       />
       <span
         aria-hidden
@@ -39,7 +39,7 @@ export const LifecycleTrack = ({ steps }: { steps: readonly LifecycleStep[] }) =
               "flex size-5 items-center justify-center rounded-full border-2 bg-chip not-italic text-white",
               step.state === "done" && "border-[#2a9f69] bg-[#2a9f69]",
               step.state === "now" && "border-[#e5586f] shadow-[0_0_0_4px_rgba(229,88,111,0.15)]",
-              step.state === "todo" && "border-[#d4d4d8]",
+              step.state === "todo" && "border-input-border",
             )}
           >
             {step.state === "done" ? "✓" : ""}

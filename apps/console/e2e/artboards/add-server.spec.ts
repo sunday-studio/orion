@@ -76,7 +76,7 @@ test("Add server (waiting) matches the artboard", async ({ page }) => {
   await open(page);
   phase = "registered";
   await page.clock.fastForward(4000);
-  await page.getByText("Registered as edge-05").waitFor();
+  await page.getByText("The command will:").waitFor();
   await expectMatchesArtboard(page, "add-server-waiting", 481);
 });
 

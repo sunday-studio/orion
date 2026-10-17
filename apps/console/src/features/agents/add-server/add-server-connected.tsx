@@ -46,22 +46,6 @@ export const AddServerConnected = ({ enrollment }: { enrollment: ApiEnrollmentRe
             <StatusBadge status="up">Reporting</StatusBadge>
           </RaisedCard>
         </FieldPanel>
-        <FieldPanel title="Agent token" aside="Stored on the server">
-          <RaisedCard>
-            <Row title="Location" detail="/etc/orion/token, mode 0600, owner orion" />
-            <Row
-              title="Rotate"
-              detail="From the Token tab; the old token works for 10 minutes"
-              action={
-                <Link to={`/servers/${enrollment.agent_id}?tab=token`}>
-                  <Button size="sm" variant="secondary">
-                    Open Token tab
-                  </Button>
-                </Link>
-              }
-            />
-          </RaisedCard>
-        </FieldPanel>
         <FieldPanel title="Next" aside="Optional">
           <RaisedCard>
             <Row
@@ -91,7 +75,7 @@ export const AddServerConnected = ({ enrollment }: { enrollment: ApiEnrollmentRe
           </RaisedCard>
         </FieldPanel>
         <div className="flex justify-center">
-          <Link to={`/servers/${enrollment.agent_id}`}>
+          <Link to={enrollment.agent_id ? `/servers/${enrollment.agent_id}` : "/servers"}>
             <Button variant="secondary">Go to server</Button>
           </Link>
         </div>

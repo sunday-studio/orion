@@ -12,7 +12,7 @@ export type StepRowData = {
 const dotColor: Record<StepRowTone, string> = {
   done: "#2a9f69",
   pending: "#2a9f69",
-  idle: "#d4d4d8",
+  idle: "var(--color-input-border)",
 };
 
 /** A card of one-line rows: status dot, bold title, muted detail column (canvas `.lr`). */

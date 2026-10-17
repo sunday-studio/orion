@@ -19,6 +19,7 @@
   }
 }
 .lg-bg {
+  display: none;
   position: absolute;
   left: 0;
   top: 0;
@@ -70,5 +71,11 @@
   .lg-dots,
   .lg-sweep {
     animation: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  .lg-bg {
+    display: block;
   }
 }

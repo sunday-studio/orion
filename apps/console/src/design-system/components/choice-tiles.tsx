@@ -28,7 +28,24 @@ export const ChoiceTiles = ({
           type="button"
           role="radio"
           aria-checked={selected}
+          tabIndex={selected ? 0 : -1}
           onClick={() => onValueChange(tile.value)}
+          onKeyDown={(event) => {
+            const step =
+              event.key === "ArrowRight" || event.key === "ArrowDown"
+                ? 1
+                : event.key === "ArrowLeft" || event.key === "ArrowUp"
+                  ? -1
+                  : 0;
+            if (step === 0) return;
+            event.preventDefault();
+            const index = tiles.findIndex((candidate) => candidate.value === value);
+            const next = tiles[(index + step + tiles.length) % tiles.length];
+            if (next) onValueChange(next.value);
+            const buttons =
+              event.currentTarget.parentElement?.querySelectorAll<HTMLElement>("[role=radio]");
+            buttons?.[(index + step + tiles.length) % tiles.length]?.focus();
+          }}
           className={cn(
             "flex flex-col items-start gap-0.5 border-l border-hairline px-3.5 py-2.5 text-left outline-none first:border-l-0 focus-visible:ring-[3px] focus-visible:ring-focus",
             selected

@@ -31,7 +31,12 @@ export const OverviewPage = () => {
   const ongoing = data?.ongoing_incidents ?? [];
   const recent = data?.recent_incidents ?? [];
   const issueList = issues.data?.issues ?? [];
-  const allClear = data?.state === "ok" && !data.needs_you && issueList.length === 0;
+  const allClear =
+    overview.isSuccess &&
+    issues.isSuccess &&
+    data?.state === "ok" &&
+    !data.needs_you &&
+    issueList.length === 0;
 
   return (
     <div>
@@ -72,7 +77,7 @@ export const OverviewPage = () => {
                 >
                   <RaisedCard className="flex items-center gap-2.5 px-4 py-3.5 text-sm font-medium">
                     <span aria-hidden className="size-2 rounded-full bg-[#2a9f69]" />
-                    {stats?.monitors_total ?? 0} monitors passing, {stats?.servers_reporting ?? 0}{" "}
+                    {stats?.monitors_up ?? 0} monitors passing, {stats?.servers_reporting ?? 0}{" "}
                     servers reporting
                   </RaisedCard>
                 </FieldPanel>
