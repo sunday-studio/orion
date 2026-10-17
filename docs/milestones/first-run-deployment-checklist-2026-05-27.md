@@ -2,7 +2,6 @@
 
 Date: 2026-05-27
 
-Ticket: `T-20260526-215204-1d90`
 
 ## Scope
 
@@ -160,9 +159,9 @@ monitor_reports=52
 
 ## Follow-Ups
 
-No product failures were found during this pass. The remaining checklist gaps are tracked in Maat:
+No product failures were found during this pass. The remaining checklist gaps are:
 
-- `T-20260527-223714-60db`: Verify installed Server service on first-run host.
-- `T-20260527-223711-3fef`: Capture Console first-run verification.
+- Verify installed Server service on first-run host.
+- Capture Console first-run verification.
 
 Scope note: the Server ran as a native host process against a local Docker Core rather than as an installed service on a separate remote household machine.
