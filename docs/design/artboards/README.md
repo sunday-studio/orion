@@ -97,7 +97,7 @@ Screen-map ref is the row number in `../screen-map.md` (`9.x` is section 9, prod
 | [monitors-empty](monitors-empty.html) ([light](png/monitors-empty-light.png), [dark](png/monitors-empty-dark.png)) | 460 | 7 | /monitors | apps/console/src/features/monitors/ |
 | [monitors-list](monitors-list.html) ([light](png/monitors-list-light.png), [dark](png/monitors-list-dark.png)) | 547 | 6 | /monitors | apps/console/src/features/monitors/monitors.view.tsx |
 | [onboarding](onboarding.html) ([light](png/onboarding-light.png), [dark](png/onboarding-dark.png)) | 460 | 36 | / (first run card) | apps/console/src/features/overview/ (new) |
-| [overview-all-good](overview-all-good.html) ([light](png/overview-all-good-light.png), [dark](png/overview-all-good-dark.png)) | 640 | 38 | / | apps/console/src/features/overview/ (new) |
+| [overview-all-good](overview-all-good.html) ([light](png/overview-all-good-light.png), [dark](png/overview-all-good-dark.png)) | 607 | 38 | / | apps/console/src/features/overview/ (new) |
 | [public-history](public-history.html) ([light](png/public-history-light.png), [dark](png/public-history-dark.png)) | 680 | 28 | /status/:slug/history | Core-served |
 | [public-incident](public-incident.html) ([light](png/public-incident-light.png), [dark](png/public-incident-dark.png)) | 620 | 30 | /status/:slug/incidents/:id | Core-served |
 | [public-manage](public-manage.html) ([light](png/public-manage-light.png), [dark](png/public-manage-dark.png)) | 560 | 33 | .../subscribers/manage/:token | Core-served |
