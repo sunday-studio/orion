@@ -4,7 +4,6 @@ Status: accepted
 
 Date: 2026-05-27
 
-Ticket: T-20260527-111953-42db
 
 ## Context
 

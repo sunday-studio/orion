@@ -50,8 +50,7 @@ These items reduce future confusion and protect project history as Orion matures
 | Action | Area | Acceptance |
 | --- | --- | --- |
 | Record the Server terminology decision | `docs/architecture/`, `README.md`, Console copy | A decision record names the term, migration scope, and confirms binary/config names stay as `orion-agent` for compatibility. |
-| Audit public planning and agent instruction files | `AGENTS.md`, `docs/plans/`, Maat storage | Private strategy, credentials, sensitive operational notes, and non-public planning details are either removed from the repo or intentionally documented as public. |
-| Add Maat support for publishable plans | Maat project | Orion can keep private working memory while exporting curated public plans or milestones when useful. |
+| Audit public planning and agent instruction files | `AGENTS.md`, `docs/plans/` | Private strategy, credentials, sensitive operational notes, and non-public planning details are either removed from the repo or intentionally documented as public. |
 
 ## Example Scope
 

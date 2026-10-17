@@ -245,7 +245,7 @@ Minimum options:
 
 Reconciliation decision: Playwright transactions were implemented behind an explicit
 `ORION_PLAYWRIGHT_RUNNER` runtime boundary, but they are no longer first-release monitor scope.
-`G-20260529-191523-aad2` tracks removing the worker, API, Console, and docs surface. Until that
+Removing the Playwright surface means removing the worker, API, Console, and docs surface. Until that
 removal lands, existing code must continue to fail closed with `runtime_unavailable` when no runner
 is configured, keep artifacts bounded, and redact configured secret variable names in reports.
 
@@ -585,7 +585,7 @@ Design implications:
 
 ## Milestones
 
-Milestones map directly to Maat goals. Ticket rows under each milestone map to Maat tickets.
+Each milestone row lists its ticket rows.
 
 | Milestone row | Outcome | Ticket rows |
 |---|---|---|
@@ -595,21 +595,6 @@ Milestones map directly to Maat goals. Ticket rows under each milestone map to M
 | M4: Better incident controls | Core monitors have enough noise controls to be useful in production without opening incidents for short transient failures. | Add monitor confirmation periods; Add monitor recovery periods; Add Core monitor flapping handling; Add Core monitor severity defaults; Add Core monitor maintenance windows. |
 | M5: Components and status page groundwork | Core and Server monitors can be mapped to service/status-page components so incidents identify impacted components and future status pages can consume monitor health. | Design component data model; Add monitor-to-component mapping; Add incident component fields; Update status page architecture for monitor components. |
 | M6: Full monitor catalog expansion | Orion implements the full now-scope monitor catalog through the Core monitor worker with clear safety limits, report shapes, and incident behavior. | Add HTTP keyword monitor; Add expected status code monitor; Add TCP port monitor; Add TLS certificate monitor; Add DNS monitor; Add ping monitor; Add domain expiration monitor; Add API request monitor; Add UDP monitor; Add SMTP IMAP and POP monitors; Add Playwright transaction monitor; Add synthetic multi-step monitor. |
-
-Reconciliation status, 2026-05-29: M1, M2, M3, M4, M5, and M6 implementation rows have repository evidence and should not remain active as stale Maat implementation tickets. First-release readiness work continues in the newer `G-20260529-191440-d81b`, `G-20260529-191451-5e80`, `G-20260529-191503-bee9`, `G-20260529-191509-e97e`, `G-20260529-191516-ddf7`, `G-20260529-191523-aad2`, and `G-20260529-191529-d379` goals. The detailed audit is in `docs/milestones/monitor-readiness-reconciliation-2026-05-29.md`.
-
-## Maat Loading Rows
-
-Loaded into Maat on 2026-05-27. Each milestone row is a Maat goal. Each ticket row is a Maat ticket under that milestone goal.
-
-| Maat goal row | Goal ID | Ticket IDs |
-|---|---|---|
-| M1: Core owner, worker app, and HTTP MVP | `G-20260527-111522-f2ee` | `T-20260527-111641-85ec`, `T-20260527-111653-3a22`, `T-20260527-111705-6c56`, `T-20260527-111715-8985`, `T-20260527-111724-8c57`, `T-20260527-111737-edb2` |
-| M2: Console creation workflow | `G-20260527-111543-5f4e` | `T-20260527-111749-59d7`, `T-20260527-111759-a920`, `T-20260527-111824-6353`, `T-20260527-111835-b813`, `T-20260527-111846-2d78` |
-| M3: Heartbeats | `G-20260527-111553-dcc5` | `T-20260527-111856-87f6`, `T-20260527-111907-416e`, `T-20260527-111918-7ad7`, `T-20260527-111931-a4dc` |
-| M4: Better incident controls | `G-20260527-111602-3269` | `T-20260527-111943-73e5`, `T-20260527-111956-14f8`, `T-20260527-112007-e8ac`, `T-20260527-112022-51a5`, `T-20260527-112035-ca71` |
-| M5: Components and status page groundwork | `G-20260527-111616-a92c` | `T-20260527-112050-0cfb`, `T-20260527-112103-2087`, `T-20260527-112118-7764`, `T-20260527-112139-910e` |
-| M6: Full monitor catalog expansion | `G-20260527-111626-e3b0` | `T-20260527-112154-d351`, `T-20260527-112209-1875`, `T-20260527-112220-3115`, `T-20260527-112232-63ef`, `T-20260527-112242-b01d`, `T-20260527-112250-8206`, `T-20260527-112259-4dfc`, `T-20260527-112313-2c00`, `T-20260527-112337-7951`, `T-20260527-112346-811e`, `T-20260527-112401-3ba3`, `T-20260527-112412-1f05` |
 
 ## Review Questions
 
