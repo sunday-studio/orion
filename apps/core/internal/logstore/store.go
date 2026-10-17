@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"orion/core/internal/db"
 	"orion/core/internal/utils"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -16,6 +17,13 @@ import (
 
 // ErrQueueFull means the in-process write queue is at capacity: the caller should answer 429.
 var ErrQueueFull = errors.New("log ingest queue is full")
+
+// ErrStorageFull means the last write failed because the disk or database is full. Enqueue
+// refuses new entries for storageFullBackoff (answer 503 + Retry-After) instead of accepting
+// data it cannot persist, then lets one batch probe whether space has returned.
+var ErrStorageFull = errors.New("log storage is full")
+
+var storageFullBackoff = 5 * time.Second // var so tests can shorten it
 
 const (
 	DefaultQueueMax      = 50_000
@@ -60,6 +68,8 @@ type Stats struct {
 	Dropped int64 `json:"dropped"`
 	// Duplicates are entries ignored because their client id was already stored.
 	Duplicates int64 `json:"duplicates"`
+	// StorageFull is true while the last write failed with a disk-full error.
+	StorageFull bool `json:"storage_full"`
 }
 
 // Store owns logs.db, the bounded queue in front of it and the single writer.
@@ -73,6 +83,8 @@ type Store struct {
 	written atomic.Int64
 	dropped atomic.Int64
 	dupes   atomic.Int64
+	// fullAt is the unix-nano time of the last disk-full write failure (0 = healthy).
+	fullAt atomic.Int64
 
 	// sendMu orders Enqueue's send against Close: senders hold the read lock, Close the write lock.
 	sendMu sync.RWMutex
@@ -126,7 +138,7 @@ func OpenWith(database *gorm.DB, logger *utils.Logger, queueMax int) (*Store, er
 func (s *Store) DB() *gorm.DB { return s.db }
 
 func (s *Store) Stats() Stats {
-	return Stats{Queued: s.queued.Load(), Written: s.written.Load(), Dropped: s.dropped.Load(), Duplicates: s.dupes.Load()}
+	return Stats{Queued: s.queued.Load(), Written: s.written.Load(), Dropped: s.dropped.Load(), Duplicates: s.dupes.Load(), StorageFull: s.fullAt.Load() != 0}
 }
 
 // Enqueue accepts a batch for writing without blocking. It fails with ErrQueueFull
@@ -140,6 +152,9 @@ func (s *Store) Enqueue(entries []Entry) error {
 	defer s.sendMu.RUnlock()
 	if s.closed.Load() {
 		return ErrQueueFull
+	}
+	if at := s.fullAt.Load(); at != 0 && time.Since(time.Unix(0, at)) < storageFullBackoff {
+		return ErrStorageFull
 	}
 	n := int64(len(entries))
 	if s.queued.Add(n) > s.queueMax {
@@ -209,10 +224,14 @@ func (s *Store) flushBatch(entries []Entry) {
 		time.Sleep(100 * time.Millisecond)
 		if stored, err = s.insert(entries); err != nil {
 			s.dropped.Add(int64(len(entries)))
-			s.logger.Error("Dropped a batch of log entries", "entries", len(entries), "error", err)
+			if isStorageFull(err) {
+				s.fullAt.Store(time.Now().UnixNano())
+			}
+			s.logger.Error("Dropped a batch of log entries", "entries", len(entries), "storage_full", isStorageFull(err), "error", err)
 			return
 		}
 	}
+	s.fullAt.Store(0)
 	s.written.Add(stored)
 	s.dupes.Add(int64(len(entries)) - stored)
 	s.hub.publish(entries)
@@ -255,4 +274,8 @@ func NewEntryID(now time.Time) string {
 	var r [8]byte
 	_, _ = rand.Read(r[:])
 	return fmt.Sprintf("log_%016x%08x%s", now.UnixNano(), entrySequence.Add(1), hex.EncodeToString(r[:]))
+}
+
+func isStorageFull(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "database or disk is full")
 }

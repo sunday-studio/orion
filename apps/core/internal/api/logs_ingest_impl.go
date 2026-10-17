@@ -42,6 +42,9 @@ func (s *Server) ingestLogsImpl(c *gin.Context) {
 		seconds := int((limited.RetryAfter + 999_999_999) / 1_000_000_000)
 		c.Header("Retry-After", strconv.Itoa(max(seconds, 1)))
 		utils.ErrorResponse(c, http.StatusTooManyRequests, "Ingest rate limit exceeded; retry after the indicated seconds", nil)
+	case errors.Is(err, logstore.ErrStorageFull):
+		c.Header("Retry-After", "5")
+		utils.ErrorResponse(c, http.StatusServiceUnavailable, "Log storage is full; entries were not accepted. Free disk space or lower retention.", nil)
 	case err != nil:
 		utils.InternalError(c, "Failed to ingest logs", err)
 	default:
@@ -112,6 +115,9 @@ func (s *Server) ingestOTLPLogsImpl(c *gin.Context) {
 		seconds := int((limited.RetryAfter + 999_999_999) / 1_000_000_000)
 		c.Header("Retry-After", strconv.Itoa(max(seconds, 1)))
 		utils.ErrorResponse(c, http.StatusTooManyRequests, "Ingest rate limit exceeded; retry after the indicated seconds", nil)
+	case errors.Is(err, logstore.ErrStorageFull):
+		c.Header("Retry-After", "5")
+		utils.ErrorResponse(c, http.StatusServiceUnavailable, "Log storage is full; records were not accepted", nil)
 	case err != nil:
 		utils.InternalError(c, "Failed to ingest logs", err)
 	default:

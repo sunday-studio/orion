@@ -1,4 +1,4 @@
-.PHONY: core-soak generate-openapi generate-sdk console-sdk build-static docker-build docker-up docker-down docker-dev-up docker-dev-down docker-dev-seed agent-test core-test core-coverage core-race core-modernize-check core-vulncheck core-contract-check core-backend-verify console-build repository-smoke generated-contracts-check release-core-build release-readiness core-build core-worker-build agent-build seed-demo-data code-line-limit
+.PHONY: core-soak core-soak-30m core-soak-72h generate-openapi generate-sdk console-sdk build-static docker-build docker-up docker-down docker-dev-up docker-dev-down docker-dev-seed agent-test core-test core-coverage core-race core-modernize-check core-vulncheck core-contract-check core-backend-verify console-build repository-smoke generated-contracts-check release-core-build release-readiness core-build core-worker-build agent-build seed-demo-data code-line-limit
 
 VERSION ?= latest
 CORE_IMAGE ?= ghcr.io/sunday-studio/orion-core
@@ -39,6 +39,13 @@ core-coverage:
 # Run race detection on Core packages with scheduler, worker, and lifecycle concurrency.
 core-soak:
 	cd apps/core && go test ./internal/soak -run TestSoak -v -timeout 30m
+
+# Cross-process soak: real API + Worker binaries, log ingest, live tails, heartbeats, log alerts.
+core-soak-30m:
+	cd apps/core && ORION_CROSS_PROCESS=1 ORION_CROSS_DURATION=30m ORION_CROSS_OUT=$${ORION_CROSS_OUT:-/tmp/orion-soak-30m.json} go test ./internal/soak -run TestCrossProcessLoad -count=1 -v -timeout 45m
+
+core-soak-72h:
+	cd apps/core && ORION_CROSS_PROCESS=1 ORION_CROSS_DURATION=72h ORION_CROSS_OUT=$${ORION_CROSS_OUT:-/tmp/orion-soak-72h.json} go test ./internal/soak -run TestCrossProcessLoad -count=1 -v -timeout 80h
 
 core-race:
 	cd apps/core && go test -race ./...

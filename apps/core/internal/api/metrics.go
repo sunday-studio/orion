@@ -43,7 +43,8 @@ func (s *Server) getMetrics(c *gin.Context) {
 		st := s.logs.store.Stats()
 		body += fmt.Sprintf("# HELP orion_logs_queue_entries Product log entries accepted but not yet written.\n# TYPE orion_logs_queue_entries gauge\norion_logs_queue_entries %d\n"+
 			"# HELP orion_logs_written_total Product log entries written since process start.\n# TYPE orion_logs_written_total counter\norion_logs_written_total %d\n"+
-			"# HELP orion_logs_dropped_total Product log entries lost to write failures since process start.\n# TYPE orion_logs_dropped_total counter\norion_logs_dropped_total %d\n", st.Queued, st.Written, st.Dropped)
+			"# HELP orion_logs_dropped_total Product log entries lost to write failures since process start.\n# TYPE orion_logs_dropped_total counter\norion_logs_dropped_total %d\n"+
+			"# HELP orion_logs_storage_full 1 while the last log write failed because the disk or database is full.\n# TYPE orion_logs_storage_full gauge\norion_logs_storage_full %d\n", st.Queued, st.Written, st.Dropped, boolGauge(st.StorageFull))
 	}
 	c.Data(http.StatusOK, "text/plain; version=0.0.4; charset=utf-8", []byte(body))
 }
@@ -57,4 +58,11 @@ func (s *Server) RuntimeDiagnostics() *service.RuntimeDiagnosticsService {
 // Handler returns the HTTP handler for in-process embedding (the soak harness and tests).
 func (s *Server) Handler() http.Handler {
 	return s.router
+}
+
+func boolGauge(v bool) int {
+	if v {
+		return 1
+	}
+	return 0
 }
