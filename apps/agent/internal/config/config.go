@@ -1,12 +1,8 @@
 package config
 
 import (
-	"fmt"
-	"os"
 	"runtime"
 	"time"
-
-	"gopkg.in/yaml.v3"
 )
 
 type InternalState struct {
@@ -149,24 +145,10 @@ type LoggingConfig struct {
 	Compress   *bool  `yaml:"compress,omitempty"`
 }
 
+// LoadUserConfig loads the effective config (file, config.d drop-ins, env).
 func LoadUserConfig(path string) (*UserConfig, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read config file: %w", err)
-	}
-
-	var cfg UserConfig
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("failed to parse config: %w", err)
-	}
-
-	cfg.ApplyDefaults()
-
-	if err := cfg.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid config: %w", err)
-	}
-
-	return &cfg, nil
+	cfg, _, err := Load(path)
+	return cfg, err
 }
 
 func (c *UserConfig) ApplyDefaults() {

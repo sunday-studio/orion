@@ -2,7 +2,10 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
+	"strings"
 
 	"orion/agent/internal/config"
 	"orion/agent/internal/logging"
@@ -194,22 +197,26 @@ func newConfigCommand(ctx context.Context, opts *Options) *cobra.Command {
 		},
 	}
 	diff := &cobra.Command{
-		Use:   "diff",
-		Short: "Show config summary",
-		Args:  cobra.NoArgs,
+		Use:   "diff [other-config]",
+		Short: "Diff the effective config against another file (default: the base file alone)",
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runConfigDiff(ctx, opts, cmd.CalledAs())
+			other := ""
+			if len(args) > 0 {
+				other = args[0]
+			}
+			return runConfigDiffAgainst(ctx, opts, other)
 		},
 	}
 	show := &cobra.Command{
 		Use:   "show",
-		Short: "Show config summary",
+		Short: "Show the effective config and where it came from",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runConfigDiff(ctx, opts, cmd.CalledAs())
+			return runConfigShow(ctx, opts)
 		},
 	}
-	cmd.AddCommand(validate, diff, show)
+	cmd.AddCommand(validate, diff, show, newConfigEditCommand(ctx, opts))
 	return cmd
 }
 
@@ -295,7 +302,14 @@ func configureRuntimeLogging(opts *Options, loggingConfig config.LoggingConfig) 
 		level = logging.LevelDebug
 	}
 
-	return logging.ConfigureFile(logging.FileConfig{
+	switch strings.ToLower(strings.TrimSpace(loggingConfig.Path)) {
+	case "stdout", "stderr", "-", "none":
+		// Containers and journald: keep console logging only.
+		logging.SetLevel(level)
+		return nil
+	}
+
+	err = logging.ConfigureFile(logging.FileConfig{
 		Path:       loggingConfig.Path,
 		Level:      level,
 		MaxSizeMB:  loggingConfig.MaxSizeMB,
@@ -303,4 +317,11 @@ func configureRuntimeLogging(opts *Options, loggingConfig config.LoggingConfig) 
 		MaxAgeDays: loggingConfig.MaxAgeDays,
 		Compress:   loggingConfig.CompressEnabled(),
 	})
+	if err != nil && errors.Is(err, os.ErrPermission) {
+		// Zero-config runs as a normal user cannot write /var/log/orion; keep going on the console.
+		logging.SetLevel(level)
+		logging.Warnf("Cannot write log file %s (%v); logging to console only. Set logging.path or ORION_LOG_PATH.", loggingConfig.Path, err)
+		return nil
+	}
+	return err
 }
