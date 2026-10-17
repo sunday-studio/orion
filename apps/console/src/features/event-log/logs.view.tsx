@@ -19,6 +19,8 @@ import {
 } from "@/orion-sdk";
 import { type ColumnDef } from "@tanstack/react-table";
 import { parseAsString, useQueryState } from "nuqs";
+import { useState } from "react";
+import { EventDetailDrawer } from "./components/event-detail-drawer";
 
 const EVENT_LIMIT = 40;
 const SERVICE_LOG_LIMIT = 40;
@@ -183,6 +185,7 @@ const serviceLogColumns: ColumnDef<ApiServiceLogEntryResponse>[] = [
 ];
 
 export const LogsPage = () => {
+  const [selectedEvent, setSelectedEvent] = useState<ApiOrionEventResponse>();
   const [tab, setTabState] = useQueryState("tab", parseAsString.withDefault("events"));
   const eventTable = useDataTableUrlState({ fields: eventFields, limit: EVENT_LIMIT });
   const serviceTable = useDataTableUrlState({
@@ -287,6 +290,7 @@ export const LogsPage = () => {
                 getRowId={(event) => event.id ?? ""}
                 isLoading={eventsQuery.isLoading}
                 loadingMessage="Loading event log..."
+                onRowClick={setSelectedEvent}
               />
             )}
             {count > 0 && (
@@ -367,6 +371,12 @@ export const LogsPage = () => {
           </section>
         </TabsContent>
       </Tabs>
+      <EventDetailDrawer
+        event={selectedEvent}
+        onOpenChange={(open) => {
+          if (!open) setSelectedEvent(undefined);
+        }}
+      />
     </div>
   );
 };

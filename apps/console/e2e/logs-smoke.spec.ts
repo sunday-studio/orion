@@ -20,3 +20,11 @@ test("keeps event log filters and service log filters in the URL", async ({ page
   await page.getByPlaceholder("Component").fill("core");
   await expect(page).toHaveURL(/serviceComponent=core/);
 });
+
+test("opens an event detail drawer from an event row", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/logs");
+  await page.locator("tbody tr").first().click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(page.getByLabel("Raw event")).toContainText('"id"');
+});
