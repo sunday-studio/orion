@@ -28,6 +28,9 @@ type Options struct {
 	SetupInitState bool
 	UpdateVersion  string
 	UpdateRepo     string
+	UpdateBaseURL  string
+	UpdateRollback bool
+	UpdateForce    bool
 	LogLines       int
 	TokenApply     string
 	TokenFile      string

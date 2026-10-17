@@ -85,6 +85,9 @@ func newUpdateCommand(ctx context.Context, opts *Options) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&opts.UpdateVersion, "version", "latest", "Release version to install")
 	cmd.Flags().StringVar(&opts.UpdateRepo, "repo", "sunday-studio/orion", "GitHub repository to use")
+	cmd.Flags().StringVar(&opts.UpdateBaseURL, "base-url", "", "Release asset base URL (mirrors and tests)")
+	cmd.Flags().BoolVar(&opts.UpdateRollback, "rollback", false, "Restore the binary that was installed before the last update")
+	cmd.Flags().BoolVar(&opts.UpdateForce, "force", false, "Reinstall even when already on the target version")
 	cmd.Flags().IntVar(&opts.LogLines, "lines", 80, "Number of service log lines to show")
 	return cmd
 }
