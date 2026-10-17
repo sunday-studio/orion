@@ -41,6 +41,5 @@ test("shows the unified Service logs tab with a one hour default window", async 
   await expect(page.getByRole("combobox", { name: "Time" })).toContainText("Last hour");
   await expect(page.getByRole("tab", { name: "Status logs" })).toBeVisible();
   await expect(page.getByRole("tab", { name: "Internal logs" })).toBeVisible();
-  // Seed data has no apps, so the unified tab offers to connect one.
-  await expect(page.getByRole("link", { name: "Connect your first app" })).toBeVisible();
+  await expect(page.getByPlaceholder("Search logs")).toBeVisible();
 });
