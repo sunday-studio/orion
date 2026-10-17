@@ -1,7 +1,7 @@
+import { TabCount, Tabs, TabsList, TabsPanel, TabsTab } from "@/design-system";
 import { DataTable } from "@/components/shared/data-table";
 import { DetailCard } from "@/components/shared/detail-card";
 import { PageBreadcrumbs } from "@/components/shared/page-breadcrumbs";
-import { TabCount, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ReportInspectionDrawer } from "@/features/report-inspection/components/report-inspection-drawer";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import {
@@ -279,17 +279,17 @@ export const IncidentDetailPage = () => {
         <h2 className="text-sm font-medium">Operational Data</h2>
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-3">
           <TabsList>
-            <TabsTrigger value="timeline">
+            <TabsTab value="timeline">
               Timeline <TabCount>{timeline.length}</TabCount>
-            </TabsTrigger>
-            <TabsTrigger value="notifications">
+            </TabsTab>
+            <TabsTab value="notifications">
               Notifications <TabCount>{alertDeliveries.length}</TabCount>
-            </TabsTrigger>
-            <TabsTrigger value="monitor-reports">
+            </TabsTab>
+            <TabsTab value="monitor-reports">
               Monitor reports <TabCount>{monitorReports.length}</TabCount>
-            </TabsTrigger>
+            </TabsTab>
           </TabsList>
-          <TabsContent value="timeline">
+          <TabsPanel value="timeline">
             <DataTable
               columns={timelineColumns(reportsByID)}
               data={timeline}
@@ -305,16 +305,16 @@ export const IncidentDetailPage = () => {
                 }
               }}
             />
-          </TabsContent>
-          <TabsContent value="notifications">
+          </TabsPanel>
+          <TabsPanel value="notifications">
             <DataTable
               columns={notificationColumns}
               data={alertDeliveries}
               emptyMessage="No notification deliveries recorded."
               getRowId={(delivery, index) => delivery.id ?? `notification-${index}`}
             />
-          </TabsContent>
-          <TabsContent value="monitor-reports">
+          </TabsPanel>
+          <TabsPanel value="monitor-reports">
             <DataTable
               columns={monitorReportColumns}
               data={monitorReports}
@@ -322,7 +322,7 @@ export const IncidentDetailPage = () => {
               getRowId={(report, index) => report.id ?? `monitor-report-${index}`}
               onRowClick={setSelectedMonitorReport}
             />
-          </TabsContent>
+          </TabsPanel>
         </Tabs>
       </section>
       <ReportInspectionDrawer

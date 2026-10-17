@@ -1,6 +1,5 @@
+import { DataTableLink, ListPagination } from "@/design-system";
 import { DataTable } from "@/components/shared/data-table";
-import { ListPagination } from "@/components/shared/list-pagination";
-import { DataTableLink } from "@/components/shared/data-table-link";
 import { StatusBadge, toStatus } from "@/components/shared/status-badges";
 import {
   type ApiIncidentResponse,

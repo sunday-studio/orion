@@ -1,6 +1,11 @@
-import { DataTableLink } from "@/components/shared/data-table-link";
-import { ListPagination } from "@/components/shared/list-pagination";
-import { DataTable, type DataTableFilterField, FilterBar, StatusBadge } from "@/design-system";
+import {
+  DataTable,
+  type DataTableFilterField,
+  DataTableLink,
+  FilterBar,
+  ListPagination,
+  StatusBadge,
+} from "@/design-system";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import {
   type CoreWorkerDiagnostics,

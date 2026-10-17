@@ -1,20 +1,20 @@
 import {
-  SeverityBadge,
-  StatusBadge,
-  toSeverity,
-  toStatus,
-} from "@/components/shared/status-badges";
-import { Button } from "@/components/ui/button";
-import {
+  Button,
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+  Input,
+  Textarea,
+} from "@/design-system";
+import {
+  SeverityBadge,
+  StatusBadge,
+  toSeverity,
+  toStatus,
+} from "@/components/shared/status-badges";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import type {
   ApiMonitorReportResponse,
@@ -304,7 +304,7 @@ export const EvidenceReportGroup = ({
           <StatusBadge value={toStatus(report?.health)} />
         </div>
       </div>
-      <Button type="button" variant="outline" size="sm" disabled={!report} onClick={onInspect}>
+      <Button type="button" variant="secondary" size="sm" disabled={!report} onClick={onInspect}>
         Inspect report
       </Button>
     </div>

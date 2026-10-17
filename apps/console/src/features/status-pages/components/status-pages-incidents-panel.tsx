@@ -1,4 +1,4 @@
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@/design-system";
 import { StatusBadge } from "@/components/shared/status-badges";
 import type {
   ApiIncidentResponse,

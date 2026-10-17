@@ -1,7 +1,6 @@
+import { Dialog, DialogContent, DialogHeader, DialogTitle, Input } from "@/design-system";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/utils/cn";
 
 export const paletteDestinations = [

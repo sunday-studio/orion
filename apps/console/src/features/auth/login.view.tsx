@@ -1,11 +1,10 @@
+import { Button, Input } from "@/design-system";
 import { Server } from "lucide-react";
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { authLogin } from "@/api/client";
-import { Input } from "@/components/ui/input";
-import { InputWithButton } from "@/components/ui/input-with-button";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -50,17 +49,17 @@ export function LoginPage() {
           onChange={(e) => setUsername(e.target.value)}
           required
         />
-        <InputWithButton
+        <Input
+          className="w-full"
           placeholder="Password"
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          buttonLabel={isSubmitting ? "Signing in" : "Enter"}
-          buttonAriaLabel="Enter"
-          buttonType="submit"
-          disabled={isSubmitting}
           required
         />
+        <Button className="w-full" type="submit" aria-label="Enter" disabled={isSubmitting}>
+          {isSubmitting ? "Signing in" : "Enter"}
+        </Button>
         {sessionExpired && !error && (
           <p className="text-sm text-amber-700">Your session expired. Sign in again.</p>
         )}

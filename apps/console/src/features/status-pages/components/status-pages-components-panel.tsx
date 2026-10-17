@@ -1,6 +1,5 @@
-import { EmptyState } from "@/components/shared/empty-state";
+import { Button, EmptyState } from "@/design-system";
 import { StatusBadge } from "@/components/shared/status-badges";
-import { Button } from "@/components/ui/button";
 import type { ApiStatusPageComponentResponse } from "@/orion-sdk";
 import { RadioTower, Trash2 } from "lucide-react";
 import { statusBadgeStatus } from "./status-pages-shared";
@@ -40,7 +39,7 @@ export const StatusPageComponentsPanel = ({
               onClick={() => onRemoveComponent(component.id, component.public_name)}
               size="sm"
               type="button"
-              variant="outline"
+              variant="secondary"
             >
               <Trash2 className="size-3.5" />
               Remove
@@ -60,7 +59,7 @@ export const StatusPageComponentsPanel = ({
                 onClick={() => onRemoveMapping(component.id, mapping.id)}
                 size="sm"
                 type="button"
-                variant="outline"
+                variant="secondary"
               >
                 <Trash2 className="size-3.5" />
                 Remove

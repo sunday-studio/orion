@@ -1,9 +1,7 @@
 import { IncidentSummary, type IncidentSummaryStatus } from "./incident-summary";
-import { DataTableLink } from "@/components/shared/data-table-link";
-import { DataTable, Select, StatusBadge } from "@/design-system";
+import { DataTable, DataTableLink, ListPagination, Select, StatusBadge } from "@/design-system";
 import { type ApiIncidentResponse, useGetIncidents } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
-import { ListPagination } from "@/components/shared/list-pagination";
 import { type ColumnDef } from "@tanstack/react-table";
 import { parseAsInteger, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 

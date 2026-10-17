@@ -1,5 +1,5 @@
+import { Input } from "@/design-system";
 import { StatusBadge } from "@/components/shared/status-badges";
-import { Input } from "@/components/ui/input";
 import {
   type ApiIncidentResponse,
   type ApiStatusPageIncidentComponentSuggestionResponse,

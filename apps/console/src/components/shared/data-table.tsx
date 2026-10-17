@@ -1,3 +1,4 @@
+import { EmptyState } from "@/design-system";
 import {
   type ColumnDef,
   type Row,
@@ -8,7 +9,6 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import * as React from "react";
-import { EmptyState } from "@/components/shared/empty-state";
 import {
   Table,
   TableBody,

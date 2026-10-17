@@ -1,6 +1,4 @@
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Button, Input, Textarea } from "@/design-system";
 import type {
   ApiIncidentResponse,
   ApiStatusPageComponentResponse,
@@ -127,7 +125,7 @@ export const CreateIncidentForm = ({
       </Field>
     </div>
     <AffectedComponents components={components} form={form} setForm={setForm} />
-    <Button disabled={!pageId || !form.title.trim() || isPending} variant="outline">
+    <Button disabled={!pageId || !form.title.trim() || isPending} variant="secondary">
       <Plus className="size-4" />
       {isPending ? "Creating..." : "Create draft incident"}
     </Button>

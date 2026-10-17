@@ -14,11 +14,7 @@ export const DataTableLink = ({
 }: DataTableLinkProps) => {
   return (
     <Link
-      className={cn(
-        "hover:text-emerald-950 hover:underline",
-        truncate && "block truncate",
-        className,
-      )}
+      className={cn("hover:text-brand hover:underline", truncate && "block truncate", className)}
       onClick={(event) => {
         event.stopPropagation();
         onClick?.(event);

@@ -1,6 +1,5 @@
-import { EmptyState } from "@/components/shared/empty-state";
+import { Button, EmptyState } from "@/design-system";
 import { StatusBadge } from "@/components/shared/status-badges";
-import { Button } from "@/components/ui/button";
 import type {
   ApiStatusPagePreviewResponse,
   ApiStatusPagePublicComponentResponse,
@@ -139,7 +138,7 @@ const PreviewHeader = ({
         {preview.page?.description || preview.page?.slug}
       </div>
     </div>
-    <Button size="sm" type="button" variant="outline">
+    <Button size="sm" type="button" variant="secondary">
       Get updates
     </Button>
   </div>

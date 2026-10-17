@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/design-system";
 import { StatusBadge, toStatus } from "@/components/shared/status-badges";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import type { ApiAgentReportResponse, ApiMonitorReportResponse } from "@/orion-sdk";
