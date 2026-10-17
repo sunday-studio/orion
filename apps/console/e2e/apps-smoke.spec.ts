@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { signIn } from "./console-smoke-helpers";
+import { coreApiURL, signIn } from "./console-smoke-helpers";
 
 test("creates an app, reveals an ingest key once, and revokes it", async ({ page }) => {
   const appName = `E2E app ${Date.now()}`;
@@ -31,4 +31,29 @@ test("creates an app, reveals an ingest key once, and revokes it", async ({ page
     .getByRole("button", { name: "Revoke key" })
     .click();
   await expect(drawer.getByText("revoked")).toBeVisible();
+});
+
+test("an ingested app log appears in Service logs", async ({ page }) => {
+  const appName = `E2E logs ${Date.now()}`;
+  const marker = `e2e-marker-${Date.now()}`;
+  await signIn(page);
+  await page.goto("/settings/apps");
+  await page.getByRole("button", { name: "New app" }).click();
+  await page.getByLabel("Name").fill(appName);
+  await page.getByRole("button", { name: "Create app" }).click();
+
+  const drawer = page.getByRole("dialog", { name: appName });
+  await drawer.getByLabel("Key name").fill("ingest");
+  await drawer.getByRole("button", { name: "Create key" }).click();
+  const secret = (await drawer.getByTestId("ingest-key-secret").innerText()).trim();
+
+  const response = await page.request.post(`${coreApiURL}/ingest/logs`, {
+    headers: { Authorization: `Bearer ${secret}` },
+    data: { body: marker, severity: "error", event: "e2e.checked" },
+  });
+  expect(response.ok()).toBeTruthy();
+
+  await page.goto("/logs");
+  await page.getByPlaceholder("Search logs").fill(marker);
+  await expect(page.getByRole("cell", { name: "e2e.checked" })).toBeVisible();
 });

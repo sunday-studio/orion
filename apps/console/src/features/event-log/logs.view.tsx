@@ -25,6 +25,7 @@ import { type ColumnDef } from "@tanstack/react-table";
 import { parseAsString, useQueryState } from "nuqs";
 import { useState } from "react";
 import { EventDetailDrawer } from "./components/event-detail-drawer";
+import { ServiceLogsTab } from "./components/service-logs-tab";
 
 const EVENT_LIMIT = 40;
 const SERVICE_LOG_LIMIT = 40;
@@ -190,7 +191,7 @@ const serviceLogColumns: ColumnDef<ApiServiceLogEntryResponse>[] = [
 
 export const LogsPage = () => {
   const [selectedEvent, setSelectedEvent] = useState<ApiOrionEventResponse>();
-  const [tab, setTabState] = useQueryState("tab", parseAsString.withDefault("events"));
+  const [tab, setTabState] = useQueryState("tab", parseAsString.withDefault("app"));
   const eventTable = useDataTableUrlState({ fields: eventFields, limit: EVENT_LIMIT });
   const serviceTable = useDataTableUrlState({
     fields: serviceLogFields,
@@ -225,7 +226,7 @@ export const LogsPage = () => {
   const sourceCount = new Set(events.map((event) => event.source ?? "unknown")).size;
 
   const setTab = (nextTab: string) => {
-    if (nextTab !== "events" && nextTab !== "service") return;
+    if (nextTab !== "app" && nextTab !== "events" && nextTab !== "service") return;
     void setTabState(nextTab);
   };
 
@@ -233,14 +234,19 @@ export const LogsPage = () => {
     <div className="space-y-7">
       <PageHeader
         title="Logs"
-        description="Operational events and structured service logs from Orion runtimes."
+        description="Product logs from your apps and servers, what Orion observed, and Orion internals."
       />
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
         <TabsList>
-          <TabsTab value="events">Operational Events</TabsTab>
-          <TabsTab value="service">Service Logs</TabsTab>
+          <TabsTab value="app">Service logs</TabsTab>
+          <TabsTab value="events">Status logs</TabsTab>
+          <TabsTab value="service">Internal logs</TabsTab>
         </TabsList>
+
+        <TabsPanel value="app">
+          <ServiceLogsTab />
+        </TabsPanel>
 
         <TabsPanel value="events">
           <section className="space-y-4">
