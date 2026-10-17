@@ -302,18 +302,18 @@ Core behavior:
 - Return `500` for unexpected server errors.
 - Include request IDs in errors and logs.
 
-## Enrollment (agent side, pending Core)
+## Enrollment
 
-Agent behaviour implemented ahead of the Core change (backend ORB-009 / hardening 2.4). Core must match this or the agent contract must be updated in the same change.
+Implemented on both sides: Core enforces the token (`apps/core/internal/api/agent_enrollment.go`) and the agent sends it.
 
 - `POST /v1/register` carries header `X-Orion-Enrollment-Token: <one-time token>` when the agent has one (`orion-agent enroll --token-file`, or `ORION_ENROLLMENT_TOKEN` / `ORION_ENROLLMENT_TOKEN_FILE`). Agents without a token send no header, which keeps current Core working.
 - `401`/`403` means the token is invalid, expired or already used; the agent tells the operator to create a new one in Console under Add server. `429` is retried with backoff.
 - On success the response is unchanged (`agent_id`, per-agent `token`). The enrollment token is single use and is never stored by the agent after registration.
 - Core's "agent connected" signal is the successful registration, followed by the first accepted report.
 
-## Report idempotency (agent side, pending Core)
+## Report idempotency
 
-`POST /v1/agents/{id}/report` and `POST /v1/agents/{id}/{monitor_id}/report` bodies carry `report_id` (32 hex chars, generated once per collected report). Spooled replays reuse the same `report_id`. Core should store a report once per `(agent_id, report_id)` and answer `200` for duplicates (backend ORB-019). Agents ignore unknown response fields, so Core may adopt this at any time.
+`POST /v1/agents/{id}/report` and `POST /v1/agents/{id}/{monitor_id}/report` bodies carry `report_id` (32 hex chars, generated once per collected report). Spooled replays reuse the same `report_id`. Core stores a report once per `(agent_id, report_id)` and answers `200` for duplicates (backend ORB-019). Verify that system reports, not only monitor reports, are deduplicated. Agents ignore unknown response fields, so Core may adopt this at any time.
 
 ## Passive app resources (agent side, pending Core)
 
@@ -337,7 +337,7 @@ Rules Core can rely on: `kind` is one of `process`, `unit`, `container`, `path`;
 
 ## Request compression (agent side, opt-in)
 
-With `transport.compression: gzip` the agent sends request bodies over 1 KiB with `Content-Encoding: gzip`. Default is off because Core does not decode gzip request bodies yet; Core should add a decoding middleware (with a size limit applied after decompression) before this is enabled in the field.
+With `transport.compression: gzip` the agent sends request bodies over 1 KiB with `Content-Encoding: gzip`. Default is off because only the log-ingest endpoint decodes gzip request bodies today; Core should add a decoding middleware (with a size limit applied after decompression) before this is enabled in the field.
 
 ## Security
 

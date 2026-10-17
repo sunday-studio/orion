@@ -134,12 +134,23 @@ if [ "$ACTION" = "uninstall" ]; then
   printf 'Orion Agent uninstall\n'
   curl -fsSL "$BASE_URL/SHA256SUMS" -o "$WORK/SHA256SUMS"
   curl -fsSL "$BASE_URL/orion-agent-uninstall.sh" -o "$WORK/uninstall.sh"
-  want="$(awk '$2=="orion-agent-uninstall.sh"||$2=="*orion-agent-uninstall.sh"{print $1}' "$WORK/SHA256SUMS")"
-  [ -n "$want" ] && [ "$(sha256_of "$WORK/uninstall.sh")" = "$want" ] || die "uninstaller failed checksum verification" "" 2
+  if command -v cosign >/dev/null 2>&1 && [ "$SKIP_VERIFY" != "true" ]; then
+    curl -fsSL "$BASE_URL/SHA256SUMS.sig" -o "$WORK/SHA256SUMS.sig" && curl -fsSL "$BASE_URL/SHA256SUMS.pem" -o "$WORK/SHA256SUMS.pem" \
+      && cosign verify-blob --certificate "$WORK/SHA256SUMS.pem" --signature "$WORK/SHA256SUMS.sig" \
+        --certificate-identity-regexp "^https://github.com/${REPO}/\.github/workflows/agent-binaries\.yml@" \
+        --certificate-oidc-issuer "https://token.actions.githubusercontent.com" "$WORK/SHA256SUMS" >/dev/null 2>&1 \
+      || die "Release signature verification failed; refusing to run the uninstaller." "" 2
+  elif [ "$REQUIRE_SIGNATURE" = "true" ]; then
+    die "cosign is required (--require-signature) but is not installed." "install cosign" 2
+  fi
+  want="$(sha256_of "$WORK/uninstall.sh")"
+  grep -Eq "^$want[[:space:]]+\*?orion-agent-uninstall\.sh$" "$WORK/SHA256SUMS" || die "uninstaller failed checksum verification" "" 2
   chmod +x "$WORK/uninstall.sh"
   args=(); [ "$DRY_RUN" = "true" ] && args+=(--dry-run); [ "$ASSUME_YES" = "true" ] && args+=(--yes); [ "$PURGE" = "true" ] && args+=(--purge); [ "$USER_MODE" = "true" ] && args+=(--user)
-  if [ "$(id -u)" -ne 0 ] && [ "$USER_MODE" != "true" ]; then exec sudo "$WORK/uninstall.sh" ${args[@]+"${args[@]}"}; fi
-  exec "$WORK/uninstall.sh" ${args[@]+"${args[@]}"}
+  rc=0
+  if [ "$(id -u)" -ne 0 ] && [ "$USER_MODE" != "true" ]; then sudo "$WORK/uninstall.sh" ${args[@]+"${args[@]}"} || rc=$?
+  else "$WORK/uninstall.sh" ${args[@]+"${args[@]}"} || rc=$?; fi
+  exit "$rc"
 fi
 
 # ---------------------------------------------------------------- inputs

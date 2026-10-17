@@ -47,7 +47,7 @@ func runWizard(ctx context.Context, opts *Options) (setupPlan, error) {
 		f.Chmod(0o600)
 		f.WriteString(token)
 		f.Close()
-		plan.TokenFile = f.Name() // removed by the caller's process exit; contents are single use
+		plan.TokenFile = f.Name() // removed by applySetup once enrollment has run
 	}
 
 	var found discover.Result
