@@ -1,5 +1,5 @@
 import { Search, Settings } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { getToken } from "@/api/client";
 import { AccountMenu } from "@/components/shared/account-menu";
 import { OPEN_PALETTE_EVENT } from "@/components/shared/global-shortcut-events";
@@ -57,6 +57,9 @@ const useHealthChip = (): HealthChip => {
 export const AppHeader = () => {
   const chip = useHealthChip();
   const hasSession = Boolean(getToken());
+  const { pathname } = useLocation();
+  // Connecting an app starts from Overview, so that tab stays highlighted (canvas artboard).
+  const overviewOwns = pathname.startsWith("/apps/new");
 
   return (
     <header className="z-50 grid h-[52px] shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-4 border-b border-hairline bg-page px-5">
@@ -71,22 +74,26 @@ export const AppHeader = () => {
         aria-label="Primary navigation"
         className="flex gap-0.5 rounded-[9px] bg-tray p-[3px] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.03)]"
       >
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === "/"}
-            className={({ isActive }) =>
-              cn(
+        {navItems.map((item) => {
+          const active =
+            item.to === "/"
+              ? pathname === "/" || overviewOwns
+              : pathname === item.to || pathname.startsWith(`${item.to}/`);
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              aria-current={active ? "page" : undefined}
+              className={cn(
                 "whitespace-nowrap rounded-md px-[11px] py-[5px] text-[13px] leading-[18px] text-quiet hover:text-ink",
-                isActive &&
+                active &&
                   "bg-chip font-medium text-ink shadow-[0_1px_2px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.04)]",
-              )
-            }
-          >
-            {item.label}
-          </NavLink>
-        ))}
+              )}
+            >
+              {item.label}
+            </Link>
+          );
+        })}
       </nav>
       <div className="flex items-center justify-end gap-2.5">
         <button
