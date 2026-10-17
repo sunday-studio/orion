@@ -20,3 +20,4 @@ Maintained by the coordinator session. Threads (`orion:web`, `orion:design`, `or
 | D-004 | 2026-10-17 | New Core endpoints (retry delivery, dismiss incident candidate, run monitor test) are approved; backend thread owns them, OpenAPI regenerated. | UI screens imply them; they fit the existing resource model. | coordinator |
 | D-005 | 2026-10-17 | System sans-serif fallback is acceptable where GT America is unavailable. | Proprietary font licensing; no product impact. | coordinator |
 | D-006 | 2026-10-17 | Onboarding is a dismissible Overview card, not a dedicated route. | Less surface area, easier to ship. | coordinator |
+| D-007 | 2026-10-17 | Threads commit locally but do not push or open PRs without the user's explicit go-ahead; the reviewed, push-ready branch waits for the user. Coordinator does not grant push approval. | Push is outward-facing; user's standing rules covered commits only. | coordinator |
