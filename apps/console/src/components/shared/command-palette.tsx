@@ -6,6 +6,7 @@ import { cn } from "@/utils/cn";
 export const paletteDestinations = [
   { label: "Overview", to: "/" },
   { label: "Incidents", to: "/incidents" },
+  { label: "Triage", to: "/incidents/triage" },
   { label: "Servers", to: "/servers" },
   { label: "Monitors", to: "/monitors" },
   { label: "Alerts", to: "/alerts" },
