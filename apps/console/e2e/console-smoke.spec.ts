@@ -76,6 +76,7 @@ test("renders primary operations pages with seeded Core data", async ({ page }) 
     .getByRole("link", { name: "Logs", exact: true })
     .click();
   await expect(page.getByRole("heading", { name: "Logs" })).toBeVisible();
+  await page.getByRole("tab", { name: "Status logs" }).click();
   await expect(page.getByPlaceholder("Search events")).toBeVisible();
 
   await page.getByRole("banner").getByRole("link", { name: "Settings", exact: true }).click();
