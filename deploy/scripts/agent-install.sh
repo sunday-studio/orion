@@ -13,6 +13,7 @@ CORE_URL=""
 BINARY_PATH=""
 CONFIG_SOURCE=""
 TOKEN_FILE=""
+DOCKER_ACCESS="false"
 START_SERVICE="true"
 OVERWRITE_CONFIG="false"
 DRY_RUN="false"
@@ -33,6 +34,7 @@ usage() {
   printf '%s\n' "  --binary PATH        Agent binary to install. Defaults to ./apps/agent/orion-agent, then ./orion-agent."
   printf '%s\n' "  --config PATH        Existing config file to install instead of generating a minimal one."
   printf '%s\n' "  --enrollment-token-file F  One-time enrollment token; enrolls the host during install."
+  printf '%s\n' "  --docker-access      Add the service user to the docker group (root-equivalent) for Docker monitors and container metrics."
   printf '%s\n' "  --no-start           Install files without starting the service."
   printf '%s\n' "  --overwrite-config   Replace an existing installed config."
   printf '%s\n' "  --dry-run            Print install actions without changing the system."
@@ -230,6 +232,10 @@ while [ "$#" -gt 0 ]; do
       TOKEN_FILE="${2:-}"
       shift 2
       ;;
+    --docker-access)
+      DOCKER_ACCESS="true"
+      shift
+      ;;
     --no-start)
       START_SERVICE="false"
       shift
@@ -413,7 +419,9 @@ install_binary() {
 
 configure_linux_docker_access() {
   step "Docker access"
-  if getent group docker >/dev/null; then
+  if [ "$DOCKER_ACCESS" != "true" ]; then
+    skip "not granting docker group access (it is root-equivalent); re-run with --docker-access to enable Docker monitors and container metrics"
+  elif getent group docker >/dev/null; then
     run_cmd usermod -aG docker "$LINUX_USER"
     ok "added $LINUX_USER to docker group"
   else
