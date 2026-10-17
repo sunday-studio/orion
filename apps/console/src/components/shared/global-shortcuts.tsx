@@ -19,6 +19,7 @@ export const GlobalShortcuts = () => {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (!paletteOpen && !shortcutsOpen && document.querySelector('[role="dialog"]')) return;
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         setPaletteOpen((open) => !open);
@@ -31,7 +32,7 @@ export const GlobalShortcuts = () => {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [paletteOpen, shortcutsOpen]);
 
   return (
     <>
