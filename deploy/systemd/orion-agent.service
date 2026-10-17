@@ -16,8 +16,18 @@ RestartSec=10s
 StartLimitInterval=300
 StartLimitBurst=5
 
+# Control socket directory (/run/orion/agent.sock, group orion, mode 0660)
+RuntimeDirectory=orion
+RuntimeDirectoryMode=0750
+
 # Security settings
+CapabilityBoundingSet=
+AmbientCapabilities=
 NoNewPrivileges=true
+PrivateDevices=true
+ProtectClock=true
+ProtectHostname=true
+SystemCallArchitectures=native
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true

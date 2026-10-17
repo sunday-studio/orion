@@ -53,6 +53,13 @@ func runStop(_ context.Context, _ *Options) error {
 
 func runStatus(_ context.Context, opts *Options) error {
 	report := InspectAgentStatus(opts.StatePath)
+	if report.InternalState == nil {
+		// The state file is owned by the orion user; ask the daemon instead.
+		if st, err := controlClient(opts).Status(); err == nil {
+			report.InternalState = statusFromSocket(st)
+			report.StateCheck = DiagnosticCheck{Name: "state", Status: CheckOK, Detail: "via control socket"}
+		}
+	}
 	if opts.JSON {
 		return renderJSON(outputWriter, statusJSON(report))
 	}
