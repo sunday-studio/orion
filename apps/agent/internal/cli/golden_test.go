@@ -63,7 +63,16 @@ func goldenCheck(t *testing.T, name string, out []byte) {
 		t.Fatalf("%s: missing golden (run go test ./internal/cli -run Golden -update): %v", name, err)
 	}
 	if strings.TrimSpace(string(want)) != strings.TrimSpace(string(got)) {
-		keys := func(b []byte) []string { var m map[string]any; json.Unmarshal(b, &m); k := []string{}; for x := range m { k = append(k, x) }; sort.Strings(k); return k }
+		keys := func(b []byte) []string {
+			var m map[string]any
+			json.Unmarshal(b, &m)
+			k := []string{}
+			for x := range m {
+				k = append(k, x)
+			}
+			sort.Strings(k)
+			return k
+		}
 		t.Fatalf("%s: --json schema changed.\nwant keys %v\n got keys %v\nfull got:\n%s\n(rerun with -update if intentional, and bump schema_version for breaking changes)", name, keys(want), keys(got), got)
 	}
 }
