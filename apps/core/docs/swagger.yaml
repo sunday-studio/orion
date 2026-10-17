@@ -1860,6 +1860,11 @@ definitions:
         description: up | down
         type: string
       metrics: {}
+      report_id:
+        description: |-
+          ReportID is an optional agent-generated idempotency key (UUID). Replaying a
+          report with the same ID for the same monitor stores nothing new.
+        type: string
       timestamp:
         type: string
     required:

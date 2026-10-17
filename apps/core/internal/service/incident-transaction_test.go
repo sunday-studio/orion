@@ -95,3 +95,77 @@ func TestUniqueActiveIncidentIndexRejectsSecondActiveIncident(t *testing.T) {
 		t.Fatalf("resolved incident rejected: %v", err)
 	}
 }
+
+// A8: the same report ID posted 5 times stores one report and returns the same ID each time.
+func TestScenarioA8ReplayedReportIDStoresOneRow(t *testing.T) {
+	database := testkit.NewDB(t)
+	a, _ := testkit.TwoAgents(t, database, time.Now().UTC())
+	reports := NewReportService(database, utils.NewLogger(), &config.Config{})
+	payload := downPayload()
+	payload.ReportID = "0b0c9d56-7a40-4b0e-9f1a-aaaaaaaaaaaa"
+
+	var firstID string
+	for i := range 5 {
+		id, err := reports.StoreMonitorReport(a.Monitor.ID, payload)
+		if err != nil || id == nil {
+			t.Fatalf("replay %d: id=%v err=%v, want success every time", i, id, err)
+		}
+		if i == 0 {
+			firstID = *id
+		} else if *id != firstID {
+			t.Fatalf("replay %d returned %q, want original %q", i, *id, firstID)
+		}
+	}
+	var stored, incidents int64
+	database.Model(&db.MonitorReport{}).Where("monitor_id = ? AND client_report_id = ?", a.Monitor.ID, payload.ReportID).Count(&stored)
+	database.Model(&db.Incident{}).Where("monitor_id = ?", a.Monitor.ID).Count(&incidents)
+	if stored != 1 || incidents != 1 {
+		t.Fatalf("stored = %d incidents = %d, want 1 and 1", stored, incidents)
+	}
+
+	// A different report ID is a new report, and reports without an ID are never deduplicated.
+	payload.ReportID = "0b0c9d56-7a40-4b0e-9f1a-bbbbbbbbbbbb"
+	if _, err := reports.StoreMonitorReport(a.Monitor.ID, payload); err != nil {
+		t.Fatal(err)
+	}
+	noID := downPayload()
+	for range 2 {
+		if _, err := reports.StoreMonitorReport(a.Monitor.ID, noID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	database.Model(&db.MonitorReport{}).Where("monitor_id = ? AND id LIKE ?", a.Monitor.ID, "monitor_report-%").Count(&stored)
+	if stored != 4 {
+		t.Fatalf("total new reports = %d, want 4 (1 + 1 + 2 without ids)", stored)
+	}
+}
+
+// A failed reconcile must roll the report back so the agent's retry is not a silent no-op.
+func TestFailedReconcileRollsBackReportSoRetryRecovers(t *testing.T) {
+	database := testkit.NewDB(t)
+	a, _ := testkit.TwoAgents(t, database, time.Now().UTC())
+	createTestAlertChannel(t, database, db.AlertChannel{Name: "ops", Type: "webhook", Enabled: true, WebhookURL: "https://alerts.example.com/hook"})
+	reports := NewReportService(database, utils.NewLogger(), &config.Config{})
+	payload := downPayload()
+	payload.ReportID = "retry-me"
+
+	database.Exec("ALTER TABLE alert_deliveries RENAME TO alert_deliveries_broken")
+	if _, err := reports.StoreMonitorReport(a.Monitor.ID, payload); err == nil {
+		t.Fatal("StoreMonitorReport() = nil error with broken delivery table")
+	}
+	var stored int64
+	database.Model(&db.MonitorReport{}).Where("client_report_id = ?", "retry-me").Count(&stored)
+	if stored != 0 {
+		t.Fatalf("report rows after failed ingest = %d, want 0 (rolled back)", stored)
+	}
+
+	database.Exec("ALTER TABLE alert_deliveries_broken RENAME TO alert_deliveries")
+	if _, err := reports.StoreMonitorReport(a.Monitor.ID, payload); err != nil {
+		t.Fatalf("retry error = %v", err)
+	}
+	var incidents int64
+	database.Model(&db.Incident{}).Where("monitor_id = ?", a.Monitor.ID).Count(&incidents)
+	if incidents != 1 {
+		t.Fatalf("incidents after retry = %d, want 1 (page not lost)", incidents)
+	}
+}

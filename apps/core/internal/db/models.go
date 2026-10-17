@@ -182,12 +182,14 @@ type Monitor struct {
 }
 
 type MonitorReport struct {
-	ID          string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
-	MonitorID   string    `json:"monitor_id" gorm:"index:idx_monitor_reports_monitor_id;not null"`
-	Payload     string    `json:"payload" gorm:"type:text;not null"`
-	CollectedAt string    `json:"collected_at" gorm:"not null"`
-	Health      string    `json:"health" gorm:"not null"` // up | down
-	CreatedAt   time.Time `json:"created_at" gorm:"index:idx_monitor_reports_created_at"`
+	ID          string `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	MonitorID   string `json:"monitor_id" gorm:"index:idx_monitor_reports_monitor_id;not null"`
+	Payload     string `json:"payload" gorm:"type:text;not null"`
+	CollectedAt string `json:"collected_at" gorm:"not null"`
+	Health      string `json:"health" gorm:"not null"` // up | down
+	// ClientReportID is the agent-generated idempotency key; empty for reports without one.
+	ClientReportID string    `json:"-" gorm:"not null;default:''"`
+	CreatedAt      time.Time `json:"created_at" gorm:"index:idx_monitor_reports_created_at"`
 }
 
 type MonitorUptimeRollup struct {
