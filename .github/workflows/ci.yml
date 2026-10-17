@@ -334,7 +334,7 @@ jobs:
         run: docker build -f apps/core/Dockerfile -t orion-core:ci .
 
       - name: Scan image for HIGH and CRITICAL vulnerabilities
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: orion-core:ci
           severity: HIGH,CRITICAL
