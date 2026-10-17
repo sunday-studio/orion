@@ -29,6 +29,10 @@ type Options struct {
 	SetupCoreURL   string
 	SetupForce     bool
 	SetupInitState bool
+	SetupYes       bool
+	SetupDryRun    bool
+	SetupTokenFile string
+	SetupMonitors  []string
 	UpdateVersion  string
 	UpdateRepo     string
 	UpdateBaseURL  string
@@ -151,6 +155,7 @@ func NewRootCommand(ctx context.Context, opts *Options, out, errOut io.Writer) *
 		newRunCommand(ctx, opts),
 		newDoctorCommand(ctx, opts),
 		newSetupCommand(ctx, opts),
+		newDiscoverCommand(ctx, opts),
 		newEnrollCommand(ctx, opts),
 		newMaintenanceCommand(ctx, opts),
 		newConfigCommand(ctx, opts),

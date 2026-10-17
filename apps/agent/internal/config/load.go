@@ -64,7 +64,13 @@ func Env(name string) (string, error) {
 // Load builds the effective configuration: base file, then config.d drop-ins
 // in lexical order, then environment overrides. A missing base file is fine
 // when ORION_CORE_URL is set (zero-config).
-func Load(path string) (*UserConfig, Source, error) {
+func Load(path string) (*UserConfig, Source, error) { return load(path, true) }
+
+// LoadRaw is Load without filling defaults, for tools that write the config
+// back and must not pin default values (such as log paths) into the file.
+func LoadRaw(path string) (*UserConfig, Source, error) { return load(path, false) }
+
+func load(path string, defaults bool) (*UserConfig, Source, error) {
 	src := Source{File: path}
 	cfg := UserConfig{}
 	var lines []monitorLine
@@ -110,12 +116,16 @@ func Load(path string) (*UserConfig, Source, error) {
 		return nil, src, err
 	}
 	src.EnvKeys = envKeys
-	if cfg.Interval == "" {
-		cfg.Interval = DefaultInterval
+	checked := cfg
+	if checked.Interval == "" {
+		checked.Interval = DefaultInterval
 	}
-	cfg.ApplyDefaults()
-	if err := cfg.Validate(); err != nil {
+	checked.ApplyDefaults()
+	if err := checked.Validate(); err != nil {
 		return nil, src, locate(err, lines, path)
+	}
+	if defaults {
+		return &checked, src, nil
 	}
 	return &cfg, src, nil
 }

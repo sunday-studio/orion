@@ -59,6 +59,8 @@ func commandNeedsElevation(command string, args []string) bool {
 	switch command {
 	case "start", "stop", "restart", "update", "reconfigure":
 		return true
+	case "setup", "enroll":
+		return !pathWritable(argValue(args, "config", defaultConfigPath()))
 	case "maintenance", "state", "token":
 		return !argsSetPath(args, "state")
 	case "run":
@@ -91,4 +93,40 @@ func argsSetPath(args []string, name string) bool {
 		}
 	}
 	return false
+}
+
+// argValue returns the value of --name from args, or def.
+func argValue(args []string, name, def string) string {
+	short, long := "-"+name, "--"+name
+	for i, arg := range args {
+		if (arg == short || arg == long) && i+1 < len(args) {
+			return args[i+1]
+		}
+		for _, p := range []string{short + "=", long + "="} {
+			if strings.HasPrefix(arg, p) {
+				return strings.TrimPrefix(arg, p)
+			}
+		}
+	}
+	return def
+}
+
+// pathWritable reports whether the current user can write the file, or create
+// it in its directory.
+func pathWritable(path string) bool {
+	if f, err := os.OpenFile(path, os.O_WRONLY, 0); err == nil {
+		f.Close()
+		return true
+	}
+	if _, err := os.Stat(path); err == nil {
+		return false
+	}
+	dir := filepath.Dir(path)
+	tmp, err := os.CreateTemp(dir, ".orion-write-test-*")
+	if err != nil {
+		return false
+	}
+	tmp.Close()
+	os.Remove(tmp.Name())
+	return true
 }
