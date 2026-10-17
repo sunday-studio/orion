@@ -1,10 +1,14 @@
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import {
   OPEN_PALETTE_EVENT,
   OPEN_SHORTCUTS_EVENT,
 } from "@/components/shared/global-shortcut-events";
-import { CommandPalette } from "@/components/shared/command-palette";
-import { ShortcutsSheet } from "@/components/shared/shortcuts-sheet";
+const CommandPalette = lazy(() =>
+  import("@/components/shared/command-palette").then((m) => ({ default: m.CommandPalette })),
+);
+const ShortcutsSheet = lazy(() =>
+  import("@/components/shared/shortcuts-sheet").then((m) => ({ default: m.ShortcutsSheet })),
+);
 
 const isTyping = (target: EventTarget | null) => {
   const element = target as HTMLElement | null;
@@ -47,9 +51,9 @@ export const GlobalShortcuts = () => {
   }, [paletteOpen, shortcutsOpen]);
 
   return (
-    <>
-      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
-      <ShortcutsSheet open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
-    </>
+    <Suspense fallback={null}>
+      {paletteOpen && <CommandPalette open onOpenChange={setPaletteOpen} />}
+      {shortcutsOpen && <ShortcutsSheet open onOpenChange={setShortcutsOpen} />}
+    </Suspense>
   );
 };

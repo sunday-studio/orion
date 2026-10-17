@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./design-system/tokens.css";
 
 @font-face {
   font-family: "GT America Standard";
@@ -104,37 +105,8 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-@theme {
-  --color-page: #ffffff;
-  --color-field: #f7f7f6;
-  --color-sub: #fafaf9;
-  --color-hairline: #ececea;
-  --color-input-border: #e4e4e7;
-  --color-ink: #18181b;
-  --color-quiet: #71717a;
-  --color-faint: #a1a1aa;
-  --color-brand: #1f7a50;
-  --color-brand-chart: #2a9f69;
-  --color-focus: rgba(31, 122, 80, 0.22);
-  --color-destructive: #e5484d;
-  --color-dot-down: #e5484d;
-  --color-dot-warn: #f59e0b;
-  --color-dot-up: #2a9f69;
-  --color-dot-idle: #a1a1aa;
-}
-
 :root {
   font-weight: 100 900;
-
-  /*
-   * Typeface: TWK Lausanne when licensed files are loaded, system sans otherwise (D-005, D-010).
-   * To ship the licence, add @font-face rules for "TWK Lausanne" (300, 500) and the stack
-   * below already prefers it. Do not commit trial fonts.
-   */
-  --font-sans: "TWK Lausanne", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  /* 300 is the TWK Lausanne text cut; system sans reads better at 400. */
-  --font-weight-body: 400;
 }
 
 body {
