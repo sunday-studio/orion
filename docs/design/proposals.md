@@ -1,3 +1,5 @@
+> Status note (2026-10-17): this is the original proposals list. Items that were drawn are in `screen-map.md` section 7 and `implementation-handoff.md` section 3; `design-language.md` is the current spec. Older notes about the sidebar shell and dark mission control are superseded.
+
 # Orion Console: feature and implementation proposals
 
 Date: 2026-10-14. Companion to `screen-map.md` and `design-language.md`. The canvas carries a purple note per page marking these. Nothing here is built; every API item needs Core route annotations, OpenAPI and `docs/agent-core-contract.md` review first.

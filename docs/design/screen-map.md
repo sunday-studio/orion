@@ -31,7 +31,7 @@ Terminology: the UI says "Servers" for what Core calls Agents (`/servers`, `/v1/
 | 15 | Core worker diagnostics panel | Monitors | E |
 | 16 | Report inspection drawer (raw report payload) | Monitor / Server detail | E |
 | 17 | Incident action dialogs: acknowledge, cover, resolve, reopen | Incident detail | E |
-| 18 | Webhook / chat channel dialog, delete channel dialog, send test | Alerts > Channels | E |
+| 18 | Channel dialogs, Webhook and Email only (Slack, Discord and Telegram are out of scope): type picker, webhook form (secret, headers), email form (confirmed recipients), delete, send test, test results | Alerts > Channels | E (to rework) |
 | 19 | Alert rule editor dialog + flow node view + dry-run | Alerts > Rules | E |
 | 20 | Alert route create/edit + dry-run | Alerts | P (API exists, UI folded into rules) |
 | 21 | Server token panel: status, rotate, reissue, revoke | Server detail | E |
@@ -79,12 +79,15 @@ Terminology: the UI says "Servers" for what Core calls Agents (`/servers`, `/v1/
 | 53 | 404 / route error / Core unreachable | resilience | N |
 | 54 | Global states: loading skeleton, empty, error, offline banner | every list | P (EmptyState exists) |
 
-## 4a. Decisions (2026-10-14)
+## 4a. Decisions
 
-- Canvas is the source of truth: Overview is the first nav item, as drawn (restored 2026-10-14 after a brief removal).
-- New Core endpoints approved, each needs route annotations, OpenAPI and `docs/agent-core-contract.md` review before the UI ships: retry delivery, dismiss incident candidate, run test (monitor test result payload).
-- GT America Standard is required, no system-sans fallback is designed. The canvas cannot embed the licensed font, so previews render a stand-in; the Console must self-host licensed files.
-- Onboarding is a dismissible card on Overview, not a route.
+Authoritative log: `docs/plans/decision-log.md`. Applied here:
+
+- D-003: Overview is the first nav item and `/` lands on it (rows 38, 36).
+- D-004: new Core endpoints approved, each needs route annotations, OpenAPI and `docs/agent-core-contract.md` review before the UI ships: retry delivery (`POST /v1/alerts/deliveries/{id}/retry`), dismiss incident candidate (`POST /v1/incidents/candidates/{id}/dismiss`), run monitor test (richer result payload).
+- D-005: a system sans fallback is acceptable. Owner amendment 2026-10-17: the typeface is TWK Lausanne (300 and 500), not GT America; see `design-language.md` section 4.
+- D-006: onboarding is a dismissible card on Overview, not a route. The first-run artboard is the Overview route in its empty state.
+- Owner decision 2026-10-17: alert channels are Webhook and Email only.
 
 ## 4b. Artboards added after the first pass
 
@@ -93,6 +96,8 @@ Unsubscribe by token (34, `public-unsubscribe`), status badge SVG (35, `status-b
 - Redesign 2026-10-15: shell, tokens and all screens were rebuilt; see `design-language.md` v2. Screen numbers are unchanged. New in the redesign: Overview hero, incident detail two-column layout, response-time chart on monitor detail, channels as cards, public pages polish.
 
 ## 5. Flows
+
+Flows 1 to 9 are described below; flows 10 to 20 (webhook channel, email channel, failed delivery, investigate logs, server lifecycle, manual incident, bulk actions, publish a status page, triage candidate, account and session, API tokens) are on the Flows artboard.
 
 1. **First run**: install Core -> login -> onboarding checklist -> add server -> create monitor -> add channel -> create rule -> publish status page.
 2. **Add server**: Servers > Add server -> copy install command -> agent registers (`/v1/register`) -> token shown once -> server appears Up.
@@ -106,7 +111,7 @@ Unsubscribe by token (34, `public-unsubscribe`), status badge SVG (35, `status-b
 
 ## 6. Totals
 
-Existing routes 11, redirects 1, overlays 14, public 9, missing 19. Canvas covers all of 1-54 grouped into pages (see artifact).
+Existing routes 11, redirects 1, overlays 14, public 9, missing 19 (rows 1 to 54), plus the 41 screens listed in section 7. Canvas covers all of them, grouped into pages (see artifact).
 
 ## 7. Added in the flows pass (2026-10-17)
 
