@@ -588,6 +588,40 @@ definitions:
         example: event
         type: string
     type: object
+  internal_api.HealthIssue:
+    properties:
+      agent_id:
+        type: string
+      agent_name:
+        type: string
+      health:
+        description: Health is the computed health that makes this an issue.
+        enum:
+        - down
+        - degraded
+        - stale
+        type: string
+      issue_type:
+        description: IssueType is "stale_data" for stale monitors and omitted otherwise.
+        enum:
+        - stale_data
+        type: string
+      monitor_id:
+        type: string
+      monitor_name:
+        type: string
+      monitor_type:
+        type: string
+    type: object
+  internal_api.HealthIssuesResponse:
+    properties:
+      count:
+        type: integer
+      issues:
+        items:
+          $ref: '#/definitions/internal_api.HealthIssue'
+        type: array
+    type: object
   internal_api.HeartbeatSignalResponse:
     properties:
       health:
@@ -618,6 +652,49 @@ definitions:
         $ref: '#/definitions/internal_api.IncidentActionStateResponse'
       resolve:
         $ref: '#/definitions/internal_api.IncidentActionStateResponse'
+    type: object
+  internal_api.IncidentCandidate:
+    properties:
+      agent_id:
+        type: string
+      agent_name:
+        type: string
+      down_count:
+        description: DownCount is how many of the last 5 reports were down.
+        type: integer
+      health:
+        enum:
+        - down
+        - degraded
+        - stale
+        type: string
+      issue_type:
+        enum:
+        - stale_data
+        type: string
+      monitor_id:
+        type: string
+      monitor_name:
+        type: string
+      monitor_type:
+        type: string
+      severity:
+        description: 'Severity is derived from recent failures: high (3+ of the last
+          5 reports down), medium, low; stale monitors are high.'
+        enum:
+        - low
+        - medium
+        - high
+        type: string
+    type: object
+  internal_api.IncidentCandidatesResponse:
+    properties:
+      candidates:
+        items:
+          $ref: '#/definitions/internal_api.IncidentCandidate'
+        type: array
+      count:
+        type: integer
     type: object
   internal_api.IncidentComponentImpactResponse:
     properties:
@@ -5539,14 +5616,7 @@ paths:
             - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
-                  properties:
-                    count:
-                      type: integer
-                    issues:
-                      items:
-                        type: object
-                      type: array
-                  type: object
+                  $ref: '#/definitions/internal_api.HealthIssuesResponse'
               type: object
         "500":
           description: Internal Server Error
@@ -6083,14 +6153,7 @@ paths:
             - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
-                  properties:
-                    candidates:
-                      items:
-                        type: object
-                      type: array
-                    count:
-                      type: integer
-                  type: object
+                  $ref: '#/definitions/internal_api.IncidentCandidatesResponse'
               type: object
         "500":
           description: Internal Server Error

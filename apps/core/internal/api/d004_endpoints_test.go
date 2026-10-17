@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"orion/core/internal/db"
@@ -100,5 +101,61 @@ func TestDismissIncidentCandidateHidesUntilMonitorRecovers(t *testing.T) {
 
 	if r := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/candidates/missing/dismiss", nil, ""); r.Code != http.StatusNotFound {
 		t.Fatalf("dismiss unknown status = %d, want 404", r.Code)
+	}
+}
+
+// The typed schemas must describe what the handlers really return.
+func TestHealthIssuesAndCandidatesMatchTheirTypedSchemas(t *testing.T) {
+	server := setupTestServer(t)
+	agent := registerTestAgent(t, server)
+	now := time.Now().UTC()
+	server.db.Create(&db.Monitor{ID: "m-down", AgentID: agent.Data.AgentID, Name: "api", Type: "http", Lifecycle: "active", Health: "down", ReportingIntervalSeconds: 60, CreatedAt: now})
+	server.db.Create(&db.MonitorReport{ID: "r-down", MonitorID: "m-down", Payload: "{}", CollectedAt: now.Format(time.RFC3339), Health: "down", CreatedAt: now})
+	old := now.Add(-time.Hour)
+	server.db.Create(&db.Monitor{ID: "m-stale", AgentID: agent.Data.AgentID, Name: "worker", Type: "tcp", Lifecycle: "active", Health: "up", ReportingIntervalSeconds: 60, CreatedAt: old})
+
+	var issues struct {
+		Data HealthIssuesResponse `json:"data"`
+	}
+	var candidates struct {
+		Data IncidentCandidatesResponse `json:"data"`
+	}
+	type apiEnvelope struct {
+		Success bool   `json:"success"`
+		Message string `json:"message"`
+		Error   string `json:"error,omitempty"`
+	}
+	decodeLoose := func(path string, data any) {
+		resp := performJSONRequest(t, server, http.MethodGet, path, nil, "")
+		var raw struct {
+			apiEnvelope
+			Data json.RawMessage `json:"data"`
+		}
+		json.Unmarshal(resp.Body.Bytes(), &raw)
+		dec := json.NewDecoder(bytes.NewReader(raw.Data))
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(data); err != nil {
+			t.Fatalf("%s data does not match its typed schema: %v\n%s", path, err, raw.Data)
+		}
+	}
+	decodeLoose("/v1/health/issues", &issues.Data)
+	decodeLoose("/v1/incidents/candidates", &candidates.Data)
+
+	healths := map[string]string{}
+	for _, i := range issues.Data.Issues {
+		healths[i.MonitorID] = i.Health
+		if i.AgentName == "" || i.MonitorName == "" {
+			t.Errorf("issue %+v is missing names", i)
+		}
+	}
+	if healths["m-down"] != "down" || healths["m-stale"] != "stale" || issues.Data.Count != len(issues.Data.Issues) {
+		t.Fatalf("issues = %+v, want m-down down and m-stale stale", issues.Data)
+	}
+	severities := map[string]string{}
+	for _, c := range candidates.Data.Candidates {
+		severities[c.MonitorID] = c.Severity
+	}
+	if severities["m-down"] == "" || severities["m-stale"] != "high" {
+		t.Fatalf("candidates = %+v", candidates.Data)
 	}
 }
