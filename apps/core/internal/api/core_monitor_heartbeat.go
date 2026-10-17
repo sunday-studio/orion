@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -57,8 +58,48 @@ func (s *Server) receiveHeartbeatFailure(c *gin.Context) {
 	s.receiveHeartbeatSignal(c, "down")
 }
 
+// receiveHeartbeatSuccessHeader records a success signal; the token travels in the Authorization header.
+// @Summary      Record heartbeat success (header token)
+// @Description  Same as the path-token form, but the token is sent as `Authorization: Bearer <token>` so it never lands in URLs, proxy access logs or shell history.
+// @Tags         heartbeats
+// @Accept       json
+// @Produce      json
+// @ID           receiveHeartbeatSuccessHeader
+// @Security     HeartbeatBearer
+// @Success      200    {object}  utils.APIResponse{data=HeartbeatSignalResponse}
+// @Failure      401    {object}  utils.APIResponse
+// @Failure      500    {object}  utils.APIResponse
+// @Router       /v1/heartbeat/success [post]
+func (s *Server) receiveHeartbeatSuccessHeader(c *gin.Context) { s.receiveHeartbeatSignal(c, "up") }
+
+// receiveHeartbeatFailureHeader records a failure signal; the token travels in the Authorization header.
+// @Summary      Record heartbeat failure (header token)
+// @Description  Same as the path-token form, but the token is sent as `Authorization: Bearer <token>`.
+// @Tags         heartbeats
+// @Accept       json
+// @Produce      json
+// @ID           receiveHeartbeatFailureHeader
+// @Security     HeartbeatBearer
+// @Success      200    {object}  utils.APIResponse{data=HeartbeatSignalResponse}
+// @Failure      401    {object}  utils.APIResponse
+// @Failure      500    {object}  utils.APIResponse
+// @Router       /v1/heartbeat/failure [post]
+func (s *Server) receiveHeartbeatFailureHeader(c *gin.Context) { s.receiveHeartbeatSignal(c, "down") }
+
+// heartbeatToken reads the token from the path (legacy) or an Authorization bearer header.
+func heartbeatToken(c *gin.Context) string {
+	if token := c.Param("token"); token != "" {
+		return token
+	}
+	header := strings.TrimSpace(c.GetHeader("Authorization"))
+	if len(header) > 7 && strings.EqualFold(header[:7], "bearer ") {
+		return strings.TrimSpace(header[7:])
+	}
+	return ""
+}
+
 func (s *Server) receiveHeartbeatSignal(c *gin.Context, health string) {
-	record, err := s.coreMonitorManagementService.GetHeartbeatMonitorByToken(c.Param("token"))
+	record, err := s.coreMonitorManagementService.GetHeartbeatMonitorByToken(heartbeatToken(c))
 	if err != nil {
 		if errors.Is(err, service.ErrCoreManagedMonitorNotFound) {
 			utils.Unauthorized(c, "Invalid heartbeat token")

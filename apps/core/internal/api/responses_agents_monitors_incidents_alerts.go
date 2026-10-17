@@ -18,6 +18,8 @@ type OrionEventResponse struct {
 	MonitorID  string    `json:"monitor_id,omitempty"`
 	IncidentID string    `json:"incident_id,omitempty"`
 	CreatedAt  time.Time `json:"created_at"`
+
+	rowID string // source row id; pairs with CreatedAt as the keyset sort key
 }
 
 func agentResponse(agent db.Agent) AgentResponse {
