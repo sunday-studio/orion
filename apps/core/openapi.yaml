@@ -6080,6 +6080,10 @@ paths:
                 data:
                   $ref: '#/definitions/internal_api.EnrollmentCreatedResponse'
               type: object
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
