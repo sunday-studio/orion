@@ -192,7 +192,7 @@ func TestAlertServiceWebhookUsesPayloadV1(t *testing.T) {
 		t.Fatalf("create agent: %v", err)
 	}
 	if err := database.Create(&db.Monitor{
-		ID:             "monitor-1",
+		ID:             "monitor-incident-1",
 		Type:           "http",
 		Name:           "Homepage",
 		AgentID:        "agent-1",
@@ -362,7 +362,7 @@ func createTestIncident(t *testing.T, database *gorm.DB, incidentID string) {
 		Severity:           "high",
 		Title:              "homepage is down",
 		AgentID:            "agent-1",
-		MonitorID:          "monitor-1",
+		MonitorID:          "monitor-" + incidentID,
 		OpenedAt:           now,
 		LastEventAt:        now,
 		LatestEvent:        "Monitor homepage reported down",
