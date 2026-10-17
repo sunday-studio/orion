@@ -317,7 +317,7 @@ func (s *IncidentService) ReconcileStaleMonitors(agentID string) error {
 	}
 
 	healthService := NewHealthService(s.db, s.logger)
-	staleMonitors, err := healthService.DetectStaleMonitors(DefaultHealthConfig())
+	staleMonitors, err := healthService.DetectStaleMonitorsForAgent(agentID, DefaultHealthConfig())
 	if err != nil {
 		reconcileErr = err
 		return err

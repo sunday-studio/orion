@@ -64,7 +64,7 @@ func TestAppDispatchAlertsProcessesDueDeliveries(t *testing.T) {
 
 func TestAppSweepSilentMonitorsOpensIncidentForQuietAgentMonitor(t *testing.T) {
 	database := openWorkerMigratedTestDatabase(t)
-	app := NewApp(database, utils.NewLogger(), Options{Config: &config.Config{}})
+	app := NewApp(database, utils.NewLogger(), Options{Config: &config.Config{}, SweepBootGrace: -1})
 	if app.sweepEvery != defaultSweepInterval {
 		t.Fatalf("sweepEvery = %v, want %v", app.sweepEvery, defaultSweepInterval)
 	}
@@ -84,5 +84,30 @@ func TestAppSweepSilentMonitorsOpensIncidentForQuietAgentMonitor(t *testing.T) {
 	database.Model(&db.Incident{}).Where("monitor_id = ? AND status = ?", monitor.ID, "open").Count(&count)
 	if count != 1 {
 		t.Fatalf("open incidents = %d, want 1 from the Worker sweep", count)
+	}
+}
+
+func TestAppSweepWaitsForBootGraceAfterStart(t *testing.T) {
+	database := openWorkerMigratedTestDatabase(t)
+	app := NewApp(database, utils.NewLogger(), Options{Config: &config.Config{}})
+	if app.sweepBootGrace != defaultSweepBootGrace {
+		t.Fatalf("sweepBootGrace = %v, want %v", app.sweepBootGrace, defaultSweepBootGrace)
+	}
+	old := time.Now().UTC().Add(-time.Hour)
+	database.Create(&db.Agent{ID: "agent-boot", MachineId: "machine-boot", Name: "boot", OS: "linux", Arch: "amd64", Token: "t", LastSeen: old})
+	database.Create(&db.Monitor{ID: "monitor-boot", AgentID: "agent-boot", Name: "api", Type: "http", Lifecycle: "active", Health: "up", ComputedHealth: "up", IncidentState: "up", ReportingIntervalSeconds: 60, CreatedAt: old})
+
+	app.sweepSilentMonitors()
+	var count int64
+	database.Model(&db.Incident{}).Count(&count)
+	if count != 0 {
+		t.Fatalf("incidents during boot grace = %d, want 0 (no storm after restart)", count)
+	}
+
+	app.startedAt = time.Now().UTC().Add(-2 * time.Minute)
+	app.sweepSilentMonitors()
+	database.Model(&db.Incident{}).Count(&count)
+	if count != 1 {
+		t.Fatalf("incidents after boot grace = %d, want 1", count)
 	}
 }

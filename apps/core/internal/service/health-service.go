@@ -141,24 +141,21 @@ func (s *HealthService) computeMonitorHealthInternal(monitorID string, reporting
 		return "unknown", nil
 	}
 
-	// Check for stale data
+	// Staleness uses when Core received the report, never the agent-supplied
+	// collected_at, so a skewed or future-dated agent clock cannot hide an outage.
 	latestReport := reports[0]
-	latestTime, err := time.Parse(time.RFC3339, latestReport.CollectedAt)
-	if err != nil {
-		// Try alternative format
-		latestTime, err = time.Parse("2006-01-02T15:04:05Z", latestReport.CollectedAt)
-		if err != nil {
-			s.logger.Warn("Failed to parse report timestamp", "monitor_id", monitorID, "timestamp", latestReport.CollectedAt)
-			return "unknown", nil
-		}
-	}
-
-	if isStaleAt(latestTime, reportingIntervalSeconds, config) {
+	if isStaleAt(latestReport.CreatedAt, reportingIntervalSeconds, config) {
 		return "stale", nil
 	}
 
 	// Check current health
 	currentHealth := latestReport.Health
+
+	// An active outage is never softened to "degraded" by history: if the latest
+	// report is down the monitor is down.
+	if currentHealth == "down" {
+		return "down", nil
+	}
 
 	// Check for flapping (rapid up/down transitions)
 	if s.isFlapping(reports, config.FlappingThreshold) {
@@ -392,10 +389,22 @@ func plural(count int) string {
 
 // DetectStaleMonitors finds monitors with stale data
 func (s *HealthService) DetectStaleMonitors(config HealthComputationConfig) ([]db.Monitor, error) {
-	var monitors []db.Monitor
+	return s.detectStaleMonitors("", config)
+}
 
-	// Get all active monitors
-	if err := s.db.Where("lifecycle = ?", "active").Find(&monitors).Error; err != nil {
+// DetectStaleMonitorsForAgent is DetectStaleMonitors limited to one agent's
+// monitors, so per-report reconciliation does not scan every monitor in Core.
+func (s *HealthService) DetectStaleMonitorsForAgent(agentID string, config HealthComputationConfig) ([]db.Monitor, error) {
+	return s.detectStaleMonitors(agentID, config)
+}
+
+func (s *HealthService) detectStaleMonitors(agentID string, config HealthComputationConfig) ([]db.Monitor, error) {
+	var monitors []db.Monitor
+	query := s.db.Where("lifecycle = ?", "active")
+	if agentID != "" {
+		query = query.Where("agent_id = ?", agentID)
+	}
+	if err := query.Find(&monitors).Error; err != nil {
 		return nil, err
 	}
 
@@ -405,27 +414,14 @@ func (s *HealthService) DetectStaleMonitors(config HealthComputationConfig) ([]d
 		if err := s.db.Where("monitor_id = ?", monitor.ID).
 			Order("created_at DESC").
 			First(&latestReport).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
-				if isStaleAt(monitor.CreatedAt, monitor.ReportingIntervalSeconds, config) {
-					staleMonitors = append(staleMonitors, monitor)
-				}
+			if err == gorm.ErrRecordNotFound && isStaleAt(monitor.CreatedAt, monitor.ReportingIntervalSeconds, config) {
+				staleMonitors = append(staleMonitors, monitor)
 			}
 			continue
 		}
-
-		latestTime, err := time.Parse(time.RFC3339, latestReport.CollectedAt)
-		if err != nil {
-			latestTime, err = time.Parse("2006-01-02T15:04:05Z", latestReport.CollectedAt)
-			if err != nil {
-				staleMonitors = append(staleMonitors, monitor)
-				continue
-			}
-		}
-
-		if isStaleAt(latestTime, monitor.ReportingIntervalSeconds, config) {
+		if isStaleAt(latestReport.CreatedAt, monitor.ReportingIntervalSeconds, config) {
 			staleMonitors = append(staleMonitors, monitor)
 		}
 	}
-
 	return staleMonitors, nil
 }
