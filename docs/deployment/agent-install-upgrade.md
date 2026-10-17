@@ -296,3 +296,16 @@ For a home server deployment, prefer a stable local address for `core_url`:
 
 Use HTTPS if Core is exposed outside a trusted local network. Keep Server traffic on Tailscale or a
 private LAN when possible.
+
+## Enrollment secret
+
+When Core sets `ORION_ENROLLMENT_TOKEN`, new agents must present the same value when they first register. Export it before running the bootstrap or installer so it never appears in a process listing:
+
+```sh
+export ORION_ENROLLMENT_TOKEN='<secret>'
+curl -fsSL <bootstrap-url> | sudo -E bash -s -- --core-url https://core.example.com
+```
+
+The installer writes it as `enrollment_token` into a newly generated config (mode `0600`). An agent that is already registered does not need it again. The agent also reads `ORION_ENROLLMENT_TOKEN` from its environment, which overrides the config file.
+
+Agent identity: the agent keeps a `machine-identity.json` next to its state database. If that directory is copied to another host (a cloned VM or image) the hostname or `/etc/machine-id` no longer match and the agent registers as a new, distinct agent instead of impersonating the original.

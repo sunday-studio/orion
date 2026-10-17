@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -46,7 +47,7 @@ func (s *RegistrationService) RegisterAgentIfNeeded() error {
 		return nil
 	}
 
-	uuid, err := utils.GenerateAgentUUID()
+	uuid, err := utils.ResolveAgentIdentity(filepath.Join(filepath.Dir(s.stateStore.Path()), "machine-identity.json"))
 	if err != nil {
 		return fmt.Errorf("failed to generate agent UUID: %w", err)
 	}

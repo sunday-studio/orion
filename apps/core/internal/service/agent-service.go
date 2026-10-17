@@ -127,52 +127,9 @@ func (s *AgentService) RegisterAgent(req *RegisterRequest) (*RegisterResponse, e
 	if agent.TokenRevokedAt != nil {
 		return nil, ErrAgentTokenRevoked
 	}
-	if agent.TokenHash != "" {
-		return nil, ErrAgentTokenReissueRequired
-	}
-
-	// Update metadata if it has changed (OS, arch, name may change after system updates)
-	updates := make(map[string]any)
-	updates["last_seen"] = time.Now()
-	if req.ReportingIntervalSeconds > 0 && agent.ReportingIntervalSeconds != req.ReportingIntervalSeconds {
-		updates["reporting_interval_seconds"] = req.ReportingIntervalSeconds
-	}
-
-	if agent.Name != req.Name {
-		s.logger.Info("Agent name changed", "old_name", agent.Name, "new_name", req.Name, "agent_id", agent.ID)
-		updates["name"] = req.Name
-	}
-
-	if agent.OS != req.OS {
-		s.logger.Info("Agent OS changed", "old_os", agent.OS, "new_os", req.OS, "agent_id", agent.ID)
-		updates["os"] = req.OS
-	}
-
-	if agent.Arch != req.Arch {
-		s.logger.Info("Agent arch changed", "old_arch", agent.Arch, "new_arch", req.Arch, "agent_id", agent.ID)
-		updates["arch"] = req.Arch
-	}
-
-	if req.Meta != "" {
-		updates["meta"] = req.Meta
-	}
-
-	// Only update if there are changes
-	if len(updates) > 0 {
-		if err := s.db.Model(&agent).Updates(updates).Error; err != nil {
-			s.logger.Error("Failed to update agent on reconnection", "error", err, "agent_id", agent.ID)
-			// Don't fail registration if update fails, just log it
-		} else {
-			s.logger.Info("Agent metadata updated on reconnection", "agent_id", agent.ID, "updates", updates)
-		}
-	}
-
-	s.logger.Info("Agent reconnected", "machine_id", req.MachineId, "agent_id", agent.ID, "name", agent.Name)
-
-	return &RegisterResponse{
-		AgentID: agent.ID,
-		Token:   agent.Token,
-	}, nil
+	// Every agent token is stored hashed, so Core cannot hand a token back on
+	// re-registration; the operator reissues one (rotate/reissue endpoints).
+	return nil, ErrAgentTokenReissueRequired
 }
 
 func (s *AgentService) createNewAgent(req *RegisterRequest) (*RegisterResponse, error) {
