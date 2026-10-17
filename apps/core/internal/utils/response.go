@@ -103,7 +103,12 @@ func SuccessResponse(c *gin.Context, statusCode int, message string, data any) {
 func ErrorResponse(c *gin.Context, statusCode int, message string, err error) {
 	errorMsg := ""
 	if err != nil {
-		errorMsg = err.Error()
+		// Attach the cause for the access log; only expose it to the client for
+		// client errors. 5xx causes (SQL, driver, filesystem) stay server-side.
+		_ = c.Error(err)
+		if statusCode < http.StatusInternalServerError {
+			errorMsg = err.Error()
+		}
 	}
 
 	c.JSON(statusCode, APIResponse{

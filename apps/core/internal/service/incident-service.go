@@ -35,6 +35,8 @@ type IncidentService struct {
 	logger      *utils.Logger
 	cfg         *config.Config
 	diagnostics *RuntimeDiagnosticsService
+	// inTransaction is true on the per-call copy created by inTx, whose db is a transaction.
+	inTransaction bool
 }
 
 func NewIncidentService(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *IncidentService {
@@ -107,7 +109,7 @@ func (s *IncidentService) ReconcileMonitorReport(monitorID string, monitorReport
 		return reconcileErr
 	}
 
-	if agent.MaintenanceMode {
+	if agent.InMaintenance(time.Now().UTC()) {
 		s.logger.Info("Incident suppressed during maintenance", "monitor_id", monitorID, "agent_id", agent.ID)
 		reconcileErr = s.updateMonitorIncidentState(monitor.ID, monitor.ActiveIncidentID, nextIncidentState)
 		return reconcileErr
@@ -310,12 +312,12 @@ func (s *IncidentService) ReconcileStaleMonitors(agentID string) error {
 		reconcileErr = err
 		return err
 	}
-	if agent.MaintenanceMode {
+	if agent.InMaintenance(time.Now().UTC()) {
 		return nil
 	}
 
 	healthService := NewHealthService(s.db, s.logger)
-	staleMonitors, err := healthService.DetectStaleMonitors(DefaultHealthConfig())
+	staleMonitors, err := healthService.DetectStaleMonitorsForAgent(agentID, DefaultHealthConfig())
 	if err != nil {
 		reconcileErr = err
 		return err

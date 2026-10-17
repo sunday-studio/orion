@@ -108,6 +108,16 @@ func (s *IncidentService) CoverIncident(incidentID string, coveredUntil *time.Ti
 }
 
 func (s *IncidentService) ReopenIncident(incidentID string, metadata IncidentLifecycleActionMetadata) (db.Incident, error) {
+	var reopened db.Incident
+	err := s.inTx(func(tx *IncidentService) error {
+		var innerErr error
+		reopened, innerErr = tx.reopenIncidentTx(incidentID, metadata)
+		return innerErr
+	})
+	return reopened, err
+}
+
+func (s *IncidentService) reopenIncidentTx(incidentID string, metadata IncidentLifecycleActionMetadata) (db.Incident, error) {
 	var incident db.Incident
 	if err := s.db.Where("id = ?", incidentID).First(&incident).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -166,6 +176,12 @@ func (s *IncidentService) ResolveMonitorRemoved(monitorID string) error {
 }
 
 func (s *IncidentService) resolveIncidentRecord(incident *db.Incident, message string, monitorReportID string, incidentState string, resolutionKind string, notify bool, metadata IncidentLifecycleActionMetadata) error {
+	return s.inTx(func(tx *IncidentService) error {
+		return tx.resolveIncidentRecordTx(incident, message, monitorReportID, incidentState, resolutionKind, notify, metadata)
+	})
+}
+
+func (s *IncidentService) resolveIncidentRecordTx(incident *db.Incident, message string, monitorReportID string, incidentState string, resolutionKind string, notify bool, metadata IncidentLifecycleActionMetadata) error {
 	now := time.Now().UTC()
 	updates := map[string]any{
 		"status":          "resolved",

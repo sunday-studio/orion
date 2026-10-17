@@ -10,6 +10,9 @@ MACOS_GROUP="_orion"
 INSTALL_DIR="/usr/local/bin"
 
 CORE_URL=""
+# Optional shared secret for first registration when Core sets ORION_ENROLLMENT_TOKEN.
+# Read from the environment (not a flag) so it never appears in process listings.
+ENROLLMENT_TOKEN="${ORION_ENROLLMENT_TOKEN:-}"
 BINARY_PATH=""
 CONFIG_SOURCE=""
 START_SERVICE="true"
@@ -29,6 +32,7 @@ usage() {
   printf '%s\n' ""
   printf '%s\n' "Options:"
   printf '%s\n' "  --core-url URL       Core URL written to config when creating a new config."
+  printf '%s\n' "  ORION_ENROLLMENT_TOKEN=...  (environment) enrollment secret written to a new config; required when Core sets ORION_ENROLLMENT_TOKEN."
   printf '%s\n' "  --binary PATH        Agent binary to install. Defaults to ./apps/agent/orion-agent, then ./orion-agent."
   printf '%s\n' "  --config PATH        Existing config file to install instead of generating a minimal one."
   printf '%s\n' "  --no-start           Install files without starting the service."
@@ -290,8 +294,14 @@ write_minimal_config() {
     printf 'core_url: %s\n' "$CORE_URL"
     printf 'interval: 60s\n'
     printf 'geo_location: false\n'
+    if [ -n "$ENROLLMENT_TOKEN" ]; then
+      printf 'enrollment_token: %s\n' "$ENROLLMENT_TOKEN"
+    fi
     printf 'monitors: []\n'
   } > "$config_path"
+  if [ -n "$ENROLLMENT_TOKEN" ]; then
+    chmod 600 "$config_path"
+  fi
 }
 
 config_has_core_url() {

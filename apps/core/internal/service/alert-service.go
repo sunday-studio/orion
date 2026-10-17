@@ -2,18 +2,23 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"orion/core/internal/config"
 	"orion/core/internal/db"
 	"orion/core/internal/utils"
+	"os"
 	"time"
 
 	"gorm.io/gorm"
 )
 
 const (
-	defaultAlertDeliveryMaxAttempts = 3
-	defaultAlertDeliveryRetryDelay  = 5 * time.Minute
+	// Eight attempts spread over about an hour (see alertRetryDelays) so a receiver
+	// that is down for a maintenance window or an outage still gets the page once it
+	// returns. After the last attempt the delivery is `failed` until an operator retries it.
+	defaultAlertDeliveryMaxAttempts = 8
+	alertDeliveryLeaseDuration      = 2 * time.Minute
 	alertEventGroupSummary          = "group_summary"
 	alertGroupedSummaryPending      = "alert grouped summary pending"
 	retiredAlertDeliveryMessage     = "retired alert delivery type suppressed"
@@ -91,6 +96,21 @@ type alertGroupingDecision struct {
 	Reason       string
 }
 
+// alertRetryDelays[i] is the wait after failed attempt i+1; the last value repeats.
+var alertRetryDelays = []time.Duration{30 * time.Second, time.Minute, 2 * time.Minute, 5 * time.Minute, 10 * time.Minute, 15 * time.Minute, 30 * time.Minute}
+
+func alertRetryDelay(failedAttempt int) time.Duration {
+	if failedAttempt < 1 {
+		failedAttempt = 1
+	}
+	if failedAttempt > len(alertRetryDelays) {
+		failedAttempt = len(alertRetryDelays)
+	}
+	return alertRetryDelays[failedAttempt-1]
+}
+
+var alertDispatcherID = fmt.Sprintf("dispatcher-%d", os.Getpid())
+
 type AlertService struct {
 	db         *gorm.DB
 	logger     *utils.Logger
@@ -103,7 +123,7 @@ func NewAlertService(database *gorm.DB, logger *utils.Logger, cfg *config.Config
 		db:         database,
 		logger:     logger,
 		cfg:        cfg,
-		httpClient: &http.Client{Timeout: 10 * time.Second},
+		httpClient: newAlertWebhookClient(cfg),
 	}
 }
 
@@ -174,18 +194,6 @@ func (s *AlertService) queueLegacyIncidentNotifications(incidentID string, event
 		if createdDelivery.Status != "pending" {
 			continue
 		}
-		if s.inCooldown(incidentID, channel.Name, eventType, createdDelivery.ID) {
-			if err := s.updateDelivery(createdDelivery.ID, "cooldown", "alert cooldown active"); err != nil {
-				return err
-			}
-			continue
-		}
-		if err := s.attemptDelivery(createdDelivery, func() error {
-			return s.deliver(channel, incidentID, eventType)
-		}); err != nil {
-			s.logger.Error("Alert delivery failed", "incident_id", incidentID, "channel", channel.Name, "error", err)
-			continue
-		}
 	}
 
 	return nil
@@ -246,23 +254,11 @@ func (s *AlertService) queueRouteIncidentNotifications(event AlertRouteContext, 
 			continue
 		}
 
-		channel, err := s.alertChannelByID(decision.ChannelID)
+		_, err = s.alertChannelByID(decision.ChannelID)
 		if err != nil {
 			if updateErr := s.updateDelivery(createdDelivery.ID, "suppressed", "alert route destination missing"); updateErr != nil {
 				return updateErr
 			}
-			continue
-		}
-		if s.inCooldown(event.IncidentID, channel.Name, event.EventType, createdDelivery.ID) {
-			if err := s.updateDelivery(createdDelivery.ID, "cooldown", "alert cooldown active"); err != nil {
-				return err
-			}
-			continue
-		}
-		if err := s.attemptDelivery(createdDelivery, func() error {
-			return s.deliver(channel, event.IncidentID, event.EventType)
-		}); err != nil {
-			s.logger.Error("Alert delivery failed", "incident_id", event.IncidentID, "route_id", decision.RouteID, "channel", channel.Name, "error", err)
 			continue
 		}
 	}

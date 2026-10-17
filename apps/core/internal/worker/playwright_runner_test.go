@@ -6,6 +6,8 @@ import (
 	"errors"
 	"orion/core/internal/db"
 	"orion/core/internal/utils"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -246,5 +248,45 @@ func TestRunDueChecksRejectsPlaywrightPrivateTarget(t *testing.T) {
 	}
 	if payload["failure_stage"] != "config" || payload["target_url"] != "http://10.0.0.5/login" || payload["ok"] != false {
 		t.Fatalf("payload = %+v, want blocked target config failure", payload)
+	}
+}
+
+func TestPlaywrightRunnerEnvironmentDropsCoreSecrets(t *testing.T) {
+	environ := []string{
+		"PATH=/usr/bin", "HOME=/home/orion", "LC_ALL=C", "PLAYWRIGHT_BROWSERS_PATH=/browsers", "ORION_PLAYWRIGHT_RUNNER=/runner",
+		"ORION_ADMIN_USERNAME=admin", "ORION_ADMIN_PASSWORD=hunter2", "ORION_JWT_SECRET=jwt", "ORION_PUBLIC_STATUS_MAIL_PASSWORD=smtp",
+		"ORION_ENROLLMENT_TOKEN=enroll", "AWS_SECRET_ACCESS_KEY=aws", "malformed",
+	}
+	got := strings.Join(playwrightRunnerEnvironment(environ), "\n")
+	for _, secret := range []string{"hunter2", "=jwt", "=smtp", "=enroll", "=aws", "ORION_ADMIN"} {
+		if strings.Contains(got, secret) {
+			t.Fatalf("runner environment leaked %q:\n%s", secret, got)
+		}
+	}
+	for _, kept := range []string{"PATH=/usr/bin", "HOME=/home/orion", "LC_ALL=C", "PLAYWRIGHT_BROWSERS_PATH=/browsers", "ORION_PLAYWRIGHT_RUNNER=/runner"} {
+		if !strings.Contains(got, kept) {
+			t.Fatalf("runner environment lost %q:\n%s", kept, got)
+		}
+	}
+}
+
+func TestDefaultPlaywrightRunDoesNotPassSecretsToTheRunner(t *testing.T) {
+	dir := t.TempDir()
+	script := filepath.Join(dir, "runner.sh")
+	out := filepath.Join(dir, "env.txt")
+	os.WriteFile(script, []byte("#!/bin/sh\nenv > "+out+"\nprintf '{}'\n"), 0o755)
+	t.Setenv("ORION_PLAYWRIGHT_RUNNER", script)
+	t.Setenv("ORION_ADMIN_PASSWORD", "super-secret-admin-password")
+	t.Setenv("ORION_JWT_SECRET", "super-secret-jwt")
+
+	if _, err := defaultPlaywrightRun(t.Context(), playwrightTransactionRequest{}); err != nil {
+		t.Fatalf("defaultPlaywrightRun() error = %v", err)
+	}
+	env, _ := os.ReadFile(out)
+	if strings.Contains(string(env), "super-secret") {
+		t.Fatalf("runner process received Core secrets:\n%s", env)
+	}
+	if !strings.Contains(string(env), "ORION_PLAYWRIGHT_RUNNER=") {
+		t.Fatalf("runner process lost its own configuration:\n%s", env)
 	}
 }
