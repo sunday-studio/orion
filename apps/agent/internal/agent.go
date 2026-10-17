@@ -43,14 +43,12 @@ func (a *Agent) Run(ctx context.Context) error {
 	logging.Debugf("starting agent runtime: interval=%s monitors=%d geo_location=%t", a.userConfig.Interval, len(a.userConfig.Monitors), a.userConfig.GeoLocation)
 	runtimeCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	a.transport.SetContext(runtimeCtx)
 	fatalErrs := make(chan error, 1)
 
 	// Check if agent is in maintenance mode
 	if a.isInMaintenanceMode() {
-		reason := "No reason provided"
-		if a.internalState.MaintenanceReason != nil {
-			reason = *a.internalState.MaintenanceReason
-		}
+		reason := a.maintenanceReason()
 		logging.Infof("Agent is in maintenance mode. Reporting workers will pause until maintenance clears. Reason: %s", reason)
 	}
 	if err := a.flushDurableSpool(runtimeCtx); err != nil {
@@ -93,10 +91,14 @@ func (a *Agent) Run(ctx context.Context) error {
 	if transport.IsAuthError(runErr) {
 		logging.Errorf("Core rejected Agent credentials; stopping reporting until a replacement token is applied")
 	} else {
-		if err := a.flushDurableSpool(context.Background()); err != nil {
+		// Bounded final flush: shutdown must not block on a slow Core.
+		flushCtx, flushCancel := context.WithTimeout(context.Background(), shutdownFlushTimeout)
+		defer flushCancel()
+		a.transport.SetContext(flushCtx)
+		if err := a.flushDurableSpool(flushCtx); err != nil {
 			logging.Warnf("Durable report spool flush during shutdown failed: %v", err)
 		}
-		if err := a.retryQueue.Flush(context.Background()); err != nil {
+		if err := a.retryQueue.Flush(flushCtx); err != nil {
 			logging.Warnf("Retry queue flush during shutdown failed: %v", err)
 		}
 	}
@@ -150,11 +152,7 @@ func (a *Agent) RunOnce(ctx context.Context) error {
 
 // System Metrics Worker
 func (a *Agent) startSystemMetricsWorker(ctx context.Context, fatalErrs chan<- error) {
-	interval, err := time.ParseDuration(a.userConfig.Interval)
-	if err != nil {
-		logging.Errorf("Invalid system interval: %v", err)
-		return
-	}
+	interval := parseIntervalOr(a.userConfig.Interval, "system")
 
 	if err := a.runSystemMetrics(); err != nil {
 		logging.Errorf("System metrics error: %v", err)
@@ -221,22 +219,10 @@ func (a *Agent) startRetryQueueWorker(ctx context.Context, fatalErrs chan<- erro
 func (a *Agent) startMonitorWorker(ctx context.Context, monitor config.UserMonitor, fatalErrs chan<- error) {
 	logging.Infof("Starting monitor worker for %s...", monitor.Name)
 
-	internalMonitor, err := a.stateStore.GetMonitorByName(monitor.Name)
-	if err != nil {
-		logging.Errorf("Failed to load monitor state for %s: %v", monitor.Name, err)
-		return
-	}
-
+	interval := parseIntervalOr(monitor.Interval, "monitor "+monitor.Name)
+	internalMonitor := a.waitForMonitorState(ctx, monitor.Name, interval)
 	if internalMonitor == nil {
-		logging.Errorf("Monitor not found in internal state: %s", monitor.Name)
-		return
-	}
-
-	interval, err := time.ParseDuration(monitor.Interval)
-
-	if err != nil {
-		logging.Errorf("Invalid monitor interval: %v", err)
-		return
+		return // shutting down
 	}
 
 	if err := a.runMonitorMetrics(*internalMonitor, monitor); err != nil {
@@ -276,6 +262,28 @@ func reportFatalError(fatalErrs chan<- error, err error) {
 	}
 }
 
+// agentID returns the current agent identity under the state lock.
+func (a *Agent) agentID() string {
+	a.stateMu.Lock()
+	defer a.stateMu.Unlock()
+	return a.internalState.AgentID
+}
+
+func (a *Agent) monitorStates() []config.InternalStateMonitor {
+	a.stateMu.Lock()
+	defer a.stateMu.Unlock()
+	return append([]config.InternalStateMonitor(nil), a.internalState.Monitors...)
+}
+
+func (a *Agent) maintenanceReason() string {
+	a.stateMu.Lock()
+	defer a.stateMu.Unlock()
+	if a.internalState.MaintenanceReason != nil {
+		return *a.internalState.MaintenanceReason
+	}
+	return "No reason provided"
+}
+
 func (a *Agent) isInMaintenanceMode() bool {
 	a.refreshInternalState()
 
@@ -296,4 +304,42 @@ func (a *Agent) refreshInternalState() {
 	a.internalState = latestState
 	a.transport.SetAuthToken(latestState.Token)
 	logging.Debugf("internal state refreshed: registered=%t agent_id=%s monitors=%d maintenance=%t", latestState.IsRegistered(), latestState.AgentID, len(latestState.Monitors), latestState.MaintenanceMode)
+}
+
+const shutdownFlushTimeout = 2 * time.Second
+
+const fallbackInterval = 60 * time.Second
+
+// parseIntervalOr never lets a bad interval silently kill a worker: it logs
+// loudly and falls back to a safe default.
+func parseIntervalOr(value, what string) time.Duration {
+	d, err := time.ParseDuration(value)
+	if err != nil || d <= 0 {
+		logging.Errorf("Invalid %s interval %q (%v); using %s", what, value, err, fallbackInterval)
+		return fallbackInterval
+	}
+	return d
+}
+
+// waitForMonitorState returns the monitor's registered state, retrying while it
+// is missing so a late registration or state-store hiccup does not leave the
+// monitor permanently silent. It returns nil only when ctx is cancelled.
+func (a *Agent) waitForMonitorState(ctx context.Context, name string, interval time.Duration) *config.InternalStateMonitor {
+	retry := min(interval, 30*time.Second)
+	for {
+		m, err := a.stateStore.GetMonitorByName(name)
+		switch {
+		case err != nil:
+			logging.Errorf("Failed to load monitor state for %s: %v; retrying in %s", name, err, retry)
+		case m == nil:
+			logging.Errorf("Monitor %s is not registered yet; retrying in %s (try: orion-agent reconfigure)", name, retry)
+		default:
+			return m
+		}
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-time.After(retry):
+		}
+	}
 }

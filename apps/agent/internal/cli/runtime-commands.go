@@ -10,7 +10,6 @@ import (
 
 	agent "orion/agent/internal"
 	"orion/agent/internal/config"
-	"orion/agent/internal/control"
 	"orion/agent/internal/logging"
 	"orion/agent/internal/registration"
 	agentstate "orion/agent/internal/state"
@@ -53,68 +52,32 @@ func runAgent(ctx context.Context, opts *Options) error {
 	defer stateStore.Close()
 	PrintOK("state database ready")
 
-	PrintStep("registering agent and monitors")
-	registrationService := registration.New(userConfig, opts.ConfigPath, stateStore)
-	if err := registrationService.RegisterAgentIfNeeded(); err != nil {
-		PrintError("registration failed after retry attempts; agent cannot continue")
-		return NewCommandError("could not register agent and monitors", err)
-	}
-	PrintOK("registration complete")
-	if internalState, err := stateStore.Get(); err == nil {
-		PrintInfo("registered", internalState.IsRegistered())
-		if internalState.AgentID != "" {
-			PrintInfo("agent_id", internalState.AgentID)
-		}
-		PrintInfo("monitor_mappings", len(internalState.Monitors))
-	}
-
 	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
+	if !opts.Once {
+		return runDaemon(ctx, opts, userConfig, stateStore)
+	}
+
+	PrintStep("registering agent and monitors")
+	if err := registration.New(userConfig, opts.ConfigPath, stateStore).RegisterAgentIfNeeded(); err != nil {
+		return NewCommandError("could not register agent and monitors", err)
+	}
+	PrintOK("registration complete")
 	agentInstance, err := agent.NewWithStateStore(userConfig, stateStore)
 	if err != nil {
 		return NewCommandError("could not initialize agent", err)
 	}
-	PrintOK("agent initialized")
-
-	if !opts.Once {
-		controlServer := control.NewServer(opts.SocketPath, newDaemonControl(opts, userConfig, stateStore))
-		if err := controlServer.Start(); err != nil {
-			// The socket is a convenience for operators; never block reporting on it.
-			logging.Warnf("Control socket unavailable: %v", err)
-			PrintSkip(fmt.Sprintf("control socket unavailable: %v", err))
-		} else {
-			defer controlServer.Close()
-			PrintOK("control socket listening")
-			PrintInfo("socket", controlServer.Path())
-		}
-	}
-
-	if opts.Once {
-		PrintStep("running one collection cycle")
-		if err := agentInstance.RunOnce(ctx); err != nil {
-			logging.Errorf("Agent run failed: %v", err)
-			if transport.IsAuthError(err) {
-				PrintError("Core rejected Agent credentials; reporting stopped")
-				PrintInfo("recovery", "apply an admin-issued replacement token with orion-agent token apply")
-			}
-			return NewCommandError("agent run failed", err)
-		}
-		PrintOK("one collection cycle complete")
-		return nil
-	}
-
-	PrintStep("starting continuous collection loop")
-	if err := agentInstance.Run(ctx); err != nil {
-		logging.Errorf("Agent stopped with error: %v", err)
+	PrintStep("running one collection cycle")
+	if err := agentInstance.RunOnce(ctx); err != nil {
+		logging.Errorf("Agent run failed: %v", err)
 		if transport.IsAuthError(err) {
 			PrintError("Core rejected Agent credentials; reporting stopped")
 			PrintInfo("recovery", "apply an admin-issued replacement token with orion-agent token apply")
 		}
-		return NewCommandError("agent stopped with an error", err)
+		return NewCommandError("agent run failed", err)
 	}
-
-	PrintOK("agent exited cleanly")
+	PrintOK("one collection cycle complete")
 	return nil
 }
 

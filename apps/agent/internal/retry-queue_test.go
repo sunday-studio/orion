@@ -94,3 +94,36 @@ func TestRetryQueueFlushReturnsAuthErrorWithoutRequeue(t *testing.T) {
 		t.Fatalf("Len() = %d, want auth-failed item dropped", queue.Len())
 	}
 }
+
+func TestRetryQueueFlushKeepsRemainderOnAuthErrorAndCancel(t *testing.T) {
+	mk := func(names ...string) *RetryQueue {
+		q := NewRetryQueue(10)
+		for i, n := range names {
+			i := i
+			q.Push(RetryItem{Name: n, Send: func(context.Context) error {
+				if i == 0 {
+					return &transport.AuthError{StatusCode: 401}
+				}
+				return nil
+			}})
+		}
+		return q
+	}
+	q := mk("a", "b", "c")
+	if err := q.Flush(context.Background()); !transport.IsAuthError(err) {
+		t.Fatalf("err = %v", err)
+	}
+	if q.Len() != 2 {
+		t.Fatalf("after auth error Len() = %d, want the 2 unsent items kept", q.Len())
+	}
+
+	q = mk("b", "c", "d")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := q.Flush(ctx); err == nil {
+		t.Fatal("expected context error")
+	}
+	if q.Len() != 3 {
+		t.Fatalf("after cancel Len() = %d, want all 3 kept", q.Len())
+	}
+}

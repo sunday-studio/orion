@@ -1,9 +1,12 @@
 package transport
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -111,7 +114,7 @@ func newRetryTestClient(roundTrip func(*http.Request) (*http.Response, error)) *
 		MaxDelay:    time.Millisecond,
 		JitterRatio: 0,
 	}
-	client.sleep = func(time.Duration) {}
+	client.sleep = func(context.Context, time.Duration) {}
 	return client
 }
 
@@ -127,4 +130,57 @@ type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
+}
+
+func TestTokenAccessIsRaceFree(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(`{}`)) }))
+	defer srv.Close()
+	c := NewClient(srv.URL, "t0")
+	done := make(chan struct{})
+	go func() {
+		for i := 0; i < 200; i++ {
+			c.SetAuthToken(fmt.Sprintf("t%d", i))
+		}
+		close(done)
+	}()
+	for i := 0; i < 50; i++ {
+		_ = c.SendReport(SystemReport{}, "a")
+	}
+	<-done
+}
+
+func TestBare403IsTransientNotAuth(t *testing.T) {
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(403)
+		w.Write([]byte("<html>blocked by firewall</html>"))
+	}))
+	defer proxy.Close()
+	err := NewClient(proxy.URL, "t").SendReport(SystemReport{}, "a")
+	if err == nil || IsAuthError(err) {
+		t.Fatalf("err = %v, want non-auth error", err)
+	}
+	core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(403)
+		w.Write([]byte(`{"error":"token revoked"}`))
+	}))
+	defer core.Close()
+	if err := NewClient(core.URL, "t").SendReport(SystemReport{}, "a"); !IsAuthError(err) {
+		t.Fatalf("err = %v, want auth error for Core JSON 403", err)
+	}
+}
+
+func TestCancelledContextStopsRequestsAndRetryWaits(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(500) }))
+	defer srv.Close()
+	c := NewClient(srv.URL, "t")
+	ctx, cancel := context.WithCancel(context.Background())
+	c.SetContext(ctx)
+	cancel()
+	start := time.Now()
+	if err := c.SendReport(SystemReport{}, "a"); err == nil {
+		t.Fatal("expected error")
+	}
+	if time.Since(start) > time.Second {
+		t.Fatal("cancelled client should return immediately")
+	}
 }

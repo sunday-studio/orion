@@ -87,7 +87,7 @@ func runStatus(_ context.Context, opts *Options) error {
 	} else if report.InternalState != nil {
 		fmt.Fprintf(outputWriter, "  state_database: %s\n", opts.StatePath)
 		fmt.Fprintf(outputWriter, "  state: %s\n", report.StateCheck.Detail)
-		fmt.Fprintf(outputWriter, "  registered: %t\n", report.InternalState.IsRegistered())
+		fmt.Fprintf(outputWriter, "  registered: %t\n", report.InternalState.IsRegistered() || report.InternalState.Registered)
 		if report.InternalState.AgentID != "" {
 			fmt.Fprintf(outputWriter, "  agent_id: %s\n", report.InternalState.AgentID)
 		}
