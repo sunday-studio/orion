@@ -25,7 +25,7 @@ var _ utils.APIResponse
 // @Failure      401  {object}  utils.APIResponse
 // @Failure      501  {object}  utils.APIResponse
 // @Router       /v1/ingest/logs [post]
-func (s *Server) ingestLogs(c *gin.Context) { s.logsNotImplemented(c) }
+func (s *Server) ingestLogs(c *gin.Context) { s.ingestLogsImpl(c) }
 
 // ingestOTLPLogs Ingest logs over OTLP/HTTP.
 // @Summary      Ingest logs over OTLP/HTTP

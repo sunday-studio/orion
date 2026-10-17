@@ -177,6 +177,18 @@ type AppRequest struct {
 	Redaction       *RedactionSettings `json:"redaction,omitempty"`
 }
 
+// AppUpdateRequest changes an app; every field is optional and omitted fields are unchanged.
+type AppUpdateRequest struct {
+	Name            string             `json:"name,omitempty"`
+	Environment     string             `json:"environment,omitempty"`
+	Description     string             `json:"description,omitempty"`
+	RetentionDays   *int               `json:"retention_days,omitempty"`
+	MaxStorageMB    *int               `json:"max_storage_mb,omitempty"`
+	DebugSampleRate *float64           `json:"debug_sample_rate,omitempty"`
+	Display         *DisplayProfile    `json:"display_profile,omitempty"`
+	Redaction       *RedactionSettings `json:"redaction,omitempty"`
+}
+
 // IngestKey is a write-only credential for one app. Only a hash is stored.
 type IngestKey struct {
 	ID         string     `json:"id"`

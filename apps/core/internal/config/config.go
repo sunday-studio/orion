@@ -33,6 +33,8 @@ type Config struct {
 	TrustedProxies                 []string
 	EnableSwagger                  bool
 	MetricsToken                   string
+	LogsQueueMax                   int
+	LogsAppRatePerSecond           int
 	DeadManURL                     string
 	RegisterRateLimitPerMinute     int
 	LoginRateLimitAttempts         int
@@ -85,6 +87,8 @@ func Load() *Config {
 		TrustedProxies:                 getEnvList("ORION_TRUSTED_PROXIES", nil),
 		EnableSwagger:                  getEnvBool("ORION_ENABLE_SWAGGER", false),
 		MetricsToken:                   os.Getenv("ORION_METRICS_TOKEN"),
+		LogsQueueMax:                   getEnvInt("ORION_LOGS_QUEUE_MAX", 50000),
+		LogsAppRatePerSecond:           getEnvInt("ORION_LOGS_APP_RATE_PER_SECOND", 1000),
 		DeadManURL:                     strings.TrimSpace(os.Getenv("ORION_DEADMAN_URL")),
 		RegisterRateLimitPerMinute:     getEnvInt("ORION_REGISTER_RATE_LIMIT_PER_MINUTE", 30),
 		LoginRateLimitAttempts:         getEnvInt("ORION_LOGIN_RATE_LIMIT_ATTEMPTS", 5),

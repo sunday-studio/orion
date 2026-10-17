@@ -487,6 +487,25 @@ definitions:
     required:
     - name
     type: object
+  internal_api.AppUpdateRequest:
+    properties:
+      debug_sample_rate:
+        type: number
+      description:
+        type: string
+      display_profile:
+        $ref: '#/definitions/internal_api.DisplayProfile'
+      environment:
+        type: string
+      max_storage_mb:
+        type: integer
+      name:
+        type: string
+      redaction:
+        $ref: '#/definitions/internal_api.RedactionSettings'
+      retention_days:
+        type: integer
+    type: object
   internal_api.CoreMonitorConfigResponse:
     properties:
       config:
@@ -5119,7 +5138,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_api.AppRequest'
+          $ref: '#/definitions/internal_api.AppUpdateRequest'
       produces:
       - application/json
       responses:

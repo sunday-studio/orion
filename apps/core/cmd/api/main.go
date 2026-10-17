@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"orion/core/internal/api"
+	"orion/core/internal/logstore"
 	"orion/core/internal/service"
 	"orion/core/internal/shared"
 	"orion/core/internal/utils"
@@ -74,6 +75,13 @@ func main() {
 		}
 	}()
 
+	logStore, err := logstore.Open(cfg.DataDir, logger, cfg.LogsQueueMax)
+	if err != nil {
+		logger.Fatal("Failed to open the product logs database", "error", err)
+	}
+	server.EnableProductLogs(logStore)
+	go logstore.RunRetention(ctx, logStore, database, logger, time.Hour)
+
 	selfMonitor := service.NewSelfMonitorService(database, logger, cfg, server.RuntimeDiagnostics())
 	go selfMonitor.Run(ctx)
 
@@ -84,7 +92,9 @@ func main() {
 	}
 
 	logger.Info("Orion Core Server started successfully")
-	if err := server.Start(ctx, listenAddr); err != nil {
-		logger.Fatal("Failed to start server", "error", err)
+	startErr := server.Start(ctx, listenAddr)
+	logStore.Close() // drain queued log entries before exit
+	if startErr != nil {
+		logger.Fatal("Failed to start server", "error", startErr)
 	}
 }

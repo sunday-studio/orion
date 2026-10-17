@@ -1,6 +1,6 @@
 # Send logs to Orion
 
-Status: **contract published, implementation in progress** (phase L1). The endpoints below are specified in `apps/core/openapi.yaml` and answer `501 Not Implemented` until L1 ships; the request and response shapes will not change incompatibly. Design: [plans/product-logs-plan.md](plans/product-logs-plan.md).
+Status: **L1 is live**: apps, ingest keys, `POST /v1/ingest/logs` (JSON, array, NDJSON), `GET /v1/logs` and `GET /v1/logs/{id}` work. OTLP, the histogram, field catalog, saved views and live stream are specified in `apps/core/openapi.yaml` and answer `501 Not Implemented` until their phase ships; shapes will not change incompatibly. Design: [plans/product-logs-plan.md](plans/product-logs-plan.md).
 
 Orion collects *product logs*: what your app says about itself ("user signed up", "payment failed", "export finished", errors with context). There is no required schema. A plain message is a valid log; richer data gets richer filtering automatically.
 
@@ -113,4 +113,6 @@ These need an admin login, not an ingest key:
 | `GET/POST/DELETE /v1/logs/views` | Saved filter sets |
 | `/v1/apps`, `/v1/apps/{id}`, `/v1/apps/{id}/keys`, `/v1/apps/{id}/test-log` | Manage apps, keys, send a test log |
 
-Rollout: L1 ships apps, keys, native ingest, `GET /v1/logs` and `GET /v1/logs/{id}`. Histogram, field catalog and views follow with the Console (L2); OTLP and the live stream with L3.
+Rollout: **L1 (now)** apps, keys, native ingest, `GET /v1/logs`, `GET /v1/logs/{id}`, retention, rate limits. **L2** histogram, field catalog, saved views and agent logs in the same list (`source=agent`). **L3** OTLP, live stream. Search `q` is a substring match over the body, event and attributes today; full-text ranking arrives with L2.
+
+Operational notes: logs live in their own `logs.db` next to `orion.db` (WAL, owner-only). Ingest is asynchronous: `202` means queued in memory (up to `ORION_LOGS_QUEUE_MAX` entries) and written within about a second; a hard crash can lose entries still in the queue. Retention (default 14 days, plus an optional per-app storage cap) is pruned hourly in small batches.

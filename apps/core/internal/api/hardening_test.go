@@ -35,7 +35,7 @@ func TestOversizedBodyReturns413(t *testing.T) {
 }
 
 func TestLogBatchAllowsLargerBodyThanDefault(t *testing.T) {
-	if maxBodyBytesFor("/v1/agents/:agent_id/logs/batch") != serviceLogMaxBodyBytes || maxBodyBytesFor("/v1/register") != defaultMaxBodyBytes {
+	if maxBodyBytesFor("/v1/agents/:agent_id/logs/batch", "application/json") != serviceLogMaxBodyBytes || maxBodyBytesFor("/v1/register", "") != defaultMaxBodyBytes || maxBodyBytesFor("/v1/ingest/logs", "application/x-ndjson") != serviceLogMaxBodyBytes || maxBodyBytesFor("/v1/ingest/logs", "application/json") != defaultMaxBodyBytes {
 		t.Fatal("log batches must get the 5 MiB cap and everything else 1 MiB")
 	}
 }
