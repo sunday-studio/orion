@@ -20,7 +20,7 @@ This milestone covers the Core worker monitor runner catalog, not the Console cr
 - `synthetic` and `synthetic_multi_step`;
 - `playwright` and `playwright_transaction`.
 
-Post-reconciliation note: the Playwright runner exists in main as M6 implementation evidence, but first-release readiness now tracks removing that surface under `G-20260529-191523-aad2`. Until that removal lands, Playwright remains behind the explicit `ORION_PLAYWRIGHT_RUNNER` runtime boundary and is not part of the first-release monitor scope.
+Post-reconciliation note: the Playwright runner exists in main as M6 implementation evidence, but first-release readiness now tracks removing that surface. Until that removal lands, Playwright remains behind the explicit `ORION_PLAYWRIGHT_RUNNER` runtime boundary and is not part of the first-release monitor scope.
 
 ## Completed
 
@@ -52,7 +52,6 @@ Post-reconciliation note: the Playwright runner exists in main as M6 implementat
 
 - `GOCACHE=/private/tmp/orion-go-cache go test ./internal/worker` in `apps/core`.
 - `GOCACHE=/private/tmp/orion-go-cache go test ./...` in `apps/core`.
-- `maat validate --storage /Users/casprine/Desktop/vendor/personal/maat-storage`.
 
 ## Open Risks
 
@@ -60,7 +59,7 @@ Post-reconciliation note: the Playwright runner exists in main as M6 implementat
 - Domain expiration uses RDAP first and supports a bounded WHOIS fallback for configured or known registry servers; unsupported or unavailable data still fails clearly.
 - Playwright transactions require an explicit `ORION_PLAYWRIGHT_RUNNER` runtime on the worker host; the default Core image does not silently bundle browsers, and official optional browser packaging remains a later runtime-contract decision.
 - Mail monitors intentionally do not authenticate in this milestone.
-- First-release planning has moved Playwright removal into active Maat work; do not treat the M6 Playwright implementation as release-ready product scope.
+- First-release planning has moved Playwright removal into active work; do not treat the M6 Playwright implementation as release-ready product scope.
 
 ## Next
 
