@@ -8,9 +8,12 @@ export default defineConfig({
   fullyParallel: false,
   reporter: "list",
   workers: 1,
+  // Core can briefly return "database is locked" under seed-time writes; retry in CI only.
+  retries: process.env.CI ? 2 : 0,
   use: {
     baseURL: consoleURL,
-    trace: "on-first-retry",
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
   },
   webServer: {
     command: "node e2e/support/start-core-smoke.mjs",

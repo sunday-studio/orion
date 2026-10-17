@@ -1,6 +1,13 @@
-import { EmptyState } from "@/components/shared/empty-state";
-import { StatusBadge } from "@/components/shared/status-badges";
-import { Button } from "@/components/ui/button";
+import {
+  Button,
+  ConfirmDialog,
+  DataTable,
+  type DataTableFilterField,
+  FilterBar,
+  StatusBadge,
+  filterParam,
+  useDataTableUrlState,
+} from "@/design-system";
 import {
   type ApiStatusPageSubscriberAdminResponse,
   useAnonymizeStatusPageSubscriber,
@@ -9,16 +16,38 @@ import {
   useListStatusPageSubscribers,
 } from "@/orion-sdk";
 import { ShieldX, Trash2, UserX } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { useState } from "react";
 import {
-  Field,
   formatDateTime,
   subscriberBadgeStatus,
   subscriberStateOptions,
 } from "./status-pages-shared";
 
+type PendingAction = {
+  kind: "anonymize" | "delete";
+  subscriber: ApiStatusPageSubscriberAdminResponse;
+};
+
+const subscriberFields: readonly DataTableFilterField[] = [
+  {
+    type: "select",
+    key: "state",
+    label: "State",
+    options: subscriberStateOptions.map((option) => ({
+      value: option.value || "all",
+      label: option.label,
+    })),
+  },
+];
+
 export const StatusPageSubscribersTab = ({ pageId }: { pageId: string }) => {
-  const [stateFilter, setStateFilter] = useState("");
+  const table = useDataTableUrlState({
+    fields: subscriberFields,
+    limit: 1000,
+    prefix: "subscribers",
+  });
+  const stateFilter = filterParam(subscriberFields[0], table.values.state);
   const subscribersResponse = useListStatusPageSubscribers(
     pageId,
     stateFilter ? { state: stateFilter } : undefined,
@@ -37,6 +66,7 @@ export const StatusPageSubscribersTab = ({ pageId }: { pageId: string }) => {
   const deleteSubscriber = useDeleteStatusPageSubscriber({
     mutation: { onSuccess: refreshSubscribers },
   });
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const isMutating =
     disableSubscriber.isPending || anonymizeSubscriber.isPending || deleteSubscriber.isPending;
 
@@ -47,124 +77,175 @@ export const StatusPageSubscribersTab = ({ pageId }: { pageId: string }) => {
 
   const anonymize = (subscriber: ApiStatusPageSubscriberAdminResponse) => {
     if (!pageId || !subscriber.id) return;
-    if (!window.confirm("Anonymize this subscriber and remove contact data?")) return;
-    anonymizeSubscriber.mutate({ id: pageId, subscriberId: subscriber.id });
+    setPendingAction({ kind: "anonymize", subscriber });
   };
 
   const hardDelete = (subscriber: ApiStatusPageSubscriberAdminResponse) => {
     if (!pageId || !subscriber.id) return;
-    if (!window.confirm("Hard-delete this subscriber and delivery history?")) return;
-    deleteSubscriber.mutate({ id: pageId, subscriberId: subscriber.id });
+    setPendingAction({ kind: "delete", subscriber });
   };
+
+  const confirmPending = () => {
+    if (!pendingAction?.subscriber.id) return;
+    const request = { id: pageId, subscriberId: pendingAction.subscriber.id };
+    if (pendingAction.kind === "anonymize") anonymizeSubscriber.mutate(request);
+    else deleteSubscriber.mutate(request);
+    setPendingAction(null);
+  };
+
+  const columns: ColumnDef<ApiStatusPageSubscriberAdminResponse>[] = [
+    {
+      id: "destination",
+      header: "Destination",
+      cell: ({ row }) => {
+        const subscriber = row.original;
+        return (
+          <div className="min-w-0 space-y-1">
+            <div className="font-medium">{subscriber.masked_destination}</div>
+            <div className="text-xs text-neutral-600">
+              {subscriber.destination_type} · Source {subscriber.source || "unknown"}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "state",
+      header: "State",
+      cell: ({ row }) => (
+        <StatusBadge status={subscriberBadgeStatus(row.original.state)}>
+          {row.original.state}
+        </StatusBadge>
+      ),
+    },
+    {
+      id: "components",
+      header: "Components",
+      cell: ({ row }) => {
+        const names = (row.original.components ?? []).map((component) => component.name);
+        return names.length === 0 ? (
+          <span className="text-neutral-600">All visible components</span>
+        ) : (
+          names.join(", ")
+        );
+      },
+    },
+    {
+      id: "delivery",
+      header: "Last delivery",
+      cell: ({ row }) => {
+        const subscriber = row.original;
+        if (!subscriber.last_delivery_status) return "—";
+        return (
+          <div className="text-xs text-neutral-600">
+            {subscriber.last_delivery_status} - {formatDateTime(subscriber.last_delivery_at)}
+            {subscriber.bounce_count ? <div>Bounces {subscriber.bounce_count}</div> : null}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "created_at",
+      header: "Created",
+      cell: ({ row }) => formatDateTime(row.original.created_at),
+    },
+    {
+      id: "lifecycle",
+      header: "Lifecycle",
+      cell: ({ row }) => (
+        <div className="space-y-0.5 text-xs text-neutral-600">
+          <div>Confirmed {formatDateTime(row.original.confirmed_at)}</div>
+          <div>Unsubscribed {formatDateTime(row.original.unsubscribed_at)}</div>
+          <div>Disabled {formatDateTime(row.original.disabled_at)}</div>
+        </div>
+      ),
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => {
+        const subscriber = row.original;
+        return (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              disabled={isMutating || subscriber.state === "disabled"}
+              onClick={() => disable(subscriber)}
+              type="button"
+              variant="secondary"
+              size="sm"
+            >
+              <UserX className="size-4" />
+              Disable
+            </Button>
+            <Button
+              disabled={isMutating || subscriber.masked_destination === "anonymized"}
+              onClick={() => anonymize(subscriber)}
+              type="button"
+              variant="secondary"
+              size="sm"
+            >
+              <ShieldX className="size-4" />
+              Anonymize
+            </Button>
+            <Button
+              disabled={isMutating}
+              onClick={() => hardDelete(subscriber)}
+              type="button"
+              variant="secondary"
+              size="sm"
+            >
+              <Trash2 className="size-4" />
+              Delete
+            </Button>
+          </div>
+        );
+      },
+    },
+  ];
 
   return (
     <section className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-medium">Subscribers</h3>
-          <p className="mt-1 text-sm text-neutral-600">
-            {subscribersResponse.data?.count ?? 0} matching records
-          </p>
-        </div>
-        <Field label="State">
-          <select
-            className="h-9 w-full min-w-48 border border-neutral-200 bg-white px-3 text-sm"
-            value={stateFilter}
-            onChange={(event) => setStateFilter(event.target.value)}
-          >
-            {subscriberStateOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </Field>
+      <div>
+        <h3 className="text-sm font-medium">Subscribers</h3>
+        <p className="mt-1 text-sm text-neutral-600">
+          {subscribersResponse.data?.count ?? 0} matching records
+        </p>
       </div>
+      <FilterBar
+        fields={subscriberFields}
+        values={table.values}
+        onChange={table.setFilter}
+        onClear={table.clearFilters}
+      />
 
-      {subscribersResponse.isLoading && <div className="text-sm text-neutral-600">Loading...</div>}
-      {subscribersResponse.isError && <div className="text-sm">Unable to load subscribers.</div>}
-      {!subscribersResponse.isLoading &&
-        !subscribersResponse.isError &&
-        subscribers.length === 0 && (
-          <EmptyState
-            title="No subscribers"
-            description="Confirmed public subscribers will appear here with masked destinations."
-          />
-        )}
+      <DataTable
+        columns={columns}
+        data={subscribers}
+        emptyMessage="No subscribers. Confirmed public subscribers will appear here with masked destinations."
+        getRowId={(subscriber, index) => subscriber.id ?? `subscriber-${index}`}
+        isLoading={subscribersResponse.isLoading}
+        error={
+          subscribersResponse.isError
+            ? { message: "Unable to load subscribers", onRetry: refreshSubscribers }
+            : undefined
+        }
+        onResetFilters={table.hasFilters ? table.clearFilters : undefined}
+      />
 
-      <div className="space-y-3">
-        {subscribers.map((subscriber) => (
-          <div className="border border-neutral-200 p-3" key={subscriber.id}>
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium">{subscriber.masked_destination}</span>
-                  <StatusBadge
-                    fallback={subscriber.state}
-                    value={subscriberBadgeStatus(subscriber.state)}
-                  />
-                </div>
-                <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-neutral-600">
-                  <span>{subscriber.destination_type}</span>
-                  <span>Source {subscriber.source || "unknown"}</span>
-                  <span>Created {formatDateTime(subscriber.created_at)}</span>
-                  {subscriber.last_delivery_status && (
-                    <span>
-                      Last delivery {subscriber.last_delivery_status} -{" "}
-                      {formatDateTime(subscriber.last_delivery_at)}
-                    </span>
-                  )}
-                  {subscriber.bounce_count ? <span>Bounces {subscriber.bounce_count}</span> : null}
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  disabled={isMutating || subscriber.state === "disabled"}
-                  onClick={() => disable(subscriber)}
-                  type="button"
-                  variant="outline"
-                >
-                  <UserX className="size-4" />
-                  Disable
-                </Button>
-                <Button
-                  disabled={isMutating || subscriber.masked_destination === "anonymized"}
-                  onClick={() => anonymize(subscriber)}
-                  type="button"
-                  variant="outline"
-                >
-                  <ShieldX className="size-4" />
-                  Anonymize
-                </Button>
-                <Button
-                  disabled={isMutating}
-                  onClick={() => hardDelete(subscriber)}
-                  type="button"
-                  variant="outline"
-                >
-                  <Trash2 className="size-4" />
-                  Delete
-                </Button>
-              </div>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2 text-sm">
-              {(subscriber.components ?? []).map((component) => (
-                <span className="border border-neutral-200 px-2 py-1" key={component.id}>
-                  {component.name}
-                </span>
-              ))}
-              {(subscriber.components ?? []).length === 0 && (
-                <span className="text-neutral-600">All visible components</span>
-              )}
-            </div>
-            <div className="mt-3 grid gap-2 text-xs text-neutral-600 sm:grid-cols-3">
-              <span>Confirmed {formatDateTime(subscriber.confirmed_at)}</span>
-              <span>Unsubscribed {formatDateTime(subscriber.unsubscribed_at)}</span>
-              <span>Disabled {formatDateTime(subscriber.disabled_at)}</span>
-            </div>
-          </div>
-        ))}
-      </div>
+      <ConfirmDialog
+        open={pendingAction !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingAction(null);
+        }}
+        title={pendingAction?.kind === "delete" ? "Delete subscriber?" : "Anonymize subscriber?"}
+        description={
+          pendingAction?.kind === "delete"
+            ? `${pendingAction.subscriber.masked_destination} and their delivery history will be permanently deleted.`
+            : `Contact data for ${pendingAction?.subscriber.masked_destination ?? "this subscriber"} will be removed.`
+        }
+        confirmLabel={pendingAction?.kind === "delete" ? "Delete subscriber" : "Anonymize"}
+        onConfirm={confirmPending}
+      />
 
       {(disableSubscriber.isError || anonymizeSubscriber.isError || deleteSubscriber.isError) && (
         <p className="text-sm">Unable to update subscriber.</p>

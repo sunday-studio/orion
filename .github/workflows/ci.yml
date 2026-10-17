@@ -126,6 +126,54 @@ jobs:
       - name: Build Console
         run: make console-build
 
+  console-e2e:
+    name: Console E2E
+    runs-on: ubuntu-24.04
+    needs: changes
+    if: needs.changes.outputs.console == 'true' || needs.changes.outputs.core == 'true' || needs.changes.outputs.contracts == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/core/go.mod
+          cache-dependency-path: apps/core/go.sum
+
+      - name: Set up pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.23.0 --activate
+
+      - name: Install Console dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: apps/console
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+        working-directory: apps/console
+
+      - name: Run Console browser smoke tests
+        run: pnpm run test:e2e
+        working-directory: apps/console
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: console-playwright-report
+          path: |
+            apps/console/playwright-report
+            apps/console/test-results
+          if-no-files-found: ignore
+          retention-days: 7
+
   core:
     name: Core
     runs-on: ubuntu-24.04
