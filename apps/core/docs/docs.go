@@ -4642,6 +4642,38 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/auth/me": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Current user",
+                "operationId": "getMe",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.MeResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/v1/diagnostics/core": {
             "get": {
                 "description": "Get Core runtime request, ingestion, report write, incident reconciliation, SQLite, and slow-operation diagnostics",
@@ -4735,6 +4767,144 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/enrollments": {
+            "post": {
+                "description": "Creates a one-time registration token that expires in 15 minutes. The token is returned only here. The install command registers the agent with it; poll GET /v1/enrollments/{id} until status is reporting.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "enrollments"
+                ],
+                "summary": "Start an Add server session",
+                "operationId": "createEnrollment",
+                "parameters": [
+                    {
+                        "description": "Platform",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.EnrollmentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.EnrollmentCreatedResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/enrollments/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "enrollments"
+                ],
+                "summary": "Get an Add server session",
+                "operationId": "getEnrollment",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Enrollment ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.EnrollmentResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "enrollments"
+                ],
+                "summary": "Cancel an Add server session",
+                "operationId": "cancelEnrollment",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Enrollment ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
@@ -8046,6 +8216,45 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/overview": {
+            "get": {
+                "description": "Summary numbers, the incident needing attention, ongoing and recent incidents, first-run flags and the 90-day service strip in one call.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "overview"
+                ],
+                "summary": "Console overview",
+                "operationId": "getOverview",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.OverviewResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/register": {
             "post": {
                 "description": "Register a new agent or reconnect an existing agent by machine ID",
@@ -8112,6 +8321,65 @@ const docTemplate = `{
                         "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/search": {
+            "get": {
+                "description": "Case-insensitive name search, at most 5 hits per type, grouped by type in this order: monitor, incident, server, app.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "search"
+                ],
+                "summary": "Search monitors, incidents, servers and apps",
+                "operationId": "searchEverything",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search text",
+                        "name": "q",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "hits": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/internal_api.SearchHitResponse"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "500": {
@@ -11746,6 +12014,130 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.EnrollmentCreatedResponse": {
+            "type": "object",
+            "properties": {
+                "agent_arch": {
+                    "type": "string"
+                },
+                "agent_id": {
+                    "type": "string"
+                },
+                "agent_name": {
+                    "type": "string"
+                },
+                "agent_os": {
+                    "type": "string"
+                },
+                "agent_version": {
+                    "type": "string"
+                },
+                "claimed_at": {
+                    "type": "string"
+                },
+                "core_url": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "first_report_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "install_command": {
+                    "type": "string"
+                },
+                "platform": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Status: waiting (nothing seen) | claimed (token accepted, registering) | registered | reporting (first report received) | expired | cancelled.",
+                    "type": "string",
+                    "enum": [
+                        "waiting",
+                        "claimed",
+                        "registered",
+                        "reporting",
+                        "expired",
+                        "cancelled"
+                    ]
+                },
+                "token": {
+                    "type": "string",
+                    "example": "orn_enr_0a1b2c3d4e5f"
+                }
+            }
+        },
+        "internal_api.EnrollmentRequest": {
+            "type": "object",
+            "properties": {
+                "platform": {
+                    "description": "Platform is the tile picked in the wizard; it only shapes the install command.",
+                    "type": "string",
+                    "enum": [
+                        "linux",
+                        "macos",
+                        "docker"
+                    ]
+                }
+            }
+        },
+        "internal_api.EnrollmentResponse": {
+            "type": "object",
+            "properties": {
+                "agent_arch": {
+                    "type": "string"
+                },
+                "agent_id": {
+                    "type": "string"
+                },
+                "agent_name": {
+                    "type": "string"
+                },
+                "agent_os": {
+                    "type": "string"
+                },
+                "agent_version": {
+                    "type": "string"
+                },
+                "claimed_at": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "first_report_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "platform": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Status: waiting (nothing seen) | claimed (token accepted, registering) | registered | reporting (first report received) | expired | cancelled.",
+                    "type": "string",
+                    "enum": [
+                        "waiting",
+                        "claimed",
+                        "registered",
+                        "reporting",
+                        "expired",
+                        "cancelled"
+                    ]
+                }
+            }
+        },
         "internal_api.HealthIssue": {
             "type": "object",
             "properties": {
@@ -12769,6 +13161,19 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.MeResponse": {
+            "type": "object",
+            "properties": {
+                "auth_enabled": {
+                    "description": "AuthEnabled is false when Core runs with ORION_ALLOW_INSECURE_NO_AUTH.",
+                    "type": "boolean"
+                },
+                "username": {
+                    "type": "string",
+                    "example": "admin"
+                }
+            }
+        },
         "internal_api.MonitorReportResponse": {
             "type": "object",
             "properties": {
@@ -12889,6 +13294,183 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.OverviewDayResponse": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "up",
+                        "warn",
+                        "down",
+                        "none"
+                    ]
+                }
+            }
+        },
+        "internal_api.OverviewFirstRunResponse": {
+            "type": "object",
+            "properties": {
+                "has_alert_channels": {
+                    "type": "boolean"
+                },
+                "has_apps": {
+                    "type": "boolean"
+                },
+                "has_monitors": {
+                    "type": "boolean"
+                },
+                "has_servers": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_api.OverviewIncidentResponse": {
+            "type": "object",
+            "properties": {
+                "acknowledged_at": {
+                    "type": "string"
+                },
+                "duration_seconds": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "notified_at": {
+                    "description": "NotifiedAt and AcknowledgedAt are only filled for needs_you.",
+                    "type": "string"
+                },
+                "opened_at": {
+                    "type": "string"
+                },
+                "resolved_at": {
+                    "type": "string"
+                },
+                "severity": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "open",
+                        "acknowledged",
+                        "covered",
+                        "resolved"
+                    ]
+                },
+                "summary": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.OverviewResponse": {
+            "type": "object",
+            "properties": {
+                "first_run": {
+                    "$ref": "#/definitions/internal_api.OverviewFirstRunResponse"
+                },
+                "generated_at": {
+                    "type": "string"
+                },
+                "health_issue_count": {
+                    "type": "integer"
+                },
+                "needs_you": {
+                    "$ref": "#/definitions/internal_api.OverviewIncidentResponse"
+                },
+                "ongoing_incident_count": {
+                    "type": "integer"
+                },
+                "ongoing_incidents": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.OverviewIncidentResponse"
+                    }
+                },
+                "recent_incidents": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.OverviewIncidentResponse"
+                    }
+                },
+                "services": {
+                    "description": "Services is the 90-day strip per server, worst first, at most 8.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.OverviewServiceResponse"
+                    }
+                },
+                "state": {
+                    "description": "State: empty (nothing monitored yet) | ok | issues.",
+                    "type": "string",
+                    "enum": [
+                        "empty",
+                        "ok",
+                        "issues"
+                    ]
+                },
+                "stats": {
+                    "$ref": "#/definitions/internal_api.OverviewStatsResponse"
+                }
+            }
+        },
+        "internal_api.OverviewServiceResponse": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "days": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.OverviewDayResponse"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "up",
+                        "degraded",
+                        "down",
+                        "unknown"
+                    ]
+                },
+                "uptime_percent": {
+                    "type": "number"
+                }
+            }
+        },
+        "internal_api.OverviewStatsResponse": {
+            "type": "object",
+            "properties": {
+                "monitors_total": {
+                    "type": "integer"
+                },
+                "monitors_up": {
+                    "type": "integer"
+                },
+                "servers_reporting": {
+                    "type": "integer"
+                },
+                "servers_total": {
+                    "type": "integer"
+                },
+                "uptime_30d_percent": {
+                    "description": "Uptime30dPercent is null until a daily rollup exists.",
+                    "type": "number"
+                }
+            }
+        },
         "internal_api.RedactionSettings": {
             "type": "object",
             "properties": {
@@ -12919,6 +13501,29 @@ const docTemplate = `{
                 },
                 "type": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_api.SearchHitResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "monitor",
+                        "incident",
+                        "server",
+                        "app"
+                    ]
                 }
             }
         },

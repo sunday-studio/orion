@@ -31,15 +31,24 @@ func (s *Server) registerAgent(c *gin.Context) {
 		utils.ErrorResponse(c, http.StatusTooManyRequests, "Too many registration attempts", nil)
 		return
 	}
-	if !s.enrollmentTokenValid(c.GetHeader(enrollmentTokenHeader)) {
-		utils.Unauthorized(c, "Valid enrollment token required")
-		return
-	}
-
 	var req service.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		s.logger.Error("Invalid registration request", "error", err)
 		utils.BadRequest(c, "Invalid request payload")
+		return
+	}
+	// A one-time wizard token (orn_enr_...) is authorized per machine; anything else is the
+	// shared ORION_ENROLLMENT_TOKEN (or open registration when none is configured).
+	presented := c.GetHeader(enrollmentTokenHeader)
+	enrollmentID := ""
+	if service.IsEnrollmentToken(presented) {
+		enrollmentID = s.enrollments.Authorize(presented, req.MachineId, time.Now().UTC())
+		if enrollmentID == "" {
+			utils.Unauthorized(c, "Valid enrollment token required")
+			return
+		}
+	} else if !s.enrollmentTokenValid(presented) {
+		utils.Unauthorized(c, "Valid enrollment token required")
 		return
 	}
 	s.logger.Info("Agent registration request", "machine_id", req.MachineId, "name", req.Name, "os", req.OS, "arch", req.Arch)
@@ -56,6 +65,9 @@ func (s *Server) registerAgent(c *gin.Context) {
 		s.logger.Error("Failed to register agent", "error", err)
 		utils.InternalError(c, "Failed to register agent", err)
 		return
+	}
+	if enrollmentID != "" {
+		s.enrollments.LinkAgent(enrollmentID, response.AgentID)
 	}
 	s.logger.Info("Agent registered successfully", "agent_id", response.AgentID, "machine_id", req.MachineId)
 	utils.SuccessResponse(c, 200, "Agent registered successfully", response)
