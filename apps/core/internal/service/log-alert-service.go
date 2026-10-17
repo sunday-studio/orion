@@ -60,6 +60,18 @@ func (s *LogAlertService) EvaluateAll(now time.Time) (int, error) {
 
 // Evaluate checks one rule and reports its monitor up or down. It returns true when the state changed.
 func (s *LogAlertService) Evaluate(rule *db.LogAlertRule, now time.Time) (bool, error) {
+	// EvaluateAll works from a list loaded earlier; a rule disabled or deleted since then
+	// must not report again (that would revive the monitor Retire just parked).
+	var live db.LogAlertRule
+	if err := s.db.Select("id", "enabled").Where("id = ?", rule.ID).First(&live).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	if !live.Enabled {
+		return false, nil
+	}
 	window := time.Duration(rule.WindowSeconds) * time.Second
 	count, err := s.logs.Count(logstore.Query{AppIDs: []string{rule.AppID}, Severity: rule.Severity, Event: rule.Event, Text: rule.Text, From: now.Add(-window), To: now})
 	if err != nil {

@@ -299,3 +299,15 @@ func measure(v any, depth int) (int, int) {
 	}
 	return deepest, keys
 }
+
+// CanonicalSeverity resolves a severity name or alias to its canonical level and
+// reports whether the name is a known level at all (NormalizeSeverity maps unknown
+// names to info, which cannot tell a typo from "info").
+func CanonicalSeverity(name string) (string, bool) {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if alias, ok := severityAliases[name]; ok {
+		name = alias
+	}
+	_, ok := severityByName[name]
+	return name, ok
+}

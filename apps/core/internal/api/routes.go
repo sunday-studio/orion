@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"net"
 	"net/http"
 	"orion/core/internal/config"
 	"orion/core/internal/service"
@@ -271,9 +272,14 @@ func (s *Server) serveConsole(c *gin.Context) {
 
 func (s *Server) Start(ctx context.Context, addr string) error {
 	s.logger.Info("Starting HTTP server", "address", addr)
+	// Request contexts derive from baseCtx, so cancelling it ends long-lived responses
+	// (the live log tail) that http.Server.Shutdown would otherwise wait on forever.
+	baseCtx, cancelStreams := context.WithCancel(context.Background())
+	defer cancelStreams()
 	httpServer := &http.Server{
 		Addr:              addr,
 		Handler:           s.router,
+		BaseContext:       func(net.Listener) context.Context { return baseCtx },
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      60 * time.Second,
@@ -296,8 +302,11 @@ func (s *Server) Start(ctx context.Context, addr string) error {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		s.logger.Info("Shutting down HTTP server")
+		cancelStreams()
 		if err := httpServer.Shutdown(shutdownCtx); err != nil {
-			return err
+			// Slow clients outlasting the grace period are cut off; that is not a startup failure.
+			s.logger.Warn("HTTP server did not drain within the grace period; closing remaining connections", "error", err)
+			_ = httpServer.Close()
 		}
 		return <-errCh
 	}

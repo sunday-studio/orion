@@ -34,23 +34,13 @@ func validateLogAlertRule(r db.LogAlertRule) error {
 		return errors.New("severity, event and q are limited in length")
 	}
 	if r.Severity != "" {
-		if _, _, ranged := logstore.SeverityRange(r.Severity); !ranged {
-			for _, name := range splitList(r.Severity) {
-				if canonical, _ := logstore.NormalizeSeverity(name); canonical == "info" && strings.ToLower(strings.TrimSpace(name)) != "info" && !isKnownInfoAlias(name) {
-					return errors.New("severity contains an unknown level: " + name)
-				}
+		for _, name := range splitList(strings.TrimPrefix(r.Severity, ">=")) {
+			if _, ok := logstore.CanonicalSeverity(name); !ok {
+				return errors.New("severity contains an unknown level: " + name)
 			}
 		}
 	}
 	return nil
-}
-
-func isKnownInfoAlias(name string) bool {
-	switch strings.ToLower(strings.TrimSpace(name)) {
-	case "information", "informational", "notice", "log", "ok":
-		return true
-	}
-	return false
 }
 
 func (s *Server) logAlertService() *service.LogAlertService {
