@@ -15,7 +15,7 @@ import (
 	"orion/agent/internal/utils"
 )
 
-func (a *Agent) runSystemMetrics() error {
+func (a *Agent) runSystemMetrics(ctx context.Context) error {
 	if a.isInMaintenanceMode() {
 		logging.Infof("Skipping system report while agent is in maintenance mode")
 		return nil
@@ -39,11 +39,12 @@ func (a *Agent) runSystemMetrics() error {
 		Location:      metrics.Location,
 	}
 
-	send := func(context.Context) error {
-		return a.transport.SendReport(*report, a.internalState.AgentID)
+	agentID := a.agentID()
+	send := func(sendCtx context.Context) error {
+		return a.transport.WithContext(sendCtx).SendReport(*report, agentID)
 	}
 
-	if err := send(context.Background()); err != nil {
+	if err := send(ctx); err != nil {
 		if transport.IsAuthError(err) {
 			return err
 		}
@@ -54,9 +55,9 @@ func (a *Agent) runSystemMetrics() error {
 		}
 		return err
 	}
-	logging.Debugf("system report sent: agent_id=%s", a.internalState.AgentID)
+	logging.Debugf("system report sent: agent_id=%s", agentID)
 
-	if err := a.shipServiceLogs(); err != nil {
+	if err := a.shipServiceLogs(ctx); err != nil {
 		if transport.IsAuthError(err) {
 			return err
 		}
@@ -79,7 +80,7 @@ func (a *Agent) configSummary() map[string]interface{} {
 	}
 }
 
-func (a *Agent) runMonitorMetrics(monitor config.InternalStateMonitor, userMonitor config.UserMonitor) error {
+func (a *Agent) runMonitorMetrics(ctx context.Context, monitor config.InternalStateMonitor, userMonitor config.UserMonitor) error {
 	if a.isInMaintenanceMode() {
 		logging.Infof("Skipping monitor report for %s while agent is in maintenance mode", monitor.Name)
 		return nil
@@ -103,11 +104,12 @@ func (a *Agent) runMonitorMetrics(monitor config.InternalStateMonitor, userMonit
 		Error:     result.Error,
 	}
 
-	send := func(context.Context) error {
-		return a.transport.SendMonitorReport(*report, a.internalState.AgentID, monitor.ID)
+	agentID := a.agentID()
+	send := func(sendCtx context.Context) error {
+		return a.transport.WithContext(sendCtx).SendMonitorReport(*report, agentID, monitor.ID)
 	}
 
-	if err := send(context.Background()); err != nil {
+	if err := send(ctx); err != nil {
 		if transport.IsAuthError(err) {
 			return err
 		}
@@ -124,7 +126,7 @@ func (a *Agent) runMonitorMetrics(monitor config.InternalStateMonitor, userMonit
 }
 
 func (a *Agent) enqueueSystemReport(report *transport.SystemReport, lastErr error) error {
-	if _, err := a.stateStore.EnqueueReport(state.ReportSpoolKindSystem, a.internalState.AgentID, "", "", report, lastErr); err != nil {
+	if _, err := a.stateStore.EnqueueReport(state.ReportSpoolKindSystem, a.agentID(), "", "", report, lastErr); err != nil {
 		return err
 	}
 	logging.Debugf("system report persisted for retry")
@@ -132,7 +134,7 @@ func (a *Agent) enqueueSystemReport(report *transport.SystemReport, lastErr erro
 }
 
 func (a *Agent) enqueueMonitorReport(monitor config.InternalStateMonitor, report *transport.MonitorReport, lastErr error) error {
-	if _, err := a.stateStore.EnqueueReport(state.ReportSpoolKindMonitor, a.internalState.AgentID, monitor.ID, monitor.Name, report, lastErr); err != nil {
+	if _, err := a.stateStore.EnqueueReport(state.ReportSpoolKindMonitor, a.agentID(), monitor.ID, monitor.Name, report, lastErr); err != nil {
 		return err
 	}
 	logging.Debugf("monitor report persisted for retry: monitor=%s monitor_id=%s", monitor.Name, monitor.ID)
@@ -157,7 +159,7 @@ func (a *Agent) flushDurableSpool(ctx context.Context) error {
 		default:
 		}
 
-		if err := a.sendSpooledReport(item); err != nil {
+		if err := a.sendSpooledReport(ctx, item); err != nil {
 			if transport.IsAuthError(err) {
 				return err
 			}
@@ -177,20 +179,21 @@ func (a *Agent) flushDurableSpool(ctx context.Context) error {
 	return firstErr
 }
 
-func (a *Agent) sendSpooledReport(item state.SpooledReport) error {
+func (a *Agent) sendSpooledReport(ctx context.Context, item state.SpooledReport) error {
+	transportClient := a.transport.WithContext(ctx)
 	switch item.Kind {
 	case state.ReportSpoolKindSystem:
 		var report transport.SystemReport
 		if err := json.Unmarshal(item.PayloadJSON, &report); err != nil {
 			return fmt.Errorf("decode spooled system report: %w", err)
 		}
-		return a.transport.SendReport(report, item.AgentID)
+		return transportClient.SendReport(report, item.AgentID)
 	case state.ReportSpoolKindMonitor:
 		var report transport.MonitorReport
 		if err := json.Unmarshal(item.PayloadJSON, &report); err != nil {
 			return fmt.Errorf("decode spooled monitor report: %w", err)
 		}
-		return a.transport.SendMonitorReport(report, item.AgentID, item.MonitorID)
+		return transportClient.SendMonitorReport(report, item.AgentID, item.MonitorID)
 	default:
 		return fmt.Errorf("unsupported spooled report kind: %s", item.Kind)
 	}

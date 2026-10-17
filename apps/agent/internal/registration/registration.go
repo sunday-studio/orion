@@ -1,6 +1,7 @@
 package registration
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -201,4 +202,45 @@ func enrollmentToken(userConfig *config.UserConfig) string {
 		return token
 	}
 	return userConfig.EnrollmentToken
+}
+
+// RegistrationBackoff controls how long RegisterWithRetry waits between attempts.
+type RegistrationBackoff struct {
+	Initial time.Duration
+	Max     time.Duration
+}
+
+// DefaultRegistrationBackoff retries from 2s up to a 60s cap.
+var DefaultRegistrationBackoff = RegistrationBackoff{Initial: 2 * time.Second, Max: 60 * time.Second}
+
+// RegisterWithRetry keeps trying RegisterAgentIfNeeded while Core is unreachable
+// or answering with a transient error (for example when Core and this host boot
+// together after a power event), instead of exiting and exhausting systemd's
+// start limit. Permanent failures (credentials, conflicts, validation) are
+// returned immediately, and it stops with ctx.Err() when ctx is cancelled.
+func (s *RegistrationService) RegisterWithRetry(ctx context.Context, backoff RegistrationBackoff) error {
+	delay := backoff.Initial
+	if delay <= 0 {
+		delay = DefaultRegistrationBackoff.Initial
+	}
+	maxDelay := backoff.Max
+	if maxDelay <= 0 {
+		maxDelay = DefaultRegistrationBackoff.Max
+	}
+	for attempt := 1; ; attempt++ {
+		err := s.RegisterAgentIfNeeded()
+		if err == nil {
+			return nil
+		}
+		if !transport.IsTransientError(err) {
+			return err
+		}
+		logging.Warnf("registration attempt %d failed (%v); retrying in %s", attempt, err, delay)
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("registration abandoned: %w (last error: %v)", ctx.Err(), err)
+		case <-time.After(delay):
+		}
+		delay = min(delay*2, maxDelay)
+	}
 }
