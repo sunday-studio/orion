@@ -107,7 +107,7 @@ Slots in after hardening Phases 0-1 so it lands on the WAL profile, test kit, an
 - **Performance targets (to confirm in L1):** sustained 1,000 entries/s with p95 ingest under 100 ms; list query with filters under 300 ms on 10M rows; retention prune never blocks ingest for more than 1 s.
 - **Soak:** 72h with three apps, one noisy; DB size plateaus at retention.
 - **UI:** Playwright for filter-by-facet, search, live tail pause, URL state restore.
-- Each phase ends with a Maat ticket completed with evidence and independent review (AGENTS.md).
+- Each phase ends with evidence and independent review (AGENTS.md).
 
 ## 6. Decisions I would make (for review)
 

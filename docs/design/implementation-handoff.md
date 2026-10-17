@@ -2,6 +2,8 @@
 
 Read `design-language.md` (rules and tokens) first, then this file. The canvas is https://claude.ai/artifact/L7gFM2gipuTveU5hkGqMRY; artboard names below match its file names (`<name>.dc.html`). `screen-map.md` numbers screens; this file maps them to code and API. API items marked "approved" are covered by D-004; items marked "proposed" need a Core route, OpenAPI annotations and `docs/agent-core-contract.md` review before the UI can ship, so build the screen against a typed stub and a feature flag.
 
+**Artboard exports (build 1:1 from these).** Every canvas artboard is exported to `docs/design/artboards/`: `<name>.html` (self-contained, shared `orion.css`), `png/<name>-light.png` and `-dark.png` at 1280px, and `README.md` with the artboard to screen-map to route to Console file index. Artboard names in the table below match those files. Compare each screen to its PNG during review.
+
 ## 1. Build order
 
 1. **Foundation.** Tokens and type in `index.css` (TWK Lausanne, tabular figures, color and radius tokens from design-language sections 4 to 6). New header with the tray, account menu and health chip. Restyle `status-badges`, `page-header`, `tabs`, `dialog`, `empty-state`, `data-table` (one-line rows, 38px, dense 30px).
@@ -87,3 +89,29 @@ Mobile and narrow layouts, print views, password reset (done through an environm
 ## 6. Verification
 
 Compare each screen to its artboard at 1280px width. Check: one-line rows, centered column widths (1040 and 760), tab rule width, badge alignment, tabular numbers in every column, focus states, and the empty, loading, error and offline states in the System states artboard.
+
+## 7. Feature 1 (Entry and home): data and API notes
+
+Checked against `apps/core/openapi.yaml` on 2026-10-18. Where the first drawing used data Core does not have, the artboard was changed (Overview, Add server connected).
+
+**Overview** (`Main`, `overview-all-good`, `dashboard-dark`, `onboarding`)
+- Greeting uses the signed-in username. Header health chip: `GET /v1/health/summary` `overall_health` and the count of down, degraded and stale monitors.
+- Stat cards: Monitors up = `health/summary.monitors.up` of `.total`. Servers up = `GET /v1/agents/summary` `up` of `total`. Open incidents = count of `GET /v1/incidents` with status open.
+- Needs you now: the highest-severity open incident from `GET /v1/incidents` (`title`, `severity`, `status`, `opened_at`, `latest_event`, `notification_status`, `allowed_actions`). Tracker: Detected = `opened_at`; Notified from `notification_status` (sent, failed shows an amber "Not delivered"); Acknowledged and Resolved from `status`. The Acknowledge button calls `POST /v1/incidents/{id}/acknowledge`.
+- Needs attention: `GET /v1/health/issues` (`monitor_name`, `agent_name`, `monitor_type`, `health`). Columns are monitor, server, type, status. Show five, then a link. There is no "since" field, so the artboard has none.
+- Ongoing incidents: open and acknowledged incidents, duration from `opened_at`. Recent incidents: resolved, duration `resolved_at` minus `opened_at`.
+- Removed because Core has no source: the 90-day per-service uptime strips and the organization-wide 30-day uptime percentage. If wanted later: `GET /v1/overview` (proposed).
+- States: first run when agents total and monitors total are both 0 (`onboarding`, with a dismiss link, D-006); all good when `overall_health` is up and no incident is open (`overview-all-good`); dark is `dashboard-dark`.
+
+**Sign in** (`login`): `POST /v1/auth/login`. Error callout text is the API message. No sign-up.
+
+**Add server** (`add-server`, `add-server-waiting`, `add-server-connected`, `add-server-failed`)
+- Today `POST /v1/register` is called by the agent with the static `X-Orion-Enrollment-Token` header (env `ORION_ENROLLMENT_TOKEN` on Core). The one-time, expiring token in the artboards (15 minutes) needs a new endpoint, for example `POST /v1/enrollment-tokens` returning `token` and `expires_at`. Until it exists, the Console shows the command with the static token and omits the expiry line.
+- "Waiting" and "connected": poll `GET /v1/agents` for an agent created after the page opened (an agent-connected event would be better). Waiting steps map to installer output; only "registered" and "first report" are observable from Core, so the first two steps are shown as soon as the agent registers.
+- The agent token is returned to the agent, never to the Console, so the connected screen shows where it is stored on the host and links to the Token tab (rotate), not the secret.
+- Not connected after 5 minutes: static doctor checklist, no API.
+
+**Connect an app** (`app-connect-create`, `-snippet`, `-waiting`, `-received`)
+- Create: `POST /v1/apps`. Key: `POST /v1/apps/{id}/keys` returns the secret once. Snippets are client-side. Waiting: poll the app (`GET /v1/apps/{id}`) or the logs list for the first line. "Send a test log": `POST /v1/apps/{id}/test-log`. Received row is the first log from the logs list.
+
+**Command palette, account menu, shortcuts**: client side. Palette searches already loaded monitors, incidents and servers and lists static actions. Theme and timezone are stored in the browser until a settings endpoint exists. Sign out clears the token.

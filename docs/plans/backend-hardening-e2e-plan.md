@@ -17,7 +17,7 @@ Out of scope: console/UI work (web thread), new product features, multi-user RBA
 2. Failure-mode tests run on a **file-backed WAL SQLite**, two processes (API plus Worker), not a single in-memory connection. Today's tests miss this class.
 3. One design for alerting: transactional outbox plus dispatcher (ORB-001, 004, 005). Do not patch the three separately.
 4. Contract changes update `openapi.yaml` (`make generate-openapi`) and `docs/agent-core-contract.md` in the same PR.
-5. Each PR needs a Maat ticket, the 500-line limit, and independent staff review (AGENTS.md).
+5. Each PR needs the 500-line limit, and independent staff review (AGENTS.md).
 
 ## 3. Phases
 
@@ -181,11 +181,11 @@ Every finding keeps its test permanently. Coverage floor enforced in CI: Core 70
 | CI | vet, race, govulncheck, lint, route-diff, tests all green |
 | Coverage | Core 70% (`-coverpkg`), Agent 60% |
 | Soak | section 6.5 passes |
-| Docs | contract doc and OpenAPI match code; Maat tickets complete with evidence |
+| Docs | contract doc and OpenAPI match code |
 
-## 9. Ticket map (Maat)
+## 9. Ticket map
 
-Create one goal ("Backend hardening") with tickets, each with outcome, description, and acceptance criteria:
+Tickets, each with outcome, description, and acceptance criteria:
 
 | Ticket | Work packages | Findings | Phase |
 |---|---|---|---|
