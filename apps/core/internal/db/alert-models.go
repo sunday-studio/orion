@@ -112,3 +112,18 @@ type AlertDeliveryRecipient struct {
 	RecipientID string    `gorm:"primaryKey"`
 	SentAt      time.Time `gorm:"not null"`
 }
+
+// EnrollmentSession is a one-time, expiring agent registration token created by the
+// "Add server" wizard. Only the SHA-256 of the token is stored. The first machine to
+// register with it binds MachineID; that machine may retry until expiry, nobody else can.
+type EnrollmentSession struct {
+	ID          string `gorm:"primaryKey"`
+	TokenHash   string `gorm:"not null;uniqueIndex:idx_enrollment_sessions_token_hash"`
+	Platform    string `gorm:"not null;default:''"`
+	MachineID   string `gorm:"not null;default:''"`
+	AgentID     string `gorm:"not null;default:''"`
+	ClaimedAt   *time.Time
+	CancelledAt *time.Time
+	ExpiresAt   time.Time `gorm:"not null"`
+	CreatedAt   time.Time `gorm:"not null"`
+}
