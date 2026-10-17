@@ -6,6 +6,7 @@ import { LogOut } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 
 const navItems = [
+  { label: "Overview", to: "/" },
   { label: "Incidents", to: "/incidents" },
   { label: "Servers", to: "/servers" },
   { label: "Monitors", to: "/monitors" },
@@ -39,7 +40,7 @@ export const AppHeader = () => {
   return (
     <header className="z-50 flex h-14 shrink-0 items-center bg-neutral-100 backdrop-blur">
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
-        <NavLink to="/incidents" className="font-medium">
+        <NavLink to="/" className="font-medium">
           Orion
         </NavLink>
         <nav
@@ -50,6 +51,7 @@ export const AppHeader = () => {
             <NavLink
               key={item.to}
               to={item.to}
+              end={item.to === "/"}
               className={({ isActive }) =>
                 isActive ? "text-indigo-700" : "text-neutral-700 hover:text-neutral-950"
               }

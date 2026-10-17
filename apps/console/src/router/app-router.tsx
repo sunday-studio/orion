@@ -20,6 +20,9 @@ const IncidentDetailPage = lazy(() =>
     default: module.IncidentDetailPage,
   })),
 );
+const OverviewPage = lazy(() =>
+  import("@/features/overview/overview.view").then((module) => ({ default: module.OverviewPage })),
+);
 const IncidentsPage = lazy(() =>
   import("@/features/incidents/incidents.view").then((module) => ({
     default: module.IncidentsPage,
@@ -57,7 +60,8 @@ function AppRouter() {
       <Route path="/login" element={<LoginPage />} />
       <Route element={<RequireAuth />}>
         <Route path="/" element={<Layout />}>
-          <Route index element={<Navigate to="/incidents" replace />} />
+          <Route index element={<OverviewPage />} />
+          <Route path="overview" element={<Navigate to="/" replace />} />
           <Route path="incidents" element={<IncidentsPage />} />
           <Route path="alerts" element={<AlertsPage />} />
           <Route path="status-pages" element={<StatusPagesPage />} />
