@@ -1,6 +1,5 @@
 # Public Status Page IA And Design Breakdown
 
-Side ticket: `T-20260529-191906-7006` [Certain]
 
 ## Scope
 

@@ -184,33 +184,6 @@ func mergeAlertRuleRequest(rule *db.AlertRoute, request alertRuleRequest) {
 		rule.GroupingDelaySeconds = *request.GroupingDelaySeconds
 	}
 }
-func (s *Server) alertDryRunEventFromRequest(c *gin.Context, resourceName string) (service.AlertRouteContext, bool) {
-	var request alertRouteDryRunRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
-		utils.BadRequest(c, "Invalid alert "+resourceName+" dry-run payload")
-		return service.AlertRouteContext{}, false
-	}
-	if !db.ValidAlertEvent(strings.TrimSpace(request.EventType)) {
-		utils.BadRequest(c, "unsupported alert "+resourceName+" event")
-		return service.AlertRouteContext{}, false
-	}
-	alertService := service.NewAlertService(s.db, s.logger, s.cfg)
-	event := service.AlertRouteContext{IncidentID: strings.TrimSpace(request.IncidentID), EventType: strings.TrimSpace(request.EventType), Severity: strings.TrimSpace(request.Severity), AgentID: strings.TrimSpace(request.AgentID), MonitorID: strings.TrimSpace(request.MonitorID), MonitorType: strings.TrimSpace(request.MonitorType)}
-	if event.IncidentID != "" {
-		loaded, err := alertService.LoadAlertRouteContext(event.IncidentID, event.EventType)
-		if err != nil {
-			if err == gorm.ErrRecordNotFound {
-				utils.NotFound(c, "Incident not found")
-				return service.AlertRouteContext{}, false
-			}
-			s.logger.Error("Failed to load incident for alert "+resourceName+" dry-run", "incident_id", event.IncidentID, "error", err)
-			utils.InternalError(c, "Failed to dry-run alert "+resourceName+"s", err)
-			return service.AlertRouteContext{}, false
-		}
-		event = mergeAlertRouteContext(*loaded, event)
-	}
-	return event, true
-}
 func (s *Server) alertRuleDryRunEventFromRequest(c *gin.Context) (service.AlertRouteContext, bool) {
 	var request alertRuleDryRunRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
