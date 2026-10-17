@@ -2,8 +2,6 @@
 
 ## Goal
 
-Maat goal `G-20260529-190307-7def` tracks the alerting cleanup. [Certain]
-
 Outcome: Orion alerting supports only generic webhook destinations, has editable rules with a flowchart Console setup, removes obsolete SMTP, Slack, and Discord alert functionality, and has E2E coverage proving the primary alert workflow. [Certain]
 
 ## Product Direction
@@ -22,13 +20,13 @@ The Console should allow rule creation and editing through a flowchart-style set
 
 | Ticket | Title | Owner |
 |---|---|---|
-| `T-20260529-190327-fd04` | Remove non-webhook alert destinations | Faraday |
-| `T-20260529-190327-47a9` | Move SMTP alert configuration to environment | Mendel |
-| `T-20260529-190328-b618` | Add webhook-only alert rule CRUD API | Avicenna |
-| `T-20260529-190328-ec47` | Build Console flowchart alert rule editor | Peirce |
-| `T-20260529-190344-2f11` | Add alert rule E2E coverage | Sagan |
-| `T-20260529-190344-607a` | Reconcile alert docs Maat and generated contracts | Dewey |
-| `T-20260529-190344-6825` | Harden webhook outbound delivery policy | Queued because the current agent thread limit was reached |
+| Remove non-webhook alert destinations | Faraday |
+| Move SMTP alert configuration to environment | Mendel |
+| Add webhook-only alert rule CRUD API | Avicenna |
+| Build Console flowchart alert rule editor | Peirce |
+| Add alert rule E2E coverage | Sagan |
+| Reconcile alert docs and generated contracts | Dewey |
+| Harden webhook outbound delivery policy | Queued because the current agent thread limit was reached |
 
 ## Implementation Sequence
 
@@ -37,7 +35,7 @@ The Console should allow rule creation and editing through a flowchart-style set
 3. Add Core rule CRUD and dry-run semantics after the destination model is simplified. [Likely]
 4. Build the Console flowchart editor against the generated rule SDK. [Likely]
 5. Add E2E coverage after the Core and Console contracts stabilize. [Likely]
-6. Reconcile docs, Maat, generated contracts, and seed data after implementation is complete. [Likely]
+6. Reconcile docs, generated contracts, and seed data after implementation is complete. [Likely]
 
 ## Review Risks
 

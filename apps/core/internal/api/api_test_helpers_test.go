@@ -1,12 +1,10 @@
 package api
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -295,70 +293,6 @@ func assertNotContains(t *testing.T, body string, value string) {
 	if strings.Contains(body, value) {
 		t.Fatalf("response exposed %q: %s", value, body)
 	}
-}
-
-func startAPITestSMTPServer(t *testing.T) (string, <-chan string) {
-	t.Helper()
-
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("listen smtp: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = listener.Close()
-	})
-
-	messages := make(chan string, 8)
-	go func() {
-		for {
-			conn, err := listener.Accept()
-			if err != nil {
-				return
-			}
-			func() {
-				defer conn.Close()
-
-				reader := bufio.NewReader(conn)
-				_, _ = fmt.Fprint(conn, "220 orion-test-smtp\r\n")
-				for {
-					line, err := reader.ReadString('\n')
-					if err != nil {
-						return
-					}
-					command := strings.TrimRight(line, "\r\n")
-					upperCommand := strings.ToUpper(command)
-					switch {
-					case strings.HasPrefix(upperCommand, "EHLO"), strings.HasPrefix(upperCommand, "HELO"):
-						_, _ = fmt.Fprint(conn, "250 orion-test-smtp\r\n")
-					case strings.HasPrefix(upperCommand, "MAIL FROM:"), strings.HasPrefix(upperCommand, "RCPT TO:"):
-						_, _ = fmt.Fprint(conn, "250 ok\r\n")
-					case upperCommand == "DATA":
-						_, _ = fmt.Fprint(conn, "354 send message\r\n")
-						var message strings.Builder
-						for {
-							dataLine, err := reader.ReadString('\n')
-							if err != nil {
-								return
-							}
-							if strings.TrimRight(dataLine, "\r\n") == "." {
-								break
-							}
-							message.WriteString(dataLine)
-						}
-						messages <- message.String()
-						_, _ = fmt.Fprint(conn, "250 queued\r\n")
-					case upperCommand == "QUIT":
-						_, _ = fmt.Fprint(conn, "221 bye\r\n")
-						return
-					default:
-						_, _ = fmt.Fprint(conn, "250 ok\r\n")
-					}
-				}
-			}()
-		}
-	}()
-
-	return listener.Addr().String(), messages
 }
 
 func performJSONRequest(t *testing.T, server *Server, method string, path string, body interface{}, token string) *httptest.ResponseRecorder {

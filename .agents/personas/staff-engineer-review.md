@@ -21,7 +21,7 @@ Require the implementation agent to provide:
 - review base revision, current `HEAD`, and any local or untracked changed paths;
 - exact validation commands and results, including failures or warnings;
 - migration, deployment, API/OpenAPI, Agent/Core-contract, and security implications where relevant;
-- the proposed commit message and Maat ticket id.
+- the proposed commit message.
 
 Read the complete review range and relevant surrounding code yourself. Inspect
 `git diff <base>...HEAD`, the local diff, and every untracked changed path; do not approve a summary
@@ -68,4 +68,4 @@ Return a review packet in this format:
 
 An `APPROVED` verdict is authorization to push and open a PR only for the declared base, `HEAD`,
 local diff, and untracked paths. Any change to that reviewed state requires a fresh review and new
-record in the associated Maat ticket. `CHANGES REQUESTED` is not authorization to publish.
+record in the commit message or handoff. `CHANGES REQUESTED` is not authorization to publish.

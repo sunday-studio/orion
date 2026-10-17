@@ -59,16 +59,6 @@ export const AgentList = () => {
 
   return (
     <div>
-      {/* <AgentFilters
-        search={search}
-        status={status}
-        selectedAttentionFilters={selectedAttentionFilters}
-        hasFilters={hasFilters}
-        onSearchChange={setSearch}
-        onStatusChange={setStatus}
-        onAttentionFiltersChange={setAttentionFilters}
-        onClear={clearFilters}
-      /> */}
       <AgentSummary
         summary={summaryResponse.data}
         selectedFilter={selectedSummaryFilter}
