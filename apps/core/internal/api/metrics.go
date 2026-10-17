@@ -2,6 +2,7 @@ package api
 
 import (
 	"crypto/subtle"
+	"fmt"
 	"net/http"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
@@ -37,6 +38,12 @@ func (s *Server) getMetrics(c *gin.Context) {
 	if err != nil {
 		utils.InternalError(c, "Failed to render metrics", err)
 		return
+	}
+	if s.logs != nil {
+		st := s.logs.store.Stats()
+		body += fmt.Sprintf("# HELP orion_logs_queue_entries Product log entries accepted but not yet written.\n# TYPE orion_logs_queue_entries gauge\norion_logs_queue_entries %d\n"+
+			"# HELP orion_logs_written_total Product log entries written since process start.\n# TYPE orion_logs_written_total counter\norion_logs_written_total %d\n"+
+			"# HELP orion_logs_dropped_total Product log entries lost to write failures since process start.\n# TYPE orion_logs_dropped_total counter\norion_logs_dropped_total %d\n", st.Queued, st.Written, st.Dropped)
 	}
 	c.Data(http.StatusOK, "text/plain; version=0.0.4; charset=utf-8", []byte(body))
 }

@@ -35,7 +35,7 @@ var _ utils.APIResponse
 // @Failure      401  {object}  utils.APIResponse
 // @Failure      501  {object}  utils.APIResponse
 // @Router       /v1/logs [get]
-func (s *Server) searchLogs(c *gin.Context) { s.logsNotImplemented(c) }
+func (s *Server) searchLogs(c *gin.Context) { s.searchLogsImpl(c) }
 
 // getLogHistogram Log volume histogram.
 // @Summary      Log volume histogram
@@ -164,4 +164,4 @@ func (s *Server) deleteLogView(c *gin.Context) { s.logsNotImplemented(c) }
 // @Failure      401  {object}  utils.APIResponse
 // @Failure      501  {object}  utils.APIResponse
 // @Router       /v1/logs/{id} [get]
-func (s *Server) getLogEntry(c *gin.Context) { s.logsNotImplemented(c) }
+func (s *Server) getLogEntry(c *gin.Context) { s.getLogEntryImpl(c) }

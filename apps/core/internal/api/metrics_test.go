@@ -56,3 +56,13 @@ func TestMetricsCountsRequestsByRouteTemplate(t *testing.T) {
 		t.Fatalf("unmatched paths must collapse to one label, never leak raw paths:\n%s", body)
 	}
 }
+
+func TestMetricsIncludeProductLogQueueWhenEnabled(t *testing.T) {
+	server := setupLogsServer(t, nil)
+	body := metricsRequest(server, "").Body.String()
+	for _, want := range []string{"orion_logs_queue_entries 0", "orion_logs_written_total 0", "orion_logs_dropped_total 0"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("metrics missing %q", want)
+		}
+	}
+}

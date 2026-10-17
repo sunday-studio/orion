@@ -39,6 +39,7 @@ type Server struct {
 	publicSubscriberLimiter      *RateLimiter
 	publicStatusMailSend         func(publicStatusMailMessage) error
 	router                       *gin.Engine
+	logs                         *productLogs
 }
 
 func NewServer(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *Server {

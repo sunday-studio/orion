@@ -24,11 +24,18 @@ import (
 var migrationFiles embed.FS
 
 func Initialize(dataDir string, logLevel string) (*gorm.DB, error) {
+	return OpenFile(dataDir, "orion.db", logLevel)
+}
+
+// OpenFile opens (creating if needed) a SQLite database named fileName inside
+// dataDir with the production profile: WAL, busy timeout, bounded pool, UTC
+// timestamps and owner-only permissions. Core uses it for orion.db and logs.db.
+func OpenFile(dataDir string, fileName string, logLevel string) (*gorm.DB, error) {
 	if err := os.MkdirAll(dataDir, 0700); err != nil {
 		return nil, err
 	}
 
-	dbPath := filepath.Join(dataDir, "orion.db")
+	dbPath := filepath.Join(dataDir, fileName)
 
 	db, err := gorm.Open(sqlite.Open(sqliteDSN(dbPath)), &gorm.Config{
 		Logger:  newGormLogger(logLevel),
@@ -46,7 +53,7 @@ func Initialize(dataDir string, logLevel string) (*gorm.DB, error) {
 	sqlDB.SetMaxIdleConns(sqliteMaxIdleConns)
 	sqlDB.SetMaxOpenConns(sqliteMaxOpenConns)
 
-	// The DB holds webhook secrets and token hashes; keep it owner-only.
+	// The database holds secrets or user data; keep it owner-only.
 	if err := os.Chmod(dbPath, 0600); err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}

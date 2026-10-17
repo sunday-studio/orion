@@ -4006,7 +4006,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_api.AppRequest"
+                            "$ref": "#/definitions/internal_api.AppUpdateRequest"
                         }
                     }
                 ],
@@ -10899,6 +10899,35 @@ const docTemplate = `{
             "required": [
                 "name"
             ],
+            "properties": {
+                "debug_sample_rate": {
+                    "type": "number"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "display_profile": {
+                    "$ref": "#/definitions/internal_api.DisplayProfile"
+                },
+                "environment": {
+                    "type": "string"
+                },
+                "max_storage_mb": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "redaction": {
+                    "$ref": "#/definitions/internal_api.RedactionSettings"
+                },
+                "retention_days": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_api.AppUpdateRequest": {
+            "type": "object",
             "properties": {
                 "debug_sample_rate": {
                     "type": "number"

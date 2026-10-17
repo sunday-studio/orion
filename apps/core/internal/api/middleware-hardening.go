@@ -20,9 +20,12 @@ const (
 var safeRequestID = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
 
 // maxBodyBytesFor returns the request body cap for a route.
-func maxBodyBytesFor(fullPath string) int64 {
+func maxBodyBytesFor(fullPath string, contentType string) int64 {
 	if strings.HasSuffix(fullPath, "/logs/batch") {
 		return serviceLogMaxBodyBytes
+	}
+	if strings.HasPrefix(fullPath, "/v1/ingest/") && strings.Contains(strings.ToLower(contentType), "ndjson") {
+		return serviceLogMaxBodyBytes // 5 MiB for NDJSON ingest batches
 	}
 	return defaultMaxBodyBytes
 }
@@ -31,7 +34,7 @@ func maxBodyBytesFor(fullPath string) int64 {
 // them and caps what a handler can read when the length is not declared.
 func BodyLimitMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		limit := maxBodyBytesFor(c.FullPath())
+		limit := maxBodyBytesFor(c.FullPath(), c.GetHeader("Content-Type"))
 		if c.Request.ContentLength > limit {
 			utils.ErrorResponse(c, http.StatusRequestEntityTooLarge, "Request body too large", nil)
 			c.Abort()
