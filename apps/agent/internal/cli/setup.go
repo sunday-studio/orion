@@ -136,6 +136,9 @@ func applySetup(ctx context.Context, opts *Options, plan setupPlan) error {
 
 	switch {
 	case plan.TokenFile != "":
+		if plan.Confirmed { // the wizard staged the typed token in a temp file; never leave it behind
+			defer os.Remove(plan.TokenFile)
+		}
 		if err := runEnroll(ctx, &Options{ConfigPath: opts.ConfigPath, StatePath: opts.StatePath, SocketPath: opts.SocketPath, JSON: false}, plan.CoreURL, "", plan.TokenFile); err != nil {
 			return err
 		}

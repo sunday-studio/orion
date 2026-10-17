@@ -9,7 +9,6 @@ import (
 	"runtime/debug"
 	"sync"
 	"syscall"
-	"time"
 
 	agent "orion/agent/internal"
 	"orion/agent/internal/config"
@@ -18,11 +17,6 @@ import (
 	"orion/agent/internal/registration"
 	agentstate "orion/agent/internal/state"
 	"orion/agent/internal/transport"
-)
-
-const (
-	registerBackoffStart = 2 * time.Second
-	registerBackoffMax   = time.Minute
 )
 
 // runDaemon is the long-running mode: register (retrying while Core is down),

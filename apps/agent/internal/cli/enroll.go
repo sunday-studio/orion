@@ -88,6 +88,8 @@ func runEnroll(_ context.Context, opts *Options, coreURL, token, tokenFile strin
 	}
 	defer store.Close()
 
+	before, _ := store.Get()
+	wasEnrolled := before != nil && before.IsRegistered()
 	prev, hadPrev := os.LookupEnv(config.EnvEnrollment)
 	os.Setenv(config.EnvEnrollment, token)
 	defer func() {
@@ -113,7 +115,11 @@ func runEnroll(_ context.Context, opts *Options, coreURL, token, tokenFile strin
 	if opts.JSON {
 		return renderJSON(outputWriter, res)
 	}
-	PrintOK("host enrolled")
+	if wasEnrolled {
+		PrintOK("host was already enrolled; the new token was not needed")
+	} else {
+		PrintOK("host enrolled")
+	}
 	PrintInfo("agent_id", res.AgentID)
 	PrintInfo("next", "orion-agent start")
 	return nil
@@ -152,12 +158,21 @@ func handOverToServiceUser(paths ...string) {
 	uid, _ := strconv.Atoi(u.Uid)
 	gid, _ := strconv.Atoi(u.Gid)
 	for _, p := range paths {
-		_ = os.Chown(p, uid, gid)
+		chownNoFollow(p, uid, gid)
 	}
 	if len(paths) > 0 {
-		_ = os.Chown(filepath.Dir(paths[0]), uid, gid)
+		chownNoFollow(filepath.Dir(paths[0]), uid, gid)
 		for _, suffix := range []string{"-wal", "-shm", "-journal"} {
-			_ = os.Chown(paths[0]+suffix, uid, gid)
+			chownNoFollow(paths[0]+suffix, uid, gid)
 		}
 	}
+}
+
+// chownNoFollow changes ownership without following symlinks, so a file the
+// service user controls cannot redirect a root-run chown elsewhere.
+func chownNoFollow(path string, uid, gid int) {
+	if info, err := os.Lstat(path); err != nil || info.Mode()&os.ModeSymlink != 0 {
+		return
+	}
+	_ = os.Lchown(path, uid, gid)
 }

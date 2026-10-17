@@ -156,7 +156,10 @@ func runUpdate2(env *updateEnv, opts UpdateOptions) error {
 		return fmt.Errorf("keep previous binary for rollback: %w", err)
 	}
 
-	wasRunning, _ := env.service.running()
+	wasRunning, rerr := env.service.running()
+	if rerr != nil {
+		return fmt.Errorf("cannot tell whether the service is running (%v); nothing was changed", rerr)
+	}
 	if wasRunning {
 		env.say(env.step, "stopping service")
 		if err := env.service.stop(); err != nil {
@@ -302,10 +305,11 @@ func downloadFile(url string, outputPath string) error {
 	if err != nil {
 		return fmt.Errorf("create download request: %w", err)
 	}
-	if token := strings.TrimSpace(os.Getenv("GITHUB_TOKEN")); token != "" {
+	// The token is only for GitHub; never send it to a mirror given via --base-url.
+	if token := strings.TrimSpace(os.Getenv("GITHUB_TOKEN")); token != "" && req.URL.Hostname() == "github.com" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := (&http.Client{Timeout: 5 * time.Minute}).Do(req)
 	if err != nil {
 		return fmt.Errorf("download %s: %w", url, err)
 	}
@@ -318,7 +322,7 @@ func downloadFile(url string, outputPath string) error {
 		return fmt.Errorf("create download file: %w", err)
 	}
 	defer out.Close()
-	if _, err := io.Copy(out, resp.Body); err != nil {
+	if _, err := io.Copy(out, io.LimitReader(resp.Body, 256<<20)); err != nil {
 		return fmt.Errorf("write download file: %w", err)
 	}
 	return nil
