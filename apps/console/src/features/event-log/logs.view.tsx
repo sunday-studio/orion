@@ -1,12 +1,17 @@
-import { DataTable } from "@/components/shared/data-table";
-import { DataTableLink } from "@/components/shared/data-table-link";
-import { EmptyState } from "@/components/shared/empty-state";
-import { ListPagination } from "@/components/shared/list-pagination";
-import { PageHeader } from "@/components/shared/page-header";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DataTable,
+  type DataTableFilterField,
+  DataTableLink,
+  FilterBar,
+  ListPagination,
+  PageHeader,
+  Tabs,
+  TabsList,
+  TabsPanel,
+  TabsTab,
+  filterParam,
+  useDataTableUrlState,
+} from "@/design-system";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import {
   type ApiOrionEventResponse,
@@ -17,8 +22,9 @@ import {
   useGetServiceLogs,
 } from "@/orion-sdk";
 import { type ColumnDef } from "@tanstack/react-table";
-import { Search } from "lucide-react";
-import { parseAsInteger, parseAsString, useQueryStates } from "nuqs";
+import { parseAsString, useQueryState } from "nuqs";
+import { useState } from "react";
+import { EventDetailDrawer } from "./components/event-detail-drawer";
 
 const EVENT_LIMIT = 40;
 const SERVICE_LOG_LIMIT = 40;
@@ -55,9 +61,6 @@ const typeOptions = [
   { value: "retention_archive_ran", label: "Retention archive ran" },
 ] as const;
 
-const hasRelatedData = (event: ApiOrionEventResponse) =>
-  Boolean(event.incident_id || event.agent_id || event.monitor_id);
-
 const levelOptions = [
   { value: "all", label: "All levels" },
   { value: "DEBUG", label: "Debug" },
@@ -65,6 +68,21 @@ const levelOptions = [
   { value: "WARN", label: "Warn" },
   { value: "ERROR", label: "Error" },
 ] as const;
+
+const eventFields: readonly DataTableFilterField[] = [
+  { type: "search", key: "q", placeholder: "Search events" },
+  { type: "select", key: "source", label: "Source", options: sourceOptions },
+  { type: "select", key: "type", label: "Type", options: typeOptions },
+];
+
+const serviceLogFields: readonly DataTableFilterField[] = [
+  { type: "search", key: "q", placeholder: "Search service logs" },
+  { type: "select", key: "level", label: "Level", options: levelOptions },
+  { type: "input", key: "component", placeholder: "Component" },
+];
+
+const hasRelatedData = (event: ApiOrionEventResponse) =>
+  Boolean(event.incident_id || event.agent_id || event.monitor_id);
 
 const columns: ColumnDef<ApiOrionEventResponse>[] = [
   {
@@ -171,97 +189,44 @@ const serviceLogColumns: ColumnDef<ApiServiceLogEntryResponse>[] = [
 ];
 
 export const LogsPage = () => {
-  const [
-    { page, q, serviceComponent, serviceLevel, servicePage, serviceQ, source, tab, type },
-    setLogQuery,
-  ] = useQueryStates({
-    page: parseAsInteger.withDefault(1),
-    q: parseAsString.withDefault(""),
-    serviceComponent: parseAsString.withDefault(""),
-    serviceLevel: parseAsString.withDefault("all"),
-    servicePage: parseAsInteger.withDefault(1),
-    serviceQ: parseAsString.withDefault(""),
-    source: parseAsString.withDefault("all"),
-    tab: parseAsString.withDefault("events"),
-    type: parseAsString.withDefault("all"),
+  const [selectedEvent, setSelectedEvent] = useState<ApiOrionEventResponse>();
+  const [tab, setTabState] = useQueryState("tab", parseAsString.withDefault("events"));
+  const eventTable = useDataTableUrlState({ fields: eventFields, limit: EVENT_LIMIT });
+  const serviceTable = useDataTableUrlState({
+    fields: serviceLogFields,
+    limit: SERVICE_LOG_LIMIT,
+    prefix: "service",
   });
-  const currentPage = Math.max(page, 1);
-  const offset = (currentPage - 1) * EVENT_LIMIT;
-  const params: GetOrionEventsParams = {
+  const [eventQ, eventSource, eventType] = eventFields.map((f) =>
+    filterParam(f, eventTable.values[f.key]),
+  );
+  const eventsQuery = useGetOrionEvents({
     limit: EVENT_LIMIT,
-    offset,
-    q: q.trim() || undefined,
-    source: source === "all" ? undefined : source,
-    type: type === "all" ? undefined : type,
-  };
-  const eventsQuery = useGetOrionEvents(params);
+    offset: eventTable.offset,
+    q: eventQ,
+    source: eventSource,
+    type: eventType,
+  } satisfies GetOrionEventsParams);
   const events = eventsQuery.data?.events ?? [];
   const count = eventsQuery.data?.count ?? events.length;
-  const currentServicePage = Math.max(servicePage, 1);
-  const serviceOffset = (currentServicePage - 1) * SERVICE_LOG_LIMIT;
-  const serviceParams: GetServiceLogsParams = {
+  const [serviceQ, serviceLevel, serviceComponent] = serviceLogFields.map((f) =>
+    filterParam(f, serviceTable.values[f.key]),
+  );
+  const serviceLogsQuery = useGetServiceLogs({
     limit: SERVICE_LOG_LIMIT,
-    offset: serviceOffset,
-    q: serviceQ.trim() || undefined,
-    level: serviceLevel === "all" ? undefined : serviceLevel,
-    component: serviceComponent.trim() || undefined,
-  };
-  const serviceLogsQuery = useGetServiceLogs(serviceParams);
+    offset: serviceTable.offset,
+    q: serviceQ,
+    level: serviceLevel,
+    component: serviceComponent,
+  } satisfies GetServiceLogsParams);
   const serviceLogs = serviceLogsQuery.data?.logs ?? [];
   const serviceLogCount = serviceLogsQuery.data?.count ?? serviceLogs.length;
   const linkedEventCount = events.filter(hasRelatedData).length;
   const sourceCount = new Set(events.map((event) => event.source ?? "unknown")).size;
-  const hasFilters = Boolean(q.trim()) || source !== "all" || type !== "all";
-  const hasServiceFilters =
-    Boolean(serviceQ.trim()) || serviceLevel !== "all" || Boolean(serviceComponent.trim());
-  const sourceLabel = sourceOptions.find((option) => option.value === source)?.label ?? source;
-  const typeLabel = typeOptions.find((option) => option.value === type)?.label ?? type;
-  const levelLabel =
-    levelOptions.find((option) => option.value === serviceLevel)?.label ?? serviceLevel;
-
-  const setOffset = (nextOffset: number) => {
-    void setLogQuery({ page: Math.floor(nextOffset / EVENT_LIMIT) + 1 });
-  };
-
-  const setServiceOffset = (nextOffset: number) => {
-    void setLogQuery({ servicePage: Math.floor(nextOffset / SERVICE_LOG_LIMIT) + 1 });
-  };
-
-  const setSearch = (nextSearch: string) => {
-    void setLogQuery({ q: nextSearch, page: 1 });
-  };
-
-  const setServiceSearch = (nextSearch: string) => {
-    void setLogQuery({ serviceQ: nextSearch, servicePage: 1 });
-  };
-
-  const setServiceLevel = (nextLevel: string) => {
-    void setLogQuery({ serviceLevel: nextLevel, servicePage: 1 });
-  };
-
-  const setServiceComponent = (nextComponent: string) => {
-    void setLogQuery({ serviceComponent: nextComponent, servicePage: 1 });
-  };
 
   const setTab = (nextTab: string) => {
     if (nextTab !== "events" && nextTab !== "service") return;
-    void setLogQuery({ tab: nextTab });
-  };
-
-  const setSource = (nextSource: string) => {
-    void setLogQuery({ source: nextSource, page: 1 });
-  };
-
-  const setType = (nextType: string) => {
-    void setLogQuery({ type: nextType, page: 1 });
-  };
-
-  const clearFilters = () => {
-    void setLogQuery({ q: "", source: "all", type: "all", page: 1 });
-  };
-
-  const clearServiceFilters = () => {
-    void setLogQuery({ serviceQ: "", serviceLevel: "all", serviceComponent: "", servicePage: 1 });
+    void setTabState(nextTab);
   };
 
   return (
@@ -273,11 +238,11 @@ export const LogsPage = () => {
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="events">Operational Events</TabsTrigger>
-          <TabsTrigger value="service">Service Logs</TabsTrigger>
+          <TabsTab value="events">Operational Events</TabsTab>
+          <TabsTab value="service">Service Logs</TabsTab>
         </TabsList>
 
-        <TabsContent value="events">
+        <TabsPanel value="events">
           <section className="space-y-4">
             <div className="grid gap-1 text-sm sm:grid-cols-4">
               <div className="bg-neutral-100 p-3">
@@ -298,83 +263,45 @@ export const LogsPage = () => {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative w-full max-w-sm">
-                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-400" />
-                <Input
-                  value={q}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search events"
-                  className="pl-9"
-                />
-              </div>
-              <Select value={source} onValueChange={setSource}>
-                <SelectTrigger className="min-w-48 text-xs">
-                  <span data-slot="select-value">Source: {sourceLabel}</span>
-                </SelectTrigger>
-                <SelectContent>
-                  {sourceOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={type} onValueChange={setType}>
-                <SelectTrigger className="min-w-56 text-xs">
-                  <span data-slot="select-value">Type: {typeLabel}</span>
-                </SelectTrigger>
-                <SelectContent>
-                  {typeOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {hasFilters && (
-                <Button variant="ghost" size="sm" onClick={clearFilters}>
-                  Clear
-                </Button>
-              )}
-            </div>
-
-            {eventsQuery.error && (
-              <EmptyState
-                title="Unable to load event log"
-                description="Retry after Core is reachable."
-                tone="error"
-                action={
-                  <Button size="sm" variant="outline" onClick={() => void eventsQuery.refetch()}>
-                    Retry
-                  </Button>
-                }
-              />
-            )}
-            {!eventsQuery.error && (
-              <DataTable
-                columns={columns}
-                data={events}
-                emptyMessage={
-                  hasFilters ? "No events match the current filters." : "No Orion events recorded."
-                }
-                getRowId={(event) => event.id ?? ""}
-                isLoading={eventsQuery.isLoading}
-                loadingMessage="Loading event log..."
-              />
-            )}
+            <FilterBar
+              fields={eventFields}
+              values={eventTable.values}
+              onChange={eventTable.setFilter}
+              onClear={eventTable.clearFilters}
+            />
+            <DataTable
+              columns={columns}
+              data={events}
+              emptyMessage={
+                eventTable.hasFilters
+                  ? "No events match the current filters."
+                  : "No Orion events recorded."
+              }
+              getRowId={(event) => event.id ?? ""}
+              isLoading={eventsQuery.isLoading}
+              error={
+                eventsQuery.error
+                  ? {
+                      message: "Unable to load event log",
+                      onRetry: () => void eventsQuery.refetch(),
+                    }
+                  : undefined
+              }
+              onResetFilters={eventTable.hasFilters ? eventTable.clearFilters : undefined}
+              onRowClick={setSelectedEvent}
+            />
             {count > 0 && (
               <ListPagination
                 count={count}
                 limit={EVENT_LIMIT}
-                offset={offset}
-                onOffsetChange={setOffset}
+                offset={eventTable.offset}
+                onOffsetChange={eventTable.setOffset}
               />
             )}
           </section>
-        </TabsContent>
+        </TabsPanel>
 
-        <TabsContent value="service">
+        <TabsPanel value="service">
           <section className="space-y-4">
             <div className="grid gap-1 text-sm sm:grid-cols-3">
               <div className="bg-neutral-100 p-3">
@@ -393,82 +320,49 @@ export const LogsPage = () => {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative w-full max-w-sm">
-                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-400" />
-                <Input
-                  value={serviceQ}
-                  onChange={(event) => setServiceSearch(event.target.value)}
-                  placeholder="Search service logs"
-                  className="pl-9"
-                />
-              </div>
-              <Select value={serviceLevel} onValueChange={setServiceLevel}>
-                <SelectTrigger className="min-w-44 text-xs">
-                  <span data-slot="select-value">Level: {levelLabel}</span>
-                </SelectTrigger>
-                <SelectContent>
-                  {levelOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                value={serviceComponent}
-                onChange={(event) => setServiceComponent(event.target.value)}
-                placeholder="Component"
-                className="w-full max-w-48"
-              />
-              {hasServiceFilters && (
-                <Button variant="ghost" size="sm" onClick={clearServiceFilters}>
-                  Clear
-                </Button>
-              )}
-            </div>
-
-            {serviceLogsQuery.error && (
-              <EmptyState
-                title="Unable to load service logs"
-                description="Retry after Core is reachable."
-                tone="error"
-                action={
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void serviceLogsQuery.refetch()}
-                  >
-                    Retry
-                  </Button>
-                }
-              />
-            )}
-            {!serviceLogsQuery.error && (
-              <DataTable
-                columns={serviceLogColumns}
-                data={serviceLogs}
-                emptyMessage={
-                  hasServiceFilters
-                    ? "No service logs match the current filters."
-                    : "No service logs recorded."
-                }
-                getRowId={(log) => log.id ?? ""}
-                isLoading={serviceLogsQuery.isLoading}
-                loadingMessage="Loading service logs..."
-              />
-            )}
+            <FilterBar
+              fields={serviceLogFields}
+              values={serviceTable.values}
+              onChange={serviceTable.setFilter}
+              onClear={serviceTable.clearFilters}
+            />
+            <DataTable
+              columns={serviceLogColumns}
+              data={serviceLogs}
+              emptyMessage={
+                serviceTable.hasFilters
+                  ? "No service logs match the current filters."
+                  : "No service logs recorded."
+              }
+              getRowId={(log) => log.id ?? ""}
+              isLoading={serviceLogsQuery.isLoading}
+              error={
+                serviceLogsQuery.error
+                  ? {
+                      message: "Unable to load service logs",
+                      onRetry: () => void serviceLogsQuery.refetch(),
+                    }
+                  : undefined
+              }
+              onResetFilters={serviceTable.hasFilters ? serviceTable.clearFilters : undefined}
+            />
             {serviceLogCount > 0 && (
               <ListPagination
                 count={serviceLogCount}
                 limit={SERVICE_LOG_LIMIT}
-                offset={serviceOffset}
-                onOffsetChange={setServiceOffset}
+                offset={serviceTable.offset}
+                onOffsetChange={serviceTable.setOffset}
               />
             )}
           </section>
-        </TabsContent>
+        </TabsPanel>
       </Tabs>
+      <EventDetailDrawer
+        event={selectedEvent}
+        onOpenChange={(open) => {
+          if (!open) setSelectedEvent(undefined);
+        }}
+      />
     </div>
   );
 };

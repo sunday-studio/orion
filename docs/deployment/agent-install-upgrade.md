@@ -296,3 +296,25 @@ For a home server deployment, prefer a stable local address for `core_url`:
 
 Use HTTPS if Core is exposed outside a trusted local network. Keep Server traffic on Tailscale or a
 private LAN when possible.
+
+## Enrollment secret
+
+When Core sets `ORION_ENROLLMENT_TOKEN`, new agents must present the same value when they first register. Export it before running the bootstrap or installer so it never appears in a process listing:
+
+```sh
+export ORION_ENROLLMENT_TOKEN='<secret>'
+curl -fsSL <bootstrap-url> | sudo -E bash -s -- --core-url https://core.example.com
+```
+
+The installer writes it as `enrollment_token` into a newly generated config (mode `0600`). An agent that is already registered does not need it again. The agent also reads `ORION_ENROLLMENT_TOKEN` from its environment, which overrides the config file.
+
+Agent identity: the agent keeps a `machine-identity.json` next to its state database. If that directory is copied to another host (a cloned VM or image) the hostname or `/etc/machine-id` no longer match and the agent registers as a new, distinct agent instead of impersonating the original.
+
+## Release integrity
+
+Every release publishes `SHA256SUMS` plus a keyless [cosign](https://docs.sigstore.dev/) signature (`SHA256SUMS.sig`, `SHA256SUMS.pem`) created by the `Server Binaries` workflow. The bootstrap installer always downloads `SHA256SUMS` and refuses to install if any downloaded asset (installer script, service files, agent binary) is missing from it or does not match. If `cosign` is installed it also verifies the signature came from this repository's release workflow; pass `--require-signature` (or `ORION_REQUIRE_SIGNATURE=true`) to make that mandatory.
+
+- Pin a version in production: `--version vX.Y.Z` (the installer warns when installing `latest`).
+- `curl ... | bash` runs the bootstrap script itself before any verification can happen. To close that gap, download `orion-agent-installer.sh` and `SHA256SUMS` first, check the hash and signature yourself, then run the script.
+- `--skip-verify` exists only for releases published before checksums; it prints a loud warning.
+- Mirrors and air-gapped installs can host the release files and set `ORION_RELEASE_BASE_URL`.

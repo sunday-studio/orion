@@ -1,15 +1,15 @@
-import { PageBreadcrumbs } from "@/components/shared/page-breadcrumbs";
-import { PageHeader } from "@/components/shared/page-header";
-import { StatusBadge, toStatus } from "@/components/shared/status-badges";
-import { Button } from "@/components/ui/button";
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+  PageHeader,
+  StatusBadge,
+} from "@/design-system";
+import { PageBreadcrumbs } from "@/components/shared/page-breadcrumbs";
 import {
   CoreWorkerWarning,
   coreWorkerDiagnosticsFromPayload,
@@ -31,6 +31,8 @@ import {
   getGetCoreMonitorConfigQueryKey,
   getGetMonitorHistoryQueryKey,
   getGetMonitorQueryKey,
+  getGetMonitorSummaryQueryKey,
+  getGetMonitorsQueryKey,
   getMonitorHistory,
   useDeleteCoreMonitor,
   useGetCoreMonitorConfig,
@@ -145,8 +147,8 @@ export const MonitorDetailPage = () => {
     void queryClient.invalidateQueries({ queryKey: getGetMonitorQueryKey(monitorId) });
     void queryClient.invalidateQueries({ queryKey: getGetCoreMonitorConfigQueryKey(monitorId) });
     void queryClient.invalidateQueries({ queryKey: getGetMonitorHistoryQueryKey(monitorId) });
-    void queryClient.invalidateQueries({ queryKey: ["/v1/monitors"] });
-    void queryClient.invalidateQueries({ queryKey: ["/v1/monitors/summary"] });
+    void queryClient.invalidateQueries({ queryKey: getGetMonitorsQueryKey() });
+    void queryClient.invalidateQueries({ queryKey: getGetMonitorSummaryQueryKey() });
   };
   const updateMonitor = useUpdateCoreMonitor({
     mutation: {
@@ -204,8 +206,8 @@ export const MonitorDetailPage = () => {
   const deleteMonitor = useDeleteCoreMonitor({
     mutation: {
       onSuccess: () => {
-        void queryClient.invalidateQueries({ queryKey: ["/v1/monitors"] });
-        void queryClient.invalidateQueries({ queryKey: ["/v1/monitors/summary"] });
+        void queryClient.invalidateQueries({ queryKey: getGetMonitorsQueryKey() });
+        void queryClient.invalidateQueries({ queryKey: getGetMonitorSummaryQueryKey() });
         setDeleteOpen(false);
         navigate("/monitors");
       },
@@ -260,7 +262,7 @@ export const MonitorDetailPage = () => {
             title={monitor.name ?? monitor.id ?? "Unknown monitor"}
             description={
               <p className="text-sm text-neutral-600">
-                <StatusBadge className="px-1.5 py-0.5 text-[13px]" value={toStatus(health)} /> ·{" "}
+                <StatusBadge status={health} className="px-1.5 py-0.5 text-[13px]" /> ·{" "}
                 {isCoreMonitor ? "Core" : "Server"} · {monitor.type ?? "unknown"} · last checked{" "}
                 {formatDate(reportTimestamp(latestReport), DATE_TIME_FORMAT)}
               </p>
@@ -271,7 +273,7 @@ export const MonitorDetailPage = () => {
               <Button
                 disabled={isActionPending}
                 size="sm"
-                variant="outline"
+                variant="secondary"
                 onClick={() => testMonitor.mutate({ id: monitor.id ?? "" })}
               >
                 <Play />
@@ -281,7 +283,7 @@ export const MonitorDetailPage = () => {
                 <Button
                   disabled={isActionPending}
                   size="sm"
-                  variant="outline"
+                  variant="secondary"
                   onClick={() => resumeMonitor.mutate({ id: monitor.id ?? "" })}
                 >
                   <RefreshCw />
@@ -291,7 +293,7 @@ export const MonitorDetailPage = () => {
                 <Button
                   disabled={isActionPending}
                   size="sm"
-                  variant="outline"
+                  variant="secondary"
                   onClick={() => pauseMonitor.mutate({ id: monitor.id ?? "" })}
                 >
                   <Pause />
@@ -301,7 +303,7 @@ export const MonitorDetailPage = () => {
               <Button
                 disabled={isActionPending || coreConfigResponse.isLoading}
                 size="sm"
-                variant="outline"
+                variant="secondary"
                 onClick={() => setEditOpen(true)}
               >
                 <Save />
@@ -408,7 +410,7 @@ export const MonitorDetailPage = () => {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+            <Button variant="secondary" onClick={() => setDeleteOpen(false)}>
               Cancel
             </Button>
             <Button

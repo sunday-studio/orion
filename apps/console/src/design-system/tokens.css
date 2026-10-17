@@ -1,0 +1,111 @@
+/*
+ * Orion design tokens, from docs/design/design-language.md.
+ * Light is the default. Dark applies with <html data-theme="dark">.
+ * Utilities (bg-card, text-ink, border-hairline ...) are generated from @theme.
+ */
+@theme {
+  --color-page: #ffffff;
+  --color-field: #f7f7f6;
+  --color-card: #ffffff;
+  --color-sub: #fafaf9;
+  --color-hairline: #ececea;
+  --color-input-border: #e4e4e7;
+  --color-ink: #18181b;
+  --color-quiet: #71717a;
+  --color-faint: #a1a1aa;
+  --color-brand: #1f7a50;
+  --color-brand-chart: #2a9f69;
+  --color-focus: rgba(31, 122, 80, 0.22);
+  --color-destructive: #e5484d;
+  --color-dot-down: #e5484d;
+  --color-dot-warn: #f59e0b;
+  --color-dot-up: #2a9f69;
+  --color-dot-idle: #a1a1aa;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-overlay: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+:root {
+  /*
+   * Typeface: TWK Lausanne when licensed files are loaded, system sans otherwise (D-005, D-010).
+   * To ship the licence, add @font-face rules for "TWK Lausanne" (300, 500); the stack
+   * already prefers it. Do not commit trial fonts.
+   */
+  --font-sans: "TWK Lausanne", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* 300 is the TWK Lausanne text cut; system sans reads better at 400. */
+  --font-weight-body: 400;
+  color-scheme: light;
+
+  /* Badge tones and primary button gradient, adapted per theme. */
+  --tone-up-bg: #ccfbf1;
+  --tone-up-fg: #115e59;
+  --tone-down-bg: #ffe4e6;
+  --tone-down-fg: #9f1239;
+  --tone-degraded-bg: #fef3c7;
+  --tone-degraded-fg: #92400e;
+  --tone-unknown-bg: #f5f5f4;
+  --tone-unknown-fg: #44403c;
+  --tone-maintenance-bg: #ede9fe;
+  --tone-maintenance-fg: #5b21b6;
+  --tone-stale-bg: #f1f5f9;
+  --tone-stale-fg: #334155;
+  --tone-covered-bg: #cffafe;
+  --tone-covered-fg: #155e75;
+  --tone-info-bg: #e0f2fe;
+  --tone-info-fg: #075985;
+  --tone-resolved-bg: #dbeafe;
+  --tone-resolved-fg: #1e40af;
+  --tone-critical-bg: #f43f5e;
+  --tone-critical-fg: #ffffff;
+  --tone-medium-bg: #fef9c3;
+  --tone-medium-fg: #854d0e;
+  --button-from: #2a9f69;
+  --button-to: #1f7a50;
+  --button-border: #17613f;
+}
+
+:root[data-theme="dark"] {
+  --color-page: #0f1311;
+  --color-field: #161a18;
+  --color-card: #1e2321;
+  --color-sub: #191e1b;
+  --color-hairline: #2a302d;
+  --color-input-border: #343b37;
+  --color-ink: #ededed;
+  --color-quiet: #a1a1aa;
+  --color-faint: #71717a;
+  --color-brand: #34b27b;
+  --color-brand-chart: #3ecf8e;
+  --color-focus: rgba(52, 178, 123, 0.35);
+  --color-destructive: #f2555a;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-overlay: 0 8px 24px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+
+  --tone-up-bg: #042f2e;
+  --tone-up-fg: #5eead4;
+  --tone-down-bg: #4c0519;
+  --tone-down-fg: #fda4af;
+  --tone-degraded-bg: #451a03;
+  --tone-degraded-fg: #fcd34d;
+  --tone-unknown-bg: #262626;
+  --tone-unknown-fg: #d4d4d4;
+  --tone-maintenance-bg: #2e1065;
+  --tone-maintenance-fg: #c4b5fd;
+  --tone-stale-bg: #1e293b;
+  --tone-stale-fg: #cbd5e1;
+  --tone-covered-bg: #083344;
+  --tone-covered-fg: #67e8f9;
+  --tone-info-bg: #082f49;
+  --tone-info-fg: #7dd3fc;
+  --tone-resolved-bg: #172554;
+  --tone-resolved-fg: #93c5fd;
+  --tone-critical-bg: #e11d48;
+  --tone-critical-fg: #ffffff;
+  --tone-medium-bg: #422006;
+  --tone-medium-fg: #fde047;
+  --button-from: #207f53;
+  --button-to: #1a6a45;
+  --button-border: #3ecf8e;
+}

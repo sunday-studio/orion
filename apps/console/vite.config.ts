@@ -16,6 +16,24 @@ export default defineConfig({
     },
   },
   plugins: [react(), tailwindcss()],
+  build: {
+    rollupOptions: {
+      output: {
+        // Split stable vendor code from app code so route chunks and the entry stay small and cacheable.
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (
+            /node_modules\/(react|react-dom|react-router|react-router-dom|scheduler)\//.test(id)
+          ) {
+            return "vendor-react";
+          }
+          if (id.includes("@base-ui") || id.includes("floating-ui")) return "vendor-base-ui";
+          if (id.includes("@tanstack")) return "vendor-tanstack";
+          return undefined;
+        },
+      },
+    },
+  },
   server: {
     proxy: {
       "/status": {

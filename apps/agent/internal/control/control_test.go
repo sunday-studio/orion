@@ -61,7 +61,7 @@ func TestRoundTrip(t *testing.T) {
 	if err != nil || st.AgentID != "a1" || st.PID != 7 {
 		t.Fatalf("status = %+v, %v", st, err)
 	}
-	if err := c.SetMaintenance(true, "deploy"); err != nil || h.maint == nil || !h.maint.Enabled || h.maint.Reason != "deploy" {
+	if err := c.SetMaintenance(true, "deploy", 0); err != nil || h.maint == nil || !h.maint.Enabled || h.maint.Reason != "deploy" {
 		t.Fatalf("maintenance not applied: %+v %v", h.maint, err)
 	}
 	if err := c.ApplyToken("tok"); err != nil || h.token != "tok" {

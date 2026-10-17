@@ -278,3 +278,51 @@ func TestAgentHealthReturnsStoredMonitorCountsForStaleAgent(t *testing.T) {
 		t.Fatalf("health counts = %+v, want 1/1/1", health.Data)
 	}
 }
+
+func TestAgentCannotUnregisterOrResolveAnotherAgentsMonitor(t *testing.T) {
+	server := setupTestServer(t)
+	firstAgent := registerTestAgent(t, server)
+	secondAgent := db.Agent{ID: "agent-unregister-other", MachineId: "machine-unregister-other", Name: "other unregister agent", OS: "linux", Arch: "arm64", Token: "token-unregister-other", LastSeen: time.Now()}
+	if err := server.db.Create(&secondAgent).Error; err != nil {
+		t.Fatalf("create second agent: %v", err)
+	}
+	victim := db.Monitor{ID: "monitor-unregister-victim", AgentID: secondAgent.ID, Name: "victim monitor", Type: "http", Lifecycle: "active", Health: "down", ComputedHealth: "down", ReportingIntervalSeconds: 60}
+	if err := server.db.Create(&victim).Error; err != nil {
+		t.Fatalf("create monitor: %v", err)
+	}
+	now := time.Now().UTC()
+	incident := db.Incident{ID: "incident-unregister-victim", Status: "open", Severity: "high", Title: "victim down", AgentID: secondAgent.ID, MonitorID: victim.ID, OpenedAt: now, LastEventAt: now, NotificationStatus: "pending"}
+	if err := server.db.Create(&incident).Error; err != nil {
+		t.Fatalf("create incident: %v", err)
+	}
+
+	resp := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+firstAgent.Data.AgentID+"/unregister-monitor", map[string]interface{}{"monitor_id": victim.ID}, firstAgent.Data.Token)
+	if resp.Code != http.StatusNotFound {
+		t.Fatalf("cross-agent unregister status = %d, body = %s, want 404", resp.Code, resp.Body.String())
+	}
+
+	var gotIncident db.Incident
+	if err := server.db.First(&gotIncident, "id = ?", incident.ID).Error; err != nil {
+		t.Fatalf("load incident: %v", err)
+	}
+	if gotIncident.Status != "open" {
+		t.Fatalf("incident status = %q, want it left open", gotIncident.Status)
+	}
+	var gotMonitor db.Monitor
+	if err := server.db.First(&gotMonitor, "id = ?", victim.ID).Error; err != nil {
+		t.Fatalf("load monitor: %v", err)
+	}
+	if gotMonitor.Lifecycle != "active" || gotMonitor.Health != "down" {
+		t.Fatalf("monitor = lifecycle %q health %q, want untouched", gotMonitor.Lifecycle, gotMonitor.Health)
+	}
+	var events int64
+	server.db.Model(&db.IncidentEvent{}).Where("incident_id = ?", incident.ID).Count(&events)
+	if events != 0 {
+		t.Fatalf("incident events = %d, want none created by foreign unregister", events)
+	}
+
+	missing := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+firstAgent.Data.AgentID+"/unregister-monitor", map[string]interface{}{"monitor_id": "monitor-does-not-exist"}, firstAgent.Data.Token)
+	if missing.Code != http.StatusNotFound {
+		t.Fatalf("unknown monitor unregister status = %d, want 404", missing.Code)
+	}
+}

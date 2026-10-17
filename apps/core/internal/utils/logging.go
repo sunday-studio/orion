@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"io"
 	"log/slog"
 	"os"
 )
@@ -12,8 +13,13 @@ type Logger struct {
 
 // NewLogger creates a new structured logger
 func NewLogger() *Logger {
+	return NewLoggerWithWriter(os.Stdout)
+}
+
+// NewLoggerWithWriter builds the JSON logger on an arbitrary writer (tests capture output with it).
+func NewLoggerWithWriter(w io.Writer) *Logger {
 	// Create a JSON handler for structured logging
-	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+	handler := slog.NewJSONHandler(w, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	})
 

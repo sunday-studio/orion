@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -142,25 +141,9 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 	}
 }
 
-// registerWithRetry keeps trying with capped exponential backoff so a Core
-// that boots after the agent (power event, deploy) does not leave the agent
-// dead. Credential or enrollment rejections are permanent and returned.
+// registerWithRetry uses the registration service's capped backoff so a Core
+// that boots after the agent does not leave it dead. Rejected credentials or
+// enrollment tokens are permanent and returned at once.
 func registerWithRetry(ctx context.Context, reg *registration.RegistrationService) error {
-	backoff := registerBackoffStart
-	for {
-		err := reg.RegisterAgentIfNeeded()
-		if err == nil {
-			return nil
-		}
-		if transport.IsAuthError(err) || errors.Is(err, transport.ErrEnrollmentRejected) {
-			return err
-		}
-		logging.Warnf("Registration failed: %v; retrying in %s", err, backoff)
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(backoff):
-		}
-		backoff = min(backoff*2, registerBackoffMax)
-	}
+	return reg.RegisterWithRetry(ctx, registration.DefaultRegistrationBackoff)
 }

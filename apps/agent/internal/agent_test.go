@@ -64,7 +64,7 @@ func TestAgentPersistsSystemReportDuringCoreOutage(t *testing.T) {
 		CoreURL:  server.URL,
 		Interval: "60s",
 	}, stateStore, internalState)
-	err = agent.runSystemMetrics()
+	err = agent.runSystemMetrics(context.Background())
 	if err == nil {
 		t.Fatal("runSystemMetrics() error = nil, want outage error")
 	}
@@ -108,7 +108,7 @@ func TestAgentDoesNotSpoolReportsRejectedForAuth(t *testing.T) {
 		CoreURL:  server.URL,
 		Interval: "60s",
 	}, stateStore, internalState)
-	err = agent.runSystemMetrics()
+	err = agent.runSystemMetrics(context.Background())
 	if err == nil {
 		t.Fatal("runSystemMetrics() error = nil, want auth error")
 	}
@@ -148,7 +148,7 @@ func TestAgentDoesNotSpoolReportsAfterAuthFailure(t *testing.T) {
 		CoreURL:  server.URL,
 		Interval: "60s",
 	}, stateStore, internalState)
-	err = agent.runSystemMetrics()
+	err = agent.runSystemMetrics(context.Background())
 	if err == nil {
 		t.Fatal("runSystemMetrics() error = nil, want auth error")
 	}

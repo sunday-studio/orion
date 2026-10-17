@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"orion/agent/internal/config"
 	"orion/agent/internal/logging"
@@ -156,9 +157,10 @@ func newMaintenanceCommand(ctx context.Context, opts *Options) *cobra.Command {
 		Short: "Manage maintenance mode",
 	}
 
+	var maintenanceFor time.Duration
 	down := &cobra.Command{
 		Use:   "down [reason]",
-		Short: "Enter maintenance mode",
+		Short: "Enter maintenance mode (ends automatically after --for, default 24h)",
 		Args:  cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			reason := ""
@@ -168,7 +170,7 @@ func newMaintenanceCommand(ctx context.Context, opts *Options) *cobra.Command {
 					reason += " " + part
 				}
 			}
-			if handled, err := maintenanceViaDaemon(opts, true, reason); handled {
+			if handled, err := maintenanceViaDaemon(opts, true, reason, maintenanceFor); handled {
 				return err
 			}
 			if commandNeedsElevation("maintenance", commandArgs(opts, "maintenance")) {
@@ -176,7 +178,7 @@ func newMaintenanceCommand(ctx context.Context, opts *Options) *cobra.Command {
 					return NewCommandError("could not elevate privileges", err)
 				}
 			}
-			return runMaintenance(ctx, opts, "-down", reason)
+			return runMaintenance(ctx, opts, "-down", reason, maintenanceFor)
 		},
 	}
 
@@ -185,7 +187,7 @@ func newMaintenanceCommand(ctx context.Context, opts *Options) *cobra.Command {
 		Short: "Exit maintenance mode",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if handled, err := maintenanceViaDaemon(opts, false, ""); handled {
+			if handled, err := maintenanceViaDaemon(opts, false, "", 0); handled {
 				return err
 			}
 			if commandNeedsElevation("maintenance", commandArgs(opts, "maintenance")) {
@@ -193,10 +195,11 @@ func newMaintenanceCommand(ctx context.Context, opts *Options) *cobra.Command {
 					return NewCommandError("could not elevate privileges", err)
 				}
 			}
-			return runMaintenance(ctx, opts, "-up", "")
+			return runMaintenance(ctx, opts, "-up", "", 0)
 		},
 	}
 
+	down.Flags().DurationVar(&maintenanceFor, "for", defaultMaintenanceDuration, "how long maintenance lasts before alerting resumes (max 720h)")
 	cmd.AddCommand(down, up)
 	return cmd
 }

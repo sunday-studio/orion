@@ -10,31 +10,33 @@ import (
 	"time"
 )
 
-func (s *AlertService) deliver(channel db.AlertChannel, incidentID string, eventType string) error {
+func (s *AlertService) deliver(channel db.AlertChannel, deliveryID string, incidentID string, eventType string) error {
 	var incident db.Incident
 	if err := s.db.Where("id = ?", incidentID).First(&incident).Error; err != nil {
 		return newAlertDeliveryError("load_incident", err)
 	}
 
+	return s.deliverPayload(channel, deliveryID, s.buildAlertPayload(incident, eventType, time.Now().UTC()))
+}
+
+// deliverPayload sends one rendered alert through the channel's transport.
+func (s *AlertService) deliverPayload(channel db.AlertChannel, deliveryID string, payload AlertPayload) error {
 	switch channel.Type {
 	case "webhook":
-		return s.deliverWebhook(channel, incident, eventType)
+		return s.deliverWebhookPayload(channel, payload)
+	case "email":
+		return s.deliverEmailPayload(channel, deliveryID, payload)
 	default:
 		return newAlertDeliveryError("channel_type", fmt.Errorf("unsupported alert channel type: %s", channel.Type))
 	}
 }
 
-func (s *AlertService) deliverGroupSummary(channel db.AlertChannel, groupID string) error {
+func (s *AlertService) deliverGroupSummary(channel db.AlertChannel, deliveryID string, groupID string) error {
 	payload, err := s.buildAlertGroupSummaryPayload(groupID, time.Now().UTC())
 	if err != nil {
 		return err
 	}
-	switch channel.Type {
-	case "webhook":
-		return s.deliverWebhookPayload(channel, payload)
-	default:
-		return newAlertDeliveryError("channel_type", fmt.Errorf("unsupported alert channel type: %s", channel.Type))
-	}
+	return s.deliverPayload(channel, deliveryID, payload)
 }
 
 func (s *AlertService) buildAlertGroupSummaryPayload(groupID string, deliveredAt time.Time) (AlertPayload, error) {
@@ -64,7 +66,7 @@ func (s *AlertService) buildAlertGroupSummaryPayload(groupID string, deliveredAt
 	return payload, nil
 }
 
-func (s *AlertService) deliverTest(channel db.AlertChannel) error {
+func (s *AlertService) deliverTest(channel db.AlertChannel, deliveryID string) error {
 	incident := db.Incident{
 		ID:          "alert-channel-test",
 		Status:      "test",
@@ -73,17 +75,7 @@ func (s *AlertService) deliverTest(channel db.AlertChannel) error {
 		LatestEvent: "Manual alert channel test",
 	}
 
-	switch channel.Type {
-	case "webhook":
-		return s.deliverWebhook(channel, incident, "test")
-	default:
-		return newAlertDeliveryError("channel_type", fmt.Errorf("unsupported alert channel type: %s", channel.Type))
-	}
-}
-
-func (s *AlertService) deliverWebhook(channel db.AlertChannel, incident db.Incident, eventType string) error {
-	payload := s.buildAlertPayload(incident, eventType, time.Now().UTC())
-	return s.deliverWebhookPayload(channel, payload)
+	return s.deliverPayload(channel, deliveryID, s.buildAlertPayload(incident, "test", time.Now().UTC()))
 }
 
 func (s *AlertService) deliverWebhookPayload(channel db.AlertChannel, payload AlertPayload) error {
@@ -114,6 +106,9 @@ func (s *AlertService) deliverWebhookPayload(channel db.AlertChannel, payload Al
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode >= 300 && resp.StatusCode < 400 {
+		return newAlertDeliveryError("http_response", errAlertWebhookRedirect)
+	}
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		return newAlertDeliveryError("http_response", fmt.Errorf("webhook returned status %d", resp.StatusCode))
 	}

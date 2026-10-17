@@ -5,7 +5,7 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
+} from "@/design-system";
 import { Fragment } from "react";
 import { Link } from "react-router-dom";
 

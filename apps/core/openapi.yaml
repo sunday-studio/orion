@@ -81,6 +81,8 @@ definitions:
         $ref: '#/definitions/orion_core_internal_db.GeoLocation'
       maintenance_mode:
         type: boolean
+      maintenance_until:
+        type: string
       monitor_count:
         type: integer
       monitor_health:
@@ -152,6 +154,8 @@ definitions:
     type: object
   internal_api.AlertChannelResponse:
     properties:
+      confirmed_recipient_count:
+        type: integer
       created_at:
         type: string
       enabled:
@@ -164,6 +168,8 @@ definitions:
         type: string
       name:
         type: string
+      recipient_count:
+        type: integer
       subscribed_events:
         items:
           type: string
@@ -237,6 +243,18 @@ definitions:
       type:
         type: string
       updated_at:
+        type: string
+    type: object
+  internal_api.AlertRecipientResponse:
+    properties:
+      confirmed_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      status:
+        description: pending | confirmed | unsubscribed
         type: string
     type: object
   internal_api.AlertRouteDryRunResponse:
@@ -425,6 +443,85 @@ definitions:
       updated_at:
         type: string
     type: object
+  internal_api.App:
+    properties:
+      created_at:
+        type: string
+      debug_sample_rate:
+        description: DebugSampleRate keeps this fraction (0-1) of trace and debug
+          entries. Default 1.
+        example: 1
+        type: number
+      description:
+        type: string
+      display_profile:
+        $ref: '#/definitions/internal_api.DisplayProfile'
+      environment:
+        example: production
+        type: string
+      id:
+        type: string
+      key_count:
+        type: integer
+      last_ingest_at:
+        type: string
+      max_storage_mb:
+        description: MaxStorageMB caps stored log size for this app; the oldest entries
+          are pruned first. 0 means the server default.
+        type: integer
+      name:
+        example: checkout-api
+        type: string
+      redaction:
+        $ref: '#/definitions/internal_api.RedactionSettings'
+      retention_days:
+        description: RetentionDays defaults to 14.
+        example: 14
+        type: integer
+      slug:
+        example: checkout-api
+        type: string
+    type: object
+  internal_api.AppRequest:
+    properties:
+      debug_sample_rate:
+        type: number
+      description:
+        type: string
+      display_profile:
+        $ref: '#/definitions/internal_api.DisplayProfile'
+      environment:
+        type: string
+      max_storage_mb:
+        type: integer
+      name:
+        type: string
+      redaction:
+        $ref: '#/definitions/internal_api.RedactionSettings'
+      retention_days:
+        type: integer
+    required:
+    - name
+    type: object
+  internal_api.AppUpdateRequest:
+    properties:
+      debug_sample_rate:
+        type: number
+      description:
+        type: string
+      display_profile:
+        $ref: '#/definitions/internal_api.DisplayProfile'
+      environment:
+        type: string
+      max_storage_mb:
+        type: integer
+      name:
+        type: string
+      redaction:
+        $ref: '#/definitions/internal_api.RedactionSettings'
+      retention_days:
+        type: integer
+    type: object
   internal_api.CoreMonitorConfigResponse:
     properties:
       config:
@@ -488,6 +585,59 @@ definitions:
         example: "2026-05-12"
         type: string
     type: object
+  internal_api.DisplayProfile:
+    properties:
+      columns:
+        description: Columns are attribute keys shown as extra columns in the list.
+        items:
+          type: string
+        type: array
+      hidden:
+        description: Hidden are attribute keys removed from the detail view (they
+          are still stored).
+        items:
+          type: string
+        type: array
+      title_field:
+        description: TitleField is the attribute shown as the row title instead of
+          the body.
+        example: event
+        type: string
+    type: object
+  internal_api.HealthIssue:
+    properties:
+      agent_id:
+        type: string
+      agent_name:
+        type: string
+      health:
+        description: Health is the computed health that makes this an issue.
+        enum:
+        - down
+        - degraded
+        - stale
+        type: string
+      issue_type:
+        description: IssueType is "stale_data" for stale monitors and omitted otherwise.
+        enum:
+        - stale_data
+        type: string
+      monitor_id:
+        type: string
+      monitor_name:
+        type: string
+      monitor_type:
+        type: string
+    type: object
+  internal_api.HealthIssuesResponse:
+    properties:
+      count:
+        type: integer
+      issues:
+        items:
+          $ref: '#/definitions/internal_api.HealthIssue'
+        type: array
+    type: object
   internal_api.HeartbeatSignalResponse:
     properties:
       health:
@@ -518,6 +668,49 @@ definitions:
         $ref: '#/definitions/internal_api.IncidentActionStateResponse'
       resolve:
         $ref: '#/definitions/internal_api.IncidentActionStateResponse'
+    type: object
+  internal_api.IncidentCandidate:
+    properties:
+      agent_id:
+        type: string
+      agent_name:
+        type: string
+      down_count:
+        description: DownCount is how many of the last 5 reports were down.
+        type: integer
+      health:
+        enum:
+        - down
+        - degraded
+        - stale
+        type: string
+      issue_type:
+        enum:
+        - stale_data
+        type: string
+      monitor_id:
+        type: string
+      monitor_name:
+        type: string
+      monitor_type:
+        type: string
+      severity:
+        description: 'Severity is derived from recent failures: high (3+ of the last
+          5 reports down), medium, low; stale monitors are high.'
+        enum:
+        - low
+        - medium
+        - high
+        type: string
+    type: object
+  internal_api.IncidentCandidatesResponse:
+    properties:
+      candidates:
+        items:
+          $ref: '#/definitions/internal_api.IncidentCandidate'
+        type: array
+      count:
+        type: integer
     type: object
   internal_api.IncidentComponentImpactResponse:
     properties:
@@ -730,6 +923,386 @@ definitions:
       type:
         type: string
     type: object
+  internal_api.IngestError:
+    properties:
+      code:
+        enum:
+        - invalid_json
+        - empty_entry
+        - entry_too_large
+        - invalid_timestamp
+        - too_many_attributes
+        - attributes_too_deep
+        example: entry_too_large
+        type: string
+      index:
+        description: Index is the zero-based position of the entry in the request
+          (or the NDJSON line number minus one).
+        example: 3
+        type: integer
+      message:
+        type: string
+    type: object
+  internal_api.IngestKey:
+    properties:
+      app_id:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      last_used_at:
+        type: string
+      name:
+        example: production
+        type: string
+      prefix:
+        example: orion_ik_a1b2c3d4
+        type: string
+      revoked_at:
+        type: string
+    type: object
+  internal_api.IngestKeyCreated:
+    properties:
+      app_id:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      key:
+        description: 'Key is the secret to send as "Authorization: Bearer <key>".
+          It cannot be retrieved again.'
+        example: orion_ik_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
+        type: string
+      last_used_at:
+        type: string
+      name:
+        example: production
+        type: string
+      prefix:
+        example: orion_ik_a1b2c3d4
+        type: string
+      revoked_at:
+        type: string
+    type: object
+  internal_api.IngestKeyRequest:
+    properties:
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  internal_api.IngestResponse:
+    properties:
+      accepted:
+        example: 98
+        type: integer
+      errors:
+        items:
+          $ref: '#/definitions/internal_api.IngestError'
+        type: array
+      rejected:
+        example: 2
+        type: integer
+    type: object
+  internal_api.LogAlertRule:
+    properties:
+      app_id:
+        type: string
+      created_at:
+        type: string
+      enabled:
+        type: boolean
+      event:
+        type: string
+      id:
+        type: string
+      last_count:
+        type: integer
+      last_evaluated_at:
+        type: string
+      mode:
+        description: Mode is "threshold" (fires when more than `threshold` entries
+          match inside the window) or "absence" (fires when none match, for example
+          a job that must log every hour).
+        enum:
+        - threshold
+        - absence
+        type: string
+      name:
+        example: Checkout errors spike
+        type: string
+      q:
+        type: string
+      severity:
+        description: 'Severity, Event and Q filter which entries count (same syntax
+          as the log search: severity=">=error", an exact event name, a text substring).'
+        example: '>=error'
+        type: string
+      state:
+        description: State is "firing" while an incident is open for the rule, otherwise
+          "ok".
+        enum:
+        - ok
+        - firing
+        type: string
+      threshold:
+        example: 20
+        type: integer
+      window_seconds:
+        example: 300
+        type: integer
+    type: object
+  internal_api.LogAlertRuleRequest:
+    properties:
+      app_id:
+        type: string
+      enabled:
+        type: boolean
+      event:
+        type: string
+      mode:
+        enum:
+        - threshold
+        - absence
+        type: string
+      name:
+        type: string
+      q:
+        type: string
+      severity:
+        type: string
+      threshold:
+        type: integer
+      window_seconds:
+        type: integer
+    required:
+    - app_id
+    - name
+    type: object
+  internal_api.LogAlertRuleUpdateRequest:
+    properties:
+      enabled:
+        type: boolean
+      event:
+        type: string
+      mode:
+        enum:
+        - threshold
+        - absence
+        type: string
+      name:
+        type: string
+      q:
+        type: string
+      severity:
+        type: string
+      threshold:
+        type: integer
+      window_seconds:
+        type: integer
+    type: object
+  internal_api.LogEntry:
+    properties:
+      agent_id:
+        type: string
+      app_id:
+        type: string
+      app_name:
+        type: string
+      attributes:
+        additionalProperties: true
+        type: object
+      body:
+        type: string
+      body_json:
+        type: object
+      event:
+        type: string
+      id:
+        type: string
+      ingested_at:
+        type: string
+      request_id:
+        type: string
+      resource:
+        additionalProperties: true
+        type: object
+      severity:
+        $ref: '#/definitions/internal_api.LogSeverity'
+      severity_number:
+        example: 17
+        type: integer
+      source:
+        description: Source is "app" for ingested product logs and "agent" for agent
+          service logs.
+        enum:
+        - app
+        - agent
+        type: string
+      span_id:
+        type: string
+      timestamp:
+        type: string
+      trace_id:
+        type: string
+    type: object
+  internal_api.LogEntryInput:
+    properties:
+      attributes:
+        additionalProperties: true
+        description: 'Attributes is free-form JSON of any shape. Limits: depth 8,
+          128 keys per entry.'
+        type: object
+      body:
+        description: 'Body is the human message: a string, or any JSON value (kept
+          as structured data and searchable as text).'
+        example: payment failed for order 8841
+        type: string
+      event:
+        description: Event is a short stable name for product events, for example
+          payment.failed.
+        example: payment.failed
+        type: string
+      id:
+        description: ID is an optional client-chosen idempotency key (unique per app).
+          Re-sending the same id is a no-op.
+        example: 01JBXK3Q8Z
+        type: string
+      request_id:
+        description: RequestID correlates entries of one request or job.
+        example: req_7f3a
+        type: string
+      resource:
+        additionalProperties: true
+        description: 'Resource describes the emitter: service.name, service.version,
+          deployment.environment, host.name, ...'
+        type: object
+      severity:
+        description: Severity is trace|debug|info|warn|error|fatal, an OpenTelemetry
+          number (1-24), or a common alias. Unknown values become info.
+        example: error
+        type: string
+      span_id:
+        example: 00f067aa0ba902b7
+        type: string
+      timestamp:
+        description: Timestamp is RFC 3339 text, or a number of Unix seconds, milliseconds
+          or nanoseconds. Defaults to the receive time.
+        example: "2026-10-17T10:15:30.123Z"
+        type: string
+      trace_id:
+        example: 4bf92f3577b34da6a3ce929d0e0e4736
+        type: string
+    type: object
+  internal_api.LogFieldCatalogResponse:
+    properties:
+      fields:
+        items:
+          $ref: '#/definitions/internal_api.LogFieldStat'
+        type: array
+    type: object
+  internal_api.LogFieldStat:
+    properties:
+      cardinality:
+        description: Cardinality is an approximate distinct-value count, capped at
+          1000.
+        type: integer
+      key:
+        example: http.status_code
+        type: string
+      last_seen:
+        type: string
+      sample_values:
+        items:
+          type: string
+        type: array
+      type:
+        description: Type is the dominant JSON type observed.
+        enum:
+        - string
+        - number
+        - boolean
+        - object
+        - array
+        - mixed
+        type: string
+    type: object
+  internal_api.LogHistogramBucket:
+    properties:
+      severity:
+        additionalProperties:
+          type: integer
+        type: object
+      start:
+        type: string
+      total:
+        type: integer
+    type: object
+  internal_api.LogHistogramResponse:
+    properties:
+      bucket_seconds:
+        type: integer
+      buckets:
+        items:
+          $ref: '#/definitions/internal_api.LogHistogramBucket'
+        type: array
+    type: object
+  internal_api.LogListResponse:
+    properties:
+      entries:
+        items:
+          $ref: '#/definitions/internal_api.LogEntry'
+        type: array
+      next_cursor:
+        type: string
+      truncated:
+        description: Truncated is true when the time range matched more rows than
+          the server will scan.
+        type: boolean
+    type: object
+  internal_api.LogSavedView:
+    properties:
+      created_at:
+        type: string
+      filters:
+        additionalProperties:
+          type: string
+        type: object
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  internal_api.LogSavedViewRequest:
+    properties:
+      filters:
+        additionalProperties:
+          type: string
+        type: object
+      name:
+        type: string
+    required:
+    - filters
+    - name
+    type: object
+  internal_api.LogSeverity:
+    enum:
+    - trace
+    - debug
+    - info
+    - warn
+    - error
+    - fatal
+    type: string
+    x-enum-varnames:
+    - LogSeverityTrace
+    - LogSeverityDebug
+    - LogSeverityInfo
+    - LogSeverityWarn
+    - LogSeverityError
+    - LogSeverityFatal
   internal_api.LoginRequest:
     properties:
       password:
@@ -823,6 +1396,18 @@ definitions:
         type: string
       type:
         type: string
+    type: object
+  internal_api.RedactionSettings:
+    properties:
+      disable_defaults:
+        description: DisableDefaults turns off the built-in key list. Not recommended.
+        type: boolean
+      extra_keys:
+        description: ExtraKeys are additional attribute key names (case-insensitive,
+          any depth) whose values are replaced by [redacted] before storage.
+        items:
+          type: string
+        type: array
     type: object
   internal_api.ReportResponse:
     properties:
@@ -1344,6 +1929,13 @@ definitions:
       state:
         type: string
     type: object
+  internal_api.TestLogResponse:
+    properties:
+      accepted:
+        type: boolean
+      entry_id:
+        type: string
+    type: object
   internal_api.UptimeDayBucketResponse:
     properties:
       date:
@@ -1370,6 +1962,11 @@ definitions:
       webhook_signing_secret:
         type: string
       webhook_url:
+        type: string
+    type: object
+  internal_api.alertRecipientRequest:
+    properties:
+      email:
         type: string
     type: object
   internal_api.alertRouteDryRunRequest:
@@ -1479,6 +2076,11 @@ definitions:
         type: array
       suppress:
         type: boolean
+    type: object
+  internal_api.dismissIncidentCandidateRequest:
+    properties:
+      reason:
+        type: string
     type: object
   internal_api.incidentCoverageRequest:
     properties:
@@ -1637,15 +2239,21 @@ definitions:
     type: object
   orion_core_internal_db.DataLifecycleSettings:
     properties:
+      alert_delivery_retention_days:
+        type: integer
       archive_dir:
         type: string
       archive_raw_reports:
         type: boolean
       archive_schedule:
         type: string
+      audit_event_retention_days:
+        type: integer
       created_at:
         type: string
       id:
+        type: integer
+      incident_event_retention_days:
         type: integer
       last_archive_error:
         type: string
@@ -1661,8 +2269,14 @@ definitions:
         type: integer
       rollups_enabled:
         type: boolean
+      service_log_retention_days:
+        description: Retention windows in days for tables that otherwise grow without
+          bound.
+        type: integer
       updated_at:
         type: string
+      worker_status_retention_days:
+        type: integer
     type: object
   orion_core_internal_db.DiskStats:
     properties:
@@ -1840,18 +2454,30 @@ definitions:
     type: object
   orion_core_internal_service.DataLifecycleSettingsPayload:
     properties:
+      alert_delivery_retention_days:
+        type: integer
       archive_dir:
         type: string
       archive_raw_reports:
         type: boolean
       archive_schedule:
         type: string
+      audit_event_retention_days:
+        type: integer
+      incident_event_retention_days:
+        type: integer
       raw_report_hot_days:
         type: integer
       rollup_retention_days:
         type: integer
       rollups_enabled:
         type: boolean
+      service_log_retention_days:
+        description: Optional retention windows (days, 1-3650). Omitted fields keep
+          their current value.
+        type: integer
+      worker_status_retention_days:
+        type: integer
     type: object
   orion_core_internal_service.MonitorReportPayload:
     properties:
@@ -1860,6 +2486,11 @@ definitions:
         description: up | down
         type: string
       metrics: {}
+      report_id:
+        description: |-
+          ReportID is an optional agent-generated idempotency key (UUID). Replaying a
+          report with the same ID for the same monitor stores nothing new.
+        type: string
       timestamp:
         type: string
     required:
@@ -2048,6 +2679,10 @@ definitions:
     type: object
   orion_core_internal_service.RuntimeSQLiteStats:
     properties:
+      auto_vacuum:
+        description: AutoVacuum is none, full or incremental; only incremental lets
+          retention shrink the file.
+        type: string
       busy_total:
         type: integer
       database_bytes:
@@ -2110,6 +2745,11 @@ definitions:
     type: object
   orion_core_internal_service.SetMaintenanceModeRequest:
     properties:
+      duration_seconds:
+        description: |-
+          DurationSeconds is how long maintenance lasts when enabling. Omitted means
+          DefaultMaintenanceDuration; values above MaxMaintenanceDuration are rejected.
+        type: integer
       maintenance_mode:
         type: boolean
     required:
@@ -3007,7 +3647,9 @@ paths:
     put:
       consumes:
       - application/json
-      description: Enable or disable maintenance mode for a specific agent
+      description: Enable or disable maintenance mode for a specific agent. Enabling
+        lasts duration_seconds (default 24h, max 30 days) and then expires automatically;
+        every change is audited.
       operationId: setMaintenanceMode
       parameters:
       - description: Agent ID
@@ -3343,6 +3985,10 @@ paths:
             $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "401":
           description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
           schema:
             $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
@@ -3755,7 +4401,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create a generic webhook alert channel. Secret values are stored
+      description: Create a webhook or email alert channel. Email channels need SMTP
+        configured and recipients confirmed via double opt-in. Secret values are stored
         but never returned by the API.
       operationId: createAlertChannel
       parameters:
@@ -3876,6 +4523,149 @@ paths:
       summary: Update alert channel
       tags:
       - alerts
+  /v1/alerts/channels/{id}/recipients:
+    get:
+      operationId: getAlertChannelRecipients
+      parameters:
+      - description: Alert channel ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    recipients:
+                      items:
+                        $ref: '#/definitions/internal_api.AlertRecipientResponse'
+                      type: array
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: List alert channel recipients
+      tags:
+      - alerts
+    post:
+      consumes:
+      - application/json
+      description: Adds an address to an email channel and mails it a confirmation
+        link. No alerts are sent until it confirms (double opt-in).
+      operationId: addAlertChannelRecipient
+      parameters:
+      - description: Alert channel ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Recipient
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.alertRecipientRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    recipient:
+                      $ref: '#/definitions/internal_api.AlertRecipientResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Add alert channel recipient
+      tags:
+      - alerts
+  /v1/alerts/channels/{id}/recipients/{recipient_id}:
+    delete:
+      operationId: removeAlertChannelRecipient
+      parameters:
+      - description: Alert channel ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Recipient ID
+        in: path
+        name: recipient_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Remove alert channel recipient
+      tags:
+      - alerts
+  /v1/alerts/channels/{id}/recipients/{recipient_id}/resend:
+    post:
+      operationId: resendAlertChannelRecipient
+      parameters:
+      - description: Alert channel ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Recipient ID
+        in: path
+        name: recipient_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Resend recipient confirmation
+      tags:
+      - alerts
   /v1/alerts/channels/{id}/test:
     post:
       consumes:
@@ -3983,6 +4773,55 @@ paths:
           schema:
             $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: List alert deliveries
+      tags:
+      - alerts
+  /v1/alerts/deliveries/{id}/retry:
+    post:
+      consumes:
+      - application/json
+      description: Re-queue a failed alert delivery so the Worker dispatcher sends
+        it again. Only failed deliveries can be retried.
+      operationId: retryAlertDelivery
+      parameters:
+      - description: Alert delivery ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    delivery:
+                      $ref: '#/definitions/internal_api.AlertDeliveryResponse'
+                  type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Retry an alert delivery
       tags:
       - alerts
   /v1/alerts/routes:
@@ -4463,6 +5302,401 @@ paths:
       summary: Dry-run alert rules
       tags:
       - alerts
+  /v1/apps:
+    get:
+      consumes:
+      - application/json
+      description: Product-logging applications and their settings.
+      operationId: listApps
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    apps:
+                      items:
+                        $ref: '#/definitions/internal_api.App'
+                      type: array
+                  type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "501":
+          description: Not Implemented
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List apps
+      tags:
+      - apps
+    post:
+      consumes:
+      - application/json
+      description: Creates an app. Create an ingest key next to let it send logs.
+      operationId: createApp
+      parameters:
+      - description: App settings
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.AppRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    app:
+                      $ref: '#/definitions/internal_api.App'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "501":
+          description: Not Implemented
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create an app
+      tags:
+      - apps
+  /v1/apps/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes the app, revokes its keys and removes its stored logs.
+      operationId: deleteApp
+      parameters:
+      - description: App ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "501":
+          description: Not Implemented
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete an app
+      tags:
+      - apps
+    get:
+      consumes:
+      - application/json
+      operationId: getApp
+      parameters:
+      - description: App ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    app:
+                      $ref: '#/definitions/internal_api.App'
+                  type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "501":
+          description: Not Implemented
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get an app
+      tags:
+      - apps
+    patch:
+      consumes:
+      - application/json
+      description: Changes retention, sampling, display profile or redaction. Omitted
+        fields are unchanged.
+      operationId: updateApp
+      parameters:
+      - description: App ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to change
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.AppUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    app:
+                      $ref: '#/definitions/internal_api.App'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "501":
+          description: Not Implemented
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update an app
+      tags:
+      - apps
+  /v1/apps/{id}/keys:
+    get:
+      consumes:
+      - application/json
+      description: Keys never include the secret; only a short prefix is shown.
+      operationId: listIngestKeys
+      parameters:
+      - description: App ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    keys:
+                      items:
+                        $ref: '#/definitions/internal_api.IngestKey'
+                      type: array
+                  type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "501":
+          description: Not Implemented
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List ingest keys
+      tags:
+      - apps
+    post:
+      consumes:
+      - application/json
+      description: Returns the full key once. Store it; it cannot be shown again.
+        To rotate, create a new key, deploy it, then revoke the old one.
+      operationId: createIngestKey
+      parameters:
+      - description: App ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Key name
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.IngestKeyRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    key:
+                      $ref: '#/definitions/internal_api.IngestKeyCreated'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "501":
+          description: Not Implemented
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create an ingest key
+      tags:
+      - apps
+  /v1/apps/{id}/keys/{key_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Takes effect immediately.
+      operationId: revokeIngestKey
+      parameters:
+      - description: App ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Key ID
+        in: path
+        name: key_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "501":
+          description: Not Implemented
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Revoke an ingest key
+      tags:
+      - apps
+  /v1/apps/{id}/test-log:
+    post:
+      consumes:
+      - application/json
+      description: Writes one info entry (event orion.test) for the app, to confirm
+        setup end to end.
+      operationId: sendAppTestLog
+      parameters:
+      - description: App ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.TestLogResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "501":
+          description: Not Implemented
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Send a test log
+      tags:
+      - apps
   /v1/auth/login:
     post:
       consumes:
@@ -4569,17 +5803,23 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get a paginated operational event log for Core, agents, monitors,
-        incidents, alerts, and lifecycle actions
+      description: 'Operational event log for Core, agents, monitors, incidents, alerts,
+        and lifecycle actions, newest first. Page with the keyset `cursor` (preferred:
+        constant cost per page); `offset` is kept for compatibility, capped at 5000
+        rows, and makes `count` a lower bound.'
       operationId: getOrionEvents
       parameters:
       - default: 50
-        description: Maximum number of events to return
+        description: Maximum number of events to return (max 200)
         in: query
         name: limit
         type: integer
+      - description: Opaque cursor from a previous response's next_cursor
+        in: query
+        name: cursor
+        type: string
       - default: 0
-        description: Number of events to skip
+        description: 'Deprecated: number of events to skip'
         in: query
         name: offset
         type: integer
@@ -4612,14 +5852,22 @@ paths:
                       items:
                         $ref: '#/definitions/internal_api.OrionEventResponse'
                       type: array
+                    has_more:
+                      type: boolean
                     limit:
                       type: integer
+                    next_cursor:
+                      type: string
                     offset:
                       type: integer
                     pagination:
                       $ref: '#/definitions/orion_core_internal_utils.PaginationMeta'
                   type: object
               type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -4644,14 +5892,7 @@ paths:
             - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
-                  properties:
-                    count:
-                      type: integer
-                    issues:
-                      items:
-                        type: object
-                      type: array
-                  type: object
+                  $ref: '#/definitions/internal_api.HealthIssuesResponse'
               type: object
         "500":
           description: Internal Server Error
@@ -4708,6 +5949,70 @@ paths:
       summary: Get system health summary
       tags:
       - health
+  /v1/heartbeat/failure:
+    post:
+      consumes:
+      - application/json
+      description: 'Same as the path-token form, but the token is sent as `Authorization:
+        Bearer <token>`.'
+      operationId: receiveHeartbeatFailureHeader
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.HeartbeatSignalResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - HeartbeatBearer: []
+      summary: Record heartbeat failure (header token)
+      tags:
+      - heartbeats
+  /v1/heartbeat/success:
+    post:
+      consumes:
+      - application/json
+      description: 'Same as the path-token form, but the token is sent as `Authorization:
+        Bearer <token>` so it never lands in URLs, proxy access logs or shell history.'
+      operationId: receiveHeartbeatSuccessHeader
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.HeartbeatSignalResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - HeartbeatBearer: []
+      summary: Record heartbeat success (header token)
+      tags:
+      - heartbeats
   /v1/heartbeats/{token}/failure:
     post:
       consumes:
@@ -5032,6 +6337,52 @@ paths:
       summary: Cover incident
       tags:
       - incidents
+  /v1/incidents/{id}/logs:
+    get:
+      description: 'Entries from 15 minutes before the incident opened until 5 minutes
+        after it resolved (or now): the agent''s service logs, plus the app''s product
+        logs when `app_id` is given or the incident came from a log alert rule. Newest
+        first.'
+      operationId: getIncidentLogs
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Also include this app's product logs
+        in: query
+        name: app_id
+        type: string
+      - description: Maximum entries, default 100, max 200
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.LogListResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Logs around an incident
+      tags:
+      - incidents
   /v1/incidents/{id}/reopen:
     post:
       consumes:
@@ -5188,14 +6539,7 @@ paths:
             - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
             - properties:
                 data:
-                  properties:
-                    candidates:
-                      items:
-                        type: object
-                      type: array
-                    count:
-                      type: integer
-                  type: object
+                  $ref: '#/definitions/internal_api.IncidentCandidatesResponse'
               type: object
         "500":
           description: Internal Server Error
@@ -5204,6 +6548,579 @@ paths:
       summary: Get incident candidates
       tags:
       - health
+  /v1/incidents/candidates/{id}/dismiss:
+    post:
+      consumes:
+      - application/json
+      description: Hide a failing monitor from the incident candidates list. The candidate
+        id is the monitor id. It reappears if the monitor recovers and fails again.
+      operationId: dismissIncidentCandidate
+      parameters:
+      - description: Candidate (monitor) ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Optional reason
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/internal_api.dismissIncidentCandidateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    dismissed_at:
+                      type: string
+                    monitor_id:
+                      type: string
+                  type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Dismiss an incident candidate
+      tags:
+      - incidents
+  /v1/ingest/logs:
+    post:
+      consumes:
+      - application/json
+      description: 'Send one entry, a JSON array of entries, or newline-delimited
+        JSON (Content-Type application/x-ndjson). Authenticate with an app ingest
+        key. Entries are validated individually: invalid ones are rejected without
+        failing the batch. Limits: 64 KiB per entry, 10,000 entries and 1 MiB per
+        request (5 MiB for NDJSON). Responds 202 once queued; 429 with Retry-After
+        when the app is rate limited or the queue is full.'
+      operationId: ingestLogs
+      parameters:
+      - description: One entry object, an array of entries, or NDJSON
+        in: body
+        name: entries
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/internal_api.LogEntryInput'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/internal_api.IngestResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "413":
+          description: Request Entity Too Large
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "415":
+          description: Unsupported Media Type
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "501":
+          description: Not Implemented
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - IngestKey: []
+      summary: Ingest logs
+      tags:
+      - ingest
+  /v1/ingest/otlp/v1/logs:
+    post:
+      consumes:
+      - application/json
+      description: OpenTelemetry Logs endpoint (ExportLogsServiceRequest) as JSON
+        (application/json) or protobuf (application/x-protobuf), so any OpenTelemetry
+        SDK or Collector can send logs with no Orion-specific code. Authenticate with
+        an app ingest key. Responds per the OTLP spec with an ExportLogsServiceResponse
+        (partial_success when some records were rejected).
+      operationId: ingestOTLPLogs
+      parameters:
+      - description: ExportLogsServiceRequest (OTLP/HTTP JSON; protobuf is also accepted)
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "413":
+          description: Request Entity Too Large
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "501":
+          description: Not Implemented
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - IngestKey: []
+      summary: Ingest logs over OTLP/HTTP
+      tags:
+      - ingest
+  /v1/logs:
+    get:
+      consumes:
+      - application/json
+      description: Newest-first, cursor-paginated log list. source=app (default) searches
+        product logs; source=agent lists agent service logs (severity, q, from, to
+        and agent_id apply).
+      operationId: searchLogs
+      parameters:
+      - description: app (default) or agent
+        in: query
+        name: source
+        type: string
+      - description: Filter by app
+        in: query
+        name: app_id
+        type: string
+      - description: Filter by agent (agent service logs)
+        in: query
+        name: agent_id
+        type: string
+      - description: Comma-separated severities, or a minimum with >=warn
+        in: query
+        name: severity
+        type: string
+      - description: Exact event name
+        in: query
+        name: event
+        type: string
+      - description: Full-text search over body and attributes
+        in: query
+        name: q
+        type: string
+      - description: Start (RFC 3339, or relative like -1h)
+        in: query
+        name: from
+        type: string
+      - description: End (RFC 3339); default now
+        in: query
+        name: to
+        type: string
+      - description: Exact trace id
+        in: query
+        name: trace_id
+        type: string
+      - description: Exact request id
+        in: query
+        name: request_id
+        type: string
+      - description: Attribute filter key:value, repeatable (attr=http.status_code:500)
+        in: query
+        name: attr
+        type: string
+      - default: 50
+        description: Page size, max 200
+        in: query
+        name: limit
+        type: integer
+      - description: Cursor from a previous page
+        in: query
+        name: cursor
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.LogListResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "501":
+          description: Not Implemented
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Search logs
+      tags:
+      - logs
+  /v1/logs/{id}:
+    get:
+      consumes:
+      - application/json
+      operationId: getLogEntry
+      parameters:
+      - description: Log entry ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    entry:
+                      $ref: '#/definitions/internal_api.LogEntry'
+                  type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "501":
+          description: Not Implemented
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get one log entry
+      tags:
+      - logs
+  /v1/logs/alerts:
+    get:
+      description: Rules that raise an incident when an app's logs match a condition.
+      operationId: listLogAlertRules
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    rules:
+                      items:
+                        $ref: '#/definitions/internal_api.LogAlertRule'
+                      type: array
+                  type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List log alert rules
+      tags:
+      - logs
+    post:
+      consumes:
+      - application/json
+      description: Threshold rules fire when more than `threshold` matching entries
+        arrive inside the window; absence rules fire when none do. A firing rule opens
+        one incident (Webhook and Email alerts follow the normal routes) and resolves
+        when the condition clears. Rules are evaluated by the Worker about every 30
+        seconds.
+      operationId: createLogAlertRule
+      parameters:
+      - description: Rule
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.LogAlertRuleRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    rule:
+                      $ref: '#/definitions/internal_api.LogAlertRule'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a log alert rule
+      tags:
+      - logs
+  /v1/logs/alerts/{id}:
+    delete:
+      description: Resolves the rule's open incident, then removes the rule.
+      operationId: deleteLogAlertRule
+      parameters:
+      - description: Rule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a log alert rule
+      tags:
+      - logs
+    patch:
+      consumes:
+      - application/json
+      description: Omitted fields are unchanged. Disabling a rule resolves its open
+        incident.
+      operationId: updateLogAlertRule
+      parameters:
+      - description: Rule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to change
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.LogAlertRuleUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    rule:
+                      $ref: '#/definitions/internal_api.LogAlertRule'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a log alert rule
+      tags:
+      - logs
+  /v1/logs/fields:
+    get:
+      consumes:
+      - application/json
+      description: Attribute keys seen for an app with dominant type and approximate
+        cardinality; powers facets and columns.
+      operationId: getLogFieldCatalog
+      parameters:
+      - description: App ID
+        in: query
+        name: app_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.LogFieldCatalogResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "501":
+          description: Not Implemented
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Log field catalog
+      tags:
+      - logs
+  /v1/logs/histogram:
+    get:
+      consumes:
+      - application/json
+      description: Counts per time bucket, split by severity, for the same filters
+        as the search.
+      operationId: getLogHistogram
+      parameters:
+      - description: app (default) or agent
+        in: query
+        name: source
+        type: string
+      - description: Filter by app
+        in: query
+        name: app_id
+        type: string
+      - description: Filter by agent (agent service logs)
+        in: query
+        name: agent_id
+        type: string
+      - description: Comma-separated severities, or a minimum with >=warn
+        in: query
+        name: severity
+        type: string
+      - description: Exact event name
+        in: query
+        name: event
+        type: string
+      - description: Full-text search over body and attributes
+        in: query
+        name: q
+        type: string
+      - description: Start (RFC 3339, or relative like -1h)
+        in: query
+        name: from
+        type: string
+      - description: End (RFC 3339); default now
+        in: query
+        name: to
+        type: string
+      - description: Exact trace id
+        in: query
+        name: trace_id
+        type: string
+      - description: Exact request id
+        in: query
+        name: request_id
+        type: string
+      - description: Attribute filter key:value, repeatable (attr=http.status_code:500)
+        in: query
+        name: attr
+        type: string
+      - default: 60
+        description: Approximate number of buckets
+        in: query
+        name: buckets
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.LogHistogramResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "501":
+          description: Not Implemented
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Log volume histogram
+      tags:
+      - logs
   /v1/logs/service:
     get:
       consumes:
@@ -5278,6 +7195,188 @@ paths:
       summary: List service logs
       tags:
       - service-logs
+  /v1/logs/stream:
+    get:
+      consumes:
+      - application/json
+      description: 'Server-Sent Events: each event named log carries one LogEntry
+        as JSON. Accepts the same filters as the search (no from/to/cursor). Sends
+        a comment heartbeat every 15s. Reconnect with Last-Event-ID to resume.'
+      operationId: streamLogs
+      parameters:
+      - description: app (default) or agent
+        in: query
+        name: source
+        type: string
+      - description: Filter by app
+        in: query
+        name: app_id
+        type: string
+      - description: Filter by agent (agent service logs)
+        in: query
+        name: agent_id
+        type: string
+      - description: Comma-separated severities, or a minimum with >=warn
+        in: query
+        name: severity
+        type: string
+      - description: Exact event name
+        in: query
+        name: event
+        type: string
+      - description: Full-text search over body and attributes
+        in: query
+        name: q
+        type: string
+      - description: Exact trace id
+        in: query
+        name: trace_id
+        type: string
+      - description: Exact request id
+        in: query
+        name: request_id
+        type: string
+      - description: Attribute filter key:value, repeatable (attr=http.status_code:500)
+        in: query
+        name: attr
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "501":
+          description: Not Implemented
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Stream logs live
+      tags:
+      - logs
+  /v1/logs/views:
+    get:
+      consumes:
+      - application/json
+      operationId: listLogViews
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    views:
+                      items:
+                        $ref: '#/definitions/internal_api.LogSavedView'
+                      type: array
+                  type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "501":
+          description: Not Implemented
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List saved log views
+      tags:
+      - logs
+    post:
+      consumes:
+      - application/json
+      operationId: createLogView
+      parameters:
+      - description: View
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.LogSavedViewRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    view:
+                      $ref: '#/definitions/internal_api.LogSavedView'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "501":
+          description: Not Implemented
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Save a log view
+      tags:
+      - logs
+  /v1/logs/views/{id}:
+    delete:
+      consumes:
+      - application/json
+      operationId: deleteLogView
+      parameters:
+      - description: View ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "501":
+          description: Not Implemented
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a saved log view
+      tags:
+      - logs
   /v1/monitors:
     get:
       consumes:
@@ -5817,6 +7916,11 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/orion_core_internal_service.RegisterRequest'
+      - description: Enrollment secret; required when ORION_ENROLLMENT_TOKEN is set
+          on Core
+        in: header
+        name: X-Orion-Enrollment-Token
+        type: string
       produces:
       - application/json
       responses:
@@ -5831,6 +7935,14 @@ paths:
               type: object
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "429":
+          description: Too Many Requests
           schema:
             $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
@@ -7515,6 +9627,12 @@ paths:
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+  IngestKey:
+    description: Type "Bearer" followed by a space and an app ingest key (orion_ik_...).
+      Write-only; created per app.
     in: header
     name: Authorization
     type: apiKey

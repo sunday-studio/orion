@@ -26,6 +26,8 @@ type SystemReport struct {
 }
 
 type MonitorReport struct {
+	// ReportID is generated once per collected report and kept when the report is
+	// spooled or retried, so Core can discard replays.
 	ReportID  string                  `json:"report_id,omitempty"`
 	Timestamp string                  `json:"timestamp" binding:"required"`
 	Health    string                  `json:"health" binding:"required"` // up | down

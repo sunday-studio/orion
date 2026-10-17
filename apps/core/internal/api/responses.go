@@ -14,6 +14,7 @@ type AgentResponse struct {
 	KernelVersion            string         `json:"kernel_version"`
 	Arch                     string         `json:"arch"`
 	MaintenanceMode          bool           `json:"maintenance_mode"`
+	MaintenanceUntil         *time.Time     `json:"maintenance_until,omitempty"`
 	Status                   string         `json:"status,omitempty"`
 	AvailabilityHealth       string         `json:"availability_health,omitempty"`
 	MonitorHealth            string         `json:"monitor_health,omitempty"`
@@ -307,6 +308,8 @@ type AlertChannelResponse struct {
 	WebhookURL                 string     `json:"webhook_url,omitempty"`
 	WebhookConfigured          bool       `json:"webhook_configured,omitempty"`
 	WebhookSignatureConfigured bool       `json:"webhook_signature_configured,omitempty"`
+	RecipientCount             int64      `json:"recipient_count,omitempty"`
+	ConfirmedRecipientCount    int64      `json:"confirmed_recipient_count,omitempty"`
 	SubscribedEvents           []string   `json:"subscribed_events"`
 	LastDeliveryStatus         string     `json:"last_delivery_status,omitempty"`
 	LastDeliveryAt             *time.Time `json:"last_delivery_at,omitempty"`

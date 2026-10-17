@@ -40,11 +40,11 @@ check "plan is printed"                   0 "Plan"                -- --dry-run -
 check "missing core url is a clear error" 1 "Core URL is required" -- --dry-run --yes --base-url "$BASE"
 
 echo "x" >> "$REL/$ASSET"            # tamper with the binary
-check "tampered binary aborts"            2 "checksum mismatch"   -- --dry-run --yes --core-url http://core.example.com --base-url "$BASE"
+check "tampered binary aborts"            2 "Checksum mismatch"   -- --dry-run --yes --core-url http://core.example.com --base-url "$BASE"
 cp "$BIN" "$REL/$ASSET"
 grep -v "$ASSET" "$REL/SHA256SUMS" > "$REL/SUMS.new" && mv "$REL/SUMS.new" "$REL/SHA256SUMS"
-check "unlisted binary aborts"            2 "not listed"          -- --dry-run --yes --core-url http://core.example.com --base-url "$BASE"
-check "signature required but absent"     2 "signature required"  -- --dry-run --yes --require-signature --core-url http://core.example.com --base-url "$BASE"
+check "unlisted binary aborts"            2 "No checksum for"          -- --dry-run --yes --core-url http://core.example.com --base-url "$BASE"
+check "signature required but cosign absent" 2 "cosign is required"  -- --dry-run --yes --require-signature --core-url http://core.example.com --base-url "$BASE"
 
 [ "$fail" -eq 0 ] && echo "installer tests passed"
 exit "$fail"

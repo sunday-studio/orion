@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@/design-system";
 import { getApiBase } from "@/api/client";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { cn } from "@/utils/cn";
@@ -29,7 +29,7 @@ const CopyButton = ({ label, value }: { label: string; value: string }) => {
   };
 
   return (
-    <Button size="sm" variant="outline" onClick={() => void copy()}>
+    <Button size="sm" variant="secondary" onClick={() => void copy()}>
       {copied ? <Check /> : <Clipboard />}
       {copied ? "Copied" : label}
     </Button>

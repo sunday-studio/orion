@@ -1,8 +1,12 @@
 package registration
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"orion/agent/internal/config"
@@ -20,9 +24,11 @@ type RegistrationService struct {
 }
 
 func New(userConfig *config.UserConfig, userConfigPath string, stateStore *state.Store) *RegistrationService {
+	client := transport.NewClient(userConfig.CoreURL, "")
+	client.SetEnrollmentToken(enrollmentToken(userConfig))
 	return &RegistrationService{
 		userConfig:     userConfig,
-		client:         transport.NewClient(userConfig.CoreURL, ""),
+		client:         client,
 		userConfigPath: userConfigPath,
 		stateStore:     stateStore,
 	}
@@ -42,7 +48,7 @@ func (s *RegistrationService) RegisterAgentIfNeeded() error {
 		return nil
 	}
 
-	uuid, err := utils.GenerateAgentUUID()
+	uuid, err := utils.ResolveAgentIdentity(filepath.Join(filepath.Dir(s.stateStore.Path()), "machine-identity.json"))
 	if err != nil {
 		return fmt.Errorf("failed to generate agent UUID: %w", err)
 	}
@@ -193,4 +199,54 @@ func buildStateMonitorMap(monitors []config.InternalStateMonitor) map[string]con
 		m[monitor.Name] = monitor
 	}
 	return m
+}
+
+// enrollmentToken prefers the environment so the secret can live in a root-only
+// systemd EnvironmentFile instead of the world-readable agent config.
+func enrollmentToken(userConfig *config.UserConfig) string {
+	if token := strings.TrimSpace(os.Getenv("ORION_ENROLLMENT_TOKEN")); token != "" {
+		return token
+	}
+	return userConfig.EnrollmentToken
+}
+
+// RegistrationBackoff controls how long RegisterWithRetry waits between attempts.
+type RegistrationBackoff struct {
+	Initial time.Duration
+	Max     time.Duration
+}
+
+// DefaultRegistrationBackoff retries from 2s up to a 60s cap.
+var DefaultRegistrationBackoff = RegistrationBackoff{Initial: 2 * time.Second, Max: 60 * time.Second}
+
+// RegisterWithRetry keeps trying RegisterAgentIfNeeded while Core is unreachable
+// or answering with a transient error (for example when Core and this host boot
+// together after a power event), instead of exiting and exhausting systemd's
+// start limit. Permanent failures (credentials, conflicts, validation) are
+// returned immediately, and it stops with ctx.Err() when ctx is cancelled.
+func (s *RegistrationService) RegisterWithRetry(ctx context.Context, backoff RegistrationBackoff) error {
+	delay := backoff.Initial
+	if delay <= 0 {
+		delay = DefaultRegistrationBackoff.Initial
+	}
+	maxDelay := backoff.Max
+	if maxDelay <= 0 {
+		maxDelay = DefaultRegistrationBackoff.Max
+	}
+	for attempt := 1; ; attempt++ {
+		err := s.RegisterAgentIfNeeded()
+		if err == nil {
+			return nil
+		}
+		if !transport.IsTransientError(err) {
+			return err
+		}
+		logging.Warnf("registration attempt %d failed (%v); retrying in %s", attempt, err, delay)
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("registration abandoned: %w (last error: %v)", ctx.Err(), err)
+		case <-time.After(delay):
+		}
+		delay = min(delay*2, maxDelay)
+	}
 }

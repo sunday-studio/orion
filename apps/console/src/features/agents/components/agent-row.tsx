@@ -1,5 +1,5 @@
+import { StatusBadge } from "@/design-system";
 import type { ApiAgentResponse } from "@/orion-sdk";
-import { StatusBadge, toStatus } from "@/components/shared/status-badges";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { ArrowRightIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
@@ -53,7 +53,7 @@ export const AgentRow = ({ agent }: { agent: ApiAgentResponse; index: number }) 
           )}
         </span>
         <span className="hidden min-w-0 flex-col gap-1 sm:inline-flex">
-          <StatusBadge value={toStatus(status)} />
+          <StatusBadge status={status} />
           <span className="truncate text-xs text-neutral-500">
             server {availability} / monitors {monitorHealth}
           </span>

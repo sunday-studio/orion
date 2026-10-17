@@ -1,0 +1,25 @@
+import { Link, type LinkProps } from "react-router-dom";
+
+import { cn } from "@/utils/cn";
+
+type DataTableLinkProps = LinkProps & {
+  truncate?: boolean;
+};
+
+export const DataTableLink = ({
+  className,
+  onClick,
+  truncate = false,
+  ...props
+}: DataTableLinkProps) => {
+  return (
+    <Link
+      className={cn("hover:text-brand hover:underline", truncate && "block truncate", className)}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick?.(event);
+      }}
+      {...props}
+    />
+  );
+};

@@ -1,7 +1,4 @@
-import { StatusBadge } from "@/components/shared/status-badges";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Button, Input, StatusBadge, Textarea } from "@/design-system";
 import type { ApiStatusPageIncidentResponse } from "@/orion-sdk";
 import { Plus } from "lucide-react";
 import type { FormEvent } from "react";
@@ -81,7 +78,9 @@ export const IncidentUpdatesPanel = ({
       {(selectedIncident.updates ?? []).map((update) => (
         <div className="border border-neutral-200 p-3 text-sm" key={update.id}>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <StatusBadge fallback={update.status} value={incidentBadgeStatus(update.status)} />
+            <StatusBadge status={incidentBadgeStatus(update.status)}>
+              {incidentBadgeStatus(update.status) ?? update.status}
+            </StatusBadge>
             <span className="text-neutral-600">
               {formatDateTime(update.published_at ?? update.created_at)}
             </span>

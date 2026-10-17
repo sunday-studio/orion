@@ -1,5 +1,4 @@
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button, Input } from "@/design-system";
 import type { ApiStatusPageComponentResponse, ApiStatusPageSectionResponse } from "@/orion-sdk";
 import { Link2, Plus, Trash2 } from "lucide-react";
 import type { FormEvent } from "react";
@@ -63,7 +62,7 @@ export const StatusPageSetupForms = ({
           placeholder="API"
         />
       </Field>
-      <Button disabled={!pageId || createSectionPending} variant="outline">
+      <Button disabled={!pageId || createSectionPending} variant="secondary">
         <Plus className="size-4" />
         Add section
       </Button>
@@ -79,7 +78,7 @@ export const StatusPageSetupForms = ({
               onClick={() => onRemoveSection(section.id, section.name)}
               size="sm"
               type="button"
-              variant="outline"
+              variant="secondary"
             >
               <Trash2 className="size-3.5" />
               Remove
@@ -142,7 +141,7 @@ export const StatusPageSetupForms = ({
           ))}
         </select>
       </Field>
-      <Button disabled={!componentForm.sectionId || createComponentPending} variant="outline">
+      <Button disabled={!componentForm.sectionId || createComponentPending} variant="secondary">
         <Plus className="size-4" />
         Add component
       </Button>
@@ -200,7 +199,7 @@ export const StatusPageSetupForms = ({
       </Field>
       <Button
         disabled={!mappingForm.componentId || !mappingForm.resourceId || createMappingPending}
-        variant="outline"
+        variant="secondary"
       >
         <Link2 className="size-4" />
         Add mapping

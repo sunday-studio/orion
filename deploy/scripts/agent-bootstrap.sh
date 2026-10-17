@@ -17,8 +17,8 @@ CORE_URL="${ORION_CORE_URL:-}"
 CONFIG_SOURCE="${ORION_AGENT_CONFIG:-}"
 CONFIG_URL="${ORION_AGENT_CONFIG_URL:-}"
 TOKEN_FILE="${ORION_ENROLLMENT_TOKEN_FILE:-}"
-PUBKEY="${ORION_MINISIGN_PUBKEY:-}"
-REQUIRE_SIGNATURE="false"
+SKIP_VERIFY="false"
+REQUIRE_SIGNATURE="${ORION_REQUIRE_SIGNATURE:-false}"
 START_SERVICE="true"
 OVERWRITE_CONFIG="false"
 DRY_RUN="false"
@@ -45,8 +45,8 @@ Options:
   --user                       Install for the current user only (no root, no system service).
   --no-start                   Install without starting the service.
   --overwrite-config           Replace an existing installed config.
-  --pubkey FILE                minisign public key used to verify SHA256SUMS.minisig.
-  --require-signature          Abort unless the signature verifies.
+  --require-signature          Abort unless the cosign signature on SHA256SUMS verifies.
+  --skip-verify                Install without checksum verification (old releases only; unsafe).
   --yes                        Do not prompt.
   --purge                      With uninstall: also remove config, state, logs and the service user.
   --dry-run                    Download and verify into a temp dir, print what would
@@ -76,7 +76,7 @@ while [ "$#" -gt 0 ]; do
     --version) require_value "$1" "${2:-}"; VERSION="$2"; shift 2 ;;
     --repo) require_value "$1" "${2:-}"; REPO="$2"; shift 2 ;;
     --base-url) require_value "$1" "${2:-}"; BASE_URL="$2"; shift 2 ;;
-    --pubkey) require_value "$1" "${2:-}"; PUBKEY="$2"; shift 2 ;;
+    --skip-verify) SKIP_VERIFY="true"; shift ;;
     --require-signature) REQUIRE_SIGNATURE="true"; shift ;;
     --user) USER_MODE="true"; shift ;;
     --no-start) START_SERVICE="false"; shift ;;
@@ -202,34 +202,42 @@ fi
 ok "downloaded release assets"
 
 step "Verify"
-sig_ok="no"
-if [ -n "$PUBKEY" ] && command -v minisign >/dev/null 2>&1 && curl -fsSL "$BASE_URL/SHA256SUMS.minisig" -o "$WORK/SHA256SUMS.minisig" 2>/dev/null; then
-  minisign -Vm "$WORK/SHA256SUMS" -p "$PUBKEY" -x "$WORK/SHA256SUMS.minisig" >/dev/null 2>&1 \
-    || die "signature verification failed for SHA256SUMS" "do not install; report this at https://github.com/${REPO}/issues" 2
-  sig_ok="yes"; ok "SHA256SUMS signature verified"
-fi
-if [ "$REQUIRE_SIGNATURE" = "true" ] && [ "$sig_ok" != "yes" ]; then
-  die "signature required but could not be verified" "install minisign and pass --pubkey FILE" 2
-fi
-[ "$sig_ok" = "yes" ] || info "no signature check (checksums only); pass --pubkey to require one"
+if [ "$SKIP_VERIFY" = "true" ]; then
+  info "WARNING: release contents are NOT verified (--skip-verify)"
+else
+  if command -v cosign >/dev/null 2>&1; then
+    fetch "$BASE_URL/SHA256SUMS.sig" "$WORK/SHA256SUMS.sig"
+    fetch "$BASE_URL/SHA256SUMS.pem" "$WORK/SHA256SUMS.pem"
+    cosign verify-blob --certificate "$WORK/SHA256SUMS.pem" --signature "$WORK/SHA256SUMS.sig" \
+      --certificate-identity-regexp "^https://github.com/${REPO}/\.github/workflows/agent-binaries\.yml@" \
+      --certificate-oidc-issuer "https://token.actions.githubusercontent.com" "$WORK/SHA256SUMS" >/dev/null 2>&1 \
+      || die "Release signature verification failed; refusing to install." "do not install; report this at https://github.com/${REPO}/issues" 2
+    ok "release signature verified (cosign)"
+  elif [ "$REQUIRE_SIGNATURE" = "true" ]; then
+    die "cosign is required (--require-signature / ORION_REQUIRE_SIGNATURE) but is not installed." "install cosign" 2
+  else
+    info "signature not checked: install cosign and use --require-signature to verify who published this release"
+  fi
 
-verify_asset() {
-  local file="$1" name="$2" want got
-  want="$(awk -v n="$name" '$2==n||$2=="*"n{print $1}' "$WORK/SHA256SUMS")"
-  [ -n "$want" ] || die "$name is not listed in SHA256SUMS" "this release looks incomplete" 2
-  got="$(sha256_of "$file")"
-  [ "$got" = "$want" ] || die "checksum mismatch for $name" "expected $want, got $got; nothing was installed" 2
-  ok "$name checksum matches"
-}
-verify_asset "$WORK/$ASSET" "$ASSET"
-if [ "$USER_MODE" != "true" ]; then
-  verify_asset "$WORK/orion-agent-install.sh" "orion-agent-install.sh"
-  verify_asset "$WORK/orion-agent-systemd.service" "orion-agent-systemd.service"
-  verify_asset "$WORK/com.orion.agent.plist" "com.orion.agent.plist"
+  verify_asset() {
+    local file="$1" name="$2" want got
+    want="$(awk -v n="$name" '$2==n||$2=="*"n{print $1; exit}' "$WORK/SHA256SUMS")"
+    [ -n "$want" ] || die "No checksum for $name in SHA256SUMS; refusing to install." "this release looks incomplete" 2
+    got="$(sha256_of "$file")"
+    [ "$got" = "$want" ] || die "Checksum mismatch for $name (expected $want, got $got); refusing to install." "nothing was installed" 2
+    ok "$name checksum matches"
+  }
+  verify_asset "$WORK/$ASSET" "$ASSET"
+  if [ "$USER_MODE" != "true" ]; then
+    verify_asset "$WORK/orion-agent-install.sh" "orion-agent-install.sh"
+    verify_asset "$WORK/orion-agent-systemd.service" "orion-agent-systemd.service"
+    verify_asset "$WORK/com.orion.agent.plist" "com.orion.agent.plist"
+  fi
 fi
 chmod +x "$WORK/$ASSET"
-"$WORK/$ASSET" version >/dev/null 2>&1 || die "the downloaded binary does not run on this machine" "check the architecture ($OS/$ARCH)" 2
-ok "binary runs on this machine"
+if "$WORK/$ASSET" version >/dev/null 2>&1; then ok "binary runs on this machine"
+elif [ "$SKIP_VERIFY" = "true" ]; then info "warning: the downloaded binary did not run here"
+else die "the downloaded binary does not run on this machine" "check the architecture ($OS/$ARCH)" 2; fi
 
 if [ -n "$CONFIG_URL" ]; then fetch "$CONFIG_URL" "$WORK/config.yaml"; CONFIG_SOURCE="$WORK/config.yaml"; fi
 

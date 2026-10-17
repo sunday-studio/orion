@@ -1,7 +1,4 @@
-import { StatusBadge } from "@/components/shared/status-badges";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Button, Input, StatusBadge, Textarea } from "@/design-system";
 import type {
   ApiStatusPageComponentResponse,
   ApiStatusPageIncidentComponentSuggestionResponse,
@@ -57,10 +54,9 @@ export const EditIncidentForm = ({
   <form className="space-y-3" onSubmit={onSubmit}>
     <div className="flex items-center justify-between gap-2">
       <h3 className="text-sm font-medium">Edit Public Incident</h3>
-      <StatusBadge
-        fallback={form.visibility}
-        value={form.visibility === "published" ? "up" : "unknown"}
-      />
+      <StatusBadge status={form.visibility === "published" ? "up" : "unknown"}>
+        {form.visibility}
+      </StatusBadge>
     </div>
     <Field label="Internal incident ID">
       <Input
@@ -142,14 +138,14 @@ export const EditIncidentForm = ({
     </div>
     <AffectedComponents columns components={components} form={form} setForm={setForm} />
     <div className="flex flex-wrap gap-2">
-      <Button disabled={!form.title.trim() || isPending} variant="outline">
+      <Button disabled={!form.title.trim() || isPending} variant="secondary">
         {isPending ? "Saving..." : "Save incident"}
       </Button>
-      <Button disabled={isPending} onClick={onPublish} type="button" variant="outline">
+      <Button disabled={isPending} onClick={onPublish} type="button" variant="secondary">
         <Globe2 className="size-4" />
         Publish
       </Button>
-      <Button disabled={isPending} onClick={onResolve} type="button" variant="outline">
+      <Button disabled={isPending} onClick={onResolve} type="button" variant="secondary">
         <CheckCircle2 className="size-4" />
         Resolve
       </Button>
@@ -157,7 +153,7 @@ export const EditIncidentForm = ({
         disabled={deleteIncidentPending || deletePending}
         onClick={onDelete}
         type="button"
-        variant="outline"
+        variant="secondary"
       >
         <Trash2 className="size-4" />
         {deleteIncidentPending ? "Deleting..." : "Delete"}

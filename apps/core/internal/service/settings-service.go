@@ -27,6 +27,13 @@ type DataLifecycleSettingsPayload struct {
 	RollupsEnabled      bool   `json:"rollups_enabled"`
 	RollupRetentionDays *int   `json:"rollup_retention_days"`
 	ArchiveSchedule     string `json:"archive_schedule"`
+
+	// Optional retention windows (days, 1-3650). Omitted fields keep their current value.
+	ServiceLogRetentionDays    *int `json:"service_log_retention_days,omitempty"`
+	AlertDeliveryRetentionDays *int `json:"alert_delivery_retention_days,omitempty"`
+	IncidentEventRetentionDays *int `json:"incident_event_retention_days,omitempty"`
+	AuditEventRetentionDays    *int `json:"audit_event_retention_days,omitempty"`
+	WorkerStatusRetentionDays  *int `json:"worker_status_retention_days,omitempty"`
 }
 
 type SettingsService struct {
@@ -70,6 +77,17 @@ func (s *SettingsService) UpdateDataLifecycleSettings(payload DataLifecycleSetti
 		"rollup_retention_days": payload.RollupRetentionDays,
 		"archive_schedule":      payload.ArchiveSchedule,
 	}
+	for column, value := range map[string]*int{
+		"service_log_retention_days":    payload.ServiceLogRetentionDays,
+		"alert_delivery_retention_days": payload.AlertDeliveryRetentionDays,
+		"incident_event_retention_days": payload.IncidentEventRetentionDays,
+		"audit_event_retention_days":    payload.AuditEventRetentionDays,
+		"worker_status_retention_days":  payload.WorkerStatusRetentionDays,
+	} {
+		if value != nil {
+			updates[column] = *value
+		}
+	}
 	if err := s.db.Model(settings).Updates(updates).Error; err != nil {
 		return nil, err
 	}
@@ -94,6 +112,12 @@ func (s *SettingsService) ensureDataLifecycleDefaults() (*db.DataLifecycleSettin
 		ArchiveDir:        defaultArchiveDir(s.dataDir),
 		RollupsEnabled:    true,
 		ArchiveSchedule:   "daily",
+
+		ServiceLogRetentionDays:    14,
+		AlertDeliveryRetentionDays: 90,
+		IncidentEventRetentionDays: 365,
+		AuditEventRetentionDays:    365,
+		WorkerStatusRetentionDays:  7,
 	}
 	if err := s.db.Create(&settings).Error; err != nil {
 		return nil, err
@@ -130,6 +154,17 @@ func (s *SettingsService) validateDataLifecyclePayload(payload DataLifecycleSett
 	}
 	if payload.RollupRetentionDays != nil && *payload.RollupRetentionDays > maxDataLifecycleRetentionDays {
 		return "", errors.New("rollup_retention_days must be <= 3650 or null")
+	}
+	for name, value := range map[string]*int{
+		"service_log_retention_days":    payload.ServiceLogRetentionDays,
+		"alert_delivery_retention_days": payload.AlertDeliveryRetentionDays,
+		"incident_event_retention_days": payload.IncidentEventRetentionDays,
+		"audit_event_retention_days":    payload.AuditEventRetentionDays,
+		"worker_status_retention_days":  payload.WorkerStatusRetentionDays,
+	} {
+		if value != nil && (*value < 1 || *value > maxDataLifecycleRetentionDays) {
+			return "", errors.New(name + " must be between 1 and 3650")
+		}
 	}
 	switch payload.ArchiveSchedule {
 	case "daily", "manual":

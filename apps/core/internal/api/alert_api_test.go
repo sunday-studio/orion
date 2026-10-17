@@ -30,7 +30,7 @@ func TestAlertReadEndpointsShowWebhookURLAndRedactSecrets(t *testing.T) {
 	if err := server.db.Create(&db.AlertChannel{ID: "alert-channel-webhook", Name: "ops-webhook", Type: "webhook", Enabled: true, WebhookURL: "https://secret.example.com/hook", WebhookSigningSecret: "webhook-signing-secret"}).Error; err != nil {
 		t.Fatalf("create webhook channel: %v", err)
 	}
-	if err := server.db.Create(&db.AlertChannel{ID: "alert-channel-email", Name: "ops-email", Type: "email", Enabled: false}).Error; err != nil {
+	if err := server.db.Create(&db.AlertChannel{ID: "alert-channel-email", Name: "ops-email", Type: "slack", Enabled: false}).Error; err != nil {
 		t.Fatalf("create email channel: %v", err)
 	}
 	delivery := db.AlertDelivery{ID: "alert-delivery-test", IncidentID: "incident-test", AlertGroupID: "alert-group-test", EventType: "incident_opened", Channel: "ops-webhook", Type: "webhook", Status: "failed", Error: "post https://secret.example.com/hook: connection refused", AttemptCount: 1, MaxAttempts: 3}
@@ -41,7 +41,7 @@ func TestAlertReadEndpointsShowWebhookURLAndRedactSecrets(t *testing.T) {
 	if err := server.db.Create(&db.AlertDeliveryAttempt{ID: "alert-delivery-attempt-test", AlertDeliveryID: delivery.ID, AttemptNumber: 1, Status: "failed", Stage: "http_request", Error: "post https://secret.example.com/hook: connection refused", StartedAt: attemptTime, CompletedAt: &attemptTime}).Error; err != nil {
 		t.Fatalf("create alert delivery attempt: %v", err)
 	}
-	secondDelivery := db.AlertDelivery{ID: "alert-delivery-sent", IncidentID: "incident-other", EventType: "incident_resolved", Channel: "ops-email", Type: "email", Status: "sent"}
+	secondDelivery := db.AlertDelivery{ID: "alert-delivery-sent", IncidentID: "incident-other", EventType: "incident_resolved", Channel: "ops-email", Type: "slack", Status: "sent"}
 	if err := server.db.Create(&secondDelivery).Error; err != nil {
 		t.Fatalf("create second alert delivery: %v", err)
 	}
@@ -126,7 +126,7 @@ func TestAlertReadEndpointsShowWebhookURLAndRedactSecrets(t *testing.T) {
 	if len(filteredDelivery.Attempts) != 1 || filteredDelivery.Attempts[0].Status != "failed" || filteredDelivery.Attempts[0].Stage != "http_request" || filteredDelivery.Attempts[0].Error != "delivery failed; check Core logs" {
 		t.Fatalf("filtered delivery attempts = %+v, want sanitized http_request failure", filteredDelivery.Attempts)
 	}
-	destinationFilteredResp := performJSONRequest(t, server, http.MethodGet, "/v1/alerts/deliveries?type=email&channel=ops-email&event_type=incident_resolved", nil, "")
+	destinationFilteredResp := performJSONRequest(t, server, http.MethodGet, "/v1/alerts/deliveries?type=slack&channel=ops-email&event_type=incident_resolved", nil, "")
 	if destinationFilteredResp.Code != http.StatusOK {
 		t.Fatalf("destination filtered deliveries status = %d, body = %s", destinationFilteredResp.Code, destinationFilteredResp.Body.String())
 	}
@@ -147,7 +147,7 @@ func TestAlertReadEndpointsShowWebhookURLAndRedactSecrets(t *testing.T) {
 		t.Fatalf("destination filtered deliveries response = %+v, want one email delivery", destinationFiltered)
 	}
 	destinationDelivery := destinationFiltered.Data.Deliveries[0]
-	if destinationDelivery.Channel != "ops-email" || destinationDelivery.Type != "email" || destinationDelivery.EventType != "incident_resolved" || destinationDelivery.Status != "sent" {
+	if destinationDelivery.Channel != "ops-email" || destinationDelivery.Type != "slack" || destinationDelivery.EventType != "incident_resolved" || destinationDelivery.Status != "sent" {
 		t.Fatalf("destination filtered delivery = %+v, want sent ops-email incident_resolved delivery", destinationDelivery)
 	}
 	rulesResp := performJSONRequest(t, server, http.MethodGet, "/v1/alerts/rules", nil, "")
@@ -159,7 +159,8 @@ func TestAlertReadEndpointsShowWebhookURLAndRedactSecrets(t *testing.T) {
 	assertNotContains(t, rulesResp.Body.String(), "webhook-signing-secret")
 }
 func TestAlertChannelTestEndpointSendsConfiguredWebhook(t *testing.T) {
-	server := setupTestServer(t)
+	// The receiver is a loopback httptest server, so private webhook targets must be allowed.
+	server := setupTestServerWithConfig(t, &config.Config{AlertRecoveryNotifications: true, AlertTLSExpiryDays: 14, AlertAllowPrivateWebhooks: true})
 	webhookPayloads := make(chan map[string]interface{}, 1)
 	webhookServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -301,7 +302,7 @@ func TestAlertChannelWriteEndpointsRejectNonWebhookTypes(t *testing.T) {
 		t.Fatalf("migrate database: %v", err)
 	}
 	server := NewServer(database, utils.NewLogger(), &config.Config{})
-	for _, channelType := range []string{"slack", "discord", "email"} {
+	for _, channelType := range []string{"slack", "discord"} {
 		createResp := performJSONRequest(t, server, http.MethodPost, "/v1/alerts/channels", gin.H{"name": "ops-" + channelType, "type": channelType, "webhook_url": "https://alerts.example.com/" + channelType}, "")
 		if createResp.Code != http.StatusBadRequest || !strings.Contains(createResp.Body.String(), "unsupported alert channel type") {
 			t.Fatalf("create %s channel status = %d, body = %s, want unsupported type rejection", channelType, createResp.Code, createResp.Body.String())

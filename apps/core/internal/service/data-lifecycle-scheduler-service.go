@@ -79,6 +79,10 @@ func (s *DataLifecycleSchedulerService) RunDue(now time.Time) (*DataLifecycleSch
 		}
 	}
 
+	if _, err := NewRetentionService(s.db, s.logger, s.dataDir).Run(now); err != nil {
+		runErrors = append(runErrors, err)
+	}
+
 	retentionResult, err := NewStatusPageSubscriberLifecycleService(s.db, s.logger).RunRetentionCleanup(now, StatusPageSubscriberRetentionOptions{})
 	if err != nil {
 		runErrors = append(runErrors, err)

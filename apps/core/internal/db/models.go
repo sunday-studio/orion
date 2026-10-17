@@ -119,6 +119,7 @@ type Agent struct {
 	TokenRevokedAt           *time.Time                      `json:"token_revoked_at" gorm:"index:idx_agents_token_revoked_at"`
 	TokenRevocationReason    string                          `json:"token_revocation_reason" gorm:"type:text;not null;default:''"`
 	MaintenanceMode          bool                            `json:"maintenance_mode" gorm:"default:false"`
+	MaintenanceUntil         *time.Time                      `json:"maintenance_until"`
 	ReportingIntervalSeconds int                             `json:"reporting_interval_seconds" gorm:"default:60"` // System metrics reporting interval
 	CreatedAt                time.Time                       `json:"created_at"`
 	DeletedAt                time.Time                       `json:"deleted_at"`
@@ -182,12 +183,14 @@ type Monitor struct {
 }
 
 type MonitorReport struct {
-	ID          string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
-	MonitorID   string    `json:"monitor_id" gorm:"index:idx_monitor_reports_monitor_id;not null"`
-	Payload     string    `json:"payload" gorm:"type:text;not null"`
-	CollectedAt string    `json:"collected_at" gorm:"not null"`
-	Health      string    `json:"health" gorm:"not null"` // up | down
-	CreatedAt   time.Time `json:"created_at" gorm:"index:idx_monitor_reports_created_at"`
+	ID          string `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	MonitorID   string `json:"monitor_id" gorm:"index:idx_monitor_reports_monitor_id;not null"`
+	Payload     string `json:"payload" gorm:"type:text;not null"`
+	CollectedAt string `json:"collected_at" gorm:"not null"`
+	Health      string `json:"health" gorm:"not null"` // up | down
+	// ClientReportID is the agent-generated idempotency key; empty for reports without one.
+	ClientReportID string    `json:"-" gorm:"not null;default:''"`
+	CreatedAt      time.Time `json:"created_at" gorm:"index:idx_monitor_reports_created_at"`
 }
 
 type MonitorUptimeRollup struct {
@@ -442,6 +445,30 @@ type DataLifecycleSettings struct {
 	LastArchiveRunAt    *time.Time `json:"last_archive_run_at"`
 	LastArchiveStatus   string     `json:"last_archive_status"`
 	LastArchiveError    string     `json:"last_archive_error" gorm:"type:text"`
-	CreatedAt           time.Time  `json:"created_at"`
-	UpdatedAt           time.Time  `json:"updated_at"`
+	// Retention windows in days for tables that otherwise grow without bound.
+	ServiceLogRetentionDays    int       `json:"service_log_retention_days" gorm:"not null;default:14"`
+	AlertDeliveryRetentionDays int       `json:"alert_delivery_retention_days" gorm:"not null;default:90"`
+	IncidentEventRetentionDays int       `json:"incident_event_retention_days" gorm:"not null;default:365"`
+	AuditEventRetentionDays    int       `json:"audit_event_retention_days" gorm:"not null;default:365"`
+	WorkerStatusRetentionDays  int       `json:"worker_status_retention_days" gorm:"not null;default:7"`
+	CreatedAt                  time.Time `json:"created_at"`
+	UpdatedAt                  time.Time `json:"updated_at"`
+}
+
+// IncidentCandidateDismissal hides an incident candidate (a failing monitor with no
+// incident) from the review list until the monitor reports healthy again.
+type IncidentCandidateDismissal struct {
+	MonitorID   string    `json:"monitor_id" gorm:"primaryKey"`
+	DismissedBy string    `json:"dismissed_by"`
+	Reason      string    `json:"reason"`
+	DismissedAt time.Time `json:"dismissed_at"`
+}
+
+// InMaintenance reports whether the agent is in an unexpired maintenance window.
+// A flag without an end time (legacy data) counts as active until it is migrated.
+func (a Agent) InMaintenance(now time.Time) bool {
+	if !a.MaintenanceMode {
+		return false
+	}
+	return a.MaintenanceUntil == nil || now.Before(*a.MaintenanceUntil)
 }

@@ -1,5 +1,4 @@
-import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/shared/page-header";
+import { Button, PageHeader } from "@/design-system";
 import {
   CoreWorkerDiagnosticsPanel,
   coreWorkerDiagnosticsFromPayload,
@@ -15,6 +14,8 @@ import {
   type ApiCoreMonitorConfigResponse,
   type ApiMonitorResponse,
   type ServiceCoreManagedMonitorCreateRequest,
+  getGetMonitorSummaryQueryKey,
+  getGetMonitorsQueryKey,
   getMonitorHistory,
   testCoreMonitor,
   useCreateCoreMonitor,
@@ -41,8 +42,8 @@ export const MonitorsPage = () => {
   });
   const workerDiagnostics = coreWorkerDiagnosticsFromPayload(workerDiagnosticsResponse.data);
   const refreshMonitors = () => {
-    void queryClient.invalidateQueries({ queryKey: ["/v1/monitors"] });
-    void queryClient.invalidateQueries({ queryKey: ["/v1/monitors/summary"] });
+    void queryClient.invalidateQueries({ queryKey: getGetMonitorsQueryKey() });
+    void queryClient.invalidateQueries({ queryKey: getGetMonitorSummaryQueryKey() });
   };
   const createMonitor = useCreateCoreMonitor({
     mutation: {},
