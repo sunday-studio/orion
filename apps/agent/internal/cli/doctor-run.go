@@ -12,6 +12,7 @@ import (
 	"orion/agent/internal/config"
 	"orion/agent/internal/doctor"
 	agentstate "orion/agent/internal/state"
+	"orion/agent/internal/ui"
 
 	"github.com/shirou/gopsutil/v4/disk"
 )
@@ -109,13 +110,13 @@ type doctorReportJSON struct {
 
 // Status is always spelled out in text, never colour alone.
 func printDoctorResult(r doctor.Result) {
-	label := map[doctor.Status]string{doctor.OK: "ok  ", doctor.Warn: "warn", doctor.Fail: "FAIL", doctor.Skip: "skip"}[r.Status]
-	line := fmt.Sprintf("  [%s] %s", label, r.Title)
+	state := map[doctor.Status]ui.StepState{doctor.OK: ui.StepOK, doctor.Warn: ui.StepWarn, doctor.Fail: ui.StepFail, doctor.Skip: ui.StepSkip}[r.Status]
+	line := r.Title
 	if r.Detail != "" {
-		line += ": " + r.Detail
+		line += theme.Muted(": " + r.Detail)
 	}
-	fmt.Fprintln(outputWriter, line)
+	fmt.Fprintln(outputWriter, theme.Step(state, line))
 	if r.Fix != "" && (r.Status == doctor.Fail || r.Status == doctor.Warn) {
-		fmt.Fprintf(outputWriter, "         fix: %s\n", r.Fix)
+		fmt.Fprintf(outputWriter, "         %s %s\n", theme.Accent("fix:"), r.Fix)
 	}
 }
