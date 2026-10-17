@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"net/http"
+	"net/url"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
 	"strings"
@@ -59,6 +60,24 @@ func (s *Server) coreURLFor(c *gin.Context) string {
 	return scheme + "://" + c.Request.Host
 }
 
+// shellQuote single-quotes a value for a POSIX shell so the pasted install command cannot be
+// altered by characters in a Host header or configured URL.
+func shellQuote(v string) string { return "'" + strings.ReplaceAll(v, "'", `'\''`) + "'" }
+
+// safeCoreURL accepts only http(s) URLs with a plain host[:port], so the install command is safe to paste.
+func safeCoreURL(raw string) bool {
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+		return false
+	}
+	for _, r := range u.Host {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '.' || r == '-' || r == ':' || r == '[' || r == ']') {
+			return false
+		}
+	}
+	return true
+}
+
 // createEnrollment starts an Add-server session.
 // @Summary      Start an Add server session
 // @Description  Creates a one-time registration token that expires in 15 minutes. The token is returned only here. The install command registers the agent with it; poll GET /v1/enrollments/{id} until status is reporting.
@@ -86,7 +105,12 @@ func (s *Server) createEnrollment(c *gin.Context) {
 	}
 	view, _ := s.enrollments.Get(session.ID, time.Now().UTC())
 	coreURL := s.coreURLFor(c)
-	command := "curl -fsSL " + agentInstallerURL + " | sudo ORION_ENROLLMENT_TOKEN=" + token + " bash -s -- --core-url " + coreURL
+	if !safeCoreURL(coreURL) {
+		_ = s.enrollments.Cancel(session.ID, time.Now().UTC())
+		utils.ErrorResponse(c, http.StatusConflict, "Core URL is not usable in an install command; set ORION_PUBLIC_URL", nil)
+		return
+	}
+	command := "curl -fsSL " + agentInstallerURL + " | sudo ORION_ENROLLMENT_TOKEN=" + shellQuote(token) + " bash -s -- --core-url " + shellQuote(coreURL)
 	if platform == "macos" {
 		command = strings.Replace(command, "sudo ", "", 1)
 	}

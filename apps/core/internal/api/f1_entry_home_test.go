@@ -34,7 +34,7 @@ func TestEnrollmentSessionLifecycle(t *testing.T) {
 	var created struct{ Data EnrollmentCreatedResponse }
 	decodeResponse(t, resp, &created)
 	tok, id := created.Data.Token, created.Data.ID
-	if !strings.HasPrefix(tok, "orn_enr_") || created.Data.Status != "waiting" || !strings.Contains(created.Data.InstallCommand, tok) || !strings.Contains(created.Data.InstallCommand, "--core-url https://core.example.com") {
+	if !strings.HasPrefix(tok, "orn_enr_") || created.Data.Status != "waiting" || !strings.Contains(created.Data.InstallCommand, "ORION_ENROLLMENT_TOKEN='"+tok+"'") || !strings.Contains(created.Data.InstallCommand, "--core-url 'https://core.example.com'") {
 		t.Fatalf("created = %+v", created.Data)
 	}
 	if d := time.Until(created.Data.ExpiresAt); d < 14*time.Minute || d > 15*time.Minute+time.Second {
@@ -151,3 +151,17 @@ func TestOverviewSearchAndMe(t *testing.T) {
 }
 
 func ptrTime(t time.Time) *time.Time { return &t }
+
+func TestEnrollmentRefusesUnsafeHostInInstallCommand(t *testing.T) {
+	server := setupTestServer(t) // no ORION_PUBLIC_URL: the URL comes from the Host header
+	req := httptest.NewRequest(http.MethodPost, "/v1/enrollments", strings.NewReader("{}"))
+	req.Host = "evil.example.com;rm -rf /"
+	rec := httptest.NewRecorder()
+	server.router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("unsafe host = %d %s", rec.Code, rec.Body.String())
+	}
+	if shellQuote("a'b") != `'a'\''b'` {
+		t.Fatalf("shellQuote = %s", shellQuote("a'b"))
+	}
+}
