@@ -11,6 +11,7 @@ export const paletteDestinations = [
   { label: "Alerts", to: "/alerts" },
   { label: "Status pages", to: "/status-pages" },
   { label: "Logs", to: "/logs" },
+  { label: "Apps", to: "/settings/apps" },
   { label: "Settings", to: "/settings" },
 ] as const;
 

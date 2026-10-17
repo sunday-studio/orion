@@ -14,6 +14,7 @@ const readDismissed = () => {
 
 const steps = [
   { label: "Add your first server", to: "/servers" },
+  { label: "Connect your first app", to: "/settings/apps" },
   { label: "Create your first monitor", to: "/monitors" },
   { label: "Add an alert channel", to: "/alerts" },
   { label: "Publish a status page", to: "/status-pages" },
@@ -38,7 +39,7 @@ export const OverviewOnboardingCard = () => {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-[15px] font-medium">Getting started</h2>
-            <p className="text-[13px] text-quiet">Set up Orion in four steps.</p>
+            <p className="text-[13px] text-quiet">Set up Orion in five steps.</p>
           </div>
           <Button type="button" variant="ghost" size="sm" onClick={dismiss}>
             Dismiss

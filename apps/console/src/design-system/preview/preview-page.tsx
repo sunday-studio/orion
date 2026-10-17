@@ -1,10 +1,5 @@
 import { useState } from "react";
-import {
-  type ThemePreference,
-  ToastProvider,
-  applyTheme,
-  readThemePreference,
-} from "@/design-system";
+import { type ThemePreference, applyTheme, readThemePreference } from "@/design-system";
 import { Select } from "@/design-system";
 import { ControlsPreview } from "@/design-system/preview/preview-controls";
 import { OverlaysPreview } from "@/design-system/preview/preview-overlays";
@@ -21,7 +16,7 @@ export const DesignSystemPage = () => {
   const [theme, setTheme] = useState<ThemePreference>(readThemePreference);
 
   return (
-    <ToastProvider>
+    <>
       <div className="space-y-8 pb-16">
         <header className="flex items-start justify-between gap-4">
           <div className="space-y-1">
@@ -43,6 +38,6 @@ export const DesignSystemPage = () => {
         <OverlaysPreview />
         <TablePreview />
       </div>
-    </ToastProvider>
+    </>
   );
 };

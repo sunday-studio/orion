@@ -183,6 +183,7 @@ start("go", ["run", "./cmd/api"], {
     ORION_ADMIN_USERNAME: adminUsername,
     ORION_ADMIN_PASSWORD: adminPassword,
     ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS: "true",
+    ORION_ALERT_ALLOW_PRIVATE_WEBHOOKS: "true",
     ORION_JWT_SECRET: jwtSecret,
     ORION_PORT: corePort,
     ORION_CORS_ORIGINS: consoleURL,

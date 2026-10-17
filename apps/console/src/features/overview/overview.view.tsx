@@ -12,6 +12,7 @@ import {
   StatusBadge,
 } from "@/design-system";
 import {
+  type ApiHealthIssue,
   useGetHealthIssues,
   useGetHealthSummary,
   useGetIncidents,
@@ -20,9 +21,11 @@ import {
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { OverviewOnboardingCard } from "./overview-onboarding-card";
 
-const issueText = (issue: Record<string, unknown>) => {
-  const text = issue.message ?? issue.title ?? issue.summary ?? issue.type;
-  return typeof text === "string" && text ? text : "Health issue";
+const issueText = (issue: ApiHealthIssue) => {
+  const subject = issue.monitor_name ?? issue.agent_name ?? "Unknown monitor";
+  const detail =
+    issue.issue_type === "stale_data" ? "has stale data" : `is ${issue.health ?? "unhealthy"}`;
+  return `${subject} ${detail}`;
 };
 
 const Stat = ({
@@ -137,8 +140,14 @@ export const OverviewPage = () => {
                 ) : (
                   <ul className="divide-y divide-hairline text-[13px]">
                     {issueList.slice(0, 5).map((issue, index) => (
-                      <li className="px-4 py-2" key={index}>
-                        {issueText(issue)}
+                      <li className="px-4 py-2" key={issue.monitor_id ?? index}>
+                        {issue.monitor_id ? (
+                          <Link className="hover:underline" to={`/monitors/${issue.monitor_id}`}>
+                            {issueText(issue)}
+                          </Link>
+                        ) : (
+                          issueText(issue)
+                        )}
                       </li>
                     ))}
                   </ul>
