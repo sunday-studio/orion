@@ -11,6 +11,7 @@ import (
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
 	"strings"
+	"sync"
 	"time"
 
 	"gorm.io/gorm"
@@ -72,6 +73,8 @@ type Options struct {
 	// SweepBootGrace delays the first silent-monitor sweep after Worker start so a
 	// Core outage does not make every monitor look silent at once (default 60s, negative disables).
 	SweepBootGrace time.Duration
+	// Concurrency bounds how many Core monitor checks run at once (default 16).
+	Concurrency int
 }
 
 // App is the independent Core monitor worker process.
@@ -99,6 +102,9 @@ type App struct {
 	sweepBootGrace time.Duration
 	startedAt      time.Time
 	dispatchEvery  time.Duration
+	concurrency    int
+	slots          chan struct{}
+	inflight       sync.WaitGroup
 }
 
 type checkRunResult struct {
@@ -179,6 +185,8 @@ func NewApp(database *gorm.DB, logger *utils.Logger, opts Options) *App {
 		sweepBootGrace: sweepBootGrace(opts.SweepBootGrace),
 		startedAt:      time.Now().UTC(),
 		dispatchEvery:  dispatchInterval(opts.DispatchInterval),
+		concurrency:    checkConcurrency(opts.Concurrency),
+		slots:          make(chan struct{}, checkConcurrency(opts.Concurrency)),
 	}
 }
 
@@ -186,7 +194,12 @@ func NewApp(database *gorm.DB, logger *utils.Logger, opts Options) *App {
 func (a *App) Run(ctx context.Context) error {
 	a.logger.Info("Core monitor worker started", "worker_id", a.workerID, "health_interval", a.healthInterval.String(), "check_interval", a.checkInterval.String())
 	a.logHealth(ctx)
-	if err := a.runDueChecks(ctx); err != nil {
+	// Checks run on a context that outlives ctx: on shutdown they get a grace
+	// period to finish instead of being cut off and recorded as failures.
+	execCtx, cancelChecks := context.WithCancel(context.Background())
+	defer cancelChecks()
+	defer a.drainChecks(cancelChecks)
+	if err := a.dispatchDueChecks(ctx, execCtx); err != nil {
 		a.logger.Error("Core monitor worker due check sweep failed", "error", err)
 	}
 	if err := a.reconcileMissedHeartbeats(ctx, time.Now().UTC()); err != nil {
@@ -216,7 +229,7 @@ func (a *App) Run(ctx context.Context) error {
 		case <-sweepTicker.C:
 			a.sweepSilentMonitors()
 		case <-checkTicker.C:
-			if err := a.runDueChecks(ctx); err != nil {
+			if err := a.dispatchDueChecks(ctx, execCtx); err != nil {
 				a.logger.Error("Core monitor worker due check sweep failed", "error", err)
 			}
 			if err := a.reconcileMissedHeartbeats(ctx, time.Now().UTC()); err != nil {
@@ -244,32 +257,6 @@ func (a *App) checkDatabase(ctx context.Context) error {
 		return err
 	}
 	return sqlDB.PingContext(ctx)
-}
-
-func (a *App) runDueChecks(ctx context.Context) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-
-	claimed, err := a.scheduler.ClaimDueCoreMonitorConfigs(service.ClaimDueCoreMonitorConfigsRequest{
-		LeaseOwner:    a.workerID,
-		Limit:         a.claimLimit,
-		LeaseDuration: a.leaseDuration,
-		Now:           time.Now().UTC(),
-	})
-	if err != nil {
-		return err
-	}
-
-	for _, monitorConfig := range claimed {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		if err := a.runClaimedCheck(ctx, monitorConfig); err != nil {
-			a.logger.Error("Core monitor check failed", "monitor_id", monitorConfig.MonitorID, "kind", monitorConfig.Kind, "error", err)
-		}
-	}
-	return nil
 }
 
 // RunImmediateCheck executes one Core monitor check without requiring a scheduler lease.

@@ -62,8 +62,9 @@ func main() {
 	}()
 
 	app := worker.NewApp(database, logger, worker.Options{
-		WorkerID: cfg.CoreWorkerID,
-		Config:   cfg,
+		WorkerID:    cfg.CoreWorkerID,
+		Config:      cfg,
+		Concurrency: cfg.CoreWorkerConcurrency,
 	})
 	if err := app.Run(ctx); err != nil {
 		logger.Fatal("Core monitor worker stopped with error", "error", err)
