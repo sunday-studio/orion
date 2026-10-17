@@ -54,7 +54,16 @@ func runAgent(ctx context.Context, opts *Options) error {
 
 	PrintStep("registering agent and monitors")
 	registrationService := registration.New(userConfig, opts.ConfigPath, stateStore)
-	if err := registrationService.RegisterAgentIfNeeded(); err != nil {
+	registerErr := error(nil)
+	if opts.Once {
+		registerErr = registrationService.RegisterAgentIfNeeded()
+	} else {
+		// Long-running agents wait for Core instead of exiting and tripping the service start limit.
+		registerCtx, stopRegister := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+		registerErr = registrationService.RegisterWithRetry(registerCtx, registration.DefaultRegistrationBackoff)
+		stopRegister()
+	}
+	if err := registerErr; err != nil {
 		PrintError("registration failed after retry attempts; agent cannot continue")
 		return NewCommandError("could not register agent and monitors", err)
 	}
@@ -69,6 +78,7 @@ func runAgent(ctx context.Context, opts *Options) error {
 
 	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
+	ignoreHangup()
 
 	agentInstance, err := agent.NewWithStateStore(userConfig, stateStore)
 	if err != nil {
@@ -387,4 +397,16 @@ func runReconfigure(_ context.Context, opts *Options) error {
 		PrintSkip("service was not running before reconfigure")
 	}
 	return nil
+}
+
+// ignoreHangup keeps SIGHUP from killing the agent (Go's default). The agent has
+// no live configuration reload: restart the service to apply config changes.
+func ignoreHangup() {
+	hup := make(chan os.Signal, 1)
+	signal.Notify(hup, syscall.SIGHUP)
+	go func() {
+		for range hup {
+			logging.Warnf("SIGHUP received and ignored: configuration reload is not supported, restart the service to apply changes")
+		}
+	}()
 }

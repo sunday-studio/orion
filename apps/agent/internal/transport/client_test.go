@@ -1,11 +1,13 @@
 package transport
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -177,4 +179,77 @@ func TestMonitorReportSerializesReportIDForIdempotentReplay(t *testing.T) {
 	if strings.Contains(string(legacy), "report_id") {
 		t.Fatalf("empty ReportID must be omitted, got %s", legacy)
 	}
+}
+
+func TestForbiddenFromProxyIsNotACredentialRejection(t *testing.T) {
+	client := newRetryTestClient(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusForbidden, Body: io.NopCloser(strings.NewReader("blocked by WAF")), Header: make(http.Header)}, nil
+	})
+	err := client.SendReport(SystemReport{}, "agent-1")
+	if err == nil || IsAuthError(err) {
+		t.Fatalf("SendReport() error = %v, want a non-auth error for 403", err)
+	}
+	unauthorized := newRetryTestClient(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusUnauthorized, Body: io.NopCloser(strings.NewReader(`{"message":"no"}`)), Header: make(http.Header)}, nil
+	})
+	if err := unauthorized.SendReport(SystemReport{}, "agent-1"); !IsAuthError(err) {
+		t.Fatalf("SendReport() error = %v, want auth error for 401", err)
+	}
+}
+
+func TestIsTransientError(t *testing.T) {
+	for name, tc := range map[string]struct {
+		err  error
+		want bool
+	}{
+		"network":      {errors.New("connection refused"), true},
+		"503":          {&StatusError{StatusCode: 503}, true},
+		"429":          {&StatusError{StatusCode: 429}, true},
+		"403 proxy":    {&StatusError{StatusCode: 403}, true},
+		"409 conflict": {&StatusError{StatusCode: 409}, false},
+		"400":          {&StatusError{StatusCode: 400}, false},
+		"auth":         {NewAuthError(401, nil), false},
+		"nil":          {nil, false},
+	} {
+		if got := IsTransientError(tc.err); got != tc.want {
+			t.Errorf("%s: IsTransientError = %t, want %t", name, got, tc.want)
+		}
+	}
+}
+
+func TestClientWithContextCancelsRetries(t *testing.T) {
+	var attempts int
+	client := newRetryTestClient(func(*http.Request) (*http.Response, error) {
+		attempts++
+		return nil, errors.New("connection refused")
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := client.WithContext(ctx).SendReport(SystemReport{}, "agent-1"); err == nil {
+		t.Fatal("SendReport() with a cancelled context = nil error")
+	}
+	if attempts != 0 {
+		t.Fatalf("attempts = %d, want 0 once the context is cancelled", attempts)
+	}
+}
+
+func TestAuthTokenIsSafeForConcurrentUse(t *testing.T) {
+	client := newRetryTestClient(func(*http.Request) (*http.Response, error) { return responseWithStatus(http.StatusOK), nil })
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 100; j++ {
+				client.SetAuthToken("t")
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 100; j++ {
+				_, _ = client.makeProtectedRequest("GET", "/x", nil)
+			}
+		}()
+	}
+	wg.Wait()
 }

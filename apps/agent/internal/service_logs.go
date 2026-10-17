@@ -2,6 +2,7 @@ package agent
 
 import (
 	"bufio"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -17,11 +18,11 @@ import (
 
 const serviceLogBatchLimit = 100
 
-func (a *Agent) shipServiceLogs() error {
+func (a *Agent) shipServiceLogs(ctx context.Context) error {
 	if strings.TrimSpace(a.userConfig.Logging.Path) == "" {
 		return nil
 	}
-	entries, err := collectServiceLogEntries(a.userConfig.Logging.Path, a.internalState.Monitors, serviceLogBatchLimit)
+	entries, err := collectServiceLogEntries(a.userConfig.Logging.Path, a.monitorsSnapshot(), serviceLogBatchLimit)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -31,7 +32,7 @@ func (a *Agent) shipServiceLogs() error {
 	if len(entries) == 0 {
 		return nil
 	}
-	return a.transport.SendServiceLogs(transport.ServiceLogBatch{Entries: entries}, a.internalState.AgentID)
+	return a.transport.WithContext(ctx).SendServiceLogs(transport.ServiceLogBatch{Entries: entries}, a.agentID())
 }
 
 func collectServiceLogEntries(path string, monitors []config.InternalStateMonitor, limit int) ([]transport.ServiceLogEntry, error) {
