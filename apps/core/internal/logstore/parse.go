@@ -16,7 +16,12 @@ var ErrUnsupportedMedia = errors.New("unsupported content type")
 // ErrInvalidBody is returned when the request is not parseable at all.
 var ErrInvalidBody = errors.New("request body is not valid JSON")
 
+// ErrTooManyEntries is returned when one request carries more entries than MaxEntriesPerRequest.
+var ErrTooManyEntries = errors.New("too many entries in one request")
+
 const (
+	// MaxEntriesPerRequest keeps one request within what the queue can ever accept.
+	MaxEntriesPerRequest  = 10_000
 	MaxRequestBytes       = 1 << 20
 	MaxNDJSONRequestBytes = 5 << 20
 )
@@ -56,7 +61,9 @@ func ParseRequest(contentType string, body []byte, now time.Time) (Parsed, error
 		if err := scanner.Err(); err != nil {
 			return Parsed{}, fmt.Errorf("%w: %v", ErrInvalidBody, err)
 		}
-		// NDJSON indexes are line numbers; keep them aligned with the chunk positions below.
+		if len(chunks) > MaxEntriesPerRequest {
+			return Parsed{}, ErrTooManyEntries
+		}
 		return normalizeChunks(chunks, framingErrors, now, true), nil
 	case "application/json", "text/json":
 		trimmed := bytes.TrimSpace(body)
@@ -73,6 +80,9 @@ func ParseRequest(contentType string, body []byte, now time.Time) (Parsed, error
 		default:
 			return Parsed{}, ErrInvalidBody
 		}
+		if len(chunks) > MaxEntriesPerRequest {
+			return Parsed{}, ErrTooManyEntries
+		}
 		return normalizeChunks(chunks, nil, now, false), nil
 	default:
 		return Parsed{}, ErrUnsupportedMedia
@@ -80,6 +90,7 @@ func ParseRequest(contentType string, body []byte, now time.Time) (Parsed, error
 }
 
 func normalizeChunks(chunks []json.RawMessage, framingErrors []EntryError, now time.Time, ndjson bool) Parsed {
+	_ = ndjson
 	result := Parsed{Errors: framingErrors}
 	for i, chunk := range chunks {
 		var object map[string]any

@@ -58,6 +58,8 @@ type Stats struct {
 	Queued  int64 `json:"queued"`
 	Written int64 `json:"written"`
 	Dropped int64 `json:"dropped"`
+	// Duplicates are entries ignored because their client id was already stored.
+	Duplicates int64 `json:"duplicates"`
 }
 
 // Store owns logs.db, the bounded queue in front of it and the single writer.
@@ -70,6 +72,10 @@ type Store struct {
 	queued  atomic.Int64
 	written atomic.Int64
 	dropped atomic.Int64
+	dupes   atomic.Int64
+
+	// sendMu orders Enqueue's send against Close: senders hold the read lock, Close the write lock.
+	sendMu sync.RWMutex
 
 	closeOnce sync.Once
 	closed    atomic.Bool
@@ -102,7 +108,7 @@ func OpenWith(database *gorm.DB, logger *utils.Logger, queueMax int) (*Store, er
 func (s *Store) DB() *gorm.DB { return s.db }
 
 func (s *Store) Stats() Stats {
-	return Stats{Queued: s.queued.Load(), Written: s.written.Load(), Dropped: s.dropped.Load()}
+	return Stats{Queued: s.queued.Load(), Written: s.written.Load(), Dropped: s.dropped.Load(), Duplicates: s.dupes.Load()}
 }
 
 // Enqueue accepts a batch for writing without blocking. It fails with ErrQueueFull
@@ -112,6 +118,8 @@ func (s *Store) Enqueue(entries []Entry) error {
 	if len(entries) == 0 {
 		return nil
 	}
+	s.sendMu.RLock()
+	defer s.sendMu.RUnlock()
 	if s.closed.Load() {
 		return ErrQueueFull
 	}
@@ -140,8 +148,10 @@ func (s *Store) Flush(timeout time.Duration) {
 // Close stops accepting entries, drains the queue and waits for the writer.
 func (s *Store) Close() {
 	s.closeOnce.Do(func() {
+		s.sendMu.Lock() // waits for in-flight Enqueue calls, then blocks new ones
 		s.closed.Store(true)
 		close(s.batches)
+		s.sendMu.Unlock()
 		<-s.done
 		if sqlDB, err := s.db.DB(); err == nil {
 			_ = sqlDB.Close()
@@ -173,20 +183,26 @@ func (s *Store) writer() {
 
 func (s *Store) flushBatch(entries []Entry) {
 	defer s.queued.Add(-int64(len(entries)))
-	if err := s.insert(entries); err != nil {
+	stored, err := s.insert(entries)
+	if err != nil {
 		// One retry covers a transient lock; after that the batch is counted as dropped and logged.
 		time.Sleep(100 * time.Millisecond)
-		if err = s.insert(entries); err != nil {
+		if stored, err = s.insert(entries); err != nil {
 			s.dropped.Add(int64(len(entries)))
 			s.logger.Error("Dropped a batch of log entries", "entries", len(entries), "error", err)
 			return
 		}
 	}
-	s.written.Add(int64(len(entries)))
+	s.written.Add(stored)
+	s.dupes.Add(int64(len(entries)) - stored)
 }
 
-func (s *Store) insert(entries []Entry) error {
-	return s.db.Transaction(func(tx *gorm.DB) error {
+// insert writes the entries in one transaction and returns how many rows were really
+// stored (rows ignored for a repeated client id are not counted).
+func (s *Store) insert(entries []Entry) (int64, error) {
+	var stored int64
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		stored = 0
 		for start := 0; start < len(entries); start += insertChunk {
 			end := min(start+insertChunk, len(entries))
 			sql := "INSERT OR IGNORE INTO log_entries (id, app_id, client_id, ts, ingested_at, severity, severity_number, event, body, body_json, attributes, resource, trace_id, span_id, request_id, size) VALUES "
@@ -198,17 +214,24 @@ func (s *Store) insert(entries []Entry) error {
 				sql += "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
 				args = append(args, e.ID, e.AppID, e.ClientID, e.Timestamp.UnixNano(), e.IngestedAt.UnixNano(), e.Severity, e.SeverityNumber, e.Event, e.Body, e.BodyJSON, encodeJSON(e.Attributes), encodeJSON(e.Resource), e.TraceID, e.SpanID, e.RequestID, e.Size)
 			}
-			if err := tx.Exec(sql, args...).Error; err != nil {
-				return err
+			res := tx.Exec(sql, args...)
+			if res.Error != nil {
+				return res.Error
 			}
+			stored += res.RowsAffected
 		}
 		return nil
 	})
+	return stored, err
 }
 
-// NewEntryID returns a time-ordered unique id: 16 hex digits of the nanosecond clock, then 6 random hex digits.
+var entrySequence atomic.Uint32
+
+// NewEntryID returns a time-ordered id that is unique even for many entries created in
+// the same nanosecond: 16 hex digits of the clock, an 8-digit process-wide counter (so
+// two calls never collide in one process) and 64 random bits (so processes never collide).
 func NewEntryID(now time.Time) string {
-	var r [3]byte
+	var r [8]byte
 	_, _ = rand.Read(r[:])
-	return fmt.Sprintf("log_%016x%s", now.UnixNano(), hex.EncodeToString(r[:]))
+	return fmt.Sprintf("log_%016x%08x%s", now.UnixNano(), entrySequence.Add(1), hex.EncodeToString(r[:]))
 }

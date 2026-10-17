@@ -11,7 +11,7 @@ var _ utils.APIResponse
 
 // ingestLogs Ingest logs.
 // @Summary      Ingest logs
-// @Description  Send one entry, a JSON array of entries, or newline-delimited JSON (Content-Type application/x-ndjson). Authenticate with an app ingest key. Entries are validated individually: invalid ones are rejected without failing the batch. Limits: 64 KiB per entry, 1 MiB per request (5 MiB for NDJSON). Responds 202 once queued; 429 with Retry-After when the app is rate limited or the queue is full.
+// @Description  Send one entry, a JSON array of entries, or newline-delimited JSON (Content-Type application/x-ndjson). Authenticate with an app ingest key. Entries are validated individually: invalid ones are rejected without failing the batch. Limits: 64 KiB per entry, 10,000 entries and 1 MiB per request (5 MiB for NDJSON). Responds 202 once queued; 429 with Retry-After when the app is rate limited or the queue is full.
 // @Tags         ingest
 // @Accept       json
 // @Produce      json
@@ -21,6 +21,7 @@ var _ utils.APIResponse
 // @Success      202  {object}  IngestResponse
 // @Failure      400  {object}  utils.APIResponse
 // @Failure      413  {object}  utils.APIResponse
+// @Failure      415  {object}  utils.APIResponse
 // @Failure      429  {object}  utils.APIResponse
 // @Failure      401  {object}  utils.APIResponse
 // @Failure      501  {object}  utils.APIResponse

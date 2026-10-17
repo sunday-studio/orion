@@ -38,6 +38,8 @@ func (s *Server) ingestLogsImpl(c *gin.Context) {
 	switch {
 	case errors.Is(err, logstore.ErrUnsupportedMedia):
 		utils.ErrorResponse(c, http.StatusUnsupportedMediaType, "Use application/json, application/x-ndjson or OTLP", nil)
+	case errors.Is(err, logstore.ErrTooManyEntries):
+		utils.ErrorResponse(c, http.StatusRequestEntityTooLarge, "Too many entries in one request (limit 10000); send smaller batches", nil)
 	case errors.Is(err, logstore.ErrInvalidBody):
 		utils.BadRequest(c, "Request body is not valid JSON")
 	case errors.As(err, &limited):

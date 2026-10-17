@@ -2,6 +2,7 @@ package logstore
 
 import (
 	"fmt"
+	"gorm.io/gorm"
 	"orion/core/internal/testkit"
 	"orion/core/internal/utils"
 	"strings"
@@ -395,3 +396,6 @@ func TestConcurrentWritersAndReadersDoNotLockTheDatabase(t *testing.T) {
 		t.Fatalf("stats = %+v, want 400 written and none dropped", st)
 	}
 }
+
+func newTestStoreDB(t *testing.T) *gorm.DB { return testkit.NewDB(t) }
+func utilsLogger() *utils.Logger           { return utils.NewLogger() }
