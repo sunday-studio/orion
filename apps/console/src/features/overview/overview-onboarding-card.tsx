@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { Button, Card, CardContent } from "@/design-system";
 
 const DISMISS_KEY = "orion.overview.onboarding.dismissed";
 
@@ -13,7 +13,7 @@ const readDismissed = () => {
 };
 
 const steps = [
-  { label: "Connect your first server", to: "/servers" },
+  { label: "Add your first server", to: "/servers" },
   { label: "Create your first monitor", to: "/monitors" },
   { label: "Add an alert channel", to: "/alerts" },
   { label: "Publish a status page", to: "/status-pages" },
@@ -33,25 +33,27 @@ export const OverviewOnboardingCard = () => {
   };
 
   return (
-    <section aria-label="Getting started" className="space-y-3 bg-neutral-100 p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-medium">Getting started</h2>
-          <p className="text-sm text-neutral-600">Set up Orion in four steps.</p>
+    <Card aria-label="Getting started">
+      <CardContent className="space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-[15px] font-medium">Getting started</h2>
+            <p className="text-[13px] text-quiet">Set up Orion in four steps.</p>
+          </div>
+          <Button type="button" variant="ghost" size="sm" onClick={dismiss}>
+            Dismiss
+          </Button>
         </div>
-        <Button type="button" variant="ghost" size="sm" onClick={dismiss}>
-          Dismiss
-        </Button>
-      </div>
-      <ol className="list-decimal space-y-1 pl-5 text-sm">
-        {steps.map((step) => (
-          <li key={step.to}>
-            <Link className="underline" to={step.to}>
-              {step.label}
-            </Link>
-          </li>
-        ))}
-      </ol>
-    </section>
+        <ol className="list-decimal space-y-1 pl-5 text-[13px]">
+          {steps.map((step) => (
+            <li key={step.to}>
+              <Link className="text-brand hover:underline" to={step.to}>
+                {step.label}
+              </Link>
+            </li>
+          ))}
+        </ol>
+      </CardContent>
+    </Card>
   );
 };
