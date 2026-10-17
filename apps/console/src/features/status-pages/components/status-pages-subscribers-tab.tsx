@@ -13,11 +13,18 @@ import {
 } from "@/orion-sdk";
 import { ShieldX, Trash2, UserX } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useState } from "react";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import {
   formatDateTime,
   subscriberBadgeStatus,
   subscriberStateOptions,
 } from "./status-pages-shared";
+
+type PendingAction = {
+  kind: "anonymize" | "delete";
+  subscriber: ApiStatusPageSubscriberAdminResponse;
+};
 
 const subscriberFields: readonly DataTableFilterField[] = [
   {
@@ -56,6 +63,7 @@ export const StatusPageSubscribersTab = ({ pageId }: { pageId: string }) => {
   const deleteSubscriber = useDeleteStatusPageSubscriber({
     mutation: { onSuccess: refreshSubscribers },
   });
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const isMutating =
     disableSubscriber.isPending || anonymizeSubscriber.isPending || deleteSubscriber.isPending;
 
@@ -66,14 +74,20 @@ export const StatusPageSubscribersTab = ({ pageId }: { pageId: string }) => {
 
   const anonymize = (subscriber: ApiStatusPageSubscriberAdminResponse) => {
     if (!pageId || !subscriber.id) return;
-    if (!window.confirm("Anonymize this subscriber and remove contact data?")) return;
-    anonymizeSubscriber.mutate({ id: pageId, subscriberId: subscriber.id });
+    setPendingAction({ kind: "anonymize", subscriber });
   };
 
   const hardDelete = (subscriber: ApiStatusPageSubscriberAdminResponse) => {
     if (!pageId || !subscriber.id) return;
-    if (!window.confirm("Hard-delete this subscriber and delivery history?")) return;
-    deleteSubscriber.mutate({ id: pageId, subscriberId: subscriber.id });
+    setPendingAction({ kind: "delete", subscriber });
+  };
+
+  const confirmPending = () => {
+    if (!pendingAction?.subscriber.id) return;
+    const request = { id: pageId, subscriberId: pendingAction.subscriber.id };
+    if (pendingAction.kind === "anonymize") anonymizeSubscriber.mutate(request);
+    else deleteSubscriber.mutate(request);
+    setPendingAction(null);
   };
 
   const columns: ColumnDef<ApiStatusPageSubscriberAdminResponse>[] = [
@@ -210,6 +224,21 @@ export const StatusPageSubscribersTab = ({ pageId }: { pageId: string }) => {
           loadingMessage="Loading subscribers..."
         />
       )}
+
+      <ConfirmDialog
+        open={pendingAction !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingAction(null);
+        }}
+        title={pendingAction?.kind === "delete" ? "Delete subscriber?" : "Anonymize subscriber?"}
+        description={
+          pendingAction?.kind === "delete"
+            ? `${pendingAction.subscriber.masked_destination} and their delivery history will be permanently deleted.`
+            : `Contact data for ${pendingAction?.subscriber.masked_destination ?? "this subscriber"} will be removed.`
+        }
+        confirmLabel={pendingAction?.kind === "delete" ? "Delete subscriber" : "Anonymize"}
+        onConfirm={confirmPending}
+      />
 
       {(disableSubscriber.isError || anonymizeSubscriber.isError || deleteSubscriber.isError) && (
         <p className="text-sm">Unable to update subscriber.</p>
