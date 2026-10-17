@@ -34,7 +34,9 @@ const IncidentTriagePage = lazy(() =>
   })),
 );
 const AddServerPage = lazy(() =>
-  import("@/features/agents/add-server.view").then((module) => ({ default: module.AddServerPage })),
+  import("@/features/agents/add-server/add-server.view").then((module) => ({
+    default: module.AddServerPage,
+  })),
 );
 const OverviewPage = lazy(() =>
   import("@/features/overview/overview.view").then((module) => ({ default: module.OverviewPage })),
