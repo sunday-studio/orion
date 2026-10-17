@@ -15,6 +15,11 @@ import { OverviewFirstRun, isFirstRunDismissed } from "./overview-first-run";
 import { formatHeaderDate, useNow } from "./overview-time";
 import { NeedsYouNow, mostSevere } from "./needs-you-now";
 
+const checkedAgo = (now: number, updatedAt: number) => {
+  const seconds = Math.max(1, Math.round((now - (updatedAt || now)) / 1000));
+  return `Checked ${seconds} ${seconds === 1 ? "second" : "seconds"} ago`;
+};
+
 export const OverviewPage = () => {
   const now = useNow(1000);
   const [dismissed, setDismissed] = useState(isFirstRunDismissed);
@@ -81,7 +86,7 @@ export const OverviewPage = () => {
               allClear && (
                 <FieldPanel
                   title="All systems normal"
-                  aside={`Checked ${Math.max(1, Math.round((now - (summary.dataUpdatedAt || now)) / 1000))} seconds ago`}
+                  aside={checkedAgo(now, summary.dataUpdatedAt)}
                 >
                   <RaisedCard className="flex items-center gap-2.5 px-4 py-3.5 text-sm font-medium">
                     <span aria-hidden className="size-2 rounded-full bg-[#2a9f69]" />

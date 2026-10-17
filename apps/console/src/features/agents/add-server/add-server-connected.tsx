@@ -17,9 +17,9 @@ const Row = ({
   detail: string;
   action?: React.ReactNode;
 }) => (
-  <div className="flex items-center gap-3 border-b border-[#f4f4f5] px-3.5 py-[9px] text-[13px] last:border-b-0">
+  <div className="flex items-center gap-3 border-b border-line-soft px-3.5 py-[9px] text-[13px] last:border-b-0">
     <b className="w-60 shrink-0 font-medium">{title}</b>
-    <span className="min-w-0 flex-1 truncate text-xs text-[#a1a1aa]">{detail}</span>
+    <span className="min-w-0 flex-1 truncate text-xs text-faint">{detail}</span>
     {action}
   </div>
 );
@@ -38,7 +38,7 @@ export const AddServerConnected = ({ agent }: { agent: ApiAgentResponse }) => {
           <RaisedCard className="flex items-center gap-3 px-4 py-3 text-[13px]">
             <span aria-hidden className="size-2 shrink-0 rounded-full bg-[#2a9f69]" />
             <b className="font-medium">{name}</b>
-            <span className="ml-auto truncate text-xs text-[#a1a1aa]">
+            <span className="ml-auto truncate text-xs text-faint">
               {[platform, agent.last_seen && `first report ${formatClock(agent.last_seen)}`]
                 .filter(Boolean)
                 .join(" · ")}

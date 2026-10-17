@@ -36,7 +36,7 @@ export const LifecycleTrack = ({ steps }: { steps: readonly LifecycleStep[] }) =
           <i
             aria-hidden
             className={cn(
-              "flex size-5 items-center justify-center rounded-full border-2 bg-white not-italic text-white",
+              "flex size-5 items-center justify-center rounded-full border-2 bg-chip not-italic text-white",
               step.state === "done" && "border-[#2a9f69] bg-[#2a9f69]",
               step.state === "now" && "border-[#e5586f] shadow-[0_0_0_4px_rgba(229,88,111,0.15)]",
               step.state === "todo" && "border-[#d4d4d8]",
@@ -45,7 +45,7 @@ export const LifecycleTrack = ({ steps }: { steps: readonly LifecycleStep[] }) =
             {step.state === "done" ? "✓" : ""}
           </i>
           <b className="text-[12.5px] font-medium leading-4">{step.label}</b>
-          <small className="font-mono text-[11px] leading-[14px] text-[#78716c]">
+          <small className="font-mono text-[11px] leading-[14px] text-quiet">
             {step.time ?? "-"}
           </small>
         </li>

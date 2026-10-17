@@ -27,7 +27,7 @@ export const StepRows = ({
     {rows.map((row, index) => (
       <li
         key={index}
-        className="flex items-center gap-3 border-b border-[#f4f4f5] px-3.5 py-[9px] text-[13px] last:border-b-0"
+        className="flex items-center gap-3 border-b border-line-soft px-3.5 py-[9px] text-[13px] last:border-b-0"
       >
         {row.tone === "pending" ? (
           <span
@@ -45,7 +45,7 @@ export const StepRows = ({
         <div className="grid min-w-0 flex-1 grid-cols-[minmax(120px,240px)_minmax(0,1fr)] items-center gap-4">
           <b className="truncate font-medium">{row.title}</b>
           {row.detail !== undefined && (
-            <small className="truncate text-xs text-[#a1a1aa]">{row.detail}</small>
+            <small className="truncate text-xs text-faint">{row.detail}</small>
           )}
         </div>
       </li>

@@ -17,7 +17,7 @@ export const ChoiceTiles = ({
   <div
     role="radiogroup"
     aria-label={ariaLabel}
-    className="grid overflow-hidden rounded-[10px] border border-[#ececea] bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)]"
+    className="grid overflow-hidden rounded-[10px] border border-hairline bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)]"
     style={{ gridTemplateColumns: `repeat(${tiles.length}, 1fr)` }}
   >
     {tiles.map((tile) => {
@@ -30,7 +30,7 @@ export const ChoiceTiles = ({
           aria-checked={selected}
           onClick={() => onValueChange(tile.value)}
           className={cn(
-            "flex flex-col items-start gap-0.5 border-l border-[#ececea] px-3.5 py-2.5 text-left outline-none first:border-l-0 focus-visible:ring-[3px] focus-visible:ring-focus",
+            "flex flex-col items-start gap-0.5 border-l border-hairline px-3.5 py-2.5 text-left outline-none first:border-l-0 focus-visible:ring-[3px] focus-visible:ring-focus",
             selected
               ? "bg-gradient-to-b from-[#1b3a2e] to-[#142a23] text-white"
               : "text-ink hover:bg-sub",
@@ -40,7 +40,7 @@ export const ChoiceTiles = ({
           <span
             className={cn(
               "font-mono text-[10.5px] uppercase leading-4 tracking-[0.08em]",
-              selected ? "text-[#80ffaa]" : "text-[#a1a1aa]",
+              selected ? "text-[#80ffaa]" : "text-faint",
             )}
           >
             {tile.caption}

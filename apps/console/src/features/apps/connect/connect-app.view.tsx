@@ -249,9 +249,7 @@ export const ConnectAppPage = () => {
               just now.
             </Callout>
             <RaisedCard className="flex items-center gap-4 px-4 py-3 text-[13px]">
-              <span className="font-mono text-xs text-[#a1a1aa]">
-                {clock(firstEntry?.timestamp)}
-              </span>
+              <span className="font-mono text-xs text-faint">{clock(firstEntry?.timestamp)}</span>
               <StatusBadge status={firstEntry?.severity}>
                 {firstEntry?.severity ?? "info"}
               </StatusBadge>

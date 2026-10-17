@@ -103,3 +103,74 @@ test("Overview matches the Main artboard", async ({ page }) => {
   await page.getByText("Needs attention").waitFor();
   await expectMatchesArtboard(page, "Main", 779);
 });
+
+test("Overview dark matches the dashboard-dark artboard", async ({ page }) => {
+  await freezeClock(page, "2025-10-16T14:32:12Z");
+  await mockApi(page, mainMocks, { theme: "dark" });
+  await page.goto("/");
+  await page.getByText("Needs attention").waitFor();
+  await expectMatchesArtboard(page, "dashboard-dark", 783, "dark");
+});
+
+test("Overview all good matches the artboard", async ({ page }) => {
+  await freezeClock(page, "2025-10-16T14:32:12Z");
+  await mockApi(page, [
+    {
+      pattern: /\/v1\/health\/summary$/,
+      body: { overall_health: "up", monitors: { total: 24, up: 24 }, agents: { total: 6 } },
+    },
+    { pattern: /\/v1\/agents\/summary$/, body: { total: 6, up: 6 } },
+    { pattern: /\/v1\/health\/issues$/, body: { count: 0, issues: [] } },
+    {
+      pattern: /\/v1\/incidents$/,
+      body: (url: URL) =>
+        url.searchParams.get("status") === "resolved"
+          ? {
+              count: 3,
+              incidents: [
+                {
+                  id: "r1",
+                  title: "web-https latency",
+                  status: "resolved",
+                  opened_at: "2025-10-13T09:10:00Z",
+                  resolved_at: "2025-10-13T09:32:00Z",
+                },
+                {
+                  id: "r2",
+                  title: "edge-02 missed reports",
+                  status: "resolved",
+                  opened_at: "2025-10-12T03:44:00Z",
+                  resolved_at: "2025-10-12T03:52:00Z",
+                },
+                {
+                  id: "r3",
+                  title: "nightly-backup heartbeat missed",
+                  status: "resolved",
+                  opened_at: "2025-10-11T02:05:00Z",
+                  resolved_at: "2025-10-11T03:17:00Z",
+                },
+              ],
+            }
+          : { count: 0, incidents: [] },
+    },
+  ]);
+  await page.goto("/");
+  await page.getByText(/Checked \d+ seconds? ago/).waitFor();
+  await expectMatchesArtboard(page, "overview-all-good", 640);
+});
+
+test("Overview first run matches the onboarding artboard", async ({ page }) => {
+  await freezeClock(page, "2025-10-16T14:32:12Z");
+  await mockApi(page, [
+    {
+      pattern: /\/v1\/health\/summary$/,
+      body: { overall_health: "unknown", monitors: { total: 0 }, agents: { total: 0 } },
+    },
+    { pattern: /\/v1\/agents\/summary$/, body: { total: 0, up: 0 } },
+    { pattern: /\/v1\/health\/issues$/, body: { count: 0, issues: [] } },
+    { pattern: /\/v1\/incidents$/, body: { count: 0, incidents: [] } },
+  ]);
+  await page.goto("/");
+  await page.getByText("Nothing is monitored yet").waitFor();
+  await expectMatchesArtboard(page, "onboarding", 460);
+});

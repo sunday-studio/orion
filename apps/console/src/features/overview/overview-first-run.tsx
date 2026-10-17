@@ -28,12 +28,12 @@ export const OverviewFirstRun = ({ onDismiss }: { onDismiss: () => void }) => {
   return (
     <section
       aria-label="Getting started"
-      className="mx-auto flex max-w-[620px] flex-col items-center px-6 pb-16 pt-[100px] text-center"
+      className="mx-auto flex max-w-[720px] flex-col items-center px-6 pb-16 pt-[112px] text-center"
     >
       <h1 className="text-[32px] font-medium leading-[1.2] tracking-[-0.025em]">
         Nothing is monitored yet
       </h1>
-      <p className="mt-3 text-[14.5px] text-[#57534e]">
+      <p className="mt-3 text-[14.5px] text-mid">
         Add a server and Orion starts watching it within a minute.
       </p>
       <div className="mt-6 flex items-center gap-2.5">
@@ -44,7 +44,7 @@ export const OverviewFirstRun = ({ onDismiss }: { onDismiss: () => void }) => {
           <Button variant="secondary">Create a monitor</Button>
         </Link>
       </div>
-      <p className="mt-9 text-[12.5px] text-[#71717a]">
+      <p className="mt-9 text-[12.5px] text-quiet">
         Then connect an alert channel,{" "}
         <Link className="underline" to="/apps/new">
           connect an app

@@ -16,7 +16,7 @@ export const StepIndicator = ({
         <li
           key={label}
           aria-current={active ? "step" : undefined}
-          className={active ? "text-ink" : "text-[#a1a1aa]"}
+          className={active ? "text-ink" : "text-faint"}
         >
           <span className={cn("mr-1", active && "font-medium")}>{index + 1}</span>
           {label}

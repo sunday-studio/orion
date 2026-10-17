@@ -15,7 +15,7 @@ test("signs in, rejects bad credentials, and signs out", async ({ page }) => {
   await expect(page.getByRole("heading", { name: /How is it going/ })).toBeVisible();
 
   await page.getByRole("button", { name: "Account menu" }).click();
-  await page.getByRole("menuitem", { name: "Sign out" }).click();
+  await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page.getByLabel("Username")).toBeVisible();
 });
 
@@ -115,7 +115,7 @@ test("shows the overview landing page with live health data", async ({ page }) =
 test("opens the command palette and shortcuts sheet from the keyboard", async ({ page }) => {
   await signIn(page);
   await page.keyboard.press("Control+k");
-  await page.getByLabel("Search destinations").fill("mon");
+  await page.getByLabel("Search destinations").fill("Go to Monitors");
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/monitors$/);
   await expect(page.getByLabel("Search destinations")).toHaveCount(0);
