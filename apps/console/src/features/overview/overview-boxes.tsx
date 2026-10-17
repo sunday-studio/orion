@@ -9,7 +9,7 @@ import {
   StatBox,
   StatusBadge,
 } from "@/design-system";
-import type { ApiHealthIssue, ApiIncidentResponse } from "@/orion-sdk";
+import type { ApiHealthIssue, ApiOverviewIncidentResponse } from "@/orion-sdk";
 import { formatSpan, formatWhen } from "./overview-time";
 
 const healthDot = (health?: string) =>
@@ -71,7 +71,7 @@ export const OngoingBox = ({
   now,
   topId,
 }: {
-  incidents: ApiIncidentResponse[];
+  incidents: ApiOverviewIncidentResponse[];
   count: number;
   now: number;
   /** The incident shown in "Needs you now" reads "Ongoing 30m" in red; the others show a plain span. */
@@ -113,7 +113,7 @@ export const RecentIncidentsBox = ({
   incidents,
   now,
 }: {
-  incidents: ApiIncidentResponse[];
+  incidents: ApiOverviewIncidentResponse[];
   now: number;
 }) => (
   <Box aria-label="Recent incidents">
@@ -127,8 +127,8 @@ export const RecentIncidentsBox = ({
     />
     <div>
       {incidents.map((incident, index) => {
-        const start = incident.opened_at ? new Date(incident.opened_at).getTime() : now;
-        const end = incident.resolved_at ? new Date(incident.resolved_at).getTime() : now;
+        const start = 0;
+        const end = (incident.duration_seconds ?? 0) * 1000;
         return (
           <div
             key={incident.id ?? index}

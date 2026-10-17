@@ -1,26 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Button,
   Callout,
   ChoiceTiles,
   CodeBlock,
+  EmptyState,
   FieldPanel,
   PageHeader,
   RaisedCard,
 } from "@/design-system";
-import { type ApiAgentResponse, useGetAgents } from "@/orion-sdk";
 import {
-  NOT_CONNECTED_AFTER_MS,
-  type ServerSystem,
-  coreHost,
-  installCommand,
-  systemTiles,
-  useEnrollmentToken,
-} from "./enrollment";
+  type ApiEnrollmentCreatedResponse,
+  useCancelEnrollment,
+  useCreateEnrollment,
+  useGetEnrollment,
+} from "@/orion-sdk";
 import { AddServerConnected } from "./add-server-connected";
 import { AddServerFailed } from "./add-server-failed";
 import { AddServerProgress } from "./add-server-progress";
+import { NOT_CONNECTED_AFTER_MS, type ServerPlatform, coreHost, platformTiles } from "./enrollment";
 
 const Narrow = ({ children }: { children: React.ReactNode }) => (
   <div className="mx-auto w-full max-w-[712px]">{children}</div>
@@ -34,46 +33,76 @@ const CancelButton = () => (
   </Link>
 );
 
-/** Add server: pick a system, run one command, watch the server appear (F1, four states). */
+/** Add server: pick a platform, run one command, watch the server enroll (F1, four states). */
 export const AddServerPage = () => {
-  const [system, setSystem] = useState<ServerSystem>("linux");
+  const [platform, setPlatform] = useState<ServerPlatform>("linux");
+  const [enrollment, setEnrollment] = useState<ApiEnrollmentCreatedResponse>();
   const [copied, setCopied] = useState(false);
-  const [startedAt, setStartedAt] = useState(() => Date.now());
   const [now, setNow] = useState(() => Date.now());
-  const [baseline, setBaseline] = useState<Set<string> | null>(null);
-  const { enrollment, renew } = useEnrollmentToken();
+  const createEnrollment = useCreateEnrollment();
+  const cancelEnrollment = useCancelEnrollment();
+  const activeId = useRef<string | undefined>(undefined);
+  const generation = useRef(0);
 
-  const agentsQuery = useGetAgents(
-    { limit: 200 },
-    { query: { refetchInterval: 3000, refetchOnMount: "always" } },
+  const mint = (next: ServerPlatform) => {
+    const ticket = (generation.current += 1);
+    const previous = activeId.current;
+    if (previous) cancelEnrollment.mutate({ id: previous });
+    activeId.current = undefined;
+    setEnrollment(undefined);
+    createEnrollment.mutate(
+      { data: { platform: next } },
+      {
+        onSuccess: (created) => {
+          if (ticket !== generation.current) {
+            if (created.id) cancelEnrollment.mutate({ id: created.id });
+            return;
+          }
+          activeId.current = created.id;
+          setEnrollment(created);
+        },
+      },
+    );
+  };
+
+  // One enrollment per visit and platform; leaving the page cancels one that was never used.
+  useEffect(() => {
+    mint(platform);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [platform]);
+  useEffect(
+    () => () => {
+      generation.current += 1;
+      if (activeId.current) cancelEnrollment.mutate({ id: activeId.current });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
   );
-  const agents = useMemo(() => agentsQuery.data?.agents ?? [], [agentsQuery.data]);
-
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, []);
 
-  // Only fresh data counts as the baseline: a cached list could predate recent registrations.
-  if (baseline === null && agentsQuery.isSuccess && agentsQuery.isFetchedAfterMount) {
-    setBaseline(new Set(agents.map((agent) => agent.id ?? "")));
-  }
-  const registered: ApiAgentResponse | undefined = baseline
-    ? agents.find((agent) => agent.id && !baseline.has(agent.id))
-    : undefined;
-
-  const elapsed = now - startedAt;
-  const expired = now >= enrollment.expiresAt;
-  const command = installCommand(system, enrollment.token);
-  const host = coreHost();
-
-  const startOver = () => {
-    renew();
-    setStartedAt(Date.now());
-    setBaseline(null);
-  };
+  const id = enrollment?.id ?? "";
+  const statusQuery = useGetEnrollment(id, {
+    query: {
+      enabled: Boolean(id),
+      refetchInterval: (query) => {
+        const status = query.state.data?.status;
+        return status === "reporting" || status === "expired" || status === "cancelled"
+          ? false
+          : 2000;
+      },
+    },
+  });
+  const live = statusQuery.data;
+  const status = live?.status ?? enrollment?.status ?? "waiting";
+  const host = coreHost(enrollment?.core_url);
+  const command = enrollment?.install_command ?? "";
+  const createdMs = enrollment?.created_at ? new Date(enrollment.created_at).getTime() : now;
 
   const copyCommand = async () => {
+    if (!command) return;
     try {
       await navigator.clipboard.writeText(command);
       setCopied(true);
@@ -83,14 +112,14 @@ export const AddServerPage = () => {
     }
   };
 
-  if (registered?.last_seen) {
+  if (status === "reporting" && live) {
     return (
       <Narrow>
-        <AddServerConnected agent={registered} />
+        <AddServerConnected enrollment={live} />
       </Narrow>
     );
   }
-  if (registered) {
+  if ((status === "claimed" || status === "registered") && live) {
     return (
       <Narrow>
         <PageHeader
@@ -99,7 +128,7 @@ export const AddServerPage = () => {
           actions={<CancelButton />}
         />
         <div className="mt-3 flex flex-col gap-3">
-          <AddServerProgress agent={registered} />
+          <AddServerProgress enrollment={live} />
           <Callout tone="warn" className="text-[12.5px]">
             Nothing here after 5 minutes? Run <b>orion-agent doctor</b> on the host. It prints the
             exact fix for each problem.
@@ -108,10 +137,10 @@ export const AddServerPage = () => {
       </Narrow>
     );
   }
-  if (expired) {
+  if (status === "expired") {
     return (
       <Narrow>
-        <AddServerFailed host={host} onStartOver={startOver} onCopy={copyCommand} />
+        <AddServerFailed host={host} onStartOver={() => mint(platform)} onCopy={copyCommand} />
       </Narrow>
     );
   }
@@ -126,25 +155,32 @@ export const AddServerPage = () => {
       <div className="mt-3 flex flex-col gap-3">
         <ChoiceTiles
           aria-label="Operating system"
-          tiles={systemTiles}
-          value={system}
-          onValueChange={(value) => setSystem(value as ServerSystem)}
+          tiles={platformTiles}
+          value={platform}
+          onValueChange={(value) => setPlatform(value as ServerPlatform)}
         />
-        <FieldPanel
-          title="Run this on the server"
-          aside={
-            enrollment.placeholder
-              ? "Replace the placeholder with your enrollment token"
-              : "One-time token, expires in 15 minutes"
-          }
-        >
-          <CodeBlock aria-label="Install command">{command}</CodeBlock>
-          <div className="mt-2.5">
-            <Button size="sm" onClick={() => void copyCommand()}>
-              {copied ? "Copied" : "Copy command"}
-            </Button>
-          </div>
-        </FieldPanel>
+        {createEnrollment.isError ? (
+          <EmptyState
+            tone="error"
+            title="Unable to create an enrollment"
+            action={
+              <Button size="sm" variant="secondary" onClick={() => mint(platform)}>
+                Retry
+              </Button>
+            }
+          />
+        ) : (
+          <FieldPanel title="Run this on the server" aside="One-time token, expires in 15 minutes">
+            <CodeBlock aria-label="Install command">
+              {command || "Preparing the command..."}
+            </CodeBlock>
+            <div className="mt-2.5">
+              <Button size="sm" disabled={!command} onClick={() => void copyCommand()}>
+                {copied ? "Copied" : "Copy command"}
+              </Button>
+            </div>
+          </FieldPanel>
+        )}
         <FieldPanel title="Waiting for the agent" aside="Usually under 30 seconds">
           <RaisedCard className="flex items-center gap-3 px-4 py-3">
             <span aria-hidden className="size-2 shrink-0 rounded-full bg-faint" />
@@ -153,7 +189,7 @@ export const AddServerPage = () => {
             </p>
           </RaisedCard>
         </FieldPanel>
-        {elapsed >= NOT_CONNECTED_AFTER_MS && (
+        {now - createdMs >= NOT_CONNECTED_AFTER_MS && (
           <Callout tone="down" lead="Not connected after 5 minutes?">
             Check that the server can reach {host}, then run the command again.
           </Callout>

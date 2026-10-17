@@ -1,12 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button, FieldPanel, PageHeader, RaisedCard, StatusBadge } from "@/design-system";
-import type { ApiAgentResponse } from "@/orion-sdk";
-
-const pad = (value: number) => String(value).padStart(2, "0");
-const formatClock = (iso: string) => {
-  const date = new Date(iso);
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-};
+import type { ApiEnrollmentResponse } from "@/orion-sdk";
+import { clockWithSeconds } from "./enrollment";
 
 const Row = ({
   title,
@@ -24,9 +19,9 @@ const Row = ({
   </div>
 );
 
-export const AddServerConnected = ({ agent }: { agent: ApiAgentResponse }) => {
-  const name = agent.name ?? "The server";
-  const platform = [agent.os, agent.arch].filter(Boolean).join("/");
+export const AddServerConnected = ({ enrollment }: { enrollment: ApiEnrollmentResponse }) => {
+  const name = enrollment.agent_name ?? "The server";
+  const platform = [enrollment.agent_os, enrollment.agent_arch].filter(Boolean).join("/");
   return (
     <>
       <PageHeader
@@ -39,7 +34,12 @@ export const AddServerConnected = ({ agent }: { agent: ApiAgentResponse }) => {
             <span aria-hidden className="size-2 shrink-0 rounded-full bg-[#2a9f69]" />
             <b className="font-medium">{name}</b>
             <span className="ml-auto truncate text-xs text-faint">
-              {[platform, agent.last_seen && `first report ${formatClock(agent.last_seen)}`]
+              {[
+                platform,
+                enrollment.agent_version && `agent ${enrollment.agent_version}`,
+                enrollment.first_report_at &&
+                  `first report ${clockWithSeconds(enrollment.first_report_at)}`,
+              ]
                 .filter(Boolean)
                 .join(" · ")}
             </span>
@@ -53,7 +53,7 @@ export const AddServerConnected = ({ agent }: { agent: ApiAgentResponse }) => {
               title="Rotate"
               detail="From the Token tab; the old token works for 10 minutes"
               action={
-                <Link to={`/servers/${agent.id}?tab=token`}>
+                <Link to={`/servers/${enrollment.agent_id}?tab=token`}>
                   <Button size="sm" variant="secondary">
                     Open Token tab
                   </Button>
@@ -91,7 +91,7 @@ export const AddServerConnected = ({ agent }: { agent: ApiAgentResponse }) => {
           </RaisedCard>
         </FieldPanel>
         <div className="flex justify-center">
-          <Link to={`/servers/${agent.id}`}>
+          <Link to={`/servers/${enrollment.agent_id}`}>
             <Button variant="secondary">Go to server</Button>
           </Link>
         </div>

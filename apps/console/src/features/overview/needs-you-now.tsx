@@ -10,18 +10,11 @@ import {
   StatusBadge,
 } from "@/design-system";
 import {
-  type ApiIncidentResponse,
-  getGetIncidentsQueryKey,
+  type ApiOverviewIncidentResponse,
+  getGetOverviewQueryKey,
   useAcknowledgeIncident,
 } from "@/orion-sdk";
 import { formatSpan, formatWhen } from "./overview-time";
-
-const SEVERITY_RANK: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
-
-export const mostSevere = (incidents: ApiIncidentResponse[]) =>
-  [...incidents].sort(
-    (a, b) => (SEVERITY_RANK[b.severity ?? ""] ?? 0) - (SEVERITY_RANK[a.severity ?? ""] ?? 0),
-  )[0];
 
 const severityDot = (severity?: string) =>
   severity === "critical" || severity === "high"
@@ -30,22 +23,24 @@ const severityDot = (severity?: string) =>
       ? "#f59e0b"
       : "#a1a1aa";
 
-/** Detected, Notified, Acknowledge, Resolved; times come from the incident record. */
-export const lifecycleSteps = (incident: ApiIncidentResponse, now: number): LifecycleStep[] => {
-  const opened = formatWhen(incident.opened_at, now);
-  const acknowledged = incident.status === "acknowledged" || incident.status === "covered";
+/** Detected, Notified, Acknowledge, Resolved; times come from the overview record. */
+export const lifecycleSteps = (
+  incident: ApiOverviewIncidentResponse,
+  now: number,
+): LifecycleStep[] => {
+  const acknowledged = Boolean(incident.acknowledged_at);
   const resolved = incident.status === "resolved";
   return [
-    { label: "Detected", state: "done", time: opened },
+    { label: "Detected", state: "done", time: formatWhen(incident.opened_at, now) },
     {
       label: "Notified",
-      state: incident.notification_status === "pending" ? "todo" : "done",
-      time: opened,
+      state: incident.notified_at ? "done" : "todo",
+      time: incident.notified_at ? formatWhen(incident.notified_at, now) : "-",
     },
     {
       label: "Acknowledge",
       state: acknowledged || resolved ? "done" : "now",
-      time: acknowledged || resolved ? formatWhen(incident.last_event_at, now) : "waiting",
+      time: acknowledged ? formatWhen(incident.acknowledged_at, now) : resolved ? "-" : "waiting",
     },
     {
       label: "Resolved",
@@ -55,16 +50,21 @@ export const lifecycleSteps = (incident: ApiIncidentResponse, now: number): Life
   ];
 };
 
-export const NeedsYouNow = ({ incident, now }: { incident: ApiIncidentResponse; now: number }) => {
+export const NeedsYouNow = ({
+  incident,
+  now,
+}: {
+  incident: ApiOverviewIncidentResponse;
+  now: number;
+}) => {
   const queryClient = useQueryClient();
   const acknowledge = useAcknowledgeIncident({
     mutation: {
-      onSuccess: () => void queryClient.invalidateQueries({ queryKey: getGetIncidentsQueryKey() }),
+      onSuccess: () => void queryClient.invalidateQueries({ queryKey: getGetOverviewQueryKey() }),
     },
   });
   const openedMs = incident.opened_at ? new Date(incident.opened_at).getTime() : now;
-  const canAcknowledge =
-    incident.allowed_actions?.acknowledge?.allowed ?? incident.status === "open";
+  const canAcknowledge = incident.status === "open";
 
   return (
     <FieldPanel
@@ -84,7 +84,7 @@ export const NeedsYouNow = ({ incident, now }: { incident: ApiIncidentResponse; 
           <LifecycleTrack steps={lifecycleSteps(incident, now)} />
           <div className="flex items-center justify-between">
             <span className="text-[12.5px] text-mid">
-              Latest: {incident.latest_event ?? "no events recorded yet"}
+              Latest: {incident.summary ?? "no events recorded yet"}
             </span>
             <div className="flex items-center gap-1.5">
               <Link to={`/incidents/${incident.id}`}>
