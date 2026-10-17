@@ -69,6 +69,9 @@ func main() {
 		}
 	}()
 
+	selfMonitor := service.NewSelfMonitorService(database, logger, cfg, server.RuntimeDiagnostics())
+	go selfMonitor.Run(ctx)
+
 	listenAddr := ":" + cfg.Port
 	if cfg.RunsWithoutAuth() {
 		listenAddr = "127.0.0.1:" + cfg.Port

@@ -19,6 +19,7 @@ var undocumentedRoutes = map[string]string{
 	"GET /feed.atom":           "atom feed",
 	"GET /status/:p/feed.atom": "atom feed",
 	"GET /swagger/*any":        "swagger UI",
+	"GET /metrics":             "Prometheus text exposition, not JSON",
 }
 
 var routerAnnotation = regexp.MustCompile(`@Router\s+(\S+)\s+\[(\w+)\]`)

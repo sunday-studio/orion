@@ -113,6 +113,7 @@ func (s *Server) setupRoutes() {
 
 	// Health check endpoint (no versioning)
 	s.router.GET("/health", s.healthCheck)
+	s.router.GET("/metrics", s.metricsAuthMiddleware(), s.getMetrics)
 
 	// Public status page routes
 	s.router.GET("/", s.getCustomDomainStatusPage)
