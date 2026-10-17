@@ -140,16 +140,19 @@ func newMaintenanceCommand(ctx context.Context, opts *Options) *cobra.Command {
 		Short: "Enter maintenance mode",
 		Args:  cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if commandNeedsElevation("maintenance", commandArgs(opts, "maintenance")) {
-				if err := ensurePrivilegeFor(opts, "maintenance"); err != nil {
-					return NewCommandError("could not elevate privileges", err)
-				}
-			}
 			reason := ""
 			if len(args) > 0 {
 				reason = fmt.Sprint(args[0])
 				for _, part := range args[1:] {
 					reason += " " + part
+				}
+			}
+			if handled, err := maintenanceViaDaemon(opts, true, reason); handled {
+				return err
+			}
+			if commandNeedsElevation("maintenance", commandArgs(opts, "maintenance")) {
+				if err := ensurePrivilegeFor(opts, "maintenance"); err != nil {
+					return NewCommandError("could not elevate privileges", err)
 				}
 			}
 			return runMaintenance(ctx, opts, "-down", reason)
@@ -161,6 +164,9 @@ func newMaintenanceCommand(ctx context.Context, opts *Options) *cobra.Command {
 		Short: "Exit maintenance mode",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if handled, err := maintenanceViaDaemon(opts, false, ""); handled {
+				return err
+			}
 			if commandNeedsElevation("maintenance", commandArgs(opts, "maintenance")) {
 				if err := ensurePrivilegeFor(opts, "maintenance"); err != nil {
 					return NewCommandError("could not elevate privileges", err)
@@ -239,13 +245,16 @@ func newTokenCommand(ctx context.Context, opts *Options) *cobra.Command {
 		Short: "Apply a replacement token without changing Agent identity",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) > 0 {
+				opts.TokenApply = args[0]
+			}
+			if handled, err := applyTokenViaDaemon(opts); handled {
+				return err
+			}
 			if commandNeedsElevation("token", commandArgs(opts, "token")) {
 				if err := ensurePrivilegeFor(opts, "token"); err != nil {
 					return NewCommandError("could not elevate privileges", err)
 				}
-			}
-			if len(args) > 0 {
-				opts.TokenApply = args[0]
 			}
 			return runTokenApply(ctx, opts)
 		},

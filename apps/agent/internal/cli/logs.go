@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"orion/agent/internal/config"
+	"orion/agent/internal/control"
 
 	"github.com/spf13/cobra"
 )
@@ -19,6 +21,7 @@ const defaultLogLines = 80
 
 type LogViewOptions struct {
 	File      string
+	Socket    string
 	Source    string
 	Lines     int
 	Since     string
@@ -66,6 +69,7 @@ func newLogsCommand(ctx context.Context, opts *Options) *cobra.Command {
 			_ = ctx
 			return ViewLogs(LogViewOptions{
 				File:      logFile,
+				Socket:    opts.SocketPath,
 				Source:    source,
 				Lines:     opts.LogLines,
 				Since:     since,
@@ -259,6 +263,12 @@ func ViewLogs(options LogViewOptions) error {
 	}
 
 	entries, skipped, err := readJSONLLogFile(options.File, filters)
+	if err != nil && errors.Is(err, os.ErrPermission) {
+		// The log file belongs to the orion user; the daemon can serve it.
+		if data, serr := control.NewClient(options.Socket).Logs(); serr == nil {
+			entries, skipped, err = readJSONLLog(bytes.NewReader(data), options.File, filters)
+		}
+	}
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) && options.Source == "auto" && !options.JSON {
 			fmt.Fprintf(options.ErrOut, "warning: Orion log file not found at %s\n", options.File)

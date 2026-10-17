@@ -10,6 +10,7 @@ import (
 
 	agent "orion/agent/internal"
 	"orion/agent/internal/config"
+	"orion/agent/internal/control"
 	"orion/agent/internal/logging"
 	"orion/agent/internal/registration"
 	agentstate "orion/agent/internal/state"
@@ -75,6 +76,19 @@ func runAgent(ctx context.Context, opts *Options) error {
 		return NewCommandError("could not initialize agent", err)
 	}
 	PrintOK("agent initialized")
+
+	if !opts.Once {
+		controlServer := control.NewServer(opts.SocketPath, newDaemonControl(opts, userConfig, stateStore))
+		if err := controlServer.Start(); err != nil {
+			// The socket is a convenience for operators; never block reporting on it.
+			logging.Warnf("Control socket unavailable: %v", err)
+			PrintSkip(fmt.Sprintf("control socket unavailable: %v", err))
+		} else {
+			defer controlServer.Close()
+			PrintOK("control socket listening")
+			PrintInfo("socket", controlServer.Path())
+		}
+	}
 
 	if opts.Once {
 		PrintStep("running one collection cycle")
