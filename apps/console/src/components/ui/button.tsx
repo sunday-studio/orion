@@ -1,52 +1,47 @@
-import * as React from "react";
-import { type VariantProps, cva } from "class-variance-authority";
+import type * as React from "react";
+import { Button as DsButton, buttonStyles } from "@/design-system";
 
-import { cn } from "@/utils/cn";
+/**
+ * Legacy shadcn-style API kept so existing screens keep compiling; renders the design-system
+ * button. New code should import from "@/design-system".
+ */
+type LegacyVariant = "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+type LegacySize = "default" | "sm" | "lg" | "icon";
 
-const buttonVariants = cva(
-  "text-xs inline-flex cursor-pointer shrink-0 items-center justify-center gap-2 whitespace-nowrap  font-medium transition-[color,box-shadow] outline-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 aria-invalid:border-destructive",
-  {
-    variants: {
-      variant: {
-        default:
-          "rounded-lg border border-[#17613f] bg-gradient-to-b from-[#2a9f69] to-brand text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_1px_2px_rgba(0,0,0,0.12)] hover:brightness-95",
-        destructive:
-          "bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20",
-        outline:
-          "border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground",
-        secondary: "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
-      },
-      size: {
-        default: "h-9 px-4 py-2",
-        sm: "h-8 px-3 text-xs",
-        lg: "h-10 px-6",
-        icon: "size-9",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  },
-);
+const variantMap = {
+  default: "primary",
+  destructive: "destructive",
+  outline: "secondary",
+  secondary: "secondary",
+  ghost: "ghost",
+  link: "link",
+} as const;
 
-function Button({
-  className,
-  variant,
-  size,
-  type = "button",
-  ...props
-}: React.ComponentProps<"button"> & VariantProps<typeof buttonVariants>) {
+const sizeMap = { default: "md", sm: "sm", lg: "md", icon: "icon" } as const;
+
+type ButtonProps = Omit<React.ComponentProps<"button">, "color"> & {
+  variant?: LegacyVariant | null;
+  size?: LegacySize | null;
+};
+
+function Button({ variant, size, ...props }: ButtonProps) {
   return (
-    <button
-      type={type}
-      data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
+    <DsButton
+      variant={variantMap[variant ?? "default"]}
+      size={sizeMap[size ?? "default"]}
       {...props}
     />
   );
+}
+
+function buttonVariants({
+  variant,
+  size,
+}: { variant?: LegacyVariant | null; size?: LegacySize | null } = {}) {
+  return buttonStyles({
+    variant: variantMap[variant ?? "default"],
+    size: sizeMap[size ?? "default"],
+  });
 }
 
 export { Button, buttonVariants };
