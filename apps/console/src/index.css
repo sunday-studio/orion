@@ -104,21 +104,52 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+@theme {
+  --color-page: #ffffff;
+  --color-field: #f7f7f6;
+  --color-sub: #fafaf9;
+  --color-hairline: #ececea;
+  --color-input-border: #e4e4e7;
+  --color-ink: #18181b;
+  --color-muted: #71717a;
+  --color-faint: #a1a1aa;
+  --color-accent: #1f7a50;
+  --color-accent-chart: #2a9f69;
+  --color-focus: rgba(31, 122, 80, 0.22);
+  --color-dot-down: #e5484d;
+  --color-dot-warn: #f59e0b;
+  --color-dot-up: #2a9f69;
+  --color-dot-idle: #a1a1aa;
+}
+
 :root {
   font-weight: 100 900;
+
+  /*
+   * Typeface: TWK Lausanne when licensed files are loaded, system sans otherwise (D-005, D-010).
+   * To ship the licence, add @font-face rules for "TWK Lausanne" (300, 500) and the stack
+   * below already prefers it. Do not commit trial fonts.
+   */
+  --font-sans: "TWK Lausanne", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* 300 is the TWK Lausanne text cut; system sans reads better at 400. */
+  --font-weight-body: 400;
 }
 
 body {
-  font-family: "GT America Standard", "Inter", system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: var(--font-sans);
   font-optical-sizing: auto;
-  font-style: 500;
-  font-variation-settings:
-    "opsz" 14,
-    "wght" 400;
+  font-weight: var(--font-weight-body);
+  font-variant-numeric: tabular-nums lining-nums;
   font-size: 14px;
   line-height: 1.5;
-  background-color: #fdfdfc;
-  color: #111111;
+  background-color: var(--color-page);
+  color: var(--color-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
 }
 
 .debug {

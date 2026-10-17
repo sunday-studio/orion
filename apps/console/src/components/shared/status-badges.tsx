@@ -34,37 +34,59 @@ type BadgeProps<TValue extends string> = {
   className?: string;
 };
 
-const badgeBaseClass = "inline-flex w-fit items-center text-xs leading-5 px-1.5";
+const badgeBaseClass = "inline-flex w-fit items-center gap-1.5 rounded px-1.5 text-xs leading-5";
 
 const severityClass: Record<Severity, string> = {
-  low: "bg-teal-100 text-teal-950",
-  medium: "bg-yellow-100 text-yellow-950",
-  high: "bg-rose-100 text-rose-950",
-  critical: "bg-red-400 text-red-950",
+  low: "bg-[#ccfbf1] text-[#115e59]",
+  medium: "bg-[#fef9c3] text-[#854d0e]",
+  high: "bg-[#ffe4e6] text-[#9f1239]",
+  critical: "bg-[#f43f5e] text-white",
   error: "bg-rose-100 text-rose-900",
   warning: "bg-amber-100 text-amber-900",
   info: "bg-teal-100 text-teal-900",
 };
 
 const statusClass: Record<Status, string> = {
-  up: "bg-teal-100 text-teal-900",
-  down: "bg-rose-100 text-rose-900",
-  degraded: "bg-amber-100 text-amber-900",
-  maintenance: "bg-violet-100 text-violet-900",
-  unknown: "bg-neutral-100 text-neutral-900",
-  stale: "bg-slate-100 text-slate-900",
-  open: "bg-rose-100 text-rose-950",
-  acknowledged: "bg-amber-100 text-amber-950",
-  covered: "bg-cyan-100 text-cyan-900",
-  resolved: "bg-blue-100 text-blue-900",
+  up: "bg-[#ccfbf1] text-[#115e59]",
+  down: "bg-[#ffe4e6] text-[#9f1239]",
+  degraded: "bg-[#fef3c7] text-[#92400e]",
+  maintenance: "bg-[#ede9fe] text-[#5b21b6]",
+  unknown: "bg-[#f5f5f4] text-[#44403c]",
+  stale: "bg-[#f1f5f9] text-[#334155]",
+  open: "bg-[#ffe4e6] text-[#9f1239]",
+  acknowledged: "bg-[#fef3c7] text-[#92400e]",
+  covered: "bg-[#cffafe] text-[#155e75]",
+  resolved: "bg-[#dbeafe] text-[#1e40af]",
 };
 
 const notificationClass: Record<NotificationStatus, string> = {
-  pending: "bg-neutral-100 text-neutral-900",
-  sent: "bg-teal-100 text-teal-900",
-  failed: "bg-rose-100 text-rose-900",
-  suppressed: "bg-slate-100 text-slate-900",
-  cooldown: "bg-cyan-100 text-cyan-900",
+  pending: "bg-[#f5f5f4] text-[#44403c]",
+  sent: "bg-[#ccfbf1] text-[#115e59]",
+  failed: "bg-[#ffe4e6] text-[#9f1239]",
+  suppressed: "bg-[#f1f5f9] text-[#334155]",
+  cooldown: "bg-[#cffafe] text-[#155e75]",
+};
+
+type Shape = "dot" | "square" | "hollow";
+
+const shapeFor = (value?: string): Shape => {
+  if (["down", "open", "failed", "critical", "error"].includes(value ?? "")) return "square";
+  if (["unknown", "pending", "stale", "suppressed"].includes(value ?? "")) return "hollow";
+  return "dot";
+};
+
+const BadgeShape = ({ value }: { value?: string }) => {
+  const shape = shapeFor(value);
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "size-1.5 shrink-0 bg-current",
+        shape === "dot" && "rounded-full",
+        shape === "hollow" && "rounded-full bg-transparent ring-1 ring-current",
+      )}
+    />
+  );
 };
 
 const normalize = (value?: string | null) => value?.trim().toLowerCase();
@@ -90,12 +112,14 @@ const label = (value?: string, fallback = "unknown") => value ?? fallback;
 
 export const SeverityBadge = ({ value, fallback = "unknown", className }: BadgeProps<Severity>) => (
   <span className={cn(badgeBaseClass, value ? severityClass[value] : severityClass.low, className)}>
+    <BadgeShape value={value} />
     {label(value, fallback)}
   </span>
 );
 
 export const StatusBadge = ({ value, fallback = "unknown", className }: BadgeProps<Status>) => (
   <span className={cn(badgeBaseClass, value ? statusClass[value] : statusClass.unknown, className)}>
+    <BadgeShape value={value} />
     {label(value, fallback)}
   </span>
 );
@@ -112,6 +136,7 @@ export const NotificationBadge = ({
       className,
     )}
   >
+    <BadgeShape value={value} />
     {label(value, fallback)}
   </span>
 );
