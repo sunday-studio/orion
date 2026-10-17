@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"mime"
 	"net"
 	"net/mail"
 	"net/smtp"
@@ -109,7 +110,7 @@ func alertEmailBytes(from *mail.Address, to *mail.Address, message AlertEmailMes
 	headers := []string{
 		"From: " + from.String(),
 		"To: " + to.String(),
-		"Subject: " + sanitizeAlertMailHeader(message.Subject),
+		"Subject: " + mime.QEncoding.Encode("utf-8", sanitizeAlertMailHeader(message.Subject)),
 		"Date: " + time.Now().UTC().Format(time.RFC1123Z),
 		"MIME-Version: 1.0",
 		"Content-Type: text/plain; charset=utf-8",

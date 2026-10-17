@@ -54,6 +54,12 @@ func (s *RetentionService) Run(now time.Time) (*RetentionResult, error) {
 		// Attempts first (they reference deliveries), then the deliveries. Pending
 		// deliveries are never pruned: they are still waiting to be sent.
 		{"alert_delivery_attempts", &result.AlertDeliveryAttempts, func() (int64, error) {
+			// The per-recipient email ledger ages out with its deliveries.
+			if _, err := s.pruneBatched("alert_delivery_recipients",
+				"delivery_id IN (SELECT id FROM alert_deliveries WHERE created_at < ? AND status <> 'pending')",
+				cutoff(settings.AlertDeliveryRetentionDays)); err != nil {
+				return 0, err
+			}
 			return s.pruneBatched("alert_delivery_attempts",
 				"alert_delivery_id IN (SELECT id FROM alert_deliveries WHERE created_at < ? AND status <> 'pending')",
 				cutoff(settings.AlertDeliveryRetentionDays))
