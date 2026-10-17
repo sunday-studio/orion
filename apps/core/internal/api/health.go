@@ -283,7 +283,7 @@ func (s *Server) getIncidentCandidates(c *gin.Context) {
 			if err := s.db.Where("id = ?", monitor.AgentID).First(&agent).Error; err != nil {
 				continue
 			}
-			if agent.MaintenanceMode {
+			if agent.InMaintenance(time.Now().UTC()) {
 				continue
 			}
 
@@ -335,7 +335,7 @@ func (s *Server) getIncidentCandidates(c *gin.Context) {
 			if err := s.db.Where("id = ?", monitor.AgentID).First(&agent).Error; err != nil {
 				continue
 			}
-			if agent.MaintenanceMode {
+			if agent.InMaintenance(time.Now().UTC()) {
 				continue
 			}
 

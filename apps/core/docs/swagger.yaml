@@ -81,6 +81,8 @@ definitions:
         $ref: '#/definitions/orion_core_internal_db.GeoLocation'
       maintenance_mode:
         type: boolean
+      maintenance_until:
+        type: string
       monitor_count:
         type: integer
       monitor_health:
@@ -2148,6 +2150,11 @@ definitions:
     type: object
   orion_core_internal_service.SetMaintenanceModeRequest:
     properties:
+      duration_seconds:
+        description: |-
+          DurationSeconds is how long maintenance lasts when enabling. Omitted means
+          DefaultMaintenanceDuration; values above MaxMaintenanceDuration are rejected.
+        type: integer
       maintenance_mode:
         type: boolean
     required:
@@ -3045,7 +3052,9 @@ paths:
     put:
       consumes:
       - application/json
-      description: Enable or disable maintenance mode for a specific agent
+      description: Enable or disable maintenance mode for a specific agent. Enabling
+        lasts duration_seconds (default 24h, max 30 days) and then expires automatically;
+        every change is audited.
       operationId: setMaintenanceMode
       parameters:
       - description: Agent ID

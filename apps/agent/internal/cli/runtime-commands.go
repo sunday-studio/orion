@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	agent "orion/agent/internal"
 	"orion/agent/internal/config"
@@ -114,7 +115,7 @@ func runAgent(ctx context.Context, opts *Options) error {
 	return nil
 }
 
-func runMaintenance(_ context.Context, opts *Options, action string, reason string) error {
+func runMaintenance(_ context.Context, opts *Options, action string, reason string, duration time.Duration) error {
 	PrintHeader("maintenance")
 	PrintInfo("state", opts.StatePath)
 	PrintInfo("action", action)
@@ -140,7 +141,7 @@ func runMaintenance(_ context.Context, opts *Options, action string, reason stri
 	switch action {
 	case "-up":
 		PrintStep("updating maintenance mode")
-		if err := updateCoreMaintenanceMode(internalState, false); err != nil {
+		if err := updateCoreMaintenanceMode(internalState, false, 0); err != nil {
 			return NewCommandError("could not update core maintenance mode", err)
 		}
 		if err := stateStore.SetMaintenanceMode(false, nil); err != nil {
@@ -153,13 +154,18 @@ func runMaintenance(_ context.Context, opts *Options, action string, reason stri
 			reasonPtr = &reason
 		}
 		PrintStep("updating maintenance mode")
-		if err := updateCoreMaintenanceMode(internalState, true); err != nil {
+		if duration <= 0 {
+			duration = defaultMaintenanceDuration
+		}
+		if err := updateCoreMaintenanceMode(internalState, true, duration); err != nil {
 			return NewCommandError("could not update core maintenance mode", err)
 		}
-		if err := stateStore.SetMaintenanceMode(true, reasonPtr); err != nil {
+		until := time.Now().Add(duration)
+		if err := stateStore.SetMaintenanceWindow(true, reasonPtr, &until); err != nil {
 			return NewCommandError("could not save state", err)
 		}
 		PrintOK("maintenance mode enabled")
+		PrintInfo("maintenance ends", until.Format(time.RFC3339))
 		if reason != "" {
 			PrintInfo("maintenance reason", reason)
 		}

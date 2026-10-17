@@ -1,6 +1,10 @@
 package worker
 
-import "time"
+import (
+	"time"
+
+	"orion/core/internal/service"
+)
 
 const defaultDispatchInterval = 15 * time.Second
 
@@ -35,6 +39,13 @@ func sweepBootGrace(configured time.Duration) time.Duration {
 
 // sweepSilentMonitors opens stale incidents for agent monitors that stopped reporting.
 func (a *App) sweepSilentMonitors() {
+	// Ending expired maintenance windows is never held back by the boot grace:
+	// alerting for those agents should resume on time.
+	if ended, err := service.NewAgentService(a.db, a.logger).ExpireMaintenance(time.Now().UTC()); err != nil {
+		a.logger.Error("Core worker maintenance expiry failed", "error", err)
+	} else if ended > 0 {
+		a.logger.Info("Core worker ended maintenance windows", "count", ended)
+	}
 	if time.Since(a.startedAt) < a.sweepBootGrace {
 		return
 	}
