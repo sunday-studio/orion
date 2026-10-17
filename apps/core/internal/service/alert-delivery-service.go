@@ -59,11 +59,18 @@ func (s *AlertService) ProcessDueDeliveries(limit int) (int, error) {
 			processed++
 			continue
 		}
+		if channel.Type == "email" && delivery.EventType != "test" && s.confirmedRecipientCount(channel.ID) == 0 {
+			if err := s.updateDelivery(delivery.ID, "suppressed", "no confirmed email recipients"); err != nil {
+				s.logger.Error("Failed to suppress email delivery", "delivery_id", delivery.ID, "error", err)
+			}
+			processed++
+			continue
+		}
 		if err := s.attemptDelivery(delivery, func() error {
 			if delivery.EventType == alertEventGroupSummary && delivery.AlertGroupID != "" {
-				return s.deliverGroupSummary(channel, delivery.AlertGroupID)
+				return s.deliverGroupSummary(channel, delivery.ID, delivery.AlertGroupID)
 			}
-			return s.deliver(channel, delivery.IncidentID, delivery.EventType)
+			return s.deliver(channel, delivery.ID, delivery.IncidentID, delivery.EventType)
 		}); err != nil {
 			s.logger.Error("Alert delivery retry failed", "delivery_id", delivery.ID, "channel", delivery.Channel, "error", err)
 		}
@@ -100,7 +107,7 @@ func (s *AlertService) channelForDelivery(delivery db.AlertDelivery) (db.AlertCh
 
 func retiredAlertDeliveryType(deliveryType string) bool {
 	switch strings.TrimSpace(deliveryType) {
-	case "email", "slack", "discord":
+	case "slack", "discord":
 		return true
 	default:
 		return false

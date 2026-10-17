@@ -9,8 +9,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 func TestAlertServiceSkipsUnsubscribedEvents(t *testing.T) {
@@ -397,7 +395,7 @@ func TestAlertServiceTestsConfiguredWebhookChannel(t *testing.T) {
 	}
 }
 
-func TestAlertServiceTestsConfiguredEmailChannel(t *testing.T) {
+func TestAlertServiceTestEmailChannelFailsWhenSMTPUnconfigured(t *testing.T) {
 	database := setupAlertServiceDatabase(t)
 	createTestAlertChannel(t, database, db.AlertChannel{
 		Name:    "ops-email",
@@ -406,7 +404,8 @@ func TestAlertServiceTestsConfiguredEmailChannel(t *testing.T) {
 	})
 	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 
-	if _, err := service.TestChannel("channel-ops-email"); err != gorm.ErrRecordNotFound {
-		t.Fatalf("TestChannel() error = %v, want legacy email channel hidden", err)
+	delivery, err := service.TestChannel("channel-ops-email")
+	if err != nil || delivery.Status != "failed" || !strings.Contains(delivery.Error, "not configured") {
+		t.Fatalf("TestChannel() = %+v, %v; want failed delivery naming missing SMTP config", delivery, err)
 	}
 }

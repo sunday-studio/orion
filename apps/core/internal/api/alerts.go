@@ -130,7 +130,7 @@ func (s *Server) listAlertDeliveries(c *gin.Context) {
 // @Router       /v1/alerts/channels [get]
 func (s *Server) listAlertChannels(c *gin.Context) {
 	var dbChannels []db.AlertChannel
-	if err := s.db.Where("type = ?", "webhook").Order("name ASC").Find(&dbChannels).Error; err != nil {
+	if err := s.db.Where("type IN ?", []string{"webhook", "email"}).Order("name ASC").Find(&dbChannels).Error; err != nil {
 		s.logger.Error("Failed to list alert channels", "error", err)
 		utils.InternalError(c, "Failed to list alert channels", err)
 		return
@@ -144,7 +144,7 @@ func (s *Server) listAlertChannels(c *gin.Context) {
 
 // createAlertChannel creates a persisted alert channel.
 // @Summary      Create alert channel
-// @Description  Create a generic webhook alert channel. Secret values are stored but never returned by the API.
+// @Description  Create a webhook or email alert channel. Email channels need SMTP configured and recipients confirmed via double opt-in. Secret values are stored but never returned by the API.
 // @Tags         alerts
 // @Accept       json
 // @Produce      json
@@ -308,6 +308,7 @@ func (s *Server) testAlertChannel(c *gin.Context) {
 // @Failure      500  {object}  utils.APIResponse
 // @Router       /v1/alerts/channels/{id} [delete]
 func (s *Server) deleteAlertChannel(c *gin.Context) {
+	_ = s.db.Where("channel_id = ?", c.Param("id")).Delete(&db.AlertChannelRecipient{}).Error
 	result := s.db.Where("id = ?", c.Param("id")).Delete(&db.AlertChannel{})
 	if result.Error != nil {
 		s.logger.Error("Failed to delete alert channel", "error", result.Error)

@@ -75,6 +75,10 @@ func (s *Server) dryRunAlertRules(c *gin.Context) {
 }
 func (s *Server) alertChannelResponse(channel db.AlertChannel) AlertChannelResponse {
 	response := AlertChannelResponse{ID: channel.ID, Name: channel.Name, Type: channel.Type, Enabled: channel.Enabled, WebhookURL: channel.WebhookURL, WebhookConfigured: channel.WebhookURL != "", WebhookSignatureConfigured: channel.WebhookSigningSecret != "", SubscribedEvents: db.DecodeAlertEvents(channel.SubscribedEvents), CreatedAt: channel.CreatedAt, UpdatedAt: channel.UpdatedAt}
+	if channel.Type == "email" {
+		s.db.Model(&db.AlertChannelRecipient{}).Where("channel_id = ?", channel.ID).Count(&response.RecipientCount)
+		s.db.Model(&db.AlertChannelRecipient{}).Where("channel_id = ? AND status = ?", channel.ID, "confirmed").Count(&response.ConfirmedRecipientCount)
+	}
 	var delivery db.AlertDelivery
 	result := s.db.Where("channel = ?", channel.Name).Order("created_at DESC").Limit(1).Find(&delivery)
 	if result.Error == nil && result.RowsAffected > 0 {
@@ -104,7 +108,7 @@ func (s *Server) ensureAlertRouteChannelsExist(route db.AlertRoute) error {
 		return nil
 	}
 	var channelCount int64
-	if err := s.db.Model(&db.AlertChannel{}).Where("id IN ? AND type = ?", channelIDs, "webhook").Count(&channelCount).Error; err != nil {
+	if err := s.db.Model(&db.AlertChannel{}).Where("id IN ? AND type IN ?", channelIDs, []string{"webhook", "email"}).Count(&channelCount).Error; err != nil {
 		return err
 	}
 	if int(channelCount) != len(channelIDs) {
@@ -118,7 +122,7 @@ func (s *Server) ensureAlertRuleWebhookChannelsExist(rule db.AlertRoute) error {
 		return nil
 	}
 	var channelCount int64
-	if err := s.db.Model(&db.AlertChannel{}).Where("id IN ? AND type = ?", channelIDs, "webhook").Count(&channelCount).Error; err != nil {
+	if err := s.db.Model(&db.AlertChannel{}).Where("id IN ? AND type IN ?", channelIDs, []string{"webhook", "email"}).Count(&channelCount).Error; err != nil {
 		return err
 	}
 	if int(channelCount) != len(channelIDs) {
@@ -260,6 +264,12 @@ func alertOptionalSecret(value *string) string {
 func validateAlertChannel(cfg *config.Config, channel db.AlertChannel) error {
 	if strings.TrimSpace(channel.Name) == "" {
 		return &requestValidationError{message: "alert channel name is required"}
+	}
+	if channel.Type == "email" {
+		if err := service.AlertEmailConfigured(cfg); err != nil {
+			return &requestValidationError{message: err.Error()}
+		}
+		return nil
 	}
 	if channel.Type != "webhook" {
 		return &requestValidationError{message: "unsupported alert channel type"}

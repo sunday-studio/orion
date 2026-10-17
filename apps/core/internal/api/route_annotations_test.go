@@ -14,12 +14,16 @@ import (
 // annotation (static assets, feeds, tokens in the path). Adding a route here
 // needs a reason; everything else must carry a @Router annotation.
 var undocumentedRoutes = map[string]string{
-	"POST /v1/heartbeats/:p":   "heartbeat ping, token in path",
-	"GET /":                    "SPA entry",
-	"GET /feed.atom":           "atom feed",
-	"GET /status/:p/feed.atom": "atom feed",
-	"GET /swagger/*any":        "swagger UI",
-	"GET /metrics":             "Prometheus text exposition, not JSON",
+	"POST /v1/heartbeats/:p":            "heartbeat ping, token in path",
+	"GET /":                             "SPA entry",
+	"GET /feed.atom":                    "atom feed",
+	"GET /status/:p/feed.atom":          "atom feed",
+	"GET /swagger/*any":                 "swagger UI",
+	"GET /alerts/email/confirm/:p":      "HTML opt-in page, signed token in path",
+	"POST /alerts/email/confirm/:p":     "HTML opt-in action, signed token in path",
+	"GET /alerts/email/unsubscribe/:p":  "HTML unsubscribe page, signed token in path",
+	"POST /alerts/email/unsubscribe/:p": "unsubscribe action and RFC 8058 one-click, signed token in path",
+	"GET /metrics":                      "Prometheus text exposition, not JSON",
 }
 
 var routerAnnotation = regexp.MustCompile(`@Router\s+(\S+)\s+\[(\w+)\]`)

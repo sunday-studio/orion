@@ -48,7 +48,7 @@ func TestAppDispatchAlertsProcessesDueDeliveries(t *testing.T) {
 	}
 	// A retired channel type is suppressed by the dispatcher without any network I/O,
 	// which proves the Worker actually drives ProcessDueDeliveries.
-	delivery := db.AlertDelivery{ID: "delivery-1", IncidentID: "incident-1", EventType: "incident_opened", Channel: "legacy", Type: "email", Status: "pending", MaxAttempts: 3}
+	delivery := db.AlertDelivery{ID: "delivery-1", IncidentID: "incident-1", EventType: "incident_opened", Channel: "legacy", Type: "slack", Status: "pending", MaxAttempts: 3}
 	if err := database.Create(&delivery).Error; err != nil {
 		t.Fatalf("create delivery: %v", err)
 	}
@@ -118,7 +118,7 @@ func TestAppSweepWaitsForBootGraceAfterStart(t *testing.T) {
 func TestDispatchAlertsAsyncDoesNotBlockAndNeverOverlaps(t *testing.T) {
 	database := openWorkerMigratedTestDatabase(t)
 	app := NewApp(database, utils.NewLogger(), Options{Config: &config.Config{}})
-	delivery := db.AlertDelivery{ID: "slow", IncidentID: "i", EventType: "incident_opened", Channel: "legacy", Type: "email", Status: "pending", MaxAttempts: 3}
+	delivery := db.AlertDelivery{ID: "slow", IncidentID: "i", EventType: "incident_opened", Channel: "legacy", Type: "slack", Status: "pending", MaxAttempts: 3}
 	database.Create(&delivery)
 
 	app.dispatching.Store(true) // a pass is already running

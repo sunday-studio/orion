@@ -52,6 +52,14 @@ type Config struct {
 	PublicStatusMailReplyTo        string
 	PublicStatusURLOrigin          string
 	PublicStatusSubscriberSecret   string
+	PublicURL                      string
+	AlertSMTPHost                  string
+	AlertSMTPPort                  int
+	AlertSMTPUsername              string
+	AlertSMTPPassword              string
+	AlertSMTPFrom                  string
+	AlertSMTPTLS                   string // starttls | tls | none
+	AlertEmailSecret               string
 }
 
 // Load reads configuration from environment variables.
@@ -106,6 +114,14 @@ func Load() *Config {
 		PublicStatusMailReplyTo:        getEnv("ORION_PUBLIC_STATUS_MAIL_REPLY_TO", ""),
 		PublicStatusURLOrigin:          getEnv("ORION_PUBLIC_STATUS_URL_ORIGIN", ""),
 		PublicStatusSubscriberSecret:   getEnv("ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET", ""),
+		PublicURL:                      strings.TrimRight(strings.TrimSpace(os.Getenv("ORION_PUBLIC_URL")), "/"),
+		AlertSMTPHost:                  getEnv("ORION_ALERT_SMTP_HOST", ""),
+		AlertSMTPPort:                  getEnvInt("ORION_ALERT_SMTP_PORT", 587),
+		AlertSMTPUsername:              getEnv("ORION_ALERT_SMTP_USERNAME", ""),
+		AlertSMTPPassword:              getEnvOrFile("ORION_ALERT_SMTP_PASSWORD"),
+		AlertSMTPFrom:                  getEnv("ORION_ALERT_SMTP_FROM", ""),
+		AlertSMTPTLS:                   strings.ToLower(getEnv("ORION_ALERT_SMTP_TLS", "starttls")),
+		AlertEmailSecret:               getEnvOrFile("ORION_ALERT_EMAIL_SECRET"),
 	}
 }
 
@@ -381,4 +397,18 @@ func getEnvList(key string, fallback []string) []string {
 		return fallback
 	}
 	return items
+}
+
+// getEnvOrFile returns KEY, or the trimmed contents of the file named by KEY_FILE
+// (Docker/Kubernetes secrets). The direct variable wins when both are set.
+func getEnvOrFile(key string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	if path := strings.TrimSpace(os.Getenv(key + "_FILE")); path != "" {
+		if data, err := os.ReadFile(path); err == nil {
+			return strings.TrimSpace(string(data))
+		}
+	}
+	return ""
 }
