@@ -64,7 +64,18 @@ export const ChannelRecipientsDrawer = ({
       onError: () => toast.add({ title: "Unable to add recipient" }),
     },
   });
-  const removeRecipient = useRemoveAlertChannelRecipient({ mutation: { onSuccess: refresh } });
+  const removeRecipient = useRemoveAlertChannelRecipient({
+    mutation: {
+      onSuccess: refresh,
+      onError: () => {
+        refresh();
+        toast.add({
+          title: "Unable to remove recipient",
+          description: "They still receive alerts.",
+        });
+      },
+    },
+  });
   const resendRecipient = useResendAlertChannelRecipient({
     mutation: {
       onSuccess: () => toast.add({ title: "Confirmation email resent" }),

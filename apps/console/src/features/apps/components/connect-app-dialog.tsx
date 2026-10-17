@@ -1,9 +1,10 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { getApiBase } from "@/api/client";
 import {
   Button,
+  Checkbox,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -38,6 +39,11 @@ export const ConnectAppDialog = ({ open, onOpenChange }: ConnectAppDialogProps) 
   const [appId, setAppId] = useState<string>();
   const [secret, setSecret] = useState<string>();
   const [error, setError] = useState("");
+  const [stored, setStored] = useState(false);
+  // Bumped on close so an in-flight create cannot update a dialog that was closed and reopened.
+  const session = useRef(0);
+  // The app survives a failed key request so a retry only creates the key.
+  const createdAppId = useRef<string | undefined>(undefined);
   const createApp = useCreateApp();
   const createKey = useCreateIngestKey();
 
@@ -51,27 +57,46 @@ export const ConnectAppDialog = ({ open, onOpenChange }: ConnectAppDialogProps) 
 
   const submit = async () => {
     setError("");
+    const token = session.current;
     try {
-      const appResponse = await createApp.mutateAsync({ data: { name: name.trim() } });
-      const id = appResponse.app?.id;
-      if (!id) throw new Error("App was not created.");
+      let id = createdAppId.current;
+      if (!id) {
+        const appResponse = await createApp.mutateAsync({ data: { name: name.trim() } });
+        id = appResponse.app?.id;
+        if (!id) throw new Error("App was not created.");
+        createdAppId.current = id;
+      }
       const keyResponse = await createKey.mutateAsync({ id, data: { name: "first key" } });
+      if (token !== session.current) return;
       setAppId(id);
       setSecret(keyResponse.key?.key);
       setStep("snippet");
       void queryClient.invalidateQueries({ queryKey: getListAppsQueryKey() });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to create the app.");
+      if (token !== session.current) return;
+      const reason = err instanceof Error ? err.message : "Unable to create the app.";
+      setError(
+        createdAppId.current
+          ? `The app was created but its key was not: ${reason} Try again to create the key.`
+          : reason,
+      );
     }
   };
 
+  const canClose = step === "create" || stored;
+
   const close = (next: boolean) => {
     if (!next) {
+      // The key is shown once, so keep the dialog open until the user confirms they saved it.
+      if (!canClose) return;
+      session.current += 1;
+      createdAppId.current = undefined;
       setStep("create");
       setName("");
       setSecret(undefined);
       setAppId(undefined);
       setError("");
+      setStored(false);
     }
     onOpenChange(next);
   };
@@ -117,6 +142,14 @@ export const ConnectAppDialog = ({ open, onOpenChange }: ConnectAppDialogProps) 
         ) : (
           <div className="space-y-4">
             {secret && <KeyReveal secret={secret} onDone={() => undefined} hideDone />}
+            <label className="flex items-center gap-2 text-[13px]">
+              <Checkbox
+                aria-label="I stored the key"
+                checked={stored}
+                onCheckedChange={(next) => setStored(Boolean(next))}
+              />
+              I stored the key somewhere safe
+            </label>
             {secret && (
               <pre
                 aria-label="Example request"
@@ -140,7 +173,11 @@ export const ConnectAppDialog = ({ open, onOpenChange }: ConnectAppDialogProps) 
                   View logs
                 </Link>
               )}
-              <Button variant={received ? "primary" : "secondary"} onClick={() => close(false)}>
+              <Button
+                variant={received ? "primary" : "secondary"}
+                disabled={!canClose}
+                onClick={() => close(false)}
+              >
                 {received ? "Done" : "Close"}
               </Button>
             </DialogFooter>

@@ -50,12 +50,21 @@ export const AppDetailDrawer = ({ app, onOpenChange }: AppDetailDrawerProps) => 
       },
     },
   });
-  const revokeKey = useRevokeIngestKey({ mutation: { onSuccess: refreshKeys } });
+  const revokeKey = useRevokeIngestKey({
+    mutation: {
+      onSuccess: refreshKeys,
+      onError: () => {
+        refreshKeys();
+        toast.add({ title: "Unable to revoke key", description: "The key is still active." });
+      },
+    },
+  });
   const testLog = useSendAppTestLog({
     mutation: {
       onSuccess: () =>
         toast.add({ title: "Test log sent", description: "It should appear in Logs shortly." }),
-      onError: () => toast.add({ title: "Test log failed", description: "Check the app and key." }),
+      onError: () =>
+        toast.add({ title: "Test log failed", description: "Core could not store the test log." }),
     },
   });
 
@@ -98,7 +107,11 @@ export const AppDetailDrawer = ({ app, onOpenChange }: AppDetailDrawerProps) => 
               Create key
             </Button>
           </form>
-          {createKey.isError && <p className="text-xs text-destructive">Unable to create key.</p>}
+          {createKey.isError && (
+            <p role="alert" className="text-xs text-destructive">
+              {createKey.error instanceof Error ? createKey.error.message : "Unable to create key."}
+            </p>
+          )}
 
           {keysQuery.isLoading ? (
             <Skeleton className="h-8 w-full" />

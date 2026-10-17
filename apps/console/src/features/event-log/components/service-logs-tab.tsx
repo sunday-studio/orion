@@ -79,7 +79,6 @@ export const ServiceLogsTab = () => {
   const appsQuery = useListApps();
   const apps = useMemo(() => appsQuery.data?.apps ?? [], [appsQuery.data]);
   const table = useDataTableUrlState({ fields: urlFields, limit: PAGE_SIZE, prefix: "app" });
-  const [cursors, setCursors] = useState<string[]>([]);
   const [selected, setSelected] = useState<ApiLogEntry>();
 
   const fields = useMemo<readonly DataTableFilterField[]>(
@@ -105,6 +104,15 @@ export const ServiceLogsTab = () => {
     severity: filterParam(urlFields[3], table.values.severity),
     from: table.values.window || "-1h",
   };
+  // Cursors belong to one filter set; any change to the filters (including Clear and history
+  // navigation) starts again from the first page.
+  const filterKey = JSON.stringify(filters);
+  const [paging, setPaging] = useState<{ key: string; cursors: string[] }>({
+    key: filterKey,
+    cursors: [],
+  });
+  const cursors = paging.key === filterKey ? paging.cursors : [];
+  const setCursors = (next: string[]) => setPaging({ key: filterKey, cursors: next });
   const query = useSearchLogs({
     ...filters,
     limit: PAGE_SIZE,
@@ -112,12 +120,9 @@ export const ServiceLogsTab = () => {
   } satisfies SearchLogsParams);
   const entries = query.data?.entries ?? [];
   const nextCursor = query.data?.next_cursor;
-  const hasApps = apps.length > 0;
+  const hasApps = apps.length > 0 || !appsQuery.isSuccess;
 
-  const setFilter = (key: string, value: string) => {
-    setCursors([]);
-    table.setFilter(key, value);
-  };
+  const setFilter = table.setFilter;
 
   if (
     !hasApps &&

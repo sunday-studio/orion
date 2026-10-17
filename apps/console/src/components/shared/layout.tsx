@@ -15,7 +15,7 @@ export const Layout = () => {
         <GlobalShortcuts />
         <OfflineBanner />
 
-        <div className="min-h-0 flex-1 overflow-y-auto bg-white">
+        <div className="min-h-0 flex-1 overflow-y-auto bg-page">
           <main className="mx-auto flex w-full max-w-[1040px] flex-col gap-6 px-4 pt-10 pb-8 sm:px-6">
             <Suspense fallback={<div className="py-3 text-sm text-neutral-600">Loading...</div>}>
               <RouteErrorBoundary key={pathname}>
