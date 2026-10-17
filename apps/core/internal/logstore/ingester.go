@@ -181,6 +181,9 @@ func (i *Ingester) ingestParsed(app *AppContext, parsed Parsed, now time.Time) (
 		kept = append(kept, entry)
 	}
 	if err := i.store.Enqueue(kept); err != nil {
+		if errors.Is(err, ErrStorageFull) {
+			return Result{}, err
+		}
 		return Result{}, &RateLimitedError{RetryAfter: time.Second}
 	}
 	result.Accepted += len(kept)
