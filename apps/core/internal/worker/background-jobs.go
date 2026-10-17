@@ -56,6 +56,13 @@ func (a *App) sweepSilentMonitors() {
 	if flagged > 0 {
 		a.logger.Warn("Core worker flagged silent monitors as stale", "count", flagged)
 	}
+	offline, err := a.incidents.SweepSilentAgents(time.Now().UTC())
+	if err != nil {
+		a.logger.Error("Core worker silent agent sweep failed", "error", err)
+	}
+	if offline > 0 {
+		a.logger.Warn("Core worker flagged silent agents as offline", "count", offline)
+	}
 }
 
 // dispatchAlerts sends due alert deliveries (new, retried and delayed summaries).
