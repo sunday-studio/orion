@@ -1,9 +1,13 @@
-import { DataTable } from "@/components/shared/data-table";
-import { type DataTableFilterField, filterParam } from "@/components/shared/data-table-schema";
-import { DataTableToolbar } from "@/components/shared/data-table-toolbar";
-import { useDataTableUrlState } from "@/components/shared/use-data-table-url-state";
-import { StatusBadge } from "@/components/shared/status-badges";
-import { Button } from "@/components/ui/button";
+import {
+  Button,
+  ConfirmDialog,
+  DataTable,
+  type DataTableFilterField,
+  FilterBar,
+  StatusBadge,
+  filterParam,
+  useDataTableUrlState,
+} from "@/design-system";
 import {
   type ApiStatusPageSubscriberAdminResponse,
   useAnonymizeStatusPageSubscriber,
@@ -14,7 +18,6 @@ import {
 import { ShieldX, Trash2, UserX } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useState } from "react";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import {
   formatDateTime,
   subscriberBadgeStatus,
@@ -110,10 +113,9 @@ export const StatusPageSubscribersTab = ({ pageId }: { pageId: string }) => {
       accessorKey: "state",
       header: "State",
       cell: ({ row }) => (
-        <StatusBadge
-          fallback={row.original.state}
-          value={subscriberBadgeStatus(row.original.state)}
-        />
+        <StatusBadge status={subscriberBadgeStatus(row.original.state)}>
+          {row.original.state}
+        </StatusBadge>
       ),
     },
     {
@@ -169,7 +171,8 @@ export const StatusPageSubscribersTab = ({ pageId }: { pageId: string }) => {
               disabled={isMutating || subscriber.state === "disabled"}
               onClick={() => disable(subscriber)}
               type="button"
-              variant="outline"
+              variant="secondary"
+              size="sm"
             >
               <UserX className="size-4" />
               Disable
@@ -178,7 +181,8 @@ export const StatusPageSubscribersTab = ({ pageId }: { pageId: string }) => {
               disabled={isMutating || subscriber.masked_destination === "anonymized"}
               onClick={() => anonymize(subscriber)}
               type="button"
-              variant="outline"
+              variant="secondary"
+              size="sm"
             >
               <ShieldX className="size-4" />
               Anonymize
@@ -187,7 +191,8 @@ export const StatusPageSubscribersTab = ({ pageId }: { pageId: string }) => {
               disabled={isMutating}
               onClick={() => hardDelete(subscriber)}
               type="button"
-              variant="outline"
+              variant="secondary"
+              size="sm"
             >
               <Trash2 className="size-4" />
               Delete
@@ -206,24 +211,26 @@ export const StatusPageSubscribersTab = ({ pageId }: { pageId: string }) => {
           {subscribersResponse.data?.count ?? 0} matching records
         </p>
       </div>
-      <DataTableToolbar
+      <FilterBar
         fields={subscriberFields}
         values={table.values}
         onChange={table.setFilter}
         onClear={table.clearFilters}
       />
 
-      {subscribersResponse.isError && <div className="text-sm">Unable to load subscribers.</div>}
-      {!subscribersResponse.isError && (
-        <DataTable
-          columns={columns}
-          data={subscribers}
-          emptyMessage="No subscribers. Confirmed public subscribers will appear here with masked destinations."
-          getRowId={(subscriber, index) => subscriber.id ?? `subscriber-${index}`}
-          isLoading={subscribersResponse.isLoading}
-          loadingMessage="Loading subscribers..."
-        />
-      )}
+      <DataTable
+        columns={columns}
+        data={subscribers}
+        emptyMessage="No subscribers. Confirmed public subscribers will appear here with masked destinations."
+        getRowId={(subscriber, index) => subscriber.id ?? `subscriber-${index}`}
+        isLoading={subscribersResponse.isLoading}
+        error={
+          subscribersResponse.isError
+            ? { message: "Unable to load subscribers", onRetry: refreshSubscribers }
+            : undefined
+        }
+        onResetFilters={table.hasFilters ? table.clearFilters : undefined}
+      />
 
       <ConfirmDialog
         open={pendingAction !== null}
