@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>System states</title><link rel="stylesheet" href="orion.css"></head>
+<body><style>body{margin:0}.g2{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;padding:32px}.g2>div{border:1px solid var(--bd);min-height:240px;overflow:hidden}.g2 h4{margin:0;padding:8px 12px;font-size:12px;font-weight:500;background:var(--sub);border-bottom:1px solid var(--bd);color:var(--mu)}</style>
+<div class="app light" style="width:1280px;height:1100px;flex-direction:column;background:var(--bg)">
+<div style="padding:32px 32px 0"><h1 class="pt">System states</h1><div class="mu">Every list, table and detail screen ships with these.</div></div>
+<div class="g2">
+<div><h4>Loading, table</h4><div class="col" style="padding:16px"><div class="sk"></div><div class="sk" style="width:80%"></div><div class="sk"></div><div class="sk" style="width:60%"></div></div></div>
+<div><h4>Empty, first use</h4><div class="empty"><div class="dia"></div><b>No monitors yet</b><span class="mu">Create a monitor to start checking a URL, port or job.</span><a href="#" class="btn p" style="margin-top:8px">New monitor</a></div></div>
+<div><h4>Empty, filters applied</h4><div class="empty"><div class="dia"></div><b>No matches</b><span class="mu">No incidents match these filters.</span><a href="#" class="btn" style="margin-top:8px">Clear filters</a></div></div>
+<div><h4>Error</h4><div class="empty" style="background:var(--dn);margin:12px;border:1px solid var(--dnx)"><div class="dia" style="color:var(--dnx)"></div><b>Could not load incidents</b><span class="mu">Core returned an error. Try again in a moment.</span><a href="#" class="btn" style="margin-top:8px">Retry</a></div></div>
+<div><h4>Offline banner</h4><div class="col" style="padding:12px"><div class="callout dg">Lost connection to Core. Showing data from 14:31. Retrying.</div></div></div>
+<div><h4>404</h4><div class="empty"><div class="ser" style="font-size:56px;line-height:1">404</div><b>We could not find that page</b><a href="#" class="btn" style="margin-top:8px">Go to overview</a></div></div>
+<div><h4>Core unreachable, full page</h4><div class="empty"><div class="dia" style="color:var(--dnx)"></div><b>Cannot reach Core</b><span class="mu">Check that Core is running at core.example.com.</span></div></div>
+<div><h4>Toast</h4><div class="col" style="padding:16px"><div class="card row" style="background:var(--ink);color:var(--onink)">Incident acknowledged</div><div class="callout dn">Test failed: 502 from webhook</div></div></div>
+<div><h4>Status badges, all</h4><div class="row wrap" style="padding:16px"><span class="b up">Up</span><span class="b down">Down</span><span class="b deg">Degraded</span><span class="b unk">Unknown</span><span class="b mnt">Maintenance</span><span class="b stale">Stale</span><span class="b open">Open</span><span class="b ack">Acknowledged</span><span class="b cov">Covered</span><span class="b res">Resolved</span></div></div>
+</div></div>
+</body></html>
