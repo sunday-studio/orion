@@ -32,6 +32,8 @@ type Config struct {
 	AlertAllowPrivateWebhooks      bool
 	TrustedProxies                 []string
 	EnableSwagger                  bool
+	MetricsToken                   string
+	DeadManURL                     string
 	RegisterRateLimitPerMinute     int
 	LoginRateLimitAttempts         int
 	LoginRateLimitWindowSecs       int
@@ -82,6 +84,8 @@ func Load() *Config {
 		AlertAllowPrivateWebhooks:      getEnvBool("ORION_ALERT_ALLOW_PRIVATE_WEBHOOKS", false),
 		TrustedProxies:                 getEnvList("ORION_TRUSTED_PROXIES", nil),
 		EnableSwagger:                  getEnvBool("ORION_ENABLE_SWAGGER", false),
+		MetricsToken:                   os.Getenv("ORION_METRICS_TOKEN"),
+		DeadManURL:                     strings.TrimSpace(os.Getenv("ORION_DEADMAN_URL")),
 		RegisterRateLimitPerMinute:     getEnvInt("ORION_REGISTER_RATE_LIMIT_PER_MINUTE", 30),
 		LoginRateLimitAttempts:         getEnvInt("ORION_LOGIN_RATE_LIMIT_ATTEMPTS", 5),
 		LoginRateLimitWindowSecs:       getEnvInt("ORION_LOGIN_RATE_LIMIT_WINDOW_SECONDS", 60),

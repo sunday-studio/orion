@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"orion/core/internal/db"
+	"orion/core/internal/testkit"
 	"orion/core/internal/utils"
 	"sync"
 	"sync/atomic"
@@ -48,7 +49,7 @@ func slowFastClient(slow time.Duration, current, peak *atomic.Int32, calls *sync
 
 // ORB-023: slow targets run in parallel up to a bound; a fast check is not stuck behind them.
 func TestSlowTargetsDoNotDelayFastCheckAndConcurrencyIsBounded(t *testing.T) {
-	database := openWorkerMigratedTestDatabase(t)
+	database := testkit.NewDB(t)
 	insertWorkerCoreOwner(t, database)
 	var current, peak atomic.Int32
 	var calls sync.Map
@@ -93,7 +94,7 @@ func TestSlowTargetsDoNotDelayFastCheckAndConcurrencyIsBounded(t *testing.T) {
 
 // A check slower than its lease keeps the lease alive and is not run twice.
 func TestLeaseIsRenewedWhileLongCheckRuns(t *testing.T) {
-	database := openWorkerMigratedTestDatabase(t)
+	database := testkit.NewDB(t)
 	insertWorkerCoreOwner(t, database)
 	var current, peak atomic.Int32
 	var calls sync.Map
@@ -121,7 +122,7 @@ func TestLeaseIsRenewedWhileLongCheckRuns(t *testing.T) {
 }
 
 func TestShutdownWaitsForInflightChecksAndReleasesLeases(t *testing.T) {
-	database := openWorkerMigratedTestDatabase(t)
+	database := testkit.NewDB(t)
 	insertWorkerCoreOwner(t, database)
 	var current, peak atomic.Int32
 	var calls sync.Map
