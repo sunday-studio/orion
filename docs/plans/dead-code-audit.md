@@ -19,7 +19,7 @@ Scope notes:
 | Path or symbol | Evidence of non-use | Confidence | Action | Risk |
 |---|---|---|---|---|
 | `apps/core/web/assets/index-COhy5PCK.js`, `index-ScSJFViZ.css` | Tracked although `apps/core/web/assets/` is gitignored; `index.html` is not tracked, so they are an orphaned stale build; `make build-static` wipes and regenerates `apps/core/web`; nothing references the hashed names | High | delete (untrack) | Low |
-| `deploy/examples/core-console-compose` | Byte-identical to `core-console-compose.yaml` (diff clean); CI path filter and docs use the `.yaml`; one doc line uses the extensionless name | High | delete, point doc at `.yaml` | Low |
+| `deploy/examples/core-console-compose` (symlink) | Symlink alias to `core-console-compose.yaml` (git mode 120000); CI path filter and docs use the `.yaml`; one doc line uses the extensionless name | High | delete, point doc at `.yaml` | Low |
 | `internal/service` `core-monitor-validation-service.go`: `validateCoreManagedMonitorConfig`, `ValidateCoreManagedMonitorConfig` and 20 `validateCore*MonitorConfig`/`*WithPolicy` wrappers | `deadcode` + `staticcheck U1000`: unreachable, only referenced by each other; the live path is `validateCoreManagedMonitorConfigWithPolicy` | High | delete wrappers (keep ones still referenced) | Low |
 | `internal/api` `Server.alertDryRunEventFromRequest` | U1000 + deadcode, no callers | High | delete | Low |
 | `internal/api` `startAPITestSMTPServer` (test helper) | U1000 + deadcode, no callers | High | delete | Low |
