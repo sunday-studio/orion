@@ -1,19 +1,12 @@
+import { Plus } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { getUsername } from "@/api/client";
 import { Button, EmptyState, FieldPanel, PageHeader, RaisedCard, Skeleton } from "@/design-system";
-import { Plus } from "lucide-react";
-import {
-  useGetAgentSummary,
-  useGetHealthIssues,
-  useGetHealthSummary,
-  useGetIncidents,
-} from "@/orion-sdk";
+import { useGetHealthIssues, useGetMe, useGetOverview } from "@/orion-sdk";
 import { AttentionBox, OngoingBox, RecentIncidentsBox, StatColumn } from "./overview-boxes";
-import { ACTIVE_INCIDENT_PARAMS } from "./overview-queries";
 import { OverviewFirstRun, isFirstRunDismissed } from "./overview-first-run";
+import { NeedsYouNow } from "./needs-you-now";
 import { formatHeaderDate, useNow } from "./overview-time";
-import { NeedsYouNow, mostSevere } from "./needs-you-now";
 
 const checkedAgo = (now: number, updatedAt: number) => {
   const seconds = Math.max(1, Math.round((now - (updatedAt || now)) / 1000));
@@ -23,30 +16,27 @@ const checkedAgo = (now: number, updatedAt: number) => {
 export const OverviewPage = () => {
   const now = useNow(1000);
   const [dismissed, setDismissed] = useState(isFirstRunDismissed);
-  const summary = useGetHealthSummary();
-  const agentSummary = useGetAgentSummary();
+  const overview = useGetOverview();
+  const me = useGetMe();
   const issues = useGetHealthIssues();
-  const active = useGetIncidents(ACTIVE_INCIDENT_PARAMS);
-  const resolved = useGetIncidents({ status: "resolved", limit: 3 });
 
-  const monitors = summary.data?.monitors;
-  const monitorTotal = monitors?.total ?? 0;
-  const serverTotal = agentSummary.data?.total ?? summary.data?.agents?.total ?? 0;
-  const isEmpty = summary.isSuccess && monitorTotal === 0 && serverTotal === 0;
-  const failed = summary.isError || active.isError || issues.isError;
-  const loading = summary.isLoading || active.isLoading || issues.isLoading;
+  const data = overview.data;
+  const stats = data?.stats;
+  const username = me.data?.username || "admin";
 
-  if (isEmpty && !dismissed) return <OverviewFirstRun onDismiss={() => setDismissed(true)} />;
+  if (data?.state === "empty" && !dismissed) {
+    return <OverviewFirstRun onDismiss={() => setDismissed(true)} />;
+  }
 
-  const activeIncidents = active.data?.incidents ?? [];
-  const top = mostSevere(activeIncidents.filter((incident) => incident.status === "open"));
+  const ongoing = data?.ongoing_incidents ?? [];
+  const recent = data?.recent_incidents ?? [];
   const issueList = issues.data?.issues ?? [];
-  const allClear = !loading && !failed && activeIncidents.length === 0 && issueList.length === 0;
+  const allClear = data?.state === "ok" && !data.needs_you && issueList.length === 0;
 
   return (
     <div>
       <PageHeader
-        title={`How is it going, ${getUsername()}?`}
+        title={`How is it going, ${username}?`}
         description={formatHeaderDate(now)}
         actions={
           <Link to="/monitors?new=1">
@@ -56,21 +46,13 @@ export const OverviewPage = () => {
           </Link>
         }
       />
-      {failed ? (
+      {overview.isError ? (
         <EmptyState
           className="mt-3"
           tone="error"
           title="Unable to load the overview"
           action={
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => {
-                void summary.refetch();
-                void active.refetch();
-                void issues.refetch();
-              }}
-            >
+            <Button size="sm" variant="secondary" onClick={() => void overview.refetch()}>
               Retry
             </Button>
           }
@@ -78,48 +60,50 @@ export const OverviewPage = () => {
       ) : (
         <div className="mt-3 grid grid-cols-[minmax(0,1fr)_300px] items-start gap-4 max-lg:grid-cols-1">
           <div className="flex flex-col gap-3">
-            {loading ? (
+            {overview.isLoading ? (
               <Skeleton className="h-40 w-full rounded-[14px]" />
-            ) : top ? (
-              <NeedsYouNow incident={top} now={now} />
+            ) : data?.needs_you ? (
+              <NeedsYouNow incident={data.needs_you} now={now} />
             ) : (
               allClear && (
                 <FieldPanel
                   title="All systems normal"
-                  aside={checkedAgo(now, summary.dataUpdatedAt)}
+                  aside={checkedAgo(now, overview.dataUpdatedAt)}
                 >
                   <RaisedCard className="flex items-center gap-2.5 px-4 py-3.5 text-sm font-medium">
                     <span aria-hidden className="size-2 rounded-full bg-[#2a9f69]" />
-                    {monitorTotal} monitors passing, {serverTotal} servers reporting
+                    {stats?.monitors_total ?? 0} monitors passing, {stats?.servers_reporting ?? 0}{" "}
+                    servers reporting
                   </RaisedCard>
                 </FieldPanel>
               )
             )}
             {issueList.length > 0 && (
-              <AttentionBox issues={issueList} total={issues.data?.count ?? issueList.length} />
+              <AttentionBox
+                issues={issueList}
+                total={data?.health_issue_count ?? issues.data?.count ?? issueList.length}
+              />
             )}
-            {activeIncidents.length > 0 && (
+            {ongoing.length > 0 && (
               <OngoingBox
-                incidents={activeIncidents}
-                count={active.data?.count ?? 0}
+                incidents={ongoing}
+                count={data?.ongoing_incident_count ?? ongoing.length}
                 now={now}
-                topId={top?.id}
+                topId={data?.needs_you?.id}
               />
             )}
           </div>
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-2.5">
               <StatColumn
-                monitorsUp={monitors?.up ?? 0}
-                monitorsTotal={monitorTotal}
-                serversUp={agentSummary.data?.up ?? 0}
-                serversTotal={serverTotal}
-                openIncidents={active.data?.count ?? activeIncidents.length}
+                monitorsUp={stats?.monitors_up ?? 0}
+                monitorsTotal={stats?.monitors_total ?? 0}
+                serversUp={stats?.servers_reporting ?? 0}
+                serversTotal={stats?.servers_total ?? 0}
+                openIncidents={data?.ongoing_incident_count ?? ongoing.length}
               />
             </div>
-            {(resolved.data?.incidents ?? []).length > 0 && (
-              <RecentIncidentsBox incidents={resolved.data?.incidents ?? []} now={now} />
-            )}
+            {recent.length > 0 && <RecentIncidentsBox incidents={recent} now={now} />}
           </div>
         </div>
       )}

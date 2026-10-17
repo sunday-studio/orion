@@ -3,8 +3,7 @@ import { NavLink } from "react-router-dom";
 import { getToken } from "@/api/client";
 import { AccountMenu } from "@/components/shared/account-menu";
 import { OPEN_PALETTE_EVENT } from "@/components/shared/global-shortcut-events";
-import { ACTIVE_INCIDENT_PARAMS } from "@/features/overview/overview-queries";
-import { useGetHealthIssues, useGetHealthSummary, useGetIncidents } from "@/orion-sdk";
+import { useGetOverview } from "@/orion-sdk";
 import { cn } from "@/utils/cn";
 
 const navItems = [
@@ -40,22 +39,17 @@ const LogoMark = () => (
 type HealthChip = { text: string; dot: string };
 
 const useHealthChip = (): HealthChip => {
-  const summary = useGetHealthSummary();
-  const issues = useGetHealthIssues();
-  const incidents = useGetIncidents(ACTIVE_INCIDENT_PARAMS);
-  const monitorTotal = summary.data?.monitors?.total ?? 0;
-  const agentTotal = summary.data?.agents?.total ?? 0;
-  // The chip counts open incidents; health issues stand in until an incident exists.
-  const issueCount =
-    incidents.data?.count ?? incidents.data?.incidents?.length ?? issues.data?.count ?? 0;
-
-  if (summary.isSuccess && monitorTotal === 0 && agentTotal === 0) {
-    return { text: "No data yet", dot: "bg-faint" };
+  const overview = useGetOverview();
+  const data = overview.data;
+  if (data?.state === "empty") return { text: "No data yet", dot: "bg-faint" };
+  const count = data?.ongoing_incident_count ?? 0;
+  if (count > 0)
+    return { text: `${count} ${count === 1 ? "issue" : "issues"}`, dot: "bg-[#f59e0b]" };
+  if ((data?.health_issue_count ?? 0) > 0) {
+    const issues = data?.health_issue_count ?? 0;
+    return { text: `${issues} ${issues === 1 ? "issue" : "issues"}`, dot: "bg-[#f59e0b]" };
   }
-  if (issueCount > 0) {
-    return { text: `${issueCount} ${issueCount === 1 ? "issue" : "issues"}`, dot: "bg-[#f59e0b]" };
-  }
-  if (summary.isLoading) return { text: "Checking...", dot: "bg-faint" };
+  if (overview.isLoading) return { text: "Checking...", dot: "bg-faint" };
   return { text: "All systems normal", dot: "bg-[#2a9f69]" };
 };
 
