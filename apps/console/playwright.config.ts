@@ -8,6 +8,8 @@ export default defineConfig({
   fullyParallel: false,
   reporter: "list",
   workers: 1,
+  // Core can briefly return "database is locked" under seed-time writes; retry in CI only.
+  retries: process.env.CI ? 2 : 0,
   use: {
     baseURL: consoleURL,
     trace: "retain-on-failure",
