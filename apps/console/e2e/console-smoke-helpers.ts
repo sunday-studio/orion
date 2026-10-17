@@ -12,7 +12,7 @@ export const signIn = async (page: Page) => {
   await page.getByPlaceholder("Username").fill(username);
   await page.getByPlaceholder("Password").fill(password);
   await page.getByRole("button", { name: "Enter" }).click();
-  await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /How is it going/ })).toBeVisible();
 };
 
 export const authHeaders = async (page: Page) => {

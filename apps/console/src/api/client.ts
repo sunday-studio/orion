@@ -11,6 +11,22 @@ export function getToken(): string | null {
   return localStorage.getItem(AUTH_TOKEN_KEY);
 }
 
+export function getUsername(): string {
+  try {
+    return localStorage.getItem("orion_username") || "admin";
+  } catch {
+    return "admin";
+  }
+}
+
+export function setUsername(username: string): void {
+  try {
+    localStorage.setItem("orion_username", username);
+  } catch {
+    // The greeting falls back to "admin".
+  }
+}
+
 export function setToken(token: string): void {
   localStorage.setItem(AUTH_TOKEN_KEY, token);
 }
@@ -145,5 +161,6 @@ export async function authLogin(username: string, password: string): Promise<{ t
   });
   if (!res.token) throw new Error("Login failed");
   setToken(res.token);
+  setUsername(username);
   return res;
 }

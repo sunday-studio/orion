@@ -12,7 +12,7 @@ test("signs in, rejects bad credentials, and signs out", async ({ page }) => {
 
   await page.getByPlaceholder("Password").fill(password);
   await page.getByRole("button", { name: "Enter" }).click();
-  await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /How is it going/ })).toBeVisible();
 
   await page.getByRole("button", { name: "Account menu" }).click();
   await page.getByRole("menuitem", { name: "Sign out" }).click();
@@ -103,16 +103,13 @@ test("renders a not-found page for unknown routes", async ({ page }) => {
   await expect(page.getByText("Page not found")).toBeVisible();
 });
 
-test("shows the overview landing page and dismisses onboarding", async ({ page }) => {
+test("shows the overview landing page with live health data", async ({ page }) => {
   await signIn(page);
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByLabel("Health summary")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Open incidents" })).toBeVisible();
-  await expect(page.getByLabel("Getting started")).toBeVisible();
-  await page.getByRole("button", { name: "Dismiss" }).click();
-  await expect(page.getByLabel("Getting started")).toHaveCount(0);
-  await page.reload();
-  await expect(page.getByLabel("Getting started")).toHaveCount(0);
+  await expect(page.getByText("Monitors up")).toBeVisible();
+  await expect(page.getByText("Servers up")).toBeVisible();
+  await expect(page.getByText("Open incidents", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Needs you now" })).toBeVisible();
 });
 
 test("opens the command palette and shortcuts sheet from the keyboard", async ({ page }) => {

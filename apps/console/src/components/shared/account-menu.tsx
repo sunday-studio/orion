@@ -2,7 +2,6 @@ import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/desig
 import { LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { clearToken } from "@/api/client";
-import { RadialAvatar } from "@/components/shared/radial-avatar";
 import { OPEN_SHORTCUTS_EVENT } from "@/components/shared/global-shortcut-events";
 
 export const AccountMenu = () => {
@@ -19,7 +18,11 @@ export const AccountMenu = () => {
         aria-label="Account menu"
         className="flex size-8 items-center justify-center rounded-full"
       >
-        <RadialAvatar seed="casprin-eSs" />
+        <span
+          aria-hidden
+          className="block size-6 rounded-full"
+          style={{ background: "conic-gradient(from 40deg, #6366f1, #14b8a6, #f59e0b, #6366f1)" }}
+        />
       </MenuTrigger>
       <MenuContent className="min-w-48 rounded-lg border-hairline">
         <MenuItem onClick={() => window.dispatchEvent(new Event(OPEN_SHORTCUTS_EVENT))}>

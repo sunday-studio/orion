@@ -2,24 +2,27 @@ import { type VariantProps, cva } from "class-variance-authority";
 import type * as React from "react";
 import { cn } from "@/utils/cn";
 
-const badgeStyles = cva("inline-flex w-fit items-center gap-1.5 rounded px-1.5 text-xs leading-5", {
-  variants: {
-    tone: {
-      up: "bg-(--tone-up-bg) text-(--tone-up-fg)",
-      down: "bg-(--tone-down-bg) text-(--tone-down-fg)",
-      degraded: "bg-(--tone-degraded-bg) text-(--tone-degraded-fg)",
-      unknown: "bg-(--tone-unknown-bg) text-(--tone-unknown-fg)",
-      maintenance: "bg-(--tone-maintenance-bg) text-(--tone-maintenance-fg)",
-      stale: "bg-(--tone-stale-bg) text-(--tone-stale-fg)",
-      covered: "bg-(--tone-covered-bg) text-(--tone-covered-fg)",
-      resolved: "bg-(--tone-resolved-bg) text-(--tone-resolved-fg)",
-      info: "bg-(--tone-info-bg) text-(--tone-info-fg)",
-      critical: "bg-(--tone-critical-bg) text-(--tone-critical-fg)",
-      medium: "bg-(--tone-medium-bg) text-(--tone-medium-fg)",
+const badgeStyles = cva(
+  "inline-flex h-5 w-fit items-center gap-[5px] rounded-md pl-[7px] pr-2 text-xs font-medium leading-none first-letter:uppercase",
+  {
+    variants: {
+      tone: {
+        up: "bg-(--tone-up-bg) text-(--tone-up-fg)",
+        down: "bg-(--tone-down-bg) text-(--tone-down-fg)",
+        degraded: "bg-(--tone-degraded-bg) text-(--tone-degraded-fg)",
+        unknown: "bg-(--tone-unknown-bg) text-(--tone-unknown-fg)",
+        maintenance: "bg-(--tone-maintenance-bg) text-(--tone-maintenance-fg)",
+        stale: "bg-(--tone-stale-bg) text-(--tone-stale-fg)",
+        covered: "bg-(--tone-covered-bg) text-(--tone-covered-fg)",
+        resolved: "bg-(--tone-resolved-bg) text-(--tone-resolved-fg)",
+        info: "bg-(--tone-info-bg) text-(--tone-info-fg)",
+        critical: "bg-(--tone-critical-bg) text-(--tone-critical-fg)",
+        medium: "bg-(--tone-medium-bg) text-(--tone-medium-fg)",
+      },
     },
+    defaultVariants: { tone: "unknown" },
   },
-  defaultVariants: { tone: "unknown" },
-});
+);
 
 export type BadgeTone = NonNullable<VariantProps<typeof badgeStyles>["tone"]>;
 type Shape = "dot" | "square" | "hollow" | "half" | "pause" | "none";

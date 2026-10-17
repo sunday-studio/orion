@@ -17,7 +17,7 @@ export const buttonStyles = cva(
         link: "text-brand underline-offset-4 hover:underline",
       },
       size: {
-        sm: "h-7 px-2.5 text-xs",
+        sm: "h-6 px-2.5 text-xs",
         md: "h-9 px-3.5 text-[13px]",
         icon: "size-9",
         "icon-sm": "size-7",
