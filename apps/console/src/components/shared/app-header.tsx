@@ -65,7 +65,7 @@ export const AppHeader = () => {
           type="button"
           aria-label="Search"
           onClick={() => window.dispatchEvent(new Event(OPEN_PALETTE_EVENT))}
-          className="hidden h-8 items-center gap-2 rounded-lg border border-input-border px-2.5 text-sm text-muted md:flex"
+          className="hidden h-8 items-center gap-2 rounded-lg border border-input-border px-2.5 text-sm text-quiet md:flex"
         >
           <Search className="size-4" />
           Search

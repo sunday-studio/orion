@@ -111,11 +111,12 @@
   --color-hairline: #ececea;
   --color-input-border: #e4e4e7;
   --color-ink: #18181b;
-  --color-muted: #71717a;
+  --color-quiet: #71717a;
   --color-faint: #a1a1aa;
-  --color-accent: #1f7a50;
-  --color-accent-chart: #2a9f69;
+  --color-brand: #1f7a50;
+  --color-brand-chart: #2a9f69;
   --color-focus: rgba(31, 122, 80, 0.22);
+  --color-destructive: #e5484d;
   --color-dot-down: #e5484d;
   --color-dot-warn: #f59e0b;
   --color-dot-up: #2a9f69;
