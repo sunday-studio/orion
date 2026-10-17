@@ -1,5 +1,4 @@
-import { ListPagination } from "@/design-system";
-import { DataTable } from "@/components/shared/data-table";
+import { DataTable, ListPagination } from "@/design-system";
 import { ReportInspectionDrawer } from "@/features/report-inspection/components/report-inspection-drawer";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { type ApiAgentReportResponse, useGetAgentReports } from "@/orion-sdk";
@@ -66,7 +65,6 @@ export const AgentLogsTab = ({ agentId }: AgentLogsTabProps) => {
           emptyMessage="No reports recorded"
           getRowId={(report, index) => report.id ?? `${report.agent_id ?? "server"}-${index}`}
           isLoading={reportsQuery.isLoading}
-          loadingMessage="Loading reports..."
           onRowClick={setSelectedReport}
         />
       )}

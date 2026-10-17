@@ -1,5 +1,4 @@
-import { Button, Input, ListPagination, Select } from "@/design-system";
-import { DataTable } from "@/components/shared/data-table";
+import { Button, DataTable, Input, ListPagination, Select } from "@/design-system";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { type ApiServiceLogEntryResponse, useGetAgentServiceLogs } from "@/orion-sdk";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -119,7 +118,6 @@ export const AgentServiceLogsTab = ({ agentId }: AgentServiceLogsTabProps) => {
           }
           getRowId={(log, index) => log.id ?? `${log.agent_id ?? "server"}-${index}`}
           isLoading={logsQuery.isLoading}
-          loadingMessage="Loading service logs..."
         />
       )}
       {count > 0 && (

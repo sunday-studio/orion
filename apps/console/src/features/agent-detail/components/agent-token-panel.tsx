@@ -1,5 +1,6 @@
 import {
   Button,
+  DetailCard,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -8,7 +9,6 @@ import {
   DialogTitle,
   Textarea,
 } from "@/design-system";
-import { DetailCard } from "@/components/shared/detail-card";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import {
   type ApiAgentTokenIssuedResponse,

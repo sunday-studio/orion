@@ -36,6 +36,7 @@ export type DataTableProps<TData> = {
   sort?: string;
   onSortChange?: (sort: string) => void;
   dense?: boolean;
+  rowClassName?: (row: Row<TData>) => string | undefined;
 };
 
 const parseSort = (sort: string): SortingState => {
@@ -61,6 +62,7 @@ export function DataTable<TData>({
   sort = "",
   onSortChange,
   dense = false,
+  rowClassName,
 }: DataTableProps<TData>) {
   const sorting = useMemo(() => parseSort(sort), [sort]);
   const table = useReactTable({
@@ -156,7 +158,7 @@ export function DataTable<TData>({
           : table.getRowModel().rows.map((row: Row<TData>) => (
               <TableRow
                 key={row.id}
-                className={cn(onRowClick && "cursor-pointer")}
+                className={cn(onRowClick && "cursor-pointer", rowClassName?.(row))}
                 tabIndex={onRowClick ? 0 : undefined}
                 onClick={onRowClick ? () => onRowClick(row.original) : undefined}
                 onKeyDown={
