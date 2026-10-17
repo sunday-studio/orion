@@ -38,8 +38,8 @@
   color-scheme: light;
 
   /* Badge tones and primary button gradient, adapted per theme. */
-  --tone-up-bg: #ccfbf1;
-  --tone-up-fg: #115e59;
+  --tone-up-bg: #dcf5e8;
+  --tone-up-fg: #14532d;
   --tone-down-bg: #ffe4e6;
   --tone-down-fg: #9f1239;
   --tone-degraded-bg: #fef3c7;
@@ -83,8 +83,8 @@
   --shadow-overlay: 0 8px 24px rgba(0, 0, 0, 0.5);
   color-scheme: dark;
 
-  --tone-up-bg: #042f2e;
-  --tone-up-fg: #5eead4;
+  --tone-up-bg: #0d2b1f;
+  --tone-up-fg: #80ffaa;
   --tone-down-bg: #4c0519;
   --tone-down-fg: #fda4af;
   --tone-degraded-bg: #451a03;
