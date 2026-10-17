@@ -265,6 +265,26 @@ jobs:
       - name: Build Server
         run: make agent-build AGENT_OUTPUT=/tmp/orion-agent
 
+  core-image-scan:
+    name: Core image scan
+    runs-on: ubuntu-24.04
+    needs: changes
+    if: needs.changes.outputs.core == 'true' || needs.changes.outputs.contracts == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Core image
+        run: docker build -f apps/core/Dockerfile -t orion-core:ci .
+
+      - name: Scan image for HIGH and CRITICAL vulnerabilities
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: orion-core:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
   repository-smoke:
     name: Repository smoke
     runs-on: ubuntu-24.04
@@ -294,6 +314,7 @@ jobs:
       - console
       - core
       - server
+      - core-image-scan
       - repository-smoke
     if: always()
     steps:
@@ -303,6 +324,7 @@ jobs:
           CONSOLE_RESULT: ${{ needs.console.result }}
           CORE_RESULT: ${{ needs.core.result }}
           SERVER_RESULT: ${{ needs.server.result }}
+          CORE_IMAGE_SCAN_RESULT: ${{ needs.core-image-scan.result }}
           REPOSITORY_SMOKE_RESULT: ${{ needs.repository-smoke.result }}
         run: |
           failed=0
@@ -311,6 +333,7 @@ jobs:
             "Console:${CONSOLE_RESULT}" \
             "Core:${CORE_RESULT}" \
             "Server:${SERVER_RESULT}" \
+            "Core image scan:${CORE_IMAGE_SCAN_RESULT}" \
             "Repository smoke:${REPOSITORY_SMOKE_RESULT}"
           do
             name="${gate%%:*}"

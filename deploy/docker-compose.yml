@@ -1,7 +1,29 @@
+# Hardened profile: non-root user (the entrypoint starts as root only to chown an
+# older root-owned volume, then drops privileges), read-only root filesystem,
+# no capabilities beyond that one-time chown/drop, resource limits and a 30s grace
+# period for in-flight work. Pin ORION_CORE_IMAGE to a release tag or digest in production.
+x-hardened: &hardened
+  read_only: true
+  tmpfs:
+    - /tmp
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  cap_add:
+    - CHOWN
+    - SETUID
+    - SETGID
+  stop_grace_period: 30s
+
 services:
   orion-core:
+    <<: *hardened
     image: ${ORION_CORE_IMAGE:-ghcr.io/sunday-studio/orion-core:latest}
     restart: unless-stopped
+    mem_limit: ${ORION_CORE_MEMORY_LIMIT:-512m}
+    cpus: ${ORION_CORE_CPUS:-1.0}
+    pids_limit: 256
     ports:
       - "${ORION_HTTP_PORT:-8999}:8999"
     volumes:
@@ -32,8 +54,12 @@ services:
       start_period: 10s
 
   orion-core-worker:
+    <<: *hardened
     image: ${ORION_CORE_IMAGE:-ghcr.io/sunday-studio/orion-core:latest}
     restart: unless-stopped
+    mem_limit: ${ORION_WORKER_MEMORY_LIMIT:-512m}
+    cpus: ${ORION_WORKER_CPUS:-1.0}
+    pids_limit: 256
     command: ["./orion-core-worker"]
     depends_on:
       orion-core:
@@ -47,12 +73,11 @@ services:
       ORION_WORKER_STALE_SECONDS: ${ORION_WORKER_STALE_SECONDS:-60}
       ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS: ${ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS:-false}
       ORION_PLAYWRIGHT_RUNNER: ${ORION_PLAYWRIGHT_RUNNER:-}
-      ORION_REQUIRE_FRONTEND_AUTH: "true"
-      ORION_ADMIN_USERNAME: ${ORION_ADMIN_USERNAME:?set ORION_ADMIN_USERNAME}
-      ORION_ADMIN_PASSWORD: ${ORION_ADMIN_PASSWORD:?set ORION_ADMIN_PASSWORD}
-      ORION_JWT_SECRET: ${ORION_JWT_SECRET:?set ORION_JWT_SECRET}
+      ORION_WORKER_CONCURRENCY: ${ORION_WORKER_CONCURRENCY:-16}
+      # The Worker serves no admin routes and needs no admin password or JWT secret.
     healthcheck:
-      test: ["CMD", "./orion-core-worker", "healthcheck"]
+      # Through the entrypoint so the check runs as the orion user that owns /data.
+      test: ["CMD", "docker-entrypoint.sh", "./orion-core-worker", "healthcheck"]
       interval: 30s
       timeout: 5s
       retries: 3
