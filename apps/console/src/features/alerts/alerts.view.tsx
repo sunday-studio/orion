@@ -268,6 +268,7 @@ export const AlertsPage = () => {
             count={deliveryCount}
             deliveries={deliveries}
             error={deliveriesQuery.error}
+            onRetry={() => void deliveriesQuery.refetch()}
             eventType={eventType}
             incident={incident}
             isLoading={deliveriesQuery.isLoading}
