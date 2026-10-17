@@ -3,45 +3,39 @@ import { expectMatchesArtboard, freezeClock, mockApi } from "./support";
 
 test.use({ timezoneId: "UTC", viewport: { width: 1280, height: 640 } });
 
+const incident = {
+  id: "i1",
+  title: "api.example.com is down",
+  severity: "critical",
+  status: "open",
+  opened_at: "2025-10-16T14:02:00Z",
+  notified_at: "2025-10-16T14:02:00Z",
+  summary: "check failed, timeout after 10s.",
+};
+
 const healthMocks = [
   {
-    pattern: /\/v1\/health\/summary$/,
-    body: { overall_health: "degraded", monitors: { total: 24, up: 21 }, agents: { total: 6 } },
+    pattern: /\/v1\/overview$/,
+    body: {
+      state: "issues",
+      needs_you: incident,
+      ongoing_incident_count: 2,
+      ongoing_incidents: [incident],
+      recent_incidents: [],
+      health_issue_count: 0,
+      stats: { monitors_total: 24, monitors_up: 21, servers_total: 6, servers_reporting: 5 },
+    },
   },
-  { pattern: /\/v1\/agents\/summary$/, body: { total: 6, up: 5 } },
+  { pattern: /\/v1\/auth\/me$/, body: { username: "admin", auth_enabled: true } },
   { pattern: /\/v1\/health\/issues$/, body: { count: 0, issues: [] } },
   {
-    pattern: /\/v1\/incidents$/,
-    body: (url: URL) => ({
-      count: 2,
-      incidents: url.searchParams.get("status")
-        ? [
-            {
-              id: "i1",
-              title: "api.example.com unreachable",
-              severity: "high",
-              status: "open",
-              opened_at: "2025-10-16T14:02:00Z",
-            },
-          ]
-        : [
-            {
-              id: "i1",
-              title: "api.example.com unreachable",
-              severity: "high",
-              status: "open",
-              opened_at: "2025-10-16T14:02:00Z",
-            },
-          ],
-    }),
-  },
-  {
-    pattern: /\/v1\/monitors$/,
+    pattern: /\/v1\/search$/,
     body: {
-      count: 2,
-      monitors: [
-        { id: "m1", name: "api-https", health: "down" },
-        { id: "m2", name: "api-tcp-5432", health: "up" },
+      count: 3,
+      hits: [
+        { type: "monitor", id: "m1", name: "api-https", status: "down" },
+        { type: "monitor", id: "m2", name: "api-tcp-5432", status: "up" },
+        { type: "incident", id: "i1", name: "api.example.com unreachable", status: "open" },
       ],
     },
   },
