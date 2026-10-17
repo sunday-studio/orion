@@ -63,6 +63,7 @@ console-build: console-sdk
 
 repository-smoke:
 	bash -n deploy/scripts/*.sh
+	bash deploy/scripts/test-agent-bootstrap-verify.sh
 	ORION_ADMIN_USERNAME=ci-admin ORION_ADMIN_PASSWORD=ci-password ORION_JWT_SECRET=ci-secret-at-least-long-enough docker compose -f deploy/docker-compose.yml config >/tmp/orion-compose.yml
 
 generated-contracts-check: generate-sdk
