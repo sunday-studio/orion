@@ -36,7 +36,8 @@ Read `design-language.md` (rules and tokens) first, then this file. The canvas i
 | status-setup, status-components, status-incidents, status-subscribers, status-preview | `/status-pages/:id` (tabs) | `features/status-pages/` | existing |
 | status-domain, status-maintenance, status-publish | dialogs and panel | `features/status-pages/` | domain verify and maintenance windows proposed; publish exists |
 | public-* , status-badge | `/status/:slug/*` | Core-served | existing JSON and badge API; HTML is Core's |
-| logs-events, logs-service | `/logs` | `features/event-log/logs.view.tsx` | `/v1/events`, `/v1/logs/service`; query, cursor and facets proposed |
+| logs-events (status logs), logs-service, logs-app, logs-app-detail, logs-app-empty | `/logs` (tabs) | `features/event-log/logs.view.tsx` | `/v1/events`, `/v1/logs/service`; query, cursor and facets proposed |
+| logs-app-connect, logs-sources | `/logs/sources` | new | source keys CRUD and ingest stats proposed |
 | logs-live | `/logs` (view) | same | `GET /v1/events/stream` (SSE) proposed |
 | logs-patterns | `/logs` (view) | same | `GET /v1/events/patterns` proposed |
 | logs-detail | drawer | same | `/v1/events/{id}` and surrounding events proposed |
@@ -55,12 +56,13 @@ Approved (D-004): retry delivery (`POST /v1/alerts/deliveries/{id}/retry`), dism
 
 Proposed, grouped by value:
 
-1. Logs at scale: `q` (field:value query), `level`, `source`, `from`, `to`, `cursor` on events; `/v1/events/histogram`; `/v1/events/stream` (SSE); `/v1/events/patterns`; async export. These make the Logs redesign real and are the largest item.
-2. Channels: `type = webhook | email`; email recipients with a confirmation token and resend; public confirmation endpoint; webhook signing secret (HMAC SHA-256, `X-Orion-Signature`) with regenerate; custom headers; disable flag.
-3. Servers: `PATCH` name, labels, notes; list monitors by agent with a status filter; delete with `keep_history`.
-4. Incidents and monitors: declare incident; bulk acknowledge, resolve, cover; bulk pause, maintenance, clone, delete; `runbook_url` on monitors; TLS expiry.
-5. Status pages: custom domain verification, maintenance windows (hold alerts for mapped components).
-6. Settings: general (instance name, public URL, timezone), API tokens, audit log.
+1. App log ingest: `POST /v1/ingest/otlp` (OpenTelemetry logs over HTTP; read service.name, severity, body, trace_id, span_id, resource attributes), `POST /v1/ingest/json`, per-source ingest keys (create, revoke, list with last received, rate, dropped), retention and per-source rate limits. Status logs filter by `server_id` and `monitor_id`; service logs by `component`. Link app log lines to events by server and time window.
+2. Logs at scale: `q` (field:value query), `level`, `source`, `from`, `to`, `cursor` on events; `/v1/events/histogram`; `/v1/events/stream` (SSE); `/v1/events/patterns`; async export. These make the Logs redesign real and are the largest item.
+3. Channels: `type = webhook | email`; email recipients with a confirmation token and resend; public confirmation endpoint; webhook signing secret (HMAC SHA-256, `X-Orion-Signature`) with regenerate; custom headers; disable flag.
+4. Servers: `PATCH` name, labels, notes; list monitors by agent with a status filter; delete with `keep_history`.
+5. Incidents and monitors: declare incident; bulk acknowledge, resolve, cover; bulk pause, maintenance, clone, delete; `runbook_url` on monitors; TLS expiry.
+6. Status pages: custom domain verification, maintenance windows (hold alerts for mapped components).
+7. Settings: general (instance name, public URL, timezone), API tokens, audit log.
 
 ## 4. Copy and content rules
 
