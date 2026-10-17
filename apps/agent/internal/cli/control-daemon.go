@@ -74,17 +74,32 @@ func (d *daemonControl) SetMaintenance(req control.MaintenanceRequest) error {
 	if err != nil {
 		return err
 	}
-	if st.AgentID != "" && st.Token != "" && st.CoreURL != "" {
-		client := transport.NewClient(st.CoreURL, st.Token)
-		if err := client.SetMaintenanceMode(st.AgentID, req.Enabled); err != nil {
-			return fmt.Errorf("update core maintenance mode: %w", err)
-		}
+	dur := time.Duration(req.DurationSeconds) * time.Second
+	if req.Enabled && dur <= 0 {
+		dur = defaultMaintenanceDuration
+	}
+	if err := updateCoreMaintenanceModeQuiet(st, req.Enabled, dur); err != nil {
+		return err
 	}
 	var reason *string
 	if req.Enabled && req.Reason != "" {
 		reason = &req.Reason
 	}
-	return d.store.SetMaintenanceMode(req.Enabled, reason)
+	if !req.Enabled {
+		return d.store.SetMaintenanceMode(false, nil)
+	}
+	until := time.Now().Add(dur)
+	return d.store.SetMaintenanceWindow(true, reason, &until)
+}
+
+func updateCoreMaintenanceModeQuiet(st *config.InternalState, enabled bool, d time.Duration) error {
+	if st.AgentID == "" || st.Token == "" || st.CoreURL == "" {
+		return nil
+	}
+	if err := transport.NewClient(st.CoreURL, st.Token).SetMaintenanceMode(st.AgentID, enabled, d); err != nil {
+		return fmt.Errorf("update core maintenance mode: %w", err)
+	}
+	return nil
 }
 
 func (d *daemonControl) ApplyToken(token string) error {

@@ -359,6 +359,7 @@ func defaultPlaywrightRun(ctx context.Context, request playwrightTransactionRequ
 		return playwrightTransactionRunResult{FailureStage: "config"}, err
 	}
 	cmd := exec.CommandContext(ctx, runnerPath)
+	cmd.Env = playwrightRunnerEnvironment(os.Environ())
 	cmd.Stdin = bytes.NewReader(input)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -458,4 +459,38 @@ func playwrightSecretValues(secrets playwrightSecrets) map[string]string {
 		values[key] = value
 	}
 	return values
+}
+
+// playwrightRunnerEnvPrefixes and names are the only variables the runner
+// subprocess inherits. Browser automation executes arbitrary scripted flows, so it
+// must not see Core's admin password, JWT secret, SMTP credentials or any other
+// ORION_* configuration it does not need.
+var playwrightRunnerEnvNames = map[string]bool{
+	"PATH": true, "HOME": true, "TMPDIR": true, "TMP": true, "TEMP": true, "USER": true, "LOGNAME": true,
+	"LANG": true, "TZ": true, "DISPLAY": true, "SHELL": true, "NODE_PATH": true, "NODE_OPTIONS": true,
+	"HTTP_PROXY": true, "HTTPS_PROXY": true, "NO_PROXY": true, "http_proxy": true, "https_proxy": true, "no_proxy": true,
+	"SSL_CERT_FILE": true, "SSL_CERT_DIR": true, "FONTCONFIG_PATH": true,
+}
+
+var playwrightRunnerEnvPrefixes = []string{"LC_", "PLAYWRIGHT_", "XDG_", "ORION_PLAYWRIGHT_"}
+
+func playwrightRunnerEnvironment(environ []string) []string {
+	allowed := make([]string, 0, len(environ))
+	for _, entry := range environ {
+		name, _, found := strings.Cut(entry, "=")
+		if !found {
+			continue
+		}
+		if playwrightRunnerEnvNames[name] {
+			allowed = append(allowed, entry)
+			continue
+		}
+		for _, prefix := range playwrightRunnerEnvPrefixes {
+			if strings.HasPrefix(name, prefix) {
+				allowed = append(allowed, entry)
+				break
+			}
+		}
+	}
+	return allowed
 }

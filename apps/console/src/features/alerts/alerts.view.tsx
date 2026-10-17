@@ -1,5 +1,4 @@
-import { PageHeader } from "@/components/shared/page-header";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PageHeader, Tabs, TabsList, TabsPanel, TabsTab } from "@/design-system";
 import {
   type ApiAlertChannelResponse,
   useCreateAlertChannel,
@@ -256,18 +255,19 @@ export const AlertsPage = () => {
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="logs">Notification Log</TabsTrigger>
-          <TabsTrigger value="channels">Channels</TabsTrigger>
-          <TabsTrigger value="rules">Rules</TabsTrigger>
+          <TabsTab value="logs">Notification Log</TabsTab>
+          <TabsTab value="channels">Channels</TabsTab>
+          <TabsTab value="rules">Rules</TabsTab>
         </TabsList>
 
-        <TabsContent value="logs">
+        <TabsPanel value="logs">
           <NotificationLogTab
             channel={channel}
             channels={channels}
             count={deliveryCount}
             deliveries={deliveries}
             error={deliveriesQuery.error}
+            onRetry={() => void deliveriesQuery.refetch()}
             eventType={eventType}
             incident={incident}
             isLoading={deliveriesQuery.isLoading}
@@ -282,9 +282,9 @@ export const AlertsPage = () => {
             status={status}
             type={deliveryType}
           />
-        </TabsContent>
+        </TabsPanel>
 
-        <TabsContent value="channels">
+        <TabsPanel value="channels">
           <WebhookChannelsTab
             channels={webhookChannels}
             error={channelsResponse.error}
@@ -297,11 +297,11 @@ export const AlertsPage = () => {
             testFeedback={testFeedback}
             testingChannelId={testingChannelId}
           />
-        </TabsContent>
+        </TabsPanel>
 
-        <TabsContent value="rules">
+        <TabsPanel value="rules">
           <AlertRulesTab channels={webhookChannels} />
-        </TabsContent>
+        </TabsPanel>
       </Tabs>
 
       <WebhookDialog

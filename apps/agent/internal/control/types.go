@@ -51,6 +51,8 @@ type Status struct {
 type MaintenanceRequest struct {
 	Enabled bool   `json:"enabled"`
 	Reason  string `json:"reason,omitempty"`
+	// DurationSeconds bounds maintenance; 0 uses the agent default.
+	DurationSeconds int64 `json:"duration_seconds,omitempty"`
 }
 
 // TokenRequest carries a replacement agent token.

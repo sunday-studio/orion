@@ -1,5 +1,4 @@
-import { StatusBadge } from "@/components/shared/status-badges";
-import { Button } from "@/components/ui/button";
+import { Button, StatusBadge } from "@/design-system";
 import type { ApiStatusPageResponse } from "@/orion-sdk";
 import { ExternalLink, Globe2, Trash2 } from "lucide-react";
 import { publicUrl } from "./status-pages-shared";
@@ -37,10 +36,9 @@ export const StatusPageHeader = ({
     <div>
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="text-lg font-semibold">{page.title}</h2>
-        <StatusBadge
-          fallback={page.visibility}
-          value={page.visibility === "public" ? "up" : "unknown"}
-        />
+        <StatusBadge status={page.visibility === "public" ? "up" : "unknown"}>
+          {page.visibility}
+        </StatusBadge>
       </div>
       <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-neutral-600">
         <span>{page.slug}</span>
@@ -60,7 +58,7 @@ export const StatusPageHeader = ({
       <Button
         disabled={unpublishPending || page.visibility !== "public"}
         onClick={onUnpublishPage}
-        variant="outline"
+        variant="secondary"
       >
         {unpublishPending ? "Unpublishing..." : "Unpublish"}
       </Button>
@@ -68,7 +66,7 @@ export const StatusPageHeader = ({
         disabled={deletePagePending || deletePending}
         onClick={onDeletePage}
         type="button"
-        variant="outline"
+        variant="secondary"
       >
         <Trash2 className="size-4" />
         {deletePagePending ? "Deleting..." : "Delete"}

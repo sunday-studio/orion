@@ -27,16 +27,17 @@ type Store struct {
 }
 
 type agentStateRecord struct {
-	ID                int       `gorm:"primaryKey"`
-	AgentID           string    `gorm:"column:agent_id"`
-	Token             string    `gorm:"column:token"`
-	Registered        bool      `gorm:"column:registered;not null;default:false"`
-	CoreURL           string    `gorm:"column:core_url"`
-	LastSync          time.Time `gorm:"column:last_sync"`
-	MaintenanceMode   bool      `gorm:"column:maintenance_mode;not null;default:false"`
-	MaintenanceReason *string   `gorm:"column:maintenance_reason"`
-	CreatedAt         time.Time `gorm:"column:created_at"`
-	UpdatedAt         time.Time `gorm:"column:updated_at"`
+	ID                int        `gorm:"primaryKey"`
+	AgentID           string     `gorm:"column:agent_id"`
+	Token             string     `gorm:"column:token"`
+	Registered        bool       `gorm:"column:registered;not null;default:false"`
+	CoreURL           string     `gorm:"column:core_url"`
+	LastSync          time.Time  `gorm:"column:last_sync"`
+	MaintenanceMode   bool       `gorm:"column:maintenance_mode;not null;default:false"`
+	MaintenanceReason *string    `gorm:"column:maintenance_reason"`
+	MaintenanceUntil  *time.Time `gorm:"column:maintenance_until"`
+	CreatedAt         time.Time  `gorm:"column:created_at"`
+	UpdatedAt         time.Time  `gorm:"column:updated_at"`
 }
 
 type monitorStateRecord struct {
@@ -46,6 +47,15 @@ type monitorStateRecord struct {
 	LastChecked time.Time `gorm:"column:last_checked"`
 	CreatedAt   time.Time `gorm:"column:created_at"`
 	UpdatedAt   time.Time `gorm:"column:updated_at"`
+}
+
+// maintenanceActive reads an ended window as "not in maintenance" so the agent
+// resumes reporting on its own, matching Core, which stops suppressing alerts then.
+func (r agentStateRecord) maintenanceActive(now time.Time) bool {
+	if !r.MaintenanceMode {
+		return false
+	}
+	return r.MaintenanceUntil == nil || now.Before(*r.MaintenanceUntil)
 }
 
 func (agentStateRecord) TableName() string {
@@ -139,8 +149,9 @@ func InspectReadOnly(path string) (*config.InternalState, error) {
 		Registered:        record.Registered,
 		CoreURL:           record.CoreURL,
 		LastSync:          record.LastSync,
-		MaintenanceMode:   record.MaintenanceMode,
+		MaintenanceMode:   record.maintenanceActive(time.Now()),
 		MaintenanceReason: record.MaintenanceReason,
+		MaintenanceUntil:  record.MaintenanceUntil,
 		Monitors:          monitors,
 	}, nil
 }
@@ -206,8 +217,9 @@ func (s *Store) Get() (*config.InternalState, error) {
 		Registered:        record.Registered,
 		CoreURL:           record.CoreURL,
 		LastSync:          record.LastSync,
-		MaintenanceMode:   record.MaintenanceMode,
+		MaintenanceMode:   record.maintenanceActive(time.Now()),
 		MaintenanceReason: record.MaintenanceReason,
+		MaintenanceUntil:  record.MaintenanceUntil,
 		Monitors:          monitors,
 	}, nil
 }
@@ -323,13 +335,22 @@ func (s *Store) ResetRegistration() error {
 }
 
 func (s *Store) SetMaintenanceMode(enabled bool, reason *string) error {
+	return s.SetMaintenanceWindow(enabled, reason, nil)
+}
+
+// SetMaintenanceWindow enables maintenance until `until` (nil = no recorded end) or disables it.
+func (s *Store) SetMaintenanceWindow(enabled bool, reason *string, until *time.Time) error {
 	record, err := s.getOrCreateAgentState()
 	if err != nil {
 		return err
 	}
+	if !enabled {
+		until = nil
+	}
 	return s.db.Model(record).Updates(map[string]interface{}{
 		"maintenance_mode":   enabled,
 		"maintenance_reason": reason,
+		"maintenance_until":  until,
 		"updated_at":         time.Now(),
 	}).Error
 }

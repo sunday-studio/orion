@@ -13,11 +13,13 @@ import (
 // Config holds runtime configuration from environment.
 type Config struct {
 	DataDir                        string
+	DBLogLevel                     string
 	Port                           string
 	CORSOrigins                    []string
 	CoreWorkerID                   string
 	CoreWorkerHeartbeatSeconds     int
 	CoreWorkerStaleSeconds         int
+	CoreWorkerConcurrency          int
 	CoreMonitorAllowPrivateTargets bool
 	DataLifecycleSchedulerSeconds  int
 	AdminUsername                  string
@@ -25,6 +27,16 @@ type Config struct {
 	JWTSecret                      string
 	FrontendAuthOn                 bool
 	RequireFrontendAuth            bool
+	AllowInsecureNoAuth            bool
+	EnrollmentToken                string
+	AlertAllowPrivateWebhooks      bool
+	TrustedProxies                 []string
+	EnableSwagger                  bool
+	MetricsToken                   string
+	LogsQueueMax                   int
+	LogsAppRatePerSecond           int
+	DeadManURL                     string
+	RegisterRateLimitPerMinute     int
 	LoginRateLimitAttempts         int
 	LoginRateLimitWindowSecs       int
 	AlertCooldownSeconds           int
@@ -40,6 +52,14 @@ type Config struct {
 	PublicStatusMailReplyTo        string
 	PublicStatusURLOrigin          string
 	PublicStatusSubscriberSecret   string
+	PublicURL                      string
+	AlertSMTPHost                  string
+	AlertSMTPPort                  int
+	AlertSMTPUsername              string
+	AlertSMTPPassword              string
+	AlertSMTPFrom                  string
+	AlertSMTPTLS                   string // starttls | tls | none
+	AlertEmailSecret               string
 }
 
 // Load reads configuration from environment variables.
@@ -55,11 +75,13 @@ func Load() *Config {
 
 	return &Config{
 		DataDir:                        getEnv("ORION_DATA_DIR", "data"),
+		DBLogLevel:                     getEnv("ORION_DB_LOG_LEVEL", "warn"),
 		Port:                           getEnv("ORION_PORT", "8999"),
 		CORSOrigins:                    getEnvList("ORION_CORS_ORIGINS", []string{"http://localhost:5173", "http://127.0.0.1:5173"}),
 		CoreWorkerID:                   getEnv("ORION_WORKER_ID", "core-monitor-worker"),
 		CoreWorkerHeartbeatSeconds:     getEnvInt("ORION_WORKER_HEARTBEAT_SECONDS", 15),
 		CoreWorkerStaleSeconds:         getEnvInt("ORION_WORKER_STALE_SECONDS", 60),
+		CoreWorkerConcurrency:          getEnvInt("ORION_WORKER_CONCURRENCY", 16),
 		CoreMonitorAllowPrivateTargets: getEnvBool("ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS", false),
 		DataLifecycleSchedulerSeconds:  getEnvInt("ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS", 3600),
 		AdminUsername:                  adminUser,
@@ -67,6 +89,16 @@ func Load() *Config {
 		JWTSecret:                      jwtSecret,
 		FrontendAuthOn:                 frontendAuthOn,
 		RequireFrontendAuth:            getEnvBool("ORION_REQUIRE_FRONTEND_AUTH", false),
+		AllowInsecureNoAuth:            getEnvBool("ORION_ALLOW_INSECURE_NO_AUTH", false),
+		EnrollmentToken:                os.Getenv("ORION_ENROLLMENT_TOKEN"),
+		AlertAllowPrivateWebhooks:      getEnvBool("ORION_ALERT_ALLOW_PRIVATE_WEBHOOKS", false),
+		TrustedProxies:                 getEnvList("ORION_TRUSTED_PROXIES", nil),
+		EnableSwagger:                  getEnvBool("ORION_ENABLE_SWAGGER", false),
+		MetricsToken:                   os.Getenv("ORION_METRICS_TOKEN"),
+		LogsQueueMax:                   getEnvInt("ORION_LOGS_QUEUE_MAX", 50000),
+		LogsAppRatePerSecond:           getEnvInt("ORION_LOGS_APP_RATE_PER_SECOND", 1000),
+		DeadManURL:                     strings.TrimSpace(os.Getenv("ORION_DEADMAN_URL")),
+		RegisterRateLimitPerMinute:     getEnvInt("ORION_REGISTER_RATE_LIMIT_PER_MINUTE", 30),
 		LoginRateLimitAttempts:         getEnvInt("ORION_LOGIN_RATE_LIMIT_ATTEMPTS", 5),
 		LoginRateLimitWindowSecs:       getEnvInt("ORION_LOGIN_RATE_LIMIT_WINDOW_SECONDS", 60),
 		AlertCooldownSeconds:           getEnvInt("ORION_ALERT_COOLDOWN_SECONDS", 300),
@@ -82,6 +114,14 @@ func Load() *Config {
 		PublicStatusMailReplyTo:        getEnv("ORION_PUBLIC_STATUS_MAIL_REPLY_TO", ""),
 		PublicStatusURLOrigin:          getEnv("ORION_PUBLIC_STATUS_URL_ORIGIN", ""),
 		PublicStatusSubscriberSecret:   getEnv("ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET", ""),
+		PublicURL:                      strings.TrimRight(strings.TrimSpace(os.Getenv("ORION_PUBLIC_URL")), "/"),
+		AlertSMTPHost:                  getEnv("ORION_ALERT_SMTP_HOST", ""),
+		AlertSMTPPort:                  getEnvInt("ORION_ALERT_SMTP_PORT", 587),
+		AlertSMTPUsername:              getEnv("ORION_ALERT_SMTP_USERNAME", ""),
+		AlertSMTPPassword:              getEnvOrFile("ORION_ALERT_SMTP_PASSWORD"),
+		AlertSMTPFrom:                  getEnv("ORION_ALERT_SMTP_FROM", ""),
+		AlertSMTPTLS:                   strings.ToLower(getEnv("ORION_ALERT_SMTP_TLS", "starttls")),
+		AlertEmailSecret:               getEnvOrFile("ORION_ALERT_EMAIL_SECRET"),
 	}
 }
 
@@ -149,6 +189,21 @@ func parseDotEnvValue(value string) string {
 	return strings.TrimSpace(value)
 }
 
+// ValidateAPIAuth refuses to start the admin API without authentication unless
+// the operator explicitly opts out with ORION_ALLOW_INSECURE_NO_AUTH=true. Only
+// the API process calls it; the Worker serves no admin routes.
+func (c *Config) ValidateAPIAuth() error {
+	if c.FrontendAuthOn || c.AllowInsecureNoAuth {
+		return nil
+	}
+	return &ValidationError{Msg: "admin API authentication is not configured: set ORION_ADMIN_USERNAME, ORION_ADMIN_PASSWORD and ORION_JWT_SECRET, or set ORION_ALLOW_INSECURE_NO_AUTH=true to run without authentication (not recommended)"}
+}
+
+// RunsWithoutAuth reports whether the admin API will accept unauthenticated requests.
+func (c *Config) RunsWithoutAuth() bool {
+	return !c.FrontendAuthOn
+}
+
 // Validate returns an error if config is invalid (e.g. frontend auth on but JWT_SECRET empty).
 func (c *Config) Validate() error {
 	authValues := []string{
@@ -179,6 +234,9 @@ func (c *Config) Validate() error {
 	if c.RequireFrontendAuth && authValueCount != len(authValues) {
 		return &ValidationError{Msg: "ORION_REQUIRE_FRONTEND_AUTH requires ORION_ADMIN_USERNAME, ORION_ADMIN_PASSWORD, and ORION_JWT_SECRET"}
 	}
+	if c.RegisterRateLimitPerMinute < 0 {
+		return &ValidationError{Msg: "ORION_REGISTER_RATE_LIMIT_PER_MINUTE must be >= 0"}
+	}
 	if c.LoginRateLimitAttempts < 0 {
 		return &ValidationError{Msg: "ORION_LOGIN_RATE_LIMIT_ATTEMPTS must be >= 0"}
 	}
@@ -187,6 +245,9 @@ func (c *Config) Validate() error {
 	}
 	if c.CoreWorkerHeartbeatSeconds <= 0 {
 		return &ValidationError{Msg: "ORION_WORKER_HEARTBEAT_SECONDS must be > 0"}
+	}
+	if c.CoreWorkerConcurrency < 0 || c.CoreWorkerConcurrency > 256 {
+		return &ValidationError{Msg: "ORION_WORKER_CONCURRENCY must be between 0 and 256"}
 	}
 	if c.CoreWorkerStaleSeconds <= 0 {
 		return &ValidationError{Msg: "ORION_WORKER_STALE_SECONDS must be > 0"}
@@ -336,4 +397,18 @@ func getEnvList(key string, fallback []string) []string {
 		return fallback
 	}
 	return items
+}
+
+// getEnvOrFile returns KEY, or the trimmed contents of the file named by KEY_FILE
+// (Docker/Kubernetes secrets). The direct variable wins when both are set.
+func getEnvOrFile(key string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	if path := strings.TrimSpace(os.Getenv(key + "_FILE")); path != "" {
+		if data, err := os.ReadFile(path); err == nil {
+			return strings.TrimSpace(string(data))
+		}
+	}
+	return ""
 }

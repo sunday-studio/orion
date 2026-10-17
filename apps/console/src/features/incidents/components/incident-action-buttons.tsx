@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@/design-system";
 import {
   CheckIcon,
   CircleCheckIcon,
@@ -34,13 +34,13 @@ export const IncidentActionButtons = ({
 }: IncidentActionButtonsProps) => (
   <div className="flex flex-wrap gap-2">
     {canAcknowledge && (
-      <Button variant="outline" disabled={actionPending} onClick={onAcknowledge}>
+      <Button variant="secondary" disabled={actionPending} onClick={onAcknowledge}>
         <CheckIcon />
         Acknowledge
       </Button>
     )}
     {canCover && (
-      <Button variant="outline" disabled={actionPending} onClick={onCover}>
+      <Button variant="secondary" disabled={actionPending} onClick={onCover}>
         <ShieldCheckIcon />
         Cover
       </Button>
@@ -52,12 +52,12 @@ export const IncidentActionButtons = ({
       </Button>
     )}
     {canReopen && (
-      <Button variant="outline" disabled={actionPending} onClick={onReopen}>
+      <Button variant="secondary" disabled={actionPending} onClick={onReopen}>
         <RotateCcwIcon />
         Reopen
       </Button>
     )}
-    <Button variant="outline" disabled={actionPending} onClick={onOpenPublicDraft}>
+    <Button variant="secondary" disabled={actionPending} onClick={onOpenPublicDraft}>
       <MegaphoneIcon />
       Public draft
     </Button>

@@ -16,7 +16,10 @@ test("creates and manages a Core HTTP monitor", async ({ page }) => {
   const monitorURL = "http://127.0.0.1:19080/health";
 
   await signIn(page);
-  await page.getByRole("link", { name: "Monitors" }).click();
+  await page
+    .getByLabel("Primary navigation")
+    .getByRole("link", { name: "Monitors", exact: true })
+    .click();
   await page.getByRole("button", { name: "Core monitor" }).click();
   await page.getByLabel("Name").fill(monitorName);
   await page.getByLabel("URL").fill(monitorURL);
@@ -95,7 +98,10 @@ test("creates webhook alert destinations and records sanitized delivery logs", a
   await signIn(page);
   const resetCaptures = await page.request.delete(`${webhookReceiverURL}/captures`);
   expect(resetCaptures.ok()).toBeTruthy();
-  await page.getByRole("link", { name: "Alerts" }).click();
+  await page
+    .getByLabel("Primary navigation")
+    .getByRole("link", { name: "Alerts", exact: true })
+    .click();
   await page.getByRole("tab", { name: "Channels" }).click();
   await expect(page.getByRole("heading", { name: "Webhook Channels" })).toBeVisible();
 
@@ -158,7 +164,10 @@ test("creates a Core heartbeat monitor and shows setup affordances", async ({ pa
   const monitorName = `Core E2E Heartbeat ${Date.now()}`;
 
   await signIn(page);
-  await page.getByRole("link", { name: "Monitors" }).click();
+  await page
+    .getByLabel("Primary navigation")
+    .getByRole("link", { name: "Monitors", exact: true })
+    .click();
   await page.getByRole("button", { name: "Core monitor" }).click();
   await page.getByLabel("Name").fill(monitorName);
   await page.getByLabel("Core monitor type").selectOption("heartbeat");

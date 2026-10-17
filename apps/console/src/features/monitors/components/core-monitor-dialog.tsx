@@ -1,12 +1,12 @@
-import { Button } from "@/components/ui/button";
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/design-system";
 import type {
   ApiCoreMonitorConfigResponse,
   ApiMonitorResponse,
@@ -154,7 +154,7 @@ export const CoreMonitorDialog = ({
           )}
 
           <DialogFooter className="gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button disabled={isSubmitting || !canSubmit} type="submit" value="save">

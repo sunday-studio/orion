@@ -1,22 +1,20 @@
-import { DataTable } from "@/components/shared/data-table";
-import { EmptyState } from "@/components/shared/empty-state";
-import { SeverityBadge, toSeverity } from "@/components/shared/status-badges";
-import { Button } from "@/components/ui/button";
 import {
+  Button,
+  DataTable,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  EmptyState,
+  Menu,
+  MenuContent,
+  MenuItem,
+  MenuSeparator,
+  MenuTrigger,
+  StatusBadge,
+} from "@/design-system";
 import type {
   ApiAlertChannelResponse,
   ApiAlertRouteDryRunResponse,
@@ -182,7 +180,7 @@ export const AlertRulesTab = ({ channels }: AlertRulesTabProps) => {
         row.original.severities?.length ? (
           <div className="flex flex-wrap gap-1">
             {row.original.severities.map((severity) => (
-              <SeverityBadge key={severity} value={toSeverity(severity)} />
+              <StatusBadge status={severity} key={severity} />
             ))}
           </div>
         ) : (
@@ -214,36 +212,36 @@ export const AlertRulesTab = ({ channels }: AlertRulesTabProps) => {
       id: "actions",
       header: "",
       cell: ({ row }) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger
+        <Menu>
+          <MenuTrigger
             aria-label={`Open actions for ${row.original.name ?? "alert rule"}`}
             className="ml-auto flex size-6 items-center justify-center hover:bg-accent focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             <MoreHorizontal className="size-4" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem onClick={() => openDryRunEditor(row.original)}>
+          </MenuTrigger>
+          <MenuContent>
+            <MenuItem onClick={() => openDryRunEditor(row.original)}>
               <FlaskConical className="size-4" />
               Dry run
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => openEditEditor(row.original)}>
+            </MenuItem>
+            <MenuSeparator />
+            <MenuItem onClick={() => openEditEditor(row.original)}>
               <Pencil className="size-4" />
               Edit
-            </DropdownMenuItem>
-            <DropdownMenuItem
+            </MenuItem>
+            <MenuItem
               disabled={!row.original.id || updateRoute.isPending}
               onClick={() => setEnabled(row.original, !(row.original.enabled ?? true))}
             >
               <Power className="size-4" />
               {(row.original.enabled ?? true) ? "Disable" : "Enable"}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setDeletingRoute(row.original)}>
+            </MenuItem>
+            <MenuItem onClick={() => setDeletingRoute(row.original)}>
               <Trash2 className="size-4" />
               Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            </MenuItem>
+          </MenuContent>
+        </Menu>
       ),
     },
   ];
@@ -271,7 +269,7 @@ export const AlertRulesTab = ({ channels }: AlertRulesTabProps) => {
           description="Retry after Core is reachable."
           tone="error"
           action={
-            <Button size="sm" variant="outline" onClick={() => void routesResponse.refetch()}>
+            <Button size="sm" variant="secondary" onClick={() => void routesResponse.refetch()}>
               Retry
             </Button>
           }
@@ -284,7 +282,6 @@ export const AlertRulesTab = ({ channels }: AlertRulesTabProps) => {
           emptyMessage="No alert rules configured."
           getRowId={(route, index) => route.id ?? route.name ?? `route-${index}`}
           isLoading={routesResponse.isLoading}
-          loadingMessage="Loading alert rules..."
         />
       )}
 
@@ -323,7 +320,7 @@ export const AlertRulesTab = ({ channels }: AlertRulesTabProps) => {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeletingRoute(null)}>
+            <Button variant="secondary" onClick={() => setDeletingRoute(null)}>
               Cancel
             </Button>
             <Button

@@ -20,10 +20,22 @@ import (
 // @ID           registerAgent
 // @Param        request  body      service.RegisterRequest  true  "Agent registration request"
 // @Success      200      {object}  utils.APIResponse{data=service.RegisterResponse}
+// @Param        X-Orion-Enrollment-Token  header  string  false  "Enrollment secret; required when ORION_ENROLLMENT_TOKEN is set on Core"
 // @Failure      400      {object}  utils.APIResponse
+// @Failure      401      {object}  utils.APIResponse
+// @Failure      429      {object}  utils.APIResponse
 // @Failure      500      {object}  utils.APIResponse
 // @Router       /v1/register [post]
 func (s *Server) registerAgent(c *gin.Context) {
+	if !s.registerLimiter.Allow(c.ClientIP()) {
+		utils.ErrorResponse(c, http.StatusTooManyRequests, "Too many registration attempts", nil)
+		return
+	}
+	if !s.enrollmentTokenValid(c.GetHeader(enrollmentTokenHeader)) {
+		utils.Unauthorized(c, "Valid enrollment token required")
+		return
+	}
+
 	var req service.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		s.logger.Error("Invalid registration request", "error", err)
@@ -228,7 +240,7 @@ func agentIDParam(c *gin.Context) string {
 
 // setMaintenanceMode sets the maintenance mode for an agent.
 // @Summary      Set agent maintenance mode
-// @Description  Enable or disable maintenance mode for a specific agent
+// @Description  Enable or disable maintenance mode for a specific agent. Enabling lasts duration_seconds (default 24h, max 30 days) and then expires automatically; every change is audited.
 // @Tags         agents
 // @Accept       json
 // @Produce      json
@@ -253,13 +265,28 @@ func (s *Server) setMaintenanceMode(c *gin.Context) {
 		utils.BadRequest(c, "Invalid request payload")
 		return
 	}
-	if err := s.agentService.SetMaintenanceMode(agentID, *req.MaintenanceMode); err != nil {
+	var duration time.Duration
+	if req.DurationSeconds != nil {
+		if *req.DurationSeconds < 1 {
+			utils.BadRequest(c, service.ErrInvalidMaintenanceDuration.Error())
+			return
+		}
+		duration = time.Duration(*req.DurationSeconds) * time.Second
+	}
+	actor := service.AgentTokenActionInput{ActorType: "agent", ActorID: agentID, RequestID: requestIDFromContext(c)}
+	if err := s.agentService.SetMaintenanceMode(agentID, *req.MaintenanceMode, duration, actor); err != nil {
+		if errors.Is(err, service.ErrInvalidMaintenanceDuration) {
+			utils.BadRequest(c, err.Error())
+			return
+		}
 		s.logger.Error("Failed to set maintenance mode", "error", err, "agent_id", agentID)
 		utils.InternalError(c, "Failed to set maintenance mode", err)
 		return
 	}
 	s.logger.Info("Maintenance mode set", "agent_id", agentID, "maintenance_mode", *req.MaintenanceMode)
-	utils.SuccessResponse(c, 200, "Maintenance mode updated successfully", gin.H{"agent_id": agentID, "maintenance_mode": *req.MaintenanceMode})
+	var updated db.Agent
+	_ = s.db.Select("id", "maintenance_mode", "maintenance_until").Where("id = ?", agentID).First(&updated).Error
+	utils.SuccessResponse(c, 200, "Maintenance mode updated successfully", gin.H{"agent_id": agentID, "maintenance_mode": *req.MaintenanceMode, "maintenance_until": updated.MaintenanceUntil})
 }
 
 // listAgents retrieves a paginated list of agents.
@@ -316,7 +343,7 @@ func (s *Server) getAgentSummary(c *gin.Context) {
 	agentIDs := make([]string, 0, len(agents))
 	for _, agent := range agents {
 		agentIDs = append(agentIDs, agent.ID)
-		if agent.MaintenanceMode {
+		if agent.InMaintenance(time.Now().UTC()) {
 			summary.Maintenance++
 		}
 		health := "unknown"

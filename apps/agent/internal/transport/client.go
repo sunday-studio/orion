@@ -17,16 +17,34 @@ import (
 	"orion/agent/internal/logging"
 )
 
+// authState holds the bearer token. It is shared by every copy of a Client (see
+// WithContext) and guarded so token refresh can race with in-flight requests safely.
+type authState struct {
+	mu    sync.RWMutex
+	token string
+}
+
+func (a *authState) get() string {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.token
+}
+
+func (a *authState) set(token string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.token = token
+}
+
 type Client struct {
 	coreURL    string
 	httpClient *http.Client
-	mu         sync.RWMutex // guards authToken and ctx
-	authToken  string
+	auth       *authState
 	ctx        context.Context
 	enrollment string
 	gzipBodies bool
 	retry      RetryConfig
-	sleep      func(context.Context, time.Duration)
+	sleep      func(time.Duration)
 }
 
 type RetryConfig struct {
@@ -42,53 +60,40 @@ func NewClient(coreURL, authToken string) *Client {
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
-		authToken: authToken,
+		auth: &authState{token: authToken},
 		retry: RetryConfig{
 			MaxAttempts: 3,
 			BaseDelay:   200 * time.Millisecond,
 			MaxDelay:    5 * time.Second,
 			JitterRatio: 0.2,
 		},
-		sleep: sleepContext,
+		sleep: time.Sleep,
 	}
+}
+
+// SetEnrollmentToken sets the shared secret sent on first registration. Core only
+// requires it when ORION_ENROLLMENT_TOKEN is configured.
+func (c *Client) SetEnrollmentToken(token string) {
+	c.enrollment = strings.TrimSpace(token)
 }
 
 func (c *Client) SetAuthToken(authToken string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.authToken = authToken
+	c.auth.set(authToken)
 }
 
-func (c *Client) token() string {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.authToken
+// WithContext returns a client that shares this one's connection pool, retry
+// settings and auth token but whose requests (and retry waits) are cancelled with ctx.
+func (c *Client) WithContext(ctx context.Context) *Client {
+	clone := *c
+	clone.ctx = ctx
+	return &clone
 }
 
-// SetContext binds every later request to ctx, so shutdown cancels in-flight
-// calls and retry waits instead of blocking for the full retry budget.
-func (c *Client) SetContext(ctx context.Context) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.ctx = ctx
-}
-
-func (c *Client) context() context.Context {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	if c.ctx == nil {
-		return context.Background()
+func (c *Client) requestContext() context.Context {
+	if c.ctx != nil {
+		return c.ctx
 	}
-	return c.ctx
-}
-
-func sleepContext(ctx context.Context, d time.Duration) {
-	t := time.NewTimer(d)
-	defer t.Stop()
-	select {
-	case <-ctx.Done():
-	case <-t.C:
-	}
+	return context.Background()
 }
 
 func (c *Client) makeRequest(method, endpoint string, body interface{}, headers map[string]string) (*http.Response, error) {
@@ -106,9 +111,7 @@ func (c *Client) makeRequest(method, endpoint string, body interface{}, headers 
 		zw := gzip.NewWriter(&buf)
 		if _, err := zw.Write(payload); err == nil && zw.Close() == nil {
 			payload = buf.Bytes()
-			if headers == nil {
-				headers = map[string]string{}
-			}
+			headers = copyHeaders(headers)
 			headers["Content-Encoding"] = "gzip"
 		}
 	}
@@ -125,11 +128,10 @@ func (c *Client) sendWithRetry(method string, url string, payload []byte, header
 	var lastErr error
 	for attempt := 1; attempt <= attempts; attempt++ {
 		logging.Debugf("core request attempt: method=%s url=%s attempt=%d/%d", method, url, attempt, attempts)
-		ctx := c.context()
-		if err := ctx.Err(); err != nil {
+		if err := c.requestContext().Err(); err != nil {
 			return nil, err
 		}
-		req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(payload))
+		req, err := http.NewRequestWithContext(c.requestContext(), method, url, bytes.NewReader(payload))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create request: %w", err)
 		}
@@ -159,7 +161,7 @@ func (c *Client) sendWithRetry(method string, url string, payload []byte, header
 
 		delay := c.retryDelay(attempt)
 		logging.Warnf("request failed; retrying in %s (attempt %d/%d): %v", delay, attempt+1, attempts, lastErr)
-		c.sleep(ctx, delay)
+		c.sleep(delay)
 	}
 
 	return nil, fmt.Errorf("failed to send request after %d attempts: %w", attempts, lastErr)
@@ -169,18 +171,36 @@ func shouldRetryStatus(statusCode int) bool {
 	return statusCode == http.StatusTooManyRequests || statusCode >= 500
 }
 
-// isAuthResponse reports a credential rejection from Core. A 403 only counts
-// when the body is a JSON object like Core's own errors; a bare 403 from a
-// proxy or WAF is treated as a transient failure, not a revoked token.
-func isAuthResponse(statusCode int, body []byte) bool {
-	switch statusCode {
-	case http.StatusUnauthorized:
-		return true
-	case http.StatusForbidden:
-		var v map[string]any
-		return json.Unmarshal(bytes.TrimSpace(body), &v) == nil
+// isAuthStatus is true only for 401, which is what Core answers for a bad or
+// revoked agent token. A 403 comes from something in front of Core (proxy, WAF,
+// captive portal) and is treated as a transient failure, not a credential rejection.
+func isAuthStatus(statusCode int) bool {
+	return statusCode == http.StatusUnauthorized
+}
+
+// StatusError is a non-success HTTP status from Core that is not an auth failure.
+type StatusError struct {
+	StatusCode int
+	Operation  string
+}
+
+func (e *StatusError) Error() string {
+	return fmt.Sprintf("core server returned status %d during %s", e.StatusCode, e.Operation)
+}
+
+// IsTransientError reports whether retrying later could succeed: network errors,
+// timeouts, 429, 5xx and 403-from-a-proxy. Credential rejections and other 4xx
+// responses will not fix themselves.
+func IsTransientError(err error) bool {
+	if err == nil || IsAuthError(err) || errors.Is(err, ErrEnrollmentRejected) {
+		return false
 	}
-	return false
+	var statusErr *StatusError
+	if errors.As(err, &statusErr) {
+		code := statusErr.StatusCode
+		return code >= 500 || code == http.StatusTooManyRequests || code == http.StatusForbidden || code == http.StatusRequestTimeout
+	}
+	return true
 }
 
 func (c *Client) retryDelay(attempt int) time.Duration {
@@ -213,7 +233,7 @@ func (c *Client) retryDelay(attempt int) time.Duration {
 
 func (c *Client) makeProtectedRequest(method, endpoint string, body interface{}) (*http.Response, error) {
 	headers := map[string]string{
-		"Authorization": "Bearer " + c.token(),
+		"Authorization": "Bearer " + c.auth.get(),
 	}
 	return c.makeRequest(method, endpoint, body, headers)
 }
@@ -233,7 +253,7 @@ func (c *Client) RegisterMonitor(req MonitorRegistrationRequest) (*MonitorRegist
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		if isAuthResponse(resp.StatusCode, body) {
+		if isAuthStatus(resp.StatusCode) {
 			return nil, NewAuthError(resp.StatusCode, body)
 		}
 		return nil, fmt.Errorf("core responded with %d: %s", resp.StatusCode, string(body))
@@ -267,7 +287,7 @@ func (c *Client) UnregisterMonitor(req UnRegisterMonitorRequest) (*UnRegisterMon
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		if isAuthResponse(resp.StatusCode, body) {
+		if isAuthStatus(resp.StatusCode) {
 			return nil, NewAuthError(resp.StatusCode, body)
 		}
 		return nil, fmt.Errorf("core responded with %d: %s", resp.StatusCode, string(body))
@@ -296,7 +316,7 @@ func (c *Client) SendReport(report SystemReport, agentID string) error {
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		if isAuthResponse(resp.StatusCode, body) {
+		if isAuthStatus(resp.StatusCode) {
 			return NewAuthError(resp.StatusCode, body)
 		}
 		logging.Warnf("unexpected status from core: %d — %s", resp.StatusCode, string(body))
@@ -317,7 +337,7 @@ func (c *Client) SendMonitorReport(report MonitorReport, agentID string, monitor
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		if isAuthResponse(resp.StatusCode, body) {
+		if isAuthStatus(resp.StatusCode) {
 			return NewAuthError(resp.StatusCode, body)
 		}
 		logging.Warnf("unexpected status from core: %d — %s", resp.StatusCode, string(body))
@@ -342,7 +362,7 @@ func (c *Client) SendServiceLogs(batch ServiceLogBatch, agentID string) error {
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		if isAuthResponse(resp.StatusCode, body) {
+		if isAuthStatus(resp.StatusCode) {
 			return NewAuthError(resp.StatusCode, body)
 		}
 		logging.Warnf("unexpected status from core service log ingest: %d — %s", resp.StatusCode, string(body))
@@ -353,22 +373,16 @@ func (c *Client) SendServiceLogs(batch ServiceLogBatch, agentID string) error {
 	return nil
 }
 
-// EnrollmentTokenHeader carries the one-time enrollment token on registration.
-const EnrollmentTokenHeader = "X-Orion-Enrollment-Token"
-
-// ErrEnrollmentRejected means Core refused the enrollment token.
+// ErrEnrollmentRejected means Core refused the enrollment token; retrying cannot help.
 var ErrEnrollmentRejected = errors.New("enrollment token was rejected")
 
-// SetEnrollmentToken sets the one-time token sent with the next registration.
-// SetCompression enables gzip for request bodies over 1 KiB.
+// SetCompression enables gzip for request bodies over 1 KiB ("gzip").
 func (c *Client) SetCompression(mode string) { c.gzipBodies = strings.EqualFold(mode, "gzip") }
-
-func (c *Client) SetEnrollmentToken(token string) { c.enrollment = token }
 
 func (c *Client) RegisterAgent(req AgentRegistrationRequest) (*AgentRegistrationResponse, error) {
 	var headers map[string]string
 	if c.enrollment != "" {
-		headers = map[string]string{EnrollmentTokenHeader: c.enrollment}
+		headers = map[string]string{"X-Orion-Enrollment-Token": c.enrollment}
 	}
 	resp, err := c.makeRequest("POST", "/v1/register", req, headers)
 	if err != nil {
@@ -381,15 +395,12 @@ func (c *Client) RegisterAgent(req AgentRegistrationRequest) (*AgentRegistration
 		return nil, fmt.Errorf("failed to read registration response: %w", err)
 	}
 
-	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+	if resp.StatusCode == http.StatusUnauthorized {
 		return nil, fmt.Errorf("%w (HTTP %d): create a new one in Console under Add server", ErrEnrollmentRejected, resp.StatusCode)
-	}
-	if resp.StatusCode == http.StatusTooManyRequests {
-		return nil, fmt.Errorf("core is rate limiting registration (HTTP 429); wait a minute and retry")
 	}
 	if resp.StatusCode != http.StatusOK {
 		logging.Warnf("unexpected status from core during registration: %d — %s", resp.StatusCode, string(body))
-		return nil, fmt.Errorf("core server returned status %d during registration", resp.StatusCode)
+		return nil, &StatusError{StatusCode: resp.StatusCode, Operation: "registration"}
 	}
 
 	var regResp AgentRegistrationResponse
@@ -405,11 +416,16 @@ func (c *Client) RegisterAgent(req AgentRegistrationRequest) (*AgentRegistration
 	return &regResp, nil
 }
 
-func (c *Client) SetMaintenanceMode(agentID string, maintenanceMode bool) error {
+// SetMaintenanceMode toggles maintenance. When enabling, duration > 0 sets how long
+// it lasts (Core expires it automatically; zero uses Core's default of 24h).
+func (c *Client) SetMaintenanceMode(agentID string, maintenanceMode bool, duration time.Duration) error {
 	endpoint := fmt.Sprintf("/v1/agents/%s/maintenance", agentID)
 
-	payload := map[string]bool{
+	payload := map[string]any{
 		"maintenance_mode": maintenanceMode,
+	}
+	if maintenanceMode && duration > 0 {
+		payload["duration_seconds"] = int(duration.Seconds())
 	}
 
 	resp, err := c.makeProtectedRequest("PUT", endpoint, payload)
@@ -420,7 +436,7 @@ func (c *Client) SetMaintenanceMode(agentID string, maintenanceMode bool) error 
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		if isAuthResponse(resp.StatusCode, body) {
+		if isAuthStatus(resp.StatusCode) {
 			return &AuthError{StatusCode: resp.StatusCode, Body: string(body)}
 		}
 		logging.Warnf("unexpected status from core: %d — %s", resp.StatusCode, string(body))
@@ -429,4 +445,12 @@ func (c *Client) SetMaintenanceMode(agentID string, maintenanceMode bool) error 
 
 	logging.Infof("Maintenance mode updated successfully")
 	return nil
+}
+
+func copyHeaders(h map[string]string) map[string]string {
+	out := make(map[string]string, len(h)+1)
+	for k, v := range h {
+		out[k] = v
+	}
+	return out
 }

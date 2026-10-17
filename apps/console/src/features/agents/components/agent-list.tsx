@@ -1,9 +1,7 @@
 import { type GetAgentsParams, useGetAgentSummary, useGetAgents } from "@/orion-sdk";
 import { AgentRow } from "./agent-row";
 import { AgentSummary, type AgentSummaryFilter } from "./agent-summary";
-import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/shared/empty-state";
-import { ListPagination } from "@/components/shared/list-pagination";
+import { Button, EmptyState, ListPagination, Skeleton } from "@/design-system";
 import { parseAsBoolean, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 import { Fragment } from "react/jsx-runtime";
 
@@ -83,14 +81,18 @@ export const AgentList = () => {
           description="The server list can still load, but summary filters may be stale."
           tone="error"
           action={
-            <Button size="sm" variant="outline" onClick={() => void summaryResponse.refetch()}>
+            <Button size="sm" variant="secondary" onClick={() => void summaryResponse.refetch()}>
               Retry
             </Button>
           }
         />
       )}
       {agentsResponse.isLoading && (
-        <div className="py-3 text-sm text-neutral-600">Loading servers...</div>
+        <div aria-busy className="space-y-2 py-3">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
       )}
       {agentsResponse.error && (
         <EmptyState
@@ -98,7 +100,7 @@ export const AgentList = () => {
           description="Retry after Core is reachable."
           tone="error"
           action={
-            <Button size="sm" variant="outline" onClick={() => void agentsResponse.refetch()}>
+            <Button size="sm" variant="secondary" onClick={() => void agentsResponse.refetch()}>
               Retry
             </Button>
           }

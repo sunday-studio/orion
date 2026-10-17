@@ -9,8 +9,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 func TestAlertServiceSkipsUnsubscribedEvents(t *testing.T) {
@@ -35,7 +33,7 @@ func TestAlertServiceSkipsUnsubscribedEvents(t *testing.T) {
 	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
-	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentResolved); err != nil {
+	if err := queueAndDispatch(service, "incident-1", db.AlertEventIncidentResolved); err != nil {
 		t.Fatalf("QueueIncidentNotifications() error = %v", err)
 	}
 
@@ -73,7 +71,7 @@ func TestAlertServiceUsesMatchingAlertRoute(t *testing.T) {
 	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
-	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentOpened); err != nil {
+	if err := queueAndDispatch(service, "incident-1", db.AlertEventIncidentOpened); err != nil {
 		t.Fatalf("QueueIncidentNotifications() error = %v", err)
 	}
 
@@ -150,10 +148,10 @@ func TestAlertServiceGroupsSiblingIncidentNotifications(t *testing.T) {
 	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
-	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentOpened); err != nil {
+	if err := queueAndDispatch(service, "incident-1", db.AlertEventIncidentOpened); err != nil {
 		t.Fatalf("first QueueIncidentNotifications() error = %v", err)
 	}
-	if err := service.QueueIncidentNotifications("incident-2", db.AlertEventIncidentOpened); err != nil {
+	if err := queueAndDispatch(service, "incident-2", db.AlertEventIncidentOpened); err != nil {
 		t.Fatalf("second QueueIncidentNotifications() error = %v", err)
 	}
 
@@ -215,10 +213,10 @@ func TestAlertServiceDelaysGroupedSummaryForRoutePolicy(t *testing.T) {
 	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
-	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentOpened); err != nil {
+	if err := queueAndDispatch(service, "incident-1", db.AlertEventIncidentOpened); err != nil {
 		t.Fatalf("first QueueIncidentNotifications() error = %v", err)
 	}
-	if err := service.QueueIncidentNotifications("incident-2", db.AlertEventIncidentOpened); err != nil {
+	if err := queueAndDispatch(service, "incident-2", db.AlertEventIncidentOpened); err != nil {
 		t.Fatalf("second QueueIncidentNotifications() error = %v", err)
 	}
 
@@ -290,10 +288,10 @@ func TestAlertServiceRouteCanDisableGrouping(t *testing.T) {
 	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
-	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentOpened); err != nil {
+	if err := queueAndDispatch(service, "incident-1", db.AlertEventIncidentOpened); err != nil {
 		t.Fatalf("first QueueIncidentNotifications() error = %v", err)
 	}
-	if err := service.QueueIncidentNotifications("incident-2", db.AlertEventIncidentOpened); err != nil {
+	if err := queueAndDispatch(service, "incident-2", db.AlertEventIncidentOpened); err != nil {
 		t.Fatalf("second QueueIncidentNotifications() error = %v", err)
 	}
 
@@ -326,22 +324,22 @@ func TestAlertServiceSuppressesRecoveryUntilGroupedSiblingsResolve(t *testing.T)
 	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
-	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentOpened); err != nil {
+	if err := queueAndDispatch(service, "incident-1", db.AlertEventIncidentOpened); err != nil {
 		t.Fatalf("first opened QueueIncidentNotifications() error = %v", err)
 	}
-	if err := service.QueueIncidentNotifications("incident-2", db.AlertEventIncidentOpened); err != nil {
+	if err := queueAndDispatch(service, "incident-2", db.AlertEventIncidentOpened); err != nil {
 		t.Fatalf("second opened QueueIncidentNotifications() error = %v", err)
 	}
 	if err := database.Model(&db.Incident{}).Where("id = ?", "incident-1").Update("status", "resolved").Error; err != nil {
 		t.Fatalf("resolve incident-1: %v", err)
 	}
-	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentResolved); err != nil {
+	if err := queueAndDispatch(service, "incident-1", db.AlertEventIncidentResolved); err != nil {
 		t.Fatalf("first resolved QueueIncidentNotifications() error = %v", err)
 	}
 	if err := database.Model(&db.Incident{}).Where("id = ?", "incident-2").Update("status", "resolved").Error; err != nil {
 		t.Fatalf("resolve incident-2: %v", err)
 	}
-	if err := service.QueueIncidentNotifications("incident-2", db.AlertEventIncidentResolved); err != nil {
+	if err := queueAndDispatch(service, "incident-2", db.AlertEventIncidentResolved); err != nil {
 		t.Fatalf("second resolved QueueIncidentNotifications() error = %v", err)
 	}
 
@@ -397,7 +395,7 @@ func TestAlertServiceTestsConfiguredWebhookChannel(t *testing.T) {
 	}
 }
 
-func TestAlertServiceTestsConfiguredEmailChannel(t *testing.T) {
+func TestAlertServiceTestEmailChannelFailsWhenSMTPUnconfigured(t *testing.T) {
 	database := setupAlertServiceDatabase(t)
 	createTestAlertChannel(t, database, db.AlertChannel{
 		Name:    "ops-email",
@@ -406,7 +404,8 @@ func TestAlertServiceTestsConfiguredEmailChannel(t *testing.T) {
 	})
 	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 
-	if _, err := service.TestChannel("channel-ops-email"); err != gorm.ErrRecordNotFound {
-		t.Fatalf("TestChannel() error = %v, want legacy email channel hidden", err)
+	delivery, err := service.TestChannel("channel-ops-email")
+	if err != nil || delivery.Status != "failed" || !strings.Contains(delivery.Error, "not configured") {
+		t.Fatalf("TestChannel() = %+v, %v; want failed delivery naming missing SMTP config", delivery, err)
 	}
 }

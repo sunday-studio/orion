@@ -1,11 +1,4 @@
-import {
-  NotificationBadge,
-  SeverityBadge,
-  StatusBadge,
-  toNotificationStatus,
-  toSeverity,
-  toStatus,
-} from "@/components/shared/status-badges";
+import { StatusBadge } from "@/design-system";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import type { ApiIncidentResponse, ApiIncidentTimelineItemResponse } from "@/orion-sdk";
 import { Link } from "react-router-dom";
@@ -66,12 +59,11 @@ export const IncidentOverviewCards = ({
           <div className="min-w-0">
             <div className="text-xs font-medium text-neutral-500">current state</div>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <StatusBadge value={toStatus(incident.status)} />
-              <SeverityBadge value={toSeverity(incident.severity)} />
-              <NotificationBadge
-                value={toNotificationStatus(incident.notification_status)}
-                fallback="no notification status"
-              />
+              <StatusBadge status={incident.status} />
+              <StatusBadge status={incident.severity} />
+              <StatusBadge status={incident.notification_status}>
+                {incident.notification_status ?? "no notification status"}
+              </StatusBadge>
             </div>
           </div>
           <div className="shrink-0 text-right">

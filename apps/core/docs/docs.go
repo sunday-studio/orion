@@ -1294,7 +1294,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Enable or disable maintenance mode for a specific agent",
+                "description": "Enable or disable maintenance mode for a specific agent. Enabling lasts duration_seconds (default 24h, max 30 days) and then expires automatically; every change is audited.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1840,6 +1840,12 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
@@ -2507,7 +2513,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Create a generic webhook alert channel. Secret values are stored but never returned by the API.",
+                "description": "Create a webhook or email alert channel. Email channels need SMTP configured and recipients confirmed via double opt-in. Secret values are stored but never returned by the API.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2701,6 +2707,229 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/alerts/channels/{id}/recipients": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "List alert channel recipients",
+                "operationId": "getAlertChannelRecipients",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Alert channel ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "recipients": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/internal_api.AlertRecipientResponse"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Adds an address to an email channel and mails it a confirmation link. No alerts are sent until it confirms (double opt-in).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Add alert channel recipient",
+                "operationId": "addAlertChannelRecipient",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Alert channel ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Recipient",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.alertRecipientRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "recipient": {
+                                                    "$ref": "#/definitions/internal_api.AlertRecipientResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/alerts/channels/{id}/recipients/{recipient_id}": {
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Remove alert channel recipient",
+                "operationId": "removeAlertChannelRecipient",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Alert channel ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Recipient ID",
+                        "name": "recipient_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/alerts/channels/{id}/recipients/{recipient_id}/resend": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Resend recipient confirmation",
+                "operationId": "resendAlertChannelRecipient",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Alert channel ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Recipient ID",
+                        "name": "recipient_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/alerts/channels/{id}/test": {
             "post": {
                 "description": "Send a manual test notification through a configured generic webhook alert channel.",
@@ -2861,6 +3090,85 @@ const docTemplate = `{
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/alerts/deliveries/{id}/retry": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Re-queue a failed alert delivery so the Worker dispatcher sends it again. Only failed deliveries can be retried.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Retry an alert delivery",
+                "operationId": "retryAlertDelivery",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Alert delivery ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "delivery": {
+                                                    "$ref": "#/definitions/internal_api.AlertDeliveryResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
@@ -3630,6 +3938,645 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/apps": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Product-logging applications and their settings.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "apps"
+                ],
+                "summary": "List apps",
+                "operationId": "listApps",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "apps": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/internal_api.App"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "501": {
+                        "description": "Not Implemented",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates an app. Create an ingest key next to let it send logs.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "apps"
+                ],
+                "summary": "Create an app",
+                "operationId": "createApp",
+                "parameters": [
+                    {
+                        "description": "App settings",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.AppRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "app": {
+                                                    "$ref": "#/definitions/internal_api.App"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "501": {
+                        "description": "Not Implemented",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/apps/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "apps"
+                ],
+                "summary": "Get an app",
+                "operationId": "getApp",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "App ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "app": {
+                                                    "$ref": "#/definitions/internal_api.App"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "501": {
+                        "description": "Not Implemented",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes the app, revokes its keys and removes its stored logs.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "apps"
+                ],
+                "summary": "Delete an app",
+                "operationId": "deleteApp",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "App ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "501": {
+                        "description": "Not Implemented",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Changes retention, sampling, display profile or redaction. Omitted fields are unchanged.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "apps"
+                ],
+                "summary": "Update an app",
+                "operationId": "updateApp",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "App ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to change",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.AppUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "app": {
+                                                    "$ref": "#/definitions/internal_api.App"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "501": {
+                        "description": "Not Implemented",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/apps/{id}/keys": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Keys never include the secret; only a short prefix is shown.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "apps"
+                ],
+                "summary": "List ingest keys",
+                "operationId": "listIngestKeys",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "App ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "keys": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/internal_api.IngestKey"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "501": {
+                        "description": "Not Implemented",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the full key once. Store it; it cannot be shown again. To rotate, create a new key, deploy it, then revoke the old one.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "apps"
+                ],
+                "summary": "Create an ingest key",
+                "operationId": "createIngestKey",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "App ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Key name",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.IngestKeyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "key": {
+                                                    "$ref": "#/definitions/internal_api.IngestKeyCreated"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "501": {
+                        "description": "Not Implemented",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/apps/{id}/keys/{key_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Takes effect immediately.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "apps"
+                ],
+                "summary": "Revoke an ingest key",
+                "operationId": "revokeIngestKey",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "App ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Key ID",
+                        "name": "key_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "501": {
+                        "description": "Not Implemented",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/apps/{id}/test-log": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Writes one info entry (event orion.test) for the app, to confirm setup end to end.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "apps"
+                ],
+                "summary": "Send a test log",
+                "operationId": "sendAppTestLog",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "App ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.TestLogResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "501": {
+                        "description": "Not Implemented",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/auth/login": {
             "post": {
                 "description": "Returns a JWT for frontend API requests when frontend auth is configured.",
@@ -3797,7 +4744,7 @@ const docTemplate = `{
         },
         "/v1/events": {
             "get": {
-                "description": "Get a paginated operational event log for Core, agents, monitors, incidents, alerts, and lifecycle actions",
+                "description": "Operational event log for Core, agents, monitors, incidents, alerts, and lifecycle actions, newest first. Page with the keyset ` + "`" + `cursor` + "`" + ` (preferred: constant cost per page); ` + "`" + `offset` + "`" + ` is kept for compatibility, capped at 5000 rows, and makes ` + "`" + `count` + "`" + ` a lower bound.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3813,14 +4760,20 @@ const docTemplate = `{
                     {
                         "type": "integer",
                         "default": 50,
-                        "description": "Maximum number of events to return",
+                        "description": "Maximum number of events to return (max 200)",
                         "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Opaque cursor from a previous response's next_cursor",
+                        "name": "cursor",
                         "in": "query"
                     },
                     {
                         "type": "integer",
                         "default": 0,
-                        "description": "Number of events to skip",
+                        "description": "Deprecated: number of events to skip",
                         "name": "offset",
                         "in": "query"
                     },
@@ -3866,8 +4819,14 @@ const docTemplate = `{
                                                         "$ref": "#/definitions/internal_api.OrionEventResponse"
                                                     }
                                                 },
+                                                "has_more": {
+                                                    "type": "boolean"
+                                                },
                                                 "limit": {
                                                     "type": "integer"
+                                                },
+                                                "next_cursor": {
+                                                    "type": "string"
                                                 },
                                                 "offset": {
                                                     "type": "integer"
@@ -3880,6 +4839,12 @@ const docTemplate = `{
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
@@ -3917,18 +4882,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "count": {
-                                                    "type": "integer"
-                                                },
-                                                "issues": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "object"
-                                                    }
-                                                }
-                                            }
+                                            "$ref": "#/definitions/internal_api.HealthIssuesResponse"
                                         }
                                     }
                                 }
@@ -4011,6 +4965,112 @@ const docTemplate = `{
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/heartbeat/failure": {
+            "post": {
+                "security": [
+                    {
+                        "HeartbeatBearer": []
+                    }
+                ],
+                "description": "Same as the path-token form, but the token is sent as ` + "`" + `Authorization: Bearer \u003ctoken\u003e` + "`" + `.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "heartbeats"
+                ],
+                "summary": "Record heartbeat failure (header token)",
+                "operationId": "receiveHeartbeatFailureHeader",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.HeartbeatSignalResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/heartbeat/success": {
+            "post": {
+                "security": [
+                    {
+                        "HeartbeatBearer": []
+                    }
+                ],
+                "description": "Same as the path-token form, but the token is sent as ` + "`" + `Authorization: Bearer \u003ctoken\u003e` + "`" + ` so it never lands in URLs, proxy access logs or shell history.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "heartbeats"
+                ],
+                "summary": "Record heartbeat success (header token)",
+                "operationId": "receiveHeartbeatSuccessHeader",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.HeartbeatSignalResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
@@ -4299,22 +5359,95 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
+                                            "$ref": "#/definitions/internal_api.IncidentCandidatesResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/incidents/candidates/{id}/dismiss": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Hide a failing monitor from the incident candidates list. The candidate id is the monitor id. It reappears if the monitor recovers and fails again.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "incidents"
+                ],
+                "summary": "Dismiss an incident candidate",
+                "operationId": "dismissIncidentCandidate",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Candidate (monitor) ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Optional reason",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.dismissIncidentCandidateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
                                             "type": "object",
                                             "properties": {
-                                                "candidates": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "object"
-                                                    }
+                                                "dismissed_at": {
+                                                    "type": "string"
                                                 },
-                                                "count": {
-                                                    "type": "integer"
+                                                "monitor_id": {
+                                                    "type": "string"
                                                 }
                                             }
                                         }
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
@@ -4579,6 +5712,77 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/incidents/{id}/logs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Entries from 15 minutes before the incident opened until 5 minutes after it resolved (or now): the agent's service logs, plus the app's product logs when ` + "`" + `app_id` + "`" + ` is given or the incident came from a log alert rule. Newest first.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "incidents"
+                ],
+                "summary": "Logs around an incident",
+                "operationId": "getIncidentLogs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Incident ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Also include this app's product logs",
+                        "name": "app_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Maximum entries, default 100, max 200",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.LogListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/incidents/{id}/reopen": {
             "post": {
                 "description": "Reopen a covered or resolved incident, restore its monitor active incident path, and record a manual incident event",
@@ -4799,6 +6003,743 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/ingest/logs": {
+            "post": {
+                "security": [
+                    {
+                        "IngestKey": []
+                    }
+                ],
+                "description": "Send one entry, a JSON array of entries, or newline-delimited JSON (Content-Type application/x-ndjson). Authenticate with an app ingest key. Entries are validated individually: invalid ones are rejected without failing the batch. Limits: 64 KiB per entry, 10,000 entries and 1 MiB per request (5 MiB for NDJSON). Responds 202 once queued; 429 with Retry-After when the app is rate limited or the queue is full.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ingest"
+                ],
+                "summary": "Ingest logs",
+                "operationId": "ingestLogs",
+                "parameters": [
+                    {
+                        "description": "One entry object, an array of entries, or NDJSON",
+                        "name": "entries",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/internal_api.LogEntryInput"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.IngestResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "413": {
+                        "description": "Request Entity Too Large",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "415": {
+                        "description": "Unsupported Media Type",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "501": {
+                        "description": "Not Implemented",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/ingest/otlp/v1/logs": {
+            "post": {
+                "security": [
+                    {
+                        "IngestKey": []
+                    }
+                ],
+                "description": "OpenTelemetry Logs endpoint (ExportLogsServiceRequest) as JSON (application/json) or protobuf (application/x-protobuf), so any OpenTelemetry SDK or Collector can send logs with no Orion-specific code. Authenticate with an app ingest key. Responds per the OTLP spec with an ExportLogsServiceResponse (partial_success when some records were rejected).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ingest"
+                ],
+                "summary": "Ingest logs over OTLP/HTTP",
+                "operationId": "ingestOTLPLogs",
+                "parameters": [
+                    {
+                        "description": "ExportLogsServiceRequest (OTLP/HTTP JSON; protobuf is also accepted)",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "413": {
+                        "description": "Request Entity Too Large",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "501": {
+                        "description": "Not Implemented",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/logs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Newest-first, cursor-paginated log list. source=app (default) searches product logs; source=agent lists agent service logs (severity, q, from, to and agent_id apply).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "logs"
+                ],
+                "summary": "Search logs",
+                "operationId": "searchLogs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "app (default) or agent",
+                        "name": "source",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by app",
+                        "name": "app_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by agent (agent service logs)",
+                        "name": "agent_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated severities, or a minimum with \u003e=warn",
+                        "name": "severity",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact event name",
+                        "name": "event",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Full-text search over body and attributes",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start (RFC 3339, or relative like -1h)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End (RFC 3339); default now",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact trace id",
+                        "name": "trace_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact request id",
+                        "name": "request_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Attribute filter key:value, repeatable (attr=http.status_code:500)",
+                        "name": "attr",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Page size, max 200",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cursor from a previous page",
+                        "name": "cursor",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.LogListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "501": {
+                        "description": "Not Implemented",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/logs/alerts": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Rules that raise an incident when an app's logs match a condition.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "logs"
+                ],
+                "summary": "List log alert rules",
+                "operationId": "listLogAlertRules",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "rules": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/internal_api.LogAlertRule"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Threshold rules fire when more than ` + "`" + `threshold` + "`" + ` matching entries arrive inside the window; absence rules fire when none do. A firing rule opens one incident (Webhook and Email alerts follow the normal routes) and resolves when the condition clears. Rules are evaluated by the Worker about every 30 seconds.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "logs"
+                ],
+                "summary": "Create a log alert rule",
+                "operationId": "createLogAlertRule",
+                "parameters": [
+                    {
+                        "description": "Rule",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.LogAlertRuleRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "rule": {
+                                                    "$ref": "#/definitions/internal_api.LogAlertRule"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/logs/alerts/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Resolves the rule's open incident, then removes the rule.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "logs"
+                ],
+                "summary": "Delete a log alert rule",
+                "operationId": "deleteLogAlertRule",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Rule ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Omitted fields are unchanged. Disabling a rule resolves its open incident.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "logs"
+                ],
+                "summary": "Update a log alert rule",
+                "operationId": "updateLogAlertRule",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Rule ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to change",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.LogAlertRuleUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "rule": {
+                                                    "$ref": "#/definitions/internal_api.LogAlertRule"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/logs/fields": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Attribute keys seen for an app with dominant type and approximate cardinality; powers facets and columns.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "logs"
+                ],
+                "summary": "Log field catalog",
+                "operationId": "getLogFieldCatalog",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "App ID",
+                        "name": "app_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.LogFieldCatalogResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "501": {
+                        "description": "Not Implemented",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/logs/histogram": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Counts per time bucket, split by severity, for the same filters as the search.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "logs"
+                ],
+                "summary": "Log volume histogram",
+                "operationId": "getLogHistogram",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "app (default) or agent",
+                        "name": "source",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by app",
+                        "name": "app_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by agent (agent service logs)",
+                        "name": "agent_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated severities, or a minimum with \u003e=warn",
+                        "name": "severity",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact event name",
+                        "name": "event",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Full-text search over body and attributes",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start (RFC 3339, or relative like -1h)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End (RFC 3339); default now",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact trace id",
+                        "name": "trace_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact request id",
+                        "name": "request_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Attribute filter key:value, repeatable (attr=http.status_code:500)",
+                        "name": "attr",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 60,
+                        "description": "Approximate number of buckets",
+                        "name": "buckets",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.LogHistogramResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "501": {
+                        "description": "Not Implemented",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/logs/service": {
             "get": {
                 "description": "Get paginated structured service logs shipped by Orion services",
@@ -4907,6 +6848,368 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/logs/stream": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Server-Sent Events: each event named log carries one LogEntry as JSON. Accepts the same filters as the search (no from/to/cursor). Sends a comment heartbeat every 15s. Reconnect with Last-Event-ID to resume.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "logs"
+                ],
+                "summary": "Stream logs live",
+                "operationId": "streamLogs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "app (default) or agent",
+                        "name": "source",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by app",
+                        "name": "app_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by agent (agent service logs)",
+                        "name": "agent_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated severities, or a minimum with \u003e=warn",
+                        "name": "severity",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact event name",
+                        "name": "event",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Full-text search over body and attributes",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact trace id",
+                        "name": "trace_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact request id",
+                        "name": "request_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Attribute filter key:value, repeatable (attr=http.status_code:500)",
+                        "name": "attr",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "501": {
+                        "description": "Not Implemented",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/logs/views": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "logs"
+                ],
+                "summary": "List saved log views",
+                "operationId": "listLogViews",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "views": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/internal_api.LogSavedView"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "501": {
+                        "description": "Not Implemented",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "logs"
+                ],
+                "summary": "Save a log view",
+                "operationId": "createLogView",
+                "parameters": [
+                    {
+                        "description": "View",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.LogSavedViewRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "view": {
+                                                    "$ref": "#/definitions/internal_api.LogSavedView"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "501": {
+                        "description": "Not Implemented",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/logs/views/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "logs"
+                ],
+                "summary": "Delete a saved log view",
+                "operationId": "deleteLogView",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "View ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "501": {
+                        "description": "Not Implemented",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/logs/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "logs"
+                ],
+                "summary": "Get one log entry",
+                "operationId": "getLogEntry",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Log entry ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "entry": {
+                                                    "$ref": "#/definitions/internal_api.LogEntry"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "501": {
+                        "description": "Not Implemented",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
@@ -5766,6 +8069,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_service.RegisterRequest"
                         }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Enrollment secret; required when ORION_ENROLLMENT_TOKEN is set on Core",
+                        "name": "X-Orion-Enrollment-Token",
+                        "in": "header"
                     }
                 ],
                 "responses": {
@@ -5789,6 +8098,18 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
@@ -8642,6 +10963,9 @@ const docTemplate = `{
                 "maintenance_mode": {
                     "type": "boolean"
                 },
+                "maintenance_until": {
+                    "type": "string"
+                },
                 "monitor_count": {
                     "type": "integer"
                 },
@@ -8751,6 +11075,9 @@ const docTemplate = `{
         "internal_api.AlertChannelResponse": {
             "type": "object",
             "properties": {
+                "confirmed_recipient_count": {
+                    "type": "integer"
+                },
                 "created_at": {
                     "type": "string"
                 },
@@ -8768,6 +11095,9 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "recipient_count": {
+                    "type": "integer"
                 },
                 "subscribed_events": {
                     "type": "array",
@@ -8879,6 +11209,24 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.AlertRecipientResponse": {
+            "type": "object",
+            "properties": {
+                "confirmed_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "pending | confirmed | unsubscribed",
                     "type": "string"
                 }
             }
@@ -9166,6 +11514,119 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.App": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "debug_sample_rate": {
+                    "description": "DebugSampleRate keeps this fraction (0-1) of trace and debug entries. Default 1.",
+                    "type": "number",
+                    "example": 1
+                },
+                "description": {
+                    "type": "string"
+                },
+                "display_profile": {
+                    "$ref": "#/definitions/internal_api.DisplayProfile"
+                },
+                "environment": {
+                    "type": "string",
+                    "example": "production"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "key_count": {
+                    "type": "integer"
+                },
+                "last_ingest_at": {
+                    "type": "string"
+                },
+                "max_storage_mb": {
+                    "description": "MaxStorageMB caps stored log size for this app; the oldest entries are pruned first. 0 means the server default.",
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "checkout-api"
+                },
+                "redaction": {
+                    "$ref": "#/definitions/internal_api.RedactionSettings"
+                },
+                "retention_days": {
+                    "description": "RetentionDays defaults to 14.",
+                    "type": "integer",
+                    "example": 14
+                },
+                "slug": {
+                    "type": "string",
+                    "example": "checkout-api"
+                }
+            }
+        },
+        "internal_api.AppRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "debug_sample_rate": {
+                    "type": "number"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "display_profile": {
+                    "$ref": "#/definitions/internal_api.DisplayProfile"
+                },
+                "environment": {
+                    "type": "string"
+                },
+                "max_storage_mb": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "redaction": {
+                    "$ref": "#/definitions/internal_api.RedactionSettings"
+                },
+                "retention_days": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_api.AppUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "debug_sample_rate": {
+                    "type": "number"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "display_profile": {
+                    "$ref": "#/definitions/internal_api.DisplayProfile"
+                },
+                "environment": {
+                    "type": "string"
+                },
+                "max_storage_mb": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "redaction": {
+                    "$ref": "#/definitions/internal_api.RedactionSettings"
+                },
+                "retention_days": {
+                    "type": "integer"
+                }
+            }
+        },
         "internal_api.CoreMonitorConfigResponse": {
             "type": "object",
             "properties": {
@@ -9261,6 +11722,80 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.DisplayProfile": {
+            "type": "object",
+            "properties": {
+                "columns": {
+                    "description": "Columns are attribute keys shown as extra columns in the list.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "hidden": {
+                    "description": "Hidden are attribute keys removed from the detail view (they are still stored).",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "title_field": {
+                    "description": "TitleField is the attribute shown as the row title instead of the body.",
+                    "type": "string",
+                    "example": "event"
+                }
+            }
+        },
+        "internal_api.HealthIssue": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "agent_name": {
+                    "type": "string"
+                },
+                "health": {
+                    "description": "Health is the computed health that makes this an issue.",
+                    "type": "string",
+                    "enum": [
+                        "down",
+                        "degraded",
+                        "stale"
+                    ]
+                },
+                "issue_type": {
+                    "description": "IssueType is \"stale_data\" for stale monitors and omitted otherwise.",
+                    "type": "string",
+                    "enum": [
+                        "stale_data"
+                    ]
+                },
+                "monitor_id": {
+                    "type": "string"
+                },
+                "monitor_name": {
+                    "type": "string"
+                },
+                "monitor_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.HealthIssuesResponse": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "issues": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.HealthIssue"
+                    }
+                }
+            }
+        },
         "internal_api.HeartbeatSignalResponse": {
             "type": "object",
             "properties": {
@@ -9306,6 +11841,67 @@ const docTemplate = `{
                 },
                 "resolve": {
                     "$ref": "#/definitions/internal_api.IncidentActionStateResponse"
+                }
+            }
+        },
+        "internal_api.IncidentCandidate": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "agent_name": {
+                    "type": "string"
+                },
+                "down_count": {
+                    "description": "DownCount is how many of the last 5 reports were down.",
+                    "type": "integer"
+                },
+                "health": {
+                    "type": "string",
+                    "enum": [
+                        "down",
+                        "degraded",
+                        "stale"
+                    ]
+                },
+                "issue_type": {
+                    "type": "string",
+                    "enum": [
+                        "stale_data"
+                    ]
+                },
+                "monitor_id": {
+                    "type": "string"
+                },
+                "monitor_name": {
+                    "type": "string"
+                },
+                "monitor_type": {
+                    "type": "string"
+                },
+                "severity": {
+                    "description": "Severity is derived from recent failures: high (3+ of the last 5 reports down), medium, low; stale monitors are high.",
+                    "type": "string",
+                    "enum": [
+                        "low",
+                        "medium",
+                        "high"
+                    ]
+                }
+            }
+        },
+        "internal_api.IncidentCandidatesResponse": {
+            "type": "object",
+            "properties": {
+                "candidates": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.IncidentCandidate"
+                    }
+                },
+                "count": {
+                    "type": "integer"
                 }
             }
         },
@@ -9631,6 +12227,525 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.IngestError": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "enum": [
+                        "invalid_json",
+                        "empty_entry",
+                        "entry_too_large",
+                        "invalid_timestamp",
+                        "too_many_attributes",
+                        "attributes_too_deep"
+                    ],
+                    "example": "entry_too_large"
+                },
+                "index": {
+                    "description": "Index is the zero-based position of the entry in the request (or the NDJSON line number minus one).",
+                    "type": "integer",
+                    "example": 3
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.IngestKey": {
+            "type": "object",
+            "properties": {
+                "app_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_used_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "production"
+                },
+                "prefix": {
+                    "type": "string",
+                    "example": "orion_ik_a1b2c3d4"
+                },
+                "revoked_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.IngestKeyCreated": {
+            "type": "object",
+            "properties": {
+                "app_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "key": {
+                    "description": "Key is the secret to send as \"Authorization: Bearer \u003ckey\u003e\". It cannot be retrieved again.",
+                    "type": "string",
+                    "example": "orion_ik_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"
+                },
+                "last_used_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "production"
+                },
+                "prefix": {
+                    "type": "string",
+                    "example": "orion_ik_a1b2c3d4"
+                },
+                "revoked_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.IngestKeyRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.IngestResponse": {
+            "type": "object",
+            "properties": {
+                "accepted": {
+                    "type": "integer",
+                    "example": 98
+                },
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.IngestError"
+                    }
+                },
+                "rejected": {
+                    "type": "integer",
+                    "example": 2
+                }
+            }
+        },
+        "internal_api.LogAlertRule": {
+            "type": "object",
+            "properties": {
+                "app_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "event": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_count": {
+                    "type": "integer"
+                },
+                "last_evaluated_at": {
+                    "type": "string"
+                },
+                "mode": {
+                    "description": "Mode is \"threshold\" (fires when more than ` + "`" + `threshold` + "`" + ` entries match inside the window) or \"absence\" (fires when none match, for example a job that must log every hour).",
+                    "type": "string",
+                    "enum": [
+                        "threshold",
+                        "absence"
+                    ]
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Checkout errors spike"
+                },
+                "q": {
+                    "type": "string"
+                },
+                "severity": {
+                    "description": "Severity, Event and Q filter which entries count (same syntax as the log search: severity=\"\u003e=error\", an exact event name, a text substring).",
+                    "type": "string",
+                    "example": "\u003e=error"
+                },
+                "state": {
+                    "description": "State is \"firing\" while an incident is open for the rule, otherwise \"ok\".",
+                    "type": "string",
+                    "enum": [
+                        "ok",
+                        "firing"
+                    ]
+                },
+                "threshold": {
+                    "type": "integer",
+                    "example": 20
+                },
+                "window_seconds": {
+                    "type": "integer",
+                    "example": 300
+                }
+            }
+        },
+        "internal_api.LogAlertRuleRequest": {
+            "type": "object",
+            "required": [
+                "app_id",
+                "name"
+            ],
+            "properties": {
+                "app_id": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "event": {
+                    "type": "string"
+                },
+                "mode": {
+                    "type": "string",
+                    "enum": [
+                        "threshold",
+                        "absence"
+                    ]
+                },
+                "name": {
+                    "type": "string"
+                },
+                "q": {
+                    "type": "string"
+                },
+                "severity": {
+                    "type": "string"
+                },
+                "threshold": {
+                    "type": "integer"
+                },
+                "window_seconds": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_api.LogAlertRuleUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "event": {
+                    "type": "string"
+                },
+                "mode": {
+                    "type": "string",
+                    "enum": [
+                        "threshold",
+                        "absence"
+                    ]
+                },
+                "name": {
+                    "type": "string"
+                },
+                "q": {
+                    "type": "string"
+                },
+                "severity": {
+                    "type": "string"
+                },
+                "threshold": {
+                    "type": "integer"
+                },
+                "window_seconds": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_api.LogEntry": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "app_id": {
+                    "type": "string"
+                },
+                "app_name": {
+                    "type": "string"
+                },
+                "attributes": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "body": {
+                    "type": "string"
+                },
+                "body_json": {
+                    "type": "object"
+                },
+                "event": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "ingested_at": {
+                    "type": "string"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "resource": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "severity": {
+                    "$ref": "#/definitions/internal_api.LogSeverity"
+                },
+                "severity_number": {
+                    "type": "integer",
+                    "example": 17
+                },
+                "source": {
+                    "description": "Source is \"app\" for ingested product logs and \"agent\" for agent service logs.",
+                    "type": "string",
+                    "enum": [
+                        "app",
+                        "agent"
+                    ]
+                },
+                "span_id": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "trace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.LogEntryInput": {
+            "type": "object",
+            "properties": {
+                "attributes": {
+                    "description": "Attributes is free-form JSON of any shape. Limits: depth 8, 128 keys per entry.",
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "body": {
+                    "description": "Body is the human message: a string, or any JSON value (kept as structured data and searchable as text).",
+                    "type": "string",
+                    "example": "payment failed for order 8841"
+                },
+                "event": {
+                    "description": "Event is a short stable name for product events, for example payment.failed.",
+                    "type": "string",
+                    "example": "payment.failed"
+                },
+                "id": {
+                    "description": "ID is an optional client-chosen idempotency key (unique per app). Re-sending the same id is a no-op.",
+                    "type": "string",
+                    "example": "01JBXK3Q8Z"
+                },
+                "request_id": {
+                    "description": "RequestID correlates entries of one request or job.",
+                    "type": "string",
+                    "example": "req_7f3a"
+                },
+                "resource": {
+                    "description": "Resource describes the emitter: service.name, service.version, deployment.environment, host.name, ...",
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "severity": {
+                    "description": "Severity is trace|debug|info|warn|error|fatal, an OpenTelemetry number (1-24), or a common alias. Unknown values become info.",
+                    "type": "string",
+                    "example": "error"
+                },
+                "span_id": {
+                    "type": "string",
+                    "example": "00f067aa0ba902b7"
+                },
+                "timestamp": {
+                    "description": "Timestamp is RFC 3339 text, or a number of Unix seconds, milliseconds or nanoseconds. Defaults to the receive time.",
+                    "type": "string",
+                    "example": "2026-10-17T10:15:30.123Z"
+                },
+                "trace_id": {
+                    "type": "string",
+                    "example": "4bf92f3577b34da6a3ce929d0e0e4736"
+                }
+            }
+        },
+        "internal_api.LogFieldCatalogResponse": {
+            "type": "object",
+            "properties": {
+                "fields": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.LogFieldStat"
+                    }
+                }
+            }
+        },
+        "internal_api.LogFieldStat": {
+            "type": "object",
+            "properties": {
+                "cardinality": {
+                    "description": "Cardinality is an approximate distinct-value count, capped at 1000.",
+                    "type": "integer"
+                },
+                "key": {
+                    "type": "string",
+                    "example": "http.status_code"
+                },
+                "last_seen": {
+                    "type": "string"
+                },
+                "sample_values": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "type": {
+                    "description": "Type is the dominant JSON type observed.",
+                    "type": "string",
+                    "enum": [
+                        "string",
+                        "number",
+                        "boolean",
+                        "object",
+                        "array",
+                        "mixed"
+                    ]
+                }
+            }
+        },
+        "internal_api.LogHistogramBucket": {
+            "type": "object",
+            "properties": {
+                "severity": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "start": {
+                    "type": "string"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_api.LogHistogramResponse": {
+            "type": "object",
+            "properties": {
+                "bucket_seconds": {
+                    "type": "integer"
+                },
+                "buckets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.LogHistogramBucket"
+                    }
+                }
+            }
+        },
+        "internal_api.LogListResponse": {
+            "type": "object",
+            "properties": {
+                "entries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.LogEntry"
+                    }
+                },
+                "next_cursor": {
+                    "type": "string"
+                },
+                "truncated": {
+                    "description": "Truncated is true when the time range matched more rows than the server will scan.",
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_api.LogSavedView": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "filters": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.LogSavedViewRequest": {
+            "type": "object",
+            "required": [
+                "filters",
+                "name"
+            ],
+            "properties": {
+                "filters": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.LogSeverity": {
+            "type": "string",
+            "enum": [
+                "trace",
+                "debug",
+                "info",
+                "warn",
+                "error",
+                "fatal"
+            ],
+            "x-enum-varnames": [
+                "LogSeverityTrace",
+                "LogSeverityDebug",
+                "LogSeverityInfo",
+                "LogSeverityWarn",
+                "LogSeverityError",
+                "LogSeverityFatal"
+            ]
+        },
         "internal_api.LoginRequest": {
             "type": "object",
             "required": [
@@ -9771,6 +12886,22 @@ const docTemplate = `{
                 },
                 "type": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_api.RedactionSettings": {
+            "type": "object",
+            "properties": {
+                "disable_defaults": {
+                    "description": "DisableDefaults turns off the built-in key list. Not recommended.",
+                    "type": "boolean"
+                },
+                "extra_keys": {
+                    "description": "ExtraKeys are additional attribute key names (case-insensitive, any depth) whose values are replaced by [redacted] before storage.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -10568,6 +13699,17 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.TestLogResponse": {
+            "type": "object",
+            "properties": {
+                "accepted": {
+                    "type": "boolean"
+                },
+                "entry_id": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_api.UptimeDayBucketResponse": {
             "type": "object",
             "properties": {
@@ -10607,6 +13749,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "webhook_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.alertRecipientRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
                     "type": "string"
                 }
             }
@@ -10772,6 +13922,14 @@ const docTemplate = `{
                 },
                 "suppress": {
                     "type": "boolean"
+                }
+            }
+        },
+        "internal_api.dismissIncidentCandidateRequest": {
+            "type": "object",
+            "properties": {
+                "reason": {
+                    "type": "string"
                 }
             }
         },
@@ -11016,6 +14174,9 @@ const docTemplate = `{
         "orion_core_internal_db.DataLifecycleSettings": {
             "type": "object",
             "properties": {
+                "alert_delivery_retention_days": {
+                    "type": "integer"
+                },
                 "archive_dir": {
                     "type": "string"
                 },
@@ -11025,10 +14186,16 @@ const docTemplate = `{
                 "archive_schedule": {
                     "type": "string"
                 },
+                "audit_event_retention_days": {
+                    "type": "integer"
+                },
                 "created_at": {
                     "type": "string"
                 },
                 "id": {
+                    "type": "integer"
+                },
+                "incident_event_retention_days": {
                     "type": "integer"
                 },
                 "last_archive_error": {
@@ -11052,8 +14219,15 @@ const docTemplate = `{
                 "rollups_enabled": {
                     "type": "boolean"
                 },
+                "service_log_retention_days": {
+                    "description": "Retention windows in days for tables that otherwise grow without bound.",
+                    "type": "integer"
+                },
                 "updated_at": {
                     "type": "string"
+                },
+                "worker_status_retention_days": {
+                    "type": "integer"
                 }
             }
         },
@@ -11322,6 +14496,9 @@ const docTemplate = `{
         "orion_core_internal_service.DataLifecycleSettingsPayload": {
             "type": "object",
             "properties": {
+                "alert_delivery_retention_days": {
+                    "type": "integer"
+                },
                 "archive_dir": {
                     "type": "string"
                 },
@@ -11331,6 +14508,12 @@ const docTemplate = `{
                 "archive_schedule": {
                     "type": "string"
                 },
+                "audit_event_retention_days": {
+                    "type": "integer"
+                },
+                "incident_event_retention_days": {
+                    "type": "integer"
+                },
                 "raw_report_hot_days": {
                     "type": "integer"
                 },
@@ -11339,6 +14522,13 @@ const docTemplate = `{
                 },
                 "rollups_enabled": {
                     "type": "boolean"
+                },
+                "service_log_retention_days": {
+                    "description": "Optional retention windows (days, 1-3650). Omitted fields keep their current value.",
+                    "type": "integer"
+                },
+                "worker_status_retention_days": {
+                    "type": "integer"
                 }
             }
         },
@@ -11356,6 +14546,10 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "metrics": {},
+                "report_id": {
+                    "description": "ReportID is an optional agent-generated idempotency key (UUID). Replaying a\nreport with the same ID for the same monitor stores nothing new.",
+                    "type": "string"
+                },
                 "timestamp": {
                     "type": "string"
                 }
@@ -11634,6 +14828,10 @@ const docTemplate = `{
         "orion_core_internal_service.RuntimeSQLiteStats": {
             "type": "object",
             "properties": {
+                "auto_vacuum": {
+                    "description": "AutoVacuum is none, full or incremental; only incremental lets retention shrink the file.",
+                    "type": "string"
+                },
                 "busy_total": {
                     "type": "integer"
                 },
@@ -11731,6 +14929,10 @@ const docTemplate = `{
                 "maintenance_mode"
             ],
             "properties": {
+                "duration_seconds": {
+                    "description": "DurationSeconds is how long maintenance lasts when enabling. Omitted means\nDefaultMaintenanceDuration; values above MaxMaintenanceDuration are rejected.",
+                    "type": "integer"
+                },
                 "maintenance_mode": {
                     "type": "boolean"
                 }
@@ -11818,6 +15020,12 @@ const docTemplate = `{
     "securityDefinitions": {
         "BearerAuth": {
             "description": "Type \"Bearer\" followed by a space and JWT token.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        },
+        "IngestKey": {
+            "description": "Type \"Bearer\" followed by a space and an app ingest key (orion_ik_...). Write-only; created per app.",
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"

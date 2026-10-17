@@ -10,35 +10,40 @@ import (
 	"time"
 )
 
-func TestReconcileMissedHeartbeatsLeavesPendingMonitorUnknown(t *testing.T) {
+func TestReconcileMissedHeartbeatsGivesNeverPingedMonitorAGracePeriod(t *testing.T) {
 	database := openWorkerMigratedTestDatabase(t)
 	insertWorkerCoreOwner(t, database)
 	insertWorkerMonitor(t, database, "monitor-heartbeat-pending")
+	created := time.Now().UTC().Add(-time.Hour)
 	insertWorkerCoreMonitorConfig(t, database, db.CoreMonitorConfig{
 		MonitorID:       "monitor-heartbeat-pending",
 		Kind:            "heartbeat",
 		ConfigJSON:      `{"grace_seconds":30}`,
 		IntervalSeconds: 60,
-		NextRunAt:       time.Now().UTC().Add(-time.Hour),
+		NextRunAt:       created,
+		CreatedAt:       created,
 	})
-
 	app := NewApp(database, utils.NewLogger(), Options{WorkerID: "worker-heartbeat-test"})
-	if err := app.reconcileMissedHeartbeats(t.Context(), time.Now().UTC().Add(time.Hour)); err != nil {
+
+	// Inside interval + grace after creation: still pending, nothing raised.
+	if err := app.reconcileMissedHeartbeats(t.Context(), created.Add(80*time.Second)); err != nil {
 		t.Fatalf("reconcileMissedHeartbeats() error = %v", err)
 	}
+	if countWorkerMonitorReports(t, database, "monitor-heartbeat-pending") != 0 || countWorkerIncidents(t, database, "monitor-heartbeat-pending") != 0 {
+		t.Fatal("never-pinged heartbeat alerted inside its grace period")
+	}
 
-	if countWorkerMonitorReports(t, database, "monitor-heartbeat-pending") != 0 {
-		t.Fatalf("pending heartbeat has reports, want none before first signal")
+	// Past interval + grace with no ping ever: it is stale and raises an incident, once.
+	for range 3 {
+		if err := app.reconcileMissedHeartbeats(t.Context(), created.Add(10*time.Minute)); err != nil {
+			t.Fatalf("reconcileMissedHeartbeats() error = %v", err)
+		}
 	}
-	if countWorkerIncidents(t, database, "monitor-heartbeat-pending") != 0 {
-		t.Fatalf("pending heartbeat has incidents, want none before first signal")
+	if got := countWorkerMonitorReports(t, database, "monitor-heartbeat-pending"); got != 1 {
+		t.Fatalf("missed-heartbeat reports = %d, want exactly 1 across repeated ticks", got)
 	}
-	var monitor db.Monitor
-	if err := database.Where("id = ?", "monitor-heartbeat-pending").First(&monitor).Error; err != nil {
-		t.Fatalf("load pending heartbeat monitor: %v", err)
-	}
-	if monitor.Health != "unknown" {
-		t.Fatalf("pending heartbeat health = %q, want unknown", monitor.Health)
+	if got := countWorkerIncidents(t, database, "monitor-heartbeat-pending"); got != 1 {
+		t.Fatalf("incidents = %d, want 1 for a heartbeat that never started", got)
 	}
 }
 

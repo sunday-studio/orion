@@ -1,23 +1,17 @@
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { EmptyState } from "@/components/shared/empty-state";
 import {
+  Button,
+  Checkbox,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { PageHeader } from "@/components/shared/page-header";
-import {
+  EmptyState,
+  Input,
+  PageHeader,
   Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+} from "@/design-system";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import {
   type ServiceDataLifecycleSettingsPayload,
@@ -59,7 +53,6 @@ export const SettingsPage = () => {
 
   const settings = settingsResponse.data?.settings;
   const [formState, setFormState] = useState(defaultFormState);
-  const archiveScheduleLabel = formState.archiveSchedule === "manual" ? "Manual only" : "Daily";
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const maintenanceActionInFlight = useRef(false);
   const [touchedFields, setTouchedFields] = useState<Partial<Record<SettingsFieldKey, boolean>>>(
@@ -206,7 +199,7 @@ export const SettingsPage = () => {
           description="Retry after Core is reachable."
           tone="error"
           action={
-            <Button size="sm" variant="outline" onClick={() => void settingsResponse.refetch()}>
+            <Button size="sm" variant="secondary" onClick={() => void settingsResponse.refetch()}>
               Retry
             </Button>
           }
@@ -271,17 +264,15 @@ export const SettingsPage = () => {
           </Field>
           <Field label="Archive schedule" description="Automatic archive cadence.">
             <Select
+              className="w-full"
+              aria-label="Archive schedule"
               value={formState.archiveSchedule}
               onValueChange={(value) => updateField("archiveSchedule", value)}
-            >
-              <SelectTrigger aria-label="Archive schedule">
-                <SelectValue placeholder="Archive schedule">{archiveScheduleLabel}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="daily">Daily</SelectItem>
-                <SelectItem value="manual">Manual only</SelectItem>
-              </SelectContent>
-            </Select>
+              options={[
+                { value: "daily", label: "Daily" },
+                { value: "manual", label: "Manual only" },
+              ]}
+            />
           </Field>
         </div>
         <label className="flex items-center gap-2 text-sm">
@@ -337,7 +328,7 @@ export const SettingsPage = () => {
             {rollupRun.isPending ? "Running rollup..." : "Run rollup"}
           </Button>
           <Button
-            variant="outline"
+            variant="secondary"
             onClick={() => setArchiveDialogOpen(true)}
             disabled={maintenancePending || !settings}
           >
@@ -374,7 +365,7 @@ export const SettingsPage = () => {
             </dl>
             <DialogFooter>
               <Button
-                variant="outline"
+                variant="secondary"
                 onClick={() => setArchiveDialogOpen(false)}
                 disabled={archiveRun.isPending}
               >

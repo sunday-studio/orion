@@ -1,4 +1,4 @@
-import { DetailCard } from "@/components/shared/detail-card";
+import { DetailCard } from "@/design-system";
 import type { ApiAgentReportResponse, ApiAgentResponse } from "@/orion-sdk";
 import { DetailItem } from "./detail-item";
 import { formatBytes, formatDuration, formatPercent } from "../agent-detail.domain";

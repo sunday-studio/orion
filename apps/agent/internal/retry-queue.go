@@ -50,6 +50,11 @@ func (q *RetryQueue) Len() int {
 	return len(q.items)
 }
 
+// Flush sends every queued item. Nothing is ever dropped by an early return:
+// when the context is cancelled, the item in hand and everything not yet
+// attempted go back; when Core rejects credentials, the rejected item is dropped
+// and everything not yet attempted goes back on the queue (ahead of anything pushed
+// meanwhile) for the next flush or a restart-time flush.
 func (q *RetryQueue) Flush(ctx context.Context) error {
 	q.mu.Lock()
 	items := q.items
@@ -61,7 +66,7 @@ func (q *RetryQueue) Flush(ctx context.Context) error {
 	for i, item := range items {
 		select {
 		case <-ctx.Done():
-			q.requeue(items[i:]) // keep the item in hand and everything after it
+			q.requeueFront(items[i:])
 			return ctx.Err()
 		default:
 		}
@@ -69,7 +74,8 @@ func (q *RetryQueue) Flush(ctx context.Context) error {
 		if err := item.Send(ctx); err != nil {
 			if transport.IsAuthError(err) {
 				logging.Debugf("retry item failed with auth error: name=%s", item.Name)
-				q.requeue(items[i+1:]) // the rejected item is dropped; the rest survive
+				// The rejected item is dropped (as before); the untouched rest wait for a replacement token.
+				q.requeueFront(items[i+1:])
 				return err
 			}
 			q.Push(item)
@@ -84,9 +90,9 @@ func (q *RetryQueue) Flush(ctx context.Context) error {
 	return firstErr
 }
 
-// requeue puts unsent items back ahead of anything pushed while flushing,
-// dropping the oldest if the queue is over capacity.
-func (q *RetryQueue) requeue(items []RetryItem) {
+// requeueFront puts items back before anything queued since the flush began,
+// trimming the oldest if capacity would be exceeded.
+func (q *RetryQueue) requeueFront(items []RetryItem) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	merged := append(append([]RetryItem(nil), items...), q.items...)

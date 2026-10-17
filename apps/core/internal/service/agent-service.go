@@ -127,52 +127,9 @@ func (s *AgentService) RegisterAgent(req *RegisterRequest) (*RegisterResponse, e
 	if agent.TokenRevokedAt != nil {
 		return nil, ErrAgentTokenRevoked
 	}
-	if agent.TokenHash != "" {
-		return nil, ErrAgentTokenReissueRequired
-	}
-
-	// Update metadata if it has changed (OS, arch, name may change after system updates)
-	updates := make(map[string]any)
-	updates["last_seen"] = time.Now()
-	if req.ReportingIntervalSeconds > 0 && agent.ReportingIntervalSeconds != req.ReportingIntervalSeconds {
-		updates["reporting_interval_seconds"] = req.ReportingIntervalSeconds
-	}
-
-	if agent.Name != req.Name {
-		s.logger.Info("Agent name changed", "old_name", agent.Name, "new_name", req.Name, "agent_id", agent.ID)
-		updates["name"] = req.Name
-	}
-
-	if agent.OS != req.OS {
-		s.logger.Info("Agent OS changed", "old_os", agent.OS, "new_os", req.OS, "agent_id", agent.ID)
-		updates["os"] = req.OS
-	}
-
-	if agent.Arch != req.Arch {
-		s.logger.Info("Agent arch changed", "old_arch", agent.Arch, "new_arch", req.Arch, "agent_id", agent.ID)
-		updates["arch"] = req.Arch
-	}
-
-	if req.Meta != "" {
-		updates["meta"] = req.Meta
-	}
-
-	// Only update if there are changes
-	if len(updates) > 0 {
-		if err := s.db.Model(&agent).Updates(updates).Error; err != nil {
-			s.logger.Error("Failed to update agent on reconnection", "error", err, "agent_id", agent.ID)
-			// Don't fail registration if update fails, just log it
-		} else {
-			s.logger.Info("Agent metadata updated on reconnection", "agent_id", agent.ID, "updates", updates)
-		}
-	}
-
-	s.logger.Info("Agent reconnected", "machine_id", req.MachineId, "agent_id", agent.ID, "name", agent.Name)
-
-	return &RegisterResponse{
-		AgentID: agent.ID,
-		Token:   agent.Token,
-	}, nil
+	// Every agent token is stored hashed, so Core cannot hand a token back on
+	// re-registration; the operator reissues one (rotate/reissue endpoints).
+	return nil, ErrAgentTokenReissueRequired
 }
 
 func (s *AgentService) createNewAgent(req *RegisterRequest) (*RegisterResponse, error) {
@@ -238,16 +195,75 @@ func (s *AgentService) UpdateLastSeen(agentID string) error {
 
 type SetMaintenanceModeRequest struct {
 	MaintenanceMode *bool `json:"maintenance_mode" binding:"required"`
+	// DurationSeconds is how long maintenance lasts when enabling. Omitted means
+	// DefaultMaintenanceDuration; values above MaxMaintenanceDuration are rejected.
+	DurationSeconds *int `json:"duration_seconds,omitempty"`
 }
 
-func (s *AgentService) SetMaintenanceMode(agentID string, maintenanceMode bool) error {
-	if err := s.db.Model(&db.Agent{}).Where("id = ?", agentID).Update("maintenance_mode", maintenanceMode).Error; err != nil {
-		s.logger.Error("Failed to set maintenance mode", "agent_id", agentID, "maintenance_mode", maintenanceMode, "error", err)
-		return err
+const (
+	DefaultMaintenanceDuration = 24 * time.Hour
+	MaxMaintenanceDuration     = 30 * 24 * time.Hour
+)
+
+var ErrInvalidMaintenanceDuration = errors.New("duration_seconds must be between 1 and 2592000 (30 days)")
+
+// SetMaintenanceMode enables maintenance until now+duration (default 24h) or
+// disables it, and records an audit event so a silenced agent is always explainable.
+func (s *AgentService) SetMaintenanceMode(agentID string, maintenanceMode bool, duration time.Duration, actor AgentTokenActionInput) error {
+	now := time.Now().UTC()
+	updates := map[string]any{"maintenance_mode": maintenanceMode, "maintenance_until": nil}
+	action := AgentMaintenanceAuditDisabled
+	metadata := map[string]any{}
+	if maintenanceMode {
+		if duration <= 0 {
+			duration = DefaultMaintenanceDuration
+		}
+		if duration > MaxMaintenanceDuration {
+			return ErrInvalidMaintenanceDuration
+		}
+		until := now.Add(duration)
+		updates["maintenance_until"] = &until
+		action = AgentMaintenanceAuditEnabled
+		metadata["until"] = until.Format(time.RFC3339)
 	}
 
-	s.logger.Info("Maintenance mode updated", "agent_id", agentID, "maintenance_mode", maintenanceMode)
-	return nil
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		result := tx.Model(&db.Agent{}).Where("id = ?", agentID).Updates(updates)
+		if result.Error != nil {
+			s.logger.Error("Failed to set maintenance mode", "agent_id", agentID, "maintenance_mode", maintenanceMode, "error", result.Error)
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
+		s.logger.Info("Maintenance mode updated", "agent_id", agentID, "maintenance_mode", maintenanceMode)
+		return recordMaintenanceAuditEvent(tx, action, agentID, actor, metadata)
+	})
+}
+
+// ExpireMaintenance ends every maintenance window whose end time has passed so
+// alerting resumes, writing an audit event for each. It returns how many ended.
+func (s *AgentService) ExpireMaintenance(now time.Time) (int, error) {
+	var expired []db.Agent
+	if err := s.db.Where("maintenance_mode = ? AND maintenance_until IS NOT NULL AND maintenance_until <= ?", true, now.UTC()).Find(&expired).Error; err != nil {
+		return 0, err
+	}
+	for _, agent := range expired {
+		err := s.db.Transaction(func(tx *gorm.DB) error {
+			result := tx.Model(&db.Agent{}).
+				Where("id = ? AND maintenance_mode = ? AND maintenance_until <= ?", agent.ID, true, now.UTC()).
+				Updates(map[string]any{"maintenance_mode": false, "maintenance_until": nil})
+			if result.Error != nil || result.RowsAffected == 0 {
+				return result.Error
+			}
+			return recordMaintenanceAuditEvent(tx, AgentMaintenanceAuditExpired, agent.ID, AgentTokenActionInput{ActorType: "system", ActorID: "core"}, map[string]any{"ended_at": now.UTC().Format(time.RFC3339)})
+		})
+		if err != nil {
+			return 0, err
+		}
+		s.logger.Info("Maintenance window expired; alerting resumed", "agent_id", agent.ID)
+	}
+	return len(expired), nil
 }
 
 func (s *AgentService) GetAgent(agentID string) (*db.Agent, error) {

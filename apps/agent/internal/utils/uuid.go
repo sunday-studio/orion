@@ -2,14 +2,11 @@ package utils
 
 import (
 	"crypto/md5"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"net"
 	"os"
 	"runtime"
 	"strings"
-	"time"
 )
 
 var (
@@ -80,13 +77,4 @@ func GetSystemInfo() (name, osName, arch string, err error) {
 	}
 
 	return hostname, runtime.GOOS, runtime.GOARCH, nil
-}
-
-// NewReportID returns a random 128-bit identifier used as a report idempotency key.
-func NewReportID() string {
-	var b [16]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		return fmt.Sprintf("r-%d", time.Now().UnixNano())
-	}
-	return hex.EncodeToString(b[:])
 }

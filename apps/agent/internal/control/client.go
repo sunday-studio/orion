@@ -104,8 +104,8 @@ func (c *Client) Status() (Status, error) {
 }
 
 // SetMaintenance enables or disables maintenance mode.
-func (c *Client) SetMaintenance(enabled bool, reason string) error {
-	_, err := c.do(http.MethodPost, "/v1/maintenance", MaintenanceRequest{Enabled: enabled, Reason: reason})
+func (c *Client) SetMaintenance(enabled bool, reason string, d time.Duration) error {
+	_, err := c.do(http.MethodPost, "/v1/maintenance", MaintenanceRequest{Enabled: enabled, Reason: reason, DurationSeconds: int64(d.Seconds())})
 	return err
 }
 

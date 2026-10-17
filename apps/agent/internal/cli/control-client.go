@@ -2,6 +2,7 @@ package cli
 
 import (
 	"errors"
+	"time"
 
 	"orion/agent/internal/config"
 	"orion/agent/internal/control"
@@ -37,8 +38,8 @@ func statusFromSocket(st control.Status) *config.InternalState {
 
 // tryControlMaintenance toggles maintenance via the daemon. handled is false
 // when the socket is not usable and the caller should fall back.
-func tryControlMaintenance(opts *Options, enabled bool, reason string) (handled bool, err error) {
-	err = controlClient(opts).SetMaintenance(enabled, reason)
+func tryControlMaintenance(opts *Options, enabled bool, reason string, d time.Duration) (handled bool, err error) {
+	err = controlClient(opts).SetMaintenance(enabled, reason, d)
 	if err == nil {
 		return true, nil
 	}
@@ -60,8 +61,8 @@ func tryControlToken(opts *Options, token string) (handled bool, err error) {
 	return true, NewCommandError("daemon rejected replacement token", err)
 }
 
-func maintenanceViaDaemon(opts *Options, enabled bool, reason string) (bool, error) {
-	handled, err := tryControlMaintenance(opts, enabled, reason)
+func maintenanceViaDaemon(opts *Options, enabled bool, reason string, d time.Duration) (bool, error) {
+	handled, err := tryControlMaintenance(opts, enabled, reason, d)
 	if !handled || err != nil {
 		return handled, err
 	}

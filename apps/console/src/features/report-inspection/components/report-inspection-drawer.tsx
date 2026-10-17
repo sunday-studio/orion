@@ -1,5 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { StatusBadge, toStatus } from "@/components/shared/status-badges";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, StatusBadge } from "@/design-system";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import type { ApiAgentReportResponse, ApiMonitorReportResponse } from "@/orion-sdk";
 import type { ReactNode } from "react";
@@ -196,7 +195,7 @@ const MonitorReportInspection = ({ report }: { report: ApiMonitorReportResponse 
           items={[
             { label: "report", value: report.id },
             { label: "monitor", value: report.monitor_id },
-            { label: "health", value: <StatusBadge value={toStatus(report.health)} /> },
+            { label: "health", value: <StatusBadge status={report.health} /> },
             { label: "collected", value: formatDate(report.collected_at, DATE_TIME_FORMAT) },
             { label: "created", value: formatDate(report.created_at, DATE_TIME_FORMAT) },
             { label: "latency", value: formatLatency(payload) },

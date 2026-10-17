@@ -6,14 +6,17 @@ import (
 )
 
 type InternalState struct {
-	AgentID           string                 `yaml:"agent_id"`
-	Token             string                 `yaml:"token"`
-	Registered        bool                   `yaml:"registered"`
-	CoreURL           string                 `yaml:"core_url"`
-	LastSync          time.Time              `yaml:"last_sync"`
-	MaintenanceMode   bool                   `yaml:"maintenance_mode"`
-	MaintenanceReason *string                `yaml:"maintenance_reason,omitempty"`
-	Monitors          []InternalStateMonitor `yaml:"monitors"`
+	AgentID           string    `yaml:"agent_id"`
+	Token             string    `yaml:"token"`
+	Registered        bool      `yaml:"registered"`
+	CoreURL           string    `yaml:"core_url"`
+	LastSync          time.Time `yaml:"last_sync"`
+	MaintenanceMode   bool      `yaml:"maintenance_mode"`
+	MaintenanceReason *string   `yaml:"maintenance_reason,omitempty"`
+	// MaintenanceUntil ends maintenance automatically; nil means the window has no
+	// end recorded (state written by an older agent).
+	MaintenanceUntil *time.Time             `yaml:"maintenance_until,omitempty"`
+	Monitors         []InternalStateMonitor `yaml:"monitors"`
 }
 
 type InternalStateMonitor struct {
@@ -127,14 +130,17 @@ type UserMonitor struct {
 }
 
 type UserConfig struct {
-	Meta         map[string]interface{} `yaml:"meta,omitempty"`
-	CoreURL      string                 `yaml:"core_url"`
-	Interval     string                 `yaml:"interval"`
-	GeoLocation  bool                   `yaml:"geo_location,omitempty"`
-	Logging      LoggingConfig          `yaml:"logging,omitempty"`
-	Transport    TransportConfig        `yaml:"transport,omitempty"`
-	AppResources AppResourcesConfig     `yaml:"app_resources,omitempty"`
-	Monitors     []UserMonitor          `yaml:"monitors"`
+	Meta    map[string]interface{} `yaml:"meta,omitempty"`
+	CoreURL string                 `yaml:"core_url"`
+	// EnrollmentToken is the shared secret for first registration when Core sets
+	// ORION_ENROLLMENT_TOKEN. The ORION_ENROLLMENT_TOKEN env var overrides it.
+	EnrollmentToken string             `yaml:"enrollment_token,omitempty"`
+	Interval        string             `yaml:"interval"`
+	GeoLocation     bool               `yaml:"geo_location,omitempty"`
+	Logging         LoggingConfig      `yaml:"logging,omitempty"`
+	Transport       TransportConfig    `yaml:"transport,omitempty"`
+	AppResources    AppResourcesConfig `yaml:"app_resources,omitempty"`
+	Monitors        []UserMonitor      `yaml:"monitors"`
 }
 
 // AppResourcesConfig controls passive per-app resource metrics. They need no

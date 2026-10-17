@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"net"
 	"net/http"
 	"orion/core/internal/config"
 	"orion/core/internal/service"
@@ -14,7 +15,6 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"gorm.io/gorm"
@@ -36,9 +36,11 @@ type Server struct {
 	workerDiagnosticsService     *service.WorkerDiagnosticsService
 	runtimeDiagnosticsService    *service.RuntimeDiagnosticsService
 	loginLimiter                 *RateLimiter
+	registerLimiter              *RateLimiter
 	publicSubscriberLimiter      *RateLimiter
 	publicStatusMailSend         func(publicStatusMailMessage) error
 	router                       *gin.Engine
+	logs                         *productLogs
 }
 
 func NewServer(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *Server {
@@ -54,7 +56,11 @@ func NewServer(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *Ser
 	workerDiagnosticsService := service.NewWorkerDiagnosticsService(database, logger)
 	runtimeDiagnosticsService := service.NewRuntimeDiagnosticsService(database, logger)
 	reportService.SetDiagnostics(runtimeDiagnosticsService)
-	router := gin.Default()
+	router := gin.New()
+	if err := router.SetTrustedProxies(cfg.TrustedProxies); err != nil {
+		logger.Error("Invalid ORION_TRUSTED_PROXIES; trusting no proxies", "error", err)
+		_ = router.SetTrustedProxies(nil)
+	}
 	corsOrigins := cfg.CORSOrigins
 	if len(corsOrigins) == 0 {
 		corsOrigins = []string{"http://localhost:5173", "http://127.0.0.1:5173"}
@@ -66,9 +72,11 @@ func NewServer(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *Ser
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Request-ID", "Cache-Control", "Pragma"},
 		AllowCredentials: true,
 	}))
-	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 	router.Use(RequestIDMiddleware(logger))
+	router.Use(AccessLogMiddleware(logger))
+	router.Use(SecurityHeadersMiddleware())
+	router.Use(BodyLimitMiddleware())
 	router.Use(RuntimeDiagnosticsMiddleware(runtimeDiagnosticsService))
 
 	server := &Server{
@@ -87,6 +95,7 @@ func NewServer(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *Ser
 		workerDiagnosticsService:     workerDiagnosticsService,
 		runtimeDiagnosticsService:    runtimeDiagnosticsService,
 		loginLimiter:                 NewRateLimiter(cfg.LoginRateLimitAttempts, time.Duration(cfg.LoginRateLimitWindowSecs)*time.Second),
+		registerLimiter:              NewRateLimiter(cfg.RegisterRateLimitPerMinute, time.Minute),
 		publicSubscriberLimiter:      NewRateLimiter(10, time.Minute),
 		router:                       router,
 	}
@@ -99,11 +108,20 @@ func NewServer(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *Ser
 
 // setupRoutes configures all API routes
 func (s *Server) setupRoutes() {
-	// Swagger documentation
-	s.router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	// Swagger documentation (off unless ORION_ENABLE_SWAGGER=true)
+	if s.cfg.EnableSwagger {
+		s.router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	}
 
 	// Health check endpoint (no versioning)
 	s.router.GET("/health", s.healthCheck)
+	s.router.GET("/metrics", s.metricsAuthMiddleware(), s.getMetrics)
+
+	// Alert email opt-in / unsubscribe pages (signed tokens; GET only renders, POST acts)
+	s.router.GET("/alerts/email/confirm/:token", s.alertEmailPage("confirm"))
+	s.router.POST("/alerts/email/confirm/:token", s.alertEmailAction("confirm"))
+	s.router.GET("/alerts/email/unsubscribe/:token", s.alertEmailPage("unsubscribe"))
+	s.router.POST("/alerts/email/unsubscribe/:token", s.alertEmailAction("unsubscribe"))
 
 	// Public status page routes
 	s.router.GET("/", s.getCustomDomainStatusPage)
@@ -132,9 +150,13 @@ func (s *Server) setupRoutes() {
 		{
 			public.POST("/register", s.registerAgent)
 			public.POST("/auth/login", s.login)
+			public.POST("/ingest/logs", s.ingestLogs)
+			public.POST("/ingest/otlp/v1/logs", s.ingestOTLPLogs)
 			public.POST("/heartbeats/:token", s.receiveHeartbeatSuccess)
 			public.POST("/heartbeats/:token/success", s.receiveHeartbeatSuccess)
 			public.POST("/heartbeats/:token/failure", s.receiveHeartbeatFailure)
+			public.POST("/heartbeat/success", s.receiveHeartbeatSuccessHeader)
+			public.POST("/heartbeat/failure", s.receiveHeartbeatFailureHeader)
 		}
 
 		// Frontend routes (JWT when ORION_ADMIN_* and ORION_JWT_SECRET are set)
@@ -177,12 +199,18 @@ func (s *Server) setupRoutes() {
 			frontend.POST("/incidents/:id/cover", s.coverIncident)
 			frontend.POST("/incidents/:id/reopen", s.reopenIncident)
 			frontend.GET("/incidents/candidates", s.getIncidentCandidates)
+			frontend.POST("/incidents/candidates/:id/dismiss", s.dismissIncidentCandidate)
 			frontend.GET("/alerts/deliveries", s.listAlertDeliveries)
+			frontend.POST("/alerts/deliveries/:id/retry", s.retryAlertDelivery)
 			frontend.GET("/alerts/channels", s.listAlertChannels)
 			frontend.POST("/alerts/channels", s.createAlertChannel)
 			frontend.PATCH("/alerts/channels/:id", s.updateAlertChannel)
 			frontend.POST("/alerts/channels/:id/test", s.testAlertChannel)
 			frontend.DELETE("/alerts/channels/:id", s.deleteAlertChannel)
+			frontend.GET("/alerts/channels/:id/recipients", s.listAlertChannelRecipients)
+			frontend.POST("/alerts/channels/:id/recipients", s.addAlertChannelRecipient)
+			frontend.DELETE("/alerts/channels/:id/recipients/:recipient_id", s.removeAlertChannelRecipient)
+			frontend.POST("/alerts/channels/:id/recipients/:recipient_id/resend", s.resendAlertChannelRecipient)
 			frontend.GET("/alerts/routes", s.listAlertRoutes)
 			frontend.POST("/alerts/routes", s.createAlertRoute)
 			frontend.POST("/alerts/routes/dry-run", s.dryRunAlertRoutes)
@@ -198,6 +226,7 @@ func (s *Server) setupRoutes() {
 			s.registerStatusPageAdminRoutes(frontend)
 			frontend.GET("/events", s.listOrionEvents)
 			frontend.GET("/logs/service", s.listServiceLogs)
+			s.registerProductLogRoutes(frontend)
 			frontend.GET("/settings/data-lifecycle", s.getDataLifecycleSettings)
 			frontend.PUT("/settings/data-lifecycle", s.updateDataLifecycleSettings)
 			frontend.POST("/settings/data-lifecycle/actions/rollup", s.runDataLifecycleRollup)
@@ -255,9 +284,18 @@ func (s *Server) serveConsole(c *gin.Context) {
 
 func (s *Server) Start(ctx context.Context, addr string) error {
 	s.logger.Info("Starting HTTP server", "address", addr)
+	// Request contexts derive from baseCtx, so cancelling it ends long-lived responses
+	// (the live log tail) that http.Server.Shutdown would otherwise wait on forever.
+	baseCtx, cancelStreams := context.WithCancel(context.Background())
+	defer cancelStreams()
 	httpServer := &http.Server{
-		Addr:    addr,
-		Handler: s.router,
+		Addr:              addr,
+		Handler:           s.router,
+		BaseContext:       func(net.Listener) context.Context { return baseCtx },
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	errCh := make(chan error, 1)
@@ -276,8 +314,11 @@ func (s *Server) Start(ctx context.Context, addr string) error {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		s.logger.Info("Shutting down HTTP server")
+		cancelStreams()
 		if err := httpServer.Shutdown(shutdownCtx); err != nil {
-			return err
+			// Slow clients outlasting the grace period are cut off; that is not a startup failure.
+			s.logger.Warn("HTTP server did not drain within the grace period; closing remaining connections", "error", err)
+			_ = httpServer.Close()
 		}
 		return <-errCh
 	}
@@ -286,12 +327,8 @@ func (s *Server) Start(ctx context.Context, addr string) error {
 // RequestIDMiddleware generates a unique request ID for each request
 func RequestIDMiddleware(logger *utils.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Check if request ID is already in header (for tracing across services)
-		requestID := c.GetHeader("X-Request-ID")
-		if requestID == "" {
-			// Generate new UUID if not present
-			requestID = uuid.New().String()
-		}
+		// Reuse a caller-supplied id only if it is short and safe (tracing across services).
+		requestID := requestIDFrom(c.GetHeader("X-Request-ID"))
 
 		// Set request ID in context
 		c.Set("request_id", requestID)
@@ -299,8 +336,7 @@ func RequestIDMiddleware(logger *utils.Logger) gin.HandlerFunc {
 		// Add request ID to response header
 		c.Header("X-Request-ID", requestID)
 
-		// Log request with request ID
-		logger.Debug("Request received", "request_id", requestID, "method", c.Request.Method, "path", c.Request.URL.Path)
+		logger.Debug("Request received", "request_id", requestID, "method", c.Request.Method)
 
 		c.Next()
 	}
@@ -313,7 +349,7 @@ func RuntimeDiagnosticsMiddleware(diagnostics *service.RuntimeDiagnosticsService
 
 		route := c.FullPath()
 		if route == "" {
-			route = c.Request.URL.Path
+			route = "unmatched" // bounded label: raw paths would grow the metrics map without limit
 		}
 		diagnostics.RecordRequest(route, c.Writer.Status(), time.Since(startedAt))
 	}

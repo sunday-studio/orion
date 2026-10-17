@@ -48,12 +48,14 @@ func (a *Agent) Run(ctx context.Context) error {
 	logging.Debugf("starting agent runtime: interval=%s monitors=%d geo_location=%t", a.userConfig.Interval, len(a.userConfig.Monitors), a.userConfig.GeoLocation)
 	runtimeCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	a.transport.SetContext(runtimeCtx)
 	fatalErrs := make(chan error, 1)
 
 	// Check if agent is in maintenance mode
-	if a.isInMaintenanceMode() {
-		reason := a.maintenanceReason()
+	if inMaintenance, maintenanceReason := a.maintenanceStatus(); inMaintenance {
+		reason := "No reason provided"
+		if maintenanceReason != "" {
+			reason = maintenanceReason
+		}
 		logging.Infof("Agent is in maintenance mode. Reporting workers will pause until maintenance clears. Reason: %s", reason)
 	}
 	if err := a.flushDurableSpool(runtimeCtx); err != nil {
@@ -99,7 +101,6 @@ func (a *Agent) Run(ctx context.Context) error {
 		// Bounded final flush: shutdown must not block on a slow Core.
 		flushCtx, flushCancel := context.WithTimeout(context.Background(), shutdownFlushTimeout)
 		defer flushCancel()
-		a.transport.SetContext(flushCtx)
 		if err := a.flushDurableSpool(flushCtx); err != nil {
 			logging.Warnf("Durable report spool flush during shutdown failed: %v", err)
 		}
@@ -124,7 +125,7 @@ func (a *Agent) RunOnce(ctx context.Context) error {
 	}
 
 	// Run system metrics once
-	if err := a.runSystemMetrics(); err != nil {
+	if err := a.runSystemMetrics(ctx); err != nil {
 		logging.Errorf("System metrics error: %v", err)
 		if transport.IsAuthError(err) {
 			return err
@@ -143,7 +144,7 @@ func (a *Agent) RunOnce(ctx context.Context) error {
 			continue
 		}
 
-		if err := a.runMonitorMetrics(*internalMonitor, monitor); err != nil {
+		if err := a.runMonitorMetrics(ctx, *internalMonitor, monitor); err != nil {
 			logging.Errorf("Monitor metrics error for %s: %v", monitor.Name, err)
 			if transport.IsAuthError(err) {
 				return err
@@ -157,9 +158,9 @@ func (a *Agent) RunOnce(ctx context.Context) error {
 
 // System Metrics Worker
 func (a *Agent) startSystemMetricsWorker(ctx context.Context, fatalErrs chan<- error) {
-	interval := parseIntervalOr(a.userConfig.Interval, "system")
+	interval := intervalOrDefault("system", a.userConfig.Interval)
 
-	if err := a.runSystemMetrics(); err != nil {
+	if err := a.runSystemMetrics(ctx); err != nil {
 		logging.Errorf("System metrics error: %v", err)
 		if transport.IsAuthError(err) {
 			reportFatalError(fatalErrs, err)
@@ -177,7 +178,7 @@ func (a *Agent) startSystemMetricsWorker(ctx context.Context, fatalErrs chan<- e
 			logging.Infof("System metrics worker stopped")
 			return
 		case <-ticker.C:
-			if err := a.runSystemMetrics(); err != nil {
+			if err := a.runSystemMetrics(ctx); err != nil {
 				logging.Errorf("System metrics error: %v", err)
 				if transport.IsAuthError(err) {
 					reportFatalError(fatalErrs, err)
@@ -224,13 +225,13 @@ func (a *Agent) startRetryQueueWorker(ctx context.Context, fatalErrs chan<- erro
 func (a *Agent) startMonitorWorker(ctx context.Context, monitor config.UserMonitor, fatalErrs chan<- error) {
 	logging.Infof("Starting monitor worker for %s...", monitor.Name)
 
-	interval := parseIntervalOr(monitor.Interval, "monitor "+monitor.Name)
-	internalMonitor := a.waitForMonitorState(ctx, monitor.Name, interval)
+	internalMonitor := a.waitForMonitorState(ctx, monitor.Name)
 	if internalMonitor == nil {
 		return // shutting down
 	}
+	interval := intervalOrDefault(monitor.Name, monitor.Interval)
 
-	if err := a.runMonitorMetrics(*internalMonitor, monitor); err != nil {
+	if err := a.runMonitorMetrics(ctx, *internalMonitor, monitor); err != nil {
 		logging.Errorf("Monitor metrics error: %v", err)
 		if transport.IsAuthError(err) {
 			reportFatalError(fatalErrs, err)
@@ -248,7 +249,7 @@ func (a *Agent) startMonitorWorker(ctx context.Context, monitor config.UserMonit
 			logging.Infof("Monitor worker stopped")
 			return
 		case <-ticker.C:
-			if err := a.runMonitorMetrics(*internalMonitor, monitor); err != nil {
+			if err := a.runMonitorMetrics(ctx, *internalMonitor, monitor); err != nil {
 				logging.Errorf("Monitor metrics error: %v", err)
 				if transport.IsAuthError(err) {
 					reportFatalError(fatalErrs, err)
@@ -256,6 +257,46 @@ func (a *Agent) startMonitorWorker(ctx context.Context, monitor config.UserMonit
 				}
 			}
 
+		}
+	}
+}
+
+const (
+	defaultWorkerInterval   = 60 * time.Second
+	monitorStateRetryPeriod = 30 * time.Second
+)
+
+// intervalOrDefault parses a reporting interval. Config validation rejects bad
+// intervals at load, so a failure here is unexpected; reporting at the default
+// rate is better than a worker that silently never reports.
+func intervalOrDefault(name string, value string) time.Duration {
+	interval, err := time.ParseDuration(value)
+	if err != nil || interval <= 0 {
+		logging.Errorf("Invalid interval %q for %s (%v); using %s", value, name, err, defaultWorkerInterval)
+		return defaultWorkerInterval
+	}
+	return interval
+}
+
+// waitForMonitorState returns the monitor's registered state, retrying until it
+// exists. A monitor that is not (yet) registered used to make its worker exit
+// silently, leaving Core to find out through staleness; now it keeps trying
+// and logs the problem loudly. It returns nil only when ctx is cancelled.
+func (a *Agent) waitForMonitorState(ctx context.Context, name string) *config.InternalStateMonitor {
+	for {
+		internalMonitor, err := a.stateStore.GetMonitorByName(name)
+		switch {
+		case err != nil:
+			logging.Errorf("Failed to load monitor state for %s: %v (retrying in %s)", name, err, monitorStateRetryPeriod)
+		case internalMonitor == nil:
+			logging.Errorf("Monitor %s is not registered with Core yet (retrying in %s); restart the agent if this persists", name, monitorStateRetryPeriod)
+		default:
+			return internalMonitor
+		}
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-time.After(monitorStateRetryPeriod):
 		}
 	}
 }
@@ -274,7 +315,7 @@ func (a *Agent) agentID() string {
 	return a.internalState.AgentID
 }
 
-func (a *Agent) monitorStates() []config.InternalStateMonitor {
+func (a *Agent) monitorsSnapshot() []config.InternalStateMonitor {
 	a.stateMu.Lock()
 	defer a.stateMu.Unlock()
 	return append([]config.InternalStateMonitor(nil), a.internalState.Monitors...)
@@ -290,11 +331,20 @@ func (a *Agent) maintenanceReason() string {
 }
 
 func (a *Agent) isInMaintenanceMode() bool {
+	inMaintenance, _ := a.maintenanceStatus()
+	return inMaintenance
+}
+
+func (a *Agent) maintenanceStatus() (bool, string) {
 	a.refreshInternalState()
 
 	a.stateMu.Lock()
 	defer a.stateMu.Unlock()
-	return a.internalState.MaintenanceMode
+	reason := ""
+	if a.internalState.MaintenanceReason != nil {
+		reason = *a.internalState.MaintenanceReason
+	}
+	return a.internalState.MaintenanceMode, reason
 }
 
 func (a *Agent) refreshInternalState() {
@@ -312,42 +362,6 @@ func (a *Agent) refreshInternalState() {
 }
 
 const shutdownFlushTimeout = 2 * time.Second
-
-const fallbackInterval = 60 * time.Second
-
-// parseIntervalOr never lets a bad interval silently kill a worker: it logs
-// loudly and falls back to a safe default.
-func parseIntervalOr(value, what string) time.Duration {
-	d, err := time.ParseDuration(value)
-	if err != nil || d <= 0 {
-		logging.Errorf("Invalid %s interval %q (%v); using %s", what, value, err, fallbackInterval)
-		return fallbackInterval
-	}
-	return d
-}
-
-// waitForMonitorState returns the monitor's registered state, retrying while it
-// is missing so a late registration or state-store hiccup does not leave the
-// monitor permanently silent. It returns nil only when ctx is cancelled.
-func (a *Agent) waitForMonitorState(ctx context.Context, name string, interval time.Duration) *config.InternalStateMonitor {
-	retry := min(interval, 30*time.Second)
-	for {
-		m, err := a.stateStore.GetMonitorByName(name)
-		switch {
-		case err != nil:
-			logging.Errorf("Failed to load monitor state for %s: %v; retrying in %s", name, err, retry)
-		case m == nil:
-			logging.Errorf("Monitor %s is not registered yet; retrying in %s (try: orion-agent reconfigure)", name, retry)
-		default:
-			return m
-		}
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-time.After(retry):
-		}
-	}
-}
 
 func newSampler(cfg *config.UserConfig) *appres.Sampler {
 	if !cfg.AppResources.IsEnabled() {
