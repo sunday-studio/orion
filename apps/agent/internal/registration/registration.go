@@ -66,6 +66,12 @@ func (s *RegistrationService) RegisterAgentIfNeeded() error {
 		}
 	}
 
+	enrollment, err := config.Env(config.EnvEnrollment)
+	if err != nil {
+		return err
+	}
+	s.client.SetEnrollmentToken(enrollment)
+
 	resp, err := s.client.RegisterAgent(req)
 	if err != nil {
 		return fmt.Errorf("failed to register agent: %w", err)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -286,8 +287,13 @@ func newReconfigureCommand(ctx context.Context, opts *Options) *cobra.Command {
 }
 
 func configureLogging(opts *Options) {
-	logging.ConfigureText(outputWriter)
-	logging.SetTextColorEnabled(!opts.NoColor && writerSupportsColor(outputWriter))
+	// Machine-readable output owns stdout; logs go to stderr.
+	var logOut io.Writer = outputWriter
+	if opts.JSON {
+		logOut = os.Stderr
+	}
+	logging.ConfigureText(logOut)
+	logging.SetTextColorEnabled(!opts.NoColor && writerSupportsColor(logOut))
 	if opts.Verbose {
 		logging.SetLevel(logging.LevelDebug)
 	}
