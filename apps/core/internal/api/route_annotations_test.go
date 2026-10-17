@@ -1,6 +1,7 @@
 package api
 
 import (
+	"orion/core/internal/config"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -30,7 +31,7 @@ func normalizeRoute(method, path string) string {
 }
 
 func TestRegisteredRoutesMatchOpenAPIAnnotations(t *testing.T) {
-	server := setupTestServer(t)
+	server := setupTestServerWithConfig(t, &config.Config{EnableSwagger: true})
 
 	annotated := map[string]bool{}
 	files, _ := filepath.Glob("*.go")

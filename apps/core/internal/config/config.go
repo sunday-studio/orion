@@ -29,6 +29,8 @@ type Config struct {
 	AllowInsecureNoAuth            bool
 	EnrollmentToken                string
 	AlertAllowPrivateWebhooks      bool
+	TrustedProxies                 []string
+	EnableSwagger                  bool
 	RegisterRateLimitPerMinute     int
 	LoginRateLimitAttempts         int
 	LoginRateLimitWindowSecs       int
@@ -76,6 +78,8 @@ func Load() *Config {
 		AllowInsecureNoAuth:            getEnvBool("ORION_ALLOW_INSECURE_NO_AUTH", false),
 		EnrollmentToken:                os.Getenv("ORION_ENROLLMENT_TOKEN"),
 		AlertAllowPrivateWebhooks:      getEnvBool("ORION_ALERT_ALLOW_PRIVATE_WEBHOOKS", false),
+		TrustedProxies:                 getEnvList("ORION_TRUSTED_PROXIES", nil),
+		EnableSwagger:                  getEnvBool("ORION_ENABLE_SWAGGER", false),
 		RegisterRateLimitPerMinute:     getEnvInt("ORION_REGISTER_RATE_LIMIT_PER_MINUTE", 30),
 		LoginRateLimitAttempts:         getEnvInt("ORION_LOGIN_RATE_LIMIT_ATTEMPTS", 5),
 		LoginRateLimitWindowSecs:       getEnvInt("ORION_LOGIN_RATE_LIMIT_WINDOW_SECONDS", 60),
