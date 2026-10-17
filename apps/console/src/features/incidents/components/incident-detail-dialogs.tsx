@@ -7,14 +7,9 @@ import {
   DialogTitle,
   Input,
   Select,
+  StatusBadge,
   Textarea,
 } from "@/design-system";
-import {
-  SeverityBadge,
-  StatusBadge,
-  toSeverity,
-  toStatus,
-} from "@/components/shared/status-badges";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import type {
   ApiMonitorReportResponse,
@@ -244,8 +239,8 @@ export const PublicIncidentDraftDialog = ({
                       value={draft.initial_update_message ?? "—"}
                     />
                     <div className="flex flex-wrap gap-2">
-                      <StatusBadge value={toStatus(draft.public_status)} />
-                      <SeverityBadge value={toSeverity(draft.severity)} />
+                      <StatusBadge status={draft.public_status} />
+                      <StatusBadge status={draft.severity} />
                     </div>
                   </div>
                 ) : (
@@ -294,7 +289,7 @@ export const EvidenceReportGroup = ({
       <div className="min-w-0">
         <div className="text-xs font-medium text-neutral-500">result</div>
         <div className="mt-2">
-          <StatusBadge value={toStatus(report?.health)} />
+          <StatusBadge status={report?.health} />
         </div>
       </div>
       <Button type="button" variant="secondary" size="sm" disabled={!report} onClick={onInspect}>

@@ -1,5 +1,4 @@
-import { Button } from "@/design-system";
-import { StatusBadge, toStatus } from "@/components/shared/status-badges";
+import { Button, StatusBadge } from "@/design-system";
 import {
   type ApiCoreMonitorConfigResponse,
   type ApiIncidentResponse,
@@ -90,7 +89,7 @@ export const MonitorDetailOverview = ({
   <section className="space-y-4">
     <div className="grid gap-3 lg:grid-cols-4">
       <DetailGroup title="State" variant={health === "up" ? "emerald" : "indigo"}>
-        <DetailItem label="health" value={<StatusBadge value={toStatus(health)} />} />
+        <DetailItem label="health" value={<StatusBadge status={health} />} />
         <DetailItem label="type" value={latestSummary.kindLabel} />
         <DetailItem label="source" value={isCoreMonitor ? "Core" : "Server"} />
         <DetailItem
@@ -177,7 +176,7 @@ export const MonitorDetailOverview = ({
         <DetailGroup title="Latest Heartbeat">
           <DetailItem
             label="status"
-            value={<StatusBadge value={toStatus(latestHeartbeatReport?.health)} />}
+            value={<StatusBadge status={latestHeartbeatReport?.health} />}
           />
           <DetailItem
             label="time"
@@ -188,7 +187,7 @@ export const MonitorDetailOverview = ({
         <DetailGroup title="Latest Heartbeat Failure">
           <DetailItem
             label="status"
-            value={<StatusBadge value={toStatus(latestHeartbeatFailure?.health)} />}
+            value={<StatusBadge status={latestHeartbeatFailure?.health} />}
           />
           <DetailItem
             label="time"

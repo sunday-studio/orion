@@ -1,6 +1,5 @@
-import { DataTableLink, ListPagination } from "@/design-system";
+import { DataTableLink, ListPagination, StatusBadge } from "@/design-system";
 import { DataTable } from "@/components/shared/data-table";
-import { StatusBadge, toStatus } from "@/components/shared/status-badges";
 import {
   type ApiIncidentResponse,
   type ApiMonitorResponse,
@@ -44,7 +43,7 @@ const monitorColumns = (
   {
     id: "health",
     header: "Health",
-    cell: ({ row }) => <StatusBadge value={toStatus(monitorHealth(row.original))} />,
+    cell: ({ row }) => <StatusBadge status={monitorHealth(row.original)} />,
   },
   {
     accessorKey: "type",

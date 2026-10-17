@@ -1,8 +1,7 @@
-import { DataTableLink, ListPagination } from "@/design-system";
+import { DataTableLink, ListPagination, StatusBadge } from "@/design-system";
 import { type ApiMonitorResponse, useGetAgentMonitors } from "@/orion-sdk";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/shared/data-table";
-import { StatusBadge, toStatus } from "@/components/shared/status-badges";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { useState } from "react";
 
@@ -23,7 +22,7 @@ const monitorColumns: ColumnDef<ApiMonitorResponse>[] = [
     header: "Health",
     cell: ({ row }) => {
       const health = row.original.health ?? row.original.computed_health ?? "unknown";
-      return <StatusBadge value={toStatus(health)} />;
+      return <StatusBadge status={health} />;
     },
   },
   {
