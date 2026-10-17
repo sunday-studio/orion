@@ -102,6 +102,7 @@ type Client struct {
 	coreURL    string
 	httpClient *http.Client
 	authToken  string
+	enrollment string
 	retry      RetryConfig
 	sleep      func(time.Duration)
 }
@@ -371,8 +372,21 @@ func (c *Client) SendServiceLogs(batch ServiceLogBatch, agentID string) error {
 	return nil
 }
 
+// EnrollmentTokenHeader carries the one-time enrollment token on registration.
+const EnrollmentTokenHeader = "X-Orion-Enrollment-Token"
+
+// ErrEnrollmentRejected means Core refused the enrollment token.
+var ErrEnrollmentRejected = errors.New("enrollment token was rejected")
+
+// SetEnrollmentToken sets the one-time token sent with the next registration.
+func (c *Client) SetEnrollmentToken(token string) { c.enrollment = token }
+
 func (c *Client) RegisterAgent(req AgentRegistrationRequest) (*AgentRegistrationResponse, error) {
-	resp, err := c.makeRequest("POST", "/v1/register", req, nil)
+	var headers map[string]string
+	if c.enrollment != "" {
+		headers = map[string]string{EnrollmentTokenHeader: c.enrollment}
+	}
+	resp, err := c.makeRequest("POST", "/v1/register", req, headers)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send registration request: %w", err)
 	}
@@ -383,6 +397,12 @@ func (c *Client) RegisterAgent(req AgentRegistrationRequest) (*AgentRegistration
 		return nil, fmt.Errorf("failed to read registration response: %w", err)
 	}
 
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return nil, fmt.Errorf("%w (HTTP %d): create a new one in Console under Add server", ErrEnrollmentRejected, resp.StatusCode)
+	}
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return nil, fmt.Errorf("core is rate limiting registration (HTTP 429); wait a minute and retry")
+	}
 	if resp.StatusCode != http.StatusOK {
 		logging.Warnf("unexpected status from core during registration: %d — %s", resp.StatusCode, string(body))
 		return nil, fmt.Errorf("core server returned status %d during registration", resp.StatusCode)

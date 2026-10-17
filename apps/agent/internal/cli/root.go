@@ -131,6 +131,7 @@ func NewRootCommand(ctx context.Context, opts *Options, out, errOut io.Writer) *
 		newRunCommand(ctx, opts),
 		newDoctorCommand(ctx, opts),
 		newSetupCommand(ctx, opts),
+		newEnrollCommand(ctx, opts),
 		newMaintenanceCommand(ctx, opts),
 		newConfigCommand(ctx, opts),
 		newStateCommand(ctx, opts),

@@ -284,6 +284,15 @@ Core behavior:
 - Return `500` for unexpected server errors.
 - Include request IDs in errors and logs.
 
+## Enrollment (agent side, pending Core)
+
+Agent behaviour implemented ahead of the Core change (backend ORB-009 / hardening 2.4). Core must match this or the agent contract must be updated in the same change.
+
+- `POST /v1/register` carries header `X-Orion-Enrollment-Token: <one-time token>` when the agent has one (`orion-agent enroll --token-file`, or `ORION_ENROLLMENT_TOKEN` / `ORION_ENROLLMENT_TOKEN_FILE`). Agents without a token send no header, which keeps current Core working.
+- `401`/`403` means the token is invalid, expired or already used; the agent tells the operator to create a new one in Console under Add server. `429` is retried with backoff.
+- On success the response is unchanged (`agent_id`, per-agent `token`). The enrollment token is single use and is never stored by the agent after registration.
+- Core's "agent connected" signal is the successful registration, followed by the first accepted report.
+
 ## Security
 
 - Server token lifecycle semantics live in `docs/architecture/agent-token-lifecycle.md`.
