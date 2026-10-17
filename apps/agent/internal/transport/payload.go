@@ -8,6 +8,9 @@ import (
 )
 
 type SystemReport struct {
+	// ReportID is an idempotency key: replays of the same report reuse it so
+	// Core can store it once.
+	ReportID      string                 `json:"report_id,omitempty"`
 	KernelVersion string                 `json:"kernel_version"`
 	AgentVersion  string                 `json:"agent_version,omitempty"`
 	ConfigSummary map[string]interface{} `json:"config_summary,omitempty"`
@@ -20,6 +23,7 @@ type SystemReport struct {
 }
 
 type MonitorReport struct {
+	ReportID  string                  `json:"report_id,omitempty"`
 	Timestamp string                  `json:"timestamp" binding:"required"`
 	Health    string                  `json:"health" binding:"required"` // up | down
 	Metrics   interface{}             `json:"metrics,omitempty"`

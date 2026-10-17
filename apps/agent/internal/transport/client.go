@@ -2,6 +2,7 @@ package transport
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"orion/agent/internal/logging"
@@ -101,10 +103,12 @@ var authRedactionPatterns = []*regexp.Regexp{
 type Client struct {
 	coreURL    string
 	httpClient *http.Client
+	mu         sync.RWMutex // guards authToken and ctx
 	authToken  string
+	ctx        context.Context
 	enrollment string
 	retry      RetryConfig
-	sleep      func(time.Duration)
+	sleep      func(context.Context, time.Duration)
 }
 
 type RetryConfig struct {
@@ -127,12 +131,46 @@ func NewClient(coreURL, authToken string) *Client {
 			MaxDelay:    5 * time.Second,
 			JitterRatio: 0.2,
 		},
-		sleep: time.Sleep,
+		sleep: sleepContext,
 	}
 }
 
 func (c *Client) SetAuthToken(authToken string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.authToken = authToken
+}
+
+func (c *Client) token() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.authToken
+}
+
+// SetContext binds every later request to ctx, so shutdown cancels in-flight
+// calls and retry waits instead of blocking for the full retry budget.
+func (c *Client) SetContext(ctx context.Context) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.ctx = ctx
+}
+
+func (c *Client) context() context.Context {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if c.ctx == nil {
+		return context.Background()
+	}
+	return c.ctx
+}
+
+func sleepContext(ctx context.Context, d time.Duration) {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+	case <-t.C:
+	}
 }
 
 func (c *Client) makeRequest(method, endpoint string, body interface{}, headers map[string]string) (*http.Response, error) {
@@ -158,7 +196,11 @@ func (c *Client) sendWithRetry(method string, url string, payload []byte, header
 	var lastErr error
 	for attempt := 1; attempt <= attempts; attempt++ {
 		logging.Debugf("core request attempt: method=%s url=%s attempt=%d/%d", method, url, attempt, attempts)
-		req, err := http.NewRequest(method, url, bytes.NewReader(payload))
+		ctx := c.context()
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(payload))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create request: %w", err)
 		}
@@ -188,7 +230,7 @@ func (c *Client) sendWithRetry(method string, url string, payload []byte, header
 
 		delay := c.retryDelay(attempt)
 		logging.Warnf("request failed; retrying in %s (attempt %d/%d): %v", delay, attempt+1, attempts, lastErr)
-		c.sleep(delay)
+		c.sleep(ctx, delay)
 	}
 
 	return nil, fmt.Errorf("failed to send request after %d attempts: %w", attempts, lastErr)
@@ -198,8 +240,18 @@ func shouldRetryStatus(statusCode int) bool {
 	return statusCode == http.StatusTooManyRequests || statusCode >= 500
 }
 
-func isAuthStatus(statusCode int) bool {
-	return statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden
+// isAuthResponse reports a credential rejection from Core. A 403 only counts
+// when the body is a JSON object like Core's own errors; a bare 403 from a
+// proxy or WAF is treated as a transient failure, not a revoked token.
+func isAuthResponse(statusCode int, body []byte) bool {
+	switch statusCode {
+	case http.StatusUnauthorized:
+		return true
+	case http.StatusForbidden:
+		var v map[string]any
+		return json.Unmarshal(bytes.TrimSpace(body), &v) == nil
+	}
+	return false
 }
 
 func (c *Client) retryDelay(attempt int) time.Duration {
@@ -232,7 +284,7 @@ func (c *Client) retryDelay(attempt int) time.Duration {
 
 func (c *Client) makeProtectedRequest(method, endpoint string, body interface{}) (*http.Response, error) {
 	headers := map[string]string{
-		"Authorization": "Bearer " + c.authToken,
+		"Authorization": "Bearer " + c.token(),
 	}
 	return c.makeRequest(method, endpoint, body, headers)
 }
@@ -252,7 +304,7 @@ func (c *Client) RegisterMonitor(req MonitorRegistrationRequest) (*MonitorRegist
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		if isAuthStatus(resp.StatusCode) {
+		if isAuthResponse(resp.StatusCode, body) {
 			return nil, NewAuthError(resp.StatusCode, body)
 		}
 		return nil, fmt.Errorf("core responded with %d: %s", resp.StatusCode, string(body))
@@ -286,7 +338,7 @@ func (c *Client) UnregisterMonitor(req UnRegisterMonitorRequest) (*UnRegisterMon
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		if isAuthStatus(resp.StatusCode) {
+		if isAuthResponse(resp.StatusCode, body) {
 			return nil, NewAuthError(resp.StatusCode, body)
 		}
 		return nil, fmt.Errorf("core responded with %d: %s", resp.StatusCode, string(body))
@@ -315,7 +367,7 @@ func (c *Client) SendReport(report SystemReport, agentID string) error {
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		if isAuthStatus(resp.StatusCode) {
+		if isAuthResponse(resp.StatusCode, body) {
 			return NewAuthError(resp.StatusCode, body)
 		}
 		logging.Warnf("unexpected status from core: %d — %s", resp.StatusCode, string(body))
@@ -336,7 +388,7 @@ func (c *Client) SendMonitorReport(report MonitorReport, agentID string, monitor
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		if isAuthStatus(resp.StatusCode) {
+		if isAuthResponse(resp.StatusCode, body) {
 			return NewAuthError(resp.StatusCode, body)
 		}
 		logging.Warnf("unexpected status from core: %d — %s", resp.StatusCode, string(body))
@@ -361,7 +413,7 @@ func (c *Client) SendServiceLogs(batch ServiceLogBatch, agentID string) error {
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		if isAuthStatus(resp.StatusCode) {
+		if isAuthResponse(resp.StatusCode, body) {
 			return NewAuthError(resp.StatusCode, body)
 		}
 		logging.Warnf("unexpected status from core service log ingest: %d — %s", resp.StatusCode, string(body))
@@ -436,7 +488,7 @@ func (c *Client) SetMaintenanceMode(agentID string, maintenanceMode bool) error 
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		if isAuthStatus(resp.StatusCode) {
+		if isAuthResponse(resp.StatusCode, body) {
 			return &AuthError{StatusCode: resp.StatusCode, Body: string(body)}
 		}
 		logging.Warnf("unexpected status from core: %d — %s", resp.StatusCode, string(body))

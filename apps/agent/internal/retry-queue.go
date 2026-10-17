@@ -58,10 +58,10 @@ func (q *RetryQueue) Flush(ctx context.Context) error {
 	logging.Debugf("retry queue flush started: items=%d", len(items))
 
 	var firstErr error
-	for _, item := range items {
+	for i, item := range items {
 		select {
 		case <-ctx.Done():
-			q.Push(item)
+			q.requeue(items[i:]) // keep the item in hand and everything after it
 			return ctx.Err()
 		default:
 		}
@@ -69,6 +69,7 @@ func (q *RetryQueue) Flush(ctx context.Context) error {
 		if err := item.Send(ctx); err != nil {
 			if transport.IsAuthError(err) {
 				logging.Debugf("retry item failed with auth error: name=%s", item.Name)
+				q.requeue(items[i+1:]) // the rejected item is dropped; the rest survive
 				return err
 			}
 			q.Push(item)
@@ -81,4 +82,16 @@ func (q *RetryQueue) Flush(ctx context.Context) error {
 		logging.Debugf("retry item sent successfully: name=%s", item.Name)
 	}
 	return firstErr
+}
+
+// requeue puts unsent items back ahead of anything pushed while flushing,
+// dropping the oldest if the queue is over capacity.
+func (q *RetryQueue) requeue(items []RetryItem) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	merged := append(append([]RetryItem(nil), items...), q.items...)
+	if len(merged) > q.capacity {
+		merged = merged[len(merged)-q.capacity:]
+	}
+	q.items = merged
 }

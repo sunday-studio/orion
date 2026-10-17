@@ -20,7 +20,7 @@ type daemonControl struct {
 	startedAt  time.Time
 	configPath string
 	logPath    string
-	monitors   int
+	monitors   atomic.Int64
 	store      *agentstate.Store
 	reload     atomic.Pointer[func() error]
 }
@@ -30,13 +30,19 @@ func newDaemonControl(opts *Options, userConfig *config.UserConfig, store *agent
 	if userConfig.Logging.Path != "" {
 		logPath = userConfig.Logging.Path
 	}
-	return &daemonControl{
+	d := &daemonControl{
 		startedAt:  time.Now(),
 		configPath: opts.ConfigPath,
 		logPath:    logPath,
-		monitors:   len(userConfig.Monitors),
 		store:      store,
 	}
+	d.update(userConfig)
+	return d
+}
+
+// update refreshes the values the daemon reports after a config reload.
+func (d *daemonControl) update(userConfig *config.UserConfig) {
+	d.monitors.Store(int64(len(userConfig.Monitors)))
 }
 
 func (d *daemonControl) Status() (control.Status, error) {
@@ -54,7 +60,7 @@ func (d *daemonControl) Status() (control.Status, error) {
 		CoreURL:         st.CoreURL,
 		LastSync:        st.LastSync,
 		MaintenanceMode: st.MaintenanceMode,
-		Monitors:        d.monitors,
+		Monitors:        int(d.monitors.Load()),
 		ConfigPath:      d.configPath,
 	}
 	if st.MaintenanceReason != nil {

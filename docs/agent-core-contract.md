@@ -293,6 +293,10 @@ Agent behaviour implemented ahead of the Core change (backend ORB-009 / hardenin
 - On success the response is unchanged (`agent_id`, per-agent `token`). The enrollment token is single use and is never stored by the agent after registration.
 - Core's "agent connected" signal is the successful registration, followed by the first accepted report.
 
+## Report idempotency (agent side, pending Core)
+
+`POST /v1/agents/{id}/report` and `POST /v1/agents/{id}/{monitor_id}/report` bodies carry `report_id` (32 hex chars, generated once per collected report). Spooled replays reuse the same `report_id`. Core should store a report once per `(agent_id, report_id)` and answer `200` for duplicates (backend ORB-019). Agents ignore unknown response fields, so Core may adopt this at any time.
+
 ## Security
 
 - Server token lifecycle semantics live in `docs/architecture/agent-token-lifecycle.md`.

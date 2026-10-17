@@ -12,6 +12,7 @@ import (
 	"orion/agent/internal/logging"
 	"orion/agent/internal/state"
 	"orion/agent/internal/transport"
+	"orion/agent/internal/utils"
 )
 
 func (a *Agent) runSystemMetrics() error {
@@ -27,6 +28,7 @@ func (a *Agent) runSystemMetrics() error {
 	logging.Debugf("system metrics collected: uptime_seconds=%d cpu_percent=%.2f memory_percent=%.2f disk_percent=%.2f", metrics.UptimeSeconds, metrics.CPU.UsagePercent, metrics.Memory.UsedPercent, metrics.Disk.UsedPercent)
 
 	report := &transport.SystemReport{
+		ReportID:      utils.NewReportID(),
 		KernelVersion: metrics.Kernel,
 		AgentVersion:  Version,
 		ConfigSummary: a.configSummary(),
@@ -39,7 +41,7 @@ func (a *Agent) runSystemMetrics() error {
 	}
 
 	send := func(context.Context) error {
-		return a.transport.SendReport(*report, a.internalState.AgentID)
+		return a.transport.SendReport(*report, a.agentID())
 	}
 
 	if err := send(context.Background()); err != nil {
@@ -53,7 +55,7 @@ func (a *Agent) runSystemMetrics() error {
 		}
 		return err
 	}
-	logging.Debugf("system report sent: agent_id=%s", a.internalState.AgentID)
+	logging.Debugf("system report sent: agent_id=%s", a.agentID())
 
 	if err := a.shipServiceLogs(); err != nil {
 		if transport.IsAuthError(err) {
@@ -95,6 +97,7 @@ func (a *Agent) runMonitorMetrics(monitor config.InternalStateMonitor, userMonit
 
 	logging.Infof("Monitor result -> %v", monitor.Name)
 	report := &transport.MonitorReport{
+		ReportID:  utils.NewReportID(),
 		Timestamp: result.Timestamp.Format(time.RFC3339),
 		Health:    result.Status,
 		Metrics:   result.Metrics,
@@ -102,7 +105,7 @@ func (a *Agent) runMonitorMetrics(monitor config.InternalStateMonitor, userMonit
 	}
 
 	send := func(context.Context) error {
-		return a.transport.SendMonitorReport(*report, a.internalState.AgentID, monitor.ID)
+		return a.transport.SendMonitorReport(*report, a.agentID(), monitor.ID)
 	}
 
 	if err := send(context.Background()); err != nil {
@@ -122,7 +125,7 @@ func (a *Agent) runMonitorMetrics(monitor config.InternalStateMonitor, userMonit
 }
 
 func (a *Agent) enqueueSystemReport(report *transport.SystemReport, lastErr error) error {
-	if _, err := a.stateStore.EnqueueReport(state.ReportSpoolKindSystem, a.internalState.AgentID, "", "", report, lastErr); err != nil {
+	if _, err := a.stateStore.EnqueueReport(state.ReportSpoolKindSystem, a.agentID(), "", "", report, lastErr); err != nil {
 		return err
 	}
 	logging.Debugf("system report persisted for retry")
@@ -130,7 +133,7 @@ func (a *Agent) enqueueSystemReport(report *transport.SystemReport, lastErr erro
 }
 
 func (a *Agent) enqueueMonitorReport(monitor config.InternalStateMonitor, report *transport.MonitorReport, lastErr error) error {
-	if _, err := a.stateStore.EnqueueReport(state.ReportSpoolKindMonitor, a.internalState.AgentID, monitor.ID, monitor.Name, report, lastErr); err != nil {
+	if _, err := a.stateStore.EnqueueReport(state.ReportSpoolKindMonitor, a.agentID(), monitor.ID, monitor.Name, report, lastErr); err != nil {
 		return err
 	}
 	logging.Debugf("monitor report persisted for retry: monitor=%s monitor_id=%s", monitor.Name, monitor.ID)

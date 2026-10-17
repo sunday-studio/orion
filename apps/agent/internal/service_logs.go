@@ -21,7 +21,7 @@ func (a *Agent) shipServiceLogs() error {
 	if strings.TrimSpace(a.userConfig.Logging.Path) == "" || config.IsConsoleLogPath(a.userConfig.Logging.Path) {
 		return nil
 	}
-	entries, err := collectServiceLogEntries(a.userConfig.Logging.Path, a.internalState.Monitors, serviceLogBatchLimit)
+	entries, err := collectServiceLogEntries(a.userConfig.Logging.Path, a.monitorStates(), serviceLogBatchLimit)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -31,7 +31,7 @@ func (a *Agent) shipServiceLogs() error {
 	if len(entries) == 0 {
 		return nil
 	}
-	return a.transport.SendServiceLogs(transport.ServiceLogBatch{Entries: entries}, a.internalState.AgentID)
+	return a.transport.SendServiceLogs(transport.ServiceLogBatch{Entries: entries}, a.agentID())
 }
 
 func collectServiceLogEntries(path string, monitors []config.InternalStateMonitor, limit int) ([]transport.ServiceLogEntry, error) {
