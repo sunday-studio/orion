@@ -16,7 +16,7 @@ if [ -z "${GOCACHE:-}" ]; then
 fi
 
 if ! command -v swag >/dev/null 2>&1; then
-    echo "swag not found. Install it with: go install github.com/swaggo/swag/cmd/swag@latest" >&2
+    echo "swag not found. Install it with: go install github.com/swaggo/swag/cmd/swag@v1.16.6" >&2
     exit 1
 fi
 

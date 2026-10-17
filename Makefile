@@ -38,7 +38,7 @@ core-coverage:
 
 # Run race detection on Core packages with scheduler, worker, and lifecycle concurrency.
 core-race:
-	cd apps/core && go test -race ./internal/service ./internal/worker
+	cd apps/core && go test -race ./...
 
 # Run the Core Go modernization lint gate. Requires golangci-lint v2.6 or newer.
 core-modernize-check:
