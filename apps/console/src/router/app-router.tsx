@@ -28,6 +28,11 @@ const DesignSystemPage = lazy(() =>
 const AppsPage = lazy(() =>
   import("@/features/apps/apps.view").then((module) => ({ default: module.AppsPage })),
 );
+const IncidentTriagePage = lazy(() =>
+  import("@/features/incidents/incident-triage.view").then((module) => ({
+    default: module.IncidentTriagePage,
+  })),
+);
 const OverviewPage = lazy(() =>
   import("@/features/overview/overview.view").then((module) => ({ default: module.OverviewPage })),
 );
@@ -80,6 +85,7 @@ function AppRouter() {
           <Route path="servers/:agentId" element={<AgentDetailPage />} />
           <Route path="monitors" element={<MonitorsPage />} />
           <Route path="monitors/:monitorId" element={<MonitorDetailPage />} />
+          <Route path="incidents/triage" element={<IncidentTriagePage />} />
           <Route path="incidents/:incidentId" element={<IncidentDetailPage />} />
           <Route path="design-system" element={<DesignSystemPage />} />
           <Route path="settings/apps" element={<AppsPage />} />
