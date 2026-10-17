@@ -49,7 +49,7 @@ func TestScenarioA2WebhookAlwaysFailsStopsAtMaxAttempts(t *testing.T) {
 	if err := svc.QueueIncidentNotifications("incident-1", "incident_opened"); err != nil {
 		t.Fatal(err)
 	}
-	for range 6 {
+	for range defaultAlertDeliveryMaxAttempts + 3 {
 		if _, err := svc.ProcessDueDeliveries(10); err != nil {
 			t.Fatal(err)
 		}
@@ -81,18 +81,18 @@ func TestScenarioA3SlowWebhookDoesNotBlockQueueing(t *testing.T) {
 // An operator retry of an exhausted delivery is sent by the next dispatch.
 func TestRetryDeliveryAfterExhaustionIsSentByDispatcher(t *testing.T) {
 	svc, hook := scenarioAlerting(t)
-	hook.FailFirst(3) // all three automatic attempts fail
+	hook.FailFirst(defaultAlertDeliveryMaxAttempts) // every automatic attempt fails
 	if err := svc.QueueIncidentNotifications("incident-1", "incident_opened"); err != nil {
 		t.Fatal(err)
 	}
-	for range 3 {
+	for range defaultAlertDeliveryMaxAttempts {
 		svc.ProcessDueDeliveries(10)
 		makeAllDeliveriesDue(svc)
 	}
 	var d db.AlertDelivery
 	svc.db.First(&d)
-	if d.Status != "failed" || d.AttemptCount != 3 {
-		t.Fatalf("setup: status=%s attempts=%d, want failed after 3", d.Status, d.AttemptCount)
+	if d.Status != "failed" || d.AttemptCount != defaultAlertDeliveryMaxAttempts {
+		t.Fatalf("setup: status=%s attempts=%d, want failed after %d", d.Status, d.AttemptCount, defaultAlertDeliveryMaxAttempts)
 	}
 
 	if _, err := svc.RetryDelivery(d.ID); err != nil {
@@ -102,7 +102,7 @@ func TestRetryDeliveryAfterExhaustionIsSentByDispatcher(t *testing.T) {
 		t.Fatal(err)
 	}
 	svc.db.First(&d, "id = ?", d.ID)
-	if d.Status != "sent" || d.AttemptCount != 4 {
-		t.Fatalf("after operator retry status=%s attempts=%d, want sent on attempt 4", d.Status, d.AttemptCount)
+	if d.Status != "sent" || d.AttemptCount != defaultAlertDeliveryMaxAttempts+1 {
+		t.Fatalf("after operator retry status=%s attempts=%d, want sent on attempt %d", d.Status, d.AttemptCount, defaultAlertDeliveryMaxAttempts+1)
 	}
 }
