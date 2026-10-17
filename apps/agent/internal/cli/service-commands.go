@@ -304,6 +304,10 @@ func runUpdate(_ context.Context, opts *Options) error {
 		Version:        opts.UpdateVersion,
 		CurrentVersion: agent.Version,
 		LogLines:       opts.LogLines,
+		BaseURL:        opts.UpdateBaseURL,
+		Rollback:       opts.UpdateRollback,
+		Force:          opts.UpdateForce,
+		SocketPath:     opts.SocketPath,
 	}); err != nil {
 		return NewCommandError("could not update Orion Agent", err)
 	}
