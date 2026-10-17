@@ -31,6 +31,11 @@ import (
 // @name Authorization
 // @description Type "Bearer" followed by a space and JWT token.
 
+// @securityDefinitions.apikey IngestKey
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and an app ingest key (orion_ik_...). Write-only; created per app.
+
 func main() {
 	logger := utils.NewLogger()
 	logger.Info("Starting Orion Core Server")
