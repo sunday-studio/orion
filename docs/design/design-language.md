@@ -78,7 +78,7 @@ Dark mode (Overview is the reference artboard): the sunken look comes from layer
 
 Radii: fields 14px, cards and tables 10px, buttons and inputs 8px, tray and chips 6 to 9px, badges 4px. No pills, no fully rounded controls except avatars and dots. Empty states use a single solid hairline container (white, 10px radius). No dashed borders and no border inside a border; inside an existing card the empty state has no border of its own.
 
-Buttons are layered: a 1px border, an inset top highlight and a soft drop shadow. Primary is a green gradient with white text; secondary is white; destructive is rose; ghost is text only. Heights: 36px default, 28px small (`sm`), 24px inside table rows.
+Buttons are layered: a 1px border, an inset top highlight and a soft drop shadow. Primary is a green gradient with white text; secondary is white; destructive is rose; ghost is text only. Heights: 30px default (12.5px text, 14px icons), 24px small (`sm`, used in page headers, table rows and bulk bars), 36px large only for single full-width CTAs on auth and first-run screens.
 
 ## 7. Component inventory
 
@@ -151,3 +151,159 @@ The full list with routes is in `screen-map.md`; flows are on the Flows artboard
 - Focus ring on all controls (accent at 22 percent). Dialogs trap focus and close with Escape.
 - Keyboard: Cmd K search, `G` then `I/M/S` navigation, `J/K` rows, `/` focus filter, `?` shortcut sheet.
 - Every list defines loading (skeleton rows), empty (first use), empty (filters applied), error (retry) and offline (banner) states; see System states.
+
+## 11. Token reference (copy into the design system)
+
+Tailwind v4 `@theme` block. Light values are the default; the dark set overrides under `.dark` (class strategy) so a component never hard-codes a color.
+
+```css
+@theme {
+  /* surfaces */
+  --color-page: #ffffff;
+  --color-field: #f7f7f6;
+  --color-sub: #fafaf9;
+  --color-card: #ffffff;
+  --color-tray: #f4f4f2;
+  /* borders */
+  --color-line: #ececea;          /* cards, dividers */
+  --color-line-strong: #e4e4e7;   /* inputs, popovers */
+  --color-line-hover: #d4d4d8;
+  /* text */
+  --color-ink: #18181b;
+  --color-muted: #71717a;
+  --color-faint: #a1a1aa;
+  /* accent */
+  --color-accent: #1f7a50;
+  --color-accent-hover: #238556;
+  --color-accent-top: #2c9f6a;     /* primary gradient top */
+  --color-accent-edge: #14573a;    /* primary border */
+  --color-chart-green: #2a9f69;
+  --color-focus: rgb(31 122 80 / 0.22);
+  /* danger button */
+  --color-danger: #d61f45;
+  --color-danger-top: #f0486a;
+  --color-danger-edge: #a8123a;
+  /* status (bg / fg) */
+  --color-up-bg: #ccfbf1;   --color-up-fg: #115e59;
+  --color-down-bg: #ffe4e6; --color-down-fg: #9f1239;
+  --color-deg-bg: #fef3c7;  --color-deg-fg: #92400e;
+  --color-unk-bg: #f5f5f4;  --color-unk-fg: #44403c;
+  --color-mnt-bg: #ede9fe;  --color-mnt-fg: #5b21b6;
+  --color-stale-bg: #f1f5f9; --color-stale-fg: #334155;
+  --color-cov-bg: #cffafe;  --color-cov-fg: #155e75;
+  --color-res-bg: #dbeafe;  --color-res-fg: #1e40af;
+  --color-crit: #f43f5e;
+  --color-med-bg: #fef9c3;  --color-med-fg: #713f12;
+  /* status dots */
+  --color-dot-red: #e5484d; --color-dot-amber: #f59e0b; --color-dot-green: #2a9f69; --color-dot-gray: #a1a1aa;
+  /* radii */
+  --radius-badge: 4px; --radius-chip: 6px; --radius-control: 8px; --radius-card: 10px; --radius-field: 14px; --radius-dialog: 16px;
+  /* shadows */
+  --shadow-card: 0 1px 2px rgb(24 24 27 / 0.05);
+  --shadow-raised: 0 1px 2px rgb(24 24 27 / 0.05), 0 4px 14px -4px rgb(24 24 27 / 0.08);
+  --shadow-menu: 0 12px 32px -8px rgb(0 0 0 / 0.18), 0 2px 6px rgb(0 0 0 / 0.06);
+  --shadow-dialog: 0 24px 48px -12px rgb(24 24 27 / 0.28), 0 6px 14px -4px rgb(24 24 27 / 0.10), 0 0 0 1px rgb(24 24 27 / 0.06);
+  --shadow-inset: inset 0 1px 2px rgb(24 24 27 / 0.05);
+  /* type */
+  --font-sans: "TWK Lausanne", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+.dark {
+  --color-page: #111513;  --color-field: #0c0f0e;  --color-sub: #161b19;  --color-card: #1a201e;  --color-tray: #0b0e0d;
+  --color-line: #252c29;  --color-line-strong: #2a312e; --color-line-hover: #3a4540;
+  --color-ink: #e9efec;   --color-muted: #8b9892;  --color-faint: #6a7570;
+  --color-up-bg: #0f2e22;   --color-up-fg: #6ee7b7;
+  --color-down-bg: #3a1720; --color-down-fg: #fda4af;
+  --color-deg-bg: #3a2a0a;  --color-deg-fg: #fcd34d;
+  --color-unk-bg: #232a27;  --color-unk-fg: #a8b4ad;
+  --color-crit: #e5484d;
+}
+```
+
+Dark-only structure values: header bottom rule `#1d2321`; field border `#171c1a`; row divider `#222926`; tray chip `#222926`; input background `#0f1311`; secondary button gradient `#242b28` to `#1d2321` with border `#2f3733`; field inner shadow `inset 0 2px 6px rgb(0 0 0 / .55)`; card top highlight `inset 0 1px 0 rgb(255 255 255 / .035)`. The primary button keeps its green gradient but loses the glow: shadow is `inset 0 1px 0 rgb(255 255 255 / .18), 0 1px 2px rgb(0 0 0 / .4)`.
+
+## 12. Scales
+
+- Type (px / line-height / weight): 2xl 30 / 1.15 / 500 with `-0.02em` (page title); xl 18 / 1.2 / 500 (dialog title); lg 15 / 1.4 / 500 (section title); md 14 / 1.5 / 300 (long copy); base 13 / 1.5 / 300 (UI default, table cells); sm 12.5 / 1.4 (dense tables, hints); xs 12 / 1.4 (captions, meta, muted); 2xs 11.5 (table header, facet group labels, uppercase with 0.02em). Weights: 300 text, 500 emphasis. Mono 12px for code.
+- Spacing (4px base, half steps allowed): 4, 6, 8, 10, 12, 14, 16, 20, 24, 32, 40, 56. Control inner padding 0 10 to 14; card padding 14 to 16; field padding 20; dialog padding 24; page top padding 40; gap between fields 12; gap between dialog rows 16.
+- Layout: header 52; list column 1040; form column 760; facet rail 190 with 18 gap; drawer 460 to 500; dialog widths 340 / 400 / 460 / 520 / 560; command palette 580.
+- Row heights: table 38, dense table 30, table header 30 (28 dense), list row 40, day divider 26, input and select 30, button 30 and 24, tray item 28.
+- Z-index: header 10, floating bulk bar 40, menu and popover 50, drawer 60, dialog and scrim 70, toast 80.
+
+## 13. Focus, motion, accessibility
+
+- Focus ring: `focus-visible` only. `box-shadow: 0 0 0 3px var(--color-focus)` added to the control's own shadow; outline removed. On dark, the same green at 22 percent. Error focus ring uses `rgb(229 72 77 / .2)`.
+- Hit targets: 24px minimum height, 8px minimum gap between adjacent controls in a row.
+- Motion: color, background and shadow changes 150ms ease. Dialog: scrim fades in 150ms; panel fades and scales from 0.98 and 4px below in 180ms ease-out; exit 120ms. Drawer: slides in 200ms ease-out. Menu and popover: fade and 2px rise, 120ms. Toast: slide up 8px and fade, 180ms, auto-dismiss at 5s (errors stay until dismissed). Live-tail pulse: 1.6s infinite on a 4px ring. `prefers-reduced-motion`: remove transforms and pulse, keep fades under 100ms.
+- Never rely on color alone; badges keep their shape glyph. Dialogs trap focus, return focus to the trigger, close on Escape. Tables expose sort state with `aria-sort`; rows with checkboxes expose the selected count in a live region.
+
+## 14. Component specification
+
+All components are Base UI primitives (`@base-ui/react`) styled with Tailwind utility classes that read the tokens above, written in TypeScript with `cva` variants and `cn`. State columns: D default, H hover, F focus-visible, A active, X disabled, L loading, E error.
+
+### 14.1 Controls
+
+| Component | Base UI | Variants and sizes | States |
+|---|---|---|---|
+| Button | `Button` | variant: primary, secondary, destructive, ghost. size: sm 24, md 30, lg 36. Icon-only is square at the same height | D: layered (secondary: white gradient `#fff` to `#f7f7f8`, 1px `line-strong`, inset top highlight, `shadow-card`). H: gradient shifts to `#f1f1f3`, shadow `0 1px 3px rgb(24 24 27 / .12)`. A: inset shadow `inset 0 1px 2px rgb(24 24 27 / .12)`, bg `sub`. F: ring. X: 50 percent opacity, no shadow, `not-allowed`. L: 14px spinner replaces the icon, label stays, `aria-busy`, pointer events off. Primary: gradient `accent-top` to `accent`, border `accent-edge`, white text, inset top highlight `rgb(255 255 255 / .25)`, inset bottom `rgb(0 0 0 / .18)`, drop `0 1px 2px rgb(20 87 58 / .4), 0 4px 10px -3px rgb(31 122 80 / .35)`; H: `#32aa73` to `#238556`; A: flat `#1b6e48` with inset shadow. Destructive: `danger-top` to `danger`, border `danger-edge`. Ghost: transparent, text `muted`, H adds `rgb(24 24 27 / .05)` |
+| Input, Textarea | `Input`, `Field` | size md 30; textarea min height 64, resizable vertical | D: white, 1px `line-strong`, `shadow-inset`. H: border `line-hover`. F: ring, border unchanged. X: bg `sub`, text `faint`. E: border `#e5484d`, error ring, message 12px `#be123c` below with a 12px icon. Placeholder `faint` |
+| Select | `Select` | md 30, min width 120 | Trigger styled like secondary button with a 14px chevron; popup uses Menu styling; selected item shows a check. States as Button |
+| Combobox | `Combobox` | md | Input plus popup; empty list text "No matches" |
+| Checkbox | `Checkbox` | 15px, 4px radius | D: white, 1.5px `#d4d4d8`. Checked: fill `accent`, white tick. Indeterminate: dash. F: ring. X: 50 percent. E: border danger |
+| Radio | `Radio`, `RadioGroup` | 14px circle | Selected: 3px inner ring in `accent`. Used only for mutually exclusive settings in dialogs (remove server history). Type pickers use Choice cards, not radios |
+| Choice card | `RadioGroup` item | width fills half row, padding 14, 10px radius | D: white, 1px `line-strong`, title 14/500, description 12.5 muted. Selected: border `accent`, ring `rgb(31 122 80 / .14)`. H: border `line-hover`. No radio dot is drawn |
+| Switch | `Switch` | 32 by 18 | On: `accent` track, white thumb; X 50 percent |
+| Segmented control | `ToggleGroup` (single) | sm 24 and md 30 | Tray `tray` with 3px padding; active item white with hairline shadow; used for status filters, List/Live/Patterns, severity, delivery mode |
+| Chips input | `Input` plus chips | md | Chip 24px high, `tray` bg, 6px radius, remove button; Enter or comma commits; paste splits on commas |
+| Token reveal | custom | one size | Dark box `#0f211b` text `#bff3d4` mono 12.5; Copy button flips to "Copied" for 2s; required "I have stored this" checkbox enables Done |
+
+### 14.2 Navigation and structure
+
+| Component | Base UI | Variants | States |
+|---|---|---|---|
+| Header | none (landmark `header`) | light, dark | 52px, grid 1fr auto 1fr; tray nav is a list of links; active item `aria-current="page"` |
+| Tray nav item | link | default, active | D: muted. H: ink. Active: white chip, hairline shadow, ink, weight 500. F: ring |
+| Tabs | `Tabs` | centered | List `width: max-content`, 1px bottom rule under the tabs only; selected: ink text, 2px `accent` underline; H: ink |
+| Page header | none | with sub, with actions | h1 30/500, sub 13 muted, actions right aligned and baseline-aligned with the title |
+| Breadcrumb | `ui/breadcrumb` | | 12.5 muted, current page ink |
+| Menu | `Menu` | account, time range, saved views, row actions | Panel 240 wide, 10px radius, 6px padding, `shadow-menu`; item 30px, 6px radius, H bg `tray`; destructive item text `#be123c`; separators 1px `line` |
+| Popover | `Popover` | filter popover (260 wide) | Header with back link and Done; operator select; grouped checkbox list with 11.5 uppercase group labels |
+| Tooltip | `Tooltip` | | Dark `#18181b`, white 12px, 8px radius, 6 by 10 padding, 500ms delay |
+| Command palette | `Dialog` plus list | | 580 wide; input row 44 tall; groups with 11.5 muted headers; rows 34; selected row `tray`; keycap hints right |
+| Dialog | `Dialog` | sm 340, md 460 to 520, lg 560 | Scrim `rgb(28 25 23 / .5)`; panel white, 16px radius, 24 padding, `shadow-dialog`, border 1px `line`; footer right aligned with a left-aligned ghost action allowed |
+| Drawer | `Dialog` (side) | 460 to 500 | Right edge, full height, 1px left border, scrim lighter (`.25`); header with title, badge, Prev, Next, Close |
+| Bulk bar | none | | Fixed bottom center, white, 12px radius, 1px `line-strong`, `shadow-dialog`; count at left separated by a rule; Resolve or primary action uses the primary button |
+| Toast | `Toast` | success, error, info | 320 wide card, left status dot; success `up` tint, error `down` tint |
+
+### 14.3 Data display
+
+| Component | Variants | Notes |
+|---|---|---|
+| Badge | status: up, down, deg, unk, mnt, stale, cov, res, open, ack, sent, failed, cool, pend, supp; severity: crit, high, med, low | 20px high, 4px radius, 12px text weight 500, padding 0 8px 0 7px, 5px gap between glyph and label, glyph 6px: dot (up), square (down, open, failed), half (deg, ack), hollow (unk, pend, stale, supp), bars (mnt). Glyph and label are vertically centered in one flex row |
+| Dot | red, amber, green, gray | 8px circle, used as row lead indicator |
+| Card | default | white, 10px radius, 1px `line`, `shadow-card`; header row (`bh`) 36 tall on `sub` with title 13/500 and a muted right slot |
+| Field | default | `field` bg, 14px radius, 1px `line`, 20 padding, title row 15/500 with muted right text; holds cards |
+| Stat card | 3-up grid | label 12 muted, value 22 to 26/500 tabular |
+| Table (`DataTable`) | default, dense, selectable | Header 30 (28 dense) on `sub`, 11.5 muted. Rows 38 (30 dense), one line, ellipsis overflow, hover `sub`, selected row `#f2faf5`. Columns declared as CSS grid templates, 12px gap, 14px horizontal padding. Day divider rows 26 tall, mono 11 uppercase. Footer row for "Show N more" or pager. Sticky header inside scroll regions. Right-align numbers only when comparing magnitudes |
+| Pager | cursor | "Showing 1 to 100 of N", Newer and Older buttons (sm), rows-per-page select |
+| List row | inside a card | 40 tall, lead dot, title 13/500, muted detail as its own column (minmax 120 to 240 for the title), trailing badge or button |
+| Filter bar | with tokens | Tokens are 28 tall segmented boxes: field, operator, value, remove; "+ Filter" dashed; Clear all at the right; wraps instead of clipping |
+| Facet rail | | 190 wide; group label 11.5 uppercase faint; item row 24 with 15px checkbox, label, right-aligned count tabular faint; "Show N more" link |
+| Histogram | severity stacked | 132px high, 3px bar gap, 3px top radius; info `#9bd7b8`, warn `#f5b942`, error `#e5484d`; gridlines every 30px `#f0f0ee`; brush: 1px `accent` border, 9 percent accent fill, label "Zoom to selection" above; tooltip dark card |
+| Uptime strip | 24, 30, 45, 60 or 90 bars | 3 to 4px bars, green `#3dba85`, amber, red |
+| Lifecycle tracker | 4 steps | circles 18px; done: green fill with tick; current: red ring; connecting line 2px; labels 12.5/500 with time 11 muted below. Line width equals the span between first and last step centers |
+| Expected vs actual | | two cards; expected dark green `#142a23` with mint label, actual white with red value |
+| Attribute tree | | mono 12.5, 16px indent, keys muted, strings green `#1f7a50`, numbers amber `#b45309`, redacted values as a gray chip, collapse chevrons |
+| Code block | tabs variant | `#0f211b` background, mint text, 12px mono, 8px radius; optional tab strip (mono 11 uppercase) above; Copy button top right |
+| Callout | up, down, degraded | 8px radius, 10 by 14 padding, bold lead word; tints from the status tokens |
+| Empty state | inside card, standalone | Standalone: one solid 1px `line` container, white, 10px radius, 56px vertical padding, title 16/500, one sentence muted, one button. Inside a card: no border of its own |
+| Skeleton | row | 12px bars on `tray`, 1.4s shimmer; reduced motion: static |
+| Avatar | md 24 | round, generated gradient |
+
+### 14.4 Behavior notes for state coverage
+
+- Loading: tables show five skeleton rows; buttons show their L state; pages never blank the header.
+- Error: inline errors under the field; page errors use the empty-state container with Retry; offline and ingest-behind use a callout above the content.
+- Disabled rows: text `faint`, no hover.
+- Selection: selecting any row shows the bulk bar; Escape clears.
+- Keyboard: `/` focuses the filter or query bar; arrows move within tray, tabs and menus; Enter activates; the palette opens on Cmd K.
