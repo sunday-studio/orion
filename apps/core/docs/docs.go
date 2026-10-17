@@ -11211,6 +11211,9 @@ const docTemplate = `{
         "orion_core_internal_db.DataLifecycleSettings": {
             "type": "object",
             "properties": {
+                "alert_delivery_retention_days": {
+                    "type": "integer"
+                },
                 "archive_dir": {
                     "type": "string"
                 },
@@ -11220,10 +11223,16 @@ const docTemplate = `{
                 "archive_schedule": {
                     "type": "string"
                 },
+                "audit_event_retention_days": {
+                    "type": "integer"
+                },
                 "created_at": {
                     "type": "string"
                 },
                 "id": {
+                    "type": "integer"
+                },
+                "incident_event_retention_days": {
                     "type": "integer"
                 },
                 "last_archive_error": {
@@ -11247,8 +11256,15 @@ const docTemplate = `{
                 "rollups_enabled": {
                     "type": "boolean"
                 },
+                "service_log_retention_days": {
+                    "description": "Retention windows in days for tables that otherwise grow without bound.",
+                    "type": "integer"
+                },
                 "updated_at": {
                     "type": "string"
+                },
+                "worker_status_retention_days": {
+                    "type": "integer"
                 }
             }
         },
@@ -11517,6 +11533,9 @@ const docTemplate = `{
         "orion_core_internal_service.DataLifecycleSettingsPayload": {
             "type": "object",
             "properties": {
+                "alert_delivery_retention_days": {
+                    "type": "integer"
+                },
                 "archive_dir": {
                     "type": "string"
                 },
@@ -11526,6 +11545,12 @@ const docTemplate = `{
                 "archive_schedule": {
                     "type": "string"
                 },
+                "audit_event_retention_days": {
+                    "type": "integer"
+                },
+                "incident_event_retention_days": {
+                    "type": "integer"
+                },
                 "raw_report_hot_days": {
                     "type": "integer"
                 },
@@ -11534,6 +11559,13 @@ const docTemplate = `{
                 },
                 "rollups_enabled": {
                     "type": "boolean"
+                },
+                "service_log_retention_days": {
+                    "description": "Optional retention windows (days, 1-3650). Omitted fields keep their current value.",
+                    "type": "integer"
+                },
+                "worker_status_retention_days": {
+                    "type": "integer"
                 }
             }
         },
@@ -11833,6 +11865,10 @@ const docTemplate = `{
         "orion_core_internal_service.RuntimeSQLiteStats": {
             "type": "object",
             "properties": {
+                "auto_vacuum": {
+                    "description": "AutoVacuum is none, full or incremental; only incremental lets retention shrink the file.",
+                    "type": "string"
+                },
                 "busy_total": {
                     "type": "integer"
                 },

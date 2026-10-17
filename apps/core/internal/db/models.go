@@ -444,8 +444,14 @@ type DataLifecycleSettings struct {
 	LastArchiveRunAt    *time.Time `json:"last_archive_run_at"`
 	LastArchiveStatus   string     `json:"last_archive_status"`
 	LastArchiveError    string     `json:"last_archive_error" gorm:"type:text"`
-	CreatedAt           time.Time  `json:"created_at"`
-	UpdatedAt           time.Time  `json:"updated_at"`
+	// Retention windows in days for tables that otherwise grow without bound.
+	ServiceLogRetentionDays    int       `json:"service_log_retention_days" gorm:"not null;default:14"`
+	AlertDeliveryRetentionDays int       `json:"alert_delivery_retention_days" gorm:"not null;default:90"`
+	IncidentEventRetentionDays int       `json:"incident_event_retention_days" gorm:"not null;default:365"`
+	AuditEventRetentionDays    int       `json:"audit_event_retention_days" gorm:"not null;default:365"`
+	WorkerStatusRetentionDays  int       `json:"worker_status_retention_days" gorm:"not null;default:7"`
+	CreatedAt                  time.Time `json:"created_at"`
+	UpdatedAt                  time.Time `json:"updated_at"`
 }
 
 // IncidentCandidateDismissal hides an incident candidate (a failing monitor with no

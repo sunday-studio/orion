@@ -27,6 +27,8 @@ func sqliteDSN(dbPath string) string {
 	params.Set("_busy_timeout", "5000")
 	params.Set("_synchronous", "NORMAL")
 	params.Set("_txlock", "immediate")
+	// Only affects newly created databases; see docs/sqlite-backup-restore.md to convert an existing one.
+	params.Set("_auto_vacuum", "incremental")
 	return "file:" + dbPath + "?" + params.Encode()
 }
 
