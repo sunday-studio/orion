@@ -38,6 +38,11 @@ const AddServerPage = lazy(() =>
     default: module.AddServerPage,
   })),
 );
+const ConnectAppPage = lazy(() =>
+  import("@/features/apps/connect/connect-app.view").then((module) => ({
+    default: module.ConnectAppPage,
+  })),
+);
 const OverviewPage = lazy(() =>
   import("@/features/overview/overview.view").then((module) => ({ default: module.OverviewPage })),
 );
@@ -94,6 +99,7 @@ function AppRouter() {
           <Route path="incidents/triage" element={<IncidentTriagePage />} />
           <Route path="incidents/:incidentId" element={<IncidentDetailPage />} />
           <Route path="design-system" element={<DesignSystemPage />} />
+          <Route path="apps/new" element={<ConnectAppPage />} />
           <Route path="settings/apps" element={<AppsPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="*" element={<NotFound />} />

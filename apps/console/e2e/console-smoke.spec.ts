@@ -5,18 +5,18 @@ test.describe.configure({ mode: "serial" });
 
 test("signs in, rejects bad credentials, and signs out", async ({ page }) => {
   await page.goto("/login");
-  await page.getByPlaceholder("Username").fill(username);
-  await page.getByPlaceholder("Password").fill("wrong-password");
-  await page.getByRole("button", { name: "Enter" }).click();
-  await expect(page.getByText("Invalid credentials")).toBeVisible();
+  await page.getByLabel("Username").fill(username);
+  await page.getByLabel("Password").fill("wrong-password");
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByText("Username or password is incorrect.")).toBeVisible();
 
-  await page.getByPlaceholder("Password").fill(password);
-  await page.getByRole("button", { name: "Enter" }).click();
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByRole("heading", { name: /How is it going/ })).toBeVisible();
 
   await page.getByRole("button", { name: "Account menu" }).click();
   await page.getByRole("menuitem", { name: "Sign out" }).click();
-  await expect(page.getByPlaceholder("Username")).toBeVisible();
+  await expect(page.getByLabel("Username")).toBeVisible();
 });
 
 test("renders primary operations pages with seeded Core data", async ({ page }) => {
@@ -91,9 +91,9 @@ test("renders primary operations pages with seeded Core data", async ({ page }) 
 test("redirects unauthenticated visits to login and returns after sign in", async ({ page }) => {
   await page.goto("/monitors");
   await expect(page).toHaveURL(/\/login\?from=%2Fmonitors/);
-  await page.getByPlaceholder("Username").fill(username);
-  await page.getByPlaceholder("Password").fill(password);
-  await page.getByRole("button", { name: "Enter" }).click();
+  await page.getByLabel("Username").fill(username);
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/monitors$/);
 });
 
