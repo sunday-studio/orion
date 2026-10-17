@@ -38,7 +38,7 @@ func (s *AlertService) attemptDelivery(delivery *db.AlertDelivery, deliver func(
 		message = deliverErr.Error()
 		stage = alertDeliveryErrorStage(deliverErr)
 		if attemptNumber < maxAttempts {
-			next := completedAt.Add(defaultAlertDeliveryRetryDelay)
+			next := completedAt.Add(alertRetryDelay(attemptNumber))
 			nextAttemptAt = &next
 		}
 	}

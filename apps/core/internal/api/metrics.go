@@ -46,3 +46,8 @@ func (s *Server) getMetrics(c *gin.Context) {
 func (s *Server) RuntimeDiagnostics() *service.RuntimeDiagnosticsService {
 	return s.runtimeDiagnosticsService
 }
+
+// Handler returns the HTTP handler for in-process embedding (the soak harness and tests).
+func (s *Server) Handler() http.Handler {
+	return s.router
+}
