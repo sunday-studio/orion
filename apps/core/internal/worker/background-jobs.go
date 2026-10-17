@@ -20,8 +20,24 @@ func sweepInterval(configured time.Duration) time.Duration {
 	return configured
 }
 
+const defaultSweepBootGrace = 60 * time.Second
+
+func sweepBootGrace(configured time.Duration) time.Duration {
+	switch {
+	case configured < 0:
+		return 0
+	case configured == 0:
+		return defaultSweepBootGrace
+	default:
+		return configured
+	}
+}
+
 // sweepSilentMonitors opens stale incidents for agent monitors that stopped reporting.
 func (a *App) sweepSilentMonitors() {
+	if time.Since(a.startedAt) < a.sweepBootGrace {
+		return
+	}
 	flagged, err := a.incidents.SweepSilentMonitors(time.Now().UTC())
 	if err != nil {
 		a.logger.Error("Core worker silent monitor sweep failed", "error", err)
