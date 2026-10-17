@@ -10,7 +10,28 @@ import (
 	"gorm.io/gorm"
 )
 
+// inTx runs fn against a copy of the service bound to a single transaction, so an
+// incident change, its event rows and its pending alert deliveries commit together
+// or not at all. Nested calls reuse the surrounding transaction.
+func (s *IncidentService) inTx(fn func(*IncidentService) error) error {
+	if s.inTransaction {
+		return fn(s)
+	}
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		scoped := *s
+		scoped.db = tx
+		scoped.inTransaction = true
+		return fn(&scoped)
+	})
+}
+
 func (s *IncidentService) openOrUpdateIncident(agent db.Agent, monitor db.Monitor, monitorReportID string, health string, incidentState string) error {
+	return s.inTx(func(tx *IncidentService) error {
+		return tx.openOrUpdateIncidentTx(agent, monitor, monitorReportID, health, incidentState)
+	})
+}
+
+func (s *IncidentService) openOrUpdateIncidentTx(agent db.Agent, monitor db.Monitor, monitorReportID string, health string, incidentState string) error {
 	now := time.Now().UTC()
 	message := incidentMessage(agent, monitor, health)
 	severity := s.monitorIncidentSeverity(agent, monitor, health)
@@ -83,6 +104,12 @@ func (s *IncidentService) openOrUpdateIncident(agent db.Agent, monitor db.Monito
 }
 
 func (s *IncidentService) resolveActiveIncident(monitor db.Monitor, monitorReportID string, incidentState string) error {
+	return s.inTx(func(tx *IncidentService) error {
+		return tx.resolveActiveIncidentTx(monitor, monitorReportID, incidentState)
+	})
+}
+
+func (s *IncidentService) resolveActiveIncidentTx(monitor db.Monitor, monitorReportID string, incidentState string) error {
 	now := time.Now().UTC()
 	message := fmt.Sprintf("Monitor %s recovered", monitor.Name)
 

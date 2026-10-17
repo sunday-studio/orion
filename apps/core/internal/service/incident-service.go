@@ -35,6 +35,8 @@ type IncidentService struct {
 	logger      *utils.Logger
 	cfg         *config.Config
 	diagnostics *RuntimeDiagnosticsService
+	// inTransaction is true on the per-call copy created by inTx, whose db is a transaction.
+	inTransaction bool
 }
 
 func NewIncidentService(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *IncidentService {
