@@ -125,7 +125,7 @@ Logs from level 3 and host metrics from level 1 are linked by `host.name` / `ser
 | WP | Work | Done when |
 |---|---|---|
 | F1 | Release pipeline: static builds, `SHA256SUMS`, signature, SBOM, reproducible tags | Install script verifies end to end |
-| F2 | Container image (rootless, read-only FS) and Kubernetes DaemonSet manifest/Helm chart with env-only config | Pod reports host and pod metrics on kind in CI |
+| F2 | **DEFERRED to the very end, just before going live with the new version (D-031):** running the agent itself as a container: image (rootless, read-only FS) and Kubernetes DaemonSet manifest/Helm chart with env-only config. Monitoring other containers from a host agent stays in scope. | Pod reports host and pod metrics on kind in CI |
 | F3 | Docs: install guide per platform, troubleshooting from `doctor` messages, config reference generated from the schema | Docs built in CI |
 
 ## 7. Dependencies on other threads
