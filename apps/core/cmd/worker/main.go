@@ -5,6 +5,7 @@ import (
 	"log"
 	"orion/core/internal/config"
 	"orion/core/internal/db"
+	"orion/core/internal/logstore"
 	"orion/core/internal/service"
 	"orion/core/internal/shared"
 	"orion/core/internal/utils"
@@ -61,10 +62,18 @@ func main() {
 		}
 	}()
 
+	logStore, err := logstore.OpenReader(cfg.DataDir, logger)
+	if err != nil {
+		logger.Warn("Product logs database unavailable; log alerts are disabled in this Worker", "error", err)
+	} else {
+		defer logStore.Close()
+	}
+
 	app := worker.NewApp(database, logger, worker.Options{
 		WorkerID:    cfg.CoreWorkerID,
 		Config:      cfg,
 		Concurrency: cfg.CoreWorkerConcurrency,
+		LogStore:    logStore,
 	})
 	if err := app.Run(ctx); err != nil {
 		logger.Fatal("Core monitor worker stopped with error", "error", err)

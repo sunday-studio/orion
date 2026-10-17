@@ -4,6 +4,8 @@ import (
 	"context"
 	"orion/core/internal/config"
 	"orion/core/internal/db"
+	"orion/core/internal/logstore"
+	"orion/core/internal/testkit"
 	"orion/core/internal/utils"
 	"testing"
 	"time"
@@ -139,4 +141,36 @@ func TestDispatchAlertsAsyncDoesNotBlockAndNeverOverlaps(t *testing.T) {
 	if got.Status != "suppressed" || app.dispatching.Load() {
 		t.Fatalf("status = %q dispatching = %t, want the pass to run once and release its guard", got.Status, app.dispatching.Load())
 	}
+}
+
+func TestAppEvaluatesLogAlertRulesWhenItHasALogStore(t *testing.T) {
+	database := openWorkerMigratedTestDatabase(t)
+	store, err := logstore.OpenWith(testkit.NewDB(t), utils.NewLogger(), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	now := time.Now().UTC()
+	database.Create(&db.App{ID: "app-1", Name: "api", Slug: "api", RetentionDays: 14, DebugSampleRate: 1, DisplayJSON: "{}", RedactionJSON: "{}", CreatedAt: now, UpdatedAt: now})
+	database.Create(&db.LogAlertRule{ID: "r1", Name: "errors", AppID: "app-1", Mode: "threshold", Severity: ">=error", Threshold: 2, WindowSeconds: 300, Enabled: true, State: "ok", CreatedAt: now.Add(-time.Hour), UpdatedAt: now})
+	var batch []logstore.Entry
+	for i := 0; i < 5; i++ {
+		batch = append(batch, logstore.Entry{ID: logstore.NewEntryID(now), AppID: "app-1", Timestamp: now, IngestedAt: now, Severity: "error", SeverityNumber: 17, Body: "boom", Size: 10})
+	}
+	store.Enqueue(batch)
+	store.Flush(3 * time.Second)
+
+	app := NewApp(database, utils.NewLogger(), Options{Config: &config.Config{}, LogStore: store})
+	app.evaluateLogAlerts()
+
+	var rule db.LogAlertRule
+	database.First(&rule, "id = ?", "r1")
+	var incidents int64
+	database.Model(&db.Incident{}).Where("monitor_id = ?", "monitor-log-alert-r1").Count(&incidents)
+	if rule.State != "firing" || incidents != 1 {
+		t.Fatalf("rule state = %q incidents = %d, want the Worker to have raised the alert", rule.State, incidents)
+	}
+
+	// Without a log store the Worker simply skips log alerts.
+	NewApp(database, utils.NewLogger(), Options{Config: &config.Config{}}).evaluateLogAlerts()
 }

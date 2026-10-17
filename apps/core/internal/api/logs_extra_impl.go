@@ -264,6 +264,11 @@ func (s *Server) searchAgentLogs(c *gin.Context, from, to time.Time) {
 		last := rows[len(rows)-1]
 		next = logstore.EncodeCursor(last.OccurredAt.UnixNano(), last.ID)
 	}
+	out := agentLogEntries(rows)
+	utils.SuccessResponse(c, http.StatusOK, "Logs retrieved successfully", LogListResponse{Entries: out, NextCursor: next})
+}
+
+func agentLogEntries(rows []db.ServiceLogEntry) []LogEntry {
 	out := make([]LogEntry, 0, len(rows))
 	for _, r := range rows {
 		severity, number := logstore.NormalizeSeverity(strings.ToLower(r.Level))
@@ -276,5 +281,5 @@ func (s *Server) searchAgentLogs(c *gin.Context, from, to time.Time) {
 		}
 		out = append(out, LogEntry{ID: r.ID, Source: "agent", AgentID: r.AgentID, Timestamp: r.OccurredAt, IngestedAt: r.CollectedAt, Severity: LogSeverity(severity), SeverityValue: number, Body: r.Message, Attributes: attrs})
 	}
-	utils.SuccessResponse(c, http.StatusOK, "Logs retrieved successfully", LogListResponse{Entries: out, NextCursor: next})
+	return out
 }

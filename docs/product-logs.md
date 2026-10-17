@@ -120,3 +120,16 @@ These need an admin login, not an ingest key:
 Notes: `GET /v1/logs` searches product logs by default; `source=agent` lists agent service logs in the same shape (`severity`, `q`, `from`, `to`, `agent_id`). A request body may be gzip-compressed (`Content-Encoding: gzip`, as OpenTelemetry exporters send by default); the decompressed size obeys the same limits. The live stream (`GET /v1/logs/stream`) is Server-Sent Events: each `log` event carries one entry as JSON, a comment heartbeat arrives every 15 s, and reconnecting with `Last-Event-ID` replays up to 500 missed entries before going live; slow consumers lose entries rather than slowing ingest. Search `q` is a substring match over the body, event and attributes (ranked full-text search is a later improvement).
 
 Operational notes: logs live in their own `logs.db` next to `orion.db` (WAL, owner-only). Ingest is asynchronous: `202` means queued in memory (up to `ORION_LOGS_QUEUE_MAX` entries) and written within about a second; a hard crash can lose entries still in the queue. Retention (default 14 days, plus an optional per-app storage cap) is pruned hourly in small batches.
+
+## 8. Alert on your logs
+
+A log alert rule watches one app and opens a normal Orion incident when its logs match, so Webhook and Email alerts follow your existing alert routes, an error burst pages once, and the incident resolves when the condition clears. The Worker evaluates rules about every 30 seconds and needs the Worker process to be running.
+
+| Mode | Fires when | Example |
+|---|---|---|
+| `threshold` | more than `threshold` matching entries arrive inside `window_seconds` | `severity >=error`, threshold 20, 5 minutes |
+| `absence` | no matching entry arrives inside the window (a new rule gets one full window first) | `event export.finished`, 1 hour |
+
+Create rules with `POST /v1/logs/alerts` (`name`, `app_id`, `mode`, `severity`, `event`, `q`, `threshold`, `window_seconds`); list, change or delete them under `/v1/logs/alerts`. Disabling or deleting a rule resolves its open incident. Rules on the same Orion-owned monitor owner share Orion's alert grouping, so two rules firing at once can be folded into one page.
+
+To see logs around an incident use `GET /v1/incidents/{id}/logs` (the agent's service logs, plus the app's logs when `app_id` is given or the incident came from a log alert rule): the window runs from 15 minutes before the incident opened to 5 minutes after it resolved.

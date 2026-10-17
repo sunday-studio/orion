@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"orion/core/internal/config"
 	"orion/core/internal/db"
+	"orion/core/internal/logstore"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
 	"strings"
@@ -76,6 +77,8 @@ type Options struct {
 	SweepBootGrace time.Duration
 	// Concurrency bounds how many Core monitor checks run at once (default 16).
 	Concurrency int
+	// LogStore, when set, lets the Worker evaluate log-based alert rules (read-only).
+	LogStore *logstore.Store
 }
 
 // App is the independent Core monitor worker process.
@@ -107,6 +110,7 @@ type App struct {
 	slots          chan struct{}
 	inflight       sync.WaitGroup
 	dispatching    atomic.Bool
+	logAlerts      *service.LogAlertService
 	background     sync.WaitGroup
 }
 
@@ -189,6 +193,7 @@ func NewApp(database *gorm.DB, logger *utils.Logger, opts Options) *App {
 		startedAt:      time.Now().UTC(),
 		dispatchEvery:  dispatchInterval(opts.DispatchInterval),
 		concurrency:    checkConcurrency(opts.Concurrency),
+		logAlerts:      newLogAlerts(database, logger, opts),
 		slots:          make(chan struct{}, checkConcurrency(opts.Concurrency)),
 	}
 }
@@ -219,6 +224,7 @@ func (a *App) Run(ctx context.Context) error {
 	defer sweepTicker.Stop()
 	a.dispatchAlertsAsync()
 	a.sweepSilentMonitors()
+	a.evaluateLogAlerts()
 
 	for {
 		select {
@@ -231,6 +237,7 @@ func (a *App) Run(ctx context.Context) error {
 			a.dispatchAlertsAsync()
 		case <-sweepTicker.C:
 			a.sweepSilentMonitors()
+			a.evaluateLogAlerts()
 		case <-checkTicker.C:
 			if err := a.dispatchDueChecks(ctx, execCtx); err != nil {
 				a.logger.Error("Core monitor worker due check sweep failed", "error", err)

@@ -212,3 +212,15 @@ func (s *Store) CountForApp(appID string) (count int64, bytes int64, err error) 
 	err = s.db.Raw("SELECT COUNT(*) AS n, COALESCE(SUM(size),0) AS b FROM log_entries WHERE app_id = ?", appID).Scan(&row).Error
 	return row.N, row.B, err
 }
+
+// Count returns how many entries match the query's filters (paging is ignored).
+func (s *Store) Count(q Query) (int64, error) {
+	q.Cursor = ""
+	where, args, err := q.where()
+	if err != nil {
+		return 0, err
+	}
+	var n int64
+	err = s.db.Raw("SELECT COUNT(*) FROM log_entries"+where, args...).Scan(&n).Error
+	return n, err
+}

@@ -93,6 +93,22 @@ func Open(dataDir string, logger *utils.Logger, queueMax int) (*Store, error) {
 	return OpenWith(database, logger, queueMax)
 }
 
+// OpenReader opens logs.db for queries only (no writer goroutine). The Worker uses it
+// to evaluate log-based alerts; the API process remains the only writer.
+func OpenReader(dataDir string, logger *utils.Logger) (*Store, error) {
+	database, err := db.OpenFile(dataDir, logsDatabaseFileName, "warn")
+	if err != nil {
+		return nil, err
+	}
+	if err := database.Exec(schema).Error; err != nil {
+		return nil, fmt.Errorf("apply logs schema: %w", err)
+	}
+	s := &Store{db: database, logger: logger, queueMax: 1, batches: make(chan []Entry), done: make(chan struct{}), hub: newHub()}
+	close(s.done)
+	s.closed.Store(true)
+	return s, nil
+}
+
 // OpenWith starts a Store on an existing handle (tests).
 func OpenWith(database *gorm.DB, logger *utils.Logger, queueMax int) (*Store, error) {
 	if err := database.Exec(schema).Error; err != nil {
@@ -151,8 +167,10 @@ func (s *Store) Flush(timeout time.Duration) {
 func (s *Store) Close() {
 	s.closeOnce.Do(func() {
 		s.sendMu.Lock() // waits for in-flight Enqueue calls, then blocks new ones
-		s.closed.Store(true)
-		close(s.batches)
+		wasClosed := s.closed.Swap(true)
+		if !wasClosed {
+			close(s.batches)
+		}
 		s.sendMu.Unlock()
 		<-s.done
 		if sqlDB, err := s.db.DB(); err == nil {
