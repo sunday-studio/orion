@@ -74,8 +74,12 @@ func NewMonitorService(database *gorm.DB, logger *utils.Logger) *MonitorService 
 func (s *MonitorService) RegisterMonitor(req *RegisterMonitorRequest) (*RegisterMonitorResponse, error) {
 	var monitor db.Monitor
 
+	// Prefer the live row; only fall back to reviving a soft-deleted one (newest
+	// first). Picking by id alone could revive a deleted twin while a live monitor of
+	// the same name exists, which the unique (agent_id, name) index rejects.
 	err := s.db.
 		Where("agent_id = ? AND name = ?", req.AgentID, req.Name).
+		Order("CASE WHEN lifecycle = 'deleted' THEN 1 ELSE 0 END, created_at DESC, id DESC").
 		First(&monitor).Error
 
 	switch {
