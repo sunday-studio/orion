@@ -184,3 +184,24 @@ func TestCancelledContextStopsRequestsAndRetryWaits(t *testing.T) {
 		t.Fatal("cancelled client should return immediately")
 	}
 }
+
+func TestGzipBodiesWhenEnabled(t *testing.T) {
+	var enc string
+	var size int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		enc = r.Header.Get("Content-Encoding")
+		b, _ := io.ReadAll(r.Body)
+		size = len(b)
+		w.Write([]byte(`{}`))
+	}))
+	defer srv.Close()
+	c := NewClient(srv.URL, "t")
+	big := SystemReport{KernelVersion: strings.Repeat("x", 8000)}
+	_ = c.SendReport(big, "a")
+	plain := size
+	c.SetCompression("gzip")
+	_ = c.SendReport(big, "a")
+	if enc != "gzip" || size >= plain/4 {
+		t.Fatalf("encoding=%q size=%d plain=%d", enc, size, plain)
+	}
+}

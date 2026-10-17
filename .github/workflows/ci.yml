@@ -228,6 +228,19 @@ jobs:
       - name: Build Server
         run: make agent-build AGENT_OUTPUT=/tmp/orion-agent
 
+      - name: Race tests (agent)
+        run: go test -race ./...
+        working-directory: apps/agent
+
+      - name: Static cross builds (agent)
+        run: make agent-build-all
+
+      - name: Installer tests (agent)
+        run: make agent-installer-test
+
+      - name: Performance budgets (agent)
+        run: make agent-perf
+
   repository-smoke:
     name: Repository smoke
     runs-on: ubuntu-24.04

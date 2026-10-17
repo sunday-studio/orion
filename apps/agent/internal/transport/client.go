@@ -2,6 +2,7 @@ package transport
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
@@ -107,6 +108,7 @@ type Client struct {
 	authToken  string
 	ctx        context.Context
 	enrollment string
+	gzipBodies bool
 	retry      RetryConfig
 	sleep      func(context.Context, time.Duration)
 }
@@ -183,6 +185,17 @@ func (c *Client) makeRequest(method, endpoint string, body interface{}, headers 
 		}
 	}
 
+	if c.gzipBodies && len(payload) > 1024 {
+		var buf bytes.Buffer
+		zw := gzip.NewWriter(&buf)
+		if _, err := zw.Write(payload); err == nil && zw.Close() == nil {
+			payload = buf.Bytes()
+			if headers == nil {
+				headers = map[string]string{}
+			}
+			headers["Content-Encoding"] = "gzip"
+		}
+	}
 	logging.Debugf("core request prepared: method=%s endpoint=%s body_bytes=%d", method, endpoint, len(payload))
 	return c.sendWithRetry(method, fmt.Sprintf("%s%s", c.coreURL, endpoint), payload, headers)
 }
@@ -431,6 +444,9 @@ const EnrollmentTokenHeader = "X-Orion-Enrollment-Token"
 var ErrEnrollmentRejected = errors.New("enrollment token was rejected")
 
 // SetEnrollmentToken sets the one-time token sent with the next registration.
+// SetCompression enables gzip for request bodies over 1 KiB.
+func (c *Client) SetCompression(mode string) { c.gzipBodies = strings.EqualFold(mode, "gzip") }
+
 func (c *Client) SetEnrollmentToken(token string) { c.enrollment = token }
 
 func (c *Client) RegisterAgent(req AgentRegistrationRequest) (*AgentRegistrationResponse, error) {

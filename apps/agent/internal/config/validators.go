@@ -265,6 +265,11 @@ func (c *UserConfig) Validate() error {
 	if err := c.Logging.Validate(); err != nil {
 		return err
 	}
+	switch strings.ToLower(c.Transport.Compression) {
+	case "", "none", "gzip":
+	default:
+		return errors.New("transport.compression must be none or gzip")
+	}
 
 	if c.Interval == "" {
 		return errors.New("interval is required")

@@ -21,9 +21,11 @@ type Agent struct {
 }
 
 func New(userConfig *config.UserConfig, stateStore *state.Store, internalState *config.InternalState) *Agent {
+	client := transport.NewClient(userConfig.CoreURL, internalState.Token)
+	client.SetCompression(userConfig.Transport.Compression)
 	return &Agent{
 		userConfig:    userConfig,
-		transport:     transport.NewClient(userConfig.CoreURL, internalState.Token),
+		transport:     client,
 		internalState: internalState,
 		stateStore:    stateStore,
 		retryQueue:    NewRetryQueue(100),
