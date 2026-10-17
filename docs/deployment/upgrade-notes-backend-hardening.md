@@ -22,6 +22,8 @@ Behavior changes an operator should know before upgrading. Migrations are forwar
 
 `ORION_METRICS_TOKEN`, `ORION_DEADMAN_URL`, `ORION_WORKER_CONCURRENCY`, `ORION_DB_LOG_LEVEL`, retention windows in the data lifecycle settings.
 
+Email alerts (migration 38, off until configured): `ORION_ALERT_SMTP_HOST`, `_PORT`, `_USERNAME`, `_PASSWORD` (or `_PASSWORD_FILE`), `_FROM`, `_TLS` (`starttls` default, `tls`, `none`), `ORION_PUBLIC_URL` and `ORION_ALERT_EMAIL_SECRET` (falls back to `ORION_JWT_SECRET`). Recipients must confirm through a signed link before they get any alert. `GET /v1/events` now pages by `cursor` (`offset` still works up to 5000 rows). Heartbeat pings may use `Authorization: Bearer <token>` against `/v1/heartbeat/success|failure`.
+
 ## Rollback
 
 Redeploy the previous image and restore the newest pre-migration backup. The unique active-incident index and foreign keys are the constraints that can block running the old binary against the new schema; restoring the backup avoids that.
