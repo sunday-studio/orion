@@ -87,6 +87,7 @@ func safeCoreURL(raw string) bool {
 // @ID           createEnrollment
 // @Param        request  body      EnrollmentRequest  false  "Platform"
 // @Success      201      {object}  utils.APIResponse{data=EnrollmentCreatedResponse}
+// @Failure      409      {object}  utils.APIResponse
 // @Failure      500      {object}  utils.APIResponse
 // @Router       /v1/enrollments [post]
 func (s *Server) createEnrollment(c *gin.Context) {
