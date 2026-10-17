@@ -7,7 +7,7 @@ require (
 	github.com/spf13/cobra v1.9.1
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
-	gorm.io/driver/sqlite v1.5.6
+	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.30.0
 )
 
