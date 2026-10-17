@@ -5741,7 +5741,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Unified log list across apps and agent service logs, newest first, cursor-paginated.",
+                "description": "Newest-first, cursor-paginated log list. source=app (default) searches product logs; source=agent lists agent service logs (severity, q, from, to and agent_id apply).",
                 "consumes": [
                     "application/json"
                 ],
@@ -5756,7 +5756,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "app or agent; default both",
+                        "description": "app (default) or agent",
                         "name": "source",
                         "in": "query"
                     },
@@ -5964,7 +5964,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "app or agent; default both",
+                        "description": "app (default) or agent",
                         "name": "source",
                         "in": "query"
                     },
@@ -6213,7 +6213,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "app or agent; default both",
+                        "description": "app (default) or agent",
                         "name": "source",
                         "in": "query"
                     },

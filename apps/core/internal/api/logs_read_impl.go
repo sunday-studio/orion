@@ -64,9 +64,8 @@ func (s *Server) searchLogsImpl(c *gin.Context) {
 	var appIDs []string
 	appIDs = append(appIDs, splitList(c.Query("app_id"))...)
 
-	// Agent service logs join this list in the Console phase; until then source=agent has no rows here.
 	if source := c.Query("source"); source == "agent" {
-		utils.SuccessResponse(c, http.StatusOK, "Logs retrieved successfully", LogListResponse{Entries: []LogEntry{}})
+		s.searchAgentLogs(c, from, to)
 		return
 	}
 

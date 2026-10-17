@@ -6323,11 +6323,12 @@ paths:
     get:
       consumes:
       - application/json
-      description: Unified log list across apps and agent service logs, newest first,
-        cursor-paginated.
+      description: Newest-first, cursor-paginated log list. source=app (default) searches
+        product logs; source=agent lists agent service logs (severity, q, from, to
+        and agent_id apply).
       operationId: searchLogs
       parameters:
-      - description: app or agent; default both
+      - description: app (default) or agent
         in: query
         name: source
         type: string
@@ -6502,7 +6503,7 @@ paths:
         as the search.
       operationId: getLogHistogram
       parameters:
-      - description: app or agent; default both
+      - description: app (default) or agent
         in: query
         name: source
         type: string
@@ -6663,7 +6664,7 @@ paths:
         a comment heartbeat every 15s. Reconnect with Last-Event-ID to resume.'
       operationId: streamLogs
       parameters:
-      - description: app or agent; default both
+      - description: app (default) or agent
         in: query
         name: source
         type: string

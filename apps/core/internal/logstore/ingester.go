@@ -144,6 +144,22 @@ func (i *Ingester) Ingest(app *AppContext, contentType string, body []byte) (Res
 	if err != nil {
 		return Result{}, err
 	}
+	return i.ingestParsed(app, parsed, now)
+}
+
+// IngestOTLP runs the same pipeline for an OTLP/HTTP request and reports the wire
+// format so the response can mirror it.
+func (i *Ingester) IngestOTLP(app *AppContext, contentType string, body []byte) (Result, OTLPFormat, error) {
+	now := i.now().UTC()
+	parsed, format, err := ParseOTLP(contentType, body, now)
+	if err != nil {
+		return Result{}, format, err
+	}
+	result, err := i.ingestParsed(app, parsed, now)
+	return result, format, err
+}
+
+func (i *Ingester) ingestParsed(app *AppContext, parsed Parsed, now time.Time) (Result, error) {
 	result := Result{Rejected: len(parsed.Errors), Errors: parsed.Errors}
 	if len(parsed.Entries) == 0 {
 		return result, nil

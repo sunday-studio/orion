@@ -44,4 +44,4 @@ func (s *Server) ingestLogs(c *gin.Context) { s.ingestLogsImpl(c) }
 // @Failure      401  {object}  utils.APIResponse
 // @Failure      501  {object}  utils.APIResponse
 // @Router       /v1/ingest/otlp/v1/logs [post]
-func (s *Server) ingestOTLPLogs(c *gin.Context) { s.logsNotImplemented(c) }
+func (s *Server) ingestOTLPLogs(c *gin.Context) { s.ingestOTLPLogsImpl(c) }

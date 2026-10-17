@@ -30,3 +30,12 @@ type AppIngestKey struct {
 	RevokedAt  *time.Time
 	CreatedAt  time.Time
 }
+
+// LogSavedView stores a named set of log filters so it can be shared by URL.
+type LogSavedView struct {
+	ID          string `gorm:"primaryKey"`
+	Name        string `gorm:"not null"`
+	FiltersJSON string `gorm:"column:filters_json;not null;default:'{}'"`
+	CreatedBy   string `gorm:"not null;default:''"`
+	CreatedAt   time.Time
+}

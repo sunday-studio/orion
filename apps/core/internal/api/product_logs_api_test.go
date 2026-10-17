@@ -381,12 +381,6 @@ func TestSendTestLogAndNotEnabledAnd501Stubs(t *testing.T) {
 	if got := performJSONRequest(t, disabled, http.MethodGet, "/v1/logs", nil, "").Code; got != http.StatusServiceUnavailable {
 		t.Errorf("search with logs disabled status = %d, want 503", got)
 	}
-	// Later-phase endpoints stay honest 501s.
-	for _, path := range []string{"/v1/logs/histogram", "/v1/logs/fields", "/v1/logs/views"} {
-		if got := performJSONRequest(t, server, http.MethodGet, path, nil, "").Code; got != http.StatusNotImplemented {
-			t.Errorf("GET %s status = %d, want 501 until its phase ships", path, got)
-		}
-	}
 	var buf bytes.Buffer
 	_ = buf
 }
