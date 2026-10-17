@@ -21,7 +21,7 @@ type OrionEventResponse struct {
 }
 
 func agentResponse(agent db.Agent) AgentResponse {
-	return AgentResponse{ID: agent.ID, Name: agent.Name, OS: agent.OS, Platform: agent.Platform, KernelVersion: agent.KernelVersion, Arch: agent.Arch, MaintenanceMode: agent.MaintenanceMode, ReportingIntervalSeconds: agent.ReportingIntervalSeconds, CreatedAt: agent.CreatedAt, LastSeen: agent.LastSeen, Location: agent.Location.Data()}
+	return AgentResponse{ID: agent.ID, Name: agent.Name, OS: agent.OS, Platform: agent.Platform, KernelVersion: agent.KernelVersion, Arch: agent.Arch, MaintenanceMode: agent.InMaintenance(time.Now().UTC()), MaintenanceUntil: agent.MaintenanceUntil, ReportingIntervalSeconds: agent.ReportingIntervalSeconds, CreatedAt: agent.CreatedAt, LastSeen: agent.LastSeen, Location: agent.Location.Data()}
 }
 func agentListResponse(row service.AgentListRow) AgentResponse {
 	response := agentResponse(row.Agent)

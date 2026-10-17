@@ -55,7 +55,7 @@ EOF
 printf 'ORION_ADMIN_PASSWORD=%s\nORION_JWT_SECRET=%s\n' "$ADMIN_PASSWORD" "$JWT_SECRET" >> .env
 ```
 
-The Compose file sets `ORION_REQUIRE_FRONTEND_AUTH=true`, so Core and the worker refuse startup
+The Compose file sets `ORION_REQUIRE_FRONTEND_AUTH=true`, so Core refuses startup
 unless `ORION_ADMIN_USERNAME`, `ORION_ADMIN_PASSWORD`, and `ORION_JWT_SECRET` are all present.
 Required-auth mode also rejects placeholder auth values, admin passwords shorter than 12 characters,
 and JWT secrets shorter than 32 characters.
@@ -260,3 +260,27 @@ provide the version tag to publish.
 Servers should be installed separately on each monitored machine. They do not run inside the Core API
 or Core worker containers. The installed binary and CLI are still named `orion-agent` for
 compatibility.
+
+## Hardened runtime profile
+
+`deploy/docker-compose.yml` runs both services with a restricted profile:
+
+- **Non-root.** The image creates an `orion` user (uid 10001). The entrypoint starts as root only to repair ownership of an existing `/data` volume created by an older, root-running image (one-time `chown`, skipped once the volume belongs to `orion`), then `su-exec`s to `orion`. Run with `user: "10001:10001"` instead if your volume is already owned by that uid.
+- **Read-only root filesystem** with a `tmpfs` at `/tmp`; the only writable path is the `/data` volume.
+- **`cap_drop: [ALL]`** plus `CHOWN`, `SETUID` and `SETGID` for the entrypoint. `no-new-privileges` is on.
+- **Limits:** `mem_limit` and `cpus` (override with `ORION_CORE_MEMORY_LIMIT`, `ORION_CORE_CPUS`, `ORION_WORKER_MEMORY_LIMIT`, `ORION_WORKER_CPUS`) and `pids_limit: 256`.
+- **`stop_grace_period: 30s`** so in-flight checks and requests finish on `docker compose stop`.
+- **`GIN_MODE=release`** is set in the image.
+- **The Worker gets no admin credentials.** It no longer receives `ORION_ADMIN_*` or `ORION_JWT_SECRET`, and the Playwright runner subprocess only inherits an allowlisted environment.
+- Base images are pinned by digest; Dependabot (docker ecosystem) proposes updates. CI builds the image and fails on fixable HIGH or CRITICAL findings from Trivy.
+
+Pin `ORION_CORE_IMAGE` to a release tag (or digest) in production instead of `latest`.
+
+### TLS reverse proxy
+
+Agents send bearer tokens to `core_url`, so use HTTPS. `deploy/examples/reverse-proxy/` has a Caddy overlay that terminates TLS, stops publishing Core's port and sets `ORION_TRUSTED_PROXIES` so rate limits see real client IPs:
+
+```sh
+export ORION_PUBLIC_HOST=orion.example.com
+docker compose -f deploy/docker-compose.yml -f deploy/examples/reverse-proxy/compose.override.yaml up -d
+```

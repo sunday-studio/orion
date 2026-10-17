@@ -36,7 +36,7 @@ func TestAlertServiceQueuesConfiguredChannels(t *testing.T) {
 	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
-	if err := service.QueueIncidentNotifications("incident-1", "incident_opened"); err != nil {
+	if err := queueAndDispatch(service, "incident-1", "incident_opened"); err != nil {
 		t.Fatalf("QueueIncidentNotifications() error = %v", err)
 	}
 
@@ -64,7 +64,7 @@ func TestAlertServiceIgnoresLegacyEmailChannels(t *testing.T) {
 	createTestAlertChannel(t, database, db.AlertChannel{Name: "ops-email", Type: "email", Enabled: true})
 
 	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
-	if err := service.QueueIncidentNotifications("incident-1", "incident_opened"); err != nil {
+	if err := queueAndDispatch(service, "incident-1", "incident_opened"); err != nil {
 		t.Fatalf("QueueIncidentNotifications() error = %v", err)
 	}
 
@@ -98,7 +98,7 @@ func TestAlertServiceRecordsFailedAttemptAndRetriesDueDelivery(t *testing.T) {
 	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
-	if err := service.QueueIncidentNotifications("incident-1", "incident_opened"); err != nil {
+	if err := queueAndDispatch(service, "incident-1", "incident_opened"); err != nil {
 		t.Fatalf("QueueIncidentNotifications() error = %v", err)
 	}
 
@@ -192,7 +192,7 @@ func TestAlertServiceWebhookUsesPayloadV1(t *testing.T) {
 		t.Fatalf("create agent: %v", err)
 	}
 	if err := database.Create(&db.Monitor{
-		ID:             "monitor-1",
+		ID:             "monitor-incident-1",
 		Type:           "http",
 		Name:           "Homepage",
 		AgentID:        "agent-1",
@@ -222,7 +222,7 @@ func TestAlertServiceWebhookUsesPayloadV1(t *testing.T) {
 	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
-	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentOpened); err != nil {
+	if err := queueAndDispatch(service, "incident-1", db.AlertEventIncidentOpened); err != nil {
 		t.Fatalf("QueueIncidentNotifications() error = %v", err)
 	}
 
@@ -272,7 +272,7 @@ func TestAlertServiceWebhookAppliesConfiguredSignature(t *testing.T) {
 	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
-	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentOpened); err != nil {
+	if err := queueAndDispatch(service, "incident-1", db.AlertEventIncidentOpened); err != nil {
 		t.Fatalf("QueueIncidentNotifications() error = %v", err)
 	}
 
@@ -323,10 +323,10 @@ func TestAlertServiceCooldownSuppressesRecentDuplicate(t *testing.T) {
 	})
 	service.httpClient.Transport = transport
 
-	if err := service.QueueIncidentNotifications("incident-1", "incident_opened"); err != nil {
+	if err := queueAndDispatch(service, "incident-1", "incident_opened"); err != nil {
 		t.Fatalf("first QueueIncidentNotifications() error = %v", err)
 	}
-	if err := service.QueueIncidentNotifications("incident-1", "incident_opened"); err != nil {
+	if err := queueAndDispatch(service, "incident-1", "incident_opened"); err != nil {
 		t.Fatalf("second QueueIncidentNotifications() error = %v", err)
 	}
 
@@ -362,7 +362,7 @@ func createTestIncident(t *testing.T, database *gorm.DB, incidentID string) {
 		Severity:           "high",
 		Title:              "homepage is down",
 		AgentID:            "agent-1",
-		MonitorID:          "monitor-1",
+		MonitorID:          "monitor-" + incidentID,
 		OpenedAt:           now,
 		LastEventAt:        now,
 		LatestEvent:        "Monitor homepage reported down",
@@ -399,4 +399,14 @@ type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
+}
+
+// queueAndDispatch queues notifications then runs the dispatcher once, mirroring
+// what the Worker loop does between ingestion and delivery.
+func queueAndDispatch(s *AlertService, incidentID string, eventType string) error {
+	if err := s.QueueIncidentNotifications(incidentID, eventType); err != nil {
+		return err
+	}
+	_, err := s.ProcessDueDeliveries(100)
+	return err
 }

@@ -2,106 +2,45 @@ package transport
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"math/rand"
 	"net/http"
-	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"orion/agent/internal/logging"
 )
 
-type AuthError struct {
-	StatusCode int
-	Body       string
-	Code       string
-	Message    string
+// authState holds the bearer token. It is shared by every copy of a Client (see
+// WithContext) and guarded so token refresh can race with in-flight requests safely.
+type authState struct {
+	mu    sync.RWMutex
+	token string
 }
 
-func (e *AuthError) Error() string {
-	if e.Code != "" && e.Message != "" {
-		return fmt.Sprintf("core authentication failed with status %d: code=%s message=%s", e.StatusCode, e.Code, e.Message)
-	}
-	if e.Code != "" {
-		return fmt.Sprintf("core authentication failed with status %d: code=%s", e.StatusCode, e.Code)
-	}
-	if e.Message != "" {
-		return fmt.Sprintf("core authentication failed with status %d: %s", e.StatusCode, e.Message)
-	}
-	if e.Body == "" {
-		return fmt.Sprintf("core authentication failed with status %d", e.StatusCode)
-	}
-	return fmt.Sprintf("core authentication failed with status %d: %s", e.StatusCode, e.Body)
+func (a *authState) get() string {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.token
 }
 
-func IsAuthError(err error) bool {
-	var authErr *AuthError
-	return errors.As(err, &authErr)
-}
-
-func NewAuthError(statusCode int, body []byte) *AuthError {
-	code, message, safeBody := parseAuthErrorBody(body)
-	return &AuthError{
-		StatusCode: statusCode,
-		Body:       safeBody,
-		Code:       code,
-		Message:    message,
-	}
-}
-
-func parseAuthErrorBody(body []byte) (string, string, string) {
-	raw := strings.TrimSpace(string(body))
-	if raw == "" {
-		return "", "", ""
-	}
-
-	var payload map[string]any
-	if err := json.Unmarshal(body, &payload); err == nil {
-		code := firstStringField(payload, "code", "error_code", "error")
-		message := firstStringField(payload, "message", "detail")
-		return redactAuthText(code), redactAuthText(message), redactAuthText(raw)
-	}
-
-	return "", redactAuthText(raw), redactAuthText(raw)
-}
-
-func firstStringField(payload map[string]any, keys ...string) string {
-	for _, key := range keys {
-		value, ok := payload[key]
-		if !ok {
-			continue
-		}
-		if text, ok := value.(string); ok {
-			return text
-		}
-	}
-	return ""
-}
-
-func redactAuthText(value string) string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return ""
-	}
-	for _, pattern := range authRedactionPatterns {
-		value = pattern.ReplaceAllString(value, "${1}[redacted]")
-	}
-	return value
-}
-
-var authRedactionPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`(?i)(bearer\s+)[A-Za-z0-9._~+/=-]+`),
-	regexp.MustCompile(`(?i)("?(token|secret|password|api[_-]?key|authorization)"?\s*[:=]\s*"?)[^"\s,;{}]+`),
+func (a *authState) set(token string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.token = token
 }
 
 type Client struct {
 	coreURL    string
 	httpClient *http.Client
-	authToken  string
+	auth       *authState
+	ctx        context.Context
+	enrollment string
 	retry      RetryConfig
 	sleep      func(time.Duration)
 }
@@ -119,7 +58,7 @@ func NewClient(coreURL, authToken string) *Client {
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
-		authToken: authToken,
+		auth: &authState{token: authToken},
 		retry: RetryConfig{
 			MaxAttempts: 3,
 			BaseDelay:   200 * time.Millisecond,
@@ -130,8 +69,29 @@ func NewClient(coreURL, authToken string) *Client {
 	}
 }
 
+// SetEnrollmentToken sets the shared secret sent on first registration. Core only
+// requires it when ORION_ENROLLMENT_TOKEN is configured.
+func (c *Client) SetEnrollmentToken(token string) {
+	c.enrollment = strings.TrimSpace(token)
+}
+
 func (c *Client) SetAuthToken(authToken string) {
-	c.authToken = authToken
+	c.auth.set(authToken)
+}
+
+// WithContext returns a client that shares this one's connection pool, retry
+// settings and auth token but whose requests (and retry waits) are cancelled with ctx.
+func (c *Client) WithContext(ctx context.Context) *Client {
+	clone := *c
+	clone.ctx = ctx
+	return &clone
+}
+
+func (c *Client) requestContext() context.Context {
+	if c.ctx != nil {
+		return c.ctx
+	}
+	return context.Background()
 }
 
 func (c *Client) makeRequest(method, endpoint string, body interface{}, headers map[string]string) (*http.Response, error) {
@@ -157,7 +117,10 @@ func (c *Client) sendWithRetry(method string, url string, payload []byte, header
 	var lastErr error
 	for attempt := 1; attempt <= attempts; attempt++ {
 		logging.Debugf("core request attempt: method=%s url=%s attempt=%d/%d", method, url, attempt, attempts)
-		req, err := http.NewRequest(method, url, bytes.NewReader(payload))
+		if err := c.requestContext().Err(); err != nil {
+			return nil, err
+		}
+		req, err := http.NewRequestWithContext(c.requestContext(), method, url, bytes.NewReader(payload))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create request: %w", err)
 		}
@@ -197,8 +160,36 @@ func shouldRetryStatus(statusCode int) bool {
 	return statusCode == http.StatusTooManyRequests || statusCode >= 500
 }
 
+// isAuthStatus is true only for 401, which is what Core answers for a bad or
+// revoked agent token. A 403 comes from something in front of Core (proxy, WAF,
+// captive portal) and is treated as a transient failure, not a credential rejection.
 func isAuthStatus(statusCode int) bool {
-	return statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden
+	return statusCode == http.StatusUnauthorized
+}
+
+// StatusError is a non-success HTTP status from Core that is not an auth failure.
+type StatusError struct {
+	StatusCode int
+	Operation  string
+}
+
+func (e *StatusError) Error() string {
+	return fmt.Sprintf("core server returned status %d during %s", e.StatusCode, e.Operation)
+}
+
+// IsTransientError reports whether retrying later could succeed: network errors,
+// timeouts, 429, 5xx and 403-from-a-proxy. Credential rejections and other 4xx
+// responses will not fix themselves.
+func IsTransientError(err error) bool {
+	if err == nil || IsAuthError(err) {
+		return false
+	}
+	var statusErr *StatusError
+	if errors.As(err, &statusErr) {
+		code := statusErr.StatusCode
+		return code >= 500 || code == http.StatusTooManyRequests || code == http.StatusForbidden || code == http.StatusRequestTimeout
+	}
+	return true
 }
 
 func (c *Client) retryDelay(attempt int) time.Duration {
@@ -231,7 +222,7 @@ func (c *Client) retryDelay(attempt int) time.Duration {
 
 func (c *Client) makeProtectedRequest(method, endpoint string, body interface{}) (*http.Response, error) {
 	headers := map[string]string{
-		"Authorization": "Bearer " + c.authToken,
+		"Authorization": "Bearer " + c.auth.get(),
 	}
 	return c.makeRequest(method, endpoint, body, headers)
 }
@@ -372,7 +363,11 @@ func (c *Client) SendServiceLogs(batch ServiceLogBatch, agentID string) error {
 }
 
 func (c *Client) RegisterAgent(req AgentRegistrationRequest) (*AgentRegistrationResponse, error) {
-	resp, err := c.makeRequest("POST", "/v1/register", req, nil)
+	var headers map[string]string
+	if c.enrollment != "" {
+		headers = map[string]string{"X-Orion-Enrollment-Token": c.enrollment}
+	}
+	resp, err := c.makeRequest("POST", "/v1/register", req, headers)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send registration request: %w", err)
 	}
@@ -385,7 +380,7 @@ func (c *Client) RegisterAgent(req AgentRegistrationRequest) (*AgentRegistration
 
 	if resp.StatusCode != http.StatusOK {
 		logging.Warnf("unexpected status from core during registration: %d — %s", resp.StatusCode, string(body))
-		return nil, fmt.Errorf("core server returned status %d during registration", resp.StatusCode)
+		return nil, &StatusError{StatusCode: resp.StatusCode, Operation: "registration"}
 	}
 
 	var regResp AgentRegistrationResponse
@@ -401,11 +396,16 @@ func (c *Client) RegisterAgent(req AgentRegistrationRequest) (*AgentRegistration
 	return &regResp, nil
 }
 
-func (c *Client) SetMaintenanceMode(agentID string, maintenanceMode bool) error {
+// SetMaintenanceMode toggles maintenance. When enabling, duration > 0 sets how long
+// it lasts (Core expires it automatically; zero uses Core's default of 24h).
+func (c *Client) SetMaintenanceMode(agentID string, maintenanceMode bool, duration time.Duration) error {
 	endpoint := fmt.Sprintf("/v1/agents/%s/maintenance", agentID)
 
-	payload := map[string]bool{
+	payload := map[string]any{
 		"maintenance_mode": maintenanceMode,
+	}
+	if maintenanceMode && duration > 0 {
+		payload["duration_seconds"] = int(duration.Seconds())
 	}
 
 	resp, err := c.makeProtectedRequest("PUT", endpoint, payload)

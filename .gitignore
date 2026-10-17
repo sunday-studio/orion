@@ -27,3 +27,8 @@ apps/agent/tmp/
 apps/core/.env
 apps/core/web/index.html
 apps/core/web/assets/
+*.test
+*.out
+*.cpu
+*.block
+*.mutex

@@ -1,4 +1,4 @@
-import { cn } from "@/utils/cn";
+import { StatusBadge as DsStatusBadge } from "@/design-system";
 
 export const severityValues = [
   "low",
@@ -34,39 +34,6 @@ type BadgeProps<TValue extends string> = {
   className?: string;
 };
 
-const badgeBaseClass = "inline-flex w-fit items-center text-xs leading-5 px-1.5";
-
-const severityClass: Record<Severity, string> = {
-  low: "bg-teal-100 text-teal-950",
-  medium: "bg-yellow-100 text-yellow-950",
-  high: "bg-rose-100 text-rose-950",
-  critical: "bg-red-400 text-red-950",
-  error: "bg-rose-100 text-rose-900",
-  warning: "bg-amber-100 text-amber-900",
-  info: "bg-teal-100 text-teal-900",
-};
-
-const statusClass: Record<Status, string> = {
-  up: "bg-teal-100 text-teal-900",
-  down: "bg-rose-100 text-rose-900",
-  degraded: "bg-amber-100 text-amber-900",
-  maintenance: "bg-violet-100 text-violet-900",
-  unknown: "bg-neutral-100 text-neutral-900",
-  stale: "bg-slate-100 text-slate-900",
-  open: "bg-rose-100 text-rose-950",
-  acknowledged: "bg-amber-100 text-amber-950",
-  covered: "bg-cyan-100 text-cyan-900",
-  resolved: "bg-blue-100 text-blue-900",
-};
-
-const notificationClass: Record<NotificationStatus, string> = {
-  pending: "bg-neutral-100 text-neutral-900",
-  sent: "bg-teal-100 text-teal-900",
-  failed: "bg-rose-100 text-rose-900",
-  suppressed: "bg-slate-100 text-slate-900",
-  cooldown: "bg-cyan-100 text-cyan-900",
-};
-
 const normalize = (value?: string | null) => value?.trim().toLowerCase();
 
 const includesValue = <TValue extends string>(
@@ -88,16 +55,17 @@ export const toNotificationStatus = (value?: string | null): NotificationStatus 
 
 const label = (value?: string, fallback = "unknown") => value ?? fallback;
 
+/** Legacy adapters; each renders the design-system StatusBadge (label plus glyph shape). */
 export const SeverityBadge = ({ value, fallback = "unknown", className }: BadgeProps<Severity>) => (
-  <span className={cn(badgeBaseClass, value ? severityClass[value] : severityClass.low, className)}>
+  <DsStatusBadge status={value ?? "low"} className={className}>
     {label(value, fallback)}
-  </span>
+  </DsStatusBadge>
 );
 
 export const StatusBadge = ({ value, fallback = "unknown", className }: BadgeProps<Status>) => (
-  <span className={cn(badgeBaseClass, value ? statusClass[value] : statusClass.unknown, className)}>
+  <DsStatusBadge status={value ?? "unknown"} className={className}>
     {label(value, fallback)}
-  </span>
+  </DsStatusBadge>
 );
 
 export const NotificationBadge = ({
@@ -105,13 +73,7 @@ export const NotificationBadge = ({
   fallback = "unknown",
   className,
 }: BadgeProps<NotificationStatus>) => (
-  <span
-    className={cn(
-      badgeBaseClass,
-      value ? notificationClass[value] : notificationClass.pending,
-      className,
-    )}
-  >
+  <DsStatusBadge status={value ?? "pending"} className={className}>
     {label(value, fallback)}
-  </span>
+  </DsStatusBadge>
 );

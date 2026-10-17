@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"orion/agent/internal/config"
 	"orion/agent/internal/logging"
@@ -50,7 +51,7 @@ func HandleMaintenance(userConfigPath, internalStatePath *string) {
 	switch action {
 	case "-up":
 		PrintStep("updating maintenance mode")
-		if err := updateCoreMaintenanceMode(internalState, false); err != nil {
+		if err := updateCoreMaintenanceMode(internalState, false, 0); err != nil {
 			logging.Fatalf("Failed to update core maintenance mode: %v", err)
 		}
 
@@ -60,20 +61,23 @@ func HandleMaintenance(userConfigPath, internalStatePath *string) {
 		PrintOK("maintenance mode disabled")
 
 	case "-down":
+		duration := defaultMaintenanceDuration
 		var reasonPtr *string
 		if reason != "" {
 			reasonPtr = &reason
 		}
 
 		PrintStep("updating maintenance mode")
-		if err := updateCoreMaintenanceMode(internalState, true); err != nil {
+		if err := updateCoreMaintenanceMode(internalState, true, duration); err != nil {
 			logging.Fatalf("Failed to update core maintenance mode: %v", err)
 		}
 
-		if err := stateStore.SetMaintenanceMode(true, reasonPtr); err != nil {
+		until := time.Now().Add(duration)
+		if err := stateStore.SetMaintenanceWindow(true, reasonPtr, &until); err != nil {
 			logging.Fatalf("Failed to save state: %v", err)
 		}
 		PrintOK("maintenance mode enabled")
+		PrintInfo("maintenance ends", until.Format(time.RFC3339))
 		if reason != "" {
 			PrintInfo("maintenance reason", reason)
 		}
@@ -85,7 +89,7 @@ func HandleMaintenance(userConfigPath, internalStatePath *string) {
 	}
 }
 
-func updateCoreMaintenanceMode(internalState *config.InternalState, enabled bool) error {
+func updateCoreMaintenanceMode(internalState *config.InternalState, enabled bool, duration time.Duration) error {
 	if internalState.AgentID == "" && internalState.Token == "" {
 		PrintSkip("agent is not registered; updating local maintenance state only")
 		return nil
@@ -99,7 +103,7 @@ func updateCoreMaintenanceMode(internalState *config.InternalState, enabled bool
 
 	client := transport.NewClient(internalState.CoreURL, internalState.Token)
 	PrintInfo("core_url", internalState.CoreURL)
-	if err := client.SetMaintenanceMode(internalState.AgentID, enabled); err != nil {
+	if err := client.SetMaintenanceMode(internalState.AgentID, enabled, duration); err != nil {
 		return err
 	}
 
@@ -317,3 +321,7 @@ func parseStateCommand(args []string, defaultStatePath string) (string, string, 
 	}
 	return subcommand, statePath, nil
 }
+
+// defaultMaintenanceDuration matches Core's default: maintenance always ends, so a
+// forgotten `maintenance down` cannot silence a host forever.
+const defaultMaintenanceDuration = 24 * time.Hour

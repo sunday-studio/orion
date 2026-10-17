@@ -1,5 +1,5 @@
 # Build frontend (Vite + React)
-FROM --platform=$BUILDPLATFORM node:22-alpine AS frontend
+FROM --platform=$BUILDPLATFORM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS frontend
 WORKDIR /app
 ARG VITE_API_BASE_URL=/v1
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
@@ -12,7 +12,7 @@ RUN cd apps/console && pnpm generate:api
 RUN cd apps/console && pnpm run build
 
 # Build Go binary and carry frontend dist for runtime serving
-FROM golang:1.25-alpine AS core
+FROM golang:1.25-alpine@sha256:1ae0735f00daffa3aaf1363a5184c0d2dc55c78e3db4ec70241cdac97bf84b59 AS core
 WORKDIR /app
 RUN apk add --no-cache build-base
 COPY apps/core/go.mod apps/core/go.sum apps/core/
@@ -22,16 +22,23 @@ COPY --from=frontend /app/apps/console/dist apps/core/web
 RUN cd apps/core && go build -o orion-core ./cmd/api
 RUN cd apps/core && go build -o orion-core-worker ./cmd/worker
 
-# Minimal runtime
-FROM alpine:3.20
-RUN apk add --no-cache ca-certificates sqlite
+# Minimal runtime. Starts as root only long enough to fix ownership of an existing
+# /data volume (see docker-entrypoint.sh), then drops to the unprivileged orion user.
+FROM alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+RUN apk add --no-cache ca-certificates sqlite su-exec \
+    && addgroup -S -g 10001 orion \
+    && adduser -S -u 10001 -G orion -h /app orion
 WORKDIR /app
 COPY --from=core /app/apps/core/orion-core .
 COPY --from=core /app/apps/core/orion-core-worker .
 COPY --from=core /app/apps/core/web ./web
-RUN mkdir -p /data
+COPY apps/core/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod 0755 /usr/local/bin/docker-entrypoint.sh \
+    && mkdir -p /data && chown orion:orion /data && chmod 0700 /data
 ENV ORION_DATA_DIR=/data
 ENV ORION_PORT=8999
+ENV GIN_MODE=release
 EXPOSE 8999
 VOLUME /data
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["./orion-core"]

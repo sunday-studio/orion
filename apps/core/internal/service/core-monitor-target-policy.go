@@ -68,24 +68,32 @@ func (p CoreMonitorTargetPolicy) CheckRedirect(req *http.Request, via []*http.Re
 
 func (p CoreMonitorTargetPolicy) HTTPClient(base *http.Client) *http.Client {
 	if base == nil {
-		transport := http.DefaultTransport.(*http.Transport).Clone()
-		transport.DialContext = p.DialContext
-		return &http.Client{Transport: transport, CheckRedirect: p.CheckRedirect}
+		return &http.Client{Transport: p.policyTransport(nil), CheckRedirect: p.CheckRedirect}
 	}
 	client := *base
 	if client.CheckRedirect == nil {
 		client.CheckRedirect = p.CheckRedirect
 	}
 	if client.Transport == nil {
-		transport := http.DefaultTransport.(*http.Transport).Clone()
-		transport.DialContext = p.DialContext
-		client.Transport = transport
+		client.Transport = p.policyTransport(nil)
 	} else if transport, ok := client.Transport.(*http.Transport); ok {
-		policyTransport := transport.Clone()
-		policyTransport.DialContext = p.DialContext
-		client.Transport = policyTransport
+		client.Transport = p.policyTransport(transport)
 	}
 	return &client
+}
+
+// policyTransport clones a transport and makes every connection go through the policy's
+// dialer. Proxy environment variables are ignored: with a proxy the dialer would
+// validate the proxy's address instead of the target, either bypassing the SSRF checks
+// or blocking everything when the proxy is on a private network.
+func (p CoreMonitorTargetPolicy) policyTransport(base *http.Transport) *http.Transport {
+	if base == nil {
+		base = http.DefaultTransport.(*http.Transport)
+	}
+	transport := base.Clone()
+	transport.DialContext = p.DialContext
+	transport.Proxy = nil
+	return transport
 }
 
 func (p CoreMonitorTargetPolicy) DialContext(ctx context.Context, network string, address string) (net.Conn, error) {

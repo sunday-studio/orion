@@ -35,7 +35,7 @@ func TestAlertServiceSkipsUnsubscribedEvents(t *testing.T) {
 	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
-	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentResolved); err != nil {
+	if err := queueAndDispatch(service, "incident-1", db.AlertEventIncidentResolved); err != nil {
 		t.Fatalf("QueueIncidentNotifications() error = %v", err)
 	}
 
@@ -73,7 +73,7 @@ func TestAlertServiceUsesMatchingAlertRoute(t *testing.T) {
 	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
-	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentOpened); err != nil {
+	if err := queueAndDispatch(service, "incident-1", db.AlertEventIncidentOpened); err != nil {
 		t.Fatalf("QueueIncidentNotifications() error = %v", err)
 	}
 
@@ -150,10 +150,10 @@ func TestAlertServiceGroupsSiblingIncidentNotifications(t *testing.T) {
 	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
-	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentOpened); err != nil {
+	if err := queueAndDispatch(service, "incident-1", db.AlertEventIncidentOpened); err != nil {
 		t.Fatalf("first QueueIncidentNotifications() error = %v", err)
 	}
-	if err := service.QueueIncidentNotifications("incident-2", db.AlertEventIncidentOpened); err != nil {
+	if err := queueAndDispatch(service, "incident-2", db.AlertEventIncidentOpened); err != nil {
 		t.Fatalf("second QueueIncidentNotifications() error = %v", err)
 	}
 
@@ -215,10 +215,10 @@ func TestAlertServiceDelaysGroupedSummaryForRoutePolicy(t *testing.T) {
 	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
-	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentOpened); err != nil {
+	if err := queueAndDispatch(service, "incident-1", db.AlertEventIncidentOpened); err != nil {
 		t.Fatalf("first QueueIncidentNotifications() error = %v", err)
 	}
-	if err := service.QueueIncidentNotifications("incident-2", db.AlertEventIncidentOpened); err != nil {
+	if err := queueAndDispatch(service, "incident-2", db.AlertEventIncidentOpened); err != nil {
 		t.Fatalf("second QueueIncidentNotifications() error = %v", err)
 	}
 
@@ -290,10 +290,10 @@ func TestAlertServiceRouteCanDisableGrouping(t *testing.T) {
 	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
-	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentOpened); err != nil {
+	if err := queueAndDispatch(service, "incident-1", db.AlertEventIncidentOpened); err != nil {
 		t.Fatalf("first QueueIncidentNotifications() error = %v", err)
 	}
-	if err := service.QueueIncidentNotifications("incident-2", db.AlertEventIncidentOpened); err != nil {
+	if err := queueAndDispatch(service, "incident-2", db.AlertEventIncidentOpened); err != nil {
 		t.Fatalf("second QueueIncidentNotifications() error = %v", err)
 	}
 
@@ -326,22 +326,22 @@ func TestAlertServiceSuppressesRecoveryUntilGroupedSiblingsResolve(t *testing.T)
 	service := NewAlertService(database, utils.NewLogger(), &config.Config{})
 	service.httpClient.Transport = transport
 
-	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentOpened); err != nil {
+	if err := queueAndDispatch(service, "incident-1", db.AlertEventIncidentOpened); err != nil {
 		t.Fatalf("first opened QueueIncidentNotifications() error = %v", err)
 	}
-	if err := service.QueueIncidentNotifications("incident-2", db.AlertEventIncidentOpened); err != nil {
+	if err := queueAndDispatch(service, "incident-2", db.AlertEventIncidentOpened); err != nil {
 		t.Fatalf("second opened QueueIncidentNotifications() error = %v", err)
 	}
 	if err := database.Model(&db.Incident{}).Where("id = ?", "incident-1").Update("status", "resolved").Error; err != nil {
 		t.Fatalf("resolve incident-1: %v", err)
 	}
-	if err := service.QueueIncidentNotifications("incident-1", db.AlertEventIncidentResolved); err != nil {
+	if err := queueAndDispatch(service, "incident-1", db.AlertEventIncidentResolved); err != nil {
 		t.Fatalf("first resolved QueueIncidentNotifications() error = %v", err)
 	}
 	if err := database.Model(&db.Incident{}).Where("id = ?", "incident-2").Update("status", "resolved").Error; err != nil {
 		t.Fatalf("resolve incident-2: %v", err)
 	}
-	if err := service.QueueIncidentNotifications("incident-2", db.AlertEventIncidentResolved); err != nil {
+	if err := queueAndDispatch(service, "incident-2", db.AlertEventIncidentResolved); err != nil {
 		t.Fatalf("second resolved QueueIncidentNotifications() error = %v", err)
 	}
 

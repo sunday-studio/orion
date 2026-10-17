@@ -17,7 +17,7 @@ func (s *AlertService) ProcessDueDeliveries(limit int) (int, error) {
 	now := time.Now().UTC()
 	var deliveries []db.AlertDelivery
 	if err := s.db.
-		Where("status IN ? AND attempt_count < max_attempts AND (next_attempt_at IS NULL OR next_attempt_at <= ?)", []string{"pending", "failed"}, now).
+		Where("status IN ? AND attempt_count < max_attempts AND (next_attempt_at IS NULL OR next_attempt_at <= ?) AND (locked_until IS NULL OR locked_until <= ?)", []string{"pending", "failed"}, now, now).
 		Order("created_at ASC").
 		Limit(limit).
 		Find(&deliveries).Error; err != nil {
@@ -27,6 +27,14 @@ func (s *AlertService) ProcessDueDeliveries(limit int) (int, error) {
 	processed := 0
 	for i := range deliveries {
 		delivery := &deliveries[i]
+		claimed, err := s.claimDelivery(delivery, now)
+		if err != nil {
+			s.logger.Error("Failed to claim alert delivery", "delivery_id", delivery.ID, "error", err)
+			continue
+		}
+		if !claimed {
+			continue
+		}
 		if retiredAlertDeliveryType(delivery.Type) {
 			if err := s.updateDelivery(delivery.ID, "suppressed", retiredAlertDeliveryMessage); err != nil {
 				s.logger.Error("Failed to suppress retired alert delivery", "delivery_id", delivery.ID, "type", delivery.Type, "error", err)
@@ -44,6 +52,13 @@ func (s *AlertService) ProcessDueDeliveries(limit int) (int, error) {
 			processed++
 			continue
 		}
+		if delivery.AttemptCount == 0 && s.inCooldown(delivery.IncidentID, channel.Name, delivery.EventType, delivery.ID) {
+			if err := s.updateDelivery(delivery.ID, "cooldown", "alert cooldown active"); err != nil {
+				s.logger.Error("Failed to mark alert delivery cooldown", "delivery_id", delivery.ID, "error", err)
+			}
+			processed++
+			continue
+		}
 		if err := s.attemptDelivery(delivery, func() error {
 			if delivery.EventType == alertEventGroupSummary && delivery.AlertGroupID != "" {
 				return s.deliverGroupSummary(channel, delivery.AlertGroupID)
@@ -55,6 +70,19 @@ func (s *AlertService) ProcessDueDeliveries(limit int) (int, error) {
 		processed++
 	}
 	return processed, nil
+}
+
+// claimDelivery takes a short lease on a due delivery so concurrent dispatchers
+// never send the same row twice. A crashed dispatcher's lease simply expires.
+func (s *AlertService) claimDelivery(delivery *db.AlertDelivery, now time.Time) (bool, error) {
+	until := now.Add(alertDeliveryLeaseDuration)
+	result := s.db.Model(&db.AlertDelivery{}).
+		Where("id = ? AND status IN ? AND attempt_count = ? AND (locked_until IS NULL OR locked_until <= ?)", delivery.ID, []string{"pending", "failed"}, delivery.AttemptCount, now).
+		Updates(map[string]any{"locked_by": alertDispatcherID, "locked_until": until})
+	if result.Error != nil {
+		return false, result.Error
+	}
+	return result.RowsAffected == 1, nil
 }
 
 func (s *AlertService) channelForDelivery(delivery db.AlertDelivery) (db.AlertChannel, error) {
