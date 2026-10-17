@@ -92,26 +92,24 @@ Compare each screen to its artboard at 1280px width. Check: one-line rows, cente
 
 ## 7. Feature 1 (Entry and home): data and API notes
 
-Checked against `apps/core/openapi.yaml` on 2026-10-18. Where the first drawing used data Core does not have, the artboard was changed (Overview, Add server connected).
+Checked against `apps/core/openapi.yaml` on 2026-10-18 after the F1 APIs landed.
 
-**Overview** (`Main`, `overview-all-good`, `dashboard-dark`, `onboarding`)
-- Greeting uses the signed-in username. Header health chip: `GET /v1/health/summary` `overall_health` and the count of down, degraded and stale monitors.
-- Stat cards: Monitors up = `health/summary.monitors.up` of `.total`. Servers up = `GET /v1/agents/summary` `up` of `total`. Open incidents = count of `GET /v1/incidents` with status open.
-- Needs you now: the highest-severity open incident from `GET /v1/incidents` (`title`, `severity`, `status`, `opened_at`, `latest_event`, `notification_status`, `allowed_actions`). Tracker: Detected = `opened_at`; Notified from `notification_status` (sent, failed shows an amber "Not delivered"); Acknowledged and Resolved from `status`. The Acknowledge button calls `POST /v1/incidents/{id}/acknowledge`.
-- Needs attention: `GET /v1/health/issues` (`monitor_name`, `agent_name`, `monitor_type`, `health`). Columns are monitor, server, type, status. Show five, then a link. There is no "since" field, so the artboard has none.
-- Ongoing incidents: open and acknowledged incidents, duration from `opened_at`. Recent incidents: resolved, duration `resolved_at` minus `opened_at`.
-- Removed because Core has no source: the 90-day per-service uptime strips and the organization-wide 30-day uptime percentage. If wanted later: `GET /v1/overview` (proposed).
-- States: first run when agents total and monitors total are both 0 (`onboarding`, with a dismiss link, D-006); all good when `overall_health` is up and no incident is open (`overview-all-good`); dark is `dashboard-dark`.
+**Overview** (`Main`, `overview-all-good`, `dashboard-dark`, `onboarding`): one call, `GET /v1/overview`.
+- Greeting uses `GET /v1/auth/me`. Header health chip: `health_issue_count` and `state` (empty, ok, issues).
+- Stat cards: Monitors up = `stats.monitors_up` of `monitors_total`; Servers reporting = `servers_reporting` of `servers_total`; Uptime, 30 days = `uptime_30d_percent`, which is null until a daily rollup exists, so show "No data yet" in that card until then.
+- Needs you now: `needs_you` (`title`, `severity`, `status`, `summary`, `opened_at`, `notified_at`, `acknowledged_at`, `duration_seconds`). Tracker: Detected = `opened_at`, Notified = `notified_at`, Acknowledged = `acknowledged_at`, Resolved = `resolved_at`. The summary line is the incident `summary`. Acknowledge calls `POST /v1/incidents/{id}/acknowledge`.
+- Server health: `services` (the artboard calls it Server health): per server, worst first, at most 8, with `status`, `uptime_percent` and a 90 day strip of `days` (`up`, `warn`, `down`, `none`).
+- Ongoing incidents: `ongoing_incidents`, `ongoing_incident_count`. Recent incidents: `recent_incidents`, duration from `duration_seconds`.
+- States: `state = empty` and `first_run` flags drive the first-run screen (all four flags false, with the dismissible card, D-006); `state = ok` shows the all-good screen; `state = issues` shows Needs you now.
 
 **Sign in** (`login`): `POST /v1/auth/login`. Error callout text is the API message. No sign-up.
 
-**Add server** (`add-server`, `add-server-waiting`, `add-server-connected`, `add-server-failed`)
-- Today `POST /v1/register` is called by the agent with the static `X-Orion-Enrollment-Token` header (env `ORION_ENROLLMENT_TOKEN` on Core). The one-time, expiring token in the artboards (15 minutes) needs a new endpoint, for example `POST /v1/enrollment-tokens` returning `token` and `expires_at`. Until it exists, the Console shows the command with the static token and omits the expiry line.
-- "Waiting" and "connected": poll `GET /v1/agents` for an agent created after the page opened (an agent-connected event would be better). Waiting steps map to installer output; only "registered" and "first report" are observable from Core, so the first two steps are shown as soon as the agent registers.
-- The agent token is returned to the agent, never to the Console, so the connected screen shows where it is stored on the host and links to the Token tab (rotate), not the secret.
-- Not connected after 5 minutes: static doctor checklist, no API.
+**Add server** (`add-server`, `add-server-waiting`, `add-server-connected`, `add-server-failed`; D-028)
+- Platform tiles: Linux, macOS, Docker (Windows is out of scope, D-014). `POST /v1/enrollments` with the tile as `platform` returns a one-time `token`, `install_command` and `expires_at` (15 minutes). The token is shown only in the command.
+- The waiting screen has a static list labelled "The command will:" (download and verify, create user and directories, install and start the service, register, run doctor). It never ticks, because Core cannot observe those steps.
+- Live states are only three, from polling `GET /v1/enrollments/{id}`: waiting (`waiting`, `claimed`, `registered`), connected (`reporting`, with `agent_name`, `agent_os`, `agent_arch`, `agent_version`, `first_report_at`), not connected (`expired`, or no report 5 minutes after the command was shown).
+- The agent token goes to the agent, not the Console. There is no shown-once token panel on any add-server artboard.
 
-**Connect an app** (`app-connect-create`, `-snippet`, `-waiting`, `-received`)
-- Create: `POST /v1/apps`. Key: `POST /v1/apps/{id}/keys` returns the secret once. Snippets are client-side. Waiting: poll the app (`GET /v1/apps/{id}`) or the logs list for the first line. "Send a test log": `POST /v1/apps/{id}/test-log`. Received row is the first log from the logs list.
+**Connect an app** (`app-connect-create`, `-snippet`, `-waiting`, `-received`): create `POST /v1/apps`; key `POST /v1/apps/{id}/keys` returns the secret once; snippets are client-side; waiting polls the app or the logs list for the first line; "Send a test log" is `POST /v1/apps/{id}/test-log`.
 
-**Command palette, account menu, shortcuts**: client side. Palette searches already loaded monitors, incidents and servers and lists static actions. Theme and timezone are stored in the browser until a settings endpoint exists. Sign out clears the token.
+**Command palette**: `GET /v1/search?q=` (at most 5 hits per type, grouped monitor, incident, server, app) plus static actions. **Account menu**: theme and timezone stored in the browser until a settings endpoint exists; sign out clears the token. **Shortcuts**: client side.
