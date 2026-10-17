@@ -5803,17 +5803,23 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get a paginated operational event log for Core, agents, monitors,
-        incidents, alerts, and lifecycle actions
+      description: 'Operational event log for Core, agents, monitors, incidents, alerts,
+        and lifecycle actions, newest first. Page with the keyset `cursor` (preferred:
+        constant cost per page); `offset` is kept for compatibility, capped at 5000
+        rows, and makes `count` a lower bound.'
       operationId: getOrionEvents
       parameters:
       - default: 50
-        description: Maximum number of events to return
+        description: Maximum number of events to return (max 200)
         in: query
         name: limit
         type: integer
+      - description: Opaque cursor from a previous response's next_cursor
+        in: query
+        name: cursor
+        type: string
       - default: 0
-        description: Number of events to skip
+        description: 'Deprecated: number of events to skip'
         in: query
         name: offset
         type: integer
@@ -5846,14 +5852,22 @@ paths:
                       items:
                         $ref: '#/definitions/internal_api.OrionEventResponse'
                       type: array
+                    has_more:
+                      type: boolean
                     limit:
                       type: integer
+                    next_cursor:
+                      type: string
                     offset:
                       type: integer
                     pagination:
                       $ref: '#/definitions/orion_core_internal_utils.PaginationMeta'
                   type: object
               type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -5935,6 +5949,70 @@ paths:
       summary: Get system health summary
       tags:
       - health
+  /v1/heartbeat/failure:
+    post:
+      consumes:
+      - application/json
+      description: 'Same as the path-token form, but the token is sent as `Authorization:
+        Bearer <token>`.'
+      operationId: receiveHeartbeatFailureHeader
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.HeartbeatSignalResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - HeartbeatBearer: []
+      summary: Record heartbeat failure (header token)
+      tags:
+      - heartbeats
+  /v1/heartbeat/success:
+    post:
+      consumes:
+      - application/json
+      description: 'Same as the path-token form, but the token is sent as `Authorization:
+        Bearer <token>` so it never lands in URLs, proxy access logs or shell history.'
+      operationId: receiveHeartbeatSuccessHeader
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.HeartbeatSignalResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - HeartbeatBearer: []
+      summary: Record heartbeat success (header token)
+      tags:
+      - heartbeats
   /v1/heartbeats/{token}/failure:
     post:
       consumes:

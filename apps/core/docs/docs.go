@@ -4744,7 +4744,7 @@ const docTemplate = `{
         },
         "/v1/events": {
             "get": {
-                "description": "Get a paginated operational event log for Core, agents, monitors, incidents, alerts, and lifecycle actions",
+                "description": "Operational event log for Core, agents, monitors, incidents, alerts, and lifecycle actions, newest first. Page with the keyset ` + "`" + `cursor` + "`" + ` (preferred: constant cost per page); ` + "`" + `offset` + "`" + ` is kept for compatibility, capped at 5000 rows, and makes ` + "`" + `count` + "`" + ` a lower bound.",
                 "consumes": [
                     "application/json"
                 ],
@@ -4760,14 +4760,20 @@ const docTemplate = `{
                     {
                         "type": "integer",
                         "default": 50,
-                        "description": "Maximum number of events to return",
+                        "description": "Maximum number of events to return (max 200)",
                         "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Opaque cursor from a previous response's next_cursor",
+                        "name": "cursor",
                         "in": "query"
                     },
                     {
                         "type": "integer",
                         "default": 0,
-                        "description": "Number of events to skip",
+                        "description": "Deprecated: number of events to skip",
                         "name": "offset",
                         "in": "query"
                     },
@@ -4813,8 +4819,14 @@ const docTemplate = `{
                                                         "$ref": "#/definitions/internal_api.OrionEventResponse"
                                                     }
                                                 },
+                                                "has_more": {
+                                                    "type": "boolean"
+                                                },
                                                 "limit": {
                                                     "type": "integer"
+                                                },
+                                                "next_cursor": {
+                                                    "type": "string"
                                                 },
                                                 "offset": {
                                                     "type": "integer"
@@ -4827,6 +4839,12 @@ const docTemplate = `{
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
@@ -4947,6 +4965,112 @@ const docTemplate = `{
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/heartbeat/failure": {
+            "post": {
+                "security": [
+                    {
+                        "HeartbeatBearer": []
+                    }
+                ],
+                "description": "Same as the path-token form, but the token is sent as ` + "`" + `Authorization: Bearer \u003ctoken\u003e` + "`" + `.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "heartbeats"
+                ],
+                "summary": "Record heartbeat failure (header token)",
+                "operationId": "receiveHeartbeatFailureHeader",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.HeartbeatSignalResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/heartbeat/success": {
+            "post": {
+                "security": [
+                    {
+                        "HeartbeatBearer": []
+                    }
+                ],
+                "description": "Same as the path-token form, but the token is sent as ` + "`" + `Authorization: Bearer \u003ctoken\u003e` + "`" + ` so it never lands in URLs, proxy access logs or shell history.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "heartbeats"
+                ],
+                "summary": "Record heartbeat success (header token)",
+                "operationId": "receiveHeartbeatSuccessHeader",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.HeartbeatSignalResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "500": {
