@@ -127,14 +127,26 @@ type UserMonitor struct {
 }
 
 type UserConfig struct {
-	Meta        map[string]interface{} `yaml:"meta,omitempty"`
-	CoreURL     string                 `yaml:"core_url"`
-	Interval    string                 `yaml:"interval"`
-	GeoLocation bool                   `yaml:"geo_location,omitempty"`
-	Logging     LoggingConfig          `yaml:"logging,omitempty"`
-	Transport   TransportConfig        `yaml:"transport,omitempty"`
-	Monitors    []UserMonitor          `yaml:"monitors"`
+	Meta         map[string]interface{} `yaml:"meta,omitempty"`
+	CoreURL      string                 `yaml:"core_url"`
+	Interval     string                 `yaml:"interval"`
+	GeoLocation  bool                   `yaml:"geo_location,omitempty"`
+	Logging      LoggingConfig          `yaml:"logging,omitempty"`
+	Transport    TransportConfig        `yaml:"transport,omitempty"`
+	AppResources AppResourcesConfig     `yaml:"app_resources,omitempty"`
+	Monitors     []UserMonitor          `yaml:"monitors"`
 }
+
+// AppResourcesConfig controls passive per-app resource metrics. They need no
+// app integration and are on by default; caps keep cardinality bounded.
+type AppResourcesConfig struct {
+	Enabled *bool    `yaml:"enabled,omitempty"` // default true
+	TopN    int      `yaml:"top_n,omitempty"`   // processes per ranking, default 10
+	Paths   []string `yaml:"paths,omitempty"`   // storage paths to size
+}
+
+// IsEnabled reports whether passive app metrics are on (default on).
+func (a AppResourcesConfig) IsEnabled() bool { return a.Enabled == nil || *a.Enabled }
 
 // TransportConfig tunes how the agent talks to Core.
 type TransportConfig struct {

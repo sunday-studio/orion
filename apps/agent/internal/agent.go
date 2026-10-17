@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"orion/agent/internal/appres"
 	"orion/agent/internal/config"
 	"orion/agent/internal/logging"
 	"orion/agent/internal/state"
@@ -18,6 +19,7 @@ type Agent struct {
 	stateMu       sync.Mutex
 	transport     *transport.Client
 	retryQueue    *RetryQueue
+	sampler       *appres.Sampler
 }
 
 func New(userConfig *config.UserConfig, stateStore *state.Store, internalState *config.InternalState) *Agent {
@@ -29,6 +31,7 @@ func New(userConfig *config.UserConfig, stateStore *state.Store, internalState *
 		internalState: internalState,
 		stateStore:    stateStore,
 		retryQueue:    NewRetryQueue(100),
+		sampler:       newSampler(userConfig),
 	}
 }
 
@@ -344,4 +347,11 @@ func (a *Agent) waitForMonitorState(ctx context.Context, name string, interval t
 		case <-time.After(retry):
 		}
 	}
+}
+
+func newSampler(cfg *config.UserConfig) *appres.Sampler {
+	if !cfg.AppResources.IsEnabled() {
+		return nil
+	}
+	return appres.NewSampler(appres.Options{TopN: cfg.AppResources.TopN, Paths: cfg.AppResources.Paths})
 }

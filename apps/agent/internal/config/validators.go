@@ -265,6 +265,14 @@ func (c *UserConfig) Validate() error {
 	if err := c.Logging.Validate(); err != nil {
 		return err
 	}
+	if c.AppResources.TopN < 0 || c.AppResources.TopN > 100 {
+		return errors.New("app_resources.top_n must be between 0 and 100")
+	}
+	for _, p := range c.AppResources.Paths {
+		if !filepath.IsAbs(p) {
+			return fmt.Errorf("app_resources.paths entry %q must be an absolute path", p)
+		}
+	}
 	switch strings.ToLower(c.Transport.Compression) {
 	case "", "none", "gzip":
 	default:

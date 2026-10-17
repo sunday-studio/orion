@@ -40,6 +40,11 @@ func (a *Agent) runSystemMetrics() error {
 		Location:      metrics.Location,
 	}
 
+	if a.sampler != nil {
+		appReport := a.sampler.Sample()
+		report.AppResources = &appReport
+	}
+
 	send := func(context.Context) error {
 		return a.transport.SendReport(*report, a.agentID())
 	}

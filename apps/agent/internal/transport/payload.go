@@ -3,6 +3,7 @@ package transport
 import (
 	"time"
 
+	"orion/agent/internal/appres"
 	"orion/agent/internal/collector"
 	"orion/agent/internal/services"
 )
@@ -20,6 +21,8 @@ type SystemReport struct {
 	Memory        *collector.MemoryStats `json:"memory"`
 	Disk          *collector.DiskStats   `json:"disk"`
 	Location      *services.GeoLocation  `json:"location,omitempty"`
+	// AppResources is passive per-process, per-unit and per-container usage.
+	AppResources *appres.Report `json:"app_resources,omitempty"`
 }
 
 type MonitorReport struct {
