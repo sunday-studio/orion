@@ -124,6 +124,11 @@ printf 'ORION_ADMIN_PASSWORD=%s\nORION_JWT_SECRET=%s\n' "$ADMIN_PASSWORD" "$JWT_
 with a non-placeholder admin password of at least 12 characters and a non-placeholder JWT secret of
 at least 32 characters. Keep these values out of source control.
 
+Core limits request bodies (1 MiB, 5 MiB for log batches), sets server timeouts and browser
+security headers, and does not log URL paths with embedded tokens. Behind a reverse proxy set
+`ORION_TRUSTED_PROXIES` to the proxy address so rate limits see real client IPs; without it Core
+ignores `X-Forwarded-For`. Swagger UI is off unless `ORION_ENABLE_SWAGGER=true`.
+
 Independently of that flag, the Core API now refuses to start when no admin credentials are set.
 To run without authentication (local experiments only) set `ORION_ALLOW_INSECURE_NO_AUTH=true`;
 Core then logs a warning at startup and every admin route is open to anyone who can reach the port.

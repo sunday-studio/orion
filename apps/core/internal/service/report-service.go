@@ -292,15 +292,24 @@ type UptimeResult struct {
 	TotalCount    int               `json:"-"`
 }
 
-// parsePeriod returns days from strings like "90d", "30d", "7d". Default 90.
+const (
+	defaultPeriodDays = 90
+	maxPeriodDays     = 365
+)
+
+// parsePeriod returns days from strings like "90d", "30d", "7d". Default 90,
+// clamped to maxPeriodDays so a hostile period cannot allocate unbounded buckets.
 func parsePeriod(period string) int {
 	if period == "" {
-		return 90
+		return defaultPeriodDays
 	}
 	var n int
 	for _, r := range period {
 		if r >= '0' && r <= '9' {
 			n = n*10 + int(r-'0')
+			if n > maxPeriodDays {
+				return maxPeriodDays
+			}
 		} else if r == 'd' && n > 0 {
 			return n
 		}
@@ -308,7 +317,7 @@ func parsePeriod(period string) int {
 	if n > 0 {
 		return n
 	}
-	return 90
+	return defaultPeriodDays
 }
 
 // GetMonitorUptime returns daily buckets and overall uptime percent for a monitor.

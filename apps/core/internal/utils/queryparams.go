@@ -8,10 +8,30 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const (
+	// MaxQueryLimit caps every `limit` query parameter so a request cannot ask
+	// Core to load an unbounded page into memory.
+	MaxQueryLimit = 200
+	// MaxQueryOffset caps `offset`; deep paging past it should use filters.
+	MaxQueryOffset = 100000
+)
+
+// QueryInt parses a non-negative integer query parameter. `limit` and `offset`
+// are clamped centrally to MaxQueryLimit and MaxQueryOffset.
 func QueryInt(c *gin.Context, key string, fallback int) int {
 	value, err := strconv.Atoi(c.DefaultQuery(key, strconv.Itoa(fallback)))
 	if err != nil || value < 0 {
 		return fallback
+	}
+	switch key {
+	case "limit":
+		if value > MaxQueryLimit {
+			return MaxQueryLimit
+		}
+	case "offset":
+		if value > MaxQueryOffset {
+			return MaxQueryOffset
+		}
 	}
 	return value
 }

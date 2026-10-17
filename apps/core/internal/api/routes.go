@@ -14,7 +14,6 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"gorm.io/gorm"
@@ -55,7 +54,11 @@ func NewServer(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *Ser
 	workerDiagnosticsService := service.NewWorkerDiagnosticsService(database, logger)
 	runtimeDiagnosticsService := service.NewRuntimeDiagnosticsService(database, logger)
 	reportService.SetDiagnostics(runtimeDiagnosticsService)
-	router := gin.Default()
+	router := gin.New()
+	if err := router.SetTrustedProxies(cfg.TrustedProxies); err != nil {
+		logger.Error("Invalid ORION_TRUSTED_PROXIES; trusting no proxies", "error", err)
+		_ = router.SetTrustedProxies(nil)
+	}
 	corsOrigins := cfg.CORSOrigins
 	if len(corsOrigins) == 0 {
 		corsOrigins = []string{"http://localhost:5173", "http://127.0.0.1:5173"}
@@ -67,9 +70,11 @@ func NewServer(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *Ser
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Request-ID", "Cache-Control", "Pragma"},
 		AllowCredentials: true,
 	}))
-	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 	router.Use(RequestIDMiddleware(logger))
+	router.Use(AccessLogMiddleware(logger))
+	router.Use(SecurityHeadersMiddleware())
+	router.Use(BodyLimitMiddleware())
 	router.Use(RuntimeDiagnosticsMiddleware(runtimeDiagnosticsService))
 
 	server := &Server{
@@ -101,8 +106,10 @@ func NewServer(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *Ser
 
 // setupRoutes configures all API routes
 func (s *Server) setupRoutes() {
-	// Swagger documentation
-	s.router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	// Swagger documentation (off unless ORION_ENABLE_SWAGGER=true)
+	if s.cfg.EnableSwagger {
+		s.router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	}
 
 	// Health check endpoint (no versioning)
 	s.router.GET("/health", s.healthCheck)
@@ -258,8 +265,12 @@ func (s *Server) serveConsole(c *gin.Context) {
 func (s *Server) Start(ctx context.Context, addr string) error {
 	s.logger.Info("Starting HTTP server", "address", addr)
 	httpServer := &http.Server{
-		Addr:    addr,
-		Handler: s.router,
+		Addr:              addr,
+		Handler:           s.router,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	errCh := make(chan error, 1)
@@ -288,12 +299,8 @@ func (s *Server) Start(ctx context.Context, addr string) error {
 // RequestIDMiddleware generates a unique request ID for each request
 func RequestIDMiddleware(logger *utils.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Check if request ID is already in header (for tracing across services)
-		requestID := c.GetHeader("X-Request-ID")
-		if requestID == "" {
-			// Generate new UUID if not present
-			requestID = uuid.New().String()
-		}
+		// Reuse a caller-supplied id only if it is short and safe (tracing across services).
+		requestID := requestIDFrom(c.GetHeader("X-Request-ID"))
 
 		// Set request ID in context
 		c.Set("request_id", requestID)
@@ -301,8 +308,7 @@ func RequestIDMiddleware(logger *utils.Logger) gin.HandlerFunc {
 		// Add request ID to response header
 		c.Header("X-Request-ID", requestID)
 
-		// Log request with request ID
-		logger.Debug("Request received", "request_id", requestID, "method", c.Request.Method, "path", c.Request.URL.Path)
+		logger.Debug("Request received", "request_id", requestID, "method", c.Request.Method)
 
 		c.Next()
 	}
@@ -315,7 +321,7 @@ func RuntimeDiagnosticsMiddleware(diagnostics *service.RuntimeDiagnosticsService
 
 		route := c.FullPath()
 		if route == "" {
-			route = c.Request.URL.Path
+			route = "unmatched" // bounded label: raw paths would grow the metrics map without limit
 		}
 		diagnostics.RecordRequest(route, c.Writer.Status(), time.Since(startedAt))
 	}

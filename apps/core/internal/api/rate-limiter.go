@@ -49,12 +49,24 @@ func (l *RateLimiter) RecordFailure(key string) {
 	defer l.mu.Unlock()
 
 	now := time.Now()
+	l.evictExpiredLocked(now)
 	entry, exists := l.failures[key]
 	if !exists || now.After(entry.resetAt) {
 		entry = rateLimitEntry{resetAt: now.Add(l.window)}
 	}
 	entry.count++
 	l.failures[key] = entry
+}
+
+func (l *RateLimiter) evictExpiredLocked(now time.Time) {
+	if len(l.failures) < rateLimiterEvictThreshold {
+		return
+	}
+	for k, e := range l.failures {
+		if now.After(e.resetAt) {
+			delete(l.failures, k)
+		}
+	}
 }
 
 func (l *RateLimiter) Reset(key string) {
@@ -76,13 +88,7 @@ func (l *RateLimiter) Allow(key string) bool {
 	defer l.mu.Unlock()
 
 	now := time.Now()
-	if len(l.failures) >= rateLimiterEvictThreshold {
-		for k, e := range l.failures {
-			if now.After(e.resetAt) {
-				delete(l.failures, k)
-			}
-		}
-	}
+	l.evictExpiredLocked(now)
 	entry, exists := l.failures[key]
 	if !exists || now.After(entry.resetAt) {
 		entry = rateLimitEntry{resetAt: now.Add(l.window)}

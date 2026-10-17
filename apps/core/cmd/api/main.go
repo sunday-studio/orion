@@ -69,8 +69,14 @@ func main() {
 		}
 	}()
 
+	listenAddr := ":" + cfg.Port
+	if cfg.RunsWithoutAuth() {
+		listenAddr = "127.0.0.1:" + cfg.Port
+		logger.Warn("INSECURE: binding to loopback only because admin authentication is disabled", "address", listenAddr)
+	}
+
 	logger.Info("Orion Core Server started successfully")
-	if err := server.Start(ctx, ":"+cfg.Port); err != nil {
+	if err := server.Start(ctx, listenAddr); err != nil {
 		logger.Fatal("Failed to start server", "error", err)
 	}
 }
