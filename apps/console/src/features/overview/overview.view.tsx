@@ -149,6 +149,13 @@ export const OverviewPage = () => {
         )}
       </Field>
 
+      {summary.isError && (
+        <EmptyState
+          tone="error"
+          title="Unable to load health summary"
+          action={retry(summary.refetch)}
+        />
+      )}
       <section aria-label="Health summary" className="grid gap-3 sm:grid-cols-5">
         <Stat
           loading={summary.isLoading}

@@ -122,6 +122,8 @@ test("theme switches to dark and sets data-theme", async ({ page }) => {
   await page.getByRole("combobox", { name: "Theme" }).click();
   await page.getByRole("option", { name: "Dark" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  const badge = page.getByLabel("Badges").getByText("up", { exact: true });
+  await expect(badge).not.toHaveCSS("background-color", "rgb(204, 251, 241)");
   await page.getByRole("combobox", { name: "Theme" }).click();
   await page.getByRole("option", { name: "Light" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
