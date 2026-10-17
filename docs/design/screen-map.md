@@ -132,3 +132,7 @@ Logs are now three sources: status logs (events, filter by server and monitor), 
 ## 9. Product logs (D-011, 2026-10-17)
 
 Unified Logs page (logs, logs-rich, logs-plain, logs-detail, logs-detail-plain, logs-no-apps, logs-no-results, logs-error), with logs-live, logs-patterns, logs-views, logs-export. Apps settings (settings-apps, settings-app-new, app-keys, app-key-new, app-retention, app-display, app-redaction, app-send-test). Connect your first app (app-connect-create, app-connect-snippet, app-connect-waiting, app-connect-received). Log tabs are named Service logs (apps and agents, the unified page), Status logs (events) and Internal logs (Orion backend). Settings tabs are now Data lifecycle, General, Apps, Security, System, Audit log. Superseded: logs-app, logs-app-detail, logs-app-empty, logs-app-connect, logs-sources (the earlier three-tab design).
+
+## 10. CLI and agent (agent-cli-plan.md)
+
+Terminal screens: cli-install, cli-setup, cli-doctor, cli-status, cli-logs, cli-help-error. Console: add-server (command with enrollment token), add-server-waiting (live steps), add-server-connected, add-server-failed. Sign in was restyled (fade into white, dot animation).

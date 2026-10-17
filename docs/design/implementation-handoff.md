@@ -49,6 +49,8 @@ Read `design-language.md` (rules and tokens) first, then this file. The canvas i
 | app-display | same | same | `PATCH /v1/apps/{id}` display profile (L3) |
 | app-redaction | same | same | `PATCH /v1/apps/{id}` rules; `POST /v1/apps/{id}/redaction/test` (L1) |
 | app-send-test | same | same | `POST /v1/apps/{id}/test-log`; receipt shown from the logs list (L1) |
+| cli-install, cli-setup, cli-doctor, cli-status, cli-logs, cli-help-error | terminal (`apps/agent`) | `apps/agent` CLI | plan A2 to A6, C1 to C4: Charm theme generated from tokens, control socket, `--json` schemas |
+| add-server, add-server-waiting, add-server-connected, add-server-failed | `/servers/new` | new | one-time enrollment token and agent-connected event (backend ORB-009) |
 | app-connect-create, app-connect-snippet, app-connect-waiting, app-connect-received | `/apps/new` (linked from the Overview card, D-006) | new | same app and key endpoints; waiting step polls `last_log_at` on `GET /v1/apps/{id}` |
 | settings-lifecycle, settings-system | `/settings/*` | `features/settings/` | existing |
 | settings-general | `/settings/general` | same | instance name, public URL, timezone proposed |
