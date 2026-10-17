@@ -3,11 +3,17 @@
  * Light is the default. Dark applies with <html data-theme="dark">.
  * Utilities (bg-card, text-ink, border-hairline ...) are generated from @theme.
  */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 @theme {
   --color-page: #ffffff;
   --color-field: #f7f7f6;
   --color-card: #ffffff;
   --color-sub: #fafaf9;
+  --color-tray: #f4f4f2;
+  --color-chip: #ffffff;
+  --color-line-soft: #f4f4f5;
+  --color-mid: #57534e;
   --color-hairline: #ececea;
   --color-input-border: #e4e4e7;
   --color-ink: #18181b;
@@ -67,10 +73,14 @@
 
 :root[data-theme="dark"] {
   --color-page: #0f1311;
-  --color-field: #161a18;
-  --color-card: #1e2321;
-  --color-sub: #191e1b;
-  --color-hairline: #2a302d;
+  --color-field: #0c0f0e;
+  --color-card: #1a201e;
+  --color-sub: #161b19;
+  --color-tray: #1a1f1d;
+  --color-chip: #2a302d;
+  --color-line-soft: #222926;
+  --color-mid: #c4ccc8;
+  --color-hairline: #252c29;
   --color-input-border: #343b37;
   --color-ink: #ededed;
   --color-quiet: #a1a1aa;

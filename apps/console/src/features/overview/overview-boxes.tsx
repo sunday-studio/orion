@@ -46,8 +46,8 @@ export const AttentionBox = ({ issues, total }: { issues: ApiHealthIssue[]; tota
                 <b className="font-medium">{issue.monitor_name ?? "Monitor"}</b>
               )}
             </span>
-            <span className="text-[#a1a1aa]">{issue.agent_name ?? "Core"}</span>
-            <span className="font-mono text-xs text-[#a1a1aa]">
+            <span className="text-faint">{issue.agent_name ?? "Core"}</span>
+            <span className="font-mono text-xs text-faint">
               {issue.monitor_type ? issue.monitor_type.toUpperCase() : "Agent"}
             </span>
             <span>
@@ -95,8 +95,8 @@ export const OngoingBox = ({
                   {incident.title ?? incident.id}
                 </Link>
               </span>
-              <span className="text-[#a1a1aa]">{formatWhen(incident.opened_at, now)}</span>
-              <span className={isTop ? "text-[#be123c]" : "text-[#a1a1aa]"}>
+              <span className="text-faint">{formatWhen(incident.opened_at, now)}</span>
+              <span className={isTop ? "text-[#be123c]" : "text-faint"}>
                 {isTop
                   ? `Ongoing ${formatSpan(openedMs, now, false, true)}`
                   : formatSpan(openedMs, now)}
@@ -120,7 +120,7 @@ export const RecentIncidentsBox = ({
     <BoxHeader
       title="Recent incidents"
       aside={
-        <Link className="font-normal text-[#71717a]" to="/incidents">
+        <Link className="font-normal text-quiet" to="/incidents">
           View all
         </Link>
       }
@@ -132,13 +132,13 @@ export const RecentIncidentsBox = ({
         return (
           <div
             key={incident.id ?? index}
-            className="grid grid-cols-[64px_minmax(0,1fr)_auto] items-center gap-2.5 border-b border-[#f4f4f5] px-3.5 py-[9px] text-[12.5px] last:border-b-0"
+            className="grid grid-cols-[64px_minmax(0,1fr)_auto] items-center gap-2.5 border-b border-line-soft px-3.5 py-[9px] text-[12.5px] last:border-b-0"
           >
-            <time className="truncate text-[#a1a1aa]">{formatWhen(incident.opened_at, now)}</time>
+            <time className="truncate text-faint">{formatWhen(incident.opened_at, now)}</time>
             <Link className="truncate font-medium hover:underline" to={`/incidents/${incident.id}`}>
               {incident.title}
             </Link>
-            <span className="text-[#71717a]">{formatSpan(start, end)}</span>
+            <span className="text-quiet">{formatSpan(start, end)}</span>
           </div>
         );
       })}

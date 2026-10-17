@@ -7,11 +7,16 @@ export const envelope = (data: unknown) => JSON.stringify({ success: true, data 
 
 export type RouteMock = { pattern: RegExp; body: Json | ((url: URL) => Json) };
 
-export const mockApi = async (page: Page, mocks: RouteMock[]) => {
-  await page.addInitScript(() => {
+export const mockApi = async (
+  page: Page,
+  mocks: RouteMock[],
+  options: { theme?: "light" | "dark" } = {},
+) => {
+  await page.addInitScript((theme) => {
+    if (theme) localStorage.setItem("orion.theme", theme);
     localStorage.setItem("orion_token", "artboard-test-token");
     localStorage.setItem("orion_username", "admin");
-  });
+  }, options.theme);
   await page.route("**/v1/**", async (route) => {
     const url = new URL(route.request().url());
     const match = mocks.find((mock) => mock.pattern.test(url.pathname));

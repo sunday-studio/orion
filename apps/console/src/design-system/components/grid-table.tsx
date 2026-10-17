@@ -17,10 +17,8 @@ export const GridRow = ({
     role="row"
     style={{ gridTemplateColumns: columns, ...style }}
     className={cn(
-      "grid items-center gap-3 border-t border-[#f4f4f2] px-3.5 first:border-t-0 [&>*]:min-w-0 [&>*]:truncate",
-      header
-        ? "h-[30px] bg-[#fafaf9] text-[11.5px] font-medium text-[#71717a]"
-        : "h-[38px] hover:bg-[#fafaf9]",
+      "grid items-center gap-3 border-t border-line-soft px-3.5 first:border-t-0 [&>*]:min-w-0 [&>*]:truncate",
+      header ? "h-[30px] bg-sub text-[11.5px] font-medium text-quiet" : "h-[38px] hover:bg-sub",
       className,
     )}
     {...props}
@@ -30,7 +28,7 @@ export const GridRow = ({
 export const GridFooter = ({ className, ...props }: React.ComponentProps<"div">) => (
   <div
     className={cn(
-      "border-t border-[#f4f4f2] px-3.5 py-2 text-center text-[12.5px] text-[#71717a]",
+      "border-t border-line-soft px-3.5 py-2 text-center text-[12.5px] text-quiet",
       className,
     )}
     {...props}

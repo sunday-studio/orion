@@ -16,10 +16,10 @@ export const PageHeader = ({ title, description, actions, className }: PageHeade
       <div className="min-w-0 flex-1">
         <h1 className="text-[28px] font-medium leading-10 tracking-[-0.025em]">{title}</h1>
         {typeof description === "string" ? (
-          <p className="mt-0.5 text-[13.5px] leading-[1.4] text-[#71717a]">{description}</p>
+          <p className="mt-0.5 text-[13.5px] leading-[1.4] text-quiet">{description}</p>
         ) : (
           description && (
-            <div className="mt-0.5 text-[13.5px] leading-[1.4] text-[#71717a]">{description}</div>
+            <div className="mt-0.5 text-[13.5px] leading-[1.4] text-quiet">{description}</div>
           )
         )}
       </div>

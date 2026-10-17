@@ -50,12 +50,12 @@ const useHealthChip = (): HealthChip => {
     incidents.data?.count ?? incidents.data?.incidents?.length ?? issues.data?.count ?? 0;
 
   if (summary.isSuccess && monitorTotal === 0 && agentTotal === 0) {
-    return { text: "No data yet", dot: "bg-[#a1a1aa]" };
+    return { text: "No data yet", dot: "bg-faint" };
   }
   if (issueCount > 0) {
     return { text: `${issueCount} ${issueCount === 1 ? "issue" : "issues"}`, dot: "bg-[#f59e0b]" };
   }
-  if (summary.isLoading) return { text: "Checking...", dot: "bg-[#a1a1aa]" };
+  if (summary.isLoading) return { text: "Checking...", dot: "bg-faint" };
   return { text: "All systems normal", dot: "bg-[#2a9f69]" };
 };
 
@@ -64,7 +64,7 @@ export const AppHeader = () => {
   const hasSession = Boolean(getToken());
 
   return (
-    <header className="z-50 grid h-[52px] shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-4 border-b border-[#ececea] bg-page px-5">
+    <header className="z-50 grid h-[52px] shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-4 border-b border-hairline bg-page px-5">
       <NavLink
         to="/"
         className="flex items-center gap-[9px] text-sm font-semibold tracking-[-0.01em] text-ink"
@@ -74,7 +74,7 @@ export const AppHeader = () => {
       </NavLink>
       <nav
         aria-label="Primary navigation"
-        className="flex gap-0.5 rounded-[9px] bg-[#f4f4f2] p-[3px] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.03)]"
+        className="flex gap-0.5 rounded-[9px] bg-tray p-[3px] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.03)]"
       >
         {navItems.map((item) => (
           <NavLink
@@ -83,9 +83,9 @@ export const AppHeader = () => {
             end={item.to === "/"}
             className={({ isActive }) =>
               cn(
-                "whitespace-nowrap rounded-md px-[11px] py-[5px] text-[13px] leading-[18px] text-[#71717a] hover:text-ink",
+                "whitespace-nowrap rounded-md px-[11px] py-[5px] text-[13px] leading-[18px] text-quiet hover:text-ink",
                 isActive &&
-                  "bg-white font-medium text-ink shadow-[0_1px_2px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.04)]",
+                  "bg-chip font-medium text-ink shadow-[0_1px_2px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.04)]",
               )
             }
           >
@@ -98,16 +98,14 @@ export const AppHeader = () => {
           type="button"
           aria-label="Search"
           onClick={() => window.dispatchEvent(new Event(OPEN_PALETTE_EVENT))}
-          className="hidden h-[30px] items-center gap-2 rounded-lg border border-[#e4e4e7] bg-white pl-2.5 pr-2 text-[12.5px] text-[#a1a1aa] shadow-[0_1px_1px_rgba(0,0,0,0.04)] md:flex"
+          className="hidden h-[30px] items-center gap-2 rounded-lg border border-input-border bg-chip pl-2.5 pr-2 text-[12.5px] text-faint shadow-[0_1px_1px_rgba(0,0,0,0.04)] md:flex"
         >
           <Search className="size-3.5" />
           Search
-          <kbd className="rounded bg-[#f4f4f2] px-[5px] py-px font-mono text-[11px] text-[#71717a]">
-            ⌘K
-          </kbd>
+          <kbd className="rounded bg-tray px-[5px] py-px font-mono text-[11px] text-quiet">⌘K</kbd>
         </button>
         <span
-          className="hidden h-[30px] items-center gap-1.5 rounded-lg bg-[#fafaf9] px-2.5 text-[12.5px] text-[#52525b] shadow-[inset_0_0_0_1px_#ececea] sm:flex"
+          className="hidden h-[30px] items-center gap-1.5 rounded-lg bg-sub px-2.5 text-[12.5px] text-mid shadow-[inset_0_0_0_1px_var(--color-hairline)] sm:flex"
           role="status"
         >
           <i className={cn("block size-1.5 rounded-full", chip.dot)} />
@@ -118,8 +116,8 @@ export const AppHeader = () => {
           aria-label="Settings"
           className={({ isActive }) =>
             cn(
-              "flex size-[30px] items-center justify-center rounded-lg text-[#71717a]",
-              isActive && "bg-[#f4f4f2] text-ink",
+              "flex size-[30px] items-center justify-center rounded-lg text-quiet",
+              isActive && "bg-tray text-ink",
             )
           }
         >

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getTimezone, toZoned } from "@/utils/date";
 
 /** Current time, refreshed on an interval so "open for 30m 12s" keeps counting. */
 export const useNow = (intervalMs = 1000) => {
@@ -29,9 +30,9 @@ const pad = (value: number) => String(value).padStart(2, "0");
 /** "14:02" for today, "Yesterday", otherwise "Mon 09:10". */
 export const formatWhen = (iso: string | undefined, now: number) => {
   if (!iso) return "-";
-  const date = new Date(iso);
+  const date = toZoned(new Date(iso));
   const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-  const startOfToday = new Date(now);
+  const startOfToday = toZoned(new Date(now));
   startOfToday.setHours(0, 0, 0, 0);
   const dayMs = 86400000;
   if (date.getTime() >= startOfToday.getTime()) return time;
@@ -40,13 +41,17 @@ export const formatWhen = (iso: string | undefined, now: number) => {
   return `${weekday} ${time}`;
 };
 
+const zoneLabel = () => {
+  const zone = getTimezone();
+  return zone === "local" ? "local time" : zone;
+};
+
 export const formatHeaderDate = (now: number) => {
-  const date = new Date(now);
+  const date = toZoned(new Date(now));
   const day = date.toLocaleDateString("en-US", {
     weekday: "long",
     month: "short",
     day: "numeric",
-    timeZone: "UTC",
   });
-  return `${day} · ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())} UTC`;
+  return `${day} · ${pad(date.getHours())}:${pad(date.getMinutes())} ${zoneLabel()}`;
 };

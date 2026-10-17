@@ -6,7 +6,7 @@ export const Box = ({ className, ...props }: React.ComponentProps<"section">) =>
   <section
     data-slot="ds-box"
     className={cn(
-      "overflow-hidden rounded-xl border border-[#ececea] bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)]",
+      "overflow-hidden rounded-xl border border-hairline bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)]",
       className,
     )}
     {...props}
@@ -24,12 +24,12 @@ export const BoxHeader = ({
 }) => (
   <div
     className={cn(
-      "flex items-center justify-between border-b border-[#ececea] bg-[#f7f7f6] px-3.5 py-2 text-[13px] font-medium",
+      "flex items-center justify-between border-b border-hairline bg-field px-3.5 py-2 text-[13px] font-medium",
       className,
     )}
   >
     <h2 className="text-[13px] font-medium">{title}</h2>
-    {aside !== undefined && <span className="font-normal text-[#a1a1aa]">{aside}</span>}
+    {aside !== undefined && <span className="font-normal text-faint">{aside}</span>}
   </div>
 );
 
@@ -45,7 +45,10 @@ export const FieldPanel = ({
   aside?: React.ReactNode;
 }) => (
   <section
-    className={cn("rounded-[14px] border border-[#ececea] bg-[#f7f7f6] p-5", className)}
+    className={cn(
+      "rounded-[14px] border border-hairline bg-field p-5 dark:shadow-[inset_0_2px_6px_rgba(0,0,0,0.55)]",
+      className,
+    )}
     {...props}
   >
     <div className="mx-0.5 mb-3 flex items-baseline justify-between">
@@ -60,7 +63,7 @@ export const FieldPanel = ({
 export const RaisedCard = ({ className, ...props }: React.ComponentProps<"div">) => (
   <div
     className={cn(
-      "rounded-[10px] border border-[#ececea] bg-card shadow-[0_1px_2px_rgba(0,0,0,0.08),0_4px_14px_-6px_rgba(0,0,0,0.06)]",
+      "rounded-[10px] border border-hairline bg-card shadow-[0_1px_2px_rgba(0,0,0,0.08),0_4px_14px_-6px_rgba(0,0,0,0.06)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.035),0_8px_18px_-10px_rgba(0,0,0,0.7)]",
       className,
     )}
     {...props}
@@ -79,14 +82,12 @@ export const StatBox = ({
   of?: React.ReactNode;
   className?: string;
 }) => (
-  <div className={cn("rounded-xl border border-[#ececea] bg-card px-3.5 py-3", className)}>
-    <span className="block text-xs leading-[18px] text-[#71717a]">{label}</span>
+  <div className={cn("rounded-xl border border-hairline bg-card px-3.5 py-3", className)}>
+    <span className="block text-xs leading-[18px] text-quiet">{label}</span>
     <b className="block text-xl font-semibold leading-[30px] tracking-[-0.02em]">
       {value}
       {of !== undefined && (
-        <small className="ml-1 text-[13px] font-normal text-[#a1a1aa] tracking-normal">
-          of {of}
-        </small>
+        <small className="ml-1 text-[13px] font-normal text-faint tracking-normal">of {of}</small>
       )}
     </b>
   </div>

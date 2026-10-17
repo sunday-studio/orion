@@ -147,8 +147,8 @@ export const AddServerPage = () => {
         </FieldPanel>
         <FieldPanel title="Waiting for the agent" aside="Usually under 30 seconds">
           <RaisedCard className="flex items-center gap-3 px-4 py-3">
-            <span aria-hidden className="size-2 shrink-0 rounded-full bg-[#a1a1aa]" />
-            <p className="text-[13px] text-[#57534e]">
+            <span aria-hidden className="size-2 shrink-0 rounded-full bg-faint" />
+            <p className="text-[13px] text-mid">
               This page updates by itself when the server registers.
             </p>
           </RaisedCard>

@@ -3,7 +3,7 @@ import type * as React from "react";
 import { cn } from "@/utils/cn";
 
 const badgeStyles = cva(
-  "inline-flex h-5 w-fit items-center gap-[5px] rounded-md pl-[7px] pr-2 text-xs font-medium leading-none first-letter:uppercase",
+  "inline-flex h-5 w-fit items-center gap-[5px] rounded-md pl-[7px] pr-2 text-xs font-medium leading-none capitalize",
   {
     variants: {
       tone: {

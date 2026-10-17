@@ -83,7 +83,7 @@ export const NeedsYouNow = ({ incident, now }: { incident: ApiIncidentResponse; 
           </div>
           <LifecycleTrack steps={lifecycleSteps(incident, now)} />
           <div className="flex items-center justify-between">
-            <span className="text-[12.5px] text-[#57534e]">
+            <span className="text-[12.5px] text-mid">
               Latest: {incident.latest_event ?? "no events recorded yet"}
             </span>
             <div className="flex items-center gap-1.5">
