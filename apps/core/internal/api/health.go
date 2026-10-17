@@ -174,7 +174,7 @@ func (s *Server) getCoreDiagnostics(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @ID           getHealthIssues
-// @Success      200  {object}  utils.APIResponse{data=object{issues=[]object,count=int}}
+// @Success      200  {object}  utils.APIResponse{data=HealthIssuesResponse}
 // @Failure      500  {object}  utils.APIResponse
 // @Router       /v1/health/issues [get]
 func (s *Server) getHealthIssues(c *gin.Context) {
@@ -252,7 +252,7 @@ func (s *Server) getHealthIssues(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @ID           getIncidentsCandidates
-// @Success      200  {object}  utils.APIResponse{data=object{candidates=[]object,count=int}}
+// @Success      200  {object}  utils.APIResponse{data=IncidentCandidatesResponse}
 // @Failure      500  {object}  utils.APIResponse
 // @Router       /v1/incidents/candidates [get]
 func (s *Server) getIncidentCandidates(c *gin.Context) {

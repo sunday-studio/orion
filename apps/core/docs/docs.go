@@ -4641,18 +4641,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "count": {
-                                                    "type": "integer"
-                                                },
-                                                "issues": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "object"
-                                                    }
-                                                }
-                                            }
+                                            "$ref": "#/definitions/internal_api.HealthIssuesResponse"
                                         }
                                     }
                                 }
@@ -5023,18 +5012,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "candidates": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "object"
-                                                    }
-                                                },
-                                                "count": {
-                                                    "type": "integer"
-                                                }
-                                            }
+                                            "$ref": "#/definitions/internal_api.IncidentCandidatesResponse"
                                         }
                                     }
                                 }
@@ -11074,6 +11052,56 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.HealthIssue": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "agent_name": {
+                    "type": "string"
+                },
+                "health": {
+                    "description": "Health is the computed health that makes this an issue.",
+                    "type": "string",
+                    "enum": [
+                        "down",
+                        "degraded",
+                        "stale"
+                    ]
+                },
+                "issue_type": {
+                    "description": "IssueType is \"stale_data\" for stale monitors and omitted otherwise.",
+                    "type": "string",
+                    "enum": [
+                        "stale_data"
+                    ]
+                },
+                "monitor_id": {
+                    "type": "string"
+                },
+                "monitor_name": {
+                    "type": "string"
+                },
+                "monitor_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.HealthIssuesResponse": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "issues": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.HealthIssue"
+                    }
+                }
+            }
+        },
         "internal_api.HeartbeatSignalResponse": {
             "type": "object",
             "properties": {
@@ -11119,6 +11147,67 @@ const docTemplate = `{
                 },
                 "resolve": {
                     "$ref": "#/definitions/internal_api.IncidentActionStateResponse"
+                }
+            }
+        },
+        "internal_api.IncidentCandidate": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "agent_name": {
+                    "type": "string"
+                },
+                "down_count": {
+                    "description": "DownCount is how many of the last 5 reports were down.",
+                    "type": "integer"
+                },
+                "health": {
+                    "type": "string",
+                    "enum": [
+                        "down",
+                        "degraded",
+                        "stale"
+                    ]
+                },
+                "issue_type": {
+                    "type": "string",
+                    "enum": [
+                        "stale_data"
+                    ]
+                },
+                "monitor_id": {
+                    "type": "string"
+                },
+                "monitor_name": {
+                    "type": "string"
+                },
+                "monitor_type": {
+                    "type": "string"
+                },
+                "severity": {
+                    "description": "Severity is derived from recent failures: high (3+ of the last 5 reports down), medium, low; stale monitors are high.",
+                    "type": "string",
+                    "enum": [
+                        "low",
+                        "medium",
+                        "high"
+                    ]
+                }
+            }
+        },
+        "internal_api.IncidentCandidatesResponse": {
+            "type": "object",
+            "properties": {
+                "candidates": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.IncidentCandidate"
+                    }
+                },
+                "count": {
+                    "type": "integer"
                 }
             }
         },
