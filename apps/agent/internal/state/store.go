@@ -12,7 +12,7 @@ import (
 	"orion/agent/internal/config"
 	"orion/agent/internal/logging"
 
-	"gorm.io/driver/sqlite"
+	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )
 
