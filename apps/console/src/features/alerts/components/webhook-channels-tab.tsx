@@ -1,5 +1,12 @@
-import { Button, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/design-system";
-import { DataTable } from "@/components/shared/data-table";
+import {
+  Button,
+  DataTable,
+  Menu,
+  MenuContent,
+  MenuItem,
+  MenuSeparator,
+  MenuTrigger,
+} from "@/design-system";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import type { ApiAlertChannelResponse } from "@/orion-sdk";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -152,7 +159,6 @@ export const WebhookChannelsTab = ({
           emptyMessage="No webhook channels configured."
           getRowId={(channel, index) => channel.id ?? channel.name ?? `channel-${index}`}
           isLoading={isLoading}
-          loadingMessage="Loading webhook channels..."
         />
       )}
     </section>

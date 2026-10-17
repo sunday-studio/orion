@@ -1,5 +1,12 @@
-import { ListPagination, TabCount, Tabs, TabsList, TabsPanel, TabsTab } from "@/design-system";
-import { DataTable } from "@/components/shared/data-table";
+import {
+  DataTable,
+  ListPagination,
+  TabCount,
+  Tabs,
+  TabsList,
+  TabsPanel,
+  TabsTab,
+} from "@/design-system";
 import { HeartbeatSetupPanel } from "@/features/monitors/components/heartbeat-setup-panel";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { cn } from "@/utils/cn";
@@ -85,7 +92,6 @@ export const MonitorDetailOperationalData = ({
                 report.id ?? `${report.monitor_id ?? "monitor"}-${index}`
               }
               isLoading={historyLoading}
-              loadingMessage="Loading check history..."
               onRowClick={onReportClick}
             />
           )}
@@ -110,7 +116,6 @@ export const MonitorDetailOperationalData = ({
             emptyMessage="No related incidents recorded."
             getRowId={(incident, index) => incident.id ?? `incident-${index}`}
             isLoading={incidentsLoading}
-            loadingMessage="Loading related incidents..."
             rowClassName={(row) => cn(row.original.id === highlightedIncidentId && "bg-amber-50")}
           />
         )}

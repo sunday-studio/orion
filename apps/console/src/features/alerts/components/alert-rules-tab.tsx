@@ -1,5 +1,6 @@
 import {
   Button,
+  DataTable,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -14,7 +15,6 @@ import {
   MenuTrigger,
   StatusBadge,
 } from "@/design-system";
-import { DataTable } from "@/components/shared/data-table";
 import type {
   ApiAlertChannelResponse,
   ApiAlertRouteDryRunResponse,
@@ -282,7 +282,6 @@ export const AlertRulesTab = ({ channels }: AlertRulesTabProps) => {
           emptyMessage="No alert rules configured."
           getRowId={(route, index) => route.id ?? route.name ?? `route-${index}`}
           isLoading={routesResponse.isLoading}
-          loadingMessage="Loading alert rules..."
         />
       )}
 

@@ -1,5 +1,4 @@
-import { StatusBadge } from "@/design-system";
-import { DetailCard, type DetailCardVariant } from "@/components/shared/detail-card";
+import { DetailCard, type DetailCardVariant, StatusBadge } from "@/design-system";
 import type { ApiUptimeDayBucketResponse } from "@/orion-sdk";
 import { formatPercent } from "../agent-detail.domain";
 import { Link } from "react-router-dom";

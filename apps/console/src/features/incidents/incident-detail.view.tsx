@@ -1,6 +1,12 @@
-import { TabCount, Tabs, TabsList, TabsPanel, TabsTab } from "@/design-system";
-import { DataTable } from "@/components/shared/data-table";
-import { DetailCard } from "@/components/shared/detail-card";
+import {
+  DataTable,
+  DetailCard,
+  TabCount,
+  Tabs,
+  TabsList,
+  TabsPanel,
+  TabsTab,
+} from "@/design-system";
 import { PageBreadcrumbs } from "@/components/shared/page-breadcrumbs";
 import { ReportInspectionDrawer } from "@/features/report-inspection/components/report-inspection-drawer";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";

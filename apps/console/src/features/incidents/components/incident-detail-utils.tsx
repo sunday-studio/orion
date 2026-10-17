@@ -1,5 +1,4 @@
-import { StatusBadge } from "@/design-system";
-import { DetailGroup, DetailItem, reportTimestamp } from "@/components/shared/detail-group";
+import { DetailGroup, DetailItem, StatusBadge, reportTimestamp } from "@/design-system";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import type {
   ApiAlertDeliveryResponse,

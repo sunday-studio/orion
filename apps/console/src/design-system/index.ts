@@ -1,4 +1,5 @@
 export * from "@/design-system/components/badge";
+export * from "@/design-system/components/breadcrumb";
 export * from "@/design-system/components/button";
 export * from "@/design-system/components/card";
 export * from "@/design-system/components/checkbox";
@@ -8,6 +9,8 @@ export * from "@/design-system/components/dialog";
 export * from "@/design-system/components/list-pagination";
 export * from "@/design-system/components/page-header";
 export * from "@/design-system/components/textarea";
+export * from "@/design-system/components/detail-card";
+export * from "@/design-system/components/detail-group";
 export * from "@/design-system/components/drawer";
 export * from "@/design-system/components/empty-state";
 export * from "@/design-system/components/input";

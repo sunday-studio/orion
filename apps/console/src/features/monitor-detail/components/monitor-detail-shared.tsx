@@ -30,7 +30,7 @@ export const heartbeatPayloadContext = (report?: ApiMonitorReportResponse) => {
   );
 };
 
-export { DetailGroup, DetailItem, reportTimestamp } from "@/components/shared/detail-group";
+export { DetailGroup, DetailItem, reportTimestamp } from "@/design-system";
 
 export const formatUptime = (value?: number) =>
   typeof value === "number" ? `${value.toFixed(1)}%` : "—";

@@ -1,5 +1,4 @@
-import { DataTableLink, ListPagination, StatusBadge } from "@/design-system";
-import { DataTable } from "@/components/shared/data-table";
+import { DataTable, DataTableLink, ListPagination, StatusBadge } from "@/design-system";
 import {
   type ApiIncidentResponse,
   type ApiMonitorResponse,
@@ -81,7 +80,6 @@ export const AgentMonitorsTab = ({ agentId, highlightedIncident }: AgentMonitors
           emptyMessage="No monitors registered"
           getRowId={(monitor) => monitor.id ?? ""}
           isLoading={monitorsResponse.isLoading}
-          loadingMessage="Loading monitors..."
           rowClassName={(row) =>
             cn(highlightedIncident?.monitor_id === row.original.id && "bg-amber-50")
           }

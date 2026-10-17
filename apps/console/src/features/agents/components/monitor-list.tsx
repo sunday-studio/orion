@@ -1,7 +1,6 @@
-import { DataTableLink, ListPagination, StatusBadge } from "@/design-system";
+import { DataTable, DataTableLink, ListPagination, StatusBadge } from "@/design-system";
 import { type ApiMonitorResponse, useGetAgentMonitors } from "@/orion-sdk";
 import type { ColumnDef } from "@tanstack/react-table";
-import { DataTable } from "@/components/shared/data-table";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { useState } from "react";
 
@@ -66,7 +65,6 @@ export const MonitorList = ({ agentId }: { agentId: string }) => {
         data={monitors}
         emptyMessage="No monitors registered."
         getRowId={(monitor) => monitor.id ?? ""}
-        variant="contained"
       />
       <ListPagination
         count={count}
