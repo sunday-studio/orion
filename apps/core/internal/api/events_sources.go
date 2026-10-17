@@ -26,7 +26,20 @@ type orionEventCursor struct {
 }
 
 func encodeOrionEventCursor(e OrionEventResponse) string {
-	return base64.RawURLEncoding.EncodeToString([]byte(e.CreatedAt.UTC().Format(time.RFC3339Nano) + "|" + e.rowID))
+	return encodeOrionEventPosition(orionEventCursor{At: e.CreatedAt, ID: e.rowID})
+}
+
+func encodeOrionEventPosition(c orionEventCursor) string {
+	return base64.RawURLEncoding.EncodeToString([]byte(c.At.UTC().Format(time.RFC3339Nano) + "|" + c.ID))
+}
+
+// compare orders an event against the position newest-first: negative when the event is
+// newer than the position, zero when equal, positive when older.
+func (c orionEventCursor) compare(e OrionEventResponse) int {
+	if cmp := c.At.Compare(e.CreatedAt); cmp != 0 {
+		return cmp
+	}
+	return strings.Compare(c.ID, e.rowID)
 }
 
 func decodeOrionEventCursor(raw string) (orionEventCursor, error) {
@@ -65,22 +78,35 @@ type orionEventFetcher func(cursor *orionEventCursor, n int) ([]OrionEventRespon
 // orionEventsPage merges every source into one newest-first list of at most `need` events
 // that match the filters and come after the cursor. Each source is read in bounded keyset
 // batches, so the cost depends on the page size, not on table size.
-func (s *Server) orionEventsPage(cursor *orionEventCursor, need int, filters orionEventFilters) ([]OrionEventResponse, error) {
+//
+// When a source hits the batch cap while its matches are sparse, nothing older than the
+// position it reached is known for that source. The result is therefore trimmed to events
+// newer than the newest such frontier, which is returned so the caller can resume from it
+// instead of skipping the unscanned gap.
+func (s *Server) orionEventsPage(cursor *orionEventCursor, need int, filters orionEventFilters) ([]OrionEventResponse, *orionEventCursor, error) {
 	var merged []OrionEventResponse
+	var frontier *orionEventCursor
 	for _, fetch := range s.orionEventFetchers(filters.Source) {
 		position := cursor
 		var kept []OrionEventResponse
-		for batch := 0; batch < orionEventMaxBatches && len(kept) < need; batch++ {
+		for batch := 0; len(kept) < need; batch++ {
 			rows, err := fetch(position, orionEventBatch)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			kept = append(kept, filterOrionEvents(rows, filters)...)
 			if len(rows) < orionEventBatch {
-				break
+				break // source exhausted
 			}
 			last := rows[len(rows)-1]
 			position = &orionEventCursor{At: last.CreatedAt.UTC(), ID: last.rowID}
+			if batch+1 >= orionEventMaxBatches && len(kept) < need {
+				// Cut off by the cap: older matches of this source are unknown below `position`.
+				if frontier == nil || frontier.compare(OrionEventResponse{CreatedAt: position.At, rowID: position.ID}) < 0 {
+					frontier = position // keep the newest frontier
+				}
+				break
+			}
 		}
 		if len(kept) > need {
 			kept = kept[:need]
@@ -88,10 +114,19 @@ func (s *Server) orionEventsPage(cursor *orionEventCursor, need int, filters ori
 		merged = append(merged, kept...)
 	}
 	slices.SortStableFunc(merged, orionEventAfter)
+	if frontier != nil {
+		trimmed := merged[:0]
+		for _, e := range merged {
+			if frontier.compare(e) <= 0 { // at or newer than the frontier; the next page starts strictly before it
+				trimmed = append(trimmed, e)
+			}
+		}
+		merged = trimmed
+	}
 	if len(merged) > need {
 		merged = merged[:need]
 	}
-	return merged, nil
+	return merged, frontier, nil
 }
 
 func (s *Server) orionEventFetchers(source string) []orionEventFetcher {

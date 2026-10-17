@@ -85,3 +85,42 @@ func TestEventsKeysetPaginationWalksEveryEventOnceInOrder(t *testing.T) {
 		t.Fatalf("filtered page = %d events, has_more=%v", len(filtered.Data.Events), filtered.Data.HasMore)
 	}
 }
+
+// Review P1: a source cut off by the scan cap must not make the walk skip its older matches.
+func TestEventsFilteredKeysetWalkDoesNotSkipPastScanCap(t *testing.T) {
+	server := setupTestServer(t)
+	base := time.Now().UTC().Add(-3 * time.Hour)
+	at := func(i int) time.Time { return base.Add(time.Duration(i) * time.Millisecond) }
+	// Oldest: 20 matching deliveries. Then one matching incident event. Newest: a wall of non-matching events.
+	for i := 0; i < 20; i++ {
+		server.db.Create(&db.AlertDelivery{ID: fmt.Sprintf("ad-%03d", i), IncidentID: "i", EventType: "incident_opened", Channel: "c", Type: "webhook", Status: "sent", CreatedAt: at(i)})
+	}
+	server.db.Create(&db.IncidentEvent{ID: "ie-hit", IncidentID: "i", Type: "alert_sent", Message: "m", CreatedAt: at(100)})
+	var wall []db.IncidentEvent
+	for i := 0; i < orionEventMaxBatches*orionEventBatch+1000; i++ {
+		wall = append(wall, db.IncidentEvent{ID: fmt.Sprintf("ie-%06d", i), IncidentID: "i", Type: "note", Message: "m", CreatedAt: at(1000 + i)})
+	}
+	if err := server.db.CreateInBatches(wall, 500).Error; err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]bool{}
+	cursor := ""
+	for pages := 0; pages < 100; pages++ {
+		path := "/v1/events?type=alert_sent&limit=5"
+		if cursor != "" {
+			path += "&cursor=" + cursor
+		}
+		var page eventsPage
+		decodeResponse(t, performJSONRequest(t, server, http.MethodGet, path, nil, ""), &page)
+		for _, e := range page.Data.Events {
+			seen[e.ID] = true
+		}
+		if !page.Data.HasMore {
+			break
+		}
+		cursor = page.Data.NextCursor
+	}
+	if !seen["ie-hit"] || len(seen) != 21 {
+		t.Fatalf("walk saw %d matching events (ie-hit=%v), want all 21", len(seen), seen["ie-hit"])
+	}
+}

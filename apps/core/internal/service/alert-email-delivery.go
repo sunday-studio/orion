@@ -42,9 +42,14 @@ func (s *AlertService) deliverEmailPayload(channel db.AlertChannel, deliveryID s
 		}
 		if err := SendAlertEmail(s.cfg, message); err != nil {
 			failures = append(failures, fmt.Sprintf("%s: %v", recipient.Email, err))
+			if strings.HasPrefix(err.Error(), "smtp connect") {
+				break // server unreachable: the remaining recipients are retried on the next attempt
+			}
 			continue
 		}
-		s.db.Create(&db.AlertDeliveryRecipient{DeliveryID: deliveryID, RecipientID: recipient.ID, SentAt: now})
+		if err := s.db.Create(&db.AlertDeliveryRecipient{DeliveryID: deliveryID, RecipientID: recipient.ID, SentAt: now}).Error; err != nil {
+			s.logger.Error("Failed to record email delivery; a retry may duplicate it", "delivery_id", deliveryID, "error", err)
+		}
 	}
 	if len(failures) > 0 {
 		return newAlertDeliveryError("smtp", errors.New(strings.Join(failures, "; ")))

@@ -66,7 +66,7 @@ func (s *Server) listOrionEvents(c *gin.Context) {
 		Search: strings.TrimSpace(c.Query("q")),
 	}
 
-	events, err := s.orionEventsPage(cursor, offset+limit+1, filters)
+	events, frontier, err := s.orionEventsPage(cursor, offset+limit+1, filters)
 	if err != nil {
 		s.logger.Error("Failed to list Orion events", "error", err)
 		utils.InternalError(c, "Failed to list Orion events", err)
@@ -77,8 +77,14 @@ func (s *Server) listOrionEvents(c *gin.Context) {
 	end := min(offset+limit, len(events))
 	page := events[start:end]
 	nextCursor := ""
-	if hasMore && len(page) > 0 {
+	switch {
+	case hasMore && len(page) > 0:
 		nextCursor = encodeOrionEventCursor(page[len(page)-1])
+	case frontier != nil:
+		// A source was cut off by the scan cap: resume from where scanning stopped, even if
+		// this page is short or empty, so no older match is skipped.
+		hasMore = true
+		nextCursor = encodeOrionEventPosition(*frontier)
 	}
 	total := int64(offset + len(page))
 	if hasMore {
