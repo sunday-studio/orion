@@ -3,13 +3,12 @@ import { toZoned } from "@/utils/date";
 
 export const NOT_CONNECTED_AFTER_MS = 5 * 60 * 1000;
 
-export type ServerPlatform = "linux" | "macos" | "docker";
+export type ServerPlatform = "linux" | "macos";
 
-/** Core only mints enrollments for these platforms (Windows is out of scope, D-014). */
+/** Linux and macOS only (D-014); the Docker tile returns once the agent image ships. */
 export const platformTiles = [
   { value: "linux", title: "Linux", caption: "systemd" },
   { value: "macos", title: "macOS", caption: "launchd" },
-  { value: "docker", title: "Docker", caption: "compose" },
 ] as const;
 
 export const coreOrigin = () => getApiBase() || window.location.origin;

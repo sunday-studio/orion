@@ -49,3 +49,41 @@ test("leaving Add server cancels an unused enrollment but not a claimed one", as
   await page.waitForTimeout(500);
   expect(deletes).toHaveLength(0);
 });
+
+test("Add server offers only Linux and macOS", async ({ page }) => {
+  await mockApi(page, [
+    overview,
+    { pattern: /\/v1\/auth\/me$/, body: { username: "admin" } },
+    { pattern: /\/v1\/enrollments$/, body: created },
+    { pattern: /\/v1\/enrollments\/enr-1$/, body: created },
+  ]);
+  await page.goto("/servers/new");
+  const radios = page.getByRole("radiogroup", { name: "Operating system" }).getByRole("radio");
+  await expect(radios).toHaveCount(2);
+  await expect(radios.nth(0)).toContainText("Linux");
+  await expect(radios.nth(1)).toContainText("macOS");
+});
+
+test("Overview stays the active tab while connecting an app", async ({ page }) => {
+  await mockApi(page, [overview, { pattern: /\/v1\/auth\/me$/, body: { username: "admin" } }]);
+  await page.goto("/apps/new");
+  const nav = page.getByLabel("Primary navigation");
+  await expect(nav.getByRole("link", { name: "Overview" })).toHaveAttribute("aria-current", "page");
+  await expect(nav.getByRole("link", { name: "Servers" })).not.toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+});
+
+test("the first-run footer stays on one line", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 460 });
+  await mockApi(page, [
+    { pattern: /\/v1\/overview$/, body: { state: "empty", stats: {} } },
+    { pattern: /\/v1\/auth\/me$/, body: { username: "admin" } },
+  ]);
+  await page.goto("/");
+  const footer = page.getByText(/Then connect an alert channel/);
+  await footer.waitFor();
+  const box = (await footer.boundingBox())!;
+  expect(box.height).toBeLessThan(24);
+});
