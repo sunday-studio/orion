@@ -15,7 +15,8 @@ const keepMigrationBackups = 3
 
 // backupBeforeMigration writes a consistent copy of the database (VACUUM INTO)
 // to <data dir>/backups before pending migrations are applied to an existing
-// database, and keeps only the newest few. In-memory databases are skipped.
+// database, and keeps only the newest few. The file name includes nanoseconds and the
+// PID so two processes upgrading at the same moment (API and Worker) never collide. In-memory databases are skipped.
 func backupBeforeMigration(db *sql.DB, firstPendingVersion int, logger *utils.Logger) error {
 	dbPath, err := databaseFilePath(db)
 	if err != nil || dbPath == "" {
@@ -25,7 +26,7 @@ func backupBeforeMigration(db *sql.DB, firstPendingVersion int, logger *utils.Lo
 	if err := os.MkdirAll(backupDir, 0o700); err != nil {
 		return fmt.Errorf("create migration backup dir: %w", err)
 	}
-	target := filepath.Join(backupDir, fmt.Sprintf("orion-pre-migrate-%06d-%s.db", firstPendingVersion, time.Now().UTC().Format("20060102T150405Z")))
+	target := filepath.Join(backupDir, fmt.Sprintf("orion-pre-migrate-%06d-%s-%d.db", firstPendingVersion, time.Now().UTC().Format("20060102T150405.000000000Z"), os.Getpid()))
 	if _, err := db.Exec(fmt.Sprintf("VACUUM INTO '%s'", strings.ReplaceAll(target, "'", "''"))); err != nil {
 		return fmt.Errorf("back up database before migration: %w", err)
 	}
