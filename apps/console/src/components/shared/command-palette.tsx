@@ -8,6 +8,7 @@ export const paletteDestinations = [
   { label: "Incidents", to: "/incidents" },
   { label: "Triage", to: "/incidents/triage" },
   { label: "Servers", to: "/servers" },
+  { label: "Add server", to: "/servers/new" },
   { label: "Monitors", to: "/monitors" },
   { label: "Alerts", to: "/alerts" },
   { label: "Status pages", to: "/status-pages" },

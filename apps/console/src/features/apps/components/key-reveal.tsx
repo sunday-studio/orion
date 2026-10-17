@@ -4,10 +4,12 @@ import { Button, Checkbox } from "@/design-system";
 type KeyRevealProps = {
   secret: string;
   onDone: () => void;
+  /** Hide the Done button when the surrounding flow supplies its own. */
+  hideDone?: boolean;
 };
 
 /** One-time secret display (design rule 4): copy it, tick "stored it", then Done. */
-export const KeyReveal = ({ secret, onDone }: KeyRevealProps) => {
+export const KeyReveal = ({ secret, onDone, hideDone = false }: KeyRevealProps) => {
   const [stored, setStored] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -36,17 +38,21 @@ export const KeyReveal = ({ secret, onDone }: KeyRevealProps) => {
           {copied ? "Copied" : "Copy"}
         </Button>
       </div>
-      <label className="flex items-center gap-2 text-[13px]">
-        <Checkbox
-          aria-label="I stored the key"
-          checked={stored}
-          onCheckedChange={(next) => setStored(Boolean(next))}
-        />
-        I stored it somewhere safe
-      </label>
-      <Button size="sm" disabled={!stored} onClick={onDone}>
-        Done
-      </Button>
+      {!hideDone && (
+        <>
+          <label className="flex items-center gap-2 text-[13px]">
+            <Checkbox
+              aria-label="I stored the key"
+              checked={stored}
+              onCheckedChange={(next) => setStored(Boolean(next))}
+            />
+            I stored it somewhere safe
+          </label>
+          <Button size="sm" disabled={!stored} onClick={onDone}>
+            Done
+          </Button>
+        </>
+      )}
     </section>
   );
 };
