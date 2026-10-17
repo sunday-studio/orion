@@ -193,37 +193,6 @@ func runConfigValidate(_ context.Context, opts *Options) error {
 	return nil
 }
 
-func runConfigDiff(_ context.Context, opts *Options, calledAs string) error {
-	if calledAs == "" {
-		calledAs = "diff"
-	}
-	currentConfig, err := config.LoadUserConfig(opts.ConfigPath)
-	if err != nil {
-		return NewCommandError("could not load current config", err)
-	}
-	if opts.JSON {
-		return renderJSON(outputWriter, configSummaryJSON(opts.ConfigPath, currentConfig))
-	}
-
-	PrintHeader("config " + calledAs)
-	PrintInfo("config", opts.ConfigPath)
-	PrintStep("loading config")
-	PrintOK("config loaded")
-
-	fmt.Fprintln(outputWriter, "Current configuration:")
-	fmt.Fprintf(outputWriter, "  Core URL: %s\n", currentConfig.CoreURL)
-	fmt.Fprintf(outputWriter, "  Interval: %s\n", currentConfig.Interval)
-	fmt.Fprintf(outputWriter, "  Monitors: %d\n", len(currentConfig.Monitors))
-	if len(currentConfig.Monitors) == 0 {
-		fmt.Fprintln(outputWriter, "    - none configured")
-	} else {
-		for _, m := range currentConfig.Monitors {
-			fmt.Fprintf(outputWriter, "    - %s (%s every %s)\n", m.Name, m.Type, m.Interval)
-		}
-	}
-	return nil
-}
-
 type configSummaryPayload struct {
 	Path     string                 `json:"path"`
 	CoreURL  string                 `json:"core_url"`
