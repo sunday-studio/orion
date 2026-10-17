@@ -89,6 +89,11 @@ func (s *Server) receiveAgentReport(c *gin.Context) {
 		// Don't fail the request if last-seen update fails
 	}
 
+	// A host that was reported offline is back: close its connectivity incident.
+	if err := service.NewIncidentService(s.db, s.logger, s.cfg).ResolveAgentOffline(agentID.(string)); err != nil {
+		s.logger.Error("Failed to resolve agent offline incident", "error", err, "agent_id", agentID)
+	}
+
 	// Prepare response
 	response := ReportResponse{
 		Message:   "Report received successfully",
