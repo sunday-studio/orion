@@ -1,20 +1,9 @@
 import { IncidentSummary, type IncidentSummaryStatus } from "./incident-summary";
-import { DataTable } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
-import { EmptyState } from "@/components/shared/empty-state";
-import {
-  NotificationBadge,
-  SeverityBadge,
-  StatusBadge,
-  toNotificationStatus,
-  toSeverity,
-  toStatus,
-} from "@/components/shared/status-badges";
+import { DataTable, Select, StatusBadge } from "@/design-system";
 import { type ApiIncidentResponse, useGetIncidents } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { ListPagination } from "@/components/shared/list-pagination";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { type ColumnDef } from "@tanstack/react-table";
 import { parseAsInteger, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 
@@ -80,12 +69,12 @@ const columns: ColumnDef<ApiIncidentResponse>[] = [
   {
     accessorKey: "severity",
     header: "Severity",
-    cell: ({ row }) => <SeverityBadge value={toSeverity(row.original.severity)} />,
+    cell: ({ row }) => <StatusBadge status={row.original.severity} />,
   },
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => <StatusBadge value={toStatus(row.original.status)} />,
+    cell: ({ row }) => <StatusBadge status={row.original.status} />,
   },
   {
     accessorKey: "agent_name",
@@ -143,10 +132,9 @@ const columns: ColumnDef<ApiIncidentResponse>[] = [
     accessorKey: "notification_status",
     header: "Notification",
     cell: ({ row }) => (
-      <NotificationBadge
-        value={toNotificationStatus(row.original.notification_status)}
-        fallback="—"
-      />
+      <StatusBadge status={row.original.notification_status}>
+        {row.original.notification_status ?? "—"}
+      </StatusBadge>
     ),
   },
   {
@@ -229,32 +217,6 @@ export const IncidentList = () => {
     void setIncidentQuery({ page: Math.floor(nextOffset / INCIDENT_LIMIT) + 1 });
   };
 
-  if (incidentsResponse.isLoading || filteredIncidentsResponse.isLoading) {
-    return <div className="py-3 text-sm text-neutral-600">Loading incidents...</div>;
-  }
-
-  if (incidentsResponse.error || filteredIncidentsResponse.error) {
-    return (
-      <EmptyState
-        title="Unable to load incidents"
-        description="Retry after Core is reachable."
-        tone="error"
-        action={
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              void incidentsResponse.refetch();
-              void filteredIncidentsResponse.refetch();
-            }}
-          >
-            Retry
-          </Button>
-        }
-      />
-    );
-  }
-
   return (
     <div className="space-y-5">
       <IncidentSummary
@@ -307,6 +269,18 @@ export const IncidentList = () => {
               : "No incidents recorded."
           }
           getRowId={(incident) => incident.id ?? ""}
+          isLoading={incidentsResponse.isLoading || filteredIncidentsResponse.isLoading}
+          error={
+            incidentsResponse.error || filteredIncidentsResponse.error
+              ? {
+                  message: "Unable to load incidents",
+                  onRetry: () => {
+                    void incidentsResponse.refetch();
+                    void filteredIncidentsResponse.refetch();
+                  },
+                }
+              : undefined
+          }
         />
       </div>
       {count > 0 && (
@@ -334,20 +308,15 @@ const IncidentSelect = <T extends readonly string[]>({
   options,
   onValueChange,
 }: IncidentSelectProps<T>) => (
-  <Select value={value} onValueChange={(nextValue) => onValueChange(nextValue as T[number])}>
-    <SelectTrigger className="min-w-44 text-xs" size="sm" aria-label={label}>
-      <span data-slot="select-value">
-        {label}: {formatIncidentFilterValue(value)}
-      </span>
-    </SelectTrigger>
-    <SelectContent align="start">
-      {options.map((option) => (
-        <SelectItem key={option} value={option}>
-          {formatIncidentFilterItem(label, option)}
-        </SelectItem>
-      ))}
-    </SelectContent>
-  </Select>
+  <Select
+    label={label}
+    value={value}
+    options={options.map((option) => ({
+      value: option,
+      label: formatIncidentFilterValue(option),
+    }))}
+    onValueChange={(nextValue) => onValueChange(nextValue as T[number])}
+  />
 );
 
 const formatIncidentFilterValue = (value: string) =>
@@ -357,6 +326,3 @@ const formatIncidentFilterValue = (value: string) =>
         .split("_")
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(" ");
-
-const formatIncidentFilterItem = (label: string, value: string) =>
-  value === "all" ? `All ${label.toLowerCase()}` : formatIncidentFilterValue(value);
