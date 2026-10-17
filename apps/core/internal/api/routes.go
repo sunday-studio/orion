@@ -25,6 +25,7 @@ type Server struct {
 	logger                       *utils.Logger
 	cfg                          *config.Config
 	agentService                 *service.AgentService
+	enrollments                  *service.EnrollmentService
 	authService                  *service.AuthService
 	reportService                *service.ReportService
 	serviceLogService            *service.ServiceLogService
@@ -83,6 +84,7 @@ func NewServer(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *Ser
 		db:                           database,
 		logger:                       logger,
 		cfg:                          cfg,
+		enrollments:                  service.NewEnrollmentService(database, logger),
 		agentService:                 agentService,
 		authService:                  authService,
 		reportService:                reportService,
@@ -202,6 +204,12 @@ func (s *Server) setupRoutes() {
 			frontend.POST("/incidents/candidates/:id/dismiss", s.dismissIncidentCandidate)
 			frontend.GET("/alerts/deliveries", s.listAlertDeliveries)
 			frontend.POST("/alerts/deliveries/:id/retry", s.retryAlertDelivery)
+			frontend.POST("/enrollments", s.createEnrollment)
+			frontend.GET("/enrollments/:id", s.getEnrollment)
+			frontend.DELETE("/enrollments/:id", s.cancelEnrollment)
+			frontend.GET("/overview", s.getOverview)
+			frontend.GET("/search", s.searchEverything)
+			frontend.GET("/auth/me", s.authMe)
 			frontend.GET("/alerts/channels", s.listAlertChannels)
 			frontend.POST("/alerts/channels", s.createAlertChannel)
 			frontend.PATCH("/alerts/channels/:id", s.updateAlertChannel)
