@@ -103,7 +103,7 @@ test("creates webhook alert destinations and records sanitized delivery logs", a
     .getByRole("link", { name: "Alerts", exact: true })
     .click();
   await page.getByRole("tab", { name: "Channels" }).click();
-  await expect(page.getByRole("heading", { name: "Webhook Channels" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Channels" })).toBeVisible();
 
   await createWebhookDestination(page, sentDestination, `${webhookReceiverURL}/webhook/success`);
   await createWebhookDestination(

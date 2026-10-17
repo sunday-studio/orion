@@ -18,6 +18,8 @@ import {
   deliveryStatuses,
   getMutationErrorMessage,
 } from "./components/alert-constants";
+import { ChannelRecipientsDrawer } from "./components/channel-recipients-drawer";
+import { EmailChannelDialog } from "./components/email-channel-dialog";
 import { DeleteWebhookDialog } from "./components/delete-webhook-dialog";
 import { NotificationLogTab } from "./components/notification-log-tab";
 import { WebhookChannelsTab } from "./components/webhook-channels-tab";
@@ -25,6 +27,8 @@ import { WebhookDialog } from "./components/webhook-dialog";
 
 export const AlertsPage = () => {
   const [isWebhookDialogOpen, setIsWebhookDialogOpen] = useState(false);
+  const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
+  const [recipientsChannelId, setRecipientsChannelId] = useState<string>();
   const [editingChannel, setEditingChannel] = useState<ApiAlertChannelResponse | null>(null);
   const [deletingChannel, setDeletingChannel] = useState<ApiAlertChannelResponse | null>(null);
   const [webhookName, setWebhookName] = useState("");
@@ -64,7 +68,7 @@ export const AlertsPage = () => {
   });
   const channels = useMemo(() => channelsResponse.data?.channels ?? [], [channelsResponse.data]);
   const webhookChannels = useMemo(
-    () => channels.filter((item) => item.type === "webhook"),
+    () => channels.filter((item) => item.type === "webhook" || item.type === "email"),
     [channels],
   );
 
@@ -291,6 +295,8 @@ export const AlertsPage = () => {
             isLoading={channelsResponse.isLoading}
             isTesting={testChannel.isPending}
             onCreate={openCreateWebhookDialog}
+            onCreateEmail={() => setIsEmailDialogOpen(true)}
+            onRecipients={(channel) => setRecipientsChannelId(channel.id)}
             onDelete={setDeletingChannel}
             onEdit={openEditWebhookDialog}
             onTest={testAlertDestination}
@@ -320,6 +326,17 @@ export const AlertsPage = () => {
         onSubmit={handleWebhookSubmit}
         onUrlChange={setWebhookUrl}
         url={webhookUrl}
+      />
+      <EmailChannelDialog
+        open={isEmailDialogOpen}
+        onOpenChange={setIsEmailDialogOpen}
+        onCreated={setRecipientsChannelId}
+      />
+      <ChannelRecipientsDrawer
+        channel={webhookChannels.find((item) => item.id === recipientsChannelId)}
+        onOpenChange={(open) => {
+          if (!open) setRecipientsChannelId(undefined);
+        }}
       />
       <DeleteWebhookDialog
         channel={deletingChannel}
