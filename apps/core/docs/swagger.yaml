@@ -1480,6 +1480,11 @@ definitions:
       suppress:
         type: boolean
     type: object
+  internal_api.dismissIncidentCandidateRequest:
+    properties:
+      reason:
+        type: string
+    type: object
   internal_api.incidentCoverageRequest:
     properties:
       covered_until:
@@ -3994,6 +3999,55 @@ paths:
       summary: List alert deliveries
       tags:
       - alerts
+  /v1/alerts/deliveries/{id}/retry:
+    post:
+      consumes:
+      - application/json
+      description: Re-queue a failed alert delivery so the Worker dispatcher sends
+        it again. Only failed deliveries can be retried.
+      operationId: retryAlertDelivery
+      parameters:
+      - description: Alert delivery ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    delivery:
+                      $ref: '#/definitions/internal_api.AlertDeliveryResponse'
+                  type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Retry an alert delivery
+      tags:
+      - alerts
   /v1/alerts/routes:
     get:
       consumes:
@@ -5213,6 +5267,58 @@ paths:
       summary: Get incident candidates
       tags:
       - health
+  /v1/incidents/candidates/{id}/dismiss:
+    post:
+      consumes:
+      - application/json
+      description: Hide a failing monitor from the incident candidates list. The candidate
+        id is the monitor id. It reappears if the monitor recovers and fails again.
+      operationId: dismissIncidentCandidate
+      parameters:
+      - description: Candidate (monitor) ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Optional reason
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/internal_api.dismissIncidentCandidateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    dismissed_at:
+                      type: string
+                    monitor_id:
+                      type: string
+                  type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Dismiss an incident candidate
+      tags:
+      - incidents
   /v1/logs/service:
     get:
       consumes:

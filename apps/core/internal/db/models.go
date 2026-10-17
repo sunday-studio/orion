@@ -447,3 +447,12 @@ type DataLifecycleSettings struct {
 	CreatedAt           time.Time  `json:"created_at"`
 	UpdatedAt           time.Time  `json:"updated_at"`
 }
+
+// IncidentCandidateDismissal hides an incident candidate (a failing monitor with no
+// incident) from the review list until the monitor reports healthy again.
+type IncidentCandidateDismissal struct {
+	MonitorID   string    `json:"monitor_id" gorm:"primaryKey"`
+	DismissedBy string    `json:"dismissed_by"`
+	Reason      string    `json:"reason"`
+	DismissedAt time.Time `json:"dismissed_at"`
+}
