@@ -307,3 +307,30 @@ All components are Base UI primitives (`@base-ui/react`) styled with Tailwind ut
 - Disabled rows: text `faint`, no hover.
 - Selection: selecting any row shows the bulk bar; Escape clears.
 - Keyboard: `/` focuses the filter or query bar; arrows move within tray, tabs and menus; Enter activates; the palette opens on Cmd K.
+
+## 15. CLI and terminal conventions (agent plan C1 to C4)
+
+The agent CLI (`orion-agent`) uses Charm (`lipgloss`, `bubbletea`, `huh`, `fang`) and takes its look from the same tokens as the Console. Canvas page "CLI and agent" draws each screen as an 80 column terminal with notes.
+
+**Color mapping.** Terminal palette is generated from the token source (plan C1): background follows the terminal; accent `#6ee7b7` (dark) or `#1f7a50` (light) from `--color-accent`; muted `#8b9892` and faint `#6a7570` from `--color-muted` and `--color-faint`; danger `#fda4af`/`#be123c`; warning `#fcd34d`/`#92400e`; info `#93c5fd`/`#1e40af`. Truecolor first, then 256 and 16 color fallbacks. `NO_COLOR`, `--no-color` and non-TTY output print plain text.
+
+**Never color alone.** Status uses a glyph and a word: up `●`, down `■`, degraded `◐`, unknown `○`, maintenance `‖`. Results use `✓` (pass), `!` (warning), `✗` (fail) followed by a label. Plain mode prints `[ok]`, `[warn]`, `[fail]` and `up/down/slow/?`. Spinner frames `⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏` replaced by `...` when not a TTY.
+
+**Primitives.**
+- Header: bold name, muted version; no banner art.
+- Key and value: muted key, aligned values, 2 space indent.
+- Box: `lipgloss` rounded border in faint color with the title in the top edge; used for Status and the installer's Doctor summary.
+- Table: muted header, one thin rule, no vertical borders, status column uses glyph plus word.
+- Steps: `✓` done, spinner running, `✗` failed, one line each with detail muted after the label.
+- Callouts: `ERROR` badge (inverse red) with one line summary; file:line with a caret line; "Did you mean"; `Fix:` and `Docs:` lines.
+- Diff: `+` green, `-` red, unchanged muted.
+- Focused input: left bar `┃` in accent; hints muted; footer lists keys on an inverse muted bar.
+- Width: readable at 80 columns; no line over 78 characters; long values truncate with an ellipsis.
+
+**Screens.** Install script output (plan, step lines, Doctor summary, link to the server). Setup wizard in three steps (connect, choose what to watch with confidence labels, review a diff, apply without restart). Doctor streaming checklist with a fix command under every warning and failure and a stable `--json` schema. Status box plus a table of what is watched and a short "using now" line from passive metrics. Log viewer with a status line (follow, level, source, search), level as a colored word padded to five characters, and a key footer. Help grouped by intent (fang) and errors with file, line and fix. Exit codes: 0 ok, 1 failed checks, 2 usage, 3 needs elevation.
+
+**Console Add server flow (plan A1).** The Console shows one copy-paste command with a one-time enrollment token baked in (expires in 15 minutes). The same step vocabulary appears live while waiting: command started, agent downloaded and verified, registered as the new name, waiting for the first report. Connected shows the server and the shown-once agent token; not connected shows the doctor checklist. Artboards: add-server, add-server-waiting, add-server-connected, add-server-failed.
+
+## 16. Sign in
+
+The left brand panel is dark green and fades into the white form side through a pale mint transition (no hard edge). Behind the headline, a dot grid at 16px spacing twinkles slowly (5s) and a brighter band of dots sweeps left to right (7s). Both stop under `prefers-reduced-motion`. The form column is 340px, centered in the right half.
