@@ -115,3 +115,15 @@ test("shows the overview landing page and dismisses onboarding", async ({ page }
   await page.reload();
   await expect(page.getByLabel("Getting started")).toHaveCount(0);
 });
+
+test("opens the command palette and shortcuts sheet from the keyboard", async ({ page }) => {
+  await signIn(page);
+  await page.keyboard.press("Control+k");
+  await page.getByLabel("Search destinations").fill("mon");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/monitors$/);
+  await expect(page.getByLabel("Search destinations")).toHaveCount(0);
+
+  await page.keyboard.press("?");
+  await expect(page.getByRole("heading", { name: "Keyboard shortcuts" })).toBeVisible();
+});

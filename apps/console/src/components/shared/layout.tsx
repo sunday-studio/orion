@@ -1,4 +1,5 @@
 import { AppHeader } from "@/components/shared/app-header";
+import { GlobalShortcuts } from "@/components/shared/global-shortcuts";
 import { OfflineBanner } from "@/components/shared/offline-banner";
 import { RouteErrorBoundary } from "@/components/shared/route-error-boundary";
 import { Suspense } from "react";
@@ -8,6 +9,7 @@ export const Layout = () => {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-neutral-100">
       <AppHeader />
+      <GlobalShortcuts />
       <OfflineBanner />
 
       <div className="min-h-0 flex-1 overflow-y-auto bg-white">
