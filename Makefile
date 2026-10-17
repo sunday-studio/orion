@@ -1,4 +1,4 @@
-.PHONY: generate-openapi generate-sdk console-sdk build-static docker-build docker-up docker-down docker-dev-up docker-dev-down docker-dev-seed agent-test core-test core-coverage core-race core-modernize-check core-vulncheck core-contract-check core-backend-verify console-build repository-smoke generated-contracts-check release-core-build release-readiness core-build core-worker-build agent-build seed-demo-data code-line-limit agent-build-all agent-installer-test
+.PHONY: generate-openapi generate-sdk console-sdk build-static docker-build docker-up docker-down docker-dev-up docker-dev-down docker-dev-seed agent-test core-test core-coverage core-race core-modernize-check core-vulncheck core-contract-check core-backend-verify console-build repository-smoke generated-contracts-check release-core-build release-readiness core-build core-worker-build agent-build seed-demo-data code-line-limit agent-build-all agent-installer-test agent-perf
 
 VERSION ?= latest
 CORE_IMAGE ?= ghcr.io/sunday-studio/orion-core
@@ -145,3 +145,7 @@ agent-build-all:
 
 agent-installer-test:
 	deploy/scripts/agent-bootstrap-test.sh
+
+agent-perf:
+	cd apps/agent && CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o ../../tmp/orion-agent-perf .
+	python3 deploy/scripts/agent-perf-budget.py tmp/orion-agent-perf

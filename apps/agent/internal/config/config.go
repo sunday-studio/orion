@@ -132,7 +132,15 @@ type UserConfig struct {
 	Interval    string                 `yaml:"interval"`
 	GeoLocation bool                   `yaml:"geo_location,omitempty"`
 	Logging     LoggingConfig          `yaml:"logging,omitempty"`
+	Transport   TransportConfig        `yaml:"transport,omitempty"`
 	Monitors    []UserMonitor          `yaml:"monitors"`
+}
+
+// TransportConfig tunes how the agent talks to Core.
+type TransportConfig struct {
+	// Compression is "" or "none" (default) or "gzip". gzip sends request
+	// bodies over 1 KiB with Content-Encoding: gzip, which Core must accept.
+	Compression string `yaml:"compression,omitempty"`
 }
 
 type LoggingConfig struct {

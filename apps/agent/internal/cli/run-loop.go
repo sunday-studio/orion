@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
+	"runtime/debug"
 	"sync"
 	"syscall"
 	"time"
@@ -28,6 +30,14 @@ const (
 // run the collection loop, and rebuild it in place on SIGHUP or a control
 // socket reload instead of exiting.
 func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig, store *agentstate.Store) error {
+	// A monitoring daemon should stay small: collect garbage earlier and cap the
+	// heap softly (budget: RSS under 30 MB with 20 monitors).
+	if os.Getenv("GOMAXPROCS") == "" {
+		runtime.GOMAXPROCS(min(runtime.NumCPU(), 2)) // per-P caches cost RSS; the agent is I/O bound
+	}
+	debug.SetGCPercent(40)
+	debug.SetMemoryLimit(48 << 20)
+
 	ctrl := newDaemonControl(opts, userConfig, store)
 	server := control.NewServer(opts.SocketPath, ctrl)
 	if err := server.Start(); err != nil {
