@@ -174,7 +174,7 @@ func (s *Server) getCoreDiagnostics(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @ID           getHealthIssues
-// @Success      200  {object}  utils.APIResponse{data=object{issues=[]object,count=int}}
+// @Success      200  {object}  utils.APIResponse{data=HealthIssuesResponse}
 // @Failure      500  {object}  utils.APIResponse
 // @Router       /v1/health/issues [get]
 func (s *Server) getHealthIssues(c *gin.Context) {
@@ -252,7 +252,7 @@ func (s *Server) getHealthIssues(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @ID           getIncidentsCandidates
-// @Success      200  {object}  utils.APIResponse{data=object{candidates=[]object,count=int}}
+// @Success      200  {object}  utils.APIResponse{data=IncidentCandidatesResponse}
 // @Failure      500  {object}  utils.APIResponse
 // @Router       /v1/incidents/candidates [get]
 func (s *Server) getIncidentCandidates(c *gin.Context) {
@@ -283,7 +283,7 @@ func (s *Server) getIncidentCandidates(c *gin.Context) {
 			if err := s.db.Where("id = ?", monitor.AgentID).First(&agent).Error; err != nil {
 				continue
 			}
-			if agent.MaintenanceMode {
+			if agent.InMaintenance(time.Now().UTC()) {
 				continue
 			}
 
@@ -335,7 +335,7 @@ func (s *Server) getIncidentCandidates(c *gin.Context) {
 			if err := s.db.Where("id = ?", monitor.AgentID).First(&agent).Error; err != nil {
 				continue
 			}
-			if agent.MaintenanceMode {
+			if agent.InMaintenance(time.Now().UTC()) {
 				continue
 			}
 
@@ -353,6 +353,14 @@ func (s *Server) getIncidentCandidates(c *gin.Context) {
 			candidateMonitorIDs[monitor.ID] = struct{}{}
 		}
 	}
+
+	dismissed, err := s.activeCandidateDismissals()
+	if err != nil {
+		s.logger.Error("Failed to load candidate dismissals", "error", err)
+		utils.InternalError(c, "Failed to get incident candidates", err)
+		return
+	}
+	candidates = filterDismissedCandidates(candidates, dismissed)
 
 	utils.SuccessResponse(c, 200, "Incident candidates retrieved successfully", gin.H{
 		"candidates": candidates,

@@ -2,9 +2,10 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"orion/core/internal/config"
+	"orion/core/internal/db"
+	"orion/core/internal/logstore"
 	"orion/core/internal/service"
 	"orion/core/internal/shared"
 	"orion/core/internal/utils"
@@ -61,9 +62,18 @@ func main() {
 		}
 	}()
 
+	logStore, err := logstore.OpenReader(cfg.DataDir, logger)
+	if err != nil {
+		logger.Warn("Product logs database unavailable; log alerts are disabled in this Worker", "error", err)
+	} else {
+		defer logStore.Close()
+	}
+
 	app := worker.NewApp(database, logger, worker.Options{
-		WorkerID: cfg.CoreWorkerID,
-		Config:   cfg,
+		WorkerID:    cfg.CoreWorkerID,
+		Config:      cfg,
+		Concurrency: cfg.CoreWorkerConcurrency,
+		LogStore:    logStore,
 	})
 	if err := app.Run(ctx); err != nil {
 		logger.Fatal("Core monitor worker stopped with error", "error", err)
@@ -72,20 +82,7 @@ func main() {
 }
 
 func runHealthcheck(cfg *config.Config) error {
-	database, err := shared.OpenMigratedDatabase(cfg)
-	if err != nil {
-		return err
-	}
-	sqlDB, err := database.DB()
-	if err != nil {
-		return fmt.Errorf("get database handle: %w", err)
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	if err := sqlDB.PingContext(ctx); err != nil {
-		return fmt.Errorf("ping database: %w", err)
-	}
-	return nil
+	return db.CheckHealth(context.Background(), cfg.DataDir)
 }
 
 func runHeartbeatLoop(ctx context.Context, diagnostics *service.WorkerDiagnosticsService, cfg *config.Config, logger *utils.Logger) error {

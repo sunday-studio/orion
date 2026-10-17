@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"orion/core/internal/config"
 	"orion/core/internal/db"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
@@ -256,7 +257,7 @@ func alertOptionalSecret(value *string) string {
 	}
 	return strings.TrimSpace(*value)
 }
-func validateAlertChannel(channel db.AlertChannel) error {
+func validateAlertChannel(cfg *config.Config, channel db.AlertChannel) error {
 	if strings.TrimSpace(channel.Name) == "" {
 		return &requestValidationError{message: "alert channel name is required"}
 	}
@@ -265,6 +266,9 @@ func validateAlertChannel(channel db.AlertChannel) error {
 	}
 	if strings.TrimSpace(channel.WebhookURL) == "" {
 		return &requestValidationError{message: "webhook alert channel requires webhook_url"}
+	}
+	if err := service.ValidateAlertWebhookURL(cfg, channel.WebhookURL); err != nil {
+		return &requestValidationError{message: err.Error()}
 	}
 	return nil
 }

@@ -35,8 +35,24 @@ func TestAgentTokenLifecycleSupportsLegacyPlaintextThenHashesRotation(t *testing
 	}
 
 	authService := NewAuthService(database, logger)
-	if _, err := authService.ValidateToken(legacy.ID, legacy.Token); err != nil {
-		t.Fatalf("ValidateToken() legacy plaintext error = %v", err)
+	// A plaintext row can no longer authenticate until the startup migration hashes it.
+	if _, err := authService.ValidateToken(legacy.ID, legacy.Token); err == nil {
+		t.Fatal("ValidateToken() accepted an unmigrated plaintext token, want rejection")
+	}
+	migrated, err := MigrateLegacyAgentTokens(database, logger)
+	if err != nil || migrated != 1 {
+		t.Fatalf("MigrateLegacyAgentTokens() = %d, %v, want 1 row", migrated, err)
+	}
+	var afterMigration db.Agent
+	database.Where("id = ?", legacy.ID).First(&afterMigration)
+	if afterMigration.Token == "legacy-plaintext-token" || afterMigration.TokenHash == "" {
+		t.Fatalf("after migration token=%q hash=%q, want plaintext gone", afterMigration.Token, afterMigration.TokenHash)
+	}
+	if _, err := authService.ValidateToken(legacy.ID, "legacy-plaintext-token"); err != nil {
+		t.Fatalf("the agent's existing token must keep working after migration: %v", err)
+	}
+	if again, _ := MigrateLegacyAgentTokens(database, logger); again != 0 {
+		t.Fatalf("second migration converted %d rows, want idempotent 0", again)
 	}
 
 	agentService := NewAgentService(database, logger)

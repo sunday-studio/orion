@@ -101,6 +101,8 @@ type RuntimeSQLiteStats struct {
 	PageCount     int64 `json:"page_count"`
 	PageSizeBytes int64 `json:"page_size_bytes"`
 	FreelistCount int64 `json:"freelist_count"`
+	// AutoVacuum is none, full or incremental; only incremental lets retention shrink the file.
+	AutoVacuum string `json:"auto_vacuum"`
 }
 
 type RuntimeSlowOperation struct {
@@ -396,7 +398,13 @@ func (s *RuntimeDiagnosticsService) sqliteStats(ctx context.Context) (RuntimeSQL
 	if err := s.db.WithContext(ctx).Raw("PRAGMA freelist_count").Scan(&freelistCount).Error; err != nil {
 		return RuntimeSQLiteStats{}, err
 	}
+	var autoVacuum int
+	if err := s.db.WithContext(ctx).Raw("PRAGMA auto_vacuum").Scan(&autoVacuum).Error; err != nil {
+		return RuntimeSQLiteStats{}, err
+	}
+	autoVacuumMode := map[int]string{0: "none", 1: "full", 2: "incremental"}[autoVacuum]
 	return RuntimeSQLiteStats{
+		AutoVacuum:    autoVacuumMode,
 		DatabaseBytes: pageCount * pageSize,
 		PageCount:     pageCount,
 		PageSizeBytes: pageSize,

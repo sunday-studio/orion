@@ -14,6 +14,7 @@ type AgentResponse struct {
 	KernelVersion            string         `json:"kernel_version"`
 	Arch                     string         `json:"arch"`
 	MaintenanceMode          bool           `json:"maintenance_mode"`
+	MaintenanceUntil         *time.Time     `json:"maintenance_until,omitempty"`
 	Status                   string         `json:"status,omitempty"`
 	AvailabilityHealth       string         `json:"availability_health,omitempty"`
 	MonitorHealth            string         `json:"monitor_health,omitempty"`

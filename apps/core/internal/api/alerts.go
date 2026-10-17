@@ -172,7 +172,7 @@ func (s *Server) createAlertChannel(c *gin.Context) {
 		utils.BadRequest(c, err.Error())
 		return
 	}
-	if err := validateAlertChannel(channel); err != nil {
+	if err := validateAlertChannel(s.cfg, channel); err != nil {
 		utils.BadRequest(c, err.Error())
 		return
 	}
@@ -247,7 +247,7 @@ func (s *Server) updateAlertChannel(c *gin.Context) {
 		}
 		channel.SubscribedEvents = db.EncodeAlertEvents(normalizeAlertEvents(request.SubscribedEvents))
 	}
-	if err := validateAlertChannel(channel); err != nil {
+	if err := validateAlertChannel(s.cfg, channel); err != nil {
 		utils.BadRequest(c, err.Error())
 		return
 	}

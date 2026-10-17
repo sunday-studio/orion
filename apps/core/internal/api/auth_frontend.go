@@ -42,7 +42,8 @@ func (s *Server) login(c *gin.Context) {
 	}
 
 	clientIP := c.ClientIP()
-	if s.loginLimiter.TooManyFailures(clientIP) {
+	// Allow counts this attempt atomically, so parallel guesses cannot all slip under the limit.
+	if !s.loginLimiter.Allow(clientIP) {
 		utils.ErrorResponse(c, http.StatusTooManyRequests, "Too many login attempts", nil)
 		return
 	}
@@ -57,7 +58,6 @@ func (s *Server) login(c *gin.Context) {
 	userOk := subtle.ConstantTimeCompare([]byte(req.Username), []byte(s.cfg.AdminUsername)) == 1
 	passOk := subtle.ConstantTimeCompare([]byte(req.Password), []byte(s.cfg.AdminPassword)) == 1
 	if !userOk || !passOk {
-		s.loginLimiter.RecordFailure(clientIP)
 		utils.Unauthorized(c, "Invalid credentials")
 		return
 	}
@@ -100,11 +100,8 @@ func (s *Server) frontendAuthMiddleware() gin.HandlerFunc {
 		tokenStr := auth[7:]
 
 		t, err := jwt.Parse(tokenStr, func(t *jwt.Token) (any, error) {
-			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, jwt.ErrSignatureInvalid
-			}
 			return secret, nil
-		})
+		}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}), jwt.WithExpirationRequired())
 		if err != nil || !t.Valid {
 			utils.Unauthorized(c, "Invalid or expired token")
 			c.Abort()

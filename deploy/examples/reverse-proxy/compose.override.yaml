@@ -1,0 +1,30 @@
+# Adds Caddy in front of Core. Use together with the main compose file:
+#   docker compose -f deploy/docker-compose.yml -f deploy/examples/reverse-proxy/compose.override.yaml up -d
+# Core's own port is no longer published; only Caddy listens on 80/443.
+services:
+  orion-core:
+    ports: !reset []
+    environment:
+      # Caddy reaches Core over the compose network. Trust only that network's
+      # X-Forwarded-For so rate limits see real client IPs.
+      ORION_TRUSTED_PROXIES: ${ORION_TRUSTED_PROXIES:-172.16.0.0/12}
+
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    environment:
+      ORION_PUBLIC_HOST: ${ORION_PUBLIC_HOST:?set ORION_PUBLIC_HOST}
+    depends_on:
+      orion-core:
+        condition: service_healthy
+
+volumes:
+  caddy-data:
+  caddy-config:

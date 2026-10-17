@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"orion/core/internal/db"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
@@ -66,6 +67,7 @@ func (s *Server) registerMonitor(c *gin.Context) {
 // @Success      200        {object}  utils.APIResponse{data=service.UnregisterMonitorResponse}
 // @Failure      400        {object}  utils.APIResponse
 // @Failure      401        {object}  utils.APIResponse
+// @Failure      404        {object}  utils.APIResponse
 // @Failure      500        {object}  utils.APIResponse
 // @Router       /v1/agents/{agent_id}/unregister-monitor [post]
 func (s *Server) unregisterMonitor(c *gin.Context) {
@@ -89,6 +91,10 @@ func (s *Server) unregisterMonitor(c *gin.Context) {
 	req.AgentID = agentID
 
 	response, err := s.monitorService.UnregisterMonitor(&req)
+	if errors.Is(err, service.ErrMonitorNotOwned) {
+		utils.NotFound(c, "Monitor not found")
+		return
+	}
 	if err != nil {
 		s.logger.Error("Failed to unregister monitor", "error", err)
 		utils.InternalError(c, "Failed to unregister monitor", err)

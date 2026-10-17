@@ -106,7 +106,7 @@ jobs:
 
       - name: Install Swagger generator
         if: needs.changes.outputs.contracts == 'true'
-        run: go install github.com/swaggo/swag/cmd/swag@latest
+        run: go install github.com/swaggo/swag/cmd/swag@v1.16.6
 
       - name: Check generated contracts
         if: needs.changes.outputs.contracts == 'true'
@@ -158,14 +158,43 @@ jobs:
           PR_BODY: ${{ github.event.pull_request.body || '' }}
         run: .github/scripts/check-core-backend-tests.sh "${{ github.event.pull_request.base.sha }}" "${{ github.sha }}"
 
+      - name: Vet Core
+        run: go vet ./...
+        working-directory: apps/core
+
       - name: Test Core
         run: go test ./...
         working-directory: apps/core
+
+      - name: Race-test Core
+        run: go test -race ./...
+        working-directory: apps/core
+
+      - name: Vulnerability scan Core
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+          govulncheck ./...
+        working-directory: apps/core
+
+      - name: Lint Core
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.6.2
+          working-directory: apps/core
+          args: --config ../../.golangci.yml --new-from-merge-base=origin/main ./...
 
       - name: Test Core coverage
         run: |
           go test -coverprofile=coverage.out ./...
           go tool cover -func=coverage.out | tee coverage-summary.txt
+        working-directory: apps/core
+
+      - name: Enforce Core coverage floor (70% with -coverpkg)
+        run: |
+          go test -coverpkg=./internal/... -coverprofile=coverpkg.out ./... >/dev/null
+          total="$(go tool cover -func=coverpkg.out | awk '/^total:/ {gsub("%","",$3); print $3}')"
+          echo "Core coverage with -coverpkg: ${total}%"
+          awk -v t="$total" 'BEGIN { exit (t+0 >= 70.0) ? 0 : 1 }' || { echo "Core coverage ${total}% is below the 70% floor"; exit 1; }
         working-directory: apps/core
 
       - name: Upload Core coverage report
@@ -206,8 +235,24 @@ jobs:
           fi
         working-directory: apps/agent
 
+      - name: Vet Server
+        run: go vet ./...
+        working-directory: apps/agent
+
       - name: Test Server
         run: go test ./...
+        working-directory: apps/agent
+
+      - name: Race-test Server
+        run: go test -race ./...
+        working-directory: apps/agent
+
+      - name: Enforce Server coverage floor (50%, ratcheting toward the 60% target)
+        run: |
+          go test -coverprofile=floor.out ./... >/dev/null
+          total="$(go tool cover -func=floor.out | awk '/^total:/ {gsub("%","",$3); print $3}')"
+          echo "Server coverage: ${total}%"
+          awk -v t="$total" 'BEGIN { exit (t+0 >= 50.0) ? 0 : 1 }' || { echo "Server coverage ${total}% is below the 50% floor"; exit 1; }
         working-directory: apps/agent
 
       - name: Test Server coverage
@@ -228,6 +273,26 @@ jobs:
       - name: Build Server
         run: make agent-build AGENT_OUTPUT=/tmp/orion-agent
 
+  core-image-scan:
+    name: Core image scan
+    runs-on: ubuntu-24.04
+    needs: changes
+    if: needs.changes.outputs.core == 'true' || needs.changes.outputs.contracts == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Core image
+        run: docker build -f apps/core/Dockerfile -t orion-core:ci .
+
+      - name: Scan image for HIGH and CRITICAL vulnerabilities
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: orion-core:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
   repository-smoke:
     name: Repository smoke
     runs-on: ubuntu-24.04
@@ -238,7 +303,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Check shell scripts
-        run: bash -n deploy/scripts/*.sh
+        run: |
+          bash -n deploy/scripts/*.sh
+          bash deploy/scripts/test-agent-bootstrap-verify.sh
 
       - name: Validate Docker Compose syntax
         run: docker compose -f deploy/docker-compose.yml config >/tmp/orion-compose.yml
@@ -255,6 +322,7 @@ jobs:
       - console
       - core
       - server
+      - core-image-scan
       - repository-smoke
     if: always()
     steps:
@@ -264,6 +332,7 @@ jobs:
           CONSOLE_RESULT: ${{ needs.console.result }}
           CORE_RESULT: ${{ needs.core.result }}
           SERVER_RESULT: ${{ needs.server.result }}
+          CORE_IMAGE_SCAN_RESULT: ${{ needs.core-image-scan.result }}
           REPOSITORY_SMOKE_RESULT: ${{ needs.repository-smoke.result }}
         run: |
           failed=0
@@ -272,6 +341,7 @@ jobs:
             "Console:${CONSOLE_RESULT}" \
             "Core:${CORE_RESULT}" \
             "Server:${SERVER_RESULT}" \
+            "Core image scan:${CORE_IMAGE_SCAN_RESULT}" \
             "Repository smoke:${REPOSITORY_SMOKE_RESULT}"
           do
             name="${gate%%:*}"

@@ -49,6 +49,7 @@ func (l *RateLimiter) RecordFailure(key string) {
 	defer l.mu.Unlock()
 
 	now := time.Now()
+	l.evictExpiredLocked(now)
 	entry, exists := l.failures[key]
 	if !exists || now.After(entry.resetAt) {
 		entry = rateLimitEntry{resetAt: now.Add(l.window)}
@@ -57,8 +58,44 @@ func (l *RateLimiter) RecordFailure(key string) {
 	l.failures[key] = entry
 }
 
+func (l *RateLimiter) evictExpiredLocked(now time.Time) {
+	if len(l.failures) < rateLimiterEvictThreshold {
+		return
+	}
+	for k, e := range l.failures {
+		if now.After(e.resetAt) {
+			delete(l.failures, k)
+		}
+	}
+}
+
 func (l *RateLimiter) Reset(key string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	delete(l.failures, key)
 }
+
+// Allow counts one attempt for key and reports whether it is within the limit.
+// The check and the increment happen under one lock, so concurrent callers cannot
+// slip past the limit. A limit or window of zero disables limiting. Expired
+// entries are evicted opportunistically so the map cannot grow without bound.
+func (l *RateLimiter) Allow(key string) bool {
+	if l.limit <= 0 || l.window <= 0 {
+		return true
+	}
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	now := time.Now()
+	l.evictExpiredLocked(now)
+	entry, exists := l.failures[key]
+	if !exists || now.After(entry.resetAt) {
+		entry = rateLimitEntry{resetAt: now.Add(l.window)}
+	}
+	entry.count++
+	l.failures[key] = entry
+	return entry.count <= l.limit
+}
+
+const rateLimiterEvictThreshold = 1024
