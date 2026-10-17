@@ -142,6 +142,8 @@ func (s *Server) setupRoutes() {
 		{
 			public.POST("/register", s.registerAgent)
 			public.POST("/auth/login", s.login)
+			public.POST("/ingest/logs", s.ingestLogs)
+			public.POST("/ingest/otlp/v1/logs", s.ingestOTLPLogs)
 			public.POST("/heartbeats/:token", s.receiveHeartbeatSuccess)
 			public.POST("/heartbeats/:token/success", s.receiveHeartbeatSuccess)
 			public.POST("/heartbeats/:token/failure", s.receiveHeartbeatFailure)
@@ -210,6 +212,7 @@ func (s *Server) setupRoutes() {
 			s.registerStatusPageAdminRoutes(frontend)
 			frontend.GET("/events", s.listOrionEvents)
 			frontend.GET("/logs/service", s.listServiceLogs)
+			s.registerProductLogRoutes(frontend)
 			frontend.GET("/settings/data-lifecycle", s.getDataLifecycleSettings)
 			frontend.PUT("/settings/data-lifecycle", s.updateDataLifecycleSettings)
 			frontend.POST("/settings/data-lifecycle/actions/rollup", s.runDataLifecycleRollup)
