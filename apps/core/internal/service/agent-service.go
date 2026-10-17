@@ -451,12 +451,3 @@ func (s *AgentService) applyAgentListDatabaseFilters(query *gorm.DB, opts ListAg
 
 	return query
 }
-
-func (s *AgentService) GetAgentCount() (int64, error) {
-	var count int64
-	if err := s.db.Model(&db.Agent{}).Where("deleted_at IS NULL OR deleted_at = ?", time.Time{}).Count(&count).Error; err != nil {
-		s.logger.Error("Failed to count agents", "error", err)
-		return 0, err
-	}
-	return count, nil
-}

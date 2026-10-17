@@ -22,14 +22,6 @@ func (s *Server) EnableProductLogs(store *logstore.Store) {
 	s.logs = &productLogs{store: store, ingester: logstore.NewIngester(s.db, store, limiter)}
 }
 
-// ProductLogStore exposes the store for background jobs (retention) started by the binary.
-func (s *Server) ProductLogStore() *logstore.Store {
-	if s.logs == nil {
-		return nil
-	}
-	return s.logs.store
-}
-
 // requireLogs answers 503 when product logs are not enabled and reports whether to continue.
 func (s *Server) requireLogs(c *gin.Context) bool {
 	if s.logs != nil {

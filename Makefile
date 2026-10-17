@@ -1,4 +1,4 @@
-.PHONY: core-soak core-soak-30m core-soak-72h generate-openapi generate-sdk console-sdk build-static docker-build docker-up docker-down docker-dev-up docker-dev-down docker-dev-seed agent-test core-test core-coverage core-race core-modernize-check core-vulncheck core-contract-check core-backend-verify console-build repository-smoke generated-contracts-check release-core-build release-readiness core-build core-worker-build agent-build seed-demo-data code-line-limit agent-build-all agent-installer-test agent-perf agent-theme agent-theme-check
+.PHONY: core-soak core-soak-30m core-soak-72h generate-openapi generate-sdk console-sdk build-static docker-build docker-up docker-down docker-dev-up docker-dev-down console-dev docker-dev-seed agent-test core-test core-coverage core-race core-modernize-check core-vulncheck core-contract-check core-backend-verify console-build repository-smoke generated-contracts-check release-core-build release-readiness core-build core-worker-build agent-build seed-demo-data code-line-limit agent-build-all agent-installer-test agent-perf agent-theme agent-theme-check
 
 VERSION ?= latest
 CORE_IMAGE ?= ghcr.io/sunday-studio/orion-core
@@ -109,8 +109,15 @@ docker-up:
 docker-down:
 	docker compose -f deploy/docker-compose.yml down
 
+# Start Core + Worker in Docker, then run the Console dev server (pnpm, hot reload) in the foreground.
+# Console: http://localhost:5173  Core API: http://localhost:8999  (admin / local-admin-password-2026)
 docker-dev-up:
 	docker compose -f docker-compose.dev.yml up -d --build
+	$(MAKE) console-dev
+
+# Run only the Console dev server against an already-running Core.
+console-dev:
+	cd apps/console && { test -f .env || cp .env.example .env; } && pnpm install && pnpm dev
 
 docker-dev-down:
 	docker compose -f docker-compose.dev.yml down

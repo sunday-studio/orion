@@ -172,5 +172,3 @@ export const AgentDetailPage = () => {
     </div>
   );
 };
-
-export const ServerDetailPage = AgentDetailPage;

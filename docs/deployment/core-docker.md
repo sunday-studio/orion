@@ -159,7 +159,7 @@ auth variables:
 
 ```sh
 cd deploy/examples
-docker compose -f ./core-console-compose up -d
+docker compose -f ./core-console-compose.yaml up -d
 ```
 
 When Core serves the bundled Console, browser API calls stay on the same origin and do not need

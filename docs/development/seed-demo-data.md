@@ -13,9 +13,12 @@ make seed-demo-data
 Docker dev stack run:
 
 ```sh
-make docker-dev-up
-make docker-dev-seed
+make docker-dev-up      # starts Core + Worker, then runs the Console dev server (pnpm) in the foreground
+make docker-dev-seed    # run in a second terminal
 ```
+
+`make docker-dev-up` leaves the Console running at http://localhost:5173 (Core API on :8999). Use
+`make console-dev` to run only the Console against an already-running Core.
 
 The Docker command seeds the `orion-dev-data` Compose volume used by `docker-compose.dev.yml`.
 

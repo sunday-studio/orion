@@ -66,13 +66,6 @@ func (w *Webhook) Delay(d time.Duration) {
 	w.delay = d
 }
 
-// RedirectTo makes every call answer 302 to url.
-func (w *Webhook) RedirectTo(url string) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	w.redirect = url
-}
-
 func (w *Webhook) handle(rw http.ResponseWriter, r *http.Request) {
 	call := int(w.calls.Add(1))
 	body, _ := io.ReadAll(r.Body)
