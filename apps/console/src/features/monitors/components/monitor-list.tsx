@@ -1,11 +1,6 @@
-import { DataTable } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
-import { EmptyState } from "@/components/shared/empty-state";
 import { ListPagination } from "@/components/shared/list-pagination";
-import { StatusBadge, toStatus } from "@/components/shared/status-badges";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { DataTable, type DataTableFilterField, FilterBar, StatusBadge } from "@/design-system";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import {
   type CoreWorkerDiagnostics,
@@ -21,7 +16,7 @@ import {
   useGetMonitors,
 } from "@/orion-sdk";
 import { type ColumnDef } from "@tanstack/react-table";
-import { Search } from "lucide-react";
+import { useMemo } from "react";
 import {
   parseAsBoolean,
   parseAsInteger,
@@ -145,7 +140,7 @@ const monitorColumns = (
   {
     id: "health",
     header: "Health",
-    cell: ({ row }) => <StatusBadge value={toStatus(monitorHealth(row.original))} />,
+    cell: ({ row }) => <StatusBadge status={monitorHealth(row.original)} />,
   },
   {
     accessorKey: "type",
@@ -245,15 +240,31 @@ export const MonitorList = ({ workerDiagnostics }: MonitorListProps) => {
   const selectedSummaryFilter: MonitorSummaryFilter = incidents ? "incidents" : status;
   const hasFilters =
     Boolean(search.trim()) || status !== "all" || type !== "all" || target !== "all" || incidents;
-  const statusLabel =
-    monitorStatusOptions.find((option) => option.value === status)?.label ?? status;
-  const typeLabel = monitorTypeOptions.find((option) => option.value === type)?.label ?? type;
-  const targetLabel =
-    target === "all"
-      ? "All targets"
-      : target === "core"
-        ? "Core"
-        : (serverOptions.find((option) => option.value === target)?.label ?? "Server");
+  const targetOptions = useMemo(
+    () => [
+      { value: "all", label: "All targets" },
+      { value: "core", label: "Core" },
+      ...serverOptions,
+    ],
+    // serverOptions is rebuilt each render from agent data; key on its content.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [JSON.stringify(serverOptions)],
+  );
+  const fields = useMemo<readonly DataTableFilterField[]>(
+    () => [
+      { type: "search", key: "search", placeholder: "Search monitors" },
+      { type: "select", key: "status", label: "Status", options: monitorStatusOptions },
+      { type: "select", key: "type", label: "Type", options: monitorTypeOptions },
+      { type: "select", key: "target", label: "Target", options: targetOptions },
+    ],
+    [targetOptions],
+  );
+  const filterHandlers: Record<string, (value: string) => void> = {
+    search: (value) => setSearch(value),
+    status: (value) => setStatus(value),
+    type: (value) => setType(value),
+    target: (value) => setTarget(value),
+  };
 
   const setOffset = (nextOffset: number) => {
     void setMonitorQuery({ page: Math.floor(nextOffset / MONITOR_LIMIT) + 1 });
@@ -311,83 +322,34 @@ export const MonitorList = ({ workerDiagnostics }: MonitorListProps) => {
       {hasCoreMonitors && shouldWarnForCoreWorker(workerDiagnostics) && (
         <CoreWorkerWarning worker={workerDiagnostics} className="mt-4" />
       )}
-      <div className="mt-6 grid items-center gap-2 md:grid-cols-2 lg:grid-cols-[minmax(16rem,1fr)_10rem_12rem_12rem_auto]">
-        <div className="relative min-w-0">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-400" />
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search monitors"
-            className="pl-9"
-          />
-        </div>
-        <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="w-full text-xs">
-            <span data-slot="select-value">Status: {statusLabel}</span>
-          </SelectTrigger>
-          <SelectContent>
-            {monitorStatusOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={type} onValueChange={setType}>
-          <SelectTrigger className="w-full text-xs">
-            <span data-slot="select-value">Type: {typeLabel}</span>
-          </SelectTrigger>
-          <SelectContent>
-            {monitorTypeOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={target} onValueChange={setTarget}>
-          <SelectTrigger className="w-full text-xs">
-            <span data-slot="select-value">Target: {targetLabel}</span>
-          </SelectTrigger>
-          <SelectContent>
-            {[
-              { value: "all", label: "All targets" },
-              { value: "core", label: "Core" },
-              ...serverOptions,
-            ].map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {hasFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters} className="justify-self-start">
-            Clear
-          </Button>
-        )}
-      </div>
-      {monitorsResponse.isLoading && (
-        <div className="py-3 text-sm text-neutral-600">Loading monitors...</div>
-      )}
-      {monitorsResponse.error && <div className="py-3 text-sm">Unable to load monitors.</div>}
-      {!monitorsResponse.isLoading && !monitorsResponse.error && monitors.length === 0 && (
-        <EmptyState
-          title="No monitors found"
-          description="No monitors match the current filters."
+      <div className="mt-6">
+        <FilterBar
+          fields={fields}
+          values={{ search, status, type, target }}
+          onChange={(key, value) => filterHandlers[key]?.(value)}
+          onClear={clearFilters}
         />
-      )}
-      {!monitorsResponse.isLoading && !monitorsResponse.error && monitors.length > 0 && (
-        <div className="mt-2">
-          <DataTable
-            columns={monitorColumns(workerDiagnostics)}
-            data={monitors}
-            emptyMessage="No monitors registered."
-            getRowId={(monitor) => monitor.id ?? ""}
-          />
-        </div>
-      )}
+      </div>
+      <div className="mt-2">
+        <DataTable
+          columns={monitorColumns(workerDiagnostics)}
+          data={monitors}
+          emptyMessage={
+            hasFilters ? "No monitors match the current filters." : "No monitors registered."
+          }
+          getRowId={(monitor) => monitor.id ?? ""}
+          isLoading={monitorsResponse.isLoading}
+          error={
+            monitorsResponse.error
+              ? {
+                  message: "Unable to load monitors",
+                  onRetry: () => void monitorsResponse.refetch(),
+                }
+              : undefined
+          }
+          onResetFilters={hasFilters ? clearFilters : undefined}
+        />
+      </div>
       {count > 0 && (
         <ListPagination
           count={count}
