@@ -1,13 +1,17 @@
-import { DataTable } from "@/components/shared/data-table";
-import { type DataTableFilterField, filterParam } from "@/components/shared/data-table-schema";
-import { DataTableToolbar } from "@/components/shared/data-table-toolbar";
-import { useDataTableUrlState } from "@/components/shared/use-data-table-url-state";
 import { DataTableLink } from "@/components/shared/data-table-link";
-import { EmptyState } from "@/components/shared/empty-state";
 import { ListPagination } from "@/components/shared/list-pagination";
 import { PageHeader } from "@/components/shared/page-header";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DataTable,
+  type DataTableFilterField,
+  FilterBar,
+  Tabs,
+  TabsList,
+  TabsPanel,
+  TabsTab,
+  filterParam,
+  useDataTableUrlState,
+} from "@/design-system";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import {
   type ApiOrionEventResponse,
@@ -234,11 +238,11 @@ export const LogsPage = () => {
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="events">Operational Events</TabsTrigger>
-          <TabsTrigger value="service">Service Logs</TabsTrigger>
+          <TabsTab value="events">Operational Events</TabsTab>
+          <TabsTab value="service">Service Logs</TabsTab>
         </TabsList>
 
-        <TabsContent value="events">
+        <TabsPanel value="events">
           <section className="space-y-4">
             <div className="grid gap-1 text-sm sm:grid-cols-4">
               <div className="bg-neutral-100 p-3">
@@ -259,40 +263,33 @@ export const LogsPage = () => {
               </div>
             </div>
 
-            <DataTableToolbar
+            <FilterBar
               fields={eventFields}
               values={eventTable.values}
               onChange={eventTable.setFilter}
               onClear={eventTable.clearFilters}
             />
-
-            {eventsQuery.error && (
-              <EmptyState
-                title="Unable to load event log"
-                description="Retry after Core is reachable."
-                tone="error"
-                action={
-                  <Button size="sm" variant="outline" onClick={() => void eventsQuery.refetch()}>
-                    Retry
-                  </Button>
-                }
-              />
-            )}
-            {!eventsQuery.error && (
-              <DataTable
-                columns={columns}
-                data={events}
-                emptyMessage={
-                  eventTable.hasFilters
-                    ? "No events match the current filters."
-                    : "No Orion events recorded."
-                }
-                getRowId={(event) => event.id ?? ""}
-                isLoading={eventsQuery.isLoading}
-                loadingMessage="Loading event log..."
-                onRowClick={setSelectedEvent}
-              />
-            )}
+            <DataTable
+              columns={columns}
+              data={events}
+              emptyMessage={
+                eventTable.hasFilters
+                  ? "No events match the current filters."
+                  : "No Orion events recorded."
+              }
+              getRowId={(event) => event.id ?? ""}
+              isLoading={eventsQuery.isLoading}
+              error={
+                eventsQuery.error
+                  ? {
+                      message: "Unable to load event log",
+                      onRetry: () => void eventsQuery.refetch(),
+                    }
+                  : undefined
+              }
+              onResetFilters={eventTable.hasFilters ? eventTable.clearFilters : undefined}
+              onRowClick={setSelectedEvent}
+            />
             {count > 0 && (
               <ListPagination
                 count={count}
@@ -302,9 +299,9 @@ export const LogsPage = () => {
               />
             )}
           </section>
-        </TabsContent>
+        </TabsPanel>
 
-        <TabsContent value="service">
+        <TabsPanel value="service">
           <section className="space-y-4">
             <div className="grid gap-1 text-sm sm:grid-cols-3">
               <div className="bg-neutral-100 p-3">
@@ -323,43 +320,32 @@ export const LogsPage = () => {
               </div>
             </div>
 
-            <DataTableToolbar
+            <FilterBar
               fields={serviceLogFields}
               values={serviceTable.values}
               onChange={serviceTable.setFilter}
               onClear={serviceTable.clearFilters}
             />
-
-            {serviceLogsQuery.error && (
-              <EmptyState
-                title="Unable to load service logs"
-                description="Retry after Core is reachable."
-                tone="error"
-                action={
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void serviceLogsQuery.refetch()}
-                  >
-                    Retry
-                  </Button>
-                }
-              />
-            )}
-            {!serviceLogsQuery.error && (
-              <DataTable
-                columns={serviceLogColumns}
-                data={serviceLogs}
-                emptyMessage={
-                  serviceTable.hasFilters
-                    ? "No service logs match the current filters."
-                    : "No service logs recorded."
-                }
-                getRowId={(log) => log.id ?? ""}
-                isLoading={serviceLogsQuery.isLoading}
-                loadingMessage="Loading service logs..."
-              />
-            )}
+            <DataTable
+              columns={serviceLogColumns}
+              data={serviceLogs}
+              emptyMessage={
+                serviceTable.hasFilters
+                  ? "No service logs match the current filters."
+                  : "No service logs recorded."
+              }
+              getRowId={(log) => log.id ?? ""}
+              isLoading={serviceLogsQuery.isLoading}
+              error={
+                serviceLogsQuery.error
+                  ? {
+                      message: "Unable to load service logs",
+                      onRetry: () => void serviceLogsQuery.refetch(),
+                    }
+                  : undefined
+              }
+              onResetFilters={serviceTable.hasFilters ? serviceTable.clearFilters : undefined}
+            />
             {serviceLogCount > 0 && (
               <ListPagination
                 count={serviceLogCount}
@@ -369,7 +355,7 @@ export const LogsPage = () => {
               />
             )}
           </section>
-        </TabsContent>
+        </TabsPanel>
       </Tabs>
       <EventDetailDrawer
         event={selectedEvent}

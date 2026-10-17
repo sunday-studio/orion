@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "@/design-system";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import type { ApiOrionEventResponse } from "@/orion-sdk";
 
@@ -15,31 +15,30 @@ const formatValue = (value: unknown) =>
       : JSON.stringify(value);
 
 export const EventDetailDrawer = ({ event, onOpenChange }: EventDetailDrawerProps) => (
-  <Dialog open={Boolean(event)} onOpenChange={onOpenChange}>
-    <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
-      <DialogHeader>
-        <DialogTitle>{event?.type ?? "Event"}</DialogTitle>
-      </DialogHeader>
+  <Drawer swipeDirection="right" open={Boolean(event)} onOpenChange={onOpenChange}>
+    <DrawerContent>
+      <DrawerTitle>{event?.type ?? "Event"}</DrawerTitle>
+      <DrawerDescription>Operational event detail</DrawerDescription>
       {event && (
-        <div className="space-y-4 text-sm">
-          <dl className="grid grid-cols-[8rem_1fr] gap-x-3 gap-y-2">
-            <dt className="text-neutral-600">Time</dt>
+        <div className="space-y-4 text-[13px]">
+          <dl className="grid grid-cols-[7rem_1fr] gap-x-3 gap-y-2">
+            <dt className="text-quiet">Time</dt>
             <dd>{formatDate(event.created_at, DATE_TIME_FORMAT)}</dd>
-            <dt className="text-neutral-600">Source</dt>
+            <dt className="text-quiet">Source</dt>
             <dd>{formatValue(event.source)}</dd>
-            <dt className="text-neutral-600">Message</dt>
+            <dt className="text-quiet">Message</dt>
             <dd className="break-words">{formatValue(event.message)}</dd>
-            <dt className="text-neutral-600">Event ID</dt>
-            <dd className="font-mono text-xs">{formatValue(event.id)}</dd>
+            <dt className="text-quiet">Event ID</dt>
+            <dd className="font-mono text-xs text-faint">{formatValue(event.id)}</dd>
           </dl>
           <pre
             aria-label="Raw event"
-            className="max-h-72 overflow-auto bg-neutral-100 p-3 font-mono text-xs"
+            className="max-h-96 overflow-auto rounded-lg bg-field p-3 font-mono text-xs"
           >
             {JSON.stringify(event, null, 2)}
           </pre>
         </div>
       )}
-    </DialogContent>
-  </Dialog>
+    </DrawerContent>
+  </Drawer>
 );
