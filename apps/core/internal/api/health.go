@@ -354,6 +354,14 @@ func (s *Server) getIncidentCandidates(c *gin.Context) {
 		}
 	}
 
+	dismissed, err := s.activeCandidateDismissals()
+	if err != nil {
+		s.logger.Error("Failed to load candidate dismissals", "error", err)
+		utils.InternalError(c, "Failed to get incident candidates", err)
+		return
+	}
+	candidates = filterDismissedCandidates(candidates, dismissed)
+
 	utils.SuccessResponse(c, 200, "Incident candidates retrieved successfully", gin.H{
 		"candidates": candidates,
 		"count":      len(candidates),

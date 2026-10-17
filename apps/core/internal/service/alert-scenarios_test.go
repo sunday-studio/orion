@@ -77,3 +77,32 @@ func TestScenarioA3SlowWebhookDoesNotBlockQueueing(t *testing.T) {
 		t.Fatalf("webhook called %d times during queueing, want 0", hook.Calls())
 	}
 }
+
+// An operator retry of an exhausted delivery is sent by the next dispatch.
+func TestRetryDeliveryAfterExhaustionIsSentByDispatcher(t *testing.T) {
+	svc, hook := scenarioAlerting(t)
+	hook.FailFirst(3) // all three automatic attempts fail
+	if err := svc.QueueIncidentNotifications("incident-1", "incident_opened"); err != nil {
+		t.Fatal(err)
+	}
+	for range 3 {
+		svc.ProcessDueDeliveries(10)
+		makeAllDeliveriesDue(svc)
+	}
+	var d db.AlertDelivery
+	svc.db.First(&d)
+	if d.Status != "failed" || d.AttemptCount != 3 {
+		t.Fatalf("setup: status=%s attempts=%d, want failed after 3", d.Status, d.AttemptCount)
+	}
+
+	if _, err := svc.RetryDelivery(d.ID); err != nil {
+		t.Fatalf("RetryDelivery() error = %v", err)
+	}
+	if _, err := svc.ProcessDueDeliveries(10); err != nil {
+		t.Fatal(err)
+	}
+	svc.db.First(&d, "id = ?", d.ID)
+	if d.Status != "sent" || d.AttemptCount != 4 {
+		t.Fatalf("after operator retry status=%s attempts=%d, want sent on attempt 4", d.Status, d.AttemptCount)
+	}
+}
