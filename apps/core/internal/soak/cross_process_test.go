@@ -85,7 +85,7 @@ func TestCrossProcessLoad(t *testing.T) {
 	var wg sync.WaitGroup
 	var accepted, rejected, non202, throttled atomic.Int64
 	var latMu sync.Mutex
-	var lats, readLats []time.Duration
+	var lats, readLats, histLats []time.Duration
 	record := func(into *[]time.Duration, d time.Duration) { latMu.Lock(); *into = append(*into, d); latMu.Unlock() }
 	client := &http.Client{Timeout: 30 * time.Second}
 
@@ -185,7 +185,11 @@ func TestCrossProcessLoad(t *testing.T) {
 				start := time.Now()
 				if resp, err := client.Get(base + path); err == nil {
 					resp.Body.Close()
-					record(&readLats, time.Since(start))
+					if strings.Contains(path, "histogram") {
+						record(&histLats, time.Since(start)) // aggregates every row in the window, so it scales with volume
+					} else {
+						record(&readLats, time.Since(start))
+					}
 				}
 			}
 			time.Sleep(time.Second)
@@ -229,12 +233,12 @@ func TestCrossProcessLoad(t *testing.T) {
 	reader.DB().Raw("PRAGMA integrity_check").Scan(&integrity)
 
 	p50, p95, p99 := pct(lats, 0.5), pct(lats, 0.95), pct(lats, 0.99)
-	r95 := pct(readLats, 0.95)
-	t.Logf("RESULT duration=%v accepted=%d stored=%d rejected=%d throttled=%d other_errors=%d ingest p50=%v p95=%v p99=%v read p95=%v webhook_calls=%d tails=%v integrity=%s",
-		duration, accepted.Load(), stored, rejected.Load(), throttled.Load(), non202.Load(), p50, p95, p99, r95, hookCalls.Load(), tailTotals(tailCounts), integrity)
+	r95, h95 := pct(readLats, 0.95), pct(histLats, 0.95)
+	t.Logf("RESULT duration=%v accepted=%d stored=%d rejected=%d throttled=%d other_errors=%d ingest p50=%v p95=%v p99=%v read p95=%v histogram p95=%v webhook_calls=%d tails=%v integrity=%s",
+		duration, accepted.Load(), stored, rejected.Load(), throttled.Load(), non202.Load(), p50, p95, p99, r95, h95, hookCalls.Load(), tailTotals(tailCounts), integrity)
 	if out := os.Getenv("ORION_CROSS_OUT"); out != "" {
 		blob, _ := json.MarshalIndent(map[string]any{"duration": duration.String(), "accepted": accepted.Load(), "stored": stored, "throttled": throttled.Load(), "other_errors": non202.Load(),
-			"ingest_p50_ms": p50.Milliseconds(), "ingest_p95_ms": p95.Milliseconds(), "ingest_p99_ms": p99.Milliseconds(), "read_p95_ms": r95.Milliseconds(),
+			"ingest_p50_ms": p50.Milliseconds(), "ingest_p95_ms": p95.Milliseconds(), "ingest_p99_ms": p99.Milliseconds(), "read_p95_ms": r95.Milliseconds(), "histogram_p95_ms": h95.Milliseconds(),
 			"webhook_calls": hookCalls.Load(), "tail_events": tailTotals(tailCounts), "samples": samples}, "", "  ")
 		_ = os.WriteFile(out, blob, 0o644)
 	}
@@ -256,6 +260,9 @@ func TestCrossProcessLoad(t *testing.T) {
 	}
 	if r95 > time.Second {
 		t.Errorf("read p95 = %v, want <= 1s", r95)
+	}
+	if h95 > 5*time.Second {
+		t.Errorf("histogram p95 = %v, want <= 5s", h95)
 	}
 	if hookCalls.Load() == 0 {
 		t.Error("the Worker never fired the log-alert webhook")
