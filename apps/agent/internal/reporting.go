@@ -12,6 +12,7 @@ import (
 	"orion/agent/internal/logging"
 	"orion/agent/internal/state"
 	"orion/agent/internal/transport"
+	"orion/agent/internal/utils"
 )
 
 func (a *Agent) runSystemMetrics() error {
@@ -95,6 +96,7 @@ func (a *Agent) runMonitorMetrics(monitor config.InternalStateMonitor, userMonit
 
 	logging.Infof("Monitor result -> %v", monitor.Name)
 	report := &transport.MonitorReport{
+		ReportID:  utils.NewReportID(),
 		Timestamp: result.Timestamp.Format(time.RFC3339),
 		Health:    result.Status,
 		Metrics:   result.Metrics,

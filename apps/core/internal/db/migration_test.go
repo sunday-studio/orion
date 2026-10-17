@@ -315,6 +315,14 @@ func TestMigrateRepairsLegacyAgentReportMetadataColumns(t *testing.T) {
 			disk JSON,
 			location JSON
 		);
+		CREATE TABLE monitor_reports (
+			id VARCHAR(255) PRIMARY KEY,
+			monitor_id TEXT NOT NULL,
+			payload TEXT NOT NULL,
+			collected_at TEXT NOT NULL,
+			health TEXT NOT NULL,
+			created_at DATETIME
+		);
 		CREATE TABLE alert_deliveries (
 			id VARCHAR(255) PRIMARY KEY,
 			incident_id TEXT NOT NULL,

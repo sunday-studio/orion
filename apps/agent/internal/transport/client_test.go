@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -164,5 +165,16 @@ func TestRegisterAgentOmitsEnrollmentHeaderWhenUnset(t *testing.T) {
 	}
 	if present {
 		t.Fatal("enrollment header sent although no token configured")
+	}
+}
+
+func TestMonitorReportSerializesReportIDForIdempotentReplay(t *testing.T) {
+	body, err := json.Marshal(MonitorReport{ReportID: "id-1", Timestamp: "t", Health: "up"})
+	if err != nil || !strings.Contains(string(body), `"report_id":"id-1"`) {
+		t.Fatalf("payload = %s err = %v, want report_id present", body, err)
+	}
+	legacy, _ := json.Marshal(MonitorReport{Timestamp: "t", Health: "up"})
+	if strings.Contains(string(legacy), "report_id") {
+		t.Fatalf("empty ReportID must be omitted, got %s", legacy)
 	}
 }

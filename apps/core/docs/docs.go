@@ -11380,6 +11380,10 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "metrics": {},
+                "report_id": {
+                    "description": "ReportID is an optional agent-generated idempotency key (UUID). Replaying a\nreport with the same ID for the same monitor stores nothing new.",
+                    "type": "string"
+                },
                 "timestamp": {
                     "type": "string"
                 }
