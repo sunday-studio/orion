@@ -14,7 +14,6 @@ type ConfirmDialogProps = {
   /** Name the object and what will be lost, for example "4 monitors will be deleted". */
   description: string;
   confirmLabel: string;
-  isPending?: boolean;
   onConfirm: () => void;
   onOpenChange: (open: boolean) => void;
 };
@@ -24,7 +23,6 @@ export const ConfirmDialog = ({
   title,
   description,
   confirmLabel,
-  isPending = false,
   onConfirm,
   onOpenChange,
 }: ConfirmDialogProps) => (
@@ -38,7 +36,7 @@ export const ConfirmDialog = ({
         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
           Cancel
         </Button>
-        <Button type="button" variant="destructive" disabled={isPending} onClick={onConfirm}>
+        <Button type="button" variant="destructive" onClick={onConfirm}>
           {confirmLabel}
         </Button>
       </DialogFooter>
