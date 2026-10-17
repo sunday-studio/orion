@@ -45,7 +45,7 @@ Core API models, OpenAPI output, the generated SDK, or Console API usage changes
 | Classification | Release effect | Examples | Required PR note |
 | --- | --- | --- | --- |
 | Blocking | Do not merge or tag the release candidate. | Failing tests, generated contract drift, broken Docker Compose config, missing required deployment secret docs, incompatible Core/Server version guidance. | Mark the checklist item failed and link the fix commit or follow-up PR. |
-| Conditional | May merge only with an explicit owner and mitigation. | Browser smoke flakes with a rerun pass, known unsupported monitor edge case, release workflow warning that does not affect produced artifacts. | Name the owner, impact, expiry date, and Maat ticket. |
+| Conditional | May merge only with an explicit owner and mitigation. | Browser smoke flakes with a rerun pass, known unsupported monitor edge case, release workflow warning that does not affect produced artifacts. | Name the owner, impact, and expiry date. |
 | Advisory | May merge when documented. | Cosmetic documentation gap, non-release TODO, planned future hardening, optional local tooling warning. | Explain why it is not release-blocking and link any follow-up ticket. |
 
 Unclassified warnings are blocking. Treat a warning as unclassified when the PR does not say whether

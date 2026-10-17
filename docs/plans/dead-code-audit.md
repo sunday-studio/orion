@@ -1,6 +1,6 @@
 # Dead Code Audit
 
-Status: audit complete, 2026-10-18. Owner: `orion:cleanup`. Maat ticket T-20261018-002550-515c.
+Status: audit complete, 2026-10-18. Owner: `orion:cleanup`.
 
 Method: `go vet`, `staticcheck` (U1000/SA/S1), `deadcode -test`, `go mod tidy` on Core; `knip` on the
 Console (with the generated SDK present); tracked-but-gitignored check; markdown link and orphan
@@ -56,7 +56,6 @@ Scope notes:
 | Path | Evidence | Why uncertain |
 |---|---|---|
 | `docs/plans/agent-health-debugging-next-release.md`, `colleague-feedback-action-plan.md`, `core-codebase-cleanup-proposal.md`, `incident-detail-information-architecture.md`, `status-page-public-design-breakdown.md`, `settings-pr-closeout-checklist.md` | No inbound links; dated May 2026; likely superseded | Historical decision records. AGENTS.md says completed plans belong in `docs/milestones/`; the owner should decide archive vs delete |
-| `docs/development/maat-setup-friction.md`, `settings-readiness-closeout.md`, `docs/milestones/first-run-deployment-checklist-2026-05-27.md` | No inbound links | Evidence/history records, not code |
 | `docs/ci.md`, `docs/deployment/upgrade-notes-backend-hardening.md`, `docs/web/design-system.md`, `docs/web/web-status-map.md` | No inbound links | Current reference docs that just lack an index entry; link them instead |
 | `apps/agent/**` | Not audited | Blocked on `orion:agent` merge |
 | Unused exported Go types/consts, struct fields, unused config keys in Core | Not covered by tools run | Needs a second pass |

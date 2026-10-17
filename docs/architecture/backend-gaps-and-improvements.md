@@ -113,9 +113,9 @@ Worth keeping and not "fixing": SSRF-safe dialer for Core monitors with redirect
 
 Dependency notes: ORB-001 + ORB-004 + ORB-005 are one design (transactional outbox plus dispatcher) and should be ticketed together. ORB-006 should land before load testing. ORB-002 reduces ORB-022 by itself.
 
-## 5. Suggested tickets (Maat-ready)
+## 5. Suggested tickets
 
-Create these with the repo's Maat forms (outcome, description, acceptance). Ticket owners map to the AGENTS.md boundaries.
+Ticket owners map to the AGENTS.md boundaries.
 
 | # | Title | Boundary | Findings | Acceptance criteria |
 |---|---|---|---|---|

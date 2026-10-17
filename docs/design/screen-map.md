@@ -136,3 +136,7 @@ Unified Logs page (logs, logs-rich, logs-plain, logs-detail, logs-detail-plain, 
 ## 10. CLI and agent (agent-cli-plan.md)
 
 Terminal screens: cli-install, cli-setup, cli-doctor, cli-status, cli-logs, cli-help-error. Console: add-server (command with enrollment token), add-server-waiting (live steps), add-server-connected, add-server-failed. Sign in was restyled (fade into white, dot animation).
+
+## 11. Exports
+
+Static exports and PNGs of every artboard are in `artboards/` with an index in `artboards/README.md`.
