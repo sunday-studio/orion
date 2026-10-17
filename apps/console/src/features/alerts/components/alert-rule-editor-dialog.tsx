@@ -1,15 +1,16 @@
-import { EmptyState } from "@/components/shared/empty-state";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
+  Button,
+  Checkbox,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+  EmptyState,
+  Input,
+  Textarea,
+} from "@/design-system";
 import {
   Select,
   SelectContent,
@@ -17,7 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import type {
   ApiAlertChannelResponse,
   ApiAlertRouteDryRunResponse,
@@ -272,7 +272,7 @@ export const AlertRuleEditorDialog = ({
             <Button
               size="sm"
               type="button"
-              variant="outline"
+              variant="secondary"
               disabled={dryRun.isPending}
               onClick={handleDryRun}
             >
@@ -386,7 +386,7 @@ export const AlertRuleEditorDialog = ({
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={closeEditor}>
+          <Button type="button" variant="secondary" onClick={closeEditor}>
             Cancel
           </Button>
           <Button type="submit" disabled={!canSubmit}>

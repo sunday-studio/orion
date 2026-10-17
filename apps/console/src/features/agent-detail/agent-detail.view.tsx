@@ -1,5 +1,5 @@
+import { PageHeader, Tabs, TabsList, TabsPanel, TabsTab } from "@/design-system";
 import { PageBreadcrumbs } from "@/components/shared/page-breadcrumbs";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   type ApiAgentReportResponse,
   useGetAgent,
@@ -17,7 +17,6 @@ import { AgentLogsTab } from "./components/agent-logs-tab";
 import { AgentMonitorsTab } from "./components/agent-monitors-tab";
 import { AgentServiceLogsTab } from "./components/agent-service-logs-tab";
 import { AgentTokenPanel } from "./components/agent-token-panel";
-import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge, toStatus } from "@/components/shared/status-badges";
 
 const AGENT_DETAIL_TABS = ["logs", "service-logs", "monitors", "cpu"] as const;
@@ -152,27 +151,27 @@ export const AgentDetailPage = () => {
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="logs">Server Reports</TabsTrigger>
-          <TabsTrigger value="service-logs">Service Logs</TabsTrigger>
-          <TabsTrigger value="monitors">Monitors</TabsTrigger>
-          <TabsTrigger value="cpu">System Metrics</TabsTrigger>
+          <TabsTab value="logs">Server Reports</TabsTab>
+          <TabsTab value="service-logs">Service Logs</TabsTab>
+          <TabsTab value="monitors">Monitors</TabsTab>
+          <TabsTab value="cpu">System Metrics</TabsTab>
         </TabsList>
 
-        <TabsContent value="logs">
+        <TabsPanel value="logs">
           <AgentLogsTab agentId={currentAgentId} />
-        </TabsContent>
+        </TabsPanel>
 
-        <TabsContent value="service-logs">
+        <TabsPanel value="service-logs">
           <AgentServiceLogsTab agentId={currentAgentId} />
-        </TabsContent>
+        </TabsPanel>
 
-        <TabsContent value="monitors">
+        <TabsPanel value="monitors">
           <AgentMonitorsTab agentId={currentAgentId} highlightedIncident={highlightedIncident} />
-        </TabsContent>
+        </TabsPanel>
 
-        <TabsContent value="cpu">
+        <TabsPanel value="cpu">
           <AgentCpuTab agent={agent} latestReport={latestReport} />
-        </TabsContent>
+        </TabsPanel>
       </Tabs>
     </div>
   );

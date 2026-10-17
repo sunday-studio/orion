@@ -1,15 +1,15 @@
-import { PageBreadcrumbs } from "@/components/shared/page-breadcrumbs";
-import { PageHeader } from "@/components/shared/page-header";
-import { StatusBadge, toStatus } from "@/components/shared/status-badges";
-import { Button } from "@/components/ui/button";
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+  PageHeader,
+} from "@/design-system";
+import { PageBreadcrumbs } from "@/components/shared/page-breadcrumbs";
+import { StatusBadge, toStatus } from "@/components/shared/status-badges";
 import {
   CoreWorkerWarning,
   coreWorkerDiagnosticsFromPayload,
@@ -273,7 +273,7 @@ export const MonitorDetailPage = () => {
               <Button
                 disabled={isActionPending}
                 size="sm"
-                variant="outline"
+                variant="secondary"
                 onClick={() => testMonitor.mutate({ id: monitor.id ?? "" })}
               >
                 <Play />
@@ -283,7 +283,7 @@ export const MonitorDetailPage = () => {
                 <Button
                   disabled={isActionPending}
                   size="sm"
-                  variant="outline"
+                  variant="secondary"
                   onClick={() => resumeMonitor.mutate({ id: monitor.id ?? "" })}
                 >
                   <RefreshCw />
@@ -293,7 +293,7 @@ export const MonitorDetailPage = () => {
                 <Button
                   disabled={isActionPending}
                   size="sm"
-                  variant="outline"
+                  variant="secondary"
                   onClick={() => pauseMonitor.mutate({ id: monitor.id ?? "" })}
                 >
                   <Pause />
@@ -303,7 +303,7 @@ export const MonitorDetailPage = () => {
               <Button
                 disabled={isActionPending || coreConfigResponse.isLoading}
                 size="sm"
-                variant="outline"
+                variant="secondary"
                 onClick={() => setEditOpen(true)}
               >
                 <Save />
@@ -410,7 +410,7 @@ export const MonitorDetailPage = () => {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+            <Button variant="secondary" onClick={() => setDeleteOpen(false)}>
               Cancel
             </Button>
             <Button

@@ -1,12 +1,5 @@
+import { Button, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/design-system";
 import { DataTable } from "@/components/shared/data-table";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import type { ApiAlertChannelResponse } from "@/orion-sdk";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -96,32 +89,32 @@ export const WebhookChannelsTab = ({
           const isTestingThisChannel = isTesting && testingChannelId === row.original.id;
 
           return (
-            <DropdownMenu>
-              <DropdownMenuTrigger
+            <Menu>
+              <MenuTrigger
                 aria-label={`Open actions for ${row.original.name ?? "webhook"}`}
                 className="ml-auto flex size-6 items-center justify-center hover:bg-accent focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               >
                 <MoreHorizontal className="size-4" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem
+              </MenuTrigger>
+              <MenuContent>
+                <MenuItem
                   disabled={!row.original.id || isTesting}
                   onClick={() => onTest(row.original)}
                 >
                   <Send className="size-4" />
                   {isTestingThisChannel ? "Sending test..." : "Send test"}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => onEdit(row.original)}>
+                </MenuItem>
+                <MenuSeparator />
+                <MenuItem onClick={() => onEdit(row.original)}>
                   <Pencil className="size-4" />
                   Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onDelete(row.original)}>
+                </MenuItem>
+                <MenuItem onClick={() => onDelete(row.original)}>
                   <Trash2 className="size-4" />
                   Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </MenuItem>
+              </MenuContent>
+            </Menu>
           );
         },
       },

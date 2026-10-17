@@ -42,3 +42,9 @@ export const TabsPanel = ({
 }: React.ComponentProps<typeof TabsPrimitive.Panel>) => (
   <TabsPrimitive.Panel className={cn("outline-none", className)} {...props} />
 );
+
+export const TabCount = ({ className, children, ...props }: React.ComponentProps<"span">) => (
+  <span className={cn("ml-1.5 text-xs text-faint", className)} {...props}>
+    ({children})
+  </span>
+);

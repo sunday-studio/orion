@@ -1,5 +1,5 @@
+import { Button } from "@/design-system";
 import { StatusBadge, toStatus } from "@/components/shared/status-badges";
-import { Button } from "@/components/ui/button";
 import {
   type ApiCoreMonitorConfigResponse,
   type ApiIncidentResponse,
@@ -136,7 +136,7 @@ export const MonitorDetailOverview = ({
           <DetailItem key={detail.label} label={detail.label} value={detail.value} />
         ))}
         {latestReport && (
-          <Button size="sm" variant="outline" onClick={() => setSelectedReport(latestReport)}>
+          <Button size="sm" variant="secondary" onClick={() => setSelectedReport(latestReport)}>
             <FileJson />
             Inspect raw report
           </Button>

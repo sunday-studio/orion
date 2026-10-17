@@ -1,16 +1,16 @@
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { EmptyState } from "@/components/shared/empty-state";
 import {
+  Button,
+  Checkbox,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { PageHeader } from "@/components/shared/page-header";
+  EmptyState,
+  Input,
+  PageHeader,
+} from "@/design-system";
 import {
   Select,
   SelectContent,
@@ -206,7 +206,7 @@ export const SettingsPage = () => {
           description="Retry after Core is reachable."
           tone="error"
           action={
-            <Button size="sm" variant="outline" onClick={() => void settingsResponse.refetch()}>
+            <Button size="sm" variant="secondary" onClick={() => void settingsResponse.refetch()}>
               Retry
             </Button>
           }
@@ -337,7 +337,7 @@ export const SettingsPage = () => {
             {rollupRun.isPending ? "Running rollup..." : "Run rollup"}
           </Button>
           <Button
-            variant="outline"
+            variant="secondary"
             onClick={() => setArchiveDialogOpen(true)}
             disabled={maintenancePending || !settings}
           >
@@ -374,7 +374,7 @@ export const SettingsPage = () => {
             </dl>
             <DialogFooter>
               <Button
-                variant="outline"
+                variant="secondary"
                 onClick={() => setArchiveDialogOpen(false)}
                 disabled={archiveRun.isPending}
               >

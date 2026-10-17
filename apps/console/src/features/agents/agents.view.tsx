@@ -1,4 +1,4 @@
-import { PageHeader } from "@/components/shared/page-header";
+import { PageHeader } from "@/design-system";
 import { AgentList } from "@/features/agents/components/agent-list";
 
 export const AgentsPage = () => {

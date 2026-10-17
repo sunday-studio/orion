@@ -1,5 +1,5 @@
+import { ListPagination } from "@/design-system";
 import { DataTable } from "@/components/shared/data-table";
-import { ListPagination } from "@/components/shared/list-pagination";
 import { ReportInspectionDrawer } from "@/features/report-inspection/components/report-inspection-drawer";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { type ApiAgentReportResponse, useGetAgentReports } from "@/orion-sdk";

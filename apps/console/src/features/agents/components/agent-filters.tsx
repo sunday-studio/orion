@@ -1,13 +1,13 @@
-import { Button } from "@/components/ui/button";
 import {
-  Combobox,
-  ComboboxContent,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-} from "@/components/ui/combobox";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+  Button,
+  Checkbox,
+  Input,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Select,
+  buttonStyles,
+} from "@/design-system";
 
 const attentionFilterOptions = [
   { value: "maintenance", label: "Maintenance" },
@@ -48,7 +48,6 @@ export const AgentFilters = ({
   onAttentionFiltersChange,
   onClear,
 }: AgentFiltersProps) => {
-  const statusLabel = statusOptions.find((option) => option.value === status)?.label ?? status;
   const attentionFilterLabel =
     selectedAttentionFilters.length === 0
       ? "Attention filters"
@@ -56,6 +55,14 @@ export const AgentFilters = ({
           .filter((option) => selectedAttentionFilters.includes(option.value))
           .map((option) => option.label)
           .join(", ")}`;
+
+  const toggleAttention = (value: AttentionFilterValue, checked: boolean) => {
+    onAttentionFiltersChange(
+      checked
+        ? [...selectedAttentionFilters, value]
+        : selectedAttentionFilters.filter((selected) => selected !== value),
+    );
+  };
 
   return (
     <div className="space-y-2 py-2">
@@ -66,39 +73,34 @@ export const AgentFilters = ({
           placeholder="Search servers or monitors"
           className="w-full max-w-sm sm:w-auto"
         />
-        <Select value={status} onValueChange={onStatusChange}>
-          <SelectTrigger className="w-48 rounded-full text-xs">
-            <span data-slot="select-value">Status: {statusLabel}</span>
-          </SelectTrigger>
-          <SelectContent>
-            {statusOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Combobox
-          multiple
-          value={selectedAttentionFilters}
-          onValueChange={(values) => onAttentionFiltersChange(values)}
-        >
-          <ComboboxInput
-            readOnly
-            value={attentionFilterLabel}
-            className="w-full sm:w-56"
+        <Select
+          label="Status"
+          options={statusOptions}
+          value={status}
+          onValueChange={onStatusChange}
+        />
+        <Popover>
+          <PopoverTrigger
             aria-label="Attention filters"
-          />
-          <ComboboxContent>
-            <ComboboxList>
-              {attentionFilterOptions.map((option) => (
-                <ComboboxItem key={option.value} value={option.value}>
-                  {option.label}
-                </ComboboxItem>
-              ))}
-            </ComboboxList>
-          </ComboboxContent>
-        </Combobox>
+            className={buttonStyles({
+              variant: "secondary",
+              className: "max-w-64 justify-start truncate",
+            })}
+          >
+            {attentionFilterLabel}
+          </PopoverTrigger>
+          <PopoverContent className="w-56 space-y-2">
+            {attentionFilterOptions.map((option) => (
+              <label key={option.value} className="flex items-center gap-2 text-[13px]">
+                <Checkbox
+                  checked={selectedAttentionFilters.includes(option.value)}
+                  onCheckedChange={(checked) => toggleAttention(option.value, Boolean(checked))}
+                />
+                {option.label}
+              </label>
+            ))}
+          </PopoverContent>
+        </Popover>
         {hasFilters && (
           <Button variant="ghost" size="sm" onClick={onClear}>
             Clear

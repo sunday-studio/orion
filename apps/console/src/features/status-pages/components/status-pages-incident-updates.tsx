@@ -1,7 +1,5 @@
+import { Button, Input, Textarea } from "@/design-system";
 import { StatusBadge } from "@/components/shared/status-badges";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import type { ApiStatusPageIncidentResponse } from "@/orion-sdk";
 import { Plus } from "lucide-react";
 import type { FormEvent } from "react";

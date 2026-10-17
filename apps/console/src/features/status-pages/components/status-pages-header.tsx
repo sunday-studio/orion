@@ -1,5 +1,5 @@
+import { Button } from "@/design-system";
 import { StatusBadge } from "@/components/shared/status-badges";
-import { Button } from "@/components/ui/button";
 import type { ApiStatusPageResponse } from "@/orion-sdk";
 import { ExternalLink, Globe2, Trash2 } from "lucide-react";
 import { publicUrl } from "./status-pages-shared";
@@ -60,7 +60,7 @@ export const StatusPageHeader = ({
       <Button
         disabled={unpublishPending || page.visibility !== "public"}
         onClick={onUnpublishPage}
-        variant="outline"
+        variant="secondary"
       >
         {unpublishPending ? "Unpublishing..." : "Unpublish"}
       </Button>
@@ -68,7 +68,7 @@ export const StatusPageHeader = ({
         disabled={deletePagePending || deletePending}
         onClick={onDeletePage}
         type="button"
-        variant="outline"
+        variant="secondary"
       >
         <Trash2 className="size-4" />
         {deletePagePending ? "Deleting..." : "Delete"}

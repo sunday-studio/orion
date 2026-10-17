@@ -1,4 +1,4 @@
-import { DataTableLink } from "@/components/shared/data-table-link";
+import { DataTableLink } from "@/design-system";
 import { StatusBadge, toStatus } from "@/components/shared/status-badges";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import type { ApiIncidentResponse, ApiMonitorReportResponse } from "@/orion-sdk";

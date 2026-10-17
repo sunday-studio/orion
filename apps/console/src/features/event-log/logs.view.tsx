@@ -1,10 +1,10 @@
-import { DataTableLink } from "@/components/shared/data-table-link";
-import { ListPagination } from "@/components/shared/list-pagination";
-import { PageHeader } from "@/components/shared/page-header";
 import {
   DataTable,
   type DataTableFilterField,
+  DataTableLink,
   FilterBar,
+  ListPagination,
+  PageHeader,
   Tabs,
   TabsList,
   TabsPanel,

@@ -1,6 +1,7 @@
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { XIcon } from "lucide-react";
 import type * as React from "react";
+import { buttonStyles } from "@/design-system/components/button";
 import { focusRing } from "@/design-system/styles";
 import { cn } from "@/utils/cn";
 
@@ -41,8 +42,23 @@ export const DialogHeader = ({ className, ...props }: React.ComponentProps<"div"
   <div className={cn("space-y-1.5", className)} {...props} />
 );
 
-export const DialogFooter = ({ className, ...props }: React.ComponentProps<"div">) => (
-  <div className={cn("flex justify-end gap-2", className)} {...props} />
+export const DialogFooter = ({
+  className,
+  children,
+  showCloseButton = false,
+  ...props
+}: React.ComponentProps<"div"> & { showCloseButton?: boolean }) => (
+  <div
+    className={cn("flex flex-col-reverse gap-2 sm:flex-row sm:justify-end", className)}
+    {...props}
+  >
+    {children}
+    {showCloseButton && (
+      <DialogPrimitive.Close className={buttonStyles({ variant: "secondary" })}>
+        Close
+      </DialogPrimitive.Close>
+    )}
+  </div>
 );
 
 export const DialogTitle = ({

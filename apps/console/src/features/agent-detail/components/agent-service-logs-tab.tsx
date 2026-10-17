@@ -1,7 +1,5 @@
+import { Button, Input, ListPagination } from "@/design-system";
 import { DataTable } from "@/components/shared/data-table";
-import { ListPagination } from "@/components/shared/list-pagination";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { type ApiServiceLogEntryResponse, useGetAgentServiceLogs } from "@/orion-sdk";

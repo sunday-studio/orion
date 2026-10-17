@@ -1,6 +1,5 @@
+import { ListPagination, TabCount, Tabs, TabsList, TabsPanel, TabsTab } from "@/design-system";
 import { DataTable } from "@/components/shared/data-table";
-import { ListPagination } from "@/components/shared/list-pagination";
-import { TabCount, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HeartbeatSetupPanel } from "@/features/monitors/components/heartbeat-setup-panel";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { cn } from "@/utils/cn";
@@ -66,15 +65,15 @@ export const MonitorDetailOperationalData = ({
     <h2 className="text-sm font-medium">Operational Data</h2>
     <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-3">
       <TabsList>
-        <TabsTrigger value="history">
+        <TabsTab value="history">
           Check history <TabCount>{reportCount}</TabCount>
-        </TabsTrigger>
-        <TabsTrigger value="incidents">
+        </TabsTab>
+        <TabsTab value="incidents">
           Incidents <TabCount>{relatedIncidents.length}</TabCount>
-        </TabsTrigger>
-        <TabsTrigger value="config">Configuration</TabsTrigger>
+        </TabsTab>
+        <TabsTab value="config">Configuration</TabsTab>
       </TabsList>
-      <TabsContent value="history">
+      <TabsPanel value="history">
         <div className="space-y-3">
           {Boolean(historyError) && <div className="text-sm">Unable to load check history.</div>}
           {!historyError && (
@@ -99,8 +98,8 @@ export const MonitorDetailOperationalData = ({
             />
           )}
         </div>
-      </TabsContent>
-      <TabsContent value="incidents">
+      </TabsPanel>
+      <TabsPanel value="incidents">
         {Boolean(incidentsError) && (
           <div className="text-sm">Unable to load related incidents.</div>
         )}
@@ -115,8 +114,8 @@ export const MonitorDetailOperationalData = ({
             rowClassName={(row) => cn(row.original.id === highlightedIncidentId && "bg-amber-50")}
           />
         )}
-      </TabsContent>
-      <TabsContent value="config">
+      </TabsPanel>
+      <TabsPanel value="config">
         <MonitorConfigPanel
           config={coreConfig}
           error={coreConfigError}
@@ -124,7 +123,7 @@ export const MonitorDetailOperationalData = ({
           isLoading={coreConfigLoading}
           monitor={monitor}
         />
-      </TabsContent>
+      </TabsPanel>
     </Tabs>
   </section>
 );
