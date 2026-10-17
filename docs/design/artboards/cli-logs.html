@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>CLI, log viewer</title><link rel="stylesheet" href="orion.css"></head>
+<body><style>body{margin:0}</style>
+<div class="app light fr" style="width:1280px;height:659px;flex-direction:column;background:#fff"><div class="tw"><div class="term"><div class="tb"><i></i><i></i><i></i><span>orion-agent logs</span></div><div class="tcn"><span class="zp">$</span> orion-agent logs --follow
+
+<span class="zchip"> following </span>  level <span class="zb">>= info</span>   source <span class="zb">nginx</span>   <span class="zm">search: none</span>
+<span class="zf">──────────────────────────────────────────────────────────────────────</span>
+<span class="zm">14:32:08</span> <span class="zg">info </span> <span class="zm">nginx   </span>GET /api/orders 200 84ms
+<span class="zm">14:32:07</span> <span class="zg">info </span> <span class="zm">nginx   </span>GET /products 200 41ms
+<span class="zm">14:32:06</span> <span class="za">warn </span> <span class="zm">nginx   </span>upstream response is buffered to a temporary file
+<span class="zm">14:32:05</span> <span class="zr">error</span> <span class="zm">nginx   </span>connect() failed (111) while connecting to upstream
+<span class="zm">14:32:05</span> <span class="zg">info </span> <span class="zm">nginx   </span>GET /health 502 3ms
+<span class="zm">14:32:04</span> <span class="zg">info </span> <span class="zm">nginx   </span>GET /products 200 38ms
+<span class="zm">14:32:03</span> <span class="zg">info </span> <span class="zm">nginx   </span>POST /orders 201 91ms
+
+<span class="zsel"> q quit   f filter   l level   p pause   / search   c clear </span></div></div><div class="tnotes"><div class="nb"><h4>Log viewer (bubbletea)</h4><ul><li>Status line shows follow state, level threshold and source filter.</li><li>Level is a colored word (info green, warn amber, error red), padded to 5 so columns align.</li><li>Footer lists the keys; pausing freezes the view and shows how many lines arrived.</li><li>Reads from the local spool, so it works offline (plan E4).</li></ul></div><div class="nb"><h4>Tokens</h4><ul><li>Background <code>#0c0f0e</code> (dark) or terminal default</li><li>Accent green <code>#6ee7b7</code> maps to <code>--color-accent</code></li><li>Muted <code>#8b9892</code>, faint <code>#6a7570</code></li><li>Truecolor, 256 and 16 colors; <code>NO_COLOR</code> and non-TTY print plain text</li></ul></div><div class="nb"><h4>Glyphs, never color alone</h4><ul><li>up <code>●</code> / <code>ok</code>, down <code>■</code> / <code>down</code>, degraded <code>◐</code> / <code>slow</code>, unknown <code>○</code> / <code>?</code>, maintenance <code>‖</code></li><li>Pass <code>✓</code>, warn <code>!</code>, fail <code>✗</code> always followed by a word</li><li>Plain mode prints <code>[ok]</code>, <code>[warn]</code>, <code>[fail]</code></li></ul></div></div></div></div>
+</body></html>

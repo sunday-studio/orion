@@ -155,11 +155,6 @@ func parseTLSConfig(raw string, defaultWarningDays int) (tlsConfig, error) {
 	return cfg, nil
 }
 
-func defaultTLSCheck(ctx context.Context, target tlsTarget) (tls.ConnectionState, error) {
-	dialer := &net.Dialer{}
-	return tlsCheckWithDialContext(ctx, target, dialer.DialContext)
-}
-
 func defaultTLSCheckWithDialContext(dialContext dialContextFunc) tlsCheckFunc {
 	return func(ctx context.Context, target tlsTarget) (tls.ConnectionState, error) {
 		return tlsCheckWithDialContext(ctx, target, dialContext)

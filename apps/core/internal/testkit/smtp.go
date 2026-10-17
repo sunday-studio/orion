@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"math/big"
 	"net"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -89,8 +88,6 @@ func (s *SMTPServer) Messages() []SMTPMessage {
 	defer s.mu.Unlock()
 	return append([]SMTPMessage(nil), s.messages...)
 }
-
-func (s *SMTPServer) Addr() string { return net.JoinHostPort(s.Host, strconv.Itoa(s.Port)) }
 
 func (s *SMTPServer) serve() {
 	for {
