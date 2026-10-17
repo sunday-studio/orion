@@ -97,7 +97,9 @@ func grantGroup(paths ...string) {
 	g, err := user.LookupGroup(Group)
 	if err != nil && runtime.GOOS == "darwin" {
 		// macOS has no orion group by default; local admins operate the agent.
-		g, err = user.LookupGroup("admin")
+		if g, err = user.LookupGroup("_orion"); err != nil {
+			g, err = user.LookupGroup("admin")
+		}
 	}
 	if err != nil {
 		return

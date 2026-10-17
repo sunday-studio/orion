@@ -10,9 +10,6 @@ import (
 	"strings"
 
 	agent "orion/agent/internal"
-	"orion/agent/internal/config"
-	"orion/agent/internal/control"
-	agentstate "orion/agent/internal/state"
 
 	"github.com/spf13/cobra"
 )
@@ -73,8 +70,8 @@ func NewCommandError(summary string, cause error, nextSteps ...string) *CommandE
 
 func Execute(ctx context.Context, args []string, out, errOut io.Writer) int {
 	opts := &Options{
-		ConfigPath:    config.DefaultPath(),
-		StatePath:     agentstate.DefaultPath(),
+		ConfigPath:    defaultConfigPath(),
+		StatePath:     defaultStatePath(),
 		UpdateVersion: "latest",
 		UpdateRepo:    "sunday-studio/orion",
 		LogLines:      80,
@@ -113,9 +110,9 @@ func NewRootCommand(ctx context.Context, opts *Options, out, errOut io.Writer) *
 	root.SetOut(out)
 	root.SetErr(errOut)
 
-	root.PersistentFlags().StringVar(&opts.ConfigPath, "config", config.DefaultPath(), "Path to config file")
-	root.PersistentFlags().StringVar(&opts.StatePath, "state", agentstate.DefaultPath(), "Path to SQLite state database")
-	root.PersistentFlags().StringVar(&opts.SocketPath, "socket", control.DefaultSocketPath(), "Path to the agent control socket")
+	root.PersistentFlags().StringVar(&opts.ConfigPath, "config", defaultConfigPath(), "Path to config file")
+	root.PersistentFlags().StringVar(&opts.StatePath, "state", defaultStatePath(), "Path to SQLite state database")
+	root.PersistentFlags().StringVar(&opts.SocketPath, "socket", defaultSocketPath(), "Path to the agent control socket")
 	root.PersistentFlags().BoolVar(&opts.Verbose, "verbose", false, "Enable debug logging")
 	root.PersistentFlags().BoolVar(&opts.NoColor, "no-color", false, "Disable ANSI color output")
 	root.PersistentFlags().BoolVar(&opts.JSON, "json", false, "Use machine-readable output where supported")

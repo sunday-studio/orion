@@ -1,4 +1,4 @@
-.PHONY: generate-openapi generate-sdk console-sdk build-static docker-build docker-up docker-down docker-dev-up docker-dev-down docker-dev-seed agent-test core-test core-coverage core-race core-modernize-check core-vulncheck core-contract-check core-backend-verify console-build repository-smoke generated-contracts-check release-core-build release-readiness core-build core-worker-build agent-build seed-demo-data code-line-limit agent-build-all
+.PHONY: generate-openapi generate-sdk console-sdk build-static docker-build docker-up docker-down docker-dev-up docker-dev-down docker-dev-seed agent-test core-test core-coverage core-race core-modernize-check core-vulncheck core-contract-check core-backend-verify console-build repository-smoke generated-contracts-check release-core-build release-readiness core-build core-worker-build agent-build seed-demo-data code-line-limit agent-build-all agent-installer-test
 
 VERSION ?= latest
 CORE_IMAGE ?= ghcr.io/sunday-studio/orion-core
@@ -142,3 +142,6 @@ agent-build-all:
 	  out=tmp/agent-dist/orion-agent-$$os-$$arch$${arm:+v$$arm}; mkdir -p tmp/agent-dist; \
 	  (cd apps/agent && CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch GOARM=$$arm go build -trimpath -ldflags "-s -w -X orion/agent/internal.Version=$(VERSION)" -o ../../$$out .) || exit 1; \
 	  echo "built $$out"; done
+
+agent-installer-test:
+	deploy/scripts/agent-bootstrap-test.sh
