@@ -111,6 +111,7 @@ func (a *App) drainChecks(cancelChecks context.CancelFunc) {
 	done := make(chan struct{})
 	go func() {
 		a.inflight.Wait()
+		a.background.Wait() // a dispatch pass in progress finishes before leases are released
 		close(done)
 	}()
 	select {

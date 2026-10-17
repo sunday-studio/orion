@@ -10,8 +10,10 @@ if [ "$(id -u)" = "0" ]; then
   orion_uid="$(id -u orion)"
   if [ -d "$DATA_DIR" ] && [ "$(stat -c %u "$DATA_DIR")" != "$orion_uid" ]; then
     echo "docker-entrypoint: taking ownership of $DATA_DIR for the orion user" >&2
-    chown -R orion:orion "$DATA_DIR"
-    chmod 0700 "$DATA_DIR"
+    # Best effort: with all capabilities dropped root cannot enter directories owned by
+    # another uid, so a partial failure must not crash-loop the container.
+    chown -R orion:orion "$DATA_DIR" || echo "docker-entrypoint: warning: could not change ownership of every file in $DATA_DIR" >&2
+    chmod 0700 "$DATA_DIR" || true
   fi
   exec su-exec orion "$@"
 fi

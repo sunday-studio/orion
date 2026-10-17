@@ -7,6 +7,7 @@ import (
 	"orion/core/internal/config"
 	"orion/core/internal/db"
 	"orion/core/internal/utils"
+	"sync"
 	"time"
 
 	"gorm.io/gorm"
@@ -37,6 +38,8 @@ type SelfMonitorService struct {
 	reports    *ReportService
 	alerts     *AlertService
 	httpClient *http.Client
+
+	noWorkerWarning sync.Once
 }
 
 func NewSelfMonitorService(database *gorm.DB, logger *utils.Logger, cfg *config.Config, diagnostics *RuntimeDiagnosticsService) *SelfMonitorService {
@@ -82,7 +85,12 @@ func (s *SelfMonitorService) Check(ctx context.Context, now time.Time) error {
 		return err
 	}
 	if diag.WorkerCount == 0 {
-		return nil // no Worker has ever registered: it is optional, nothing to watch yet
+		// No Worker has ever registered. There is nothing to watch, but alerts still
+		// have to go out (API-only runs, a forgotten Worker container); leases make
+		// this safe if a Worker does appear.
+		s.warnNoWorkerOnce()
+		_, err := s.alerts.ProcessDueDeliveries(selfMonitorDispatchCap)
+		return err
 	}
 
 	healthy := diag.OnlineCount > 0
@@ -114,6 +122,12 @@ func (s *SelfMonitorService) Check(ctx context.Context, now time.Time) error {
 		}
 	}
 	return nil
+}
+
+func (s *SelfMonitorService) warnNoWorkerOnce() {
+	s.noWorkerWarning.Do(func() {
+		s.logger.Warn("No Core worker has registered; the API process is delivering alerts itself. Run orion-core-worker for Core monitors, heartbeats and scheduled delivery.")
+	})
 }
 
 func oldestHeartbeatAge(diag CoreWorkerDiagnostics) int64 {

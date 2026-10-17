@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"orion/core/internal/db"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -33,7 +34,7 @@ func (s *AlertService) RetryDelivery(deliveryID string) (db.AlertDelivery, error
 		maxAttempts = delivery.AttemptCount + 1
 	}
 	result := s.db.Model(&db.AlertDelivery{}).
-		Where("id = ? AND status = ?", deliveryID, "failed").
+		Where("id = ? AND status = ? AND (locked_until IS NULL OR locked_until <= ?)", deliveryID, "failed", time.Now().UTC()).
 		Updates(map[string]any{
 			"status":          "pending",
 			"max_attempts":    maxAttempts,

@@ -70,3 +70,13 @@ func TestAlertWebhookBlocksMetadataEvenWithPrivateOptIn(t *testing.T) {
 		t.Fatal("DialContext() to metadata address succeeded, want blocked")
 	}
 }
+
+func TestWebhookPolicyIgnoresProxyEnvironment(t *testing.T) {
+	t.Setenv("HTTPS_PROXY", "http://10.255.255.1:3128")
+	t.Setenv("HTTP_PROXY", "http://10.255.255.1:3128")
+	client := newAlertWebhookClient(&config.Config{})
+	transport, ok := client.Transport.(*http.Transport)
+	if !ok || transport.Proxy != nil {
+		t.Fatal("the policy transport must not honour proxy variables: the dial check would validate the proxy, not the target")
+	}
+}

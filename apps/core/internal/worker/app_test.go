@@ -111,3 +111,32 @@ func TestAppSweepWaitsForBootGraceAfterStart(t *testing.T) {
 		t.Fatalf("incidents after boot grace = %d, want 1", count)
 	}
 }
+
+// A receiver that hangs must not stall the Worker loop: dispatch runs beside it.
+func TestDispatchAlertsAsyncDoesNotBlockAndNeverOverlaps(t *testing.T) {
+	database := openWorkerMigratedTestDatabase(t)
+	app := NewApp(database, utils.NewLogger(), Options{Config: &config.Config{}})
+	delivery := db.AlertDelivery{ID: "slow", IncidentID: "i", EventType: "incident_opened", Channel: "legacy", Type: "email", Status: "pending", MaxAttempts: 3}
+	database.Create(&delivery)
+
+	app.dispatching.Store(true) // a pass is already running
+	started := time.Now()
+	app.dispatchAlertsAsync() // must return immediately and not start a second pass
+	if time.Since(started) > 100*time.Millisecond {
+		t.Fatal("dispatchAlertsAsync blocked the caller")
+	}
+	app.background.Wait()
+	var got db.AlertDelivery
+	database.First(&got, "id = ?", "slow")
+	if got.Status != "pending" {
+		t.Fatalf("status = %q, want untouched: an overlapping pass must be skipped", got.Status)
+	}
+
+	app.dispatching.Store(false)
+	app.dispatchAlertsAsync()
+	app.background.Wait()
+	database.First(&got, "id = ?", "slow")
+	if got.Status != "suppressed" || app.dispatching.Load() {
+		t.Fatalf("status = %q dispatching = %t, want the pass to run once and release its guard", got.Status, app.dispatching.Load())
+	}
+}

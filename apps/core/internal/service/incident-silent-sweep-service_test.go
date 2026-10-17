@@ -150,3 +150,12 @@ func TestSweepSilentMonitorsFlagsMonitorThatNeverReported(t *testing.T) {
 		t.Fatalf("never-reported sweep = %d, %v, want 1", n, err)
 	}
 }
+
+func TestSweepSilentMonitorsSkipsRevokedAgents(t *testing.T) {
+	database, svc, monitor, reportedAt := sweepFixture(t, nil)
+	revoked := time.Now().UTC()
+	database.Model(&db.Agent{}).Where("id = ?", monitor.AgentID).Update("token_revoked_at", &revoked)
+	if n, _ := svc.SweepSilentMonitors(reportedAt.Add(time.Hour)); n != 0 || len(activeIncidents(t, database, monitor.ID)) != 0 {
+		t.Fatalf("revoking an agent paged for its monitors (flagged %d)", n)
+	}
+}

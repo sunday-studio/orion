@@ -12,6 +12,7 @@ import (
 	"orion/core/internal/utils"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"gorm.io/gorm"
@@ -105,6 +106,8 @@ type App struct {
 	concurrency    int
 	slots          chan struct{}
 	inflight       sync.WaitGroup
+	dispatching    atomic.Bool
+	background     sync.WaitGroup
 }
 
 type checkRunResult struct {
@@ -214,7 +217,7 @@ func (a *App) Run(ctx context.Context) error {
 	defer dispatchTicker.Stop()
 	sweepTicker := time.NewTicker(a.sweepEvery)
 	defer sweepTicker.Stop()
-	a.dispatchAlerts()
+	a.dispatchAlertsAsync()
 	a.sweepSilentMonitors()
 
 	for {
@@ -225,7 +228,7 @@ func (a *App) Run(ctx context.Context) error {
 		case <-healthTicker.C:
 			a.logHealth(ctx)
 		case <-dispatchTicker.C:
-			a.dispatchAlerts()
+			a.dispatchAlertsAsync()
 		case <-sweepTicker.C:
 			a.sweepSilentMonitors()
 		case <-checkTicker.C:
