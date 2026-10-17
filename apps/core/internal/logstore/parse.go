@@ -64,7 +64,7 @@ func ParseRequest(contentType string, body []byte, now time.Time) (Parsed, error
 		if len(chunks) > MaxEntriesPerRequest {
 			return Parsed{}, ErrTooManyEntries
 		}
-		return normalizeChunks(chunks, framingErrors, now, true), nil
+		return normalizeChunks(chunks, framingErrors, now), nil
 	case "application/json", "text/json":
 		trimmed := bytes.TrimSpace(body)
 		if len(trimmed) == 0 || !json.Valid(trimmed) {
@@ -83,14 +83,13 @@ func ParseRequest(contentType string, body []byte, now time.Time) (Parsed, error
 		if len(chunks) > MaxEntriesPerRequest {
 			return Parsed{}, ErrTooManyEntries
 		}
-		return normalizeChunks(chunks, nil, now, false), nil
+		return normalizeChunks(chunks, nil, now), nil
 	default:
 		return Parsed{}, ErrUnsupportedMedia
 	}
 }
 
-func normalizeChunks(chunks []json.RawMessage, framingErrors []EntryError, now time.Time, ndjson bool) Parsed {
-	_ = ndjson
+func normalizeChunks(chunks []json.RawMessage, framingErrors []EntryError, now time.Time) Parsed {
 	result := Parsed{Errors: framingErrors}
 	for i, chunk := range chunks {
 		var object map[string]any

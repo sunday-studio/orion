@@ -121,3 +121,49 @@ func TestInvalidateDuringAuthenticationDoesNotCacheTheStaleResult(t *testing.T) 
 	}
 	_ = key
 }
+
+func TestSlowSubscribersLoseEntriesWithoutSlowingTheWriter(t *testing.T) {
+	store := newTestStore(t, 100000)
+	sub, cancel := store.Subscribe(Query{})
+	defer cancel() // nobody reads sub.C: its 256-entry buffer fills
+	var batch []Entry
+	for i := 0; i < 1000; i++ {
+		batch = append(batch, mkEntry("a", i, epoch))
+	}
+	start := time.Now()
+	store.Enqueue(batch)
+	store.Flush(5 * time.Second)
+	if time.Since(start) > 3*time.Second {
+		t.Fatal("a stalled subscriber slowed the writer")
+	}
+	if sub.Dropped.Load() < 700 || len(sub.C) != 256 {
+		t.Fatalf("dropped=%d buffered=%d, want the overflow dropped and counted", sub.Dropped.Load(), len(sub.C))
+	}
+	if st := store.Stats(); st.Written != 1000 {
+		t.Fatalf("written = %d, want all 1000 stored regardless of the subscriber", st.Written)
+	}
+}
+
+func TestQueryMatchMirrorsTheSQLFilters(t *testing.T) {
+	e := mkEntry("app-1", 1, epoch)
+	e.Severity, e.SeverityNumber, e.Event, e.RequestID = "error", 17, "job.failed", "req-9"
+	for name, tc := range map[string]struct {
+		q    Query
+		want bool
+	}{
+		"empty":         {Query{}, true},
+		"app match":     {Query{AppIDs: []string{"x", "app-1"}}, true},
+		"app mismatch":  {Query{AppIDs: []string{"x"}}, false},
+		"severity list": {Query{Severity: "warn,error"}, true},
+		"severity min":  {Query{Severity: ">=fatal"}, false},
+		"event":         {Query{Event: "job.failed"}, true},
+		"request id":    {Query{RequestID: "other"}, false},
+		"text in body":  {Query{Text: "MESSAGE 1"}, true},
+		"attr match":    {Query{Attrs: []string{"i:1"}}, true},
+		"attr mismatch": {Query{Attrs: []string{"i:2"}}, false},
+	} {
+		if got := tc.q.Match(e); got != tc.want {
+			t.Errorf("%s: Match = %t, want %t", name, got, tc.want)
+		}
+	}
+}

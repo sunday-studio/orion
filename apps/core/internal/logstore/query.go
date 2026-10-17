@@ -139,6 +139,11 @@ func (q Query) where() (string, []any, error) {
 	return " WHERE " + strings.Join(clauses, " AND "), args, nil
 }
 
+// EncodeCursor and DecodeCursor expose the (time, id) paging cursor for other sources.
+func EncodeCursor(ts int64, id string) string { return encodeCursor(ts, id) }
+
+func DecodeCursor(cursor string) (int64, string, error) { return decodeCursor(cursor) }
+
 func encodeCursor(ts int64, id string) string {
 	return base64.RawURLEncoding.EncodeToString([]byte(strconv.FormatInt(ts, 10) + "|" + id))
 }

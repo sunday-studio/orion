@@ -11,13 +11,13 @@ var _ utils.APIResponse
 
 // searchLogs Search logs.
 // @Summary      Search logs
-// @Description  Unified log list across apps and agent service logs, newest first, cursor-paginated.
+// @Description  Newest-first, cursor-paginated log list. source=app (default) searches product logs; source=agent lists agent service logs (severity, q, from, to and agent_id apply).
 // @Tags         logs
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
 // @ID           searchLogs
-// @Param        source query string false "app or agent; default both"
+// @Param        source query string false "app (default) or agent"
 // @Param        app_id query string false "Filter by app"
 // @Param        agent_id query string false "Filter by agent (agent service logs)"
 // @Param        severity query string false "Comma-separated severities, or a minimum with >=warn"
@@ -45,7 +45,7 @@ func (s *Server) searchLogs(c *gin.Context) { s.searchLogsImpl(c) }
 // @Produce      json
 // @Security     BearerAuth
 // @ID           getLogHistogram
-// @Param        source query string false "app or agent; default both"
+// @Param        source query string false "app (default) or agent"
 // @Param        app_id query string false "Filter by app"
 // @Param        agent_id query string false "Filter by agent (agent service logs)"
 // @Param        severity query string false "Comma-separated severities, or a minimum with >=warn"
@@ -62,7 +62,7 @@ func (s *Server) searchLogs(c *gin.Context) { s.searchLogsImpl(c) }
 // @Failure      401  {object}  utils.APIResponse
 // @Failure      501  {object}  utils.APIResponse
 // @Router       /v1/logs/histogram [get]
-func (s *Server) getLogHistogram(c *gin.Context) { s.logsNotImplemented(c) }
+func (s *Server) getLogHistogram(c *gin.Context) { s.getLogHistogramImpl(c) }
 
 // getLogFieldCatalog Log field catalog.
 // @Summary      Log field catalog
@@ -78,7 +78,7 @@ func (s *Server) getLogHistogram(c *gin.Context) { s.logsNotImplemented(c) }
 // @Failure      401  {object}  utils.APIResponse
 // @Failure      501  {object}  utils.APIResponse
 // @Router       /v1/logs/fields [get]
-func (s *Server) getLogFieldCatalog(c *gin.Context) { s.logsNotImplemented(c) }
+func (s *Server) getLogFieldCatalog(c *gin.Context) { s.getLogFieldCatalogImpl(c) }
 
 // streamLogs Stream logs live.
 // @Summary      Stream logs live
@@ -88,7 +88,7 @@ func (s *Server) getLogFieldCatalog(c *gin.Context) { s.logsNotImplemented(c) }
 // @Produce      json
 // @Security     BearerAuth
 // @ID           streamLogs
-// @Param        source query string false "app or agent; default both"
+// @Param        source query string false "app (default) or agent"
 // @Param        app_id query string false "Filter by app"
 // @Param        agent_id query string false "Filter by agent (agent service logs)"
 // @Param        severity query string false "Comma-separated severities, or a minimum with >=warn"
@@ -102,7 +102,7 @@ func (s *Server) getLogFieldCatalog(c *gin.Context) { s.logsNotImplemented(c) }
 // @Failure      401  {object}  utils.APIResponse
 // @Failure      501  {object}  utils.APIResponse
 // @Router       /v1/logs/stream [get]
-func (s *Server) streamLogs(c *gin.Context) { s.logsNotImplemented(c) }
+func (s *Server) streamLogs(c *gin.Context) { s.streamLogsImpl(c) }
 
 // listLogViews List saved log views.
 // @Summary      List saved log views
@@ -116,7 +116,7 @@ func (s *Server) streamLogs(c *gin.Context) { s.logsNotImplemented(c) }
 // @Failure      401  {object}  utils.APIResponse
 // @Failure      501  {object}  utils.APIResponse
 // @Router       /v1/logs/views [get]
-func (s *Server) listLogViews(c *gin.Context) { s.logsNotImplemented(c) }
+func (s *Server) listLogViews(c *gin.Context) { s.listLogViewsImpl(c) }
 
 // createLogView Save a log view.
 // @Summary      Save a log view
@@ -132,7 +132,7 @@ func (s *Server) listLogViews(c *gin.Context) { s.logsNotImplemented(c) }
 // @Failure      401  {object}  utils.APIResponse
 // @Failure      501  {object}  utils.APIResponse
 // @Router       /v1/logs/views [post]
-func (s *Server) createLogView(c *gin.Context) { s.logsNotImplemented(c) }
+func (s *Server) createLogView(c *gin.Context) { s.createLogViewImpl(c) }
 
 // deleteLogView Delete a saved log view.
 // @Summary      Delete a saved log view
@@ -148,7 +148,7 @@ func (s *Server) createLogView(c *gin.Context) { s.logsNotImplemented(c) }
 // @Failure      401  {object}  utils.APIResponse
 // @Failure      501  {object}  utils.APIResponse
 // @Router       /v1/logs/views/{id} [delete]
-func (s *Server) deleteLogView(c *gin.Context) { s.logsNotImplemented(c) }
+func (s *Server) deleteLogView(c *gin.Context) { s.deleteLogViewImpl(c) }
 
 // getLogEntry Get one log entry.
 // @Summary      Get one log entry

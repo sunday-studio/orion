@@ -1,17 +1,13 @@
 package api
 
 import (
-	"net/http"
 	"orion/core/internal/utils"
 
 	"github.com/gin-gonic/gin"
 )
 
-// logsNotImplemented answers the product-logs routes until phase L1 ships their
-// implementation. The route, annotations and types are the contract.
-func (s *Server) logsNotImplemented(c *gin.Context) {
-	utils.ErrorResponse(c, http.StatusNotImplemented, "Product logs are specified but not implemented yet (phase L1)", nil)
-}
+// swag resolves utils.APIResponse through this file's imports.
+var _ utils.APIResponse
 
 // listApps List apps.
 // @Summary      List apps

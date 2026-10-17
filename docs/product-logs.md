@@ -1,6 +1,6 @@
 # Send logs to Orion
 
-Status: **L1 is live**: apps, ingest keys, `POST /v1/ingest/logs` (JSON, array, NDJSON), `GET /v1/logs` and `GET /v1/logs/{id}` work. OTLP, the histogram, field catalog, saved views and live stream are specified in `apps/core/openapi.yaml` and answer `501 Not Implemented` until their phase ships; shapes will not change incompatibly. Design: [plans/product-logs-plan.md](plans/product-logs-plan.md).
+Status: **live**: apps, ingest keys, `POST /v1/ingest/logs` (JSON, array, NDJSON, optionally gzip), OTLP/HTTP ingest (protobuf and JSON), `GET /v1/logs`, `GET /v1/logs/{id}`, the volume histogram, the field catalog, saved views and the live stream. Log-based alerts and incident linking come next; everything is specified in `apps/core/openapi.yaml`. Design: [plans/product-logs-plan.md](plans/product-logs-plan.md).
 
 Orion collects *product logs*: what your app says about itself ("user signed up", "payment failed", "export finished", errors with context). There is no required schema. A plain message is a valid log; richer data gets richer filtering automatically.
 
@@ -72,7 +72,7 @@ export OTEL_EXPORTER_OTLP_LOGS_PROTOCOL="http/json"   # http/protobuf also works
 export OTEL_SERVICE_NAME="checkout-api"
 ```
 
-OTLP log records map to Orion entries: `body`, `severityNumber`/`severityText`, `timeUnixNano`, `attributes`, `traceId`, `spanId`; the `resource` attributes become `resource`.
+OTLP log records map to Orion entries (the response mirrors the request encoding and reports rejected records in `partial_success`): `body`, `severityNumber`/`severityText`, `timeUnixNano`, `attributes`, `traceId`, `spanId`; the `resource` attributes become `resource`.
 
 ## 5. Limits, errors and retries
 
@@ -117,6 +117,6 @@ These need an admin login, not an ingest key:
 | `GET/POST/DELETE /v1/logs/views` | Saved filter sets |
 | `/v1/apps`, `/v1/apps/{id}`, `/v1/apps/{id}/keys`, `/v1/apps/{id}/test-log` | Manage apps, keys, send a test log |
 
-Rollout: **L1 (now)** apps, keys, native ingest, `GET /v1/logs`, `GET /v1/logs/{id}`, retention, rate limits. **L2** histogram, field catalog, saved views and agent logs in the same list (`source=agent`). **L3** OTLP, live stream. Search `q` is a substring match over the body, event and attributes today; full-text ranking arrives with L2.
+Notes: `GET /v1/logs` searches product logs by default; `source=agent` lists agent service logs in the same shape (`severity`, `q`, `from`, `to`, `agent_id`). A request body may be gzip-compressed (`Content-Encoding: gzip`, as OpenTelemetry exporters send by default); the decompressed size obeys the same limits. The live stream (`GET /v1/logs/stream`) is Server-Sent Events: each `log` event carries one entry as JSON, a comment heartbeat arrives every 15 s, and reconnecting with `Last-Event-ID` replays up to 500 missed entries before going live; slow consumers lose entries rather than slowing ingest. Search `q` is a substring match over the body, event and attributes (ranked full-text search is a later improvement).
 
 Operational notes: logs live in their own `logs.db` next to `orion.db` (WAL, owner-only). Ingest is asynchronous: `202` means queued in memory (up to `ORION_LOGS_QUEUE_MAX` entries) and written within about a second; a hard crash can lose entries still in the queue. Retention (default 14 days, plus an optional per-app storage cap) is pruned hourly in small batches.

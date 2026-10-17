@@ -24,7 +24,7 @@ func maxBodyBytesFor(fullPath string, contentType string) int64 {
 	if strings.HasSuffix(fullPath, "/logs/batch") {
 		return serviceLogMaxBodyBytes
 	}
-	if strings.HasPrefix(fullPath, "/v1/ingest/") && strings.Contains(strings.ToLower(contentType), "ndjson") {
+	if strings.HasPrefix(fullPath, "/v1/ingest/otlp/") || (strings.HasPrefix(fullPath, "/v1/ingest/") && strings.Contains(strings.ToLower(contentType), "ndjson")) {
 		return serviceLogMaxBodyBytes // 5 MiB for NDJSON ingest batches
 	}
 	return defaultMaxBodyBytes

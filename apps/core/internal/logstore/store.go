@@ -77,6 +77,8 @@ type Store struct {
 	// sendMu orders Enqueue's send against Close: senders hold the read lock, Close the write lock.
 	sendMu sync.RWMutex
 
+	hub *hub
+
 	closeOnce sync.Once
 	closed    atomic.Bool
 	done      chan struct{}
@@ -99,7 +101,7 @@ func OpenWith(database *gorm.DB, logger *utils.Logger, queueMax int) (*Store, er
 	if queueMax <= 0 {
 		queueMax = DefaultQueueMax
 	}
-	s := &Store{db: database, logger: logger, queueMax: int64(queueMax), batches: make(chan []Entry, 4096), done: make(chan struct{})}
+	s := &Store{db: database, logger: logger, queueMax: int64(queueMax), batches: make(chan []Entry, 4096), done: make(chan struct{}), hub: newHub()}
 	go s.writer()
 	return s, nil
 }
@@ -195,6 +197,7 @@ func (s *Store) flushBatch(entries []Entry) {
 	}
 	s.written.Add(stored)
 	s.dupes.Add(int64(len(entries)) - stored)
+	s.hub.publish(entries)
 }
 
 // insert writes the entries in one transaction and returns how many rows were really
