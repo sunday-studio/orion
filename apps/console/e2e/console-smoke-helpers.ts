@@ -40,9 +40,6 @@ export const sendWebhookTest = async (page: Page, name: string) => {
 
 export const openSettings = async (page: Page) => {
   await signIn(page);
-  await page
-    .getByLabel("Primary navigation")
-    .getByRole("link", { name: "Settings", exact: true })
-    .click();
+  await page.getByRole("banner").getByRole("link", { name: "Settings", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
 };

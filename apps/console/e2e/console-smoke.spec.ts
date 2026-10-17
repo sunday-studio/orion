@@ -14,7 +14,8 @@ test("signs in, rejects bad credentials, and signs out", async ({ page }) => {
   await page.getByRole("button", { name: "Enter" }).click();
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Sign out" }).click();
+  await page.getByRole("button", { name: "Account menu" }).click();
+  await page.getByRole("menuitem", { name: "Sign out" }).click();
   await expect(page.getByPlaceholder("Username")).toBeVisible();
 });
 
@@ -77,10 +78,7 @@ test("renders primary operations pages with seeded Core data", async ({ page }) 
   await expect(page.getByRole("heading", { name: "Logs" })).toBeVisible();
   await expect(page.getByPlaceholder("Search events")).toBeVisible();
 
-  await page
-    .getByLabel("Primary navigation")
-    .getByRole("link", { name: "Settings", exact: true })
-    .click();
+  await page.getByRole("banner").getByRole("link", { name: "Settings", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
   await expect(page.getByLabel("Raw report days")).toHaveValue("30");
   await expect(

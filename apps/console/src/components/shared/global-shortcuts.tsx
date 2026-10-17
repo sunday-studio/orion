@@ -1,4 +1,8 @@
 import { useEffect, useState } from "react";
+import {
+  OPEN_PALETTE_EVENT,
+  OPEN_SHORTCUTS_EVENT,
+} from "@/components/shared/global-shortcut-events";
 import { CommandPalette } from "@/components/shared/command-palette";
 import { ShortcutsSheet } from "@/components/shared/shortcuts-sheet";
 
@@ -30,8 +34,16 @@ export const GlobalShortcuts = () => {
         setShortcutsOpen(true);
       }
     };
+    const openPalette = () => setPaletteOpen(true);
+    const openShortcuts = () => setShortcutsOpen(true);
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener(OPEN_PALETTE_EVENT, openPalette);
+    window.addEventListener(OPEN_SHORTCUTS_EVENT, openShortcuts);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener(OPEN_PALETTE_EVENT, openPalette);
+      window.removeEventListener(OPEN_SHORTCUTS_EVENT, openShortcuts);
+    };
   }, [paletteOpen, shortcutsOpen]);
 
   return (
