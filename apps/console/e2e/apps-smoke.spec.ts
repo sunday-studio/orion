@@ -57,3 +57,23 @@ test("an ingested app log appears in Service logs", async ({ page }) => {
   await page.getByPlaceholder("Search logs").fill(marker);
   await expect(page.getByRole("cell", { name: "e2e.checked" })).toBeVisible();
 });
+
+test("connect-first-app flow detects the first log", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/settings/apps");
+  await page.getByRole("button", { name: "Connect an app" }).click();
+  const dialog = page.getByRole("dialog", { name: "Connect your first app" });
+  await dialog.getByLabel("App name").fill(`Connect ${Date.now()}`);
+  await dialog.getByRole("button", { name: "Create app" }).click();
+
+  await expect(dialog.getByLabel("Example request")).toContainText("/v1/ingest/logs");
+  await expect(dialog.getByText("Waiting for the first log...")).toBeVisible();
+  const secret = (await dialog.getByTestId("ingest-key-secret").innerText()).trim();
+
+  const response = await page.request.post(`${coreApiURL}/ingest/logs`, {
+    headers: { Authorization: `Bearer ${secret}` },
+    data: { body: "hello from e2e", severity: "info" },
+  });
+  expect(response.ok()).toBeTruthy();
+  await expect(dialog.getByTestId("first-log-received")).toBeVisible({ timeout: 15_000 });
+});

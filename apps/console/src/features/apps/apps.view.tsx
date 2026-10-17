@@ -15,6 +15,7 @@ import {
 import { type ApiApp, getListAppsQueryKey, useCreateApp, useListApps } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { AppDetailDrawer } from "./components/app-detail-drawer";
+import { ConnectAppDialog } from "./components/connect-app-dialog";
 
 const columns: ColumnDef<ApiApp>[] = [
   { accessorKey: "name", header: "App", cell: ({ row }) => row.original.name ?? row.original.id },
@@ -44,6 +45,7 @@ export const AppsPage = () => {
   const appsQuery = useListApps();
   const [selectedId, setSelectedId] = useState<string>();
   const [creating, setCreating] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   const [name, setName] = useState("");
   const [environment, setEnvironment] = useState("production");
   const createApp = useCreateApp({
@@ -66,7 +68,12 @@ export const AppsPage = () => {
           title="Apps"
           description="Applications that send logs to Orion. Each app has its own ingest keys."
         />
-        <Button onClick={() => setCreating(true)}>New app</Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => setConnecting(true)}>
+            Connect an app
+          </Button>
+          <Button onClick={() => setCreating(true)}>New app</Button>
+        </div>
       </div>
 
       <DataTable
@@ -116,6 +123,7 @@ export const AppsPage = () => {
         </DialogContent>
       </Dialog>
 
+      <ConnectAppDialog open={connecting} onOpenChange={setConnecting} />
       <AppDetailDrawer
         app={selected}
         onOpenChange={(open) => {

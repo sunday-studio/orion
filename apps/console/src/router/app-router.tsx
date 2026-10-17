@@ -33,6 +33,9 @@ const IncidentTriagePage = lazy(() =>
     default: module.IncidentTriagePage,
   })),
 );
+const AddServerPage = lazy(() =>
+  import("@/features/agents/add-server.view").then((module) => ({ default: module.AddServerPage })),
+);
 const OverviewPage = lazy(() =>
   import("@/features/overview/overview.view").then((module) => ({ default: module.OverviewPage })),
 );
@@ -82,6 +85,7 @@ function AppRouter() {
           <Route path="agents" element={<Navigate to="/servers" replace />} />
           <Route path="agents/:agentId" element={<AgentDetailRedirect />} />
           <Route path="servers" element={<AgentsPage />} />
+          <Route path="servers/new" element={<AddServerPage />} />
           <Route path="servers/:agentId" element={<AgentDetailPage />} />
           <Route path="monitors" element={<MonitorsPage />} />
           <Route path="monitors/:monitorId" element={<MonitorDetailPage />} />
