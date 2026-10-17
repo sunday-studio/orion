@@ -171,7 +171,7 @@ export const AddServerPage = () => {
           />
         ) : (
           <FieldPanel title="Run this on the server" aside="One-time token, expires in 15 minutes">
-            <CodeBlock aria-label="Install command">
+            <CodeBlock aria-label="Install command" className="whitespace-pre-wrap break-all">
               {command || "Preparing the command..."}
             </CodeBlock>
             <div className="mt-2.5">

@@ -3,23 +3,43 @@ import { Search, X } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dot } from "@/design-system";
-import { useGetIncidents, useGetMonitors } from "@/orion-sdk";
+import { type ApiSearchHitResponse, useSearchEverything } from "@/orion-sdk";
 import { cn } from "@/utils/cn";
 
 type PaletteItem = {
   id: string;
-  group: "Monitors" | "Incidents" | "Actions";
+  group: "Monitors" | "Incidents" | "Servers" | "Apps" | "Actions";
   label: string;
   to: string;
   hint?: string;
   dot?: string;
 };
 
-const HEALTH_DOT: Record<string, string> = {
+const HIT_DOT: Record<string, string> = {
   up: "#2a9f69",
+  ok: "#2a9f69",
+  resolved: "#2a9f69",
   down: "#e5484d",
+  open: "#e5484d",
   degraded: "#f59e0b",
+  acknowledged: "#f59e0b",
 };
+
+const HIT_GROUP: Record<string, PaletteItem["group"]> = {
+  monitor: "Monitors",
+  incident: "Incidents",
+  server: "Servers",
+  app: "Apps",
+};
+
+const hitTarget = (hit: ApiSearchHitResponse) =>
+  hit.type === "monitor"
+    ? `/monitors/${hit.id}`
+    : hit.type === "incident"
+      ? `/incidents/${hit.id}`
+      : hit.type === "server"
+        ? `/servers/${hit.id}`
+        : "/settings/apps";
 
 const actions: PaletteItem[] = [
   { id: "a-monitor", group: "Actions", label: "New monitor", to: "/monitors?new=1", hint: "N" },
@@ -35,7 +55,7 @@ const actions: PaletteItem[] = [
   { id: "g-settings", group: "Actions", label: "Go to Settings", to: "/settings" },
 ];
 
-const GROUPS: PaletteItem["group"][] = ["Monitors", "Incidents", "Actions"];
+const GROUPS: PaletteItem["group"][] = ["Monitors", "Incidents", "Servers", "Apps", "Actions"];
 
 type CommandPaletteProps = {
   open: boolean;
@@ -49,39 +69,26 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
   const [active, setActive] = useState(0);
   const needle = query.trim().toLowerCase();
 
-  const monitors = useGetMonitors(
-    { search: needle || undefined, limit: 5 },
-    { query: { enabled: open } },
+  const search = useSearchEverything(
+    { q: needle },
+    { query: { enabled: open && needle.length > 0 } },
   );
-  const incidents = useGetIncidents({ limit: 20 }, { query: { enabled: open } });
 
   const items = useMemo(() => {
-    const monitorItems: PaletteItem[] = (monitors.data?.monitors ?? [])
-      .slice(0, 4)
-      .map((monitor) => ({
-        id: `m-${monitor.id}`,
-        group: "Monitors",
-        label: monitor.name ?? monitor.id ?? "Monitor",
-        to: `/monitors/${monitor.id}`,
-        dot: HEALTH_DOT[monitor.health ?? monitor.computed_health ?? ""] ?? "#a1a1aa",
-      }));
-    const incidentItems: PaletteItem[] = (incidents.data?.incidents ?? [])
-      .filter((incident) => !needle || (incident.title ?? "").toLowerCase().includes(needle))
-      .slice(0, 3)
-      .map((incident) => ({
-        id: `i-${incident.id}`,
-        group: "Incidents",
-        label: incident.title ?? incident.id ?? "Incident",
-        to: `/incidents/${incident.id}`,
-        dot: incident.status === "resolved" ? "#2a9f69" : "#e5484d",
-      }));
-    const actionItems = actions.filter(
+    const hitItems: PaletteItem[] = (needle ? (search.data?.hits ?? []) : []).map((hit) => ({
+      id: `${hit.type}-${hit.id}`,
+      group: HIT_GROUP[hit.type ?? "monitor"] ?? "Monitors",
+      label: hit.name ?? hit.id ?? "Result",
+      to: hitTarget(hit),
+      dot: HIT_DOT[hit.status ?? ""] ?? "#a1a1aa",
+    }));
+    const matchedActions = actions.filter(
       (item) => !needle || item.label.toLowerCase().includes(needle),
     );
-    return needle
-      ? [...monitorItems, ...incidentItems, ...actionItems]
-      : [...monitorItems.slice(0, 2), ...incidentItems.slice(0, 1), ...actionItems.slice(0, 3)];
-  }, [monitors.data, incidents.data, needle]);
+    // With no matching action the palette still offers the first three, as on the artboard.
+    const actionItems = matchedActions.length > 0 ? matchedActions : actions.slice(0, 3);
+    return needle ? [...hitItems, ...actionItems] : actionItems.slice(0, 5);
+  }, [search.data, needle]);
 
   useEffect(() => setActive(0), [needle]);
 
