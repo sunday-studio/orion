@@ -1,6 +1,7 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Button,
   DataTable,
@@ -15,7 +16,6 @@ import {
 import { type ApiApp, getListAppsQueryKey, useCreateApp, useListApps } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { AppDetailDrawer } from "./components/app-detail-drawer";
-import { ConnectAppDialog } from "./components/connect-app-dialog";
 
 const columns: ColumnDef<ApiApp>[] = [
   { accessorKey: "name", header: "App", cell: ({ row }) => row.original.name ?? row.original.id },
@@ -45,7 +45,6 @@ export const AppsPage = () => {
   const appsQuery = useListApps();
   const [selectedId, setSelectedId] = useState<string>();
   const [creating, setCreating] = useState(false);
-  const [connecting, setConnecting] = useState(false);
   const [name, setName] = useState("");
   const [environment, setEnvironment] = useState("production");
   const createApp = useCreateApp({
@@ -69,9 +68,9 @@ export const AppsPage = () => {
           description="Applications that send logs to Orion. Each app has its own ingest keys."
         />
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => setConnecting(true)}>
-            Connect an app
-          </Button>
+          <Link to="/apps/new">
+            <Button variant="secondary">Connect an app</Button>
+          </Link>
           <Button onClick={() => setCreating(true)}>New app</Button>
         </div>
       </div>
@@ -123,7 +122,6 @@ export const AppsPage = () => {
         </DialogContent>
       </Dialog>
 
-      <ConnectAppDialog open={connecting} onOpenChange={setConnecting} />
       <AppDetailDrawer
         app={selected}
         onOpenChange={(open) => {

@@ -9,9 +9,9 @@ export const coreURL = `http://127.0.0.1:${corePort}`;
 
 export const signIn = async (page: Page) => {
   await page.goto("/login");
-  await page.getByPlaceholder("Username").fill(username);
-  await page.getByPlaceholder("Password").fill(password);
-  await page.getByRole("button", { name: "Enter" }).click();
+  await page.getByLabel("Username").fill(username);
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByRole("heading", { name: /How is it going/ })).toBeVisible();
 };
 

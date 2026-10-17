@@ -60,28 +60,22 @@ test("an ingested app log appears in Service logs", async ({ page }) => {
 
 test("connect-first-app flow detects the first log", async ({ page }) => {
   await signIn(page);
-  await page.goto("/settings/apps");
-  await page.getByRole("button", { name: "Connect an app" }).click();
-  const dialog = page.getByRole("dialog", { name: "Connect your first app" });
-  await dialog.getByLabel("App name").fill(`Connect ${Date.now()}`);
-  await dialog.getByRole("button", { name: "Create app" }).click();
+  await page.goto("/apps/new");
+  await expect(page.getByRole("heading", { name: "Connect your first app" })).toBeVisible();
+  await page.getByLabel("Name").fill(`Connect ${Date.now()}`);
+  await page.getByRole("button", { name: "Create app" }).click();
 
-  await expect(dialog.getByLabel("Example request")).toContainText("/v1/ingest/logs");
-  await expect(dialog.getByText("Waiting for the first log...")).toBeVisible();
-  const secret = (await dialog.getByTestId("ingest-key-secret").innerText()).trim();
+  await expect(page.getByRole("heading", { name: /Add the key to/ })).toBeVisible();
+  await expect(page.getByRole("tabpanel")).toContainText("/v1/ingest/logs");
+  const secret = (await page.getByLabel("Ingest key").innerText()).trim();
+  await page.getByRole("button", { name: "I sent one" }).click();
+  await expect(page.getByText("No log received yet")).toBeVisible();
 
   const response = await page.request.post(`${coreApiURL}/ingest/logs`, {
     headers: { Authorization: `Bearer ${secret}` },
     data: { body: "hello from e2e", severity: "info" },
   });
   expect(response.ok()).toBeTruthy();
-  await expect(dialog.getByTestId("first-log-received")).toBeVisible({ timeout: 15_000 });
-
-  // The key is shown once: the dialog stays open until the user confirms they stored it.
-  await page.keyboard.press("Escape");
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole("button", { name: "Done" })).toBeDisabled();
-  await dialog.getByRole("checkbox", { name: "I stored the key" }).click();
-  await dialog.getByRole("button", { name: "Done" }).click();
-  await expect(dialog).toHaveCount(0);
+  await expect(page.getByText("Its first log just arrived.")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("link", { name: "Open in Logs" })).toBeVisible();
 });
