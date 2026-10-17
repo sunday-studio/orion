@@ -3,15 +3,8 @@ package cli
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 
 	agent "orion/agent/internal"
-	"orion/agent/internal/config"
-	agentstate "orion/agent/internal/state"
-
-	"gopkg.in/yaml.v3"
 )
 
 func runStart(_ context.Context, opts *Options) error {
@@ -109,71 +102,6 @@ func runStatus(_ context.Context, opts *Options) error {
 		return &CommandError{Summary: "service is not running", ExitCode: 1}
 	}
 	PrintOK("service is running")
-	return nil
-}
-
-func runSetup(_ context.Context, opts *Options) error {
-	PrintHeader("setup")
-	PrintInfo("config", opts.ConfigPath)
-	PrintInfo("state", opts.StatePath)
-
-	coreURL := strings.TrimSpace(opts.SetupCoreURL)
-	if coreURL == "" {
-		return NewCommandError("could not create config", fmt.Errorf("--core-url is required"))
-	}
-
-	if _, err := os.Stat(opts.ConfigPath); err == nil && !opts.SetupForce {
-		return NewCommandError("config already exists", fmt.Errorf("%s exists", opts.ConfigPath), "rerun with --force to replace it", "run: orion-agent config show")
-	} else if err != nil && !os.IsNotExist(err) {
-		return NewCommandError("could not inspect config path", err)
-	}
-
-	userConfig := config.UserConfig{
-		CoreURL:     coreURL,
-		Interval:    "60s",
-		GeoLocation: false,
-		Monitors:    []config.UserMonitor{},
-	}
-	userConfig.ApplyDefaults()
-	if err := userConfig.Validate(); err != nil {
-		return NewCommandError("config validation failed", err)
-	}
-
-	PrintStep("writing config")
-	if err := os.MkdirAll(filepath.Dir(opts.ConfigPath), 0o750); err != nil {
-		return NewCommandError("could not create config directory", err)
-	}
-	data, err := yaml.Marshal(userConfig)
-	if err != nil {
-		return NewCommandError("could not render config", err)
-	}
-	if err := os.WriteFile(opts.ConfigPath, data, 0o640); err != nil {
-		return NewCommandError("could not write config", err)
-	}
-	PrintOK("config written")
-	PrintInfo("core_url", coreURL)
-
-	if opts.SetupInitState {
-		PrintStep("initializing state database")
-		stateStore, err := agentstate.Open(opts.StatePath)
-		if err != nil {
-			return NewCommandError("could not initialize state database", err)
-		}
-		if _, err := stateStore.Get(); err != nil {
-			_ = stateStore.Close()
-			return NewCommandError("could not initialize state database", err)
-		}
-		if err := stateStore.Close(); err != nil {
-			return NewCommandError("could not close state database", err)
-		}
-		PrintOK("state database initialized")
-	} else {
-		PrintSkip("state database not initialized; run orion-agent state init when ready")
-	}
-
-	PrintOK("setup complete")
-	PrintInfo("next", "orion-agent config show")
-	PrintInfo("next", "orion-agent run --once")
 	return nil
 }
 

@@ -124,15 +124,29 @@ func newDoctorCommand(ctx context.Context, opts *Options) *cobra.Command {
 func newSetupCommand(ctx context.Context, opts *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "setup",
-		Short: "Create a starter Agent config",
-		Args:  cobra.NoArgs,
+		Short: "Configure this host: Core URL, enrollment and what to monitor",
+		Long: "Interactive on a terminal: asks for the Core URL and enrollment token, discovers services, " +
+			"containers and ports on this host, lets you pick what to monitor, shows the config diff and applies it " +
+			"without a restart. Non-interactive with --yes (or when stdin is not a terminal): pass --core-url, " +
+			"--token-file and --monitor selectors; `orion-agent discover` lists the ids.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if commandNeedsElevation("setup", commandArgs(opts, "setup")) {
+				if err := ensurePrivilegeFor(opts, "setup"); err != nil {
+					return NewCommandError("could not elevate privileges", err)
+				}
+			}
 			return runSetup(ctx, opts)
 		},
 	}
-	cmd.Flags().StringVar(&opts.SetupCoreURL, "core-url", "", "Core URL to write to the config")
-	cmd.Flags().BoolVar(&opts.SetupForce, "force", false, "Overwrite an existing config file")
-	cmd.Flags().BoolVar(&opts.SetupInitState, "init-state", false, "Initialize the state database after writing config")
+	f := cmd.Flags()
+	f.StringVar(&opts.SetupCoreURL, "core-url", "", "Core URL (or "+"ORION_CORE_URL"+")")
+	f.BoolVar(&opts.SetupForce, "force", false, "Start from a blank config instead of adding to the existing one")
+	f.BoolVar(&opts.SetupInitState, "init-state", false, "Initialize the state database after writing config")
+	f.BoolVar(&opts.SetupYes, "yes", false, "Never prompt; apply the flags as given")
+	f.BoolVar(&opts.SetupDryRun, "dry-run", false, "Show the config diff and change nothing")
+	f.StringVar(&opts.SetupTokenFile, "token-file", "", "File with a one-time enrollment token; enrolls this host")
+	f.StringSliceVar(&opts.SetupMonitors, "monitor", nil, "Discovered ids to monitor (e.g. service:nginx), or high, medium, all; repeatable")
 	return cmd
 }
 
