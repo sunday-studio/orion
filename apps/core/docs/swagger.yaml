@@ -604,6 +604,96 @@ definitions:
         example: event
         type: string
     type: object
+  internal_api.EnrollmentCreatedResponse:
+    properties:
+      agent_arch:
+        type: string
+      agent_id:
+        type: string
+      agent_name:
+        type: string
+      agent_os:
+        type: string
+      agent_version:
+        type: string
+      claimed_at:
+        type: string
+      core_url:
+        type: string
+      created_at:
+        type: string
+      expires_at:
+        type: string
+      first_report_at:
+        type: string
+      id:
+        type: string
+      install_command:
+        type: string
+      platform:
+        type: string
+      status:
+        description: 'Status: waiting (nothing seen) | claimed (token accepted, registering)
+          | registered | reporting (first report received) | expired | cancelled.'
+        enum:
+        - waiting
+        - claimed
+        - registered
+        - reporting
+        - expired
+        - cancelled
+        type: string
+      token:
+        example: orn_enr_0a1b2c3d4e5f
+        type: string
+    type: object
+  internal_api.EnrollmentRequest:
+    properties:
+      platform:
+        description: Platform is the tile picked in the wizard; it only shapes the
+          install command.
+        enum:
+        - linux
+        - macos
+        - docker
+        type: string
+    type: object
+  internal_api.EnrollmentResponse:
+    properties:
+      agent_arch:
+        type: string
+      agent_id:
+        type: string
+      agent_name:
+        type: string
+      agent_os:
+        type: string
+      agent_version:
+        type: string
+      claimed_at:
+        type: string
+      created_at:
+        type: string
+      expires_at:
+        type: string
+      first_report_at:
+        type: string
+      id:
+        type: string
+      platform:
+        type: string
+      status:
+        description: 'Status: waiting (nothing seen) | claimed (token accepted, registering)
+          | registered | reporting (first report received) | expired | cancelled.'
+        enum:
+        - waiting
+        - claimed
+        - registered
+        - reporting
+        - expired
+        - cancelled
+        type: string
+    type: object
   internal_api.HealthIssue:
     properties:
       agent_id:
@@ -1318,6 +1408,15 @@ definitions:
       token:
         type: string
     type: object
+  internal_api.MeResponse:
+    properties:
+      auth_enabled:
+        description: AuthEnabled is false when Core runs with ORION_ALLOW_INSECURE_NO_AUTH.
+        type: boolean
+      username:
+        example: admin
+        type: string
+    type: object
   internal_api.MonitorReportResponse:
     properties:
       collected_at:
@@ -1397,6 +1496,128 @@ definitions:
       type:
         type: string
     type: object
+  internal_api.OverviewDayResponse:
+    properties:
+      date:
+        type: string
+      status:
+        enum:
+        - up
+        - warn
+        - down
+        - none
+        type: string
+    type: object
+  internal_api.OverviewFirstRunResponse:
+    properties:
+      has_alert_channels:
+        type: boolean
+      has_apps:
+        type: boolean
+      has_monitors:
+        type: boolean
+      has_servers:
+        type: boolean
+    type: object
+  internal_api.OverviewIncidentResponse:
+    properties:
+      acknowledged_at:
+        type: string
+      duration_seconds:
+        type: integer
+      id:
+        type: string
+      notified_at:
+        description: NotifiedAt and AcknowledgedAt are only filled for needs_you.
+        type: string
+      opened_at:
+        type: string
+      resolved_at:
+        type: string
+      severity:
+        type: string
+      status:
+        enum:
+        - open
+        - acknowledged
+        - covered
+        - resolved
+        type: string
+      summary:
+        type: string
+      title:
+        type: string
+    type: object
+  internal_api.OverviewResponse:
+    properties:
+      first_run:
+        $ref: '#/definitions/internal_api.OverviewFirstRunResponse'
+      generated_at:
+        type: string
+      health_issue_count:
+        type: integer
+      needs_you:
+        $ref: '#/definitions/internal_api.OverviewIncidentResponse'
+      ongoing_incident_count:
+        type: integer
+      ongoing_incidents:
+        items:
+          $ref: '#/definitions/internal_api.OverviewIncidentResponse'
+        type: array
+      recent_incidents:
+        items:
+          $ref: '#/definitions/internal_api.OverviewIncidentResponse'
+        type: array
+      services:
+        description: Services is the 90-day strip per server, worst first, at most
+          8.
+        items:
+          $ref: '#/definitions/internal_api.OverviewServiceResponse'
+        type: array
+      state:
+        description: 'State: empty (nothing monitored yet) | ok | issues.'
+        enum:
+        - empty
+        - ok
+        - issues
+        type: string
+      stats:
+        $ref: '#/definitions/internal_api.OverviewStatsResponse'
+    type: object
+  internal_api.OverviewServiceResponse:
+    properties:
+      agent_id:
+        type: string
+      days:
+        items:
+          $ref: '#/definitions/internal_api.OverviewDayResponse'
+        type: array
+      name:
+        type: string
+      status:
+        enum:
+        - up
+        - degraded
+        - down
+        - unknown
+        type: string
+      uptime_percent:
+        type: number
+    type: object
+  internal_api.OverviewStatsResponse:
+    properties:
+      monitors_total:
+        type: integer
+      monitors_up:
+        type: integer
+      servers_reporting:
+        type: integer
+      servers_total:
+        type: integer
+      uptime_30d_percent:
+        description: Uptime30dPercent is null until a daily rollup exists.
+        type: number
+    type: object
   internal_api.RedactionSettings:
     properties:
       disable_defaults:
@@ -1418,6 +1639,22 @@ definitions:
       timestamp:
         type: string
       type:
+        type: string
+    type: object
+  internal_api.SearchHitResponse:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      status:
+        type: string
+      type:
+        enum:
+        - monitor
+        - incident
+        - server
+        - app
         type: string
     type: object
   internal_api.ServiceLogBatchResponse:
@@ -5737,6 +5974,24 @@ paths:
       summary: Log in to Console
       tags:
       - auth
+  /v1/auth/me:
+    get:
+      operationId: getMe
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.MeResponse'
+              type: object
+      summary: Current user
+      tags:
+      - auth
   /v1/diagnostics/core:
     get:
       consumes:
@@ -5799,6 +6054,93 @@ paths:
       summary: Get Core worker diagnostics
       tags:
       - health
+  /v1/enrollments:
+    post:
+      consumes:
+      - application/json
+      description: Creates a one-time registration token that expires in 15 minutes.
+        The token is returned only here. The install command registers the agent with
+        it; poll GET /v1/enrollments/{id} until status is reporting.
+      operationId: createEnrollment
+      parameters:
+      - description: Platform
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/internal_api.EnrollmentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.EnrollmentCreatedResponse'
+              type: object
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Start an Add server session
+      tags:
+      - enrollments
+  /v1/enrollments/{id}:
+    delete:
+      operationId: cancelEnrollment
+      parameters:
+      - description: Enrollment ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Cancel an Add server session
+      tags:
+      - enrollments
+    get:
+      operationId: getEnrollment
+      parameters:
+      - description: Enrollment ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.EnrollmentResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Get an Add server session
+      tags:
+      - enrollments
   /v1/events:
     get:
       consumes:
@@ -7902,6 +8244,30 @@ paths:
       summary: Get monitor summary
       tags:
       - monitors
+  /v1/overview:
+    get:
+      description: Summary numbers, the incident needing attention, ongoing and recent
+        incidents, first-run flags and the 90-day service strip in one call.
+      operationId: getOverview
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.OverviewResponse'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Console overview
+      tags:
+      - overview
   /v1/register:
     post:
       consumes:
@@ -7952,6 +8318,43 @@ paths:
       summary: Register an agent
       tags:
       - agents
+  /v1/search:
+    get:
+      description: 'Case-insensitive name search, at most 5 hits per type, grouped
+        by type in this order: monitor, incident, server, app.'
+      operationId: searchEverything
+      parameters:
+      - description: Search text
+        in: query
+        name: q
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    hits:
+                      items:
+                        $ref: '#/definitions/internal_api.SearchHitResponse'
+                      type: array
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Search monitors, incidents, servers and apps
+      tags:
+      - search
   /v1/settings/data-lifecycle:
     get:
       consumes:

@@ -322,7 +322,7 @@ func parsePeriod(period string) int {
 
 // GetMonitorUptime returns daily buckets and overall uptime percent for a monitor.
 func (s *ReportService) GetMonitorUptime(monitorID string, period string) (*UptimeResult, error) {
-	return s.getMonitorUptime(monitorID, period, time.Now())
+	return s.getMonitorUptime(monitorID, period, time.Now().UTC())
 }
 
 func (s *ReportService) getMonitorUptime(monitorID string, period string, now time.Time) (*UptimeResult, error) {
@@ -404,7 +404,7 @@ func (s *ReportService) getMonitorUptime(monitorID string, period string, now ti
 
 // GetAgentUptime aggregates uptime from the agent's active monitors.
 func (s *ReportService) GetAgentUptime(agentID string, period string) (*UptimeResult, error) {
-	return s.getAgentUptime(agentID, period, time.Now())
+	return s.getAgentUptime(agentID, period, time.Now().UTC())
 }
 
 func (s *ReportService) getAgentUptime(agentID string, period string, now time.Time) (*UptimeResult, error) {
