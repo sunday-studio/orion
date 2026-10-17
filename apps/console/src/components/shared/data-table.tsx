@@ -1,11 +1,13 @@
 import {
   type ColumnDef,
   type Row,
+  type SortingState,
   flexRender,
   getCoreRowModel,
+  getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import type * as React from "react";
+import * as React from "react";
 import { EmptyState } from "@/components/shared/empty-state";
 import {
   Table,
@@ -26,6 +28,9 @@ type DataTableProps<TData> = {
   isLoading?: boolean;
   loadingMessage?: string;
   onRowClick?: (row: TData) => void;
+  /** URL-friendly sort, "columnId.asc" or "columnId.desc". Sorts the visible page client-side. */
+  sort?: string;
+  onSortChange?: (sort: string) => void;
   rowClassName?: string | ((row: Row<TData>) => string | undefined);
   tableClassName?: string;
   variant?: TableVariant;
@@ -37,6 +42,14 @@ type DataTableProps<TData> = {
   rowProps?: React.ComponentProps<typeof TableRow>;
   tableProps?: React.ComponentProps<typeof Table>;
 };
+
+const parseSort = (sort: string): SortingState => {
+  const [id, direction] = sort.split(".");
+  return id ? [{ id, desc: direction === "desc" }] : [];
+};
+
+const serializeSort = (sorting: SortingState) =>
+  sorting[0] ? `${sorting[0].id}.${sorting[0].desc ? "desc" : "asc"}` : "";
 
 export function DataTable<TData>({
   bodyProps,
@@ -53,15 +66,26 @@ export function DataTable<TData>({
   onRowClick,
   rowClassName,
   rowProps,
+  onSortChange,
+  sort = "",
   tableClassName,
   tableProps,
   variant = "default",
 }: DataTableProps<TData>) {
+  const sorting = React.useMemo(() => parseSort(sort), [sort]);
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
     getRowId,
+    state: { sorting },
+    onSortingChange: (updater) => {
+      if (!onSortChange) return;
+      const next = typeof updater === "function" ? updater(sorting) : updater;
+      onSortChange(serializeSort(next));
+    },
+    enableSorting: Boolean(onSortChange),
   });
 
   if (isLoading) {
@@ -93,9 +117,20 @@ export function DataTable<TData>({
                 variant={headProps?.variant ?? variant}
                 className={headProps?.className}
               >
-                {header.isPlaceholder
-                  ? null
-                  : flexRender(header.column.columnDef.header, header.getContext())}
+                {header.isPlaceholder ? null : header.column.getCanSort() ? (
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 hover:text-neutral-900"
+                    onClick={header.column.getToggleSortingHandler()}
+                  >
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                    <span aria-hidden className="text-neutral-400">
+                      {{ asc: "↑", desc: "↓" }[header.column.getIsSorted() as string] ?? ""}
+                    </span>
+                  </button>
+                ) : (
+                  flexRender(header.column.columnDef.header, header.getContext())
+                )}
               </TableHead>
             ))}
           </TableRow>

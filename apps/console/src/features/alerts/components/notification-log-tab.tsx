@@ -1,21 +1,11 @@
-import { DataTable } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
-import { EmptyState } from "@/components/shared/empty-state";
 import { ListPagination } from "@/components/shared/list-pagination";
-import { NotificationBadge, toNotificationStatus } from "@/components/shared/status-badges";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { DataTable, type DataTableFilterField, FilterBar, StatusBadge } from "@/design-system";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import type { ApiAlertChannelResponse, ApiAlertDeliveryResponse } from "@/orion-sdk";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo } from "react";
-import {
-  DELIVERY_LIMIT,
-  deliveryEventOptions,
-  deliveryTypeOptions,
-  eventLabel,
-} from "./alert-constants";
+import { DELIVERY_LIMIT, deliveryEventOptions, deliveryTypeOptions } from "./alert-constants";
 
 const deliveryColumns: ColumnDef<ApiAlertDeliveryResponse>[] = [
   {
@@ -41,7 +31,7 @@ const deliveryColumns: ColumnDef<ApiAlertDeliveryResponse>[] = [
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => <NotificationBadge value={toNotificationStatus(row.original.status)} />,
+    cell: ({ row }) => <StatusBadge status={row.original.status} />,
   },
   {
     accessorKey: "attempt_count",
@@ -104,6 +94,7 @@ type NotificationLogTabProps = {
   onEventTypeChange: (value: string) => void;
   onIncidentChange: (value: string) => void;
   onOffsetChange: (offset: number) => void;
+  onRetry: () => void;
   onStatusChange: (status: string) => void;
   onTypeChange: (type: string) => void;
   status: string;
@@ -125,16 +116,12 @@ export const NotificationLogTab = ({
   onEventTypeChange,
   onIncidentChange,
   onOffsetChange,
+  onRetry,
   onStatusChange,
   onTypeChange,
   status,
   type,
 }: NotificationLogTabProps) => {
-  const statusLabel = statusOptions.find((option) => option.value === status)?.label ?? status;
-  const typeLabel = deliveryTypeOptions.find((option) => option.value === type)?.label ?? type;
-  const eventTypeLabel =
-    deliveryEventOptions.find((option) => option.value === eventType)?.label ??
-    eventLabel(eventType);
   const channelOptions = useMemo(() => {
     const names = new Set(
       channels
@@ -143,14 +130,31 @@ export const NotificationLogTab = ({
     );
     if (channel !== "all") names.add(channel);
 
-    return Array.from(names)
-      .sort((first, second) => first.localeCompare(second))
-      .map((name) => ({ value: name, label: name }));
+    return [
+      { value: "all", label: "All destinations" },
+      ...Array.from(names)
+        .sort((first, second) => first.localeCompare(second))
+        .map((name) => ({ value: name, label: name })),
+    ];
   }, [channel, channels]);
-  const channelLabel =
-    channel === "all"
-      ? "All destinations"
-      : (channelOptions.find((option) => option.value === channel)?.label ?? channel);
+  const fields = useMemo<readonly DataTableFilterField[]>(
+    () => [
+      { type: "select", key: "status", label: "Status", options: statusOptions },
+      { type: "select", key: "type", label: "Type", options: deliveryTypeOptions },
+      { type: "select", key: "event", label: "Event", options: deliveryEventOptions },
+      { type: "select", key: "channel", label: "Destination", options: channelOptions },
+      { type: "input", key: "incident", placeholder: "Filter by incident ID" },
+    ],
+    [channelOptions],
+  );
+  const values = { status, type, event: eventType, channel, incident };
+  const handlers: Record<string, (value: string) => void> = {
+    status: onStatusChange,
+    type: onTypeChange,
+    event: onEventTypeChange,
+    channel: onChannelChange,
+    incident: onIncidentChange,
+  };
   const hasFilters =
     status !== "all" ||
     type !== "all" ||
@@ -166,86 +170,32 @@ export const NotificationLogTab = ({
           Delivery attempts generated when incidents open or recover.
         </p>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Select value={status} onValueChange={onStatusChange}>
-          <SelectTrigger className="w-52">
-            <span data-slot="select-value">Status: {statusLabel}</span>
-          </SelectTrigger>
-          <SelectContent>
-            {statusOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={type} onValueChange={onTypeChange}>
-          <SelectTrigger className="w-48">
-            <span data-slot="select-value">Type: {typeLabel}</span>
-          </SelectTrigger>
-          <SelectContent>
-            {deliveryTypeOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={eventType} onValueChange={onEventTypeChange}>
-          <SelectTrigger className="w-56">
-            <span data-slot="select-value">Event: {eventTypeLabel}</span>
-          </SelectTrigger>
-          <SelectContent>
-            {deliveryEventOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={channel} onValueChange={onChannelChange}>
-          <SelectTrigger className="w-60">
-            <span data-slot="select-value">Destination: {channelLabel}</span>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All destinations</SelectItem>
-            {channelOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Input
-          value={incident}
-          onChange={(event) => onIncidentChange(event.target.value)}
-          placeholder="Filter by incident ID"
-          className="w-full max-w-sm sm:w-72"
-        />
-        {hasFilters && (
-          <Button type="button" variant="ghost" size="sm" onClick={onClearFilters}>
-            Clear
-          </Button>
-        )}
-      </div>
-      {Boolean(error) && (
-        <EmptyState
-          className="min-h-40"
-          title="Unable to load notification log"
-          description="Retry from the browser after Core is reachable."
-          tone="error"
-        />
-      )}
-      {!error && (
-        <DataTable
-          columns={deliveryColumns}
-          data={deliveries}
-          emptyMessage="No notification deliveries recorded."
-          getRowId={(delivery, index) => delivery.id ?? `delivery-${index}`}
-          isLoading={isLoading}
-          loadingMessage="Loading notification log..."
-        />
-      )}
+      <FilterBar
+        fields={fields}
+        values={values}
+        onChange={(key, value) => handlers[key]?.(value)}
+        onClear={onClearFilters}
+      />
+      <DataTable
+        columns={deliveryColumns}
+        data={deliveries}
+        emptyMessage={
+          hasFilters
+            ? "No deliveries match the current filters."
+            : "No notification deliveries recorded."
+        }
+        getRowId={(delivery, index) => delivery.id ?? `delivery-${index}`}
+        isLoading={isLoading}
+        error={
+          error
+            ? {
+                message: "Unable to load notification log",
+                onRetry,
+              }
+            : undefined
+        }
+        onResetFilters={hasFilters ? onClearFilters : undefined}
+      />
       {count > 0 && (
         <ListPagination
           count={count}

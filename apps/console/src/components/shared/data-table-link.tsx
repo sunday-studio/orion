@@ -6,7 +6,12 @@ type DataTableLinkProps = LinkProps & {
   truncate?: boolean;
 };
 
-export const DataTableLink = ({ className, truncate = false, ...props }: DataTableLinkProps) => {
+export const DataTableLink = ({
+  className,
+  onClick,
+  truncate = false,
+  ...props
+}: DataTableLinkProps) => {
   return (
     <Link
       className={cn(
@@ -14,6 +19,10 @@ export const DataTableLink = ({ className, truncate = false, ...props }: DataTab
         truncate && "block truncate",
         className,
       )}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick?.(event);
+      }}
       {...props}
     />
   );
