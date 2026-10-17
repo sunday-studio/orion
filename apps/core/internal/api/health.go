@@ -25,7 +25,7 @@ func (s *Server) getSystemHealth(c *gin.Context) {
 
 	// Get all active agents
 	var agents []db.Agent
-	if err := s.db.Where("deleted_at IS NULL OR deleted_at = ?", time.Time{}).Find(&agents).Error; err != nil {
+	if err := s.db.Where("(deleted_at IS NULL OR deleted_at = ?) AND system = ?", time.Time{}, false).Find(&agents).Error; err != nil {
 		s.logger.Error("Failed to get agents", "error", err)
 		utils.InternalError(c, "Failed to get system health", err)
 		return
@@ -47,7 +47,14 @@ func (s *Server) getSystemHealth(c *gin.Context) {
 		return
 	}
 
-	totalMonitors = len(monitors)
+	// Core's own monitors count toward overall_health (the header chip) but not toward the reported numbers.
+	var sysDown, sysDegraded, sysStale, sysUnknown bool
+	totalMonitors = 0
+	for _, monitor := range monitors {
+		if !monitor.System {
+			totalMonitors++
+		}
+	}
 
 	staleMonitorIDs := map[string]struct{}{}
 	staleMonitors, err := healthService.DetectStaleMonitors(config)
@@ -62,37 +69,54 @@ func (s *Server) getSystemHealth(c *gin.Context) {
 	// Compute health for each monitor
 	for _, monitor := range monitors {
 		if _, stale := staleMonitorIDs[monitor.ID]; stale {
-			staleCount++
+			if monitor.System {
+				sysStale = true
+			} else {
+				staleCount++
+			}
 			continue
 		}
 
 		computedHealth, err := healthService.ComputeMonitorHealth(monitor.ID, config)
 		if err != nil {
-			unknownCount++
-			continue
+			computedHealth = "unknown"
 		}
 
 		switch computedHealth {
 		case "up":
-			upCount++
+			if !monitor.System {
+				upCount++
+			}
 		case "down":
-			downCount++
+			if monitor.System {
+				sysDown = true
+			} else {
+				downCount++
+			}
 		case "degraded":
-			degradedCount++
+			if monitor.System {
+				sysDegraded = true
+			} else {
+				degradedCount++
+			}
 		default:
-			unknownCount++
+			if monitor.System {
+				sysUnknown = true
+			} else {
+				unknownCount++
+			}
 		}
 	}
 
 	// Determine overall system health
 	var overallHealth string
-	if downCount > 0 {
+	if downCount > 0 || sysDown {
 		overallHealth = "down"
-	} else if degradedCount > 0 {
+	} else if degradedCount > 0 || sysDegraded {
 		overallHealth = "degraded"
-	} else if staleCount > 0 {
+	} else if staleCount > 0 || sysStale {
 		overallHealth = "stale"
-	} else if unknownCount > 0 {
+	} else if unknownCount > 0 || (sysUnknown && totalMonitors > 0) {
 		overallHealth = "unknown"
 	} else {
 		overallHealth = "up"

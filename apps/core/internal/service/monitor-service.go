@@ -45,8 +45,10 @@ type ListAllMonitorsOpts struct {
 	Lifecycle    string
 	StaleOnly    bool
 	HasIncidents bool
-	Sort         string
-	Order        string
+	// IncludeSystem adds Core's self-monitors (worker liveness, agent connectivity).
+	IncludeSystem bool
+	Sort          string
+	Order         string
 }
 
 type MonitorSummary struct {
@@ -267,7 +269,7 @@ func (s *MonitorService) ListAllMonitors(opts ListAllMonitorsOpts) ([]db.Monitor
 
 func (s *MonitorService) GetMonitorSummary() (MonitorSummary, error) {
 	var monitors []db.Monitor
-	if err := s.db.Where("lifecycle = ?", "active").Find(&monitors).Error; err != nil {
+	if err := s.db.Where("lifecycle = ? AND system = ?", "active", false).Find(&monitors).Error; err != nil {
 		s.logger.Error("Failed to load monitor summary", "error", err)
 		return MonitorSummary{}, err
 	}
@@ -365,6 +367,9 @@ func (s *MonitorService) applyMonitorListFilters(query *gorm.DB, agentID string,
 }
 
 func (s *MonitorService) applyAllMonitorListFilters(query *gorm.DB, opts ListAllMonitorsOpts) *gorm.DB {
+	if !opts.IncludeSystem {
+		query = query.Where("system = ?", false)
+	}
 	coreMonitorIDs := s.db.Model(&db.CoreMonitorConfig{}).Select("monitor_id")
 
 	if opts.Search != "" {
