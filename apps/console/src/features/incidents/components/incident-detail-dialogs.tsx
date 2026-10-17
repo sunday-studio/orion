@@ -6,6 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
   Input,
+  Select,
   Textarea,
 } from "@/design-system";
 import {
@@ -14,7 +15,6 @@ import {
   toSeverity,
   toStatus,
 } from "@/components/shared/status-badges";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import type {
   ApiMonitorReportResponse,
@@ -195,22 +195,15 @@ export const PublicIncidentDraftDialog = ({
         <div className="space-y-4">
           <label className="block space-y-1">
             <span className="text-sm font-medium">status page</span>
-            <Select value={selectedStatusPageID} onValueChange={onStatusPageChange}>
-              <SelectTrigger className="w-full">
-                <span className="truncate">
-                  {selectedPage?.title ??
-                    selectedPage?.slug ??
-                    (loadingPages ? "Loading..." : "Select status page")}
-                </span>
-              </SelectTrigger>
-              <SelectContent align="start" position="popper">
-                {pages.map((page) => (
-                  <SelectItem key={page.id ?? page.slug} value={page.id ?? ""}>
-                    {page.title ?? page.slug ?? "Untitled status page"}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Select
+              className="w-full"
+              value={selectedStatusPageID}
+              onValueChange={onStatusPageChange}
+              options={pages.map((page) => ({
+                value: page.id ?? "",
+                label: page.title ?? page.slug ?? "Untitled status page",
+              }))}
+            />
           </label>
 
           {pages.length === 0 && !loadingPages && (
