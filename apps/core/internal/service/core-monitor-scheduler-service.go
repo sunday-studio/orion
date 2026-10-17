@@ -197,3 +197,30 @@ func (s *CoreMonitorSchedulerService) CompleteCoreMonitorCheck(req CompleteCoreM
 
 	return &updated, nil
 }
+
+// RenewCoreMonitorLease extends a held lease so a long check (a slow target, a
+// Playwright flow) is not re-claimed by another worker while it is still running.
+// It reports false when this owner no longer holds the lease.
+func (s *CoreMonitorSchedulerService) RenewCoreMonitorLease(monitorID string, leaseOwner string, duration time.Duration, now time.Time) (bool, error) {
+	if duration <= 0 {
+		duration = defaultCoreMonitorLeaseDuration
+	}
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+	expires := now.UTC().Add(duration)
+	result := s.db.Model(&db.CoreMonitorConfig{}).
+		Where("monitor_id = ? AND lease_owner = ?", monitorID, leaseOwner).
+		Updates(map[string]any{"lease_expires_at": &expires, "updated_at": now.UTC()})
+	return result.RowsAffected == 1, result.Error
+}
+
+// ReleaseCoreMonitorLeases frees every lease an owner still holds so another
+// worker can pick the checks up immediately after a shutdown instead of waiting
+// for the leases to expire. It returns how many were released.
+func (s *CoreMonitorSchedulerService) ReleaseCoreMonitorLeases(leaseOwner string) (int64, error) {
+	result := s.db.Model(&db.CoreMonitorConfig{}).
+		Where("lease_owner = ?", leaseOwner).
+		Updates(map[string]any{"lease_owner": "", "lease_expires_at": nil, "updated_at": time.Now().UTC()})
+	return result.RowsAffected, result.Error
+}

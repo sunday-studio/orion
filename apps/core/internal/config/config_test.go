@@ -316,3 +316,37 @@ func restoreEnv(t *testing.T, key string) {
 		_ = os.Unsetenv(key)
 	})
 }
+
+func TestValidateAPIAuthRefusesOpenAdminAPIByDefault(t *testing.T) {
+	cfg := &Config{}
+	if err := cfg.ValidateAPIAuth(); err == nil {
+		t.Fatal("ValidateAPIAuth() = nil, want error when no admin auth is configured")
+	}
+	if !cfg.RunsWithoutAuth() {
+		t.Fatal("RunsWithoutAuth() = false for an unauthenticated config")
+	}
+}
+
+func TestValidateAPIAuthAllowsConfiguredAuthOrExplicitOptOut(t *testing.T) {
+	configured := &Config{AdminUsername: "admin", AdminPassword: "p", JWTSecret: "s", FrontendAuthOn: true}
+	if err := configured.ValidateAPIAuth(); err != nil {
+		t.Fatalf("ValidateAPIAuth() with auth = %v, want nil", err)
+	}
+	if configured.RunsWithoutAuth() {
+		t.Fatal("RunsWithoutAuth() = true with auth configured")
+	}
+	optOut := &Config{AllowInsecureNoAuth: true}
+	if err := optOut.ValidateAPIAuth(); err != nil {
+		t.Fatalf("ValidateAPIAuth() with opt-out = %v, want nil", err)
+	}
+	if !optOut.RunsWithoutAuth() {
+		t.Fatal("RunsWithoutAuth() = false with explicit opt-out")
+	}
+}
+
+func TestLoadReadsAllowInsecureNoAuth(t *testing.T) {
+	t.Setenv("ORION_ALLOW_INSECURE_NO_AUTH", "true")
+	if !Load().AllowInsecureNoAuth {
+		t.Fatal("AllowInsecureNoAuth = false, want true from env")
+	}
+}

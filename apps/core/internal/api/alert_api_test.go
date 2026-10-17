@@ -159,7 +159,8 @@ func TestAlertReadEndpointsShowWebhookURLAndRedactSecrets(t *testing.T) {
 	assertNotContains(t, rulesResp.Body.String(), "webhook-signing-secret")
 }
 func TestAlertChannelTestEndpointSendsConfiguredWebhook(t *testing.T) {
-	server := setupTestServer(t)
+	// The receiver is a loopback httptest server, so private webhook targets must be allowed.
+	server := setupTestServerWithConfig(t, &config.Config{AlertRecoveryNotifications: true, AlertTLSExpiryDays: 14, AlertAllowPrivateWebhooks: true})
 	webhookPayloads := make(chan map[string]interface{}, 1)
 	webhookServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

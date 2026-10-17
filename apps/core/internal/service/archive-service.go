@@ -75,56 +75,23 @@ func (s *ArchiveService) RunRawReportArchive(now time.Time) (*ArchiveRunResult, 
 		return nil, errArchiveStorageUnavailable
 	}
 
+	defer closeArchiveDatabase(archiveDB)
+
 	cutoff := now.AddDate(0, 0, -settings.RawReportHotDays)
-	if err := s.db.Transaction(func(tx *gorm.DB) error {
-		var agentReports []db.AgentReport
-		if err := tx.Where("created_at < ?", cutoff).Order("created_at ASC").Find(&agentReports).Error; err != nil {
-			return err
-		}
-
-		var monitorReports []db.MonitorReport
-		if err := tx.Where("created_at < ?", cutoff).Order("created_at ASC").Find(&monitorReports).Error; err != nil {
-			return err
-		}
-
-		if len(agentReports) == 0 && len(monitorReports) == 0 {
-			result.SkippedBecauseNoReports = true
-			return nil
-		}
-
-		if len(agentReports) > 0 {
-			if err := archiveDB.Clauses(clause.OnConflict{DoNothing: true}).Create(&agentReports).Error; err != nil {
-				return err
-			}
-			ids := make([]string, 0, len(agentReports))
-			for _, report := range agentReports {
-				ids = append(ids, report.ID)
-			}
-			if err := tx.Where("id IN ?", ids).Delete(&db.AgentReport{}).Error; err != nil {
-				return err
-			}
-			result.AgentReportsArchived = len(agentReports)
-		}
-
-		if len(monitorReports) > 0 {
-			if err := archiveDB.Clauses(clause.OnConflict{DoNothing: true}).Create(&monitorReports).Error; err != nil {
-				return err
-			}
-			ids := make([]string, 0, len(monitorReports))
-			for _, report := range monitorReports {
-				ids = append(ids, report.ID)
-			}
-			if err := tx.Where("id IN ?", ids).Delete(&db.MonitorReport{}).Error; err != nil {
-				return err
-			}
-			result.MonitorReportsArchived = len(monitorReports)
-		}
-
-		return nil
-	}); err != nil {
+	agentCount, err := archiveInBatches[db.AgentReport](s.db, archiveDB, cutoff)
+	if err == nil {
+		result.AgentReportsArchived = agentCount
+		var monitorCount int
+		monitorCount, err = archiveInBatches[db.MonitorReport](s.db, archiveDB, cutoff)
+		result.MonitorReportsArchived = monitorCount
+	}
+	if err != nil {
 		_ = s.recordArchiveRun(now, "failed", errArchiveMoveFailed.Error())
 		s.logger.Error("Failed to archive raw reports", "error", err)
 		return nil, errArchiveMoveFailed
+	}
+	if result.AgentReportsArchived == 0 && result.MonitorReportsArchived == 0 {
+		result.SkippedBecauseNoReports = true
 	}
 
 	if err := s.recordArchiveRun(now, "success", ""); err != nil {
@@ -212,6 +179,58 @@ func (s *ArchiveService) recordArchiveRun(now time.Time, status string, message 
 		"last_archive_status": status,
 		"last_archive_error":  message,
 	}).Error
+}
+
+// archiveBatchSize keeps each copy-then-delete step far below SQLite's bound
+// parameter limit and holds the writer lock only briefly.
+const archiveBatchSize = 1000
+
+type archivableReport interface {
+	db.AgentReport | db.MonitorReport
+}
+
+// archiveInBatches moves rows older than cutoff into the archive database a
+// batch at a time. Each batch is copied (idempotently, ON CONFLICT DO NOTHING)
+// and only then deleted from the live database, so a crash can duplicate a batch
+// into the archive on the next run but never lose rows. It returns the number moved.
+func archiveInBatches[T archivableReport](live *gorm.DB, archive *gorm.DB, cutoff time.Time) (int, error) {
+	moved := 0
+	for {
+		var batch []T
+		if err := live.Where("created_at < ?", cutoff).Order("created_at ASC").Limit(archiveBatchSize).Find(&batch).Error; err != nil {
+			return moved, err
+		}
+		if len(batch) == 0 {
+			return moved, nil
+		}
+		if err := archive.Clauses(clause.OnConflict{DoNothing: true}).Create(&batch).Error; err != nil {
+			return moved, err
+		}
+		ids := make([]string, 0, len(batch))
+		for i := range batch {
+			ids = append(ids, archiveReportID(batch[i]))
+		}
+		if err := live.Where("id IN ?", ids).Delete(new(T)).Error; err != nil {
+			return moved, err
+		}
+		moved += len(batch)
+	}
+}
+
+func archiveReportID(report any) string {
+	switch r := report.(type) {
+	case db.AgentReport:
+		return r.ID
+	case db.MonitorReport:
+		return r.ID
+	}
+	return ""
+}
+
+func closeArchiveDatabase(archive *gorm.DB) {
+	if sqlDB, err := archive.DB(); err == nil {
+		_ = sqlDB.Close()
+	}
 }
 
 func openArchiveDatabase(path string) (*gorm.DB, error) {

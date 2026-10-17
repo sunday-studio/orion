@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./design-system/tokens.css";
 
 @font-face {
   font-family: "GT America Standard";
@@ -109,16 +110,19 @@
 }
 
 body {
-  font-family: "GT America Standard", "Inter", system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: var(--font-sans);
   font-optical-sizing: auto;
-  font-style: 500;
-  font-variation-settings:
-    "opsz" 14,
-    "wght" 400;
+  font-weight: var(--font-weight-body);
+  font-variant-numeric: tabular-nums lining-nums;
   font-size: 14px;
   line-height: 1.5;
-  background-color: #fdfdfc;
-  color: #111111;
+  background-color: var(--color-page);
+  color: var(--color-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
 }
 
 .debug {

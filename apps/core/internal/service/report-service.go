@@ -5,10 +5,12 @@ import (
 	"orion/core/internal/config"
 	"orion/core/internal/db"
 	"orion/core/internal/utils"
+	"strings"
 	"time"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type AgentReportPayload struct {
@@ -23,6 +25,9 @@ type AgentReportPayload struct {
 }
 
 type MonitorReportPayload struct {
+	// ReportID is an optional agent-generated idempotency key (UUID). Replaying a
+	// report with the same ID for the same monitor stores nothing new.
+	ReportID  string `json:"report_id,omitempty"`
 	Timestamp string `json:"timestamp" binding:"required"`
 	Health    string `json:"health" binding:"required"` // up | down
 	Metrics   any    `json:"metrics" binding:"required"`
@@ -62,57 +67,74 @@ func (s *ReportService) StoreMonitorReport(monitorID string, payload MonitorRepo
 	if err != nil {
 		return nil, err
 	}
-	payloadData := string(b)
 
 	monitorReport := db.MonitorReport{
-		ID:          monitorReportID,
-		MonitorID:   monitorID,
-		Health:      payload.Health,
-		CollectedAt: payload.Timestamp,
-		Payload:     payloadData,
+		ID:             monitorReportID,
+		MonitorID:      monitorID,
+		ClientReportID: strings.TrimSpace(payload.ReportID),
+		Health:         payload.Health,
+		CollectedAt:    payload.Timestamp,
+		Payload:        string(b),
 	}
 
+	// The report row, the monitor's health columns and the incident reconcile
+	// commit together. A failure rolls everything back, so the agent's retry
+	// starts clean instead of finding a stored report whose incident was never
+	// opened; a replay of an already-committed report is a no-op.
+	storedID := monitorReportID
+	duplicate := false
 	writeStarted := time.Now()
-	if err := s.db.Create(&monitorReport).Error; err != nil {
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		result := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&monitorReport)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			var existing db.MonitorReport
+			if err := tx.Where("monitor_id = ? AND client_report_id = ?", monitorID, monitorReport.ClientReportID).First(&existing).Error; err != nil {
+				return err
+			}
+			storedID = existing.ID
+			duplicate = true
+			return nil
+		}
+		s.diagnostics.RecordReportWrite("monitor", time.Since(writeStarted), nil)
+
+		now := time.Now()
+		updates := map[string]any{
+			"health":                  payload.Health,
+			"computed_health":         "",
+			"last_health_computation": nil,
+		}
+		if payload.Health == "up" {
+			updates["last_successful_report_at"] = &now
+		}
+		if err := tx.Model(&db.Monitor{}).Where("id = ?", monitorID).Updates(updates).Error; err != nil {
+			return err
+		}
+
+		incidentService := NewIncidentService(tx, s.logger, s.cfg)
+		incidentService.SetDiagnostics(s.diagnostics)
+		incidentService.inTransaction = true
+		return incidentService.ReconcileMonitorReport(monitorID, monitorReportID, payload)
+	})
+	if err != nil {
 		s.diagnostics.RecordReportWrite("monitor", time.Since(writeStarted), err)
-		s.logger.Error("Failed to store monitor report", "error", err)
+		s.logger.Error("Failed to store monitor report", "monitor_id", monitorID, "error", err)
 		return nil, err
 	}
-	s.diagnostics.RecordReportWrite("monitor", time.Since(writeStarted), nil)
-
-	// Update monitor health and last successful report timestamp
-	now := time.Now()
-	updates := map[string]any{
-		"health":                  payload.Health,
-		"computed_health":         "",
-		"last_health_computation": nil,
-	}
-
-	// Only update last successful report if health is "up"
-	if payload.Health == "up" {
-		updates["last_successful_report_at"] = &now
-	}
-
-	if err := s.db.Model(&db.Monitor{}).Where("id = ?", monitorID).Updates(updates).Error; err != nil {
-		s.logger.Error("Failed to update monitor health", "monitor_id", monitorID, "error", err)
-		// Don't fail the request if monitor update fails
-	}
-
-	incidentService := NewIncidentService(s.db, s.logger, s.cfg)
-	incidentService.SetDiagnostics(s.diagnostics)
-	if err := incidentService.ReconcileMonitorReport(monitorID, monitorReportID, payload); err != nil {
-		s.logger.Error("Failed to reconcile incident after monitor report", "monitor_id", monitorID, "monitor_report_id", monitorReportID, "error", err)
-		return nil, err
+	if duplicate {
+		s.logger.Info("Duplicate monitor report ignored", "monitor_id", monitorID, "monitor_report_id", storedID)
+		return &storedID, nil
 	}
 
 	healthService := NewHealthService(s.db, s.logger)
-	config := DefaultHealthConfig()
-	if _, err := healthService.ComputeMonitorHealth(monitorID, config); err != nil {
+	if _, err := healthService.ComputeMonitorHealth(monitorID, DefaultHealthConfig()); err != nil {
 		s.logger.Error("Failed to compute health after report", "monitor_id", monitorID, "error", err)
 	}
 
-	s.logger.Info("Monitor report stored successfully", "monitor_report_id", monitorReport.ID)
-	return &monitorReportID, nil
+	s.logger.Info("Monitor report stored successfully", "monitor_report_id", storedID)
+	return &storedID, nil
 }
 
 func (s *ReportService) StoreAgentReport(agentID string, payload AgentReportPayload) (*string, error) {
@@ -270,15 +292,24 @@ type UptimeResult struct {
 	TotalCount    int               `json:"-"`
 }
 
-// parsePeriod returns days from strings like "90d", "30d", "7d". Default 90.
+const (
+	defaultPeriodDays = 90
+	maxPeriodDays     = 365
+)
+
+// parsePeriod returns days from strings like "90d", "30d", "7d". Default 90,
+// clamped to maxPeriodDays so a hostile period cannot allocate unbounded buckets.
 func parsePeriod(period string) int {
 	if period == "" {
-		return 90
+		return defaultPeriodDays
 	}
 	var n int
 	for _, r := range period {
 		if r >= '0' && r <= '9' {
 			n = n*10 + int(r-'0')
+			if n > maxPeriodDays {
+				return maxPeriodDays
+			}
 		} else if r == 'd' && n > 0 {
 			return n
 		}
@@ -286,7 +317,7 @@ func parsePeriod(period string) int {
 	if n > 0 {
 		return n
 	}
-	return 90
+	return defaultPeriodDays
 }
 
 // GetMonitorUptime returns daily buckets and overall uptime percent for a monitor.

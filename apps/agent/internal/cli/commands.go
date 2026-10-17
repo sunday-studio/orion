@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"orion/agent/internal/config"
 	"orion/agent/internal/logging"
@@ -135,9 +136,10 @@ func newMaintenanceCommand(ctx context.Context, opts *Options) *cobra.Command {
 		Short: "Manage maintenance mode",
 	}
 
+	var maintenanceFor time.Duration
 	down := &cobra.Command{
 		Use:   "down [reason]",
-		Short: "Enter maintenance mode",
+		Short: "Enter maintenance mode (ends automatically after --for, default 24h)",
 		Args:  cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if commandNeedsElevation("maintenance", commandArgs(opts, "maintenance")) {
@@ -152,7 +154,7 @@ func newMaintenanceCommand(ctx context.Context, opts *Options) *cobra.Command {
 					reason += " " + part
 				}
 			}
-			return runMaintenance(ctx, opts, "-down", reason)
+			return runMaintenance(ctx, opts, "-down", reason, maintenanceFor)
 		},
 	}
 
@@ -166,10 +168,11 @@ func newMaintenanceCommand(ctx context.Context, opts *Options) *cobra.Command {
 					return NewCommandError("could not elevate privileges", err)
 				}
 			}
-			return runMaintenance(ctx, opts, "-up", "")
+			return runMaintenance(ctx, opts, "-up", "", 0)
 		},
 	}
 
+	down.Flags().DurationVar(&maintenanceFor, "for", defaultMaintenanceDuration, "how long maintenance lasts before alerting resumes (max 720h)")
 	cmd.AddCommand(down, up)
 	return cmd
 }

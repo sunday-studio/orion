@@ -1,6 +1,8 @@
 package db
 
 import (
+	"cmp"
+	"slices"
 	"testing"
 
 	"gorm.io/driver/sqlite"
@@ -129,6 +131,9 @@ func TestEmbeddedMigrationVersionsAreContiguous(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load migrations: %v", err)
 	}
+	// SQL files and numbered Go migrations share one version sequence.
+	migrations = append(migrations, goMigrations()...)
+	slices.SortFunc(migrations, func(a, b migration) int { return cmp.Compare(a.version, b.version) })
 
 	for index, migration := range migrations {
 		want := index + 1
@@ -272,6 +277,7 @@ func TestMigrateIsIdempotent(t *testing.T) {
 		t.Fatalf("load migrations: %v", err)
 	}
 	uniqueVersions := map[int]bool{}
+	migrations = append(migrations, goMigrations()...)
 	for _, migration := range migrations {
 		uniqueVersions[migration.version] = true
 	}
@@ -301,6 +307,7 @@ func TestMigrateRepairsLegacyAgentReportMetadataColumns(t *testing.T) {
 			arch TEXT NOT NULL,
 			token TEXT NOT NULL,
 			reporting_interval_seconds INTEGER DEFAULT 60,
+			maintenance_mode BOOLEAN DEFAULT 0,
 			created_at DATETIME,
 			last_seen DATETIME
 		);
@@ -314,6 +321,39 @@ func TestMigrateRepairsLegacyAgentReportMetadataColumns(t *testing.T) {
 			memory JSON,
 			disk JSON,
 			location JSON
+		);
+		CREATE TABLE monitors (
+			id TEXT PRIMARY KEY,
+			agent_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			lifecycle TEXT NOT NULL,
+			active_incident_id TEXT NOT NULL DEFAULT '',
+			created_at DATETIME,
+			updated_at DATETIME,
+			deleted_at DATETIME
+		);
+		CREATE TABLE data_lifecycle_settings (
+			id INTEGER PRIMARY KEY,
+			raw_report_hot_days INTEGER NOT NULL,
+			archive_raw_reports BOOLEAN NOT NULL,
+			archive_dir TEXT NOT NULL,
+			rollups_enabled BOOLEAN NOT NULL,
+			rollup_retention_days INTEGER,
+			archive_schedule TEXT NOT NULL,
+			last_rollup_run_at DATETIME,
+			last_archive_run_at DATETIME,
+			last_archive_status TEXT,
+			last_archive_error TEXT,
+			created_at DATETIME,
+			updated_at DATETIME
+		);
+		CREATE TABLE monitor_reports (
+			id VARCHAR(255) PRIMARY KEY,
+			monitor_id TEXT NOT NULL,
+			payload TEXT NOT NULL,
+			collected_at TEXT NOT NULL,
+			health TEXT NOT NULL,
+			created_at DATETIME
 		);
 		CREATE TABLE alert_deliveries (
 			id VARCHAR(255) PRIMARY KEY,

@@ -9,7 +9,7 @@ type PageHeaderProps = {
 export const PageHeader = ({ title, description, className }: PageHeaderProps) => {
   return (
     <div className={cn("space-y-1", className)}>
-      <h1 className="text-2xl font-medium">{title}</h1>
+      <h1 className="text-[30px] leading-9 font-medium">{title}</h1>
       {typeof description === "string" ? (
         <p className="text-sm text-neutral-600">{description}</p>
       ) : (
