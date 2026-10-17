@@ -19,6 +19,7 @@ type Config struct {
 	CoreWorkerID                   string
 	CoreWorkerHeartbeatSeconds     int
 	CoreWorkerStaleSeconds         int
+	CoreWorkerConcurrency          int
 	CoreMonitorAllowPrivateTargets bool
 	DataLifecycleSchedulerSeconds  int
 	AdminUsername                  string
@@ -68,6 +69,7 @@ func Load() *Config {
 		CoreWorkerID:                   getEnv("ORION_WORKER_ID", "core-monitor-worker"),
 		CoreWorkerHeartbeatSeconds:     getEnvInt("ORION_WORKER_HEARTBEAT_SECONDS", 15),
 		CoreWorkerStaleSeconds:         getEnvInt("ORION_WORKER_STALE_SECONDS", 60),
+		CoreWorkerConcurrency:          getEnvInt("ORION_WORKER_CONCURRENCY", 16),
 		CoreMonitorAllowPrivateTargets: getEnvBool("ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS", false),
 		DataLifecycleSchedulerSeconds:  getEnvInt("ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS", 3600),
 		AdminUsername:                  adminUser,
@@ -219,6 +221,9 @@ func (c *Config) Validate() error {
 	}
 	if c.CoreWorkerHeartbeatSeconds <= 0 {
 		return &ValidationError{Msg: "ORION_WORKER_HEARTBEAT_SECONDS must be > 0"}
+	}
+	if c.CoreWorkerConcurrency < 0 || c.CoreWorkerConcurrency > 256 {
+		return &ValidationError{Msg: "ORION_WORKER_CONCURRENCY must be between 0 and 256"}
 	}
 	if c.CoreWorkerStaleSeconds <= 0 {
 		return &ValidationError{Msg: "ORION_WORKER_STALE_SECONDS must be > 0"}
