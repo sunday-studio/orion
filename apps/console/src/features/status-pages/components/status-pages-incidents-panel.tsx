@@ -1,5 +1,4 @@
-import { EmptyState } from "@/design-system";
-import { StatusBadge } from "@/components/shared/status-badges";
+import { EmptyState, StatusBadge } from "@/design-system";
 import type {
   ApiIncidentResponse,
   ApiStatusPageComponentResponse,
@@ -172,10 +171,9 @@ const ConfiguredIncidents = ({
         >
           <span className="flex items-center justify-between gap-2">
             <span className="font-medium">{incident.title}</span>
-            <StatusBadge
-              fallback={incident.public_status}
-              value={incidentBadgeStatus(incident.public_status)}
-            />
+            <StatusBadge status={incidentBadgeStatus(incident.public_status)}>
+              {incidentBadgeStatus(incident.public_status) ?? incident.public_status}
+            </StatusBadge>
           </span>
           <span className="mt-1 block text-neutral-600">
             {incident.visibility}

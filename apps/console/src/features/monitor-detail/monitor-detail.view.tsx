@@ -7,9 +7,9 @@ import {
   DialogHeader,
   DialogTitle,
   PageHeader,
+  StatusBadge,
 } from "@/design-system";
 import { PageBreadcrumbs } from "@/components/shared/page-breadcrumbs";
-import { StatusBadge, toStatus } from "@/components/shared/status-badges";
 import {
   CoreWorkerWarning,
   coreWorkerDiagnosticsFromPayload,
@@ -262,7 +262,7 @@ export const MonitorDetailPage = () => {
             title={monitor.name ?? monitor.id ?? "Unknown monitor"}
             description={
               <p className="text-sm text-neutral-600">
-                <StatusBadge className="px-1.5 py-0.5 text-[13px]" value={toStatus(health)} /> ·{" "}
+                <StatusBadge status={health} className="px-1.5 py-0.5 text-[13px]" /> ·{" "}
                 {isCoreMonitor ? "Core" : "Server"} · {monitor.type ?? "unknown"} · last checked{" "}
                 {formatDate(reportTimestamp(latestReport), DATE_TIME_FORMAT)}
               </p>

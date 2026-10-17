@@ -1,9 +1,4 @@
-import {
-  NotificationBadge,
-  StatusBadge,
-  toNotificationStatus,
-  toStatus,
-} from "@/components/shared/status-badges";
+import { StatusBadge } from "@/design-system";
 import { DetailGroup, DetailItem, reportTimestamp } from "@/components/shared/detail-group";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import type {
@@ -235,7 +230,7 @@ export const notificationColumns: ColumnDef<ApiAlertDeliveryResponse>[] = [
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => <NotificationBadge value={toNotificationStatus(row.original.status)} />,
+    cell: ({ row }) => <StatusBadge status={row.original.status} />,
   },
   {
     accessorKey: "error",
@@ -256,7 +251,7 @@ export const monitorReportColumns: ColumnDef<ApiMonitorReportResponse>[] = [
   {
     accessorKey: "health",
     header: "Health",
-    cell: ({ row }) => <StatusBadge value={toStatus(row.original.health)} />,
+    cell: ({ row }) => <StatusBadge status={row.original.health} />,
   },
   {
     accessorKey: "id",

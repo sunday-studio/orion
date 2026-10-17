@@ -1,5 +1,4 @@
-import { Button, Input, Textarea } from "@/design-system";
-import { StatusBadge } from "@/components/shared/status-badges";
+import { Button, Input, StatusBadge, Textarea } from "@/design-system";
 import type {
   ApiStatusPageComponentResponse,
   ApiStatusPageIncidentComponentSuggestionResponse,
@@ -55,10 +54,9 @@ export const EditIncidentForm = ({
   <form className="space-y-3" onSubmit={onSubmit}>
     <div className="flex items-center justify-between gap-2">
       <h3 className="text-sm font-medium">Edit Public Incident</h3>
-      <StatusBadge
-        fallback={form.visibility}
-        value={form.visibility === "published" ? "up" : "unknown"}
-      />
+      <StatusBadge status={form.visibility === "published" ? "up" : "unknown"}>
+        {form.visibility}
+      </StatusBadge>
     </div>
     <Field label="Internal incident ID">
       <Input

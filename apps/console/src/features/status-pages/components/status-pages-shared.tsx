@@ -1,5 +1,4 @@
-import { Input } from "@/design-system";
-import { StatusBadge } from "@/components/shared/status-badges";
+import { Input, StatusBadge } from "@/design-system";
 import {
   type ApiIncidentResponse,
   type ApiStatusPageIncidentComponentSuggestionResponse,
@@ -406,7 +405,11 @@ export const IncidentStatusBadge = ({
 }: {
   status?: string;
   fallback?: string;
-}) => <StatusBadge fallback={fallback ?? status} value={incidentBadgeStatus(status)} />;
+}) => (
+  <StatusBadge status={incidentBadgeStatus(status)}>
+    {incidentBadgeStatus(status) ?? fallback ?? status}
+  </StatusBadge>
+);
 
 export const DateTimeInput = ({
   value,

@@ -1,4 +1,4 @@
-import { PageHeader, Tabs, TabsList, TabsPanel, TabsTab } from "@/design-system";
+import { PageHeader, StatusBadge, Tabs, TabsList, TabsPanel, TabsTab } from "@/design-system";
 import { PageBreadcrumbs } from "@/components/shared/page-breadcrumbs";
 import {
   type ApiAgentReportResponse,
@@ -17,7 +17,6 @@ import { AgentLogsTab } from "./components/agent-logs-tab";
 import { AgentMonitorsTab } from "./components/agent-monitors-tab";
 import { AgentServiceLogsTab } from "./components/agent-service-logs-tab";
 import { AgentTokenPanel } from "./components/agent-token-panel";
-import { StatusBadge, toStatus } from "@/components/shared/status-badges";
 
 const AGENT_DETAIL_TABS = ["logs", "service-logs", "monitors", "cpu"] as const;
 type AgentDetailTab = (typeof AGENT_DETAIL_TABS)[number];
@@ -101,11 +100,8 @@ export const AgentDetailPage = () => {
             title={agent.name ?? agent.id ?? "Unknown server"}
             description={
               <p className="text-sm text-neutral-600">
-                <StatusBadge
-                  className="text-[13px] px-1.5 py-0.5 capitalize"
-                  value={toStatus(status)}
-                />{" "}
-                · last update {formatDate(agent.last_seen, DATE_TIME_FORMAT)}
+                <StatusBadge status={status} className="text-[13px] px-1.5 py-0.5 capitalize" /> ·
+                last update {formatDate(agent.last_seen, DATE_TIME_FORMAT)}
               </p>
             }
           />

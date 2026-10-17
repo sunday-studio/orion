@@ -12,9 +12,9 @@ import {
   MenuItem,
   MenuSeparator,
   MenuTrigger,
+  StatusBadge,
 } from "@/design-system";
 import { DataTable } from "@/components/shared/data-table";
-import { SeverityBadge, toSeverity } from "@/components/shared/status-badges";
 import type {
   ApiAlertChannelResponse,
   ApiAlertRouteDryRunResponse,
@@ -180,7 +180,7 @@ export const AlertRulesTab = ({ channels }: AlertRulesTabProps) => {
         row.original.severities?.length ? (
           <div className="flex flex-wrap gap-1">
             {row.original.severities.map((severity) => (
-              <SeverityBadge key={severity} value={toSeverity(severity)} />
+              <StatusBadge status={severity} key={severity} />
             ))}
           </div>
         ) : (
