@@ -1,3 +1,5 @@
+> Reference only (2026-10-17). OpenFX informed the container, number and stat patterns; the shipped spec is `design-language.md`, and some OpenFX choices (pill buttons, dithered art on product screens) were not adopted.
+
 # OpenFX design language, and how Orion can use it
 
 Source: https://www.openfx.com, surveyed 2026-10-16. The sitemap lists 145 English URLs that collapse into about 28 page templates. I opened every template in the built-in browser, read its text and measured computed styles (fonts, sizes, colors, radii, section heights). Not inspected: hover and scroll animation, the Resources dropdown contents, the footer, the Portuguese (pt-BR) pages, and blog bodies that load lazily. I did not interact with the cookie banner.
