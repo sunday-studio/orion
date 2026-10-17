@@ -259,6 +259,9 @@ func newTokenCommand(ctx context.Context, opts *Options) *cobra.Command {
 			if len(args) > 0 {
 				opts.TokenApply = args[0]
 			}
+			if tok, terr := replacementTokenFromOptions(opts); terr == nil && tok == "" {
+				return NewCommandError("could not apply replacement token", fmt.Errorf("replacement token is required"), "use: orion-agent token apply --token-file /path/to/token")
+			}
 			if handled, err := applyTokenViaDaemon(opts); handled {
 				return err
 			}

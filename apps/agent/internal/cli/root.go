@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/charmbracelet/fang"
 	"io"
 	"os"
 	"runtime"
@@ -93,9 +94,19 @@ func Execute(ctx context.Context, args []string, out, errOut io.Writer) int {
 		return 1
 	}
 
-	if err := cmd.Execute(); err != nil {
-		renderCommandError(errOut, err)
-		return commandExitCode(err)
+	// fang styles --help from the design tokens; errors keep our own renderer.
+	var runErr error
+	_ = fang.Execute(ctx, cmd,
+		fang.WithColorSchemeFunc(fangScheme),
+		fang.WithErrorHandler(func(w io.Writer, styles fang.Styles, err error) {
+			runErr = err
+			fangErrorHandler(errOut)(w, styles, err)
+		}),
+		fang.WithoutVersion(),
+		fang.WithoutManpage(),
+	)
+	if runErr != nil {
+		return commandExitCode(runErr)
 	}
 	return 0
 }

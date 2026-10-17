@@ -65,40 +65,44 @@ func runStatus(_ context.Context, opts *Options) error {
 	}
 
 	PrintHeader("status")
-
-	fmt.Fprintf(outputWriter, "  service_manager: %s\n", report.Service.Manager)
-	fmt.Fprintf(outputWriter, "  agent_service: %s\n", report.Service.State)
+	rows := [][2]string{
+		{"service", theme.Status(serviceStatusName(report.Service))},
+		{"manager", string(report.Service.Manager)},
+	}
 	if report.Service.ServiceFile != "" {
-		fmt.Fprintf(outputWriter, "  service_file: %s\n", report.Service.ServiceFile)
+		rows = append(rows, [2]string{"service file", report.Service.ServiceFile})
 	}
 	if report.Service.Error != nil {
-		fmt.Fprintf(outputWriter, "  service_error: %v\n", report.Service.Error)
+		rows = append(rows, [2]string{"service error", report.Service.Error.Error()})
 	}
-
-	if report.StateCheck.Status != CheckOK {
-		fmt.Fprintf(outputWriter, "  state_database: %s\n", opts.StatePath)
+	rows = append(rows, [2]string{"state database", opts.StatePath})
+	switch {
+	case report.StateCheck.Status != CheckOK:
+		detail := report.StateCheck.Detail
 		if report.StateCheck.Error != nil {
-			fmt.Fprintf(outputWriter, "  state: unavailable (%v)\n", report.StateCheck.Error)
-		} else if report.StateCheck.Status == CheckWarn {
-			fmt.Fprintf(outputWriter, "  state: %s\n", report.StateCheck.Detail)
-		} else {
-			fmt.Fprintf(outputWriter, "  state: unavailable (%s)\n", report.StateCheck.Detail)
+			detail = report.StateCheck.Error.Error()
 		}
-	} else if report.InternalState != nil {
-		fmt.Fprintf(outputWriter, "  state_database: %s\n", opts.StatePath)
-		fmt.Fprintf(outputWriter, "  state: %s\n", report.StateCheck.Detail)
-		fmt.Fprintf(outputWriter, "  registered: %t\n", report.InternalState.IsRegistered() || report.InternalState.Registered)
-		if report.InternalState.AgentID != "" {
-			fmt.Fprintf(outputWriter, "  agent_id: %s\n", report.InternalState.AgentID)
+		rows = append(rows, [2]string{"state", theme.Status("unknown") + " " + detail})
+	case report.InternalState != nil:
+		st := report.InternalState
+		rows = append(rows, [2]string{"state", report.StateCheck.Detail})
+		rows = append(rows, [2]string{"enrolled", fmt.Sprint(st.IsRegistered() || st.Registered)})
+		if st.AgentID != "" {
+			rows = append(rows, [2]string{"agent id", st.AgentID})
 		}
-		if report.InternalState.CoreURL != "" {
-			fmt.Fprintf(outputWriter, "  core_url: %s\n", report.InternalState.CoreURL)
+		if st.CoreURL != "" {
+			rows = append(rows, [2]string{"core", st.CoreURL})
 		}
-		fmt.Fprintf(outputWriter, "  maintenance: %t\n", report.InternalState.MaintenanceMode)
-		if report.InternalState.MaintenanceReason != nil {
-			fmt.Fprintf(outputWriter, "  maintenance_reason: %s\n", *report.InternalState.MaintenanceReason)
+		maint := theme.Status("up")
+		if st.MaintenanceMode {
+			maint = theme.Status("maintenance")
+			if st.MaintenanceReason != nil {
+				maint += " " + *st.MaintenanceReason
+			}
 		}
+		rows = append(rows, [2]string{"reporting", maint})
 	}
+	fmt.Fprintln(outputWriter, theme.KV(rows))
 
 	if !report.Service.Running {
 		PrintSkip("service is not running")
@@ -325,4 +329,14 @@ func printServiceStatus() {
 	} else {
 		PrintSkip("service is not running")
 	}
+}
+
+func serviceStatusName(s ServiceStatus) string {
+	switch {
+	case s.Running:
+		return "up"
+	case !s.Installed:
+		return "unknown"
+	}
+	return "down"
 }

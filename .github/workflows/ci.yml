@@ -238,6 +238,9 @@ jobs:
       - name: Installer tests (agent)
         run: make agent-installer-test
 
+      - name: Theme is generated from design tokens (agent)
+        run: make agent-theme-check
+
       - name: Performance budgets (agent)
         run: make agent-perf
 
