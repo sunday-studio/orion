@@ -81,7 +81,7 @@ export function LoginPage() {
       <div className="relative flex min-h-screen items-center justify-center lg:absolute lg:inset-y-0 lg:right-0 lg:w-[560px]">
         <form className="flex w-[340px] max-w-full flex-col gap-3.5" onSubmit={submitLogin}>
           <h1 className="text-2xl font-medium tracking-[-0.025em]">Sign in</h1>
-          <p className="-mt-1.5 text-sm text-[#57534e]">
+          <p className="-mt-1.5 text-sm text-mid">
             Use the admin credentials set on your Core host.
           </p>
           {sessionExpired && !error && (
@@ -112,7 +112,7 @@ export function LoginPage() {
           <Button className="h-10 w-full" type="submit" disabled={isSubmitting}>
             {isSubmitting ? "Signing in" : "Sign in"}
           </Button>
-          <span className="text-xs text-[#78716c]">
+          <span className="text-xs text-quiet">
             Forgot the password? Reset ORION_ADMIN_PASSWORD on the Core host.
           </span>
         </form>

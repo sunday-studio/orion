@@ -41,6 +41,7 @@ type HealthChip = { text: string; dot: string };
 const useHealthChip = (): HealthChip => {
   const overview = useGetOverview();
   const data = overview.data;
+  if (overview.isError) return { text: "Unable to load", dot: "bg-[#e5484d]" };
   if (data?.state === "empty") return { text: "No data yet", dot: "bg-faint" };
   const count = data?.ongoing_incident_count ?? 0;
   if (count > 0)

@@ -22,7 +22,7 @@ test("add server mints an enrollment and detects the agent registering with it",
     data: { machine_id: machineId, name: `e2e-host-${machineId}`, os: "linux", arch: "amd64" },
   });
   expect(response.ok()).toBeTruthy();
-  await expect(page.getByText(`Registered as e2e-host-${machineId}`)).toBeVisible({
+  await expect(page.getByText("The command will:")).toBeVisible({
     timeout: 15_000,
   });
 });

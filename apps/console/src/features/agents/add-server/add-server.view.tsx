@@ -43,6 +43,7 @@ export const AddServerPage = () => {
   const cancelEnrollment = useCancelEnrollment();
   const activeId = useRef<string | undefined>(undefined);
   const generation = useRef(0);
+  const statusRef = useRef<string>("waiting");
 
   const mint = (next: ServerPlatform) => {
     const ticket = (generation.current += 1);
@@ -73,7 +74,10 @@ export const AddServerPage = () => {
   useEffect(
     () => () => {
       generation.current += 1;
-      if (activeId.current) cancelEnrollment.mutate({ id: activeId.current });
+      // Cancel only a token nobody used: a claimed or registered one is mid-registration.
+      if (activeId.current && statusRef.current === "waiting") {
+        cancelEnrollment.mutate({ id: activeId.current });
+      }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
@@ -97,6 +101,7 @@ export const AddServerPage = () => {
   });
   const live = statusQuery.data;
   const status = live?.status ?? enrollment?.status ?? "waiting";
+  statusRef.current = status;
   const host = coreHost(enrollment?.core_url);
   const command = enrollment?.install_command ?? "";
   const createdMs = enrollment?.created_at ? new Date(enrollment.created_at).getTime() : now;
@@ -137,7 +142,7 @@ export const AddServerPage = () => {
       </Narrow>
     );
   }
-  if (status === "expired") {
+  if (status === "expired" || status === "cancelled") {
     return (
       <Narrow>
         <AddServerFailed host={host} onStartOver={() => mint(platform)} onCopy={copyCommand} />

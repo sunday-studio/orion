@@ -25,6 +25,7 @@ import {
   useSearchLogs,
   useSendAppTestLog,
 } from "@/orion-sdk";
+import { toZoned } from "@/utils/date";
 import { logSnippets } from "./snippets";
 
 type Step = "create" | "key" | "waiting" | "received";
@@ -40,9 +41,9 @@ const environmentOptions = [
 
 const clock = (iso?: string) => {
   if (!iso) return "-";
-  const date = new Date(iso);
+  const date = toZoned(new Date(iso));
   const pad = (value: number, size = 2) => String(value).padStart(size, "0");
-  return `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}.${pad(date.getUTCMilliseconds(), 3)}`;
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${pad(date.getMilliseconds(), 3)}`;
 };
 
 /** Connect an app: create it, copy the key once, send a log, see it arrive (F1, four steps). */

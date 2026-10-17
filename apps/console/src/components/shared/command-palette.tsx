@@ -116,7 +116,12 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
       flatIndex += 1;
       const index = flatIndex;
       rows.push(
-        <li key={item.id} role="option" aria-selected={index === active}>
+        <li
+          id={`palette-option-${item.id}`}
+          key={item.id}
+          role="option"
+          aria-selected={index === active}
+        >
           <button
             type="button"
             tabIndex={-1}
@@ -150,6 +155,12 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
             <Search className="size-4 text-quiet" aria-hidden />
             <input
               autoFocus
+              role="combobox"
+              aria-expanded="true"
+              aria-controls="palette-listbox"
+              aria-activedescendant={
+                items[active] ? `palette-option-${items[active].id}` : undefined
+              }
               aria-label="Search destinations"
               placeholder="Search monitors, incidents and actions"
               value={query}
@@ -177,6 +188,7 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
             </DialogPrimitive.Close>
           </div>
           <ul
+            id="palette-listbox"
             role="listbox"
             aria-label="Destinations"
             className="m-0 max-h-[360px] list-none overflow-y-auto p-0 pb-2"

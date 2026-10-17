@@ -77,7 +77,7 @@ export const AccountMenu = () => {
           Keyboard shortcuts
           <span className="text-xs text-faint">?</span>
         </button>
-        <div className="my-1.5 h-px bg-[#ececea]" />
+        <div className="my-1.5 h-px bg-hairline" />
         <div className="px-1.5 pb-1 text-xs text-quiet">Theme</div>
         <div
           role="radiogroup"
@@ -120,7 +120,7 @@ export const AccountMenu = () => {
             }}
           />
         </div>
-        <div className="my-1.5 h-px bg-[#ececea]" />
+        <div className="my-1.5 h-px bg-hairline" />
         <a
           className={itemClass}
           href="https://github.com/sunday-studio/orion/tree/main/docs"
@@ -129,7 +129,11 @@ export const AccountMenu = () => {
         >
           Documentation
         </a>
-        <button type="button" className={cn(itemClass, "text-[#be123c]")} onClick={signOut}>
+        <button
+          type="button"
+          className={cn(itemClass, "text-[var(--color-destructive)]")}
+          onClick={signOut}
+        >
           Sign out
         </button>
       </PopoverContent>
