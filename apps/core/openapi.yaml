@@ -154,6 +154,8 @@ definitions:
     type: object
   internal_api.AlertChannelResponse:
     properties:
+      confirmed_recipient_count:
+        type: integer
       created_at:
         type: string
       enabled:
@@ -166,6 +168,8 @@ definitions:
         type: string
       name:
         type: string
+      recipient_count:
+        type: integer
       subscribed_events:
         items:
           type: string
@@ -239,6 +243,18 @@ definitions:
       type:
         type: string
       updated_at:
+        type: string
+    type: object
+  internal_api.AlertRecipientResponse:
+    properties:
+      confirmed_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      status:
+        description: pending | confirmed | unsubscribed
         type: string
     type: object
   internal_api.AlertRouteDryRunResponse:
@@ -1946,6 +1962,11 @@ definitions:
       webhook_signing_secret:
         type: string
       webhook_url:
+        type: string
+    type: object
+  internal_api.alertRecipientRequest:
+    properties:
+      email:
         type: string
     type: object
   internal_api.alertRouteDryRunRequest:
@@ -4380,7 +4401,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create a generic webhook alert channel. Secret values are stored
+      description: Create a webhook or email alert channel. Email channels need SMTP
+        configured and recipients confirmed via double opt-in. Secret values are stored
         but never returned by the API.
       operationId: createAlertChannel
       parameters:
@@ -4499,6 +4521,149 @@ paths:
           schema:
             $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Update alert channel
+      tags:
+      - alerts
+  /v1/alerts/channels/{id}/recipients:
+    get:
+      operationId: getAlertChannelRecipients
+      parameters:
+      - description: Alert channel ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    recipients:
+                      items:
+                        $ref: '#/definitions/internal_api.AlertRecipientResponse'
+                      type: array
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: List alert channel recipients
+      tags:
+      - alerts
+    post:
+      consumes:
+      - application/json
+      description: Adds an address to an email channel and mails it a confirmation
+        link. No alerts are sent until it confirms (double opt-in).
+      operationId: addAlertChannelRecipient
+      parameters:
+      - description: Alert channel ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Recipient
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.alertRecipientRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    recipient:
+                      $ref: '#/definitions/internal_api.AlertRecipientResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Add alert channel recipient
+      tags:
+      - alerts
+  /v1/alerts/channels/{id}/recipients/{recipient_id}:
+    delete:
+      operationId: removeAlertChannelRecipient
+      parameters:
+      - description: Alert channel ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Recipient ID
+        in: path
+        name: recipient_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Remove alert channel recipient
+      tags:
+      - alerts
+  /v1/alerts/channels/{id}/recipients/{recipient_id}/resend:
+    post:
+      operationId: resendAlertChannelRecipient
+      parameters:
+      - description: Alert channel ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Recipient ID
+        in: path
+        name: recipient_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Resend recipient confirmation
       tags:
       - alerts
   /v1/alerts/channels/{id}/test:

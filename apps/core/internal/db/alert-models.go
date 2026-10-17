@@ -91,3 +91,24 @@ type AlertChannel struct {
 	CreatedAt            time.Time `json:"created_at"`
 	UpdatedAt            time.Time `json:"updated_at"`
 }
+
+// AlertChannelRecipient is one address on an email alert channel. Alerts go only to
+// recipients whose status is "confirmed" (double opt-in).
+type AlertChannelRecipient struct {
+	ID                 string     `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	ChannelID          string     `json:"channel_id" gorm:"not null;uniqueIndex:idx_alert_channel_recipients_unique"`
+	Email              string     `json:"email" gorm:"not null;uniqueIndex:idx_alert_channel_recipients_unique"`
+	Status             string     `json:"status" gorm:"not null;default:pending"` // pending | confirmed | unsubscribed
+	ConfirmedAt        *time.Time `json:"confirmed_at"`
+	ConfirmationSentAt *time.Time `json:"confirmation_sent_at"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+}
+
+// AlertDeliveryRecipient records which recipients already received a delivery so a
+// retry after a partial SMTP failure never emails anyone twice.
+type AlertDeliveryRecipient struct {
+	DeliveryID  string    `gorm:"primaryKey"`
+	RecipientID string    `gorm:"primaryKey"`
+	SentAt      time.Time `gorm:"not null"`
+}

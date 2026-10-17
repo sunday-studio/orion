@@ -383,7 +383,7 @@ func (s *AlertService) TestChannel(channelID string) (*db.AlertDelivery, error) 
 	if err := s.db.Where("id = ?", channelID).First(&channel).Error; err != nil {
 		return nil, err
 	}
-	if channel.Type != "webhook" {
+	if channel.Type != "webhook" && channel.Type != "email" {
 		return nil, gorm.ErrRecordNotFound
 	}
 
@@ -399,7 +399,7 @@ func (s *AlertService) TestChannel(channelID string) (*db.AlertDelivery, error) 
 	}
 
 	if err := s.attemptDelivery(delivery, func() error {
-		return s.deliverTest(channel)
+		return s.deliverTest(channel, delivery.ID)
 	}); err != nil {
 		s.logger.Error("Alert channel test failed", "channel", channel.Name, "error", err)
 		return delivery, nil
@@ -419,7 +419,7 @@ func subscribesToAlertEvent(channel db.AlertChannel, eventType string) bool {
 
 func (s *AlertService) deliveryChannels() ([]db.AlertChannel, error) {
 	var channels []db.AlertChannel
-	if err := s.db.Where("type = ?", "webhook").Order("name ASC").Find(&channels).Error; err != nil {
+	if err := s.db.Where("type IN ?", []string{"webhook", "email"}).Order("name ASC").Find(&channels).Error; err != nil {
 		s.logger.Error("Failed to load alert channels", "error", err)
 		return nil, err
 	}

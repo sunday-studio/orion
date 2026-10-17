@@ -117,6 +117,12 @@ func (s *Server) setupRoutes() {
 	s.router.GET("/health", s.healthCheck)
 	s.router.GET("/metrics", s.metricsAuthMiddleware(), s.getMetrics)
 
+	// Alert email opt-in / unsubscribe pages (signed tokens; GET only renders, POST acts)
+	s.router.GET("/alerts/email/confirm/:token", s.alertEmailPage("confirm"))
+	s.router.POST("/alerts/email/confirm/:token", s.alertEmailAction("confirm"))
+	s.router.GET("/alerts/email/unsubscribe/:token", s.alertEmailPage("unsubscribe"))
+	s.router.POST("/alerts/email/unsubscribe/:token", s.alertEmailAction("unsubscribe"))
+
 	// Public status page routes
 	s.router.GET("/", s.getCustomDomainStatusPage)
 	s.router.GET("/feed.atom", s.getCustomDomainStatusPageAtomFeed)
@@ -199,6 +205,10 @@ func (s *Server) setupRoutes() {
 			frontend.PATCH("/alerts/channels/:id", s.updateAlertChannel)
 			frontend.POST("/alerts/channels/:id/test", s.testAlertChannel)
 			frontend.DELETE("/alerts/channels/:id", s.deleteAlertChannel)
+			frontend.GET("/alerts/channels/:id/recipients", s.listAlertChannelRecipients)
+			frontend.POST("/alerts/channels/:id/recipients", s.addAlertChannelRecipient)
+			frontend.DELETE("/alerts/channels/:id/recipients/:recipient_id", s.removeAlertChannelRecipient)
+			frontend.POST("/alerts/channels/:id/recipients/:recipient_id/resend", s.resendAlertChannelRecipient)
 			frontend.GET("/alerts/routes", s.listAlertRoutes)
 			frontend.POST("/alerts/routes", s.createAlertRoute)
 			frontend.POST("/alerts/routes/dry-run", s.dryRunAlertRoutes)

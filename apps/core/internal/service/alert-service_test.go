@@ -58,7 +58,7 @@ func TestAlertServiceQueuesConfiguredChannels(t *testing.T) {
 	}
 }
 
-func TestAlertServiceIgnoresLegacyEmailChannels(t *testing.T) {
+func TestAlertServiceSuppressesEmailChannelWithoutConfirmedRecipients(t *testing.T) {
 	database := setupAlertServiceDatabase(t)
 	createTestIncident(t, database, "incident-1")
 	createTestAlertChannel(t, database, db.AlertChannel{Name: "ops-email", Type: "email", Enabled: true})
@@ -72,8 +72,8 @@ func TestAlertServiceIgnoresLegacyEmailChannels(t *testing.T) {
 	if err := database.First(&delivery).Error; err != nil {
 		t.Fatalf("find delivery: %v", err)
 	}
-	if delivery.Channel != "none" || delivery.Type != "none" || delivery.Status != "suppressed" {
-		t.Fatalf("delivery = %+v, want no alert channels configured suppression", delivery)
+	if delivery.Channel != "ops-email" || delivery.Type != "email" || delivery.Status != "suppressed" || delivery.Error != "no confirmed email recipients" {
+		t.Fatalf("delivery = %+v, want suppressed for no confirmed recipients", delivery)
 	}
 }
 
@@ -151,7 +151,7 @@ func TestAlertServiceSuppressesRetiredDueDeliveries(t *testing.T) {
 		IncidentID:    "incident-1",
 		EventType:     db.AlertEventIncidentOpened,
 		Channel:       "ops-email",
-		Type:          "email",
+		Type:          "slack",
 		Status:        "failed",
 		AttemptCount:  1,
 		MaxAttempts:   3,
