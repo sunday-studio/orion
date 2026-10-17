@@ -125,3 +125,17 @@ func TestDeadManPingHitsConfiguredURL(t *testing.T) {
 	svc.cfg.DeadManURL = "http://127.0.0.1:1/unreachable"
 	svc.pingDeadMan(t.Context()) // must log and return, never panic or block
 }
+
+func TestAPIDeliversAlertsWhenNoWorkerHasEverRegistered(t *testing.T) {
+	svc, hook, database := selfMonitorFixture(t)
+	createTestIncident(t, database, "incident-1")
+	if err := svc.alerts.QueueIncidentNotifications("incident-1", "incident_opened"); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Check(t.Context(), time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+	if hook.Calls() != 1 {
+		t.Fatalf("webhook calls = %d, want the API to deliver when no Worker exists", hook.Calls())
+	}
+}

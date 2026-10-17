@@ -106,3 +106,23 @@ func TestRetryDeliveryAfterExhaustionIsSentByDispatcher(t *testing.T) {
 		t.Fatalf("after operator retry status=%s attempts=%d, want sent on attempt %d", d.Status, d.AttemptCount, defaultAlertDeliveryMaxAttempts+1)
 	}
 }
+
+// An operator retry must not steal a delivery that a dispatcher is sending right now.
+func TestRetryDeliveryRefusesWhileAnAttemptIsInFlight(t *testing.T) {
+	svc, _ := scenarioAlerting(t)
+	if err := svc.QueueIncidentNotifications("incident-1", "incident_opened"); err != nil {
+		t.Fatal(err)
+	}
+	var d db.AlertDelivery
+	svc.db.First(&d)
+	live := time.Now().UTC().Add(time.Minute)
+	svc.db.Model(&db.AlertDelivery{}).Where("id = ?", d.ID).Updates(map[string]any{"status": "failed", "locked_by": "dispatcher-x", "locked_until": &live})
+
+	if _, err := svc.RetryDelivery(d.ID); err != ErrAlertDeliveryNotRetryable {
+		t.Fatalf("RetryDelivery() during an in-flight attempt = %v, want ErrAlertDeliveryNotRetryable", err)
+	}
+	svc.db.First(&d, "id = ?", d.ID)
+	if d.LockedBy != "dispatcher-x" {
+		t.Fatal("the retry cleared another dispatcher's lease")
+	}
+}

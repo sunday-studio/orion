@@ -55,7 +55,7 @@ EOF
 printf 'ORION_ADMIN_PASSWORD=%s\nORION_JWT_SECRET=%s\n' "$ADMIN_PASSWORD" "$JWT_SECRET" >> .env
 ```
 
-The Compose file sets `ORION_REQUIRE_FRONTEND_AUTH=true`, so Core and the worker refuse startup
+The Compose file sets `ORION_REQUIRE_FRONTEND_AUTH=true`, so Core refuses startup
 unless `ORION_ADMIN_USERNAME`, `ORION_ADMIN_PASSWORD`, and `ORION_JWT_SECRET` are all present.
 Required-auth mode also rejects placeholder auth values, admin passwords shorter than 12 characters,
 and JWT secrets shorter than 32 characters.

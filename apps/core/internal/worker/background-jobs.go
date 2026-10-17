@@ -65,6 +65,21 @@ func (a *App) sweepSilentMonitors() {
 	}
 }
 
+// dispatchAlertsAsync runs a dispatch pass without blocking the Worker loop and never
+// overlaps itself. A webhook receiver that hangs (10s per call, up to 100 calls) would
+// otherwise stall check dispatch, heartbeat reconciliation and the silent sweeps.
+func (a *App) dispatchAlertsAsync() {
+	if !a.dispatching.CompareAndSwap(false, true) {
+		return
+	}
+	a.background.Add(1)
+	go func() {
+		defer a.background.Done()
+		defer a.dispatching.Store(false)
+		a.dispatchAlerts()
+	}()
+}
+
 // dispatchAlerts sends due alert deliveries (new, retried and delayed summaries).
 func (a *App) dispatchAlerts() {
 	if _, err := a.alerts.ProcessDueDeliveries(100); err != nil {
