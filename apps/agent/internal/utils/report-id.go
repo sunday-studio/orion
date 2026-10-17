@@ -8,6 +8,10 @@ import (
 // NewReportID returns a random UUIDv4 used as the idempotency key of a report, so
 // that replays from the retry queue or spool are recognised by Core.
 func NewReportID() string {
+	return newUUIDv4()
+}
+
+func newUUIDv4() string {
 	var b [16]byte
 	if _, err := rand.Read(b[:]); err != nil {
 		panic(fmt.Sprintf("report id: %v", err))

@@ -244,5 +244,9 @@ ok "install arguments ready"
 
 cd "$WORK_DIR"
 step "Run service installer"
-"${SUDO[@]}" "$INSTALLER" "${ARGS[@]}"
+if [ -n "${ORION_ENROLLMENT_TOKEN:-}" ]; then
+  "${SUDO[@]}" env "ORION_ENROLLMENT_TOKEN=$ORION_ENROLLMENT_TOKEN" "$INSTALLER" "${ARGS[@]}"
+else
+  "${SUDO[@]}" "$INSTALLER" "${ARGS[@]}"
+fi
 ok "installer finished"

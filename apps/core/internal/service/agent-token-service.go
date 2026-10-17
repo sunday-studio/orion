@@ -161,10 +161,12 @@ func agentTokenMatches(agent db.Agent, token string) bool {
 	if token == "" {
 		return false
 	}
-	if agent.TokenHash != "" {
-		return subtle.ConstantTimeCompare([]byte(agent.TokenHash), []byte(hashAgentToken(token))) == 1
+	// Only the hash is ever compared. Legacy plaintext rows are converted to
+	// hashes at startup by MigrateLegacyAgentTokens; a row without a hash cannot authenticate.
+	if agent.TokenHash == "" {
+		return false
 	}
-	return subtle.ConstantTimeCompare([]byte(agent.Token), []byte(token)) == 1
+	return subtle.ConstantTimeCompare([]byte(agent.TokenHash), []byte(hashAgentToken(token))) == 1
 }
 
 func agentTokenStatus(agent db.Agent) AgentTokenStatus {
@@ -190,6 +192,30 @@ func normalizedAgentTokenVersion(version int) int {
 		return 1
 	}
 	return version
+}
+
+// MigrateLegacyAgentTokens converts agents that still store a plaintext token
+// (token_hash empty) to the hashed form, replacing the plaintext with a marker.
+// Existing agents keep working: their stored token hashes to the same value they
+// already present. It is idempotent and returns how many rows were converted.
+func MigrateLegacyAgentTokens(database *gorm.DB, logger *utils.Logger) (int, error) {
+	var legacy []db.Agent
+	if err := database.Where("token_hash = ? AND token <> ? AND token NOT LIKE ? AND token NOT LIKE ?", "", "", "revoked:%", "sha256:%").Find(&legacy).Error; err != nil {
+		return 0, err
+	}
+	for _, agent := range legacy {
+		updates := map[string]any{
+			"token_hash": hashAgentToken(agent.Token),
+			"token":      storedAgentTokenMarker(agent.Token),
+		}
+		if err := database.Model(&db.Agent{}).Where("id = ? AND token_hash = ?", agent.ID, "").Updates(updates).Error; err != nil {
+			return 0, err
+		}
+	}
+	if len(legacy) > 0 {
+		logger.Info("Migrated legacy plaintext agent tokens to hashes", "count", len(legacy))
+	}
+	return len(legacy), nil
 }
 
 func hashAgentToken(token string) string {
