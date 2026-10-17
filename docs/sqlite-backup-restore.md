@@ -54,3 +54,9 @@ Pruning frees pages inside the database file. New databases are created with `au
 ```sh
 sqlite3 "$ORION_DATA_DIR/orion.db" "PRAGMA auto_vacuum=INCREMENTAL; VACUUM;"
 ```
+
+## Migrations
+
+Core applies embedded migrations at start. Each runs under an exclusive write lock and re-checks that it is still pending, so the API and the Worker starting together migrate once. Every applied migration stores a SHA-256 of its file; if an applied file is edited, Core refuses to start with "modified after it was applied" - restore the original and add a new migration instead. Before applying migrations to an existing database Core writes a consistent copy to `$ORION_DATA_DIR/backups/orion-pre-migrate-<version>-<timestamp>.db` (mode `0600`, newest three kept). To roll back after a bad upgrade, stop Core and the Worker, then restore the newest backup as described under Restore and run the previous image.
+
+The Worker container healthcheck (`orion-core-worker healthcheck`) is read-only: it opens the database read-only and compares the schema version, so it never migrates or takes a write lock.

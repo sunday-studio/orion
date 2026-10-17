@@ -1,6 +1,8 @@
 package db
 
 import (
+	"cmp"
+	"slices"
 	"testing"
 
 	"gorm.io/driver/sqlite"
@@ -129,6 +131,9 @@ func TestEmbeddedMigrationVersionsAreContiguous(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load migrations: %v", err)
 	}
+	// SQL files and numbered Go migrations share one version sequence.
+	migrations = append(migrations, goMigrations()...)
+	slices.SortFunc(migrations, func(a, b migration) int { return cmp.Compare(a.version, b.version) })
 
 	for index, migration := range migrations {
 		want := index + 1
@@ -272,6 +277,7 @@ func TestMigrateIsIdempotent(t *testing.T) {
 		t.Fatalf("load migrations: %v", err)
 	}
 	uniqueVersions := map[int]bool{}
+	migrations = append(migrations, goMigrations()...)
 	for _, migration := range migrations {
 		uniqueVersions[migration.version] = true
 	}
@@ -314,6 +320,16 @@ func TestMigrateRepairsLegacyAgentReportMetadataColumns(t *testing.T) {
 			memory JSON,
 			disk JSON,
 			location JSON
+		);
+		CREATE TABLE monitors (
+			id TEXT PRIMARY KEY,
+			agent_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			lifecycle TEXT NOT NULL,
+			active_incident_id TEXT NOT NULL DEFAULT '',
+			created_at DATETIME,
+			updated_at DATETIME,
+			deleted_at DATETIME
 		);
 		CREATE TABLE data_lifecycle_settings (
 			id INTEGER PRIMARY KEY,

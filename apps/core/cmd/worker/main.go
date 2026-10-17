@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"orion/core/internal/config"
+	"orion/core/internal/db"
 	"orion/core/internal/service"
 	"orion/core/internal/shared"
 	"orion/core/internal/utils"
@@ -72,20 +72,7 @@ func main() {
 }
 
 func runHealthcheck(cfg *config.Config) error {
-	database, err := shared.OpenMigratedDatabase(cfg)
-	if err != nil {
-		return err
-	}
-	sqlDB, err := database.DB()
-	if err != nil {
-		return fmt.Errorf("get database handle: %w", err)
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	if err := sqlDB.PingContext(ctx); err != nil {
-		return fmt.Errorf("ping database: %w", err)
-	}
-	return nil
+	return db.CheckHealth(context.Background(), cfg.DataDir)
 }
 
 func runHeartbeatLoop(ctx context.Context, diagnostics *service.WorkerDiagnosticsService, cfg *config.Config, logger *utils.Logger) error {
