@@ -124,3 +124,11 @@ Status pages: status-pages-list, status-create, status-domain, status-maintenanc
 Global and settings: avatar-menu, shortcuts, overview-all-good, settings-general, settings-tokens, settings-token-new, settings-audit.
 Flows board: twenty journeys.
 Still not drawn: password reset (done on the Core host through an environment variable), mobile and narrow layouts, print views.
+
+## 8. Comment pass (2026-10-17, second)
+
+Logs are now three sources: status logs (events, filter by server and monitor), service logs (Orion backend), app logs (ingested from your apps). New artboards: logs-app, logs-app-detail, logs-app-empty, logs-app-connect, logs-sources. Reworked: channel type picker (compact rows), incident-resolved (lifecycle contained, timeline as a table, one primary action), bulk bars (floating, bottom), dark Overview (sunken fields), empty states (single border), public status, history and incident pages (design system components).
+
+## 9. Product logs (D-011, 2026-10-17)
+
+Unified Logs page (logs, logs-rich, logs-plain, logs-detail, logs-detail-plain, logs-no-apps, logs-no-results, logs-error), with logs-live, logs-patterns, logs-views, logs-export. Apps settings (settings-apps, settings-app-new, app-keys, app-key-new, app-retention, app-display, app-redaction, app-send-test). Connect your first app (app-connect-create, app-connect-snippet, app-connect-waiting, app-connect-received). Log tabs are named Service logs (apps and agents, the unified page), Status logs (events) and Internal logs (Orion backend). Settings tabs are now Data lifecycle, General, Apps, Security, System, Audit log. Superseded: logs-app, logs-app-detail, logs-app-empty, logs-app-connect, logs-sources (the earlier three-tab design).
