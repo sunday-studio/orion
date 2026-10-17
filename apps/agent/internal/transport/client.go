@@ -396,11 +396,16 @@ func (c *Client) RegisterAgent(req AgentRegistrationRequest) (*AgentRegistration
 	return &regResp, nil
 }
 
-func (c *Client) SetMaintenanceMode(agentID string, maintenanceMode bool) error {
+// SetMaintenanceMode toggles maintenance. When enabling, duration > 0 sets how long
+// it lasts (Core expires it automatically; zero uses Core's default of 24h).
+func (c *Client) SetMaintenanceMode(agentID string, maintenanceMode bool, duration time.Duration) error {
 	endpoint := fmt.Sprintf("/v1/agents/%s/maintenance", agentID)
 
-	payload := map[string]bool{
+	payload := map[string]any{
 		"maintenance_mode": maintenanceMode,
+	}
+	if maintenanceMode && duration > 0 {
+		payload["duration_seconds"] = int(duration.Seconds())
 	}
 
 	resp, err := c.makeProtectedRequest("PUT", endpoint, payload)

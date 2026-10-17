@@ -231,7 +231,7 @@ func (s *HealthService) ComputeAgentHealthSnapshot(agentID string, config Health
 
 	snapshot.TotalCount = len(monitors)
 
-	if agent.MaintenanceMode {
+	if agent.InMaintenance(time.Now().UTC()) {
 		snapshot.AgentHealth = "maintenance"
 		snapshot.OverallHealth = "maintenance"
 		snapshot.MonitorHealth = storedMonitorRollup(monitors, &snapshot)

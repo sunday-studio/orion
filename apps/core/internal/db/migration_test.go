@@ -307,6 +307,7 @@ func TestMigrateRepairsLegacyAgentReportMetadataColumns(t *testing.T) {
 			arch TEXT NOT NULL,
 			token TEXT NOT NULL,
 			reporting_interval_seconds INTEGER DEFAULT 60,
+			maintenance_mode BOOLEAN DEFAULT 0,
 			created_at DATETIME,
 			last_seen DATETIME
 		);

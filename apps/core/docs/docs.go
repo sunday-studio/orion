@@ -1294,7 +1294,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Enable or disable maintenance mode for a specific agent",
+                "description": "Enable or disable maintenance mode for a specific agent. Enabling lasts duration_seconds (default 24h, max 30 days) and then expires automatically; every change is audited.",
                 "consumes": [
                     "application/json"
                 ],
@@ -8829,6 +8829,9 @@ const docTemplate = `{
                 "maintenance_mode": {
                     "type": "boolean"
                 },
+                "maintenance_until": {
+                    "type": "string"
+                },
                 "monitor_count": {
                     "type": "integer"
                 },
@@ -11966,6 +11969,10 @@ const docTemplate = `{
                 "maintenance_mode"
             ],
             "properties": {
+                "duration_seconds": {
+                    "description": "DurationSeconds is how long maintenance lasts when enabling. Omitted means\nDefaultMaintenanceDuration; values above MaxMaintenanceDuration are rejected.",
+                    "type": "integer"
+                },
                 "maintenance_mode": {
                     "type": "boolean"
                 }

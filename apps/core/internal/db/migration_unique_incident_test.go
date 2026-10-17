@@ -2,6 +2,7 @@ package db
 
 import (
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -53,5 +54,32 @@ func TestUniqueActiveIncidentMigrationDedupesExistingRows(t *testing.T) {
 	database.First(&untouched, "id = ?", "other")
 	if untouched.Status != "open" {
 		t.Fatalf("other monitor's incident status = %q, want open", untouched.Status)
+	}
+}
+
+func TestMaintenanceMigrationGivesLegacyMaintenanceAnEnd(t *testing.T) {
+	database, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Migrate(database); err != nil {
+		t.Fatal(err)
+	}
+	database.Create(&Agent{ID: "legacy", MachineId: "m1", Name: "legacy", OS: "linux", Arch: "amd64", Token: "t1", MaintenanceMode: true})
+	database.Create(&Agent{ID: "idle", MachineId: "m2", Name: "idle", OS: "linux", Arch: "amd64", Token: "t2"})
+	sql, _ := os.ReadFile("migrations/000034_agent_maintenance_until.up.sql")
+	// Re-run only the backfill UPDATE (the ALTER already ran with Migrate).
+	update := string(sql)[strings.Index(string(sql), "UPDATE agents"):]
+	if err := database.Exec(update).Error; err != nil {
+		t.Fatal(err)
+	}
+	var legacy, idle Agent
+	database.First(&legacy, "id = ?", "legacy")
+	database.First(&idle, "id = ?", "idle")
+	if legacy.MaintenanceUntil == nil || time.Until(*legacy.MaintenanceUntil) < 23*time.Hour {
+		t.Fatalf("legacy maintenance end = %v, want about 24h from now", legacy.MaintenanceUntil)
+	}
+	if idle.MaintenanceUntil != nil {
+		t.Fatal("agents not in maintenance must be untouched")
 	}
 }

@@ -253,3 +253,27 @@ func TestAuthTokenIsSafeForConcurrentUse(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func TestSetMaintenanceModeSendsDurationOnlyWhenEnabling(t *testing.T) {
+	var bodies []string
+	client := newRetryTestClient(func(req *http.Request) (*http.Response, error) {
+		b, _ := io.ReadAll(req.Body)
+		bodies = append(bodies, string(b))
+		return responseWithStatus(http.StatusOK), nil
+	})
+	if err := client.SetMaintenanceMode("agent-1", true, 2*time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	if err := client.SetMaintenanceMode("agent-1", true, 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := client.SetMaintenanceMode("agent-1", false, 0); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(bodies[0], `"duration_seconds":7200`) {
+		t.Fatalf("enable body = %s, want duration_seconds 7200", bodies[0])
+	}
+	if strings.Contains(bodies[1], "duration_seconds") || strings.Contains(bodies[2], "duration_seconds") {
+		t.Fatalf("bodies = %v, want no duration when not given or when disabling", bodies[1:])
+	}
+}

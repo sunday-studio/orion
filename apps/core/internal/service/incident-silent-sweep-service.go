@@ -46,7 +46,7 @@ func (s *IncidentService) SweepSilentMonitors(now time.Time) (int, error) {
 			firstErr = errors.Join(firstErr, err)
 			continue
 		}
-		if agent == nil || agent.MaintenanceMode {
+		if agent == nil || agent.InMaintenance(now) {
 			continue
 		}
 

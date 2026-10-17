@@ -119,6 +119,7 @@ type Agent struct {
 	TokenRevokedAt           *time.Time                      `json:"token_revoked_at" gorm:"index:idx_agents_token_revoked_at"`
 	TokenRevocationReason    string                          `json:"token_revocation_reason" gorm:"type:text;not null;default:''"`
 	MaintenanceMode          bool                            `json:"maintenance_mode" gorm:"default:false"`
+	MaintenanceUntil         *time.Time                      `json:"maintenance_until"`
 	ReportingIntervalSeconds int                             `json:"reporting_interval_seconds" gorm:"default:60"` // System metrics reporting interval
 	CreatedAt                time.Time                       `json:"created_at"`
 	DeletedAt                time.Time                       `json:"deleted_at"`
@@ -461,4 +462,13 @@ type IncidentCandidateDismissal struct {
 	DismissedBy string    `json:"dismissed_by"`
 	Reason      string    `json:"reason"`
 	DismissedAt time.Time `json:"dismissed_at"`
+}
+
+// InMaintenance reports whether the agent is in an unexpired maintenance window.
+// A flag without an end time (legacy data) counts as active until it is migrated.
+func (a Agent) InMaintenance(now time.Time) bool {
+	if !a.MaintenanceMode {
+		return false
+	}
+	return a.MaintenanceUntil == nil || now.Before(*a.MaintenanceUntil)
 }
