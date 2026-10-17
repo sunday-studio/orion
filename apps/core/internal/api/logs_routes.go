@@ -22,5 +22,10 @@ func (s *Server) registerProductLogRoutes(frontend *gin.RouterGroup) {
 	frontend.GET("/logs/views", s.listLogViews)
 	frontend.POST("/logs/views", s.createLogView)
 	frontend.DELETE("/logs/views/:id", s.deleteLogView)
+	frontend.GET("/logs/alerts", s.listLogAlertRules)
+	frontend.POST("/logs/alerts", s.createLogAlertRule)
+	frontend.PATCH("/logs/alerts/:id", s.updateLogAlertRule)
+	frontend.DELETE("/logs/alerts/:id", s.deleteLogAlertRule)
+	frontend.GET("/incidents/:id/logs", s.getIncidentLogs)
 	frontend.GET("/logs/:id", s.getLogEntry)
 }

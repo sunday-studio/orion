@@ -39,3 +39,25 @@ type LogSavedView struct {
 	CreatedBy   string `gorm:"not null;default:''"`
 	CreatedAt   time.Time
 }
+
+// LogAlertRule raises an incident when an app's logs match a condition: more than
+// Threshold matching entries inside the window ("threshold") or none at all ("absence").
+type LogAlertRule struct {
+	ID              string `gorm:"primaryKey"`
+	Name            string `gorm:"not null"`
+	AppID           string `gorm:"not null;index:idx_log_alert_rules_app_id"`
+	Mode            string `gorm:"not null;default:threshold"`
+	Severity        string `gorm:"not null;default:''"`
+	Event           string `gorm:"not null;default:''"`
+	Text            string `gorm:"not null;default:''"`
+	Threshold       int    `gorm:"not null;default:0"`
+	WindowSeconds   int    `gorm:"not null;default:300"`
+	Enabled         bool   `gorm:"not null;default:true"`
+	MonitorID       string `gorm:"not null;default:''"`
+	State           string `gorm:"not null;default:ok"`
+	LastCount       int    `gorm:"not null;default:0"`
+	LastEvaluatedAt *time.Time
+	LastReportedAt  *time.Time
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}

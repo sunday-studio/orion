@@ -215,3 +215,47 @@ type TestLogResponse struct {
 	Accepted bool   `json:"accepted"`
 	EntryID  string `json:"entry_id,omitempty"`
 }
+
+// LogAlertRule raises an incident when an app's logs match a condition.
+type LogAlertRule struct {
+	ID    string `json:"id"`
+	Name  string `json:"name" example:"Checkout errors spike"`
+	AppID string `json:"app_id"`
+	// Mode is "threshold" (fires when more than `threshold` entries match inside the window) or "absence" (fires when none match, for example a job that must log every hour).
+	Mode string `json:"mode" enums:"threshold,absence"`
+	// Severity, Event and Q filter which entries count (same syntax as the log search: severity=">=error", an exact event name, a text substring).
+	Severity      string `json:"severity,omitempty" example:">=error"`
+	Event         string `json:"event,omitempty"`
+	Q             string `json:"q,omitempty"`
+	Threshold     int    `json:"threshold" example:"20"`
+	WindowSeconds int    `json:"window_seconds" example:"300"`
+	Enabled       bool   `json:"enabled"`
+	// State is "firing" while an incident is open for the rule, otherwise "ok".
+	State           string     `json:"state" enums:"ok,firing"`
+	LastCount       int        `json:"last_count"`
+	LastEvaluatedAt *time.Time `json:"last_evaluated_at"`
+	CreatedAt       time.Time  `json:"created_at"`
+}
+
+type LogAlertRuleRequest struct {
+	Name          string `json:"name" binding:"required"`
+	AppID         string `json:"app_id" binding:"required"`
+	Mode          string `json:"mode,omitempty" enums:"threshold,absence"`
+	Severity      string `json:"severity,omitempty"`
+	Event         string `json:"event,omitempty"`
+	Q             string `json:"q,omitempty"`
+	Threshold     *int   `json:"threshold,omitempty"`
+	WindowSeconds *int   `json:"window_seconds,omitempty"`
+	Enabled       *bool  `json:"enabled,omitempty"`
+}
+
+type LogAlertRuleUpdateRequest struct {
+	Name          string  `json:"name,omitempty"`
+	Mode          string  `json:"mode,omitempty" enums:"threshold,absence"`
+	Severity      *string `json:"severity,omitempty"`
+	Event         *string `json:"event,omitempty"`
+	Q             *string `json:"q,omitempty"`
+	Threshold     *int    `json:"threshold,omitempty"`
+	WindowSeconds *int    `json:"window_seconds,omitempty"`
+	Enabled       *bool   `json:"enabled,omitempty"`
+}

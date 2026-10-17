@@ -990,6 +990,103 @@ definitions:
         example: 2
         type: integer
     type: object
+  internal_api.LogAlertRule:
+    properties:
+      app_id:
+        type: string
+      created_at:
+        type: string
+      enabled:
+        type: boolean
+      event:
+        type: string
+      id:
+        type: string
+      last_count:
+        type: integer
+      last_evaluated_at:
+        type: string
+      mode:
+        description: Mode is "threshold" (fires when more than `threshold` entries
+          match inside the window) or "absence" (fires when none match, for example
+          a job that must log every hour).
+        enum:
+        - threshold
+        - absence
+        type: string
+      name:
+        example: Checkout errors spike
+        type: string
+      q:
+        type: string
+      severity:
+        description: 'Severity, Event and Q filter which entries count (same syntax
+          as the log search: severity=">=error", an exact event name, a text substring).'
+        example: '>=error'
+        type: string
+      state:
+        description: State is "firing" while an incident is open for the rule, otherwise
+          "ok".
+        enum:
+        - ok
+        - firing
+        type: string
+      threshold:
+        example: 20
+        type: integer
+      window_seconds:
+        example: 300
+        type: integer
+    type: object
+  internal_api.LogAlertRuleRequest:
+    properties:
+      app_id:
+        type: string
+      enabled:
+        type: boolean
+      event:
+        type: string
+      mode:
+        enum:
+        - threshold
+        - absence
+        type: string
+      name:
+        type: string
+      q:
+        type: string
+      severity:
+        type: string
+      threshold:
+        type: integer
+      window_seconds:
+        type: integer
+    required:
+    - app_id
+    - name
+    type: object
+  internal_api.LogAlertRuleUpdateRequest:
+    properties:
+      enabled:
+        type: boolean
+      event:
+        type: string
+      mode:
+        enum:
+        - threshold
+        - absence
+        type: string
+      name:
+        type: string
+      q:
+        type: string
+      severity:
+        type: string
+      threshold:
+        type: integer
+      window_seconds:
+        type: integer
+    type: object
   internal_api.LogEntry:
     properties:
       agent_id:
@@ -5997,6 +6094,52 @@ paths:
       summary: Cover incident
       tags:
       - incidents
+  /v1/incidents/{id}/logs:
+    get:
+      description: 'Entries from 15 minutes before the incident opened until 5 minutes
+        after it resolved (or now): the agent''s service logs, plus the app''s product
+        logs when `app_id` is given or the incident came from a log alert rule. Newest
+        first.'
+      operationId: getIncidentLogs
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Also include this app's product logs
+        in: query
+        name: app_id
+        type: string
+      - description: Maximum entries, default 100, max 200
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.LogListResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Logs around an incident
+      tags:
+      - incidents
   /v1/incidents/{id}/reopen:
     post:
       consumes:
@@ -6451,6 +6594,160 @@ paths:
       security:
       - BearerAuth: []
       summary: Get one log entry
+      tags:
+      - logs
+  /v1/logs/alerts:
+    get:
+      description: Rules that raise an incident when an app's logs match a condition.
+      operationId: listLogAlertRules
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    rules:
+                      items:
+                        $ref: '#/definitions/internal_api.LogAlertRule'
+                      type: array
+                  type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List log alert rules
+      tags:
+      - logs
+    post:
+      consumes:
+      - application/json
+      description: Threshold rules fire when more than `threshold` matching entries
+        arrive inside the window; absence rules fire when none do. A firing rule opens
+        one incident (Webhook and Email alerts follow the normal routes) and resolves
+        when the condition clears. Rules are evaluated by the Worker about every 30
+        seconds.
+      operationId: createLogAlertRule
+      parameters:
+      - description: Rule
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.LogAlertRuleRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    rule:
+                      $ref: '#/definitions/internal_api.LogAlertRule'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a log alert rule
+      tags:
+      - logs
+  /v1/logs/alerts/{id}:
+    delete:
+      description: Resolves the rule's open incident, then removes the rule.
+      operationId: deleteLogAlertRule
+      parameters:
+      - description: Rule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a log alert rule
+      tags:
+      - logs
+    patch:
+      consumes:
+      - application/json
+      description: Omitted fields are unchanged. Disabling a rule resolves its open
+        incident.
+      operationId: updateLogAlertRule
+      parameters:
+      - description: Rule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to change
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.LogAlertRuleUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    rule:
+                      $ref: '#/definitions/internal_api.LogAlertRule'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a log alert rule
       tags:
       - logs
   /v1/logs/fields:

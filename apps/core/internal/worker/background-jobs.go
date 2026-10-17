@@ -4,6 +4,9 @@ import (
 	"time"
 
 	"orion/core/internal/service"
+	"orion/core/internal/utils"
+
+	"gorm.io/gorm"
 )
 
 const defaultDispatchInterval = 15 * time.Second
@@ -84,5 +87,27 @@ func (a *App) dispatchAlertsAsync() {
 func (a *App) dispatchAlerts() {
 	if _, err := a.alerts.ProcessDueDeliveries(100); err != nil {
 		a.logger.Error("Core worker alert dispatch failed", "error", err)
+	}
+}
+
+func newLogAlerts(database *gorm.DB, logger *utils.Logger, opts Options) *service.LogAlertService {
+	if opts.LogStore == nil {
+		return nil
+	}
+	return service.NewLogAlertService(database, logger, opts.Config, opts.LogStore)
+}
+
+// evaluateLogAlerts checks every enabled log alert rule. It is a no-op when the Worker
+// has no logs.db handle.
+func (a *App) evaluateLogAlerts() {
+	if a.logAlerts == nil {
+		return
+	}
+	changed, err := a.logAlerts.EvaluateAll(time.Now().UTC())
+	if err != nil {
+		a.logger.Error("Core worker log alert evaluation failed", "error", err)
+	}
+	if changed > 0 {
+		a.logger.Info("Core worker log alerts changed state", "count", changed)
 	}
 }
