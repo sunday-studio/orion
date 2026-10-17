@@ -91,3 +91,27 @@ func TestTokenApplyViaSocket(t *testing.T) {
 		t.Fatal("output leaked token")
 	}
 }
+
+func TestDoctorJSONIsVersionedAndEveryFailureHasFix(t *testing.T) {
+	var out, errOut bytes.Buffer
+	dir := t.TempDir()
+	Execute(context.Background(), []string{"--json", "--config", filepath.Join(dir, "none.yaml"), "--state", filepath.Join(dir, "s.db"), "--socket", filepath.Join(dir, "x.sock"), "doctor"}, &out, &errOut)
+	var rep struct {
+		SchemaVersion int  `json:"schema_version"`
+		OK            bool `json:"ok"`
+		Checks        []struct {
+			ID, Status, Fix string
+		} `json:"checks"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &rep); err != nil {
+		t.Fatalf("not JSON: %v\n%s", err, out.String())
+	}
+	if rep.SchemaVersion != 2 || rep.OK || len(rep.Checks) < 8 {
+		t.Fatalf("report = %+v", rep)
+	}
+	for _, c := range rep.Checks {
+		if c.Status == "fail" && c.Fix == "" {
+			t.Errorf("check %s failed without a fix", c.ID)
+		}
+	}
+}

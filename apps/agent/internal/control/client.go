@@ -125,3 +125,16 @@ func (c *Client) Reload() error {
 func (c *Client) Logs() ([]byte, error) {
 	return c.do(http.MethodGet, "/v1/logs", nil)
 }
+
+// TokenCheck makes the daemon probe Core with its token and returns the HTTP status.
+func (c *Client) TokenCheck() (int, error) {
+	data, err := c.do(http.MethodGet, "/v1/token-check", nil)
+	if err != nil {
+		return 0, err
+	}
+	var tc TokenCheck
+	if err := json.Unmarshal(data, &tc); err != nil {
+		return 0, err
+	}
+	return tc.HTTPStatus, nil
+}

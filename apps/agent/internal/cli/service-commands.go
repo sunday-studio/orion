@@ -108,30 +108,6 @@ func runStatus(_ context.Context, opts *Options) error {
 	return nil
 }
 
-func runDoctor(ctx context.Context, opts *Options) error {
-	report := BuildDoctorReport(ctx, opts.ConfigPath, opts.StatePath)
-	if opts.JSON {
-		return renderJSON(outputWriter, doctorJSON(report))
-	}
-
-	PrintHeader("doctor")
-	PrintInfo("config", opts.ConfigPath)
-	PrintInfo("state", opts.StatePath)
-	PrintStep("running diagnostics")
-	PrintInfo("service_manager", report.Service.Manager)
-	PrintInfo("service_state", report.Service.State)
-	for _, check := range report.Checks {
-		printDiagnosticCheck(check)
-	}
-	PrintRecentLogDiagnostics(JSONLRecentLogReader{Path: report.LogPath}, opts.LogLines)
-
-	if report.HasErrors() {
-		return &CommandError{Summary: "doctor found errors", ExitCode: 1}
-	}
-	PrintOK("doctor checks passed")
-	return nil
-}
-
 func runSetup(_ context.Context, opts *Options) error {
 	PrintHeader("setup")
 	PrintInfo("config", opts.ConfigPath)
