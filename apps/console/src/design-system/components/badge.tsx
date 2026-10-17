@@ -79,6 +79,8 @@ const statusTone: Record<string, BadgeTone> = {
   open: "down",
   degraded: "degraded",
   warning: "degraded",
+  error: "down",
+  info: "up",
   acknowledged: "degraded",
   unknown: "unknown",
   pending: "unknown",
