@@ -203,7 +203,23 @@ func (s *Server) deleteAppImpl(c *gin.Context) {
 	if !ok {
 		return
 	}
+	// Rules go first: they reference the app, and a firing rule must resolve its
+	// incident and park its monitor instead of being orphaned.
+	var rules []db.LogAlertRule
+	if err := s.db.Where("app_id = ?", app.ID).Find(&rules).Error; err != nil {
+		utils.InternalError(c, "Failed to load the app's log alert rules", err)
+		return
+	}
+	for i := range rules {
+		if err := s.logAlertService().Retire(&rules[i], time.Now().UTC()); err != nil {
+			utils.InternalError(c, "Failed to resolve a log alert rule's incident", err)
+			return
+		}
+	}
 	err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("app_id = ?", app.ID).Delete(&db.LogAlertRule{}).Error; err != nil {
+			return err
+		}
 		if err := tx.Where("app_id = ?", app.ID).Delete(&db.AppIngestKey{}).Error; err != nil {
 			return err
 		}

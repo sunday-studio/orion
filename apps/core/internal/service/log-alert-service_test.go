@@ -200,3 +200,53 @@ func TestEvaluateAllSkipsDisabledRulesAndKeepsGoingAfterAnError(t *testing.T) {
 		t.Fatal("a disabled rule was evaluated")
 	}
 }
+
+// Review P2: rules share the Core owner agent, so grouping by agent would swallow the second page.
+func TestTwoFiringRulesPageSeparately(t *testing.T) {
+	f := newLogAlertFixture(t)
+	second := db.App{ID: "app-2", Name: "billing", Slug: "billing", RetentionDays: 14, DebugSampleRate: 1, DisplayJSON: "{}", RedactionJSON: "{}", CreatedAt: f.now, UpdatedAt: f.now}
+	f.database.Create(&second)
+	one := f.rule(t, db.LogAlertRule{Name: "checkout errors", Severity: ">=error", Threshold: 1})
+	two := db.LogAlertRule{ID: "rule-2", Name: "billing errors", AppID: second.ID, Mode: LogAlertModeThreshold, Severity: ">=error", Threshold: 1, WindowSeconds: 300, Enabled: true, State: "ok", CreatedAt: f.now.Add(-time.Hour), UpdatedAt: f.now}
+	f.database.Create(&two)
+	f.addLogs(t, 5, "error", 17, "", f.now.Add(-time.Minute))
+	f.app = second
+	f.addLogs(t, 5, "error", 17, "", f.now.Add(-time.Minute))
+
+	if _, err := f.svc.Evaluate(one, f.now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.Evaluate(&two, f.now); err != nil {
+		t.Fatal(err)
+	}
+	alerts := NewAlertService(f.database, utils.NewLogger(), &config.Config{AlertAllowPrivateWebhooks: true})
+	if _, err := alerts.ProcessDueDeliveries(20); err != nil {
+		t.Fatal(err)
+	}
+	if f.hook.Calls() != 2 {
+		t.Fatalf("pages sent = %d, want one per firing rule (grouping must not suppress the second)", f.hook.Calls())
+	}
+	if f.deliveries("incident_opened") != 2 {
+		t.Fatalf("opened deliveries = %d, want 2", f.deliveries("incident_opened"))
+	}
+}
+
+// Review P3: a stale rule list must not revive a monitor that Retire just parked.
+func TestEvaluateIgnoresARuleDisabledSinceTheListWasLoaded(t *testing.T) {
+	f := newLogAlertFixture(t)
+	rule := f.rule(t, db.LogAlertRule{Name: "stale view", Threshold: 0})
+	f.database.Model(&db.LogAlertRule{}).Where("id = ?", rule.ID).Update("enabled", false) // disabled after EvaluateAll loaded it
+	f.addLogs(t, 3, "error", 17, "", f.now.Add(-time.Second))
+	if changed, err := f.svc.Evaluate(rule, f.now); err != nil || changed {
+		t.Fatalf("Evaluate() = %v, %v, want a no-op for a disabled rule", changed, err)
+	}
+	var monitors int64
+	f.database.Model(&db.Monitor{}).Where("id = ?", logAlertMonitorID+rule.ID).Count(&monitors)
+	if monitors != 0 || len(f.incidentsFor(rule)) != 0 {
+		t.Fatal("a disabled rule created a monitor or an incident")
+	}
+	f.database.Delete(&db.LogAlertRule{}, "id = ?", rule.ID)
+	if changed, err := f.svc.Evaluate(rule, f.now); err != nil || changed {
+		t.Fatalf("Evaluate() of a deleted rule = %v, %v, want a no-op", changed, err)
+	}
+}

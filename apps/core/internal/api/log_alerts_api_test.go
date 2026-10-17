@@ -127,3 +127,40 @@ func TestIncidentLogsReturnsTheWindowAroundAnIncident(t *testing.T) {
 		t.Errorf("unknown incident status = %d, want 404", got)
 	}
 }
+
+// Review P1: deleting an app used to fail on the log_alert_rules foreign key.
+func TestDeletingAnAppResolvesAndRemovesItsFiringRules(t *testing.T) {
+	server := setupLogsServer(t, nil)
+	appID, _ := createAppWithKey(t, server, "doomed")
+	now := time.Now().UTC()
+	owner := db.Agent{ID: "agent-core", MachineId: "core", Name: "Orion Core", OS: "core", Arch: "internal", Token: "t", LastSeen: now}
+	server.db.Create(&owner)
+	server.db.Create(&db.LogAlertRule{ID: "r-doomed", Name: "burst", AppID: appID, Mode: "threshold", WindowSeconds: 300, Enabled: true, State: "firing", MonitorID: "monitor-log-alert-r-doomed", CreatedAt: now, UpdatedAt: now})
+	server.db.Create(&db.Monitor{ID: "monitor-log-alert-r-doomed", AgentID: owner.ID, Name: "Log alert: burst", Type: "log-alert", Lifecycle: "active", Health: "down", ActiveIncidentID: "inc-doomed", IncidentState: "down", ReportingIntervalSeconds: 600, CreatedAt: now})
+	server.db.Create(&db.Incident{ID: "inc-doomed", Status: "open", Severity: "high", Title: "t", AgentID: owner.ID, MonitorID: "monitor-log-alert-r-doomed", OpenedAt: now, LastEventAt: now, NotificationStatus: "pending"})
+
+	resp := performJSONRequest(t, server, http.MethodDelete, "/v1/apps/"+appID, nil, "")
+	if resp.Code != http.StatusOK {
+		t.Fatalf("delete app status = %d body = %s, want 200", resp.Code, resp.Body.String())
+	}
+	var rules int64
+	server.db.Model(&db.LogAlertRule{}).Where("app_id = ?", appID).Count(&rules)
+	var incident db.Incident
+	server.db.First(&incident, "id = ?", "inc-doomed")
+	var monitor db.Monitor
+	server.db.First(&monitor, "id = ?", "monitor-log-alert-r-doomed")
+	if rules != 0 || incident.Status != "resolved" || monitor.Lifecycle != "disabled" {
+		t.Fatalf("rules=%d incident=%q monitor=%q, want rules gone, incident resolved and monitor parked", rules, incident.Status, monitor.Lifecycle)
+	}
+}
+
+func TestLogAlertSeverityMustNameKnownLevels(t *testing.T) {
+	server := setupLogsServer(t, nil)
+	appID, _ := createAppWithKey(t, server, "sev")
+	for severity, want := range map[string]int{">=error": 201, "warn,error": 201, ">=warning": 201, "info": 201, ">=bogus": 400, "error,bogus": 400, "catastrophic": 400} {
+		got := performJSONRequest(t, server, http.MethodPost, "/v1/logs/alerts", gin.H{"name": "s " + severity, "app_id": appID, "severity": severity}, "").Code
+		if got != want {
+			t.Errorf("severity %q status = %d, want %d", severity, got, want)
+		}
+	}
+}
