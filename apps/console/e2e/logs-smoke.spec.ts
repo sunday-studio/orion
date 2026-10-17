@@ -24,7 +24,9 @@ test("keeps event log filters and service log filters in the URL", async ({ page
 test("opens an event detail drawer from an event row", async ({ page }) => {
   await signIn(page);
   await page.goto("/logs");
-  await page.locator("tbody tr").first().click();
+  const firstRow = page.locator("tbody tr").first();
+  await expect(firstRow.getByRole("cell").first()).not.toBeEmpty();
+  await firstRow.click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await expect(page.getByLabel("Raw event")).toContainText('"id"');
 });
