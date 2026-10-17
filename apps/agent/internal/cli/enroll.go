@@ -145,7 +145,9 @@ func handOverToServiceUser(paths ...string) {
 	}
 	u, err := user.Lookup("orion")
 	if err != nil {
-		return
+		if u, err = user.Lookup("_orion"); err != nil { // macOS service account
+			return
+		}
 	}
 	uid, _ := strconv.Atoi(u.Uid)
 	gid, _ := strconv.Atoi(u.Gid)

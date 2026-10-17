@@ -12,6 +12,7 @@ INSTALL_DIR="/usr/local/bin"
 CORE_URL=""
 BINARY_PATH=""
 CONFIG_SOURCE=""
+TOKEN_FILE=""
 START_SERVICE="true"
 OVERWRITE_CONFIG="false"
 DRY_RUN="false"
@@ -31,6 +32,7 @@ usage() {
   printf '%s\n' "  --core-url URL       Core URL written to config when creating a new config."
   printf '%s\n' "  --binary PATH        Agent binary to install. Defaults to ./apps/agent/orion-agent, then ./orion-agent."
   printf '%s\n' "  --config PATH        Existing config file to install instead of generating a minimal one."
+  printf '%s\n' "  --enrollment-token-file F  One-time enrollment token; enrolls the host during install."
   printf '%s\n' "  --no-start           Install files without starting the service."
   printf '%s\n' "  --overwrite-config   Replace an existing installed config."
   printf '%s\n' "  --dry-run            Print install actions without changing the system."
@@ -223,6 +225,11 @@ while [ "$#" -gt 0 ]; do
       CONFIG_SOURCE="${2:-}"
       shift 2
       ;;
+    --enrollment-token-file)
+      require_value "$1" "${2:-}"
+      TOKEN_FILE="${2:-}"
+      shift 2
+      ;;
     --no-start)
       START_SERVICE="false"
       shift
@@ -350,12 +357,27 @@ initialize_state() {
   if [ "$DRY_RUN" = "true" ]; then
     printf '+ initialize state database at %q\n' "$state_path"
     ok "would initialize state database at $state_path"
+    if [ -n "$TOKEN_FILE" ]; then ok "would enroll this host with the one-time token"; fi
     return
   fi
 
   "$INSTALL_DIR/orion-agent" state init -state "$state_path" >/dev/null
   run_cmd chown "$owner:$group" "$state_path"
   ok "initialized state database at $state_path"
+
+  if [ -n "$TOKEN_FILE" ]; then
+    step "Enrollment"
+    local core_url="$CORE_URL"
+    if [ -z "$core_url" ]; then
+      core_url="$(awk '/^[[:space:]]*core_url[[:space:]]*:/ {print $2; exit}' "$INSTALLED_CONFIG_PATH")"
+    fi
+    if ! "$INSTALL_DIR/orion-agent" enroll --config "$INSTALLED_CONFIG_PATH" --state "$state_path" \
+        --core-url "$core_url" --token-file "$TOKEN_FILE"; then
+      printf '     error: enrollment failed. Create a new token in Console > Add server and re-run the install command.\n' >&2
+      exit 1
+    fi
+    ok "host enrolled"
+  fi
 }
 
 prepare_log_file() {
