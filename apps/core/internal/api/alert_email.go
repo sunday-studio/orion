@@ -7,6 +7,7 @@ import (
 	"orion/core/internal/db"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -51,7 +52,11 @@ func (s *Server) listAlertChannelRecipients(c *gin.Context) {
 	}
 	out := make([]AlertRecipientResponse, 0, len(recipients))
 	for _, r := range recipients {
-		out = append(out, alertRecipientResponse(r))
+		resp := alertRecipientResponse(r)
+		if isAPITokenCaller(c) {
+			resp.Email = maskEmailAddress(resp.Email) // tokens (dashboards, scrapers) never see full addresses
+		}
+		out = append(out, resp)
 	}
 	utils.SuccessResponse(c, http.StatusOK, "Recipients retrieved successfully", gin.H{"recipients": out, "count": len(out)})
 }
@@ -186,4 +191,9 @@ func (s *Server) alertEmailAction(purpose string) gin.HandlerFunc {
 		}
 		writeAlertEmailPage(c, http.StatusOK, "Unsubscribed", "You will no longer receive Orion alert emails.", "")
 	}
+}
+
+// maskEmailAddress keeps the first letter and the domain: a***@example.com.
+func maskEmailAddress(address string) string {
+	return maskStatusPageSubscriberEmail(strings.ToLower(strings.TrimSpace(address)))
 }

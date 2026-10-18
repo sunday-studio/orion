@@ -20,7 +20,7 @@ export const DrawerContent = ({
       <DrawerPrimitive.Popup
         data-slot="ds-drawer"
         className={cn(
-          "fixed inset-y-0 right-0 z-50 flex w-[480px] max-w-full flex-col gap-4 overflow-y-auto border-l border-hairline bg-card p-6 shadow-overlay outline-none transition-transform duration-200 data-[ending-style]:translate-x-full data-[starting-style]:translate-x-full",
+          "fixed inset-y-0 right-0 z-50 flex w-[480px] max-w-full flex-col gap-4 overflow-y-auto border-l border-hairline bg-card p-6 shadow-overlay outline-none transition-transform duration-[320ms] ease-[cubic-bezier(0.32,0.72,0,1)] data-[ending-style]:translate-x-full data-[starting-style]:translate-x-full",
           className,
         )}
         {...props}
@@ -28,7 +28,10 @@ export const DrawerContent = ({
         {children}
         <DrawerPrimitive.Close
           aria-label="Close"
-          className={cn(focusRing, "absolute right-4 top-4 rounded p-1 text-quiet hover:text-ink")}
+          className={cn(
+            focusRing,
+            "absolute right-3.5 top-3.5 rounded-md p-1.5 text-quiet transition-colors hover:bg-tray hover:text-ink",
+          )}
         >
           <XIcon className="size-4" />
         </DrawerPrimitive.Close>

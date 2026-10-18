@@ -6,6 +6,7 @@ import (
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -18,6 +19,11 @@ type alertChannelRequest struct {
 	WebhookURL           string   `json:"webhook_url"`
 	WebhookSigningSecret *string  `json:"webhook_signing_secret"`
 	SubscribedEvents     []string `json:"subscribed_events"`
+	// Headers are custom webhook request headers; sending the field replaces all of them. Values are never returned.
+	Headers *map[string]string `json:"headers"`
+	// EmailDeliveryMode is instant or digest_15m (email channels).
+	EmailDeliveryMode  *string `json:"email_delivery_mode"`
+	EmailSubjectPrefix *string `json:"email_subject_prefix"`
 }
 type alertRouteRequest struct {
 	Name                 string   `json:"name"`
@@ -46,6 +52,8 @@ type alertRuleRequest struct {
 	Suppress             *bool    `json:"suppress"`
 	GroupingPolicy       string   `json:"grouping_policy"`
 	GroupingDelaySeconds *int     `json:"grouping_delay_seconds"`
+	// CooldownSeconds limits repeat notifications for this rule (0 = global default, max 7 days).
+	CooldownSeconds *int `json:"cooldown_seconds"`
 }
 type alertRouteDryRunRequest struct {
 	IncidentID  string `json:"incident_id"`
@@ -72,9 +80,12 @@ type alertRuleDryRunRequest struct {
 // @Produce      json
 // @ID           getAlertDeliveries
 // @Param        incident_id  query     string  false  "Filter by incident ID"
-// @Param        status       query     string  false  "Filter by delivery status"
+// @Param        status       query     string  false  "Comma-separated delivery statuses (sent,failed,cooldown,suppressed,pending)"
 // @Param        type         query     string  false  "Filter by delivery channel type"
 // @Param        channel      query     string  false  "Filter by delivery channel name"
+// @Param        channel_id   query     string  false  "Filter by channel id"
+// @Param        since        query     string  false  "Only deliveries since: 1h, 24h, 7d style duration or RFC3339"
+// @Param        q            query     string  false  "Text search over channel, rule name and incident title"
 // @Param        event_type   query     string  false  "Filter by alert event type"
 // @Param        limit        query     int     false  "Maximum number of deliveries to return" default(50)
 // @Param        offset       query     int     false  "Number of deliveries to skip" default(0)
@@ -88,8 +99,23 @@ func (s *Server) listAlertDeliveries(c *gin.Context) {
 	if incidentID := c.Query("incident_id"); incidentID != "" {
 		query = query.Where("incident_id = ?", incidentID)
 	}
-	if status := c.Query("status"); status != "" {
-		query = query.Where("status = ?", status)
+	if statuses := parseStatusSet(c.Query("status")); len(statuses) > 0 {
+		query = query.Where("status IN ?", setKeys(statuses))
+	}
+	if channelID := strings.TrimSpace(c.Query("channel_id")); channelID != "" {
+		query = query.Where("channel IN (SELECT name FROM alert_channels WHERE id = ?)", channelID)
+	}
+	if raw := strings.TrimSpace(c.Query("since")); raw != "" {
+		since, err := parseSinceParam(raw, time.Now().UTC())
+		if err != nil {
+			utils.BadRequest(c, "since must be a duration like 24h or 7d, or an RFC3339 time")
+			return
+		}
+		query = query.Where("created_at >= ?", since)
+	}
+	if q := strings.TrimSpace(c.Query("q")); q != "" {
+		like := "%" + incidentLikeEscaper.Replace(strings.ToLower(q)) + "%"
+		query = query.Where(`LOWER(channel) LIKE ? ESCAPE '\' OR route_id IN (SELECT id FROM alert_routes WHERE LOWER(name) LIKE ? ESCAPE '\') OR incident_id IN (SELECT id FROM incidents WHERE LOWER(title) LIKE ? ESCAPE '\')`, like, like, like)
 	}
 	if deliveryType := c.Query("type"); deliveryType != "" {
 		query = query.Where("type = ?", deliveryType)
@@ -115,7 +141,8 @@ func (s *Server) listAlertDeliveries(c *gin.Context) {
 		return
 	}
 	responses := alertDeliveryResponses(deliveries)
-	utils.SuccessResponse(c, http.StatusOK, "Alert deliveries retrieved successfully", gin.H{"deliveries": responses, "count": count, "limit": limit, "offset": offset, "pagination": utils.NewPaginationMeta(count, limit, offset, len(responses))})
+	s.enrichDeliveries(responses)
+	utils.SuccessResponse(c, http.StatusOK, "Alert deliveries retrieved successfully", gin.H{"deliveries": responses, "count": count, "total": count, "limit": limit, "offset": offset, "pagination": utils.NewPaginationMeta(count, limit, offset, len(responses))})
 }
 
 // listAlertChannels retrieves alert channel configuration.
@@ -169,6 +196,10 @@ func (s *Server) createAlertChannel(c *gin.Context) {
 		channel.Type = "webhook"
 	}
 	if err := validateAlertEvents(request.SubscribedEvents); err != nil {
+		utils.BadRequest(c, err.Error())
+		return
+	}
+	if err := applyChannelExtras(&channel, request); err != nil {
 		utils.BadRequest(c, err.Error())
 		return
 	}
@@ -247,6 +278,10 @@ func (s *Server) updateAlertChannel(c *gin.Context) {
 		}
 		channel.SubscribedEvents = db.EncodeAlertEvents(normalizeAlertEvents(request.SubscribedEvents))
 	}
+	if err := applyChannelExtras(&channel, request); err != nil {
+		utils.BadRequest(c, err.Error())
+		return
+	}
 	if err := validateAlertChannel(s.cfg, channel); err != nil {
 		utils.BadRequest(c, err.Error())
 		return
@@ -277,7 +312,7 @@ func (s *Server) updateAlertChannel(c *gin.Context) {
 // @Produce      json
 // @ID           testAlertChannel
 // @Param        id   path      string  true  "Alert channel ID"
-// @Success      200  {object}  utils.APIResponse{data=object{delivery=AlertDeliveryResponse}}
+// @Success      200  {object}  utils.APIResponse{data=object{delivery=AlertDeliveryResponse,result=AlertTestResult}}
 // @Failure      404  {object}  utils.APIResponse
 // @Failure      500  {object}  utils.APIResponse
 // @Router       /v1/alerts/channels/{id}/test [post]
@@ -292,7 +327,11 @@ func (s *Server) testAlertChannel(c *gin.Context) {
 		utils.InternalError(c, "Failed to test alert channel", err)
 		return
 	}
-	utils.SuccessResponse(c, http.StatusOK, "Alert channel test completed", gin.H{"delivery": alertDeliveryResponse(*delivery)})
+	var channel db.AlertChannel
+	s.db.Where("id = ?", c.Param("id")).First(&channel)
+	var stored db.AlertDelivery
+	s.db.Preload("Attempts").Where("id = ?", delivery.ID).First(&stored)
+	utils.SuccessResponse(c, http.StatusOK, "Alert channel test completed", gin.H{"delivery": alertDeliveryResponse(stored), "result": s.alertTestResultFor(channel, stored)})
 }
 
 // deleteAlertChannel deletes a persisted alert channel.

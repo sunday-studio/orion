@@ -78,7 +78,7 @@ export const HeartbeatSetupPanel = ({
         {monitor?.id && (
           <Link
             className="inline-flex h-8 items-center justify-center gap-2 border border-input bg-background px-3 text-xs font-medium hover:bg-accent hover:text-accent-foreground"
-            to={`/monitors/${monitor.id}?tab=config`}
+            to={`/monitors/${monitor.id}/edit`}
           >
             <ExternalLink className="size-4" />
             Open monitor

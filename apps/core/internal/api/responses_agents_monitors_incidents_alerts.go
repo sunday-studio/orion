@@ -23,7 +23,7 @@ type OrionEventResponse struct {
 }
 
 func agentResponse(agent db.Agent) AgentResponse {
-	return AgentResponse{ID: agent.ID, System: agent.System, Name: agent.Name, OS: agent.OS, Platform: agent.Platform, KernelVersion: agent.KernelVersion, Arch: agent.Arch, MaintenanceMode: agent.InMaintenance(time.Now().UTC()), MaintenanceUntil: agent.MaintenanceUntil, ReportingIntervalSeconds: agent.ReportingIntervalSeconds, CreatedAt: agent.CreatedAt, LastSeen: agent.LastSeen, Location: agent.Location.Data()}
+	return AgentResponse{Labels: service.DecodeAgentLabels(agent.Labels), Notes: agent.Notes, CPUSeries: []float64{}, ID: agent.ID, System: agent.System, Name: agent.Name, OS: agent.OS, Platform: agent.Platform, KernelVersion: agent.KernelVersion, Arch: agent.Arch, MaintenanceMode: agent.InMaintenance(time.Now().UTC()), MaintenanceUntil: agent.MaintenanceUntil, ReportingIntervalSeconds: agent.ReportingIntervalSeconds, CreatedAt: agent.CreatedAt, LastSeen: agent.LastSeen, Location: agent.Location.Data()}
 }
 func agentListResponse(row service.AgentListRow) AgentResponse {
 	response := agentResponse(row.Agent)
@@ -34,6 +34,8 @@ func agentListResponse(row service.AgentListRow) AgentResponse {
 	response.MonitorHealth = row.MonitorHealth
 	response.StatusReason = row.StatusReason
 	response.UptimeSeconds = row.UptimeSeconds
+	applyAgentMetrics(&response, row.Metrics)
+	response.StatusText, response.StatusDetail = row.StatusText, row.StatusDetail
 	return response
 }
 func agentListResponses(rows []service.AgentListRow) []AgentResponse {
@@ -44,7 +46,7 @@ func agentListResponses(rows []service.AgentListRow) []AgentResponse {
 	return responses
 }
 func monitorResponse(monitor db.Monitor) MonitorResponse {
-	return MonitorResponse{ID: monitor.ID, System: monitor.System, Description: monitor.Description, Type: monitor.Type, Name: monitor.Name, AgentID: monitor.AgentID, OwnerKind: "agent", OwnerID: monitor.AgentID, Source: "agent", LastSuccessfulReportAt: monitor.LastSuccessfulReportAt, ReportingIntervalSeconds: monitor.ReportingIntervalSeconds, ComputedHealth: monitor.ComputedHealth, LastHealthComputation: monitor.LastHealthComputation, ActiveIncidentID: monitor.ActiveIncidentID, IncidentState: monitor.IncidentState, Lifecycle: monitor.Lifecycle, Health: monitor.Health, CreatedAt: monitor.CreatedAt, UpdatedAt: monitor.UpdatedAt, DeletedAt: monitor.DeletedAt}
+	return MonitorResponse{ID: monitor.ID, System: monitor.System, RunbookURL: monitor.RunbookURL, IntervalSeconds: monitor.ReportingIntervalSeconds, Description: monitor.Description, Type: monitor.Type, Name: monitor.Name, AgentID: monitor.AgentID, OwnerKind: "agent", OwnerID: monitor.AgentID, Source: "agent", LastSuccessfulReportAt: monitor.LastSuccessfulReportAt, ReportingIntervalSeconds: monitor.ReportingIntervalSeconds, ComputedHealth: monitor.ComputedHealth, LastHealthComputation: monitor.LastHealthComputation, ActiveIncidentID: monitor.ActiveIncidentID, IncidentState: monitor.IncidentState, Lifecycle: monitor.Lifecycle, Health: monitor.Health, CreatedAt: monitor.CreatedAt, UpdatedAt: monitor.UpdatedAt, DeletedAt: monitor.DeletedAt}
 }
 func monitorResponses(monitors []db.Monitor) []MonitorResponse {
 	responses := make([]MonitorResponse, 0, len(monitors))
@@ -70,7 +72,9 @@ func monitorResponsesWithAgents(monitors []db.Monitor, agentsByID map[string]db.
 	return responses
 }
 func monitorReportResponse(report db.MonitorReport) MonitorReportResponse {
-	return MonitorReportResponse{ID: report.ID, MonitorID: report.MonitorID, Payload: service.SafeMonitorReportPayload(report.Payload), CollectedAt: report.CollectedAt, Health: report.Health, CreatedAt: report.CreatedAt}
+	response := MonitorReportResponse{ID: report.ID, MonitorID: report.MonitorID, Payload: service.SafeMonitorReportPayload(report.Payload), CollectedAt: report.CollectedAt, Health: report.Health, CreatedAt: report.CreatedAt, Passed: report.Health == "up"}
+	response.Summary, response.DurationMs, response.ReportedBy = describeMonitorReport(report)
+	return response
 }
 func monitorReportResponses(reports []db.MonitorReport) []MonitorReportResponse {
 	responses := make([]MonitorReportResponse, 0, len(reports))

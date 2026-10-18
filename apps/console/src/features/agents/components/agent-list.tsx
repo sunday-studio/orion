@@ -1,124 +1,196 @@
-import { type GetAgentsParams, useGetAgentSummary, useGetAgents } from "@/orion-sdk";
-import { AgentRow } from "./agent-row";
-import { AgentSummary, type AgentSummaryFilter } from "./agent-summary";
-import { Button, EmptyState, ListPagination, Skeleton, usePageSize } from "@/design-system";
-import { parseAsBoolean, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
-import { Fragment } from "react/jsx-runtime";
+import { Search } from "lucide-react";
+import { parseAsString, useQueryStates } from "nuqs";
+import { useMemo } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  Button,
+  Dot,
+  EmptyState,
+  GridRow,
+  GridTable,
+  Input,
+  ListPagination,
+  Segmented,
+  Select,
+  Skeleton,
+  Sparkline,
+  StatusBadge,
+  useClientPagination,
+} from "@/design-system";
+import { formatWhen, useNow } from "@/features/overview/overview-time";
+import { useGetAgents } from "@/orion-sdk";
+import {
+  type ServerRow,
+  byAttention,
+  needsAttention,
+  percent,
+  platformLabel,
+  serverState,
+  stateDot,
+  statusText,
+} from "../server-format";
+
+const COLUMNS = "12px minmax(0,1.1fr) 110px 120px 90px 60px 60px";
+
+const badgeStatus = (row: ServerRow) => {
+  const state = serverState(row);
+  return state === "maintenance" ? "maintenance" : state;
+};
 
 export const AgentList = () => {
-  const [{ search, status, maintenance, stale, incidents, page }, setServerQuery] = useQueryStates({
-    search: parseAsString.withDefault(""),
-    status: parseAsString.withDefault("all"),
-    maintenance: parseAsBoolean.withDefault(false),
-    stale: parseAsBoolean.withDefault(false),
-    incidents: parseAsBoolean.withDefault(false),
-    page: parseAsInteger.withDefault(1),
+  const navigate = useNavigate();
+  const [{ q, view, platform }, setQuery] = useQueryStates({
+    q: parseAsString.withDefault(""),
+    view: parseAsString.withDefault("all"),
+    platform: parseAsString.withDefault(""),
   });
-  const currentPage = Math.max(page, 1);
-  const { limit: pageSize, setLimit: setPageSize } = usePageSize(20, {
-    key: "pageSize",
-    pageKey: "page",
-  });
-  const offset = (currentPage - 1) * pageSize;
+  const now = useNow(60_000);
+  const agentsQuery = useGetAgents({ limit: 200, include_system: false });
+  const all = useMemo(
+    () => [...((agentsQuery.data?.agents ?? []) as ServerRow[])].sort(byAttention),
+    [agentsQuery.data],
+  );
+  const attention = all.filter(needsAttention).length;
+  const platforms = [...new Set(all.map(platformLabel))].sort();
 
-  const params: GetAgentsParams = {
-    limit: pageSize,
-    offset,
-    search: search.trim() || undefined,
-    status: status === "all" ? undefined : status,
-    maintenance: maintenance ? "true" : undefined,
-    stale_only: stale || undefined,
-    has_incidents: incidents || undefined,
-  };
+  const text = q.trim().toLowerCase();
+  const rows = all.filter(
+    (agent) =>
+      (view !== "attention" || needsAttention(agent)) &&
+      (!platform || platformLabel(agent) === platform) &&
+      (!text || (agent.name ?? "").toLowerCase().includes(text)),
+  );
+  const { pageItems, pagination } = useClientPagination(rows);
 
-  const agentsResponse = useGetAgents(params);
-  const summaryResponse = useGetAgentSummary();
-  const agents = agentsResponse.data?.agents ?? [];
-  const count = agentsResponse.data?.count ?? agents.length;
-  const selectedSummaryFilter: AgentSummaryFilter = incidents
-    ? "incidents"
-    : stale
-      ? "stale"
-      : maintenance
-        ? "maintenance"
-        : status === "up" || status === "down" || status === "degraded" || status === "unknown"
-          ? status
-          : "all";
+  if (agentsQuery.isLoading) return <Skeleton className="mt-3 h-40 w-full rounded-xl" />;
+  if (agentsQuery.isError) {
+    return (
+      <EmptyState
+        tone="error"
+        title="Unable to load servers"
+        description="Retry after Core is reachable."
+        action={
+          <Button size="sm" variant="secondary" onClick={() => void agentsQuery.refetch()}>
+            Retry
+          </Button>
+        }
+      />
+    );
+  }
 
-  const setOffset = (nextOffset: number) => {
-    void setServerQuery({ page: Math.floor(nextOffset / pageSize) + 1 });
-  };
-
-  const setSummaryFilter = (filter: AgentSummaryFilter) => {
-    void setServerQuery({
-      status: ["up", "down", "degraded", "unknown"].includes(filter) ? filter : "all",
-      maintenance: filter === "maintenance",
-      stale: filter === "stale",
-      incidents: filter === "incidents",
-      page: 1,
-    });
-  };
+  if (all.length === 0) {
+    return (
+      <div className="mt-3 flex min-h-[207px] flex-col items-center justify-center gap-1 rounded-xl border border-hairline bg-card px-4 text-center shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+        <b className="text-[15px] font-medium">No servers yet</b>
+        <p className="text-[13px] text-mid">
+          Install the agent to get CPU, memory, disk and process monitors.
+        </p>
+        <Link to="/servers/new" className="mt-3">
+          <Button size="sm">Add your first server</Button>
+        </Link>
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <AgentSummary
-        summary={summaryResponse.data}
-        selectedFilter={selectedSummaryFilter}
-        onFilterChange={setSummaryFilter}
-      />
-      {summaryResponse.error && (
-        <EmptyState
-          className="min-h-32"
-          title="Unable to load server summary"
-          description="The server list can still load, but summary filters may be stale."
-          tone="error"
-          action={
-            <Button size="sm" variant="secondary" onClick={() => void summaryResponse.refetch()}>
-              Retry
-            </Button>
-          }
-        />
-      )}
-      {agentsResponse.isLoading && (
-        <div aria-busy className="space-y-2 py-3">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
+    <div className="mt-3 flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative w-[260px]">
+          <Search
+            aria-hidden
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-faint"
+          />
+          <Input
+            aria-label="Search servers"
+            placeholder="Search servers"
+            className="pl-9"
+            value={q}
+            onChange={(event) => void setQuery({ q: event.target.value })}
+          />
         </div>
-      )}
-      {agentsResponse.error && (
+        <Segmented
+          role="group"
+          aria-label="Server view"
+          options={[
+            { value: "all", label: `All ${all.length}` },
+            { value: "attention", label: `Needs attention ${attention}` },
+          ]}
+          value={view}
+          onValueChange={(next) => void setQuery({ view: next })}
+        />
+        <span className="flex-1" />
+        <Select
+          aria-label="Platform"
+          label="Platform"
+          className="min-w-[130px]"
+          options={[
+            { value: "", label: "Any" },
+            ...platforms.map((item) => ({ value: item, label: item })),
+          ]}
+          value={platform}
+          onValueChange={(next) => void setQuery({ platform: next })}
+        />
+      </div>
+      {rows.length === 0 ? (
         <EmptyState
-          title="Unable to load servers"
-          description="Retry after Core is reachable."
-          tone="error"
+          title="No servers match"
+          description="Clear the search or filters to see every server."
           action={
-            <Button size="sm" variant="secondary" onClick={() => void agentsResponse.refetch()}>
-              Retry
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => void setQuery({ q: "", view: "all", platform: "" })}
+            >
+              Clear filters
             </Button>
           }
         />
-      )}
-      {!agentsResponse.isLoading && !agentsResponse.error && agents.length === 0 && (
-        <EmptyState
-          title="No servers found"
-          description="No installed servers match the current filters."
-        />
-      )}
-      <div className=" my-6">
-        {agents.map((agent, index) => (
-          <Fragment key={agent.id}>
-            <AgentRow agent={agent} index={index} />
-          </Fragment>
-        ))}
-      </div>
-      {count > 0 && (
-        <ListPagination
-          onLimitChange={setPageSize}
-          count={count}
-          limit={pageSize}
-          offset={offset}
-          onOffsetChange={setOffset}
-        />
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-hairline bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+          <GridTable>
+            <GridRow columns={COLUMNS} header>
+              <span />
+              <span>Server</span>
+              <span>Platform</span>
+              <span>Status</span>
+              <span>CPU</span>
+              <span>Memory</span>
+              <span>Report</span>
+            </GridRow>
+            {pageItems.map((agent) => (
+              <GridRow
+                key={agent.id}
+                flipId={agent.id}
+                columns={COLUMNS}
+                className="cursor-pointer"
+                onClick={() => navigate(`/servers/${agent.id}`)}
+              >
+                <Dot color={stateDot[serverState(agent)]} />
+                <Link
+                  to={`/servers/${agent.id}`}
+                  className="truncate font-medium outline-none hover:underline focus-visible:underline"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  {agent.name ?? agent.id}
+                </Link>
+                <span className="font-mono text-xs text-faint">{platformLabel(agent)}</span>
+                <span>
+                  <StatusBadge status={badgeStatus(agent)}>{statusText(agent, now)}</StatusBadge>
+                </span>
+                <span>
+                  {agent.cpu_series && agent.cpu_series.length > 1 ? (
+                    <Sparkline values={agent.cpu_series} color={stateDot[serverState(agent)]} />
+                  ) : (
+                    <span className="text-faint">-</span>
+                  )}
+                </span>
+                <span className="text-faint">{percent(agent.memory_percent)}</span>
+                <span className="text-faint">{formatWhen(agent.last_seen, now)}</span>
+              </GridRow>
+            ))}
+          </GridTable>
+          <ListPagination {...pagination} />
+        </div>
       )}
     </div>
   );

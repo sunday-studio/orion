@@ -1,352 +1,94 @@
-import { PageHeader, Tabs, TabsList, TabsPanel, TabsTab } from "@/design-system";
-import {
-  type ApiAlertChannelResponse,
-  useCreateAlertChannel,
-  useDeleteAlertChannel,
-  useGetAlertChannels,
-  useGetAlertDeliveries,
-  useTestAlertChannel,
-  useUpdateAlertChannel,
+import { parseAsStringLiteral, useQueryState } from "nuqs";
+import { useState } from "react";
+import { Button, PageHeader, Tabs, TabsList, TabsPanel, TabsTab } from "@/design-system";
+import { Plus } from "lucide-react";
+import type {
+  ApiAlertChannelResponse,
+  ApiAlertRuleResponse,
+  ApiLabelRouteResponse,
 } from "@/orion-sdk";
-import { parseAsInteger, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
-import { type FormEvent, useMemo, useState } from "react";
-import { AlertRulesTab } from "./components/alert-rules-tab";
-import {
-  DELIVERY_LIMIT,
-  alertTabs,
-  defaultAlertEvents,
-  deliveryStatuses,
-  getMutationErrorMessage,
-} from "./components/alert-constants";
-import { ChannelRecipientsDrawer } from "./components/channel-recipients-drawer";
-import { EmailChannelDialog } from "./components/email-channel-dialog";
-import { DeleteWebhookDialog } from "./components/delete-webhook-dialog";
-import { NotificationLogTab } from "./components/notification-log-tab";
-import { WebhookChannelsTab } from "./components/webhook-channels-tab";
-import { WebhookDialog } from "./components/webhook-dialog";
+import { useGetAlertChannels } from "@/orion-sdk";
+import { ChannelDialog } from "./channels/channel-dialog";
+import { ChannelsTab } from "./tabs/channels-tab";
+import { RoutesTab } from "./tabs/routes-tab";
+import { RulesTab } from "./tabs/rules-tab";
+import { NotificationLogTab } from "./tabs/notification-log-tab";
+
+const TABS = ["logs", "channels", "rules", "routes"] as const;
 
 export const AlertsPage = () => {
-  const [isWebhookDialogOpen, setIsWebhookDialogOpen] = useState(false);
-  const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
-  const [recipientsChannelId, setRecipientsChannelId] = useState<string>();
-  const [editingChannel, setEditingChannel] = useState<ApiAlertChannelResponse | null>(null);
-  const [deletingChannel, setDeletingChannel] = useState<ApiAlertChannelResponse | null>(null);
-  const [webhookName, setWebhookName] = useState("");
-  const [webhookUrl, setWebhookUrl] = useState("");
-  const [webhookEnabled, setWebhookEnabled] = useState(true);
-  const [webhookEvents, setWebhookEvents] = useState<string[]>(defaultAlertEvents);
-  const [testingChannelId, setTestingChannelId] = useState<string | null>(null);
-  const [testFeedback, setTestFeedback] = useState<{
-    channelId?: string;
-    message: string;
-    status: "pending" | "success" | "error";
-  } | null>(null);
-  const [
-    { page, status, incident, tab, type: deliveryType, channel, event_type: eventType },
-    setDeliveryQuery,
-  ] = useQueryStates({
-    page: parseAsInteger.withDefault(1),
-    status: parseAsStringLiteral(deliveryStatuses).withDefault("all"),
-    incident: parseAsString.withDefault(""),
-    type: parseAsString.withDefault("all"),
-    channel: parseAsString.withDefault("all"),
-    event_type: parseAsString.withDefault("all"),
-    tab: parseAsStringLiteral(alertTabs).withDefault("logs"),
+  const [tab, setTab] = useQueryState("tab", parseAsStringLiteral(TABS).withDefault("logs"));
+  const [dialog, setDialog] = useState<{ open: boolean; channel?: ApiAlertChannelResponse }>({
+    open: false,
   });
-
-  const currentPage = Math.max(page, 1);
-  const offset = (currentPage - 1) * DELIVERY_LIMIT;
-  const channelsResponse = useGetAlertChannels();
-  const deliveriesQuery = useGetAlertDeliveries({
-    limit: DELIVERY_LIMIT,
-    offset,
-    status: status === "all" ? undefined : status,
-    type: deliveryType === "all" ? undefined : deliveryType,
-    channel: channel === "all" ? undefined : channel,
-    event_type: eventType === "all" ? undefined : eventType,
-    incident_id: incident.trim() || undefined,
+  const [ruleEditor, setRuleEditor] = useState<{ open: boolean; rule?: ApiAlertRuleResponse }>({
+    open: false,
   });
-  const channels = useMemo(() => channelsResponse.data?.channels ?? [], [channelsResponse.data]);
-  const webhookChannels = useMemo(
-    () => channels.filter((item) => item.type === "webhook" || item.type === "email"),
-    [channels],
-  );
-
-  const refreshAlertConfiguration = () => {
-    void channelsResponse.refetch();
-  };
-  const closeWebhookDialog = () => {
-    setWebhookName("");
-    setWebhookUrl("");
-    setWebhookEnabled(true);
-    setWebhookEvents(defaultAlertEvents);
-    setEditingChannel(null);
-    setIsWebhookDialogOpen(false);
-  };
-
-  const createWebhook = useCreateAlertChannel({
-    mutation: {
-      onSuccess: () => {
-        closeWebhookDialog();
-        refreshAlertConfiguration();
-      },
-    },
+  const [routeEditor, setRouteEditor] = useState<{ open: boolean; route?: ApiLabelRouteResponse }>({
+    open: false,
   });
-  const updateWebhook = useUpdateAlertChannel({
-    mutation: {
-      onSuccess: () => {
-        closeWebhookDialog();
-        refreshAlertConfiguration();
-      },
-    },
-  });
-  const deleteWebhook = useDeleteAlertChannel({
-    mutation: {
-      onSuccess: () => {
-        setDeletingChannel(null);
-        refreshAlertConfiguration();
-      },
-    },
-  });
-  const testChannel = useTestAlertChannel({
-    mutation: {
-      onSuccess: (data, variables) => {
-        const testedChannel = channels.find((item) => item.id === variables.id);
-        const channelName = testedChannel?.name ?? "webhook";
-        const deliveryStatus = data.delivery?.status;
-
-        setTestFeedback({
-          channelId: variables.id,
-          message: deliveryStatus
-            ? `Test sent to ${channelName}. Delivery status: ${deliveryStatus}.`
-            : `Test sent to ${channelName}.`,
-          status: "success",
-        });
-        void channelsResponse.refetch();
-        void deliveriesQuery.refetch();
-      },
-      onError: (error, variables) => {
-        const testedChannel = channels.find((item) => item.id === variables.id);
-        const channelName = testedChannel?.name ?? "webhook";
-
-        setTestFeedback({
-          channelId: variables.id,
-          message: `Unable to test ${channelName}. ${getMutationErrorMessage(error, "Test delivery failed.")}`,
-          status: "error",
-        });
-      },
-      onSettled: () => {
-        setTestingChannelId(null);
-      },
-    },
-  });
-
-  const deliveries = deliveriesQuery.data?.deliveries ?? [];
-  const deliveryCount = deliveriesQuery.data?.count ?? deliveries.length;
-  const isEditingWebhook = Boolean(editingChannel);
-  const isWebhookPending = createWebhook.isPending || updateWebhook.isPending;
-  const webhookMutationError = getMutationErrorMessage(
-    createWebhook.error ?? updateWebhook.error ?? deleteWebhook.error,
-  );
-
-  const setOffset = (nextOffset: number) => {
-    void setDeliveryQuery({ page: Math.floor(nextOffset / DELIVERY_LIMIT) + 1 });
-  };
-  const setStatus = (nextStatus: string) => {
-    if (!deliveryStatuses.includes(nextStatus as (typeof deliveryStatuses)[number])) return;
-    void setDeliveryQuery({ status: nextStatus as (typeof deliveryStatuses)[number], page: 1 });
-  };
-  const setIncident = (nextIncident: string) => {
-    void setDeliveryQuery({ incident: nextIncident, page: 1 });
-  };
-  const setDeliveryType = (nextType: string) => {
-    void setDeliveryQuery({ type: nextType, page: 1 });
-  };
-  const setChannel = (nextChannel: string) => {
-    void setDeliveryQuery({ channel: nextChannel, page: 1 });
-  };
-  const setEventType = (nextEventType: string) => {
-    void setDeliveryQuery({ event_type: nextEventType, page: 1 });
-  };
-  const clearDeliveryFilters = () => {
-    void setDeliveryQuery({
-      status: "all",
-      type: "all",
-      channel: "all",
-      event_type: "all",
-      incident: "",
-      page: 1,
-    });
-  };
-  const setTab = (nextTab: string) => {
-    if (!alertTabs.includes(nextTab as (typeof alertTabs)[number])) return;
-    void setDeliveryQuery({ tab: nextTab as (typeof alertTabs)[number] });
-  };
-
-  const openCreateWebhookDialog = () => {
-    setEditingChannel(null);
-    setWebhookName("");
-    setWebhookUrl("");
-    setWebhookEnabled(true);
-    setWebhookEvents(defaultAlertEvents);
-    setIsWebhookDialogOpen(true);
-  };
-  const openEditWebhookDialog = (channel: ApiAlertChannelResponse) => {
-    setEditingChannel(channel);
-    setWebhookName(channel.name ?? "");
-    setWebhookUrl(channel.webhook_url ?? "");
-    setWebhookEnabled(channel.enabled ?? true);
-    setWebhookEvents(
-      channel.subscribed_events?.length ? channel.subscribed_events : defaultAlertEvents,
-    );
-    setIsWebhookDialogOpen(true);
-  };
-  const toggleWebhookEvent = (event: string, enabled: boolean) => {
-    setWebhookEvents((current) => {
-      if (enabled) return Array.from(new Set([...current, event]));
-      return current.filter((item) => item !== event);
-    });
-  };
-  const testAlertDestination = (channel: ApiAlertChannelResponse) => {
-    if (!channel.id || testChannel.isPending) return;
-    const channelName = channel.name ?? "webhook";
-
-    setTestingChannelId(channel.id);
-    setTestFeedback({
-      channelId: channel.id,
-      message: `Sending test to ${channelName}...`,
-      status: "pending",
-    });
-    testChannel.mutate({ id: channel.id });
-  };
-  const handleWebhookSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const name = webhookName.trim();
-    const url = webhookUrl.trim();
-    if (!name || isWebhookPending) return;
-    if (!url) return;
-    if (webhookEvents.length === 0) return;
-    if (editingChannel?.id) {
-      updateWebhook.mutate({
-        id: editingChannel.id,
-        data: {
-          name,
-          type: "webhook",
-          enabled: webhookEnabled,
-          subscribed_events: webhookEvents,
-          webhook_url: url,
-        },
-      });
-      return;
-    }
-    createWebhook.mutate({
-      data: {
-        name,
-        type: "webhook",
-        enabled: webhookEnabled,
-        webhook_url: url,
-        subscribed_events: webhookEvents,
-      },
-    });
-  };
+  const channels = useGetAlertChannels();
 
   return (
-    <div className="space-y-7">
+    <div className="w-full pb-8">
       <PageHeader
         title="Alerts"
-        description="Review webhook channels, effective alert behavior, and delivery attempts."
+        description="Who gets told, and whether it worked."
+        actions={
+          tab === "channels" ? (
+            <Button size="sm" onClick={() => setDialog({ open: true })}>
+              <Plus /> Add channel
+            </Button>
+          ) : tab === "rules" ? (
+            <Button size="sm" onClick={() => setRuleEditor({ open: true })}>
+              <Plus /> New rule
+            </Button>
+          ) : tab === "routes" ? (
+            <Button size="sm" onClick={() => setRouteEditor({ open: true })}>
+              <Plus /> New route
+            </Button>
+          ) : undefined
+        }
       />
-
-      <Tabs value={tab} onValueChange={setTab} className="space-y-4">
+      <Tabs
+        value={tab}
+        onValueChange={(next) => void setTab(next as (typeof TABS)[number])}
+        className="mt-3 gap-3"
+      >
         <TabsList>
-          <TabsTab value="logs">Notification Log</TabsTab>
+          <TabsTab value="logs">Notification log</TabsTab>
           <TabsTab value="channels">Channels</TabsTab>
           <TabsTab value="rules">Rules</TabsTab>
+          <TabsTab value="routes">Routes</TabsTab>
         </TabsList>
-
         <TabsPanel value="logs">
-          <NotificationLogTab
-            channel={channel}
-            channels={channels}
-            count={deliveryCount}
-            deliveries={deliveries}
-            error={deliveriesQuery.error}
-            onRetry={() => void deliveriesQuery.refetch()}
-            eventType={eventType}
-            incident={incident}
-            isLoading={deliveriesQuery.isLoading}
-            offset={offset}
-            onChannelChange={setChannel}
-            onClearFilters={clearDeliveryFilters}
-            onEventTypeChange={setEventType}
-            onIncidentChange={setIncident}
-            onOffsetChange={setOffset}
-            onStatusChange={setStatus}
-            onTypeChange={setDeliveryType}
-            status={status}
-            type={deliveryType}
-          />
+          <NotificationLogTab />
         </TabsPanel>
-
         <TabsPanel value="channels">
-          <WebhookChannelsTab
-            channels={webhookChannels}
-            error={channelsResponse.error}
-            isLoading={channelsResponse.isLoading}
-            isTesting={testChannel.isPending}
-            onCreate={openCreateWebhookDialog}
-            onCreateEmail={() => setIsEmailDialogOpen(true)}
-            onRecipients={(channel) => setRecipientsChannelId(channel.id)}
-            onDelete={setDeletingChannel}
-            onEdit={openEditWebhookDialog}
-            onTest={testAlertDestination}
-            testFeedback={testFeedback}
-            testingChannelId={testingChannelId}
+          <ChannelsTab
+            onAdd={() => setDialog({ open: true })}
+            onEdit={(channel) => setDialog({ open: true, channel })}
           />
         </TabsPanel>
-
         <TabsPanel value="rules">
-          <AlertRulesTab channels={webhookChannels} />
+          <RulesTab
+            channels={channels.data?.channels ?? []}
+            editor={ruleEditor}
+            onEditorChange={setRuleEditor}
+          />
+        </TabsPanel>
+        <TabsPanel value="routes">
+          <RoutesTab
+            channels={channels.data?.channels ?? []}
+            editor={routeEditor}
+            onEditorChange={setRouteEditor}
+          />
         </TabsPanel>
       </Tabs>
-
-      <WebhookDialog
-        enabled={webhookEnabled}
-        events={webhookEvents}
-        isEditing={isEditingWebhook}
-        isOpen={isWebhookDialogOpen}
-        isPending={isWebhookPending}
-        mutationError={webhookMutationError}
-        name={webhookName}
-        onClose={closeWebhookDialog}
-        onEnabledChange={setWebhookEnabled}
-        onEventToggle={toggleWebhookEvent}
-        onNameChange={setWebhookName}
-        onOpenChange={setIsWebhookDialogOpen}
-        onSubmit={handleWebhookSubmit}
-        onUrlChange={setWebhookUrl}
-        url={webhookUrl}
-      />
-      <EmailChannelDialog
-        open={isEmailDialogOpen}
-        onOpenChange={setIsEmailDialogOpen}
-        onCreated={setRecipientsChannelId}
-      />
-      <ChannelRecipientsDrawer
-        channel={webhookChannels.find((item) => item.id === recipientsChannelId)}
-        onOpenChange={(open) => {
-          if (!open) setRecipientsChannelId(undefined);
-        }}
-      />
-      <DeleteWebhookDialog
-        channel={deletingChannel}
-        isPending={deleteWebhook.isPending}
-        mutationError={webhookMutationError}
-        onClose={() => setDeletingChannel(null)}
-        onDelete={() => {
-          if (!deletingChannel?.id) return;
-          deleteWebhook.mutate({ id: deletingChannel.id });
-        }}
+      <ChannelDialog
+        open={dialog.open}
+        channel={dialog.channel}
+        onOpenChange={(open) => setDialog((current) => ({ ...current, open }))}
       />
     </div>
   );

@@ -50,8 +50,8 @@ func enrollmentResponse(v *service.EnrollmentView) EnrollmentResponse {
 }
 
 func (s *Server) coreURLFor(c *gin.Context) string {
-	if s.cfg.PublicURL != "" {
-		return s.cfg.PublicURL
+	if s.cfg.PublicBaseURL() != "" {
+		return s.cfg.PublicBaseURL()
 	}
 	scheme := "http"
 	if c.Request.TLS != nil {

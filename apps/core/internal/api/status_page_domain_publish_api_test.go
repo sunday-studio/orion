@@ -109,7 +109,7 @@ func TestStatusPageCustomDomainValidationAndConflict(t *testing.T) {
 func TestStatusPageCustomDomainHostRoutingAndIsolation(t *testing.T) {
 	server := setupTestServer(t)
 	now := time.Now().UTC()
-	pages := []db.StatusPage{{ID: "status_page_custom_public", Slug: "custom-public", CustomDomain: "status.example.com", Title: "Custom Public", Visibility: statusPageVisibilityPublic, ThemeSettings: "{}", DefaultIncidentVisibility: statusPageIncidentVisibilityDraft, PublishedAt: &now}, {ID: "status_page_other_public", Slug: "other-public", CustomDomain: "other.example.com", Title: "Other Public", Visibility: statusPageVisibilityPublic, ThemeSettings: "{}", DefaultIncidentVisibility: statusPageIncidentVisibilityDraft, PublishedAt: &now}, {ID: "status_page_custom_draft", Slug: "custom-draft", CustomDomain: "draft.example.com", Title: "Custom Draft", Visibility: statusPageVisibilityDraft, ThemeSettings: "{}", DefaultIncidentVisibility: statusPageIncidentVisibilityDraft}}
+	pages := []db.StatusPage{{ID: "status_page_custom_public", Slug: "custom-public", CustomDomain: "status.example.com", DomainStatus: "verified", Title: "Custom Public", Visibility: statusPageVisibilityPublic, ThemeSettings: "{}", DefaultIncidentVisibility: statusPageIncidentVisibilityDraft, PublishedAt: &now}, {ID: "status_page_other_public", Slug: "other-public", CustomDomain: "other.example.com", DomainStatus: "verified", Title: "Other Public", Visibility: statusPageVisibilityPublic, ThemeSettings: "{}", DefaultIncidentVisibility: statusPageIncidentVisibilityDraft, PublishedAt: &now}, {ID: "status_page_custom_draft", Slug: "custom-draft", CustomDomain: "draft.example.com", DomainStatus: "verified", Title: "Custom Draft", Visibility: statusPageVisibilityDraft, ThemeSettings: "{}", DefaultIncidentVisibility: statusPageIncidentVisibilityDraft}}
 	if err := server.db.Create(&pages).Error; err != nil {
 		t.Fatalf("seed status pages: %v", err)
 	}
@@ -145,8 +145,8 @@ func TestStatusPageCustomDomainHostRoutingAndIsolation(t *testing.T) {
 		t.Fatalf("other history on custom host status = %d, body = %s, want 404", otherHistoryOnCustomHostResp.Code, otherHistoryOnCustomHostResp.Body.String())
 	}
 	otherBadgeOnCustomHostResp := performHostRequest(t, server, http.MethodGet, "/status/other-public/badge.svg", "status.example.com")
-	if otherBadgeOnCustomHostResp.Code != http.StatusNotFound {
-		t.Fatalf("other badge on custom host status = %d, body = %s, want 404", otherBadgeOnCustomHostResp.Code, otherBadgeOnCustomHostResp.Body.String())
+	if otherBadgeOnCustomHostResp.Code != http.StatusOK || !strings.Contains(otherBadgeOnCustomHostResp.Body.String(), "unknown") {
+		t.Fatalf("other badge on custom host status = %d, body = %s, want the neutral unknown badge", otherBadgeOnCustomHostResp.Code, otherBadgeOnCustomHostResp.Body.String())
 	}
 	otherSubscriberOnCustomHostResp := performHostJSONRequest(t, server, http.MethodPost, "/status/other-public/subscribers", "status.example.com", gin.H{"destination": "other-status-subscriber@example.com"})
 	if otherSubscriberOnCustomHostResp.Code != http.StatusNotFound {

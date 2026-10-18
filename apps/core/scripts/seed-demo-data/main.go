@@ -95,6 +95,9 @@ func main() {
 		if err := resetSeedData(database); err != nil {
 			log.Fatalf("reset seeded data: %v", err)
 		}
+		if err := resetSeedLogs(cfg.dbPath); err != nil {
+			log.Fatalf("reset seeded logs: %v", err)
+		}
 	}
 
 	stats, err := seed(database, cfg)
@@ -108,6 +111,8 @@ func main() {
 	fmt.Printf("  agent reports: %d\n", stats.agentReports)
 	fmt.Printf("  monitor reports: %d\n", stats.monitorReports)
 	fmt.Printf("  incidents: %d\n", stats.incidents)
+	fmt.Printf("  alert channels: %d, recipients: %d, rules: %d, delivery attempts: %d\n", stats.alertDetails.channels, stats.alertDetails.recipients, stats.alertDetails.rules, stats.alertDetails.attempts)
+	fmt.Printf("  incident candidates: %d (+%d dismissed), notes: %d, responders: %d, declared: %d\n", stats.incidentExtras.candidates, stats.incidentExtras.dismissed, stats.incidentExtras.notes, stats.incidentExtras.responders, stats.incidentExtras.declared)
 	fmt.Printf("  incident events: %d\n", stats.incidentEvents)
 	fmt.Printf("  alert deliveries: %d\n", stats.alertDeliveries)
 	fmt.Printf("  uptime rollups: %d\n", stats.rollups)
@@ -128,6 +133,8 @@ type seedStats struct {
 	agentReports             int
 	monitorReports           int
 	incidents                int
+	incidentExtras           incidentExtraStats
+	alertDetails             alertDetailStats
 	incidentEvents           int
 	alertDeliveries          int
 	rollups                  int
@@ -186,6 +193,7 @@ func openDatabase(cfg seedConfig) *gorm.DB {
 
 func resetSeedData(database *gorm.DB) error {
 	statusPageTables := []string{
+		"status_page_maintenance",
 		"status_page_subscriber_deliveries",
 		"status_page_subscriber_components",
 		"status_page_subscribers",
@@ -201,6 +209,20 @@ func resetSeedData(database *gorm.DB) error {
 		query := database.Exec(fmt.Sprintf("DELETE FROM %s WHERE id LIKE ?", table), "seed-%")
 		if query.Error != nil {
 			return query.Error
+		}
+	}
+
+	for _, statement := range []string{
+		"DELETE FROM alert_delivery_attempts WHERE alert_delivery_id LIKE 'seed-%'",
+		"DELETE FROM alert_deliveries WHERE id LIKE 'seed-%'",
+		"DELETE FROM alert_delivery_recipients WHERE delivery_id LIKE 'seed-%'",
+		"DELETE FROM alert_channel_recipients WHERE id LIKE 'seed-%'",
+		"DELETE FROM alert_routes WHERE id LIKE 'seed-%'",
+		"DELETE FROM alert_label_routes WHERE id LIKE 'seed-%'",
+		"DELETE FROM alert_channels WHERE id LIKE 'seed-%'",
+	} {
+		if err := database.Exec(statement).Error; err != nil {
+			return err
 		}
 	}
 
@@ -229,6 +251,23 @@ func resetSeedData(database *gorm.DB) error {
 		if query.Error != nil {
 			return query.Error
 		}
+	}
+	for _, statement := range []string{
+		"DELETE FROM agent_monitor_definitions WHERE id LIKE 'seed-%'",
+		"DELETE FROM enrollment_sessions WHERE id LIKE 'seed-%'",
+		"DELETE FROM app_ingest_keys WHERE id LIKE 'seed-%'",
+		"DELETE FROM apps WHERE id LIKE 'seed-%'",
+		"DELETE FROM log_saved_views WHERE id LIKE 'seed-%'",
+		"DELETE FROM log_alert_rules WHERE id LIKE 'seed-%'",
+		"DELETE FROM api_tokens WHERE id LIKE 'seed-%'",
+		"DELETE FROM service_log_entries WHERE id LIKE 'seed-%'",
+	} {
+		if err := database.Exec(statement).Error; err != nil {
+			return err
+		}
+	}
+	if err := database.Exec("DELETE FROM incident_candidate_dismissals WHERE monitor_id LIKE ?", "seed-%").Error; err != nil {
+		return err
 	}
 	if err := database.Exec("DELETE FROM core_monitor_configs WHERE monitor_id LIKE ?", "seed-%").Error; err != nil {
 		return err
@@ -344,6 +383,17 @@ func seed(database *gorm.DB, cfg seedConfig) (seedStats, error) {
 	if err != nil {
 		return stats, err
 	}
+	alertStats, err := seedAlertDetails(database, now)
+	if err != nil {
+		return stats, err
+	}
+	stats.alertDetails = alertStats
+	extraStats, err := seedIncidentExtras(database, allMonitors, monitorToAgent, monitorToScenario, now)
+	if err != nil {
+		return stats, err
+	}
+	stats.incidents += extraStats.declared
+	stats.incidentExtras = extraStats
 	stats.incidents += incidentStats.incidents
 	stats.incidentEvents += incidentStats.incidentEvents
 	stats.alertDeliveries += incidentStats.alertDeliveries
@@ -353,6 +403,16 @@ func seed(database *gorm.DB, cfg seedConfig) (seedStats, error) {
 		return stats, err
 	}
 	stats.statusPages += statusPageStats.pages
+	draftPages, err := seedStatusPageDraft(database, now)
+	if err != nil {
+		return stats, err
+	}
+	stats.statusPages += draftPages
+	if _, err := seedStatusPageMaintenance(database, now); err != nil {
+		return stats, err
+	}
+	stats.statusPageSections++
+	stats.statusPageComponents += 2
 	stats.statusPageSections += statusPageStats.sections
 	stats.statusPageComponents += statusPageStats.components
 	stats.statusPageMappings += statusPageStats.mappings
@@ -362,5 +422,8 @@ func seed(database *gorm.DB, cfg seedConfig) (seedStats, error) {
 	stats.statusPageDeliveries += statusPageStats.deliveries
 	stats.statusPageSubscriberMaps += statusPageStats.subscriberComponents
 
+	if err := seedShowcase(database, cfg.dbPath, now); err != nil {
+		return stats, err
+	}
 	return stats, nil
 }

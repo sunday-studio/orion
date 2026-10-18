@@ -10,33 +10,33 @@ import (
 	"time"
 )
 
-func (s *AlertService) deliver(channel db.AlertChannel, deliveryID string, incidentID string, eventType string) error {
+func (s *AlertService) deliver(channel db.AlertChannel, deliveryID string, incidentID string, eventType string, rec *SendRecord) error {
 	var incident db.Incident
 	if err := s.db.Where("id = ?", incidentID).First(&incident).Error; err != nil {
 		return newAlertDeliveryError("load_incident", err)
 	}
 
-	return s.deliverPayload(channel, deliveryID, s.buildAlertPayload(incident, eventType, time.Now().UTC()))
+	return s.deliverPayload(channel, deliveryID, s.buildAlertPayload(incident, eventType, time.Now().UTC()), rec)
 }
 
 // deliverPayload sends one rendered alert through the channel's transport.
-func (s *AlertService) deliverPayload(channel db.AlertChannel, deliveryID string, payload AlertPayload) error {
+func (s *AlertService) deliverPayload(channel db.AlertChannel, deliveryID string, payload AlertPayload, rec *SendRecord) error {
 	switch channel.Type {
 	case "webhook":
-		return s.deliverWebhookPayload(channel, payload)
+		return s.deliverWebhookPayload(channel, payload, rec)
 	case "email":
-		return s.deliverEmailPayload(channel, deliveryID, payload)
+		return s.deliverEmailPayload(channel, deliveryID, payload, rec)
 	default:
 		return newAlertDeliveryError("channel_type", fmt.Errorf("unsupported alert channel type: %s", channel.Type))
 	}
 }
 
-func (s *AlertService) deliverGroupSummary(channel db.AlertChannel, deliveryID string, groupID string) error {
+func (s *AlertService) deliverGroupSummary(channel db.AlertChannel, deliveryID string, groupID string, rec *SendRecord) error {
 	payload, err := s.buildAlertGroupSummaryPayload(groupID, time.Now().UTC())
 	if err != nil {
 		return err
 	}
-	return s.deliverPayload(channel, deliveryID, payload)
+	return s.deliverPayload(channel, deliveryID, payload, rec)
 }
 
 func (s *AlertService) buildAlertGroupSummaryPayload(groupID string, deliveredAt time.Time) (AlertPayload, error) {
@@ -66,7 +66,7 @@ func (s *AlertService) buildAlertGroupSummaryPayload(groupID string, deliveredAt
 	return payload, nil
 }
 
-func (s *AlertService) deliverTest(channel db.AlertChannel, deliveryID string) error {
+func (s *AlertService) deliverTest(channel db.AlertChannel, deliveryID string, rec *SendRecord) error {
 	incident := db.Incident{
 		ID:          "alert-channel-test",
 		Status:      "test",
@@ -75,10 +75,10 @@ func (s *AlertService) deliverTest(channel db.AlertChannel, deliveryID string) e
 		LatestEvent: "Manual alert channel test",
 	}
 
-	return s.deliverPayload(channel, deliveryID, s.buildAlertPayload(incident, "test", time.Now().UTC()))
+	return s.deliverPayload(channel, deliveryID, s.buildAlertPayload(incident, "test", time.Now().UTC()), rec)
 }
 
-func (s *AlertService) deliverWebhookPayload(channel db.AlertChannel, payload AlertPayload) error {
+func (s *AlertService) deliverWebhookPayload(channel db.AlertChannel, payload AlertPayload, rec *SendRecord) error {
 	if channel.WebhookURL == "" {
 		return newAlertDeliveryError("configure", fmt.Errorf("webhook URL is not configured"))
 	}
@@ -90,6 +90,9 @@ func (s *AlertService) deliverWebhookPayload(channel db.AlertChannel, payload Al
 	request, err := http.NewRequest(http.MethodPost, channel.WebhookURL, bytes.NewReader(body))
 	if err != nil {
 		return newAlertDeliveryError("http_request", err)
+	}
+	for name, value := range DecodeChannelHeaders(channel.HeadersJSON) {
+		request.Header.Set(name, value)
 	}
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("User-Agent", "orion-core-alerts/1")
@@ -105,6 +108,8 @@ func (s *AlertService) deliverWebhookPayload(channel db.AlertChannel, payload Al
 		return newAlertDeliveryError("http_request", err)
 	}
 	defer resp.Body.Close()
+	rec.fromResponse(resp)
+	rec.ScrubSnippet(DecodeChannelHeaders(channel.HeadersJSON))
 
 	if resp.StatusCode >= 300 && resp.StatusCode < 400 {
 		return newAlertDeliveryError("http_response", errAlertWebhookRedirect)

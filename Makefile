@@ -88,15 +88,15 @@ release-readiness: agent-test core-test release-core-build console-build reposit
 
 # Build orion-core Docker image (context: repo root)
 docker-build:
-	docker build -f apps/core/Dockerfile -t $(CORE_IMAGE):$(VERSION) .
+	docker build -f apps/core/Dockerfile --build-arg VERSION=$(VERSION) -t $(CORE_IMAGE):$(VERSION) .
 
 # Build Core API for local/package validation.
 core-build:
-	cd apps/core && go build -trimpath -ldflags "-s -w" -o $(CORE_OUTPUT) ./cmd/api
+	cd apps/core && go build -trimpath -ldflags "-s -w -X orion/core/internal/buildinfo.Version=$(VERSION)" -o $(CORE_OUTPUT) ./cmd/api
 
 # Build Core monitor worker for local/package validation.
 core-worker-build:
-	cd apps/core && go build -trimpath -ldflags "-s -w -X main.version=$(VERSION)" -o $(CORE_WORKER_OUTPUT) ./cmd/worker
+	cd apps/core && go build -trimpath -ldflags "-s -w -X main.version=$(VERSION) -X orion/core/internal/buildinfo.Version=$(VERSION)" -o $(CORE_WORKER_OUTPUT) ./cmd/worker
 
 # Build Orion Agent for the requested platform.
 agent-build:

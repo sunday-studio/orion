@@ -107,6 +107,7 @@ export const DeclareIncidentDialog = ({
           <div className="flex flex-col gap-1.5 text-[13px] font-medium">
             Severity
             <Segmented
+              surface="card"
               aria-label="Severity"
               options={severityOptions
                 .slice()

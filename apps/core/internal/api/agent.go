@@ -84,7 +84,10 @@ type AgentTokenStatusResponse struct {
 	TokenRevokedAt        *time.Time `json:"token_revoked_at,omitempty"`
 	TokenRevocationReason string     `json:"token_revocation_reason,omitempty"`
 	TokenExists           bool       `json:"token_exists"`
-	RequestID             string     `json:"request_id,omitempty"`
+	LastUsedAt            *time.Time `json:"last_used_at,omitempty"`
+	// PreviousTokenValidUntil is set for 10 minutes after a rotation while the old token still works.
+	PreviousTokenValidUntil *time.Time `json:"previous_token_valid_until,omitempty"`
+	RequestID               string     `json:"request_id,omitempty"`
 }
 type AgentTokenIssuedResponse struct {
 	Token  string                   `json:"token"`
@@ -233,7 +236,7 @@ func agentTokenActionInput(c *gin.Context, req AgentTokenActionRequest) service.
 	return service.AgentTokenActionInput{ActorType: "user", ActorID: actorID, Reason: req.Reason, RequestID: requestIDFromContext(c)}
 }
 func agentTokenStatusResponse(status service.AgentTokenStatus, requestID string) AgentTokenStatusResponse {
-	return AgentTokenStatusResponse{AgentID: status.AgentID, State: status.State, TokenVersion: status.TokenVersion, TokenRotatedAt: status.TokenRotatedAt, TokenRevokedAt: status.TokenRevokedAt, TokenRevocationReason: status.TokenRevocationReason, TokenExists: status.TokenExists, RequestID: requestID}
+	return AgentTokenStatusResponse{AgentID: status.AgentID, State: status.State, TokenVersion: status.TokenVersion, TokenRotatedAt: status.TokenRotatedAt, TokenRevokedAt: status.TokenRevokedAt, TokenRevocationReason: status.TokenRevocationReason, TokenExists: status.TokenExists, LastUsedAt: status.LastUsedAt, PreviousTokenValidUntil: status.PreviousTokenValidUntil, RequestID: requestID}
 }
 func requestIDFromContext(c *gin.Context) string {
 	if value, ok := c.Get("request_id"); ok {

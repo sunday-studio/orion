@@ -1,14 +1,12 @@
 import { Button, PageHeader } from "@/design-system";
-import {
-  CoreWorkerDiagnosticsPanel,
-  coreWorkerDiagnosticsFromPayload,
-} from "@/features/monitors/components/core-worker-diagnostics";
+import { coreWorkerDiagnosticsFromPayload } from "@/features/monitors/components/core-worker-diagnostics";
 import {
   CoreMonitorDialog,
   type CoreMonitorSubmitAction,
 } from "@/features/monitors/components/core-monitor-dialog";
 import { coreMonitorMutationErrorMessage } from "@/features/monitors/components/core-monitor-errors";
 import { HeartbeatSetupPanel } from "@/features/monitors/components/heartbeat-setup-panel";
+import { MonitorCreateDialog } from "@/features/monitors/create/monitor-create-dialog";
 import { MonitorList } from "@/features/monitors/components/monitor-list";
 import {
   type ApiCoreMonitorConfigResponse,
@@ -19,15 +17,19 @@ import {
   getMonitorHistory,
   testCoreMonitor,
   useCreateCoreMonitor,
+  useGetAgentSummary,
   useGetCoreWorkerDiagnostics,
+  useGetMonitorSummary,
 } from "@/orion-sdk";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useState } from "react";
+import { pluralize } from "@/utils/plural";
 import { explainMonitorFailure } from "./monitors.domain";
 
 export const MonitorsPage = () => {
   const [createOpen, setCreateOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [createFeedback, setCreateFeedback] = useState("");
   const [createFeedbackTone, setCreateFeedbackTone] = useState<"neutral" | "error">("neutral");
   const [heartbeatSetup, setHeartbeatSetup] = useState<{
@@ -37,6 +39,8 @@ export const MonitorsPage = () => {
   }>();
   const [isTestingCreatedMonitor, setIsTestingCreatedMonitor] = useState(false);
   const queryClient = useQueryClient();
+  const summary = useGetMonitorSummary();
+  const servers = useGetAgentSummary();
   const workerDiagnosticsResponse = useGetCoreWorkerDiagnostics({
     query: { refetchInterval: 30_000 },
   });
@@ -65,6 +69,7 @@ export const MonitorsPage = () => {
       setCreateFeedback("Heartbeat monitor created.");
       refreshMonitors();
       setCreateOpen(false);
+      setAdvancedOpen(false);
       return;
     }
     setHeartbeatSetup(undefined);
@@ -94,21 +99,31 @@ export const MonitorsPage = () => {
     }
     refreshMonitors();
     setCreateOpen(false);
+    setAdvancedOpen(false);
   };
 
+  const total = summary.data?.total;
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <PageHeader title="Monitors" description="Registered checks across all servers and Core." />
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus />
-          Core monitor
-        </Button>
-      </div>
+    <div className="w-full pb-8">
+      <PageHeader
+        title="Monitors"
+        description={
+          total
+            ? `${pluralize(total, "check")} across ${pluralize(servers.data?.total ?? 0, "server")} and Core.`
+            : undefined
+        }
+        actions={
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus /> Create monitor
+          </Button>
+        }
+      />
       {createFeedback && (
         <p
           className={
-            createFeedbackTone === "error" ? "text-sm text-rose-700" : "text-sm text-neutral-600"
+            createFeedbackTone === "error"
+              ? "mt-2 text-sm text-rose-700"
+              : "mt-2 text-sm text-neutral-600"
           }
         >
           {createFeedback}
@@ -121,12 +136,33 @@ export const MonitorsPage = () => {
           token={heartbeatSetup.token}
         />
       )}
-      <CoreWorkerDiagnosticsPanel
-        data={workerDiagnosticsResponse.data}
-        error={workerDiagnosticsResponse.error}
-        isLoading={workerDiagnosticsResponse.isLoading}
+      {total === 0 ? (
+        <div className="mt-3 flex min-h-[207px] flex-col items-center justify-center gap-1 rounded-xl border border-hairline bg-card px-4 text-center shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+          <b className="text-[15px] font-medium">No monitors yet</b>
+          <p className="text-[13px] text-mid">
+            Check a URL, a port, a cron job or a process on a server.
+          </p>
+          <Button size="sm" className="mt-3" onClick={() => setCreateOpen(true)}>
+            Create a monitor
+          </Button>
+        </div>
+      ) : (
+        <MonitorList workerDiagnostics={workerDiagnostics} />
+      )}
+      <MonitorCreateDialog
+        open={createOpen}
+        error={coreMonitorMutationErrorMessage(
+          createMonitor.error,
+          "Unable to create the monitor.",
+        )}
+        pending={createMonitor.isPending}
+        onOpenChange={setCreateOpen}
+        onCreate={(data) => void handleCreate(data, "save").catch(() => undefined)}
+        onMoreTypes={() => {
+          setCreateOpen(false);
+          setAdvancedOpen(true);
+        }}
       />
-      <MonitorList workerDiagnostics={workerDiagnostics} />
       <CoreMonitorDialog
         error={coreMonitorMutationErrorMessage(
           createMonitor.error,
@@ -134,11 +170,11 @@ export const MonitorsPage = () => {
         )}
         isSubmitting={createMonitor.isPending || isTestingCreatedMonitor}
         mode="create"
-        onOpenChange={setCreateOpen}
+        onOpenChange={setAdvancedOpen}
         onSubmit={(data, action) =>
           void handleCreate(data as ServiceCoreManagedMonitorCreateRequest, action)
         }
-        open={createOpen}
+        open={advancedOpen}
       />
     </div>
   );

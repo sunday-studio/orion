@@ -38,10 +38,14 @@ type Server struct {
 	runtimeDiagnosticsService    *service.RuntimeDiagnosticsService
 	loginLimiter                 *RateLimiter
 	registerLimiter              *RateLimiter
+	testRunLimiter               *RateLimiter
 	publicSubscriberLimiter      *RateLimiter
 	publicStatusMailSend         func(publicStatusMailMessage) error
+	lookupCNAME                  func(ctx context.Context, host string) (string, error)
 	router                       *gin.Engine
 	logs                         *productLogs
+	// auditRouteProbe lets tests ask which routes pass through the admin middleware.
+	auditRouteProbe bool
 }
 
 func NewServer(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *Server {
@@ -99,12 +103,15 @@ func NewServer(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *Ser
 		loginLimiter:                 NewRateLimiter(cfg.LoginRateLimitAttempts, time.Duration(cfg.LoginRateLimitWindowSecs)*time.Second),
 		registerLimiter:              NewRateLimiter(cfg.RegisterRateLimitPerMinute, time.Minute),
 		publicSubscriberLimiter:      NewRateLimiter(10, time.Minute),
+		testRunLimiter:               NewRateLimiter(20, time.Minute),
 		router:                       router,
 	}
 	server.publicStatusMailSend = server.deliverPublicStatusMail
+	server.lookupCNAME = net.DefaultResolver.LookupCNAME
 
 	server.setupRoutes()
 
+	server.applyInstanceSettings()
 	return server
 }
 
@@ -130,6 +137,7 @@ func (s *Server) setupRoutes() {
 	s.router.GET("/feed.atom", s.getCustomDomainStatusPageAtomFeed)
 	s.router.GET("/status/:slug/feed.atom", s.getStatusPageAtomFeed)
 	s.router.GET("/status/:slug/badge.svg", s.getPublicStatusPageBadge)
+	s.router.GET("/status/:slug/badge.json", s.getPublicStatusPageBadgeJSON)
 	s.router.GET("/status/:slug/history", s.getPublicStatusPageHistory)
 	s.router.GET("/status/:slug/components/:component_id/badge.svg", s.getPublicStatusPageComponentBadge)
 	s.router.GET("/status/:slug/components/:component_id/uptime", s.getPublicStatusPageComponentUptime)
@@ -163,22 +171,30 @@ func (s *Server) setupRoutes() {
 
 		// Frontend routes (JWT when ORION_ADMIN_* and ORION_JWT_SECRET are set)
 		frontend := v1.Group("/")
-		frontend.Use(s.frontendAuthMiddleware())
+		frontend.Use(s.frontendAuthMiddleware(), s.auditMiddleware())
+		s.registerSettingsRoutes(frontend)
 		{
 			frontend.GET("/agents", s.listAgents)
 			frontend.GET("/agents/summary", s.getAgentSummary)
 			frontend.GET("/agents/:id", s.getAgentDetail)
+			frontend.PATCH("/agents/:id", s.updateAgent)
+			frontend.DELETE("/agents/:id", s.decommissionAgent)
 			frontend.GET("/agents/:id/health", s.getAgentHealth)
 			frontend.GET("/agents/:id/reports", s.getAgentReports)
 			frontend.GET("/agents/:id/service-logs", s.listAgentServiceLogs)
 			frontend.GET("/agents/:id/uptime", s.getAgentUptime)
 			frontend.GET("/agents/:id/monitors", s.listMonitors)
+			frontend.GET("/agents/:id/monitor-definitions", s.listAgentMonitorDefinitions)
+			frontend.POST("/agents/:agent_id/monitor-definitions", s.createAgentMonitorDefinition)
+			frontend.DELETE("/agents/:id/monitor-definitions/:definition_id", s.deleteAgentMonitorDefinition)
 			frontend.GET("/agents/:id/token/status", s.getAgentTokenStatus)
 			frontend.POST("/agents/:agent_id/token/rotate", s.rotateAgentToken)
 			frontend.POST("/agents/:agent_id/token/revoke", s.revokeAgentToken)
 			frontend.POST("/agents/:agent_id/token/reissue", s.reissueAgentToken)
 			frontend.GET("/monitors", s.listAllMonitors)
 			frontend.POST("/monitors", s.createCoreMonitor)
+			frontend.POST("/monitors/bulk", s.bulkMonitorAction)
+			frontend.POST("/monitors/test-run", s.testRunUnsavedMonitor)
 			frontend.GET("/monitors/summary", s.getMonitorSummary)
 			frontend.PATCH("/monitors/:id", s.updateCoreMonitor)
 			frontend.DELETE("/monitors/:id", s.deleteCoreMonitor)
@@ -188,6 +204,12 @@ func (s *Server) setupRoutes() {
 			frontend.POST("/monitors/:id/test", s.testCoreMonitor)
 			frontend.GET("/monitors/:id", s.getMonitorDetail)
 			frontend.GET("/monitors/:id/uptime", s.getMonitorUptime)
+			frontend.GET("/monitors/:id/response-times", s.getMonitorResponseTimes)
+			frontend.GET("/monitors/:id/availability", s.getMonitorAvailability)
+			frontend.POST("/monitors/:id/clone", s.cloneCoreMonitor)
+			frontend.POST("/monitors/:id/test-run", s.testRunMonitor)
+			frontend.PUT("/monitors/:id/maintenance", s.setMonitorMaintenance)
+			frontend.DELETE("/monitors/:id/maintenance", s.clearMonitorMaintenance)
 			frontend.GET("/monitors/:id/history", s.getMonitorHistory)
 			frontend.GET("/health/summary", s.getSystemHealth)
 			frontend.GET("/health/issues", s.getHealthIssues)
@@ -218,6 +240,11 @@ func (s *Server) setupRoutes() {
 			frontend.GET("/overview", s.getOverview)
 			frontend.GET("/search", s.searchEverything)
 			frontend.GET("/auth/me", s.authMe)
+			frontend.GET("/alerts/deliveries/:id", s.getAlertDelivery)
+			frontend.GET("/alerts/payload-preview", s.getAlertPayloadPreview)
+			frontend.POST("/alerts/channels/test-run", s.testRunAlertChannel)
+			frontend.GET("/alerts/channels/:id", s.getAlertChannel)
+			frontend.POST("/alerts/channels/:id/secret/regenerate", s.regenerateAlertChannelSecret)
 			frontend.GET("/alerts/channels", s.listAlertChannels)
 			frontend.POST("/alerts/channels", s.createAlertChannel)
 			frontend.PATCH("/alerts/channels/:id", s.updateAlertChannel)
@@ -235,6 +262,13 @@ func (s *Server) setupRoutes() {
 			frontend.GET("/alerts/rules", s.listAlertRules)
 			frontend.POST("/alerts/rules", s.createAlertRule)
 			frontend.POST("/alerts/rules/dry-run", s.dryRunAlertRules)
+			frontend.POST("/alerts/rules/:id/replay", s.replayAlertRule)
+			frontend.GET("/alerts/label-routes", s.listLabelRoutes)
+			frontend.POST("/alerts/label-routes", s.createLabelRoute)
+			frontend.POST("/alerts/label-routes/reorder", s.reorderLabelRoutes)
+			frontend.POST("/alerts/label-routes/dry-run", s.dryRunLabelRoutes)
+			frontend.PATCH("/alerts/label-routes/:id", s.updateLabelRoute)
+			frontend.DELETE("/alerts/label-routes/:id", s.deleteLabelRoute)
 			frontend.PATCH("/alerts/rules/:id", s.updateAlertRule)
 			frontend.DELETE("/alerts/rules/:id", s.deleteAlertRule)
 			frontend.POST("/alerts/rules/:id/enable", s.enableAlertRule)
@@ -258,6 +292,7 @@ func (s *Server) setupRoutes() {
 			protected.POST("/:agent_id/report", ValidateAgentToken(s.agentService, s.authService), s.receiveAgentReport)
 			protected.POST("/:agent_id/logs/batch", ValidateAgentToken(s.agentService, s.authService), s.receiveAgentLogBatch)
 			protected.POST("/:agent_id/:monitor_id/report", ValidateAgentToken(s.agentService, s.authService), s.receiveMonitorReport)
+			protected.POST("/:agent_id/monitor-definitions/sync", ValidateAgentToken(s.agentService, s.authService), s.pullAgentMonitorDefinitions)
 			protected.PUT("/:agent_id/maintenance", ValidateAgentToken(s.agentService, s.authService), s.setMaintenanceMode)
 		}
 	}
@@ -313,6 +348,9 @@ func (s *Server) Start(ctx context.Context, addr string) error {
 		WriteTimeout:      60 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}
+
+	go s.runMaintenanceNoticeLoop(baseCtx)
+	go s.runExportCleanupLoop(baseCtx)
 
 	errCh := make(chan error, 1)
 	go func() {

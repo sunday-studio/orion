@@ -47,8 +47,13 @@ type ListAllMonitorsOpts struct {
 	HasIncidents bool
 	// IncludeSystem adds Core's self-monitors (worker liveness, agent connectivity).
 	IncludeSystem bool
-	Sort          string
-	Order         string
+	// Statuses keeps only monitors whose computed health is in the set (up, down, degraded, stale, unknown).
+	Statuses map[string]bool
+	AgentID  string
+	// Paused filters Core-managed monitors by paused state when set.
+	Paused *bool
+	Sort   string
+	Order  string
 }
 
 type MonitorSummary struct {
@@ -59,6 +64,8 @@ type MonitorSummary struct {
 	Unknown      int64 `json:"unknown"`
 	Stale        int64 `json:"stale"`
 	HasIncidents int64 `json:"has_incidents"`
+	// Paused counts Core-managed monitors that are paused.
+	Paused int64 `json:"paused"`
 }
 
 type MonitorService struct {
@@ -232,41 +239,6 @@ func (s *MonitorService) ListMonitors(agentID string, healthFilter string, lifec
 	return paginateMonitors(monitors, limit, offset), nil
 }
 
-func (s *MonitorService) ListAllMonitors(opts ListAllMonitorsOpts) ([]db.Monitor, int64, error) {
-	var monitors []db.Monitor
-	query := s.applyAllMonitorListFilters(s.db.Model(&db.Monitor{}), opts)
-
-	sortColumn := "updated_at"
-	switch strings.ToLower(strings.TrimSpace(opts.Sort)) {
-	case "name", "type", "health", "lifecycle", "created_at", "updated_at", "last_successful_report_at":
-		sortColumn = strings.ToLower(strings.TrimSpace(opts.Sort))
-	}
-
-	order := "desc"
-	if strings.EqualFold(opts.Order, "asc") {
-		order = "asc"
-	}
-
-	query = query.Order(sortColumn + " " + order)
-
-	if err := query.Find(&monitors).Error; err != nil {
-		s.logger.Error("Failed to list all monitors", "error", err)
-		return nil, 0, err
-	}
-
-	monitors, err := s.monitorsWithComputedHealth(monitors)
-	if err != nil {
-		return nil, 0, err
-	}
-	monitors = filterMonitorsByComputedHealth(monitors, opts.Health)
-	if opts.StaleOnly {
-		monitors = filterMonitorsByComputedHealth(monitors, "stale")
-	}
-
-	count := int64(len(monitors))
-	return paginateMonitors(monitors, opts.Limit, opts.Offset), count, nil
-}
-
 func (s *MonitorService) GetMonitorSummary() (MonitorSummary, error) {
 	var monitors []db.Monitor
 	if err := s.db.Where("lifecycle = ? AND system = ?", "active", false).Find(&monitors).Error; err != nil {
@@ -315,6 +287,7 @@ func (s *MonitorService) GetMonitorSummary() (MonitorSummary, error) {
 			return MonitorSummary{}, err
 		}
 		summary.HasIncidents = int64(len(rows))
+		s.db.Model(&db.CoreMonitorConfig{}).Where("monitor_id IN ? AND paused = ?", monitorIDs, true).Count(&summary.Paused)
 	}
 
 	return summary, nil
@@ -369,6 +342,17 @@ func (s *MonitorService) applyMonitorListFilters(query *gorm.DB, agentID string,
 func (s *MonitorService) applyAllMonitorListFilters(query *gorm.DB, opts ListAllMonitorsOpts) *gorm.DB {
 	if !opts.IncludeSystem {
 		query = query.Where("system = ?", false)
+	}
+	if opts.AgentID != "" {
+		query = query.Where("agent_id = ?", opts.AgentID)
+	}
+	if opts.Paused != nil {
+		pausedIDs := s.db.Model(&db.CoreMonitorConfig{}).Select("monitor_id").Where("paused = ?", true)
+		if *opts.Paused {
+			query = query.Where("id IN (?)", pausedIDs)
+		} else {
+			query = query.Where("id NOT IN (?)", pausedIDs)
+		}
 	}
 	coreMonitorIDs := s.db.Model(&db.CoreMonitorConfig{}).Select("monitor_id")
 

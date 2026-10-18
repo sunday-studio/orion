@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 	"orion/core/internal/db"
 	"strings"
 )
@@ -17,6 +18,8 @@ func (s *AlertService) LoadAlertRouteContext(incidentID string, eventType string
 		monitor = db.Monitor{ID: incident.MonitorID, AgentID: incident.AgentID}
 	}
 
+	var agent db.Agent
+	s.db.Select("name", "labels").Where("id = ?", incident.AgentID).Limit(1).Find(&agent)
 	return &AlertRouteContext{
 		IncidentID:  incident.ID,
 		EventType:   eventType,
@@ -24,6 +27,7 @@ func (s *AlertService) LoadAlertRouteContext(incidentID string, eventType string
 		AgentID:     incident.AgentID,
 		MonitorID:   incident.MonitorID,
 		MonitorType: monitor.Type,
+		Labels:      eventLabels(agent, monitor, incident.Severity, eventType),
 	}, nil
 }
 
@@ -32,7 +36,7 @@ func (s *AlertService) DryRunRoutes(event AlertRouteContext) (*AlertRouteDryRunR
 	if err != nil {
 		return nil, err
 	}
-	if len(routes) == 0 {
+	if len(routes) == 0 && !s.labelRoutesMatch(event.Labels) {
 		return s.evaluateLegacyFallback(event)
 	}
 	return s.evaluateRoutes(event, routes)
@@ -114,6 +118,33 @@ func (s *AlertService) evaluateRoutes(event AlertRouteContext, routes []db.Alert
 		}
 	}
 
+	// Label routes add their channels (once per channel) unless a rule already chose them or a rule suppressed the event.
+	labelMatches, err := s.EvaluateLabelRoutes(event.Labels)
+	if err != nil {
+		return nil, err
+	}
+	chosen := map[string]bool{}
+	for _, d := range result.DestinationDecisions {
+		chosen[d.ChannelID] = true
+	}
+	for _, m := range labelMatches {
+		if !m.Matched {
+			continue
+		}
+		for _, channelID := range decodeStringList(m.Route.ChannelIDs) {
+			channel, ok := channelsByID[channelID]
+			if !ok || chosen[channelID] {
+				continue
+			}
+			chosen[channelID] = true
+			reason := fmt.Sprintf("matched label route %d: %s", m.Number, DescribeMatchers(DecodeMatchers(m.Route.Matchers)))
+			if suppressingRoute != nil {
+				reason = "suppressed by alert route: " + suppressingRoute.Name
+			}
+			result.DestinationDecisions = append(result.DestinationDecisions, s.channelDecision(event, db.AlertRoute{ID: m.Route.ID, Name: fmt.Sprintf("Route %d", m.Number)}, channel, suppressingRoute != nil, reason))
+		}
+	}
+
 	return result, nil
 }
 
@@ -136,7 +167,7 @@ func (s *AlertService) channelDecision(event AlertRouteContext, route db.AlertRo
 	case !subscribesToAlertEvent(channel, event.EventType):
 		decision.Status = "suppressed"
 		decision.Reason = "alert channel is not subscribed to event"
-	case s.inCooldown(event.IncidentID, channel.Name, event.EventType, ""):
+	case s.inCooldown(route.ID, event.IncidentID, channel.Name, event.EventType, ""):
 		decision.Status = "cooldown"
 		decision.Reason = "alert cooldown active"
 	}

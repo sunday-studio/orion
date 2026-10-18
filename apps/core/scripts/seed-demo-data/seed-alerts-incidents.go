@@ -67,6 +67,9 @@ func seedIncidents(database *gorm.DB, monitors []db.Monitor, monitorToAgent map[
 		if sc.maintenance {
 			status = "acknowledged"
 		}
+		if sc.stale {
+			status = "open" // a silent monitor always has its stale incident, so the worker never opens a second one
+		}
 		openedAt := now.Add(-time.Duration(6+stats.incidents%72) * time.Hour)
 		var resolvedAt *time.Time
 		if status == "resolved" {
@@ -137,7 +140,7 @@ func seedIncidents(database *gorm.DB, monitors []db.Monitor, monitorToAgent map[
 		if incident.Status != "resolved" {
 			if err := database.Model(&db.Monitor{}).Where("id = ?", monitor.ID).Updates(map[string]any{
 				"active_incident_id": incident.ID,
-				"incident_state":     incidentState(health),
+				"incident_state":     choose(sc.stale, "stale", incidentState(health)),
 			}).Error; err != nil {
 				return stats, err
 			}

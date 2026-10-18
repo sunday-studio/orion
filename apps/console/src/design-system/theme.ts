@@ -19,7 +19,13 @@ export const readThemePreference = (): ThemePreference => {
 };
 
 const paint = (preference: ThemePreference) => {
-  document.documentElement.dataset.theme = resolve(preference);
+  const root = document.documentElement;
+  // Switching theme should not animate every colour: suspend transitions for one frame.
+  root.classList.add("ds-theme-switching");
+  root.dataset.theme = resolve(preference);
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => root.classList.remove("ds-theme-switching")),
+  );
 };
 
 /** Applies the theme to <html data-theme> and remembers an explicit choice per browser. */

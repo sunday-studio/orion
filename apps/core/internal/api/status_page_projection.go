@@ -91,7 +91,12 @@ func (s *Server) statusPageMappedResourceStatus(mapping StatusPageComponentMappi
 }
 
 func statusPageResponse(page db.StatusPage) StatusPageResponse {
+	domainStatus := ""
+	if page.CustomDomain != "" {
+		domainStatus = page.DomainStatus
+	}
 	return StatusPageResponse{
+		DomainStatus:              domainStatus,
 		ID:                        page.ID,
 		Slug:                      page.Slug,
 		CustomDomain:              page.CustomDomain,

@@ -27,6 +27,19 @@ type AgentResponse struct {
 	MonitorCount             int64          `json:"monitor_count,omitempty"`
 	IP                       *string        `json:"ip,omitempty"`
 	UptimeSeconds            *uint64        `json:"uptime_seconds,omitempty"`
+	// Labels are "key=value" strings; Notes is free text. Both are edited with PATCH /v1/agents/{id}.
+	Labels []string `json:"labels"`
+	Notes  string   `json:"notes"`
+	// Latest system metrics; null until the first report. CPUSeries has up to 12 readings, oldest first.
+	AgentVersion  string     `json:"agent_version,omitempty"`
+	LastReportAt  *time.Time `json:"last_report_at,omitempty"`
+	CPUPercent    *float64   `json:"cpu_percent"`
+	MemoryPercent *float64   `json:"memory_percent"`
+	DiskPercent   *float64   `json:"disk_percent"`
+	CPUSeries     []float64  `json:"cpu_series"`
+	// StatusText is the badge ("Up 41d", "No report 12m"); StatusDetail the one-line reason ("Disk 91%").
+	StatusText   string `json:"status_text,omitempty"`
+	StatusDetail string `json:"status_detail,omitempty"`
 }
 
 type AgentSummaryResponse struct {
@@ -74,9 +87,24 @@ type MonitorResponse struct {
 	IncidentState            string     `json:"incident_state,omitempty"`
 	Lifecycle                string     `json:"lifecycle"`
 	Health                   string     `json:"health"`
-	CreatedAt                time.Time  `json:"created_at"`
-	UpdatedAt                time.Time  `json:"updated_at"`
-	DeletedAt                time.Time  `json:"deleted_at"`
+	// StatusText ("Down 30m") and StatusDetail ("timeout after 10s") are filled on a server's monitor list.
+	StatusText   string `json:"status_text,omitempty"`
+	StatusDetail string `json:"status_detail,omitempty"`
+	// List and detail extras: runner kind, what is checked ("GET api.example.com/health"), cadence, pause state,
+	// runbook link, and the last 24 check results oldest first ("up", "degraded", "down").
+	Kind            string     `json:"kind,omitempty"`
+	Target          string     `json:"target,omitempty"`
+	IntervalSeconds int        `json:"interval_seconds,omitempty"`
+	Paused          bool       `json:"paused"`
+	PausedAt        *time.Time `json:"paused_at,omitempty"`
+	PausedBy        string     `json:"paused_by,omitempty"`
+	RunbookURL      string     `json:"runbook_url,omitempty"`
+	RecentChecks    []string   `json:"recent_checks,omitempty"`
+	// Maintenance is set while a window is active or scheduled.
+	Maintenance *MonitorMaintenanceInfo `json:"maintenance,omitempty"`
+	CreatedAt   time.Time               `json:"created_at"`
+	UpdatedAt   time.Time               `json:"updated_at"`
+	DeletedAt   time.Time               `json:"deleted_at"`
 }
 
 type MonitorReportResponse struct {
@@ -86,6 +114,11 @@ type MonitorReportResponse struct {
 	CollectedAt string    `json:"collected_at"`
 	Health      string    `json:"health"`
 	CreatedAt   time.Time `json:"created_at"`
+	// Derived for the check history drawer: passed, a one-line summary ("Timeout, 10,000 ms"), duration and source.
+	Passed     bool   `json:"passed"`
+	Summary    string `json:"summary,omitempty"`
+	DurationMs *int64 `json:"duration_ms,omitempty"`
+	ReportedBy string `json:"reported_by,omitempty"`
 }
 
 type IncidentEvidenceResponse struct {
@@ -276,21 +309,32 @@ type AlertDeliveryResponse struct {
 	NextAttemptAt *time.Time                     `json:"next_attempt_at,omitempty"`
 	LastAttemptAt *time.Time                     `json:"last_attempt_at,omitempty"`
 	Attempts      []AlertDeliveryAttemptResponse `json:"attempts"`
-	CreatedAt     time.Time                      `json:"created_at"`
-	UpdatedAt     time.Time                      `json:"updated_at"`
+	// Filled on list and detail: the alert's title ("Critical down", the rule name), the incident's INC id,
+	// the channel id, and the newest result ("502", "Timeout", "Sent") with how long the last attempt took.
+	AlertTitle        string    `json:"alert_title,omitempty"`
+	IncidentDisplayID string    `json:"incident_display_id,omitempty"`
+	ChannelID         string    `json:"channel_id,omitempty"`
+	ResultText        string    `json:"result_text,omitempty"`
+	DurationMs        *int64    `json:"duration_ms,omitempty"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
 }
 
 type AlertDeliveryAttemptResponse struct {
-	ID              string     `json:"id"`
-	AlertDeliveryID string     `json:"alert_delivery_id"`
-	AttemptNumber   int        `json:"attempt_number"`
-	Status          string     `json:"status"`
-	Stage           string     `json:"stage"`
-	Error           string     `json:"error,omitempty"`
-	StartedAt       time.Time  `json:"started_at"`
-	CompletedAt     *time.Time `json:"completed_at,omitempty"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	ID              string `json:"id"`
+	AlertDeliveryID string `json:"alert_delivery_id"`
+	AttemptNumber   int    `json:"attempt_number"`
+	Status          string `json:"status"`
+	Stage           string `json:"stage"`
+	Error           string `json:"error,omitempty"`
+	// ResultText reads "502 Bad Gateway" or "Timeout"; HTTPStatus is 0 when no response arrived.
+	ResultText  string     `json:"result_text,omitempty"`
+	HTTPStatus  int        `json:"http_status,omitempty"`
+	DurationMs  *int64     `json:"duration_ms,omitempty"`
+	StartedAt   time.Time  `json:"started_at"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 type AlertRouteResponse struct {
@@ -312,38 +356,52 @@ type AlertRouteResponse struct {
 }
 
 type AlertChannelResponse struct {
-	ID                         string     `json:"id"`
-	Name                       string     `json:"name"`
-	Type                       string     `json:"type"`
-	Enabled                    bool       `json:"enabled"`
-	WebhookURL                 string     `json:"webhook_url,omitempty"`
-	WebhookConfigured          bool       `json:"webhook_configured,omitempty"`
-	WebhookSignatureConfigured bool       `json:"webhook_signature_configured,omitempty"`
-	RecipientCount             int64      `json:"recipient_count,omitempty"`
-	ConfirmedRecipientCount    int64      `json:"confirmed_recipient_count,omitempty"`
-	SubscribedEvents           []string   `json:"subscribed_events"`
-	LastDeliveryStatus         string     `json:"last_delivery_status,omitempty"`
-	LastDeliveryAt             *time.Time `json:"last_delivery_at,omitempty"`
-	CreatedAt                  time.Time  `json:"created_at"`
-	UpdatedAt                  time.Time  `json:"updated_at"`
+	ID                         string   `json:"id"`
+	Name                       string   `json:"name"`
+	Type                       string   `json:"type"`
+	Enabled                    bool     `json:"enabled"`
+	WebhookURL                 string   `json:"webhook_url,omitempty"`
+	WebhookConfigured          bool     `json:"webhook_configured,omitempty"`
+	WebhookSignatureConfigured bool     `json:"webhook_signature_configured,omitempty"`
+	RecipientCount             int64    `json:"recipient_count,omitempty"`
+	ConfirmedRecipientCount    int64    `json:"confirmed_recipient_count,omitempty"`
+	SubscribedEvents           []string `json:"subscribed_events"`
+	// Health: failing (the newest delivery failed), healthy (it succeeded) or untested (never delivered).
+	Health              string `json:"health" enums:"failing,healthy,untested"`
+	ConsecutiveFailures int    `json:"consecutive_failures"`
+	// LastDeliveryText reads "3 failed, 502", "Sent" or "Never".
+	LastDeliveryText   string     `json:"last_delivery_text"`
+	HeaderNames        []string   `json:"header_names"`
+	SigningSecretMask  string     `json:"signing_secret_mask,omitempty"`
+	EmailDeliveryMode  string     `json:"email_delivery_mode,omitempty"`
+	EmailSubjectPrefix string     `json:"email_subject_prefix,omitempty"`
+	LastDeliveryStatus string     `json:"last_delivery_status,omitempty"`
+	LastDeliveryAt     *time.Time `json:"last_delivery_at,omitempty"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
 }
 
 type AlertRuleResponse struct {
-	ID                   string    `json:"id"`
-	Name                 string    `json:"name"`
-	Enabled              bool      `json:"enabled"`
-	Priority             int       `json:"priority"`
-	EventTypes           []string  `json:"event_types"`
-	Severities           []string  `json:"severities"`
-	AgentIDs             []string  `json:"agent_ids"`
-	MonitorIDs           []string  `json:"monitor_ids"`
-	MonitorTypes         []string  `json:"monitor_types"`
-	ChannelIDs           []string  `json:"channel_ids"`
-	Suppress             bool      `json:"suppress"`
-	GroupingPolicy       string    `json:"grouping_policy"`
-	GroupingDelaySeconds int       `json:"grouping_delay_seconds"`
-	CreatedAt            time.Time `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
+	CooldownSeconds int `json:"cooldown_seconds"`
+	// Summary is the sentence in the Rules list; Last24hFired counts distinct incident notifications in the last day.
+	Summary              string        `json:"summary"`
+	Last24hFired         int64         `json:"last_24h_fired"`
+	HowItRuns            RuleHowItRuns `json:"how_it_runs"`
+	ID                   string        `json:"id"`
+	Name                 string        `json:"name"`
+	Enabled              bool          `json:"enabled"`
+	Priority             int           `json:"priority"`
+	EventTypes           []string      `json:"event_types"`
+	Severities           []string      `json:"severities"`
+	AgentIDs             []string      `json:"agent_ids"`
+	MonitorIDs           []string      `json:"monitor_ids"`
+	MonitorTypes         []string      `json:"monitor_types"`
+	ChannelIDs           []string      `json:"channel_ids"`
+	Suppress             bool          `json:"suppress"`
+	GroupingPolicy       string        `json:"grouping_policy"`
+	GroupingDelaySeconds int           `json:"grouping_delay_seconds"`
+	CreatedAt            time.Time     `json:"created_at"`
+	UpdatedAt            time.Time     `json:"updated_at"`
 }
 
 type AlertRouteDryRunResponse struct {

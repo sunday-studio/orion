@@ -42,7 +42,7 @@ func alertDeliveryResponses(deliveries []db.AlertDelivery) []AlertDeliveryRespon
 	return responses
 }
 func alertDeliveryAttemptResponse(attempt db.AlertDeliveryAttempt) AlertDeliveryAttemptResponse {
-	return AlertDeliveryAttemptResponse{ID: attempt.ID, AlertDeliveryID: attempt.AlertDeliveryID, AttemptNumber: attempt.AttemptNumber, Status: attempt.Status, Stage: attempt.Stage, Error: safeAlertDeliveryError(attempt.Error), StartedAt: attempt.StartedAt, CompletedAt: attempt.CompletedAt, CreatedAt: attempt.CreatedAt, UpdatedAt: attempt.UpdatedAt}
+	return enrichAttemptResponse(attempt, AlertDeliveryAttemptResponse{ID: attempt.ID, AlertDeliveryID: attempt.AlertDeliveryID, AttemptNumber: attempt.AttemptNumber, Status: attempt.Status, Stage: attempt.Stage, Error: safeAlertDeliveryError(attempt.Error), StartedAt: attempt.StartedAt, CompletedAt: attempt.CompletedAt, CreatedAt: attempt.CreatedAt, UpdatedAt: attempt.UpdatedAt})
 }
 func alertDeliveryAttemptResponses(attempts []db.AlertDeliveryAttempt) []AlertDeliveryAttemptResponse {
 	responses := make([]AlertDeliveryAttemptResponse, 0, len(attempts))
@@ -53,7 +53,7 @@ func alertDeliveryAttemptResponses(attempts []db.AlertDeliveryAttempt) []AlertDe
 }
 func safeAlertDeliveryError(value string) string {
 	switch value {
-	case "", "alert channel disabled", "alert cooldown active", "no alert channels configured", "no alert routes matched", "alert route destination missing", "alert grouped into active alert group", "alert grouped; sibling incidents still active", "alert grouped summary pending":
+	case "", "alert channel disabled", "alert cooldown active", "no alert channels configured", "no alert routes matched", "alert route destination missing", "alert grouped into active alert group", "alert grouped; sibling incidents still active", "alert grouped summary pending", "no confirmed email recipients", "server removed", "monitor removed":
 		return value
 	default:
 		if strings.HasPrefix(value, "alert route suppressed event") {

@@ -141,7 +141,7 @@ export const ConnectAppPage = () => {
   }[step];
 
   return (
-    <div className="mx-auto w-full max-w-[712px]">
+    <div className="w-full">
       <PageHeader title={heading.title} description={heading.description} actions={cancel} />
       <StepIndicator steps={STEP_LABELS} current={stepNumber[step]} />
       <div className="flex flex-col gap-3">

@@ -1,12 +1,14 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
 	"orion/core/internal/utils"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type statusPageBadge struct {
@@ -27,8 +29,8 @@ type statusPageBadge struct {
 // @Failure      500   {object}  utils.APIResponse
 // @Router       /status/{slug}/badge.svg [get]
 func (s *Server) getPublicStatusPageBadge(c *gin.Context) {
-	preview, ok := s.loadPublicStatusPageProjection(c, c.Param("slug"))
-	if !ok {
+	preview, found := s.publicBadgeProjection(c)
+	if !found {
 		return
 	}
 
@@ -52,8 +54,8 @@ func (s *Server) getPublicStatusPageBadge(c *gin.Context) {
 // @Failure      500           {object}  utils.APIResponse
 // @Router       /status/{slug}/components/{component_id}/badge.svg [get]
 func (s *Server) getPublicStatusPageComponentBadge(c *gin.Context) {
-	preview, ok := s.loadPublicStatusPageProjection(c, c.Param("slug"))
-	if !ok {
+	preview, found := s.publicBadgeProjection(c)
+	if !found {
 		return
 	}
 
@@ -88,4 +90,54 @@ func (s *Server) writeStatusPageBadge(c *gin.Context, badge statusPageBadge) {
 	c.Header("Cache-Control", utils.StatusBadgeCacheControl)
 	c.Header("X-Content-Type-Options", "nosniff")
 	c.Data(http.StatusOK, "image/svg+xml; charset=utf-8", []byte(svg))
+}
+
+// publicBadgeProjection loads the public page for a badge. Unknown, draft and private pages all
+// answer with the same grey "unknown" badge, so a badge never reveals whether a page exists.
+func (s *Server) publicBadgeProjection(c *gin.Context) (StatusPagePreviewResponse, bool) {
+	page, err := s.loadPublicStatusPageForRequest(c, c.Param("slug"))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			s.writeStatusPageBadge(c, statusPageBadge{Label: "Status", Status: "unknown", StatusDisplay: "unknown"})
+		} else {
+			utils.InternalError(c, "Failed to load status page", err)
+		}
+		return StatusPagePreviewResponse{}, false
+	}
+	detail, err := s.loadStatusPageDetail(page.ID)
+	if err != nil {
+		utils.InternalError(c, "Failed to load status page", err)
+		return StatusPagePreviewResponse{}, false
+	}
+	return s.statusPagePreviewWithUptime(detail, false, statusPagePublicDefaultUptimeWindow), true
+}
+
+// getPublicStatusPageBadgeJSON returns a shields.io endpoint-compatible status badge.
+// @Summary      Get public status page badge as JSON
+// @Description  Shields.io endpoint format: schemaVersion, label, message, color.
+// @Tags         public-status
+// @Produce      json
+// @ID           getPublicStatusPageBadgeJSON
+// @Param        slug  path  string  true  "Status page slug"
+// @Success      200   {object}  map[string]interface{}
+// @Router       /status/{slug}/badge.json [get]
+func (s *Server) getPublicStatusPageBadgeJSON(c *gin.Context) {
+	label, status, display := "Status", "unknown", "unknown"
+	if preview, found := s.publicBadgeProjectionQuiet(c); found {
+		label, status, display = preview.Page.Title, preview.OverallStatus, strings.ToLower(preview.OverallStatusDisplay)
+	}
+	c.Header("Cache-Control", utils.StatusBadgeCacheControl)
+	c.JSON(http.StatusOK, gin.H{"schemaVersion": 1, "label": label, "message": display, "color": strings.TrimPrefix(utils.StatusBadgeColor(status), "#")})
+}
+
+func (s *Server) publicBadgeProjectionQuiet(c *gin.Context) (StatusPagePreviewResponse, bool) {
+	page, err := s.loadPublicStatusPageForRequest(c, c.Param("slug"))
+	if err != nil {
+		return StatusPagePreviewResponse{}, false
+	}
+	detail, err := s.loadStatusPageDetail(page.ID)
+	if err != nil {
+		return StatusPagePreviewResponse{}, false
+	}
+	return s.statusPagePreviewWithUptime(detail, false, statusPagePublicDefaultUptimeWindow), true
 }

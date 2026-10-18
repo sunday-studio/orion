@@ -116,7 +116,7 @@ func (s *Server) requestHostHasCustomStatusPage(c *gin.Context) bool {
 	}
 	var count int64
 	if err := s.db.Model(&db.StatusPage{}).
-		Where("custom_domain = ? AND visibility IN ?", host, []string{statusPageVisibilityPublic, statusPageVisibilityUnlisted}).
+		Where("custom_domain = ? AND domain_status = ? AND visibility IN ?", host, domainStatusVerified, []string{statusPageVisibilityPublic, statusPageVisibilityUnlisted}).
 		Count(&count).Error; err != nil {
 		s.logger.Error("Failed to check status page custom domain", "host", host, "error", err)
 		return false

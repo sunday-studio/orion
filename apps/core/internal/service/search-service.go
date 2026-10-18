@@ -3,6 +3,7 @@ package service
 import (
 	"orion/core/internal/db"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -44,7 +45,7 @@ func Search(database *gorm.DB, q string) ([]SearchHit, error) {
 		hits = append(hits, SearchHit{Type: "incident", ID: i.ID, Name: i.Title, Status: i.Status, Number: i.Number})
 	}
 	var agents []db.Agent
-	if err := database.Where("system = ? AND LOWER(name) LIKE ? ESCAPE '\\'", false, pattern).Order("name ASC").Limit(searchPerGroup).Find(&agents).Error; err != nil {
+	if err := database.Where("system = ? AND (deleted_at IS NULL OR deleted_at = ?) AND LOWER(name) LIKE ? ESCAPE '\\'", false, time.Time{}, pattern).Order("name ASC").Limit(searchPerGroup).Find(&agents).Error; err != nil {
 		return nil, err
 	}
 	for _, a := range agents {

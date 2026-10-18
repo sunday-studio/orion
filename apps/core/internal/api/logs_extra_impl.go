@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"orion/core/internal/db"
@@ -27,6 +26,9 @@ func (s *Server) logQuery(c *gin.Context, now time.Time) (logstore.Query, time.T
 		AppIDs: splitList(c.Query("app_id")), Severity: c.Query("severity"), Event: c.Query("event"), Text: c.Query("q"),
 		From: from, To: to, TraceID: c.Query("trace_id"), RequestID: c.Query("request_id"), Attrs: c.QueryArray("attr"),
 	}
+	if c.GetBool(internalLogsKey) {
+		q.AppIDs = []string{logstore.InternalAppID}
+	}
 	return q, from, to, true
 }
 
@@ -45,13 +47,11 @@ func (s *Server) getLogHistogramImpl(c *gin.Context) {
 	if to.IsZero() {
 		to = now
 	}
+	q, cancel := scoped(c, q)
+	defer cancel()
 	width, buckets, err := s.logs.store.Histogram(q, from, to, utils.QueryInt(c, "buckets", 60))
 	if err != nil {
-		if errors.Is(err, logstore.ErrBadFilter) {
-			utils.BadRequest(c, err.Error())
-			return
-		}
-		utils.InternalError(c, "Failed to compute the histogram", err)
+		logQueryFailed(c, err, "Failed to compute the histogram")
 		return
 	}
 	out := make([]LogHistogramBucket, 0, len(buckets))

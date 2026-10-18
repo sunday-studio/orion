@@ -22,7 +22,7 @@ import { AddServerProgress } from "./add-server-progress";
 import { NOT_CONNECTED_AFTER_MS, type ServerPlatform, coreHost, platformTiles } from "./enrollment";
 
 const Narrow = ({ children }: { children: React.ReactNode }) => (
-  <div className="mx-auto w-full max-w-[712px]">{children}</div>
+  <div className="w-full">{children}</div>
 );
 
 const CancelButton = () => (

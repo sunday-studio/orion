@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -27,15 +28,17 @@ type Entry struct {
 	IngestedAt     time.Time
 	Severity       string
 	SeverityNumber int
-	Event          string
-	Body           string
-	BodyJSON       string // raw JSON when the body was structured, else empty
-	Attributes     map[string]any
-	Resource       map[string]any
-	TraceID        string
-	SpanID         string
-	RequestID      string
-	Size           int
+	// SeverityInferred is true when the sender gave no severity and it was read from the text.
+	SeverityInferred bool
+	Event            string
+	Body             string
+	BodyJSON         string // raw JSON when the body was structured, else empty
+	Attributes       map[string]any
+	Resource         map[string]any
+	TraceID          string
+	SpanID           string
+	RequestID        string
+	Size             int
 }
 
 // EntryError explains why one entry was rejected.
@@ -256,6 +259,12 @@ func Normalize(object map[string]any, rawSize int, now time.Time) (Entry, *Entry
 		}
 	}
 	entry.Severity, entry.SeverityNumber = NormalizeSeverity(severity)
+	if severity == nil && entry.BodyJSON == "" {
+		if name, ok := inferSeverity(entry.Body); ok {
+			entry.Severity, entry.SeverityNumber = NormalizeSeverity(name)
+			entry.SeverityInferred = true
+		}
+	}
 
 	if depth, keys := measure(attributes, 1); depth > MaxAttributeDepth {
 		return Entry{}, &EntryError{Code: "attributes_too_deep", Message: fmt.Sprintf("attributes are nested %d levels, the limit is %d", depth, MaxAttributeDepth)}
@@ -310,4 +319,24 @@ func CanonicalSeverity(name string) (string, bool) {
 	}
 	_, ok := severityByName[name]
 	return name, ok
+}
+
+var severityWord = regexp.MustCompile(`(?i)(?:^|[\s\[(<])(fatal|panic|critical|crit|error|err|exception|warning|warn|debug|trace|info)(?:$|[\s\]):>=])`)
+
+// inferSeverity reads a level word from a plain text line ("ERROR upload failed", "[warn] slow disk").
+// Only the start of the line counts, so a message that merely mentions "error" stays info.
+func inferSeverity(body string) (string, bool) {
+	head := body
+	if len(head) > 40 {
+		head = head[:40]
+	}
+	m := severityWord.FindStringSubmatchIndex(head)
+	if m == nil {
+		return "", false
+	}
+	if m[2] > 24 {
+		return "", false
+	}
+	word := strings.ToLower(head[m[2]:m[3]])
+	return word, true
 }

@@ -52,7 +52,7 @@ export const HealthIssuesPage = () => {
   const list = issues.data?.issues ?? [];
   const { pageItems, pagination } = useClientPagination(list);
   return (
-    <div className="mx-auto w-full max-w-[1000px] pb-8">
+    <div className="w-full pb-8">
       <PageHeader
         title="Health issues"
         description="Monitors and servers that are down, degraded or stale, worst first."
@@ -86,7 +86,11 @@ export const HealthIssuesPage = () => {
                 <span />
               </GridRow>
               {pageItems.map((issue, index) => (
-                <GridRow key={`${issue.kind}-${issue.target_id ?? index}`} columns={COLUMNS}>
+                <GridRow
+                  key={`${issue.kind}-${issue.target_id ?? index}`}
+                  flipId={`${issue.kind}-${issue.target_id ?? index}`}
+                  columns={COLUMNS}
+                >
                   <Dot color={healthDot(issue.health)} />
                   <b className="font-medium">
                     {issue.target_name ?? issue.monitor_name ?? issue.agent_name}

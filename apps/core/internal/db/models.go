@@ -107,19 +107,26 @@ type DiskStats struct {
 type Agent struct {
 	ID string `json:"id" gorm:"primaryKey"`
 	// System marks Core's own owner agent; it is not a user server and is hidden from counts and default lists.
-	System                   bool                            `json:"system" gorm:"not null;default:false"`
-	MachineId                string                          `json:"machine_id" gorm:"uniqueIndex;not null"`
-	Name                     string                          `json:"name" gorm:"not null"`
-	OS                       string                          `json:"os" gorm:"not null"`
-	Platform                 string                          `json:"platform"`
-	KernelVersion            string                          `json:"kernel_version"`
-	Arch                     string                          `json:"arch" gorm:"not null"`
-	Token                    string                          `json:"token" gorm:"uniqueIndex;not null"`
-	TokenHash                string                          `json:"token_hash" gorm:"not null;default:'';index:idx_agents_token_hash"`
-	TokenVersion             int                             `json:"token_version" gorm:"not null;default:1"`
-	TokenRotatedAt           *time.Time                      `json:"token_rotated_at"`
-	TokenRevokedAt           *time.Time                      `json:"token_revoked_at" gorm:"index:idx_agents_token_revoked_at"`
-	TokenRevocationReason    string                          `json:"token_revocation_reason" gorm:"type:text;not null;default:''"`
+	System                bool       `json:"system" gorm:"not null;default:false"`
+	MachineId             string     `json:"machine_id" gorm:"uniqueIndex;not null"`
+	Name                  string     `json:"name" gorm:"not null"`
+	OS                    string     `json:"os" gorm:"not null"`
+	Platform              string     `json:"platform"`
+	KernelVersion         string     `json:"kernel_version"`
+	Arch                  string     `json:"arch" gorm:"not null"`
+	Token                 string     `json:"token" gorm:"uniqueIndex;not null"`
+	TokenHash             string     `json:"token_hash" gorm:"not null;default:'';index:idx_agents_token_hash"`
+	TokenVersion          int        `json:"token_version" gorm:"not null;default:1"`
+	TokenRotatedAt        *time.Time `json:"token_rotated_at"`
+	TokenRevokedAt        *time.Time `json:"token_revoked_at" gorm:"index:idx_agents_token_revoked_at"`
+	TokenRevocationReason string     `json:"token_revocation_reason" gorm:"type:text;not null;default:''"`
+	// PreviousTokenHash keeps the replaced token valid until PreviousTokenExpiresAt after a rotation,
+	// so the agent can be updated without a gap.
+	PreviousTokenHash      string     `json:"-" gorm:"not null;default:''"`
+	PreviousTokenExpiresAt *time.Time `json:"-"`
+	// Labels is a JSON array of "key=value" strings; Notes is free text for operators.
+	Labels                   string                          `json:"labels" gorm:"type:text;not null;default:'[]'"`
+	Notes                    string                          `json:"notes" gorm:"type:text;not null;default:''"`
 	MaintenanceMode          bool                            `json:"maintenance_mode" gorm:"default:false"`
 	MaintenanceUntil         *time.Time                      `json:"maintenance_until"`
 	ReportingIntervalSeconds int                             `json:"reporting_interval_seconds" gorm:"default:60"` // System metrics reporting interval
@@ -178,8 +185,14 @@ type Monitor struct {
 	IncidentState            string     `json:"incident_state" gorm:"not null;default:unknown;index:idx_monitors_incident_state"`
 
 	Lifecycle string `json:"lifecycle" gorm:"not null;index:idx_monitors_lifecycle"` // active | disabled | deleted
-	Health    string `json:"health" gorm:"not null;index:idx_monitors_health"`       // up | down | degraded | unknown
-	Meta      string `json:"meta" gorm:"type:text"`
+	// RunbookURL is shown on incidents for this monitor.
+	RunbookURL string `json:"runbook_url" gorm:"not null;default:''"`
+	// Maintenance window: checks keep running but incidents and alerts are held between the two times.
+	MaintenanceStartsAt *time.Time `json:"maintenance_starts_at"`
+	MaintenanceEndsAt   *time.Time `json:"maintenance_ends_at"`
+	MaintenanceReason   string     `json:"maintenance_reason" gorm:"not null;default:''"`
+	Health              string     `json:"health" gorm:"not null;index:idx_monitors_health"` // up | down | degraded | unknown
+	Meta                string     `json:"meta" gorm:"type:text"`
 
 	CreatedAt time.Time `json:"created_at" gorm:"index:idx_monitors_created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -223,16 +236,20 @@ type CoreMonitorConfig struct {
 	ConfirmationCheckCount    int        `json:"confirmation_check_count" gorm:"not null;default:0"`
 	RecoveryPeriodSeconds     int        `json:"recovery_period_seconds" gorm:"not null;default:0"`
 	Paused                    bool       `json:"paused" gorm:"not null;default:false;index:idx_core_monitor_configs_due"`
-	NextRunAt                 time.Time  `json:"next_run_at" gorm:"not null;index:idx_core_monitor_configs_due"`
-	LastRunAt                 *time.Time `json:"last_run_at"`
-	LastSignalAt              *time.Time `json:"last_signal_at"`
-	LastSuccessAt             *time.Time `json:"last_success_at"`
-	LastFailureAt             *time.Time `json:"last_failure_at"`
-	LeaseOwner                string     `json:"lease_owner" gorm:"not null;default:'';index:idx_core_monitor_configs_lease_owner"`
-	LeaseExpiresAt            *time.Time `json:"lease_expires_at" gorm:"index:idx_core_monitor_configs_due;index:idx_core_monitor_configs_lease_expires_at"`
-	CreatedAt                 time.Time  `json:"created_at"`
-	UpdatedAt                 time.Time  `json:"updated_at"`
-	Monitor                   Monitor    `json:"monitor,omitempty" gorm:"foreignKey:MonitorID;references:ID"`
+	PausedAt                  *time.Time `json:"paused_at"`
+	PausedBy                  string     `json:"paused_by" gorm:"not null;default:''"`
+	// HeartbeatTokenPrefix is the first characters of a heartbeat token, so the setup screen can show a masked URL.
+	HeartbeatTokenPrefix string     `json:"-" gorm:"not null;default:''"`
+	NextRunAt            time.Time  `json:"next_run_at" gorm:"not null;index:idx_core_monitor_configs_due"`
+	LastRunAt            *time.Time `json:"last_run_at"`
+	LastSignalAt         *time.Time `json:"last_signal_at"`
+	LastSuccessAt        *time.Time `json:"last_success_at"`
+	LastFailureAt        *time.Time `json:"last_failure_at"`
+	LeaseOwner           string     `json:"lease_owner" gorm:"not null;default:'';index:idx_core_monitor_configs_lease_owner"`
+	LeaseExpiresAt       *time.Time `json:"lease_expires_at" gorm:"index:idx_core_monitor_configs_due;index:idx_core_monitor_configs_lease_expires_at"`
+	CreatedAt            time.Time  `json:"created_at"`
+	UpdatedAt            time.Time  `json:"updated_at"`
+	Monitor              Monitor    `json:"monitor,omitempty" gorm:"foreignKey:MonitorID;references:ID"`
 }
 
 type CoreWorkerStatus struct {
@@ -323,8 +340,13 @@ type StatusPage struct {
 	ThemeSettings             string     `json:"theme_settings" gorm:"type:text;not null;default:'{}'"`
 	DefaultIncidentVisibility string     `json:"default_incident_visibility" gorm:"not null;default:draft"`
 	PublishedAt               *time.Time `json:"published_at" gorm:"index:idx_status_pages_published_at"`
-	CreatedAt                 time.Time  `json:"created_at"`
-	UpdatedAt                 time.Time  `json:"updated_at"`
+	// Custom domain DNS verification: pending, verified or failed.
+	DomainStatus     string     `json:"domain_status" gorm:"not null;default:pending"`
+	DomainCheckedAt  *time.Time `json:"domain_checked_at"`
+	DomainVerifiedAt *time.Time `json:"domain_verified_at"`
+	DomainError      string     `json:"domain_error" gorm:"not null;default:''"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
 }
 
 type StatusPageSection struct {
@@ -473,13 +495,4 @@ type IncidentCandidateDismissal struct {
 	DismissedBy string    `json:"dismissed_by"`
 	Reason      string    `json:"reason"`
 	DismissedAt time.Time `json:"dismissed_at"`
-}
-
-// InMaintenance reports whether the agent is in an unexpired maintenance window.
-// A flag without an end time (legacy data) counts as active until it is migrated.
-func (a Agent) InMaintenance(now time.Time) bool {
-	if !a.MaintenanceMode {
-		return false
-	}
-	return a.MaintenanceUntil == nil || now.Before(*a.MaintenanceUntil)
 }

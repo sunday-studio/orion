@@ -1,0 +1,37 @@
+/*
+ * Shared motion. Principles (docs/web/motion.md):
+ * - interactions use transitions (interruptible); keyframes only for one-shot sequences
+ * - nothing animates on first load; things move when they change
+ * - calm easing, no bounce; exits are subtler than enters; reduced motion turns it all off
+ */
+:root {
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-move: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-fast: 150ms;
+  --dur-base: 250ms;
+  --dur-move: 380ms;
+}
+
+/* A table that is refetching dims slightly instead of jumping. */
+.ds-fetching {
+  opacity: 0.55;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+.ds-settled {
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+
+/* Switching light and dark should not animate every colour at once. */
+.ds-theme-switching,
+.ds-theme-switching * {
+  transition: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -50,7 +50,8 @@ CREATE TABLE IF NOT EXISTS log_entries (
   trace_id TEXT NOT NULL DEFAULT '',
   span_id TEXT NOT NULL DEFAULT '',
   request_id TEXT NOT NULL DEFAULT '',
-  size INTEGER NOT NULL DEFAULT 0
+  size INTEGER NOT NULL DEFAULT 0,
+  severity_inferred INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_log_entries_app_ts ON log_entries(app_id, ts DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_log_entries_app_sev_ts ON log_entries(app_id, severity_number, ts DESC);
@@ -91,6 +92,10 @@ type Store struct {
 
 	hub *hub
 
+	usageMu    sync.Mutex
+	usageAt    time.Time
+	usageCache Usage
+
 	closeOnce sync.Once
 	closed    atomic.Bool
 	done      chan struct{}
@@ -112,8 +117,8 @@ func OpenReader(dataDir string, logger *utils.Logger) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := database.Exec(schema).Error; err != nil {
-		return nil, fmt.Errorf("apply logs schema: %w", err)
+	if err := applySchema(database); err != nil {
+		return nil, err
 	}
 	s := &Store{db: database, logger: logger, queueMax: 1, batches: make(chan []Entry), done: make(chan struct{}), hub: newHub()}
 	close(s.done)
@@ -123,8 +128,8 @@ func OpenReader(dataDir string, logger *utils.Logger) (*Store, error) {
 
 // OpenWith starts a Store on an existing handle (tests).
 func OpenWith(database *gorm.DB, logger *utils.Logger, queueMax int) (*Store, error) {
-	if err := database.Exec(schema).Error; err != nil {
-		return nil, fmt.Errorf("apply logs schema: %w", err)
+	if err := applySchema(database); err != nil {
+		return nil, err
 	}
 	if queueMax <= 0 {
 		queueMax = DefaultQueueMax
@@ -245,14 +250,14 @@ func (s *Store) insert(entries []Entry) (int64, error) {
 		stored = 0
 		for start := 0; start < len(entries); start += insertChunk {
 			end := min(start+insertChunk, len(entries))
-			sql := "INSERT OR IGNORE INTO log_entries (id, app_id, client_id, ts, ingested_at, severity, severity_number, event, body, body_json, attributes, resource, trace_id, span_id, request_id, size) VALUES "
-			args := make([]any, 0, (end-start)*16)
+			sql := "INSERT OR IGNORE INTO log_entries (id, app_id, client_id, ts, ingested_at, severity, severity_number, event, body, body_json, attributes, resource, trace_id, span_id, request_id, size, severity_inferred) VALUES "
+			args := make([]any, 0, (end-start)*17)
 			for i, e := range entries[start:end] {
 				if i > 0 {
 					sql += ","
 				}
-				sql += "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
-				args = append(args, e.ID, e.AppID, e.ClientID, e.Timestamp.UnixNano(), e.IngestedAt.UnixNano(), e.Severity, e.SeverityNumber, e.Event, e.Body, e.BodyJSON, encodeJSON(e.Attributes), encodeJSON(e.Resource), e.TraceID, e.SpanID, e.RequestID, e.Size)
+				sql += "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+				args = append(args, e.ID, e.AppID, e.ClientID, e.Timestamp.UnixNano(), e.IngestedAt.UnixNano(), e.Severity, e.SeverityNumber, e.Event, e.Body, e.BodyJSON, encodeJSON(e.Attributes), encodeJSON(e.Resource), e.TraceID, e.SpanID, e.RequestID, e.Size, e.SeverityInferred)
 			}
 			res := tx.Exec(sql, args...)
 			if res.Error != nil {
@@ -278,4 +283,24 @@ func NewEntryID(now time.Time) string {
 
 func isStorageFull(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "database or disk is full")
+}
+
+// applySchema creates the tables and adds columns introduced after the first release.
+func applySchema(database *gorm.DB) error {
+	if err := database.Exec(schema).Error; err != nil {
+		return fmt.Errorf("apply logs schema: %w", err)
+	}
+	var cols []struct{ Name string }
+	if err := database.Raw("SELECT name FROM pragma_table_info('log_entries')").Scan(&cols).Error; err != nil {
+		return fmt.Errorf("read logs schema: %w", err)
+	}
+	for _, c := range cols {
+		if c.Name == "severity_inferred" {
+			return nil
+		}
+	}
+	if err := database.Exec("ALTER TABLE log_entries ADD COLUMN severity_inferred INTEGER NOT NULL DEFAULT 0").Error; err != nil {
+		return fmt.Errorf("add severity_inferred: %w", err)
+	}
+	return nil
 }
