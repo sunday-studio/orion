@@ -11,10 +11,12 @@ import {
   RaisedCard,
   Select,
 } from "@/design-system";
-import { useGetAgents } from "@/orion-sdk";
-
-/** Core's agent monitor definitions (F4 batch B) are not available yet; flip when they land. */
-export const AGENT_MONITOR_API_AVAILABLE = false;
+import {
+  type ApiAgentMonitorDefinitionRequestCheckType,
+  useCreateAgentMonitorDefinition,
+  useGetAgents,
+  useListAgentMonitorDefinitions,
+} from "@/orion-sdk";
 
 const WHAT = [
   { value: "disk", title: "Disk usage", caption: "Threshold" },
@@ -44,9 +46,53 @@ export const AgentMonitorSetupPage = () => {
   const [value, setValue] = useState("");
   const [every, setEvery] = useState("30");
   const [fail, setFail] = useState("3");
-  const [notice, setNotice] = useState(false);
+  const [error, setError] = useState(false);
+  const [created, setCreated] = useState<string>();
+  const create = useCreateAgentMonitorDefinition();
   const chosen = servers.find((agent) => agent.id === server) ?? servers[0];
   const [label, placeholder] = field[what as keyof typeof field] ?? field.process;
+  const definitions = useListAgentMonitorDefinitions(chosen?.id ?? "", {
+    query: { enabled: Boolean(created && chosen?.id), refetchInterval: 5000 },
+  });
+  const definition = (definitions.data?.definitions ?? []).find((item) => item.id === created);
+
+  const submit = () => {
+    if (!chosen?.id) return;
+    const text = value.trim();
+    const params: Record<string, unknown> =
+      what === "disk"
+        ? { path: text, threshold_percent: 90 }
+        : what === "memory"
+          ? { threshold_percent: Number(text) }
+          : what === "port"
+            ? { port: Number(text) }
+            : { process_name: text };
+    const name =
+      what === "process"
+        ? text
+        : what === "disk"
+          ? `disk ${text}`
+          : what === "port"
+            ? `port ${text}`
+            : "memory";
+    setError(false);
+    create.mutate(
+      {
+        agentId: chosen.id,
+        data: {
+          name,
+          check_type: what as ApiAgentMonitorDefinitionRequestCheckType,
+          params,
+          interval_seconds: Number(every),
+          fail_after: Number(fail),
+        },
+      },
+      {
+        onSuccess: (result) => setCreated(result.definition?.id),
+        onError: () => setError(true),
+      },
+    );
+  };
 
   return (
     <div className="mx-auto w-full max-w-[712px] pb-8">
@@ -123,19 +169,23 @@ export const AgentMonitorSetupPage = () => {
         <FieldPanel title="First report" aside="After you create it">
           <RaisedCard>
             <div className="grid grid-cols-[12px_auto_1fr] items-center gap-3 px-3.5 py-2.5 text-[13px]">
-              <Dot color="#a1a1aa" />
+              <Dot color={definition?.state === "reporting" ? "#2a9f69" : "#a1a1aa"} />
               <b className="font-medium">
-                Waiting for {chosen?.name ?? "the server"} to run the check
+                {definition?.state === "reporting"
+                  ? `${chosen?.name} is reporting this check`
+                  : `Waiting for ${chosen?.name ?? "the server"} to run the check`}
               </b>
               <span className="text-right text-xs text-faint">
-                The agent picks it up on its next report, usually within 30 seconds.
+                {created
+                  ? "The agent picks it up when it next syncs its definitions."
+                  : "Appears after you create the monitor."}
               </span>
             </div>
           </RaisedCard>
         </FieldPanel>
-        {notice && (
+        {error && (
           <Callout tone="warn">
-            Creating agent monitors needs a Core update that is not available yet.
+            Unable to create the monitor. Check the values and try again.
           </Callout>
         )}
         <div className="flex justify-end gap-1.5">
@@ -146,8 +196,8 @@ export const AgentMonitorSetupPage = () => {
           </Link>
           <Button
             size="sm"
-            disabled={!chosen || !value.trim()}
-            onClick={() => !AGENT_MONITOR_API_AVAILABLE && setNotice(true)}
+            disabled={!chosen || !value.trim() || create.isPending || Boolean(created)}
+            onClick={submit}
           >
             Create monitor
           </Button>
