@@ -93,7 +93,11 @@ func (s *Server) getLogFacetsImpl(c *gin.Context) {
 			}
 		}
 	}
-	if field := strings.TrimSpace(c.Query("field")); field != "" {
+	field := strings.TrimSpace(c.Query("field"))
+	if field == "" && c.GetBool(internalLogsKey) {
+		field = "component" // the Internal logs rail is the component list
+	}
+	if field != "" {
 		values, err := s.logs.store.FieldValues(q, field, utils.QueryInt(c, "values", 10))
 		if err != nil {
 			logQueryFailed(c, err, "Failed to compute field values")
@@ -209,4 +213,15 @@ func boolInt(b bool) int {
 		return 1
 	}
 	return 0
+}
+
+// internalLogsKey marks a request as the Internal logs screen: queries are pinned to Core's own log lines.
+const internalLogsKey = "internal_logs"
+
+// internalScope serves a product-log handler for Core's own log lines.
+func internalScope(handler gin.HandlerFunc) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Set(internalLogsKey, true)
+		handler(c)
+	}
 }

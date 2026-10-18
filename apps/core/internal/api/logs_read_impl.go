@@ -40,6 +40,9 @@ func toLogEntry(e logstore.Entry, appNames map[string]string) LogEntry {
 		Severity: LogSeverity(e.Severity), SeverityValue: e.SeverityNumber, SeverityInferred: e.SeverityInferred, Event: e.Event, Body: e.Body,
 		Attributes: e.Attributes, Resource: e.Resource, TraceID: e.TraceID, SpanID: e.SpanID, RequestID: e.RequestID,
 	}
+	if e.AppID == logstore.InternalAppID {
+		out.Source, out.AppName = "internal", "Orion Core"
+	}
 	if e.BodyJSON != "" {
 		var structured interface{}
 		if err := jsonUnmarshal(e.BodyJSON, &structured); err == nil {
@@ -62,8 +65,12 @@ func (s *Server) searchLogsImpl(c *gin.Context) {
 	}
 	var appIDs []string
 	appIDs = append(appIDs, splitList(c.Query("app_id"))...)
+	internal := c.GetBool(internalLogsKey)
+	if internal {
+		appIDs = []string{logstore.InternalAppID}
+	}
 
-	if source := c.Query("source"); source == "agent" {
+	if source := c.Query("source"); source == "agent" && !internal {
 		s.searchAgentLogs(c, from, to)
 		return
 	}

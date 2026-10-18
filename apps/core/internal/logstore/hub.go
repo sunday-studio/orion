@@ -72,6 +72,8 @@ func (q Query) Match(e Entry) bool {
 		if !found {
 			return false
 		}
+	} else if !q.IncludeInternal && e.AppID == InternalAppID {
+		return false
 	}
 	if q.Severity != "" {
 		if min, max, ok := SeverityRange(q.Severity); ok {

@@ -8218,6 +8218,375 @@
                 }
             }
         },
+        "/v1/internal-logs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Core's own log lines (API, worker, scheduler, agent gateway), newest first with a cursor. Same filters and shape as GET /v1/logs; the component of each line is attributes.component. Routine successful HTTP requests are not recorded; failed and slow ones are.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "internal-logs"
+                ],
+                "summary": "Search internal logs",
+                "operationId": "searchInternalLogs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Comma-separated severities, or a minimum with \u003e=warn",
+                        "name": "severity",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Full-text search",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start (RFC 3339, or relative like -1h)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End (RFC 3339); default now",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Attribute filter key:value, repeatable (attr=component:worker)",
+                        "name": "attr",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Page size, max 200",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cursor from a previous page",
+                        "name": "cursor",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.LogListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "Gateway Timeout",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.SearchTimeoutBody"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/internal-logs/facets": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Severity counts and, in values, the components (core api, worker, scheduler, agent gateway) with counts; pass field=\u003ckey\u003e to list another attribute.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "internal-logs"
+                ],
+                "summary": "Internal log facets",
+                "operationId": "getInternalLogFacets",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Comma-separated severities, or a minimum with \u003e=warn",
+                        "name": "severity",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Full-text search",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Attribute filter key:value, repeatable",
+                        "name": "attr",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "component",
+                        "description": "Attribute to list values for",
+                        "name": "field",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.LogFacetsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/internal-logs/histogram": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "internal-logs"
+                ],
+                "summary": "Internal log histogram",
+                "operationId": "getInternalLogHistogram",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Comma-separated severities, or a minimum with \u003e=warn",
+                        "name": "severity",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Full-text search",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Attribute filter key:value, repeatable",
+                        "name": "attr",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 60,
+                        "description": "Number of buckets",
+                        "name": "buckets",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.LogHistogramResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/internal-logs/patterns": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "internal-logs"
+                ],
+                "summary": "Internal log patterns",
+                "operationId": "getInternalLogPatterns",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Comma-separated severities, or a minimum with \u003e=warn",
+                        "name": "severity",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Attribute filter key:value, repeatable",
+                        "name": "attr",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start; default 24 hours ago",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End; default now",
+                        "name": "to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.LogPatternsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/internal-logs/stream": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Server-sent events; each event is one log entry. Resume with Last-Event-ID.",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "internal-logs"
+                ],
+                "summary": "Stream internal logs live",
+                "operationId": "streamInternalLogs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Comma-separated severities, or a minimum with \u003e=warn",
+                        "name": "severity",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Full-text search",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Attribute filter key:value, repeatable",
+                        "name": "attr",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "event stream",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/logs": {
             "get": {
                 "security": [
@@ -11440,6 +11809,460 @@
                         "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/status-logs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Checks, state changes, server reports, incident steps, alert deliveries and admin actions, newest first, with the total for the filter. Page with cursor (older) or cursor plus direction=newer. The default window is the last 24 hours.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-logs"
+                ],
+                "summary": "List status logs",
+                "operationId": "listStatusLogs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Comma-separated: info, warn, error",
+                        "name": "level",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated: monitor, alert, server, incident, system",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only this server",
+                        "name": "server_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only this monitor",
+                        "name": "monitor_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only this incident",
+                        "name": "incident_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search servers, monitors, titles and details",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start (RFC 3339, or relative like -1h); default 24 hours ago",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End (RFC 3339); default now",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Rows per page, max 200",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cursor from a previous page",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "older",
+                            "newer"
+                        ],
+                        "type": "string",
+                        "description": "older (default) or newer",
+                        "name": "direction",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.StatusLogListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/status-logs/facets": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Counts per level and type, and the busiest servers and monitors (top=3 by default, with the distinct totals for \"Show N more\"), for the same filters as the list.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-logs"
+                ],
+                "summary": "Status log facets",
+                "operationId": "getStatusLogFacets",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Comma-separated: info, warn, error",
+                        "name": "level",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated: monitor, alert, server, incident, system",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only this server",
+                        "name": "server_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only this monitor",
+                        "name": "monitor_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start; default 24 hours ago",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 3,
+                        "description": "How many servers and monitors to list",
+                        "name": "top",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.StatusLogFacetsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/status-logs/histogram": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Events per bucket split by level (info, warn, error), for \"Events per 15 minutes\". Empty buckets are included.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-logs"
+                ],
+                "summary": "Status log histogram",
+                "operationId": "getStatusLogHistogram",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Comma-separated: info, warn, error",
+                        "name": "level",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated: monitor, alert, server, incident, system",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only this server",
+                        "name": "server_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only this monitor",
+                        "name": "monitor_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start; default 24 hours ago",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 60,
+                        "description": "Target number of buckets",
+                        "name": "buckets",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.LogHistogramResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/status-logs/patterns": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Groups similar events (numbers and ids become placeholders) so a flood of one failure is one row; is_new marks patterns absent from the previous window.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-logs"
+                ],
+                "summary": "Status log patterns",
+                "operationId": "getStatusLogPatterns",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Comma-separated: info, warn, error",
+                        "name": "level",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated: monitor, alert, server, incident, system",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only this server",
+                        "name": "server_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only this monitor",
+                        "name": "monitor_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start; default 24 hours ago",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Maximum patterns",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.LogPatternsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/status-logs/stream": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Server-sent events, one StatusLogEntry per event; new events appear within about two seconds. Resume with Last-Event-ID.",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "status-logs"
+                ],
+                "summary": "Stream status logs live",
+                "operationId": "streamStatusLogs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Comma-separated: info, warn, error",
+                        "name": "level",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated: monitor, alert, server, incident, system",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only this server",
+                        "name": "server_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only this monitor",
+                        "name": "monitor_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search",
+                        "name": "q",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "event stream",
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 }
@@ -16250,11 +17073,11 @@
                     "type": "boolean"
                 },
                 "kind": {
-                    "description": "Kind is logs (default), events or internal.",
+                    "description": "Kind is logs (default), status or internal.",
                     "type": "string",
                     "enum": [
                         "logs",
-                        "events",
+                        "status",
                         "internal"
                     ]
                 },
@@ -18819,6 +19642,147 @@
                 },
                 "stream": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_api.StatusLogEntry": {
+            "type": "object",
+            "properties": {
+                "at": {
+                    "type": "string"
+                },
+                "detail": {
+                    "type": "string",
+                    "example": "oncall webhook returned 502, attempt 3 of 3"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "incident_display_id": {
+                    "type": "string"
+                },
+                "incident_id": {
+                    "type": "string"
+                },
+                "kind": {
+                    "description": "Kind is the specific event (check, transition, report, registered, created, delivery, audit, or an incident event type).",
+                    "type": "string"
+                },
+                "level": {
+                    "description": "Level is info, warn or error.",
+                    "type": "string",
+                    "enum": [
+                        "info",
+                        "warn",
+                        "error"
+                    ]
+                },
+                "monitor_id": {
+                    "type": "string"
+                },
+                "monitor_name": {
+                    "type": "string"
+                },
+                "server_id": {
+                    "type": "string"
+                },
+                "server_name": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Delivery failed"
+                },
+                "type": {
+                    "description": "Type is monitor, alert, server, incident or system.",
+                    "type": "string",
+                    "enum": [
+                        "monitor",
+                        "alert",
+                        "server",
+                        "incident",
+                        "system"
+                    ]
+                }
+            }
+        },
+        "internal_api.StatusLogFacet": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.StatusLogFacetsResponse": {
+            "type": "object",
+            "properties": {
+                "levels": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "monitors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.StatusLogFacet"
+                    }
+                },
+                "monitors_distinct": {
+                    "type": "integer"
+                },
+                "servers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.StatusLogFacet"
+                    }
+                },
+                "servers_distinct": {
+                    "description": "ServersDistinct is how many different servers appear, for \"Show 3 more\".",
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "types": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                }
+            }
+        },
+        "internal_api.StatusLogListResponse": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "entries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.StatusLogEntry"
+                    }
+                },
+                "next_cursor": {
+                    "description": "NextCursor pages to older events, PrevCursor to newer ones; empty at the ends.",
+                    "type": "string"
+                },
+                "prev_cursor": {
+                    "type": "string"
+                },
+                "total": {
+                    "description": "Total is how many events match the filter in the window.",
+                    "type": "integer"
                 }
             }
         },

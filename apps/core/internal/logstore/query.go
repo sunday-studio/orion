@@ -37,6 +37,8 @@ type Query struct {
 	Cursor    string
 	// Ctx bounds the database work of this query (nil = unbounded).
 	Ctx context.Context
+	// IncludeInternal also searches Core's own log lines; they are skipped unless an app id asks for them.
+	IncludeInternal bool
 }
 
 // dbq returns the database handle scoped to the query's context.
@@ -86,6 +88,9 @@ func (q Query) where() (string, []any, error) {
 	if len(q.AppIDs) > 0 {
 		clauses = append(clauses, "app_id IN ?")
 		args = append(args, q.AppIDs)
+	} else if !q.IncludeInternal {
+		clauses = append(clauses, "app_id <> ?")
+		args = append(args, InternalAppID)
 	}
 	if q.Severity != "" {
 		if min, max, ok := SeverityRange(q.Severity); ok {

@@ -26,6 +26,9 @@ func (s *Server) logQuery(c *gin.Context, now time.Time) (logstore.Query, time.T
 		AppIDs: splitList(c.Query("app_id")), Severity: c.Query("severity"), Event: c.Query("event"), Text: c.Query("q"),
 		From: from, To: to, TraceID: c.Query("trace_id"), RequestID: c.Query("request_id"), Attrs: c.QueryArray("attr"),
 	}
+	if c.GetBool(internalLogsKey) {
+		q.AppIDs = []string{logstore.InternalAppID}
+	}
 	return q, from, to, true
 }
 
