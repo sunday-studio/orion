@@ -6,9 +6,11 @@ import {
   EmptyState,
   GridRow,
   GridTable,
+  ListPagination,
   PageHeader,
   Skeleton,
   StatusBadge,
+  useClientPagination,
   useToast,
 } from "@/design-system";
 import {
@@ -35,6 +37,7 @@ export const IncidentTriagePage = () => {
   const navigate = useNavigate();
   const candidatesQuery = useGetIncidentsCandidates();
   const candidates = candidatesQuery.data?.candidates ?? [];
+  const { pageItems, pagination } = useClientPagination(candidates);
 
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: getGetIncidentsCandidatesQueryKey() });
@@ -107,7 +110,7 @@ export const IncidentTriagePage = () => {
                 <span>Seen</span>
                 <span />
               </GridRow>
-              {candidates.map((candidate: ApiIncidentCandidate) => {
+              {pageItems.map((candidate: ApiIncidentCandidate) => {
                 const id = candidate.monitor_id ?? "";
                 const name = candidate.monitor_name ?? id;
                 return (
@@ -156,6 +159,7 @@ export const IncidentTriagePage = () => {
                 );
               })}
             </GridTable>
+            <ListPagination {...pagination} />
           </div>
         )}
       </div>

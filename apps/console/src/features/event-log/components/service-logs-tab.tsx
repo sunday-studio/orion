@@ -160,6 +160,7 @@ export const ServiceLogsTab = () => {
       />
       <LogHistogram params={filters} />
       <DataTable
+        paginate={false}
         columns={columns}
         data={entries}
         getRowId={(entry, index) => entry.id ?? `log-${index}`}

@@ -4,10 +4,11 @@ import {
   type SortingState,
   flexRender,
   getCoreRowModel,
+  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/design-system/components/button";
 import {
   ListPagination,
@@ -41,8 +42,15 @@ export type DataTableProps<TData> = {
   onSortChange?: (sort: string) => void;
   dense?: boolean;
   rowClassName?: (row: Row<TData>) => string | undefined;
-  /** Pagination footer, drawn inside the table container. */
+  /**
+   * Server pagination footer for tables whose `data` is already one page from Core.
+   * Without it the table paginates `data` itself (20 rows per page by default).
+   */
   pagination?: ListPaginationProps;
+  /** Set false to show every row without a footer, for example a fixed short list. */
+  paginate?: boolean;
+  /** Rows per page for client-side pagination. */
+  defaultPageSize?: number;
 };
 
 const parseSort = (sort: string): SortingState => {
@@ -70,15 +78,22 @@ export function DataTable<TData>({
   dense = false,
   rowClassName,
   pagination,
+  paginate = true,
+  defaultPageSize = 20,
 }: DataTableProps<TData>) {
   const sorting = useMemo(() => parseSort(sort), [sort]);
+  const [clientPage, setClientPage] = useState({ pageIndex: 0, pageSize: defaultPageSize });
+  const clientPaginated = paginate && !pagination;
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    manualPagination: !clientPaginated,
+    onPaginationChange: setClientPage,
     getRowId,
-    state: { sorting },
+    state: { sorting, pagination: clientPage },
     enableSorting: Boolean(onSortChange),
     onSortingChange: (updater) => {
       if (!onSortChange) return;
@@ -195,11 +210,26 @@ export function DataTable<TData>({
     </Table>
   );
 
-  if (!pagination) return tableEl;
+  const footer: ListPaginationProps | undefined =
+    pagination ??
+    (clientPaginated
+      ? {
+          count: data.length,
+          limit: clientPage.pageSize,
+          offset: clientPage.pageIndex * clientPage.pageSize,
+          onOffsetChange: (offset) =>
+            setClientPage((current) => ({
+              ...current,
+              pageIndex: Math.floor(offset / current.pageSize),
+            })),
+          onLimitChange: (pageSize) => setClientPage({ pageIndex: 0, pageSize }),
+        }
+      : undefined);
+  if (!footer) return tableEl;
   return (
     <div className="overflow-hidden rounded-xl border border-hairline bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
       {tableEl}
-      {!isLoading && <ListPagination {...pagination} />}
+      {!isLoading && <ListPagination {...footer} />}
     </div>
   );
 }
