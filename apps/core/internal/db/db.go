@@ -37,9 +37,14 @@ func OpenFile(dataDir string, fileName string, logLevel string) (*gorm.DB, error
 
 	dbPath := filepath.Join(dataDir, fileName)
 
-	db, err := gorm.Open(sqlite.Open(sqliteDSN(dbPath)), &gorm.Config{
-		Logger:  newGormLogger(logLevel),
-		NowFunc: func() time.Time { return time.Now().UTC() },
+	var db *gorm.DB
+	err := retryBusy(func() error {
+		var openErr error
+		db, openErr = gorm.Open(sqlite.Open(sqliteDSN(dbPath)), &gorm.Config{
+			Logger:  newGormLogger(logLevel),
+			NowFunc: func() time.Time { return time.Now().UTC() },
+		})
+		return openErr
 	})
 	if err != nil {
 		return nil, err
@@ -85,10 +90,13 @@ func MigrateWithFiles(db *gorm.DB, migrationsPath string, logger *utils.Logger) 
 	}
 	ctx := context.Background()
 
-	if _, err := sqlDB.Exec(`CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at DATETIME NOT NULL)`); err != nil {
+	if err := retryBusy(func() error {
+		_, execErr := sqlDB.Exec(`CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at DATETIME NOT NULL)`)
+		return execErr
+	}); err != nil {
 		return fmt.Errorf("create schema_migrations: %w", err)
 	}
-	if err := ensureMigrationChecksumColumn(sqlDB); err != nil {
+	if err := retryBusy(func() error { return ensureMigrationChecksumColumn(sqlDB) }); err != nil {
 		return err
 	}
 
@@ -99,8 +107,8 @@ func MigrateWithFiles(db *gorm.DB, migrationsPath string, logger *utils.Logger) 
 	migrations = append(migrations, goMigrations()...)
 	slices.SortFunc(migrations, func(a, b migration) int { return cmp.Compare(a.version, b.version) })
 
-	applied, err := appliedMigrationChecksums(sqlDB)
-	if err != nil {
+	var applied map[int]string
+	if err := retryBusy(func() (readErr error) { applied, readErr = appliedMigrationChecksums(sqlDB); return readErr }); err != nil {
 		return err
 	}
 	var pending []migration

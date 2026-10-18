@@ -11,6 +11,8 @@ import (
 
 type OverviewIncidentResponse struct {
 	ID              string     `json:"id"`
+	Number          int        `json:"number"`
+	DisplayID       string     `json:"display_id"`
 	Title           string     `json:"title"`
 	Severity        string     `json:"severity"`
 	Status          string     `json:"status" enums:"open,acknowledged,covered,resolved"`
@@ -69,7 +71,7 @@ type OverviewResponse struct {
 }
 
 func overviewIncident(i service.OverviewIncident) OverviewIncidentResponse {
-	return OverviewIncidentResponse{ID: i.ID, Title: i.Title, Severity: i.Severity, Status: i.Status, Summary: i.Summary, OpenedAt: i.OpenedAt, ResolvedAt: i.ResolvedAt,
+	return OverviewIncidentResponse{ID: i.ID, Number: i.Number, DisplayID: incidentDisplayID(i.Number), Title: i.Title, Severity: i.Severity, Status: i.Status, Summary: i.Summary, OpenedAt: i.OpenedAt, ResolvedAt: i.ResolvedAt,
 		DurationSeconds: i.DurationSeconds, NotifiedAt: i.NotifiedAt, AcknowledgedAt: i.AcknowledgedAt}
 }
 

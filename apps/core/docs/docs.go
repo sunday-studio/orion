@@ -5437,6 +5437,30 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "string",
+                        "description": "Comma-separated severities (low,medium,high,critical)",
+                        "name": "severity",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Text search over title, INC number, monitor and server name",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only incidents opened since: 24h, 7d, 30d style duration or an RFC3339 time",
+                        "name": "opened_since",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only incidents opened before this RFC3339 time",
+                        "name": "opened_until",
+                        "in": "query"
+                    },
+                    {
                         "type": "integer",
                         "default": 50,
                         "description": "Maximum number of incidents to return",
@@ -5502,6 +5526,147 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Open an incident manually for something Orion has not noticed. Give a monitor or a server. A monitor can have only one active incident.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "incidents"
+                ],
+                "summary": "Declare incident",
+                "operationId": "declareIncident",
+                "parameters": [
+                    {
+                        "description": "Incident",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.DeclareIncidentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "incident": {
+                                                    "$ref": "#/definitions/internal_api.IncidentResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/incidents/bulk": {
+            "post": {
+                "description": "Acknowledge, cover or resolve up to 100 incidents. Each id succeeds or fails on its own; the response lists every result.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "incidents"
+                ],
+                "summary": "Bulk incident action",
+                "operationId": "bulkIncidentAction",
+                "parameters": [
+                    {
+                        "description": "Bulk action",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.BulkIncidentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "failed": {
+                                                    "type": "integer"
+                                                },
+                                                "results": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/internal_api.BulkIncidentResult"
+                                                    }
+                                                },
+                                                "succeeded": {
+                                                    "type": "integer"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
@@ -5635,6 +5800,119 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/incidents/candidates/{id}/open": {
+            "post": {
+                "description": "The candidate id is the monitor id. Severity and title come from the candidate; alerts are queued. Fails with 409 if the monitor already has an active incident.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "incidents"
+                ],
+                "summary": "Open an incident from a candidate",
+                "operationId": "openIncidentCandidate",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Candidate (monitor) ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "incident": {
+                                                    "$ref": "#/definitions/internal_api.IncidentResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/incidents/export": {
+            "get": {
+                "description": "Same filters as GET /v1/incidents (status, severity, q, opened_since, ...), no paging, at most 10,000 rows, newest first.",
+                "produces": [
+                    "text/csv"
+                ],
+                "tags": [
+                    "incidents"
+                ],
+                "summary": "Export incidents as CSV",
+                "operationId": "exportIncidentsCSV",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "open,acknowledged,covered",
+                        "description": "Comma-separated statuses",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated severities",
+                        "name": "severity",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Text search",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "24h, 7d, 30d or RFC3339",
+                        "name": "opened_since",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/incidents/{id}": {
             "get": {
                 "description": "Get one incident with related timeline events, alert deliveries, and monitor reports",
@@ -5707,6 +5985,9 @@ const docTemplate = `{
                                                     "items": {
                                                         "$ref": "#/definitions/internal_api.IncidentRelatedIncidentResponse"
                                                     }
+                                                },
+                                                "summary": {
+                                                    "$ref": "#/definitions/internal_api.IncidentDetailSummary"
                                                 },
                                                 "timeline": {
                                                     "type": "array",
@@ -5835,7 +6116,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Coverage payload",
+                        "description": "Coverage payload; covered_by names the incident that explains this one",
                         "name": "request",
                         "in": "body",
                         "schema": {
@@ -5952,6 +6233,198 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/incidents/{id}/notes": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "incidents"
+                ],
+                "summary": "Add incident note",
+                "operationId": "addIncidentNote",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Incident ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Note",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.IncidentNoteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/incidents/{id}/public-update": {
+            "get": {
+                "description": "Lists status pages with confirmed subscriber counts and the update state already linked to this incident.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "incidents"
+                ],
+                "summary": "Status pages for an incident public update",
+                "operationId": "getIncidentPublicTargets",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Incident ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "targets": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/internal_api.IncidentPublicTarget"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/incidents/{id}/public-updates": {
+            "post": {
+                "description": "Creates (or reuses) the status page incident linked to this incident and publishes an update. Affected components come from the incident's impacted components that belong to that page.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "incidents"
+                ],
+                "summary": "Post a public update for an incident",
+                "operationId": "postIncidentPublicUpdate",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Incident ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Update",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.IncidentPublicUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "status_page_incident_id": {
+                                                    "type": "string"
+                                                },
+                                                "subscribers_notified": {
+                                                    "type": "integer"
+                                                },
+                                                "update": {
+                                                    "$ref": "#/definitions/internal_api.StatusPageIncidentUpdateResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
@@ -6104,6 +6577,76 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/incidents/{id}/responder": {
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "incidents"
+                ],
+                "summary": "Assign incident responder",
+                "operationId": "setIncidentResponder",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Incident ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Responder",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.IncidentResponderRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "incident": {
+                                                    "$ref": "#/definitions/internal_api.IncidentResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
@@ -11910,6 +12453,53 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.BulkIncidentRequest": {
+            "type": "object",
+            "required": [
+                "action",
+                "ids"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": [
+                        "acknowledge",
+                        "cover",
+                        "resolve"
+                    ]
+                },
+                "covered_by": {
+                    "description": "CoveredBy applies to the cover action.",
+                    "type": "string"
+                },
+                "ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "note": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.BulkIncidentResult": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "incident": {
+                    "$ref": "#/definitions/internal_api.IncidentResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
         "internal_api.CoreMonitorConfigResponse": {
             "type": "object",
             "properties": {
@@ -12002,6 +12592,40 @@ const docTemplate = `{
                 "date": {
                     "type": "string",
                     "example": "2026-05-12"
+                }
+            }
+        },
+        "internal_api.DeclareIncidentRequest": {
+            "type": "object",
+            "required": [
+                "severity",
+                "title"
+            ],
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "monitor_id": {
+                    "type": "string"
+                },
+                "notify": {
+                    "description": "Notify queues alerts through the channels the matching rules select.",
+                    "type": "boolean"
+                },
+                "severity": {
+                    "type": "string",
+                    "enum": [
+                        "low",
+                        "medium",
+                        "high",
+                        "critical"
+                    ]
+                },
+                "summary": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
                 }
             }
         },
@@ -12162,6 +12786,10 @@ const docTemplate = `{
                 "agent_name": {
                     "type": "string"
                 },
+                "detail": {
+                    "type": "string",
+                    "example": "timeout after 10s"
+                },
                 "health": {
                     "description": "Health is the computed health that makes this an issue.",
                     "type": "string",
@@ -12171,11 +12799,26 @@ const docTemplate = `{
                         "stale"
                     ]
                 },
+                "incident_display_id": {
+                    "type": "string"
+                },
+                "incident_id": {
+                    "description": "IncidentID and IncidentDisplayID are set when an active incident already covers it.",
+                    "type": "string"
+                },
                 "issue_type": {
                     "description": "IssueType is \"stale_data\" for stale monitors and omitted otherwise.",
                     "type": "string",
                     "enum": [
                         "stale_data"
+                    ]
+                },
+                "kind": {
+                    "description": "Kind is monitor or server; TargetID/TargetName identify the row to open.",
+                    "type": "string",
+                    "enum": [
+                        "monitor",
+                        "server"
                     ]
                 },
                 "monitor_id": {
@@ -12185,6 +12828,15 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "monitor_type": {
+                    "type": "string"
+                },
+                "since": {
+                    "type": "string"
+                },
+                "target_id": {
+                    "type": "string"
+                },
+                "target_name": {
                     "type": "string"
                 }
             }
@@ -12260,6 +12912,10 @@ const docTemplate = `{
                 "agent_name": {
                     "type": "string"
                 },
+                "detail": {
+                    "description": "Detail is a one-line reason such as \"timeout after 10s\"; SeenAt is when the signal started.",
+                    "type": "string"
+                },
                 "down_count": {
                     "description": "DownCount is how many of the last 5 reports were down.",
                     "type": "integer"
@@ -12285,6 +12941,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "monitor_type": {
+                    "type": "string"
+                },
+                "seen_at": {
                     "type": "string"
                 },
                 "severity": {
@@ -12329,6 +12988,80 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.IncidentDetailSource": {
+            "type": "object",
+            "properties": {
+                "monitor_id": {
+                    "type": "string"
+                },
+                "monitor_name": {
+                    "type": "string"
+                },
+                "monitor_type": {
+                    "type": "string"
+                },
+                "server_id": {
+                    "type": "string"
+                },
+                "server_name": {
+                    "type": "string"
+                },
+                "target": {
+                    "description": "Target is what the check hits, for example \"GET /health\" or \"db.internal:5432\".",
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.IncidentDetailSummary": {
+            "type": "object",
+            "properties": {
+                "acknowledged_at": {
+                    "type": "string"
+                },
+                "actual": {
+                    "$ref": "#/definitions/internal_api.IncidentExpectation"
+                },
+                "covered_by_display_id": {
+                    "type": "string"
+                },
+                "detected_at": {
+                    "type": "string"
+                },
+                "duration_seconds": {
+                    "type": "integer"
+                },
+                "expected": {
+                    "$ref": "#/definitions/internal_api.IncidentExpectation"
+                },
+                "failed_checks": {
+                    "type": "integer"
+                },
+                "notified_at": {
+                    "type": "string"
+                },
+                "notified_channels": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "resolved_at": {
+                    "type": "string"
+                },
+                "source": {
+                    "$ref": "#/definitions/internal_api.IncidentDetailSource"
+                },
+                "status_page": {
+                    "$ref": "#/definitions/internal_api.IncidentStatusPageState"
+                },
+                "time_to_acknowledge_seconds": {
+                    "type": "integer"
+                },
+                "time_to_resolve_seconds": {
+                    "type": "integer"
+                }
+            }
+        },
         "internal_api.IncidentEventResponse": {
             "type": "object",
             "properties": {
@@ -12369,6 +13102,22 @@ const docTemplate = `{
                 },
                 "triggering_report": {
                     "$ref": "#/definitions/internal_api.MonitorReportResponse"
+                }
+            }
+        },
+        "internal_api.IncidentExpectation": {
+            "type": "object",
+            "properties": {
+                "at": {
+                    "type": "string"
+                },
+                "detail": {
+                    "type": "string",
+                    "example": "under 10s"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "200 OK"
                 }
             }
         },
@@ -12438,6 +13187,17 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.IncidentNoteRequest": {
+            "type": "object",
+            "required": [
+                "text"
+            ],
+            "properties": {
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_api.IncidentNotificationReliabilityStats": {
             "type": "object",
             "properties": {
@@ -12455,6 +13215,74 @@ const docTemplate = `{
                 },
                 "total_deliveries": {
                     "type": "integer"
+                }
+            }
+        },
+        "internal_api.IncidentPublicTarget": {
+            "type": "object",
+            "properties": {
+                "latest_status": {
+                    "type": "string"
+                },
+                "linked_incident_id": {
+                    "description": "LinkedIncidentID is the status page incident already tied to this incident, if any.",
+                    "type": "string"
+                },
+                "published_updates": {
+                    "type": "integer"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "status_page_id": {
+                    "type": "string"
+                },
+                "subscriber_count": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "title_required": {
+                    "description": "TitleRequired is true when the first post must carry a public title.",
+                    "type": "boolean"
+                },
+                "visibility": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.IncidentPublicUpdateRequest": {
+            "type": "object",
+            "required": [
+                "message",
+                "status",
+                "status_page_id"
+            ],
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "notify_subscribers": {
+                    "description": "NotifySubscribers emails confirmed subscribers whose component preferences match.",
+                    "type": "boolean"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "investigating",
+                        "identified",
+                        "monitoring",
+                        "resolved"
+                    ]
+                },
+                "status_page_id": {
+                    "type": "string"
+                },
+                "title": {
+                    "description": "Title is the public headline, used when the first update creates the status page incident.\nRequired for incidents Orion opened itself, because their titles name internal monitors and hosts.",
+                    "type": "string",
+                    "example": "Elevated API errors"
                 }
             }
         },
@@ -12478,6 +13306,9 @@ const docTemplate = `{
         "internal_api.IncidentRelatedIncidentResponse": {
             "type": "object",
             "properties": {
+                "display_id": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -12489,6 +13320,9 @@ const docTemplate = `{
                 },
                 "notification_status": {
                     "type": "string"
+                },
+                "number": {
+                    "type": "integer"
                 },
                 "opened_at": {
                     "type": "string"
@@ -12506,6 +13340,15 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.IncidentResponderRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "description": "Name of the person on point; empty clears it.",
                     "type": "string"
                 }
             }
@@ -12528,11 +13371,18 @@ const docTemplate = `{
                 "covered_at": {
                     "type": "string"
                 },
+                "covered_by_incident_id": {
+                    "type": "string"
+                },
                 "covered_until": {
                     "type": "string"
                 },
                 "created_at": {
                     "type": "string"
+                },
+                "display_id": {
+                    "type": "string",
+                    "example": "INC-0231"
                 },
                 "id": {
                     "type": "string"
@@ -12561,6 +13411,9 @@ const docTemplate = `{
                 "notification_status": {
                     "type": "string"
                 },
+                "number": {
+                    "type": "integer"
+                },
                 "opened_at": {
                     "type": "string"
                 },
@@ -12576,10 +13429,26 @@ const docTemplate = `{
                 "resolved_at": {
                     "type": "string"
                 },
+                "responder": {
+                    "type": "string"
+                },
+                "responder_at": {
+                    "type": "string"
+                },
                 "severity": {
                     "type": "string"
                 },
+                "source": {
+                    "type": "string",
+                    "enum": [
+                        "monitor",
+                        "manual"
+                    ]
+                },
                 "status": {
+                    "type": "string"
+                },
+                "summary": {
                     "type": "string"
                 },
                 "title": {
@@ -12587,6 +13456,18 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_api.IncidentStatusPageState": {
+            "type": "object",
+            "properties": {
+                "draft_exists": {
+                    "description": "DraftExists is true when a status page incident is linked to this one.",
+                    "type": "boolean"
+                },
+                "published_updates": {
+                    "type": "integer"
                 }
             }
         },
@@ -13352,6 +14233,9 @@ const docTemplate = `{
                 "acknowledged_at": {
                     "type": "string"
                 },
+                "display_id": {
+                    "type": "string"
+                },
                 "duration_seconds": {
                     "type": "integer"
                 },
@@ -13361,6 +14245,9 @@ const docTemplate = `{
                 "notified_at": {
                     "description": "NotifiedAt and AcknowledgedAt are only filled for needs_you.",
                     "type": "string"
+                },
+                "number": {
+                    "type": "integer"
                 },
                 "opened_at": {
                     "type": "string"
@@ -13525,11 +14412,18 @@ const docTemplate = `{
         "internal_api.SearchHitResponse": {
             "type": "object",
             "properties": {
+                "display_id": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
                 "name": {
                     "type": "string"
+                },
+                "number": {
+                    "description": "Number and DisplayID are set for incidents.",
+                    "type": "integer"
                 },
                 "status": {
                     "type": "string"
@@ -14559,6 +15453,11 @@ const docTemplate = `{
         "internal_api.incidentCoverageRequest": {
             "type": "object",
             "properties": {
+                "covered_by": {
+                    "description": "CoveredBy is the incident that already explains this one: its id or INC number.",
+                    "type": "string",
+                    "example": "INC-0229"
+                },
                 "covered_until": {
                     "type": "string"
                 },
