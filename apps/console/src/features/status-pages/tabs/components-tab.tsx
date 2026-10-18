@@ -73,7 +73,16 @@ const ComponentDialog = ({
       : (agents.data?.agents ?? []).map((a) => ({ value: a.id ?? "", label: a.name ?? "" }));
   const mappings = component?.mappings ?? [];
   const save = () => {
-    const data = { public_name: name.trim(), section_id: sectionId || undefined, visible: true };
+    const data = {
+      display_mode: component?.display_mode,
+      manual_status: component?.manual_status,
+      manual_status_reason: component?.manual_status_reason,
+      public_description: component?.public_description,
+      sort_order: component?.sort_order,
+      public_name: name.trim(),
+      section_id: sectionId || undefined,
+      visible: component?.visible ?? true,
+    };
     if (component?.id) update.mutate({ id: pageId, componentId: component.id, data });
     else create.mutate({ id: pageId, data });
   };
@@ -173,7 +182,7 @@ const ComponentDialog = ({
               Delete
             </Button>
           )}
-          <Button disabled={!name.trim()} onClick={save}>
+          <Button disabled={!name.trim() || create.isPending || update.isPending} onClick={save}>
             {component ? "Save" : "Add component"}
           </Button>
         </DialogFooter>
@@ -193,7 +202,7 @@ export const ComponentsTab = ({
 }) => {
   const toast = useToast();
   const preview = usePreviewStatusPage(pageId);
-  const [editing, setEditing] = useState<ApiStatusPageComponentResponse | "new">();
+  const [editing, setEditing] = useState<string>();
   const [sectionName, setSectionName] = useState("");
   const addSection = useCreateStatusPageSection({
     mutation: {
@@ -240,7 +249,7 @@ export const ComponentsTab = ({
           Add component
         </Button>
       </div>
-      {components.length === 0 ? (
+      {components.length === 0 && (detail?.sections ?? []).length === 0 ? (
         <EmptyState
           title="No components yet"
           description="Components are the services visitors see on your page."
@@ -265,7 +274,7 @@ export const ComponentsTab = ({
                     <StatusBadge status={publicStatusTone(status.get(component.id ?? ""))}>
                       {publicStatusLabel(status.get(component.id ?? ""))}
                     </StatusBadge>
-                    <Button size="sm" variant="secondary" onClick={() => setEditing(component)}>
+                    <Button size="sm" variant="secondary" onClick={() => setEditing(component.id)}>
                       Edit
                     </Button>
                   </div>
@@ -276,10 +285,10 @@ export const ComponentsTab = ({
       )}
       {editing && (
         <ComponentDialog
-          key={editing === "new" ? "new" : editing.id}
+          key={editing}
           pageId={pageId}
           detail={detail}
-          component={editing === "new" ? undefined : editing}
+          component={components.find((item) => item.id === editing)}
           open
           onOpenChange={(open) => !open && setEditing(undefined)}
           onChanged={onChanged}

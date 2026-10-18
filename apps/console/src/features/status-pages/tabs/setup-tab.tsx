@@ -81,6 +81,11 @@ export const SetupTab = ({
           <label>
             <span className={label}>Address</span>
             <Input value={slug} onChange={(event) => setSlug(event.target.value)} />
+            {page.visibility === "published" && slug !== page.slug && (
+              <small className="mt-1 block text-xs text-faint">
+                This page is published. Changing the address breaks existing links.
+              </small>
+            )}
           </label>
         </RaisedCard>
       </FieldPanel>
