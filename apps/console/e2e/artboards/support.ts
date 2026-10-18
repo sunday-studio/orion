@@ -13,7 +13,7 @@ export const mockApi = async (
   options: { theme?: "light" | "dark" } = {},
 ) => {
   await page.addInitScript((theme) => {
-    if (theme) localStorage.setItem("orion.theme", theme);
+    if (theme) localStorage.setItem("orion.theme.choice", theme);
     localStorage.setItem("orion_token", "artboard-test-token");
     localStorage.setItem("orion_username", "admin");
   }, options.theme);
