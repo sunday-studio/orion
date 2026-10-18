@@ -166,7 +166,11 @@ export const StatusPageDetailPage = () => {
           <SubscribersTab pageId={pageId} />
         </TabsPanel>
         <TabsPanel value="preview">
-          <PreviewTab pageId={pageId} url={row?.public_url ?? `/status/${page.slug}`} />
+          <PreviewTab
+            pageId={pageId}
+            published={published}
+            url={row?.public_url ?? `/status/${page.slug}`}
+          />
         </TabsPanel>
       </Tabs>
       <PublishDialog
