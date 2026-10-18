@@ -50,6 +50,7 @@ export const IncidentBulkBar = ({
       description: failedIds
         .map((id) => `${id}: ${reasons.get(id) ?? "request failed"}`)
         .join("\n"),
+      timeout: 10000,
       actionProps: { children: "Retry failed", onClick: () => void run(action, failedIds) },
     });
   };
