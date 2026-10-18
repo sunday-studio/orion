@@ -26,6 +26,7 @@ export * from "@/design-system/components/input";
 export * from "@/design-system/components/menu";
 export * from "@/design-system/components/popover";
 export * from "@/design-system/components/segmented";
+export * from "@/design-system/components/sparkline";
 export * from "@/design-system/components/select";
 export * from "@/design-system/components/skeleton";
 export * from "@/design-system/components/step-indicator";
