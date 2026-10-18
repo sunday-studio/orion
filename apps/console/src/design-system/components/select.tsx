@@ -41,7 +41,7 @@ export const Select = ({
         data-slot="ds-select"
         className={cn(
           controlBase,
-          "flex h-9 min-w-40 items-center justify-between gap-2 rounded-lg border border-input-border bg-card px-3 text-[13px] text-ink",
+          "flex h-[30px] min-w-40 items-center justify-between gap-2 rounded-lg border border-input-border bg-card px-3 text-[13px] text-ink",
           className,
         )}
       >

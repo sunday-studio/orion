@@ -143,7 +143,7 @@ export const reportSortTime = (report: ApiMonitorReportResponse) => {
   return Number.isNaN(value) ? 0 : value;
 };
 
-export const detailTabs = ["timeline", "notifications", "monitor-reports"] as const;
+export const detailTabs = ["timeline", "notifications", "monitor-reports", "logs"] as const;
 export type DetailTab = (typeof detailTabs)[number];
 
 export const isDetailTab = (value: string | null): value is DetailTab =>

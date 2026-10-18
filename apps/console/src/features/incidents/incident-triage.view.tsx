@@ -1,32 +1,50 @@
 import { useQueryClient } from "@tanstack/react-query";
-import type { ColumnDef } from "@tanstack/react-table";
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Button,
-  ConfirmDialog,
-  DataTable,
-  DataTableLink,
+  Dot,
+  EmptyState,
+  GridRow,
+  GridTable,
   PageHeader,
+  Skeleton,
   StatusBadge,
   useToast,
 } from "@/design-system";
 import {
   type ApiIncidentCandidate,
   getGetIncidentsCandidatesQueryKey,
+  getGetIncidentsQueryKey,
+  getGetOverviewQueryKey,
   useDismissIncidentCandidate,
   useGetIncidentsCandidates,
+  useOpenIncidentCandidate,
 } from "@/orion-sdk";
+import { TIME_FORMAT, formatDate } from "@/utils/date";
+import { healthDot } from "./incident-format";
+
+const COLUMNS = "10px minmax(0,1.3fr) 90px 80px 100px 90px minmax(0,1.4fr) 56px 150px";
+
+const label = (value?: string) => (value ? value.charAt(0).toUpperCase() + value.slice(1) : "-");
+
+const typeLabel = (type?: string) => (!type ? "Agent" : type === "http" ? "HTTP" : label(type));
 
 export const IncidentTriagePage = () => {
   const queryClient = useQueryClient();
   const toast = useToast();
+  const navigate = useNavigate();
   const candidatesQuery = useGetIncidentsCandidates();
-  const [dismissing, setDismissing] = useState<ApiIncidentCandidate | null>(null);
+  const candidates = candidatesQuery.data?.candidates ?? [];
+
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: getGetIncidentsCandidatesQueryKey() });
+    void queryClient.invalidateQueries({ queryKey: getGetIncidentsQueryKey() });
+    void queryClient.invalidateQueries({ queryKey: getGetOverviewQueryKey() });
+  };
   const dismiss = useDismissIncidentCandidate({
     mutation: {
       onSuccess: () => {
-        void queryClient.invalidateQueries({ queryKey: getGetIncidentsCandidatesQueryKey() });
+        refresh();
         toast.add({
           title: "Candidate dismissed",
           description: "It returns if the monitor fails again.",
@@ -35,104 +53,112 @@ export const IncidentTriagePage = () => {
       onError: () => toast.add({ title: "Unable to dismiss candidate" }),
     },
   });
-  const candidates = candidatesQuery.data?.candidates ?? [];
-
-  const columns: ColumnDef<ApiIncidentCandidate>[] = [
-    {
-      id: "monitor",
-      header: "Monitor",
-      cell: ({ row }) =>
-        row.original.monitor_id ? (
-          <DataTableLink to={`/monitors/${row.original.monitor_id}`}>
-            {row.original.monitor_name ?? row.original.monitor_id}
-          </DataTableLink>
-        ) : (
-          (row.original.monitor_name ?? "-")
-        ),
+  const open = useOpenIncidentCandidate({
+    mutation: {
+      onSuccess: (result) => {
+        refresh();
+        if (result.incident?.id) navigate(`/incidents/${result.incident.id}`);
+      },
+      onError: () => toast.add({ title: "Unable to open the incident" }),
     },
-    {
-      id: "server",
-      header: "Server",
-      cell: ({ row }) =>
-        row.original.agent_id ? (
-          <DataTableLink to={`/servers/${row.original.agent_id}`}>
-            {row.original.agent_name ?? row.original.agent_id}
-          </DataTableLink>
-        ) : (
-          "Core"
-        ),
-    },
-    {
-      accessorKey: "monitor_type",
-      header: "Type",
-      cell: ({ row }) => row.original.monitor_type ?? "-",
-    },
-    {
-      id: "health",
-      header: "Health",
-      cell: ({ row }) => <StatusBadge status={row.original.health} />,
-    },
-    {
-      id: "severity",
-      header: "Severity",
-      cell: ({ row }) => <StatusBadge status={row.original.severity} />,
-    },
-    {
-      accessorKey: "down_count",
-      header: "Failed of last 5",
-      cell: ({ row }) =>
-        row.original.issue_type === "stale_data" ? "stale" : `${row.original.down_count ?? 0} / 5`,
-    },
-    {
-      id: "actions",
-      header: "",
-      cell: ({ row }) => (
-        <Button size="sm" variant="secondary" onClick={() => setDismissing(row.original)}>
-          Dismiss
-        </Button>
-      ),
-    },
-  ];
+  });
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <PageHeader
-          title="Triage"
-          description="Failing monitors that are not yet incidents. Dismiss the noise; they return if the monitor fails again."
-        />
-        <Link className="text-[13px] text-brand hover:underline" to="/incidents">
-          All incidents
-        </Link>
-      </div>
-      <DataTable
-        columns={columns}
-        data={candidates}
-        getRowId={(candidate, index) => candidate.monitor_id ?? `candidate-${index}`}
-        isLoading={candidatesQuery.isLoading}
-        error={
-          candidatesQuery.isError
-            ? {
-                message: "Unable to load candidates",
-                onRetry: () => void candidatesQuery.refetch(),
-              }
-            : undefined
+    <div className="mx-auto w-full max-w-[1000px] pb-8">
+      <PageHeader
+        title="Triage"
+        description="Signals Orion has not opened an incident for. Severity comes from recent failures."
+        actions={
+          candidates.length > 0 ? (
+            <span className="text-[13px] text-quiet">{candidates.length} in the inbox</span>
+          ) : (
+            <Link className="text-[13px] text-quiet underline" to="/incidents">
+              All incidents
+            </Link>
+          )
         }
-        emptyMessage="Nothing to triage. No failing monitors need attention."
       />
-      <ConfirmDialog
-        open={dismissing !== null}
-        onOpenChange={(open) => {
-          if (!open) setDismissing(null);
-        }}
-        title="Dismiss candidate?"
-        description={`${dismissing?.monitor_name ?? "This monitor"} will be hidden from triage until it recovers and fails again.`}
-        confirmLabel="Dismiss"
-        tone="default"
-        onConfirm={() => {
-          if (dismissing?.monitor_id) dismiss.mutate({ id: dismissing.monitor_id });
-        }}
-      />
+      <div className="mt-4">
+        {candidatesQuery.isLoading ? (
+          <Skeleton className="h-40 w-full rounded-xl" />
+        ) : candidatesQuery.isError ? (
+          <EmptyState
+            tone="error"
+            title="Unable to load triage"
+            action={
+              <Button size="sm" variant="secondary" onClick={() => void candidatesQuery.refetch()}>
+                Retry
+              </Button>
+            }
+          />
+        ) : candidates.length === 0 ? (
+          <EmptyState title="Nothing to triage" description="No failing monitors need attention." />
+        ) : (
+          <div className="overflow-hidden rounded-xl border border-hairline bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+            <GridTable>
+              <GridRow columns={COLUMNS} header>
+                <span />
+                <span>Monitor</span>
+                <span>Server</span>
+                <span>Type</span>
+                <span>Health</span>
+                <span>Severity</span>
+                <span>Detail</span>
+                <span>Seen</span>
+                <span />
+              </GridRow>
+              {candidates.map((candidate: ApiIncidentCandidate) => {
+                const id = candidate.monitor_id ?? "";
+                const name = candidate.monitor_name ?? id;
+                return (
+                  <GridRow key={id} columns={COLUMNS}>
+                    <Dot color={healthDot(candidate.health)} />
+                    <b className="font-medium">
+                      {candidate.agent_name && candidate.monitor_type === "agent"
+                        ? `${candidate.agent_name} ${name}`
+                        : name}
+                    </b>
+                    <span className="text-faint">{candidate.agent_name ?? "Core"}</span>
+                    <span className="text-faint">{typeLabel(candidate.monitor_type)}</span>
+                    <span>
+                      <StatusBadge status={candidate.health}>{label(candidate.health)}</StatusBadge>
+                    </span>
+                    <span>
+                      <StatusBadge status={candidate.severity}>
+                        {label(candidate.severity)}
+                      </StatusBadge>
+                    </span>
+                    <span className="text-faint">
+                      {candidate.detail ??
+                        (candidate.down_count ? `${candidate.down_count} of 5 reports down` : "-")}
+                    </span>
+                    <span className="font-mono text-xs text-faint">
+                      {formatDate(candidate.seen_at, TIME_FORMAT)}
+                    </span>
+                    <span className="flex justify-end gap-1.5 !overflow-visible">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={dismiss.isPending}
+                        onClick={() => dismiss.mutate({ id })}
+                      >
+                        Dismiss
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={open.isPending}
+                        onClick={() => open.mutate({ id })}
+                      >
+                        Open incident
+                      </Button>
+                    </span>
+                  </GridRow>
+                );
+              })}
+            </GridTable>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
