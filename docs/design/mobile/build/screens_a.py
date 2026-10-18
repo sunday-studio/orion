@@ -1,45 +1,19 @@
 """Mobile screens, part A: connect, notifications, incidents."""
 from common import ic
+from parts import hd, tabs, sc, sheet, title, tracker, expected_actual, box, bars, stats, tl2, logo
 
 
-def hd(core="Production", dot="up", right=("search",), back=None):
-    left = ('<a href="#" class="core" aria-label="Back">%s<span>%s</span></a>' % (ic("back", 22), back)
-            if back else
-            '<a href="#" class="core" aria-label="Switch Core"><span class="s %s"></span><span>%s</span><span class="cv">%s</span></a>' % (dot, core, ic("down", 16)))
-    r = "".join('<a href="#" class="ibtn" aria-label="%s">%s</a>' % (n.title(), ic(n, 22)) for n in right)
-    return '<div class="hd">%s<div class="row" style="gap:0">%s</div></div>' % (left, r)
 
 
-def tabs(active, badge=3):
-    items = [("Notifications", "bell"), ("Incidents", "alert"), ("Servers", "server"), ("Monitors", "pulse"), ("More", "more")]
-    out = ""
-    for n, i in items:
-        b = '<span class="bg2">%d</span>' % badge if (n == "Notifications" and badge) else ""
-        out += '<a href="#"%s>%s%s<span>%s</span></a>' % (' class="on"' if n == active else "", ic(i, 24), b, n)
-    return '<nav class="tabs" aria-label="Main">%s</nav>' % out
 
 
-def screen(*parts):
-    return "".join(parts)
 
 
-def sc(inner):
-    return '<div class="sc">%s</div>' % inner
 
 
-def sheet(title, inner):
-    return '<div class="scrim"></div><div class="sheet"><div class="grab"></div><div class="sh1">%s</div>%s</div>' % (title, inner)
 
 
 # ---------- connect ----------
-def welcome(d):
-    return ('<div class="sc" style="padding:120px 24px 0;gap:28px"><div class="logo">%s</div>'
-            '<div class="hero">Know when it breaks.<br>Fix it from here.</div>'
-            '<p class="mu" style="margin:0;font-size:16px">Orion Mobile connects straight to the Orion Core you run. No Orion account, no cloud copy of your data.</p></div>'
-            '<div class="col g12" style="padding:0 24px 40px"><a href="#" class="btn p">%s Scan QR code</a>'
-            '<a href="#" class="btn">Enter server address</a>'
-            '<p class="xs mu ctr" style="margin:6px 0 0">Find the QR code in Console, Settings, Mobile.</p></div>') % (
-        ic("pulse", 28, 1.6), ic("qr", 20))
 
 
 def scan(d):
@@ -91,37 +65,10 @@ def paired(d):
 
 
 # ---------- notifications ----------
-def feed_item(unread, shape, title, meta, badges, action=None, dim=False):
-    a = '<div style="margin-top:12px"><a href="#" class="btn p sm">Acknowledge</a> <a href="#" class="btn sm">Open</a></div>' if action else ""
-    return ('<div class="card cp" style="%s"><div class="row" style="align-items:flex-start;gap:10px"><span class="s %s" style="margin-top:6px"></span>'
-            '<div class="col g4" style="flex:1;min-width:0"><div class="row sp"><b class="med" style="font-size:15px">%s</b>%s</div>'
-            '<div class="row g8" style="flex-wrap:wrap">%s</div><span class="xs mu">%s</span></div></div>%s</div>') % (
-        "opacity:.6" if dim else "", shape, title, '<span class="unr" aria-label="Unread"></span>' if unread else "", badges, meta, a)
 
 
-def feed(d, offline=False):
-    ov = ('<div class="st4" style="margin:0 16px 12px"><div><span>Incidents</span><b>2</b> <small>open</small></div>'
-          '<div><span>Servers</span><b>5</b> <small>of 6</small></div><div><span>Monitors</span><b>21</b> <small>of 24</small></div></div>')
-    chips = '<div class="chips"><span class="chip on">All</span><span class="chip">Unread 3</span><span class="chip">Incidents</span><span class="chip">Servers</span><span class="chip">Monitors</span></div>'
-    ban = ('<div class="ban un">%s<span>Can&rsquo;t reach Production. Showing data from 4 min ago.</span><a href="#" class="med" style="margin-left:auto;color:var(--tx)">Retry</a></div>' % ic("off", 18)) if offline else ""
-    items = (
-        '<div class="sec" style="padding-top:4px">Needs you</div><div class="col g8 pad">%s%s</div>'
-        '<div class="sec">Earlier</div><div class="col g8 pad">%s%s</div>') % (
-        feed_item(True, "dn", "api.example.com is down", "INC-0231 &middot; api-https &middot; opened 30m ago &middot; push sent 14:02",
-                  '<span class="b cr">Critical</span><span class="b dn">Open</span>', action=not offline, dim=offline),
-        feed_item(True, "dg", "db-02 disk above 90%", "INC-0230 &middot; acknowledged by you 16h ago",
-                  '<span class="b dg">High</span><span class="b dg">Acknowledged</span>', dim=offline),
-        feed_item(False, "up", "edge-02 is reporting again", "Stopped reporting 8 min on Sun 03:44", '<span class="b up">Recovered</span>', dim=offline),
-        feed_item(False, "up", "nightly-backup heartbeat resumed", "INC-0227 resolved after 1h 12m", '<span class="b rs">Resolved</span>', dim=offline))
-    return hd(right=("search",)) + ban + '<h1 class="ttl">Notifications</h1>' + sc(ov + chips + items) + tabs("Notifications")
 
 
-def feed_empty(d):
-    return (hd() + '<h1 class="ttl">Notifications</h1>' +
-            sc('<div class="st4" style="margin:0 16px 24px"><div><span>Incidents</span><b>0</b> <small>open</small></div><div><span>Servers</span><b>6</b> <small>of 6</small></div><div><span>Monitors</span><b>24</b> <small>of 24</small></div></div>'
-               '<div class="ctr" style="padding:40px 32px;gap:10px"><div style="color:var(--ac)">%s</div><b style="font-size:18px">All quiet</b>'
-               '<p class="mu" style="margin:0">Nothing needs you. When an alert fires, it lands here and on your lock screen.</p>'
-               '<a href="#" class="btn" style="margin-top:12px">Send a test notification</a></div>' % ic("check", 40, 1.4)) + tabs("Notifications", 0))
 
 
 def lockscreen(d):
@@ -165,13 +112,6 @@ def inc_row(shape, title, idn, sev, st, when, mon):
             '<span class="xs mu">%s</span></a>') % (shape, title, idn, mon, sev, st, when)
 
 
-def incidents_list(d):
-    rows = (inc_row("dn", "api.example.com unreachable", "INC-0231", '<span class="b cr">Critical</span>', '<span class="b dn">Open</span>', "30m", "api-https") +
-            inc_row("dg", "db-02 disk above 90%", "INC-0230", '<span class="b dg">High</span>', '<span class="b dg">Acknowledged</span>', "16h", "disk-usage") +
-            inc_row("dg", "Load balancer degraded", "INC-0229", '<span class="b un">Medium</span>', '<span class="b cv">Covered</span>', "2d", "lb-https"))
-    return (hd(right=("search", "filter")) + '<h1 class="ttl">Incidents</h1><div class="seg"><a href="#" class="on">Active 3</a><a href="#">Needs review 1</a><a href="#">Resolved 21</a></div>' +
-            sc('<div class="chips"><span class="chip">Severity %s</span><span class="chip">Server %s</span><span class="chip">Last 7 days %s</span></div><div class="list">%s</div>' % (ic("down", 14), ic("down", 14), ic("down", 14), rows)) +
-            tabs("Incidents"))
 
 
 def incident_review(d):
@@ -185,21 +125,8 @@ def incident_review(d):
             tabs("Incidents"))
 
 
-def incident_body(d):
-    tl = ('<div class="tl"><div><i class="s dn"></i><div class="col g4"><b class="med">Incident opened</b><span class="xs mu">14:02 &middot; check failed 3 times</span></div></div>'
-          '<div><i class="s up"></i><div class="col g4"><b class="med">Notified</b><span class="xs mu">14:02 &middot; Mobile 2 devices, Email 1, Inbox</span></div></div>'
-          '<div><i class="s dn"></i><div class="col g4"><b class="med">Webhook failed</b><span class="xs mu">14:03 &middot; ops-pager returned 502, attempt 3 of 3</span></div></div>'
-          '<div><i class="s un"></i><div class="col g4"><b class="med">Waiting for acknowledgement</b><span class="xs mu">30m 12s</span></div></div></div>')
-    return ('<div class="hd" style="padding-bottom:0"><a href="#" class="core" aria-label="Back">%s<span>Incidents</span></a><a href="#" class="ibtn" aria-label="More">%s</a></div>'
-            '<div class="sc" style="padding:4px 16px 0;gap:12px"><div class="row g8"><span class="mono">INC-0231</span><span class="b cr">Critical</span><span class="b dn">Open</span></div>'
-            '<h1 style="font-size:22px;line-height:1.2;margin:0;font-weight:500">api.example.com is unreachable</h1>'
-            '<div class="card cp col g8 sm"><div class="row sp"><span class="mu">Monitor</span><b class="med">api-https</b></div><div class="row sp"><span class="mu">Server</span><b class="med">edge-01</b></div>'
-            '<div class="row sp"><span class="mu">Responder</span><span class="row g8"><span class="mu">Unassigned</span><a href="#" class="med" style="color:var(--ac)">Take it</a></span></div></div>'
-            '<div class="ut" style="margin:0"><a href="#" class="on">Timeline</a><a href="#">Notes</a><a href="#">Logs 12</a></div>%s</div>') % (ic("back", 22), ic("more", 22), tl)
 
 
-def incident_detail(d):
-    return incident_body(d) + '<div class="bar"><a href="#" class="btn p f">Acknowledge</a><a href="#" class="btn f">Resolve</a></div>'
 
 
 def incident_ack(d):
@@ -232,3 +159,70 @@ def incident_public(d):
         '<div class="card cp col g8"><div class="row sp"><b class="med">Investigating</b><span class="xs mu">Public page: Orion Status</span></div><p class="sm" style="margin:0">We are investigating errors reaching the API. Next update in 30 minutes.</p><div class="row g8 xs"><span class="b un">Component: API</span><span class="b dn">Major outage</span></div></div>'
         '<div class="row g8 sm">%s<span>42 confirmed subscribers will be emailed.</span></div>'
         '<div class="row g8"><a href="#" class="btn f">Cancel</a><a href="#" class="btn p f">Post update</a></div>' % (ic("alert", 20), ic("mail", 16)))
+
+
+def welcome(d):
+    return ('<div class="deep" style="padding:104px 24px 40px;display:flex;flex-direction:column;gap:22px;flex:1">%s'
+            '<div class="hero" style="font-size:46px;color:#fff">Know when it breaks.<br><span style="color:#80ffaa">Fix it from here.</span></div>'
+            '<p style="margin:0;font-size:16px;line-height:1.5;color:#b9d6c6">Orion Mobile connects straight to the Orion Core you run. No Orion account, no cloud copy of your data.</p></div>'
+            '<div class="col g12" style="padding:24px 24px 40px;background:var(--gr)"><a href="#" class="btn p">%s Scan QR code</a>'
+            '<a href="#" class="btn">Enter server address</a>'
+            '<p class="xs fa ctr" style="margin:6px 0 0">Find the QR code in Console, Settings, Mobile.</p></div>') % (
+        logo(52), ic("qr", 20))
+
+
+def feed(d, offline=False):
+    ban = ('<div class="ban un">%s<span>Can&rsquo;t reach Production. Showing data from 4 min ago.</span><a href="#" class="med" style="margin-left:auto;color:var(--tx)">Retry</a></div>' % ic("off", 18)) if offline else ""
+    dim = ' style="opacity:.55"' if offline else ""
+    need = ('<div class="fieldbox"%s><div class="fh"><b>Needs you now</b><span>Open for 30m 12s</span></div>'
+            '<div class="card cp col g12"><div class="row sp"><div class="row g8"><span class="s dn"></span><b class="med" style="font-size:15.5px">api.example.com is down</b></div><span class="b cr">Critical</span></div>'
+            '%s<div class="xs mu" style="line-height:1.5">Latest: check failed, timeout after 10s.<br>Sent to this iPhone and ops-team. oncall webhook failed.</div>'
+            '<div class="row g8" style="justify-content:flex-end"><a href="#" class="btn sm">Details</a>%s</div></div></div>') % (
+        dim, tracker([("Detected", "14:02", "done"), ("Notified", "14:02", "done"), ("Acknowledge", "waiting", "now"), ("Resolved", "-", "todo")]),
+        '' if offline else '<a href="#" class="btn sm p">Acknowledge</a>')
+    st = stats([("Monitors up", "21", "of 24"), ("Servers", "5", "of 6"), ("Uptime, 30d", "99.94%", "")])
+    row = lambda sh, t, sub, when, bold=False: ('<a href="#" class="br"><span class="s %s"></span><div class="t"><b style="font-weight:%d">%s</b><small>%s</small></div><span class="xs fa">%s</span>%s</a>' % (sh, 500, t, sub, when, '<span class="unr"></span>' if bold else ''))
+    earlier = box("Earlier", "4 notifications",
+                  row("dg", "db-02 disk above 90%", "INC-0230 &middot; acknowledged by you", "16h", True) +
+                  row("up", "edge-02 is reporting again", "Stopped reporting for 8 min", "Sun", True) +
+                  row("up", "nightly-backup heartbeat resumed", "INC-0227 resolved after 1h 12m", "Sat"))
+    return (hd() + ban + '<h1 class="ttl" style="padding-bottom:12px">How is it going, Ama?</h1><div class="sub">Thursday, Oct 16 &middot; 14:32 UTC</div>' +
+            sc(need + st + earlier) + tabs("Notifications"))
+
+
+def feed_empty(d):
+    st = stats([("Monitors up", "24", "of 24"), ("Servers", "6", "of 6"), ("Uptime, 30d", "99.98%", "")])
+    return (hd(dot="up", issues="All good") + '<h1 class="ttl" style="padding-bottom:12px">All quiet, Ama.</h1><div class="sub">Thursday, Oct 16 &middot; 14:32 UTC</div>' +
+            sc('<div class="fieldbox"><div class="fh"><b>Needs you now</b><span>Nothing</span></div><div class="card cp ctr g8" style="padding:26px 20px"><span class="td up" style="width:36px;height:36px">%s</span>'
+               '<b style="font-size:16px;font-weight:500">Nothing needs you</b><span class="sm mu" style="max-width:260px">When an alert fires it lands here, on your lock screen and in the Console inbox.</span>'
+               '<a href="#" class="btn sm" style="margin-top:6px">Send a test notification</a></div></div>%s' % (ic("check", 20, 2.4), st)) + tabs("Notifications", 0))
+
+
+def incidents_list(d):
+    def r(sh, t, idn, mon, badges, when):
+        return ('<a href="#" class="br" style="align-items:flex-start;padding:14px"><span class="s %s" style="margin-top:6px"></span><div class="t"><b style="white-space:normal">%s</b>'
+                '<small style="margin-top:2px">%s &middot; %s</small><div class="row g8" style="margin-top:8px">%s</div></div><span class="xs fa">%s</span></a>') % (sh, t, idn, mon, badges, when)
+    rows = (r("dn", "api.example.com unreachable", "INC-0231", "api-https", '<span class="b cr">Critical</span><span class="b dn">Open</span>', "30m") +
+            r("dg", "db-02 disk above 90%", "INC-0230", "disk-usage", '<span class="b dn">High</span><span class="b dg">Acknowledged</span>', "16h") +
+            r("dg", "Load balancer degraded", "INC-0229", "lb-https", '<span class="b dg">Medium</span><span class="b cv">Covered</span>', "2d"))
+    return (hd(right=("search", "filter")) + title("Incidents", "Everything Orion has opened, newest first.") +
+            '<div class="seg"><a href="#" class="on">Active 3</a><a href="#">Needs review 1</a><a href="#">Resolved 21</a></div>' +
+            sc(box("Active", "Severity High and Critical shown first", rows)) + tabs("Incidents"))
+
+
+def incident_body(d):
+    prose = ('<p class="prose">The health check on <b>api-https</b> has timed out since 14:02. ops-team was notified; the on-call webhook returned 502, so nobody was paged.</p>')
+    trk = '<div class="fieldbox"><div class="card cp" style="padding:14px 8px">%s</div></div>' % tracker([("Detected", "14:02", "done"), ("Notified", "14:02", "done"), ("Acknowledged", "waiting", "now"), ("Resolved", "-", "todo")])
+    tl = tl2([("dg", "Delivery to <b>oncall webhook</b> failed after 3 attempts &middot; <u>Retry</u>", "14:04"),
+              ("up", "Notified <b>this iPhone</b> and <b>ops-team</b> (email)", "14:02"),
+              ("dn", "Incident opened: <b>api-https</b> failed 3 checks in a row", "14:02")])
+    return ('<div class="hd" style="padding-bottom:4px"><a href="#" class="core" aria-label="Back">%s<span class="crumb">Incidents <span>/</span> <span style="color:var(--tx)">INC-0231</span></span></a><a href="#" class="ibtn" aria-label="More">%s</a></div>'
+            '<div class="sc" style="gap:12px"><div class="pad col g8"><h1 class="h2t">api.example.com unreachable</h1>'
+            '<div class="row g8"><span class="b dn">Open</span><span class="b cr">Critical</span><span class="xs fa">Open for 30m 12s</span></div></div>'
+            '<div class="pad">%s</div>%s%s'
+            '<div class="ut" style="margin:0 16px"><a href="#" class="on">Timeline</a><a href="#">Details</a><a href="#">Notifications 3</a><a href="#">Logs 14</a></div>'
+            '<div class="pad">%s</div></div>') % (ic("back", 22), ic("more", 22), prose, trk, expected_actual("200 OK", "under 1.5s, valid TLS", "Timeout", "no response in 10s, 3 failures in a row"), tl)
+
+
+def incident_detail(d):
+    return incident_body(d) + '<div class="bar"><a href="#" class="btn">Cover</a><a href="#" class="btn f">Resolve</a><a href="#" class="btn p f">Acknowledge</a></div>'

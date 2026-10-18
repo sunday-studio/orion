@@ -1,13 +1,8 @@
 """Mobile screens, part B: servers, monitors, logs, deliveries, more, states."""
 from common import ic
-from screens_a import hd, tabs, sc, sheet
+from parts import hd, tabs, sc, sheet, title, tracker, expected_actual, box, bars, stats, tl2, logo
 
 
-def spark(color="var(--ac)", pts=None, w=72, h=24, dash=False):
-    pts = pts or [14, 12, 15, 11, 13, 9, 12, 10, 8, 11, 7, 9]
-    n = len(pts)
-    p = " ".join("%d,%d" % (i * (w - 2) / (n - 1) + 1, h - v) for i, v in enumerate(pts))
-    return '<svg width="%d" height="%d" viewBox="0 0 %d %d" aria-hidden="true"><polyline points="%s" fill="none" stroke="%s" stroke-width="1.6"/></svg>' % (w, h, w, h, p, color)
 
 
 def chart(h=140, bad=False):
@@ -27,73 +22,25 @@ def uptime(n=30, bad=(27, 28, 29), warn=(12,)):
 
 
 # ---------- servers ----------
-def srv_row(shape, name, sub, cpu, mem, last, badge=""):
-    return ('<a href="#" class="li" style="min-height:68px"><span class="s %s"></span><div class="t"><b>%s</b><small>%s</small></div>'
-            '<div class="col g4" style="align-items:flex-end"><span class="xs mu" style="white-space:nowrap">CPU %s</span><span class="xs mu" style="white-space:nowrap">%s</span>%s</div></a>') % (shape, name, sub, cpu, last, badge)
 
 
-def servers_list(d):
-    rows = (srv_row("dn", "edge-01", "Ubuntu 24.04 &middot; 2 monitors down", "&ndash;", "&ndash;", "31m ago", '<span class="b dn">Not reporting</span>') +
-            srv_row("dg", "db-02", "Debian 12 &middot; disk 91%", "34%", "71%", "12s ago") +
-            srv_row("up", "edge-02", "Ubuntu 24.04", "12%", "44%", "8s ago") +
-            srv_row("up", "edge-04", "Ubuntu 24.04", "9%", "39%", "5s ago") +
-            srv_row("up", "cache-01", "Debian 12", "21%", "58%", "14s ago") +
-            srv_row("mt", "build-01", "macOS 15 &middot; maintenance", "&ndash;", "&ndash;", "Paused", ""))
-    return (hd(right=("search",)) + '<h1 class="ttl">Servers</h1><div class="sub">5 of 6 reporting</div>' +
-            sc('<div class="chips"><span class="chip on">All 6</span><span class="chip">Needs attention 2</span><span class="chip">Maintenance 1</span></div><div class="list">%s</div>' % rows) + tabs("Servers"))
 
 
-def tile(label, val, unit, color="var(--ac)", pts=None):
-    return ('<div class="card cp col g4"><span class="xs mu">%s</span><div class="row sp"><b style="font-size:22px;font-weight:500">%s<small class="mu" style="font-size:13px;font-weight:400">%s</small></b>%s</div></div>') % (label, val, unit, spark(color, pts, 56, 22))
 
 
-def server_detail(d):
-    mons = ('<div class="list"><a href="#" class="li"><span class="s dn"></span><div class="t"><b>api-https</b><small>HTTP &middot; timeout after 10s</small></div>%s</a>'
-            '<a href="#" class="li"><span class="s un"></span><div class="t"><b>edge-01-disk</b><small>Agent &middot; no data</small></div>%s</a></div>') % (ic("chev", 18), ic("chev", 18))
-    return ('<div class="hd" style="padding-bottom:0"><a href="#" class="core" aria-label="Back">%s<span>Servers</span></a><a href="#" class="ibtn" aria-label="More">%s</a></div>'
-            '<div class="sc" style="padding:4px 0 0;gap:12px"><div class="pad col g8"><div class="row g8"><span class="s dn"></span><h1 style="font-size:24px;margin:0;font-weight:500">edge-01</h1><span class="b dn">Not reporting</span></div>'
-            '<span class="sm mu">Ubuntu 24.04 &middot; orion-agent 0.14 &middot; last report 31 min ago</span></div>'
-            '<div class="call dg" style="margin:0 16px">%s<div>edge-01 stopped reporting at 14:01. Its 2 monitors show Unknown. Check the host or put it in maintenance.</div></div>'
-            '<div class="ut"><a href="#" class="on">Overview</a><a href="#">Monitors 2</a><a href="#">Reports</a><a href="#">Logs</a></div>'
-            '<div class="pad" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">%s%s%s%s</div><div class="sec">Monitors on this server</div>%s</div>') % (
-        ic("back", 22), ic("more", 22), ic("alert", 20), tile("CPU, last seen", "41", "%", "var(--fa)"), tile("Memory", "62", "%", "var(--fa)"),
-        tile("Disk", "58", "%", "var(--fa)"), tile("Load 1m", "0.84", "", "var(--fa)"), mons)
 
 
 # ---------- monitors ----------
-def mon_row(shape, name, kind, up, state=""):
-    return ('<a href="#" class="li" style="min-height:64px"><span class="s %s"></span><div class="t"><b>%s</b><small>%s &middot; %s</small></div>%s<span class="mono" style="width:52px;text-align:right">%s</span></a>') % (
-        shape, name, kind, up, spark("var(--dnx)" if shape == "dn" else "var(--ac)", [12, 12, 13, 12, 12, 3, 2] if shape == "dn" else None, 56, 22), up.split()[0])
 
 
-def monitors_list(d):
-    rows = (mon_row("dn", "api-https", "HTTP", "99.20% 30d") + mon_row("dg", "disk-usage", "Agent", "99.80% 30d") +
-            mon_row("up", "web-https", "HTTP", "100% 30d") + mon_row("up", "lb-https", "HTTP", "99.97% 30d") +
-            mon_row("up", "nightly-backup", "Heartbeat", "100% 30d") + mon_row("un", "legacy-tcp", "TCP", "Paused"))
-    return (hd(right=("search", "filter")) + '<h1 class="ttl">Monitors</h1><div class="sub">21 of 24 up</div>' +
-            sc('<div class="chips"><span class="chip on">All 24</span><span class="chip"><span class="s dn"></span>Down 1</span><span class="chip"><span class="s dg"></span>Degraded 1</span><span class="chip">Paused 1</span></div><div class="list">%s</div>' % rows) + tabs("Monitors"))
 
 
-def monitor_body(d):
-    return ('<div class="hd" style="padding-bottom:0"><a href="#" class="core" aria-label="Back">%s<span>Monitors</span></a><a href="#" class="ibtn" aria-label="More">%s</a></div>'
-            '<div class="sc" style="padding:4px 16px 0;gap:12px"><div class="row g8"><span class="s dn"></span><h1 style="font-size:24px;margin:0;font-weight:500">api-https</h1><span class="b dn">Down</span></div>'
-            '<span class="mono">GET https://api.example.com/health</span>'
-            '<div class="card cp col g8"><div class="row sp sm"><b class="med">Response time</b><span class="mu">24 hours</span></div>%s<div class="row sp xs mu"><span>14:00</span><span>timeout 10s</span></div></div>'
-            '<div class="card cp col g8"><div class="row sp sm"><b class="med">Uptime, 30 days</b><b>99.20%%</b></div>%s</div>'
-            '<div class="st4"><div><span>Avg</span><b>184<small>ms</small></b></div><div><span>Checks</span><b>43k</b></div><div><span>Last</span><b style="color:var(--dnt)">Fail</b></div></div></div>') % (
-        ic("back", 22), ic("more", 22), chart(120, True), uptime())
 
 
 def monitor_detail(d):
     return monitor_body(d) + '<div class="bar"><a href="#" class="btn p f">%s Run test now</a><a href="#" class="btn f">%s Pause</a></div>' % (ic("play", 16), ic("pause", 16))
 
 
-def monitor_test(d):
-    return monitor_body(d) + sheet("Test run",
-        '<div class="call" style="background:var(--dnb);color:var(--dnt);border-color:transparent">%s<div><b>Failed</b><br>Timed out after 10 s. No response from api.example.com:443.</div></div>'
-        '<div class="card cp col g8 sm"><div class="row sp"><span class="mu">DNS</span><span>12 ms</span></div><div class="row sp"><span class="mu">Connect</span><span style="color:var(--dnt)">timeout</span></div><div class="row sp"><span class="mu">TLS</span><span class="fa">&ndash;</span></div></div>'
-        '<p class="xs mu" style="margin:0">A test run does not change the monitor or open an incident.</p>'
-        '<div class="row g8"><a href="#" class="btn f">Close</a><a href="#" class="btn p f">Run again</a></div>' % ic("x", 20))
 
 
 # ---------- logs ----------
@@ -231,3 +178,56 @@ def session_expired(d):
                   '<div><label class="lbl">Username</label><div class="fld"><span class="v">admin</span><span class="fa">%s</span></div></div>'
                   '<div><label class="lbl">Password</label><div class="fld f"><span class="v">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</span></div></div>'
                   '<a href="#" class="btn p">Sign in</a>' % ic("shield", 16)))
+
+
+def servers_list(d):
+    def r(sh, n, sub, bad, warn, pct):
+        return ('<a href="#" class="br"><span class="s %s"></span><div class="t"><b>%s</b>%s</div>%s<span class="pc">%s</span></a>') % (
+            sh, n, ('<small>%s</small>' % sub) if sub else "", bars(30, bad, warn), pct)
+    rows = (r("dn", "edge-01", "Not reporting for 31m", (27, 28, 29), (), "99.2%") + r("dg", "db-02", "Disk at 91%", (), (27, 28), "99.8%") +
+            r("up", "edge-02", "", (), (), "100%") + r("up", "edge-04", "", (), (), "100%") + r("up", "cache-01", "", (), (14,), "99.9%") +
+            r("mt", "build-01", "In maintenance", (), (), "n/a"))
+    return (hd(right=("search",)) + title("Servers", "Machines running an Orion Server. 5 of 6 reporting.") +
+            sc(box("Server health", "30 days", rows)) + tabs("Servers"))
+
+
+def server_detail(d):
+    mon = lambda sh, n, sub: '<a href="#" class="br"><span class="s %s"></span><div class="t"><b>%s</b><small>%s</small></div>%s</a>' % (sh, n, sub, ic("chev", 18))
+    return ('<div class="hd" style="padding-bottom:4px"><a href="#" class="core" aria-label="Back">%s<span class="crumb">Servers <span>/</span> <span style="color:var(--tx)">edge-01</span></span></a><a href="#" class="ibtn" aria-label="More">%s</a></div>'
+            '<div class="sc" style="gap:12px"><div class="pad col g8"><h1 class="h2t">edge-01</h1><div class="row g8"><span class="b dn">Not reporting</span><span class="xs fa">Last report 31m ago</span></div></div>'
+            '<div class="pad"><p class="prose">edge-01 stopped reporting at 14:01. Its 2 monitors show Unknown. Check the host or put it in maintenance.</p></div>'
+            '<div class="ut" style="margin:0 16px"><a href="#" class="on">Overview</a><a href="#">Monitors 2</a><a href="#">Reports</a><a href="#">Logs</a></div>'
+            '%s%s</div>') % (
+        ic("back", 22), ic("more", 22),
+        stats([("CPU, last seen", "41%", ""), ("Memory", "62%", ""), ("Disk", "58%", "")]),
+        box("Monitors on this server", "2", mon("un", "api-https", "HTTP &middot; no data since 14:01") + mon("un", "edge-01-disk", "Agent &middot; no data")))
+
+
+def monitors_list(d):
+    def r(sh, n, sub, bad, warn, pct):
+        return '<a href="#" class="br"><span class="s %s"></span><div class="t"><b>%s</b><small>%s</small></div>%s<span class="pc">%s</span></a>' % (sh, n, sub, bars(30, bad, warn), pct)
+    rows = (r("dn", "api-https", "HTTP &middot; every 30s", (27, 28, 29), (), "99.2%") + r("dg", "disk-usage", "Agent &middot; db-02", (), (27, 28), "99.8%") +
+            r("up", "web-https", "HTTP &middot; every 30s", (), (), "100%") + r("up", "lb-https", "HTTP &middot; every 30s", (), (9,), "99.97%") +
+            r("up", "nightly-backup", "Heartbeat &middot; daily", (), (), "100%") + r("un", "legacy-tcp", "TCP &middot; paused", (), (), "n/a"))
+    return (hd(right=("search", "filter")) + title("Monitors", "24 checks across 6 servers and Core.") +
+            '<div class="seg"><a href="#" class="on">All 24</a><a href="#">Down 1</a><a href="#">Degraded 1</a><a href="#">Up 21</a></div>' +
+            sc(box("Checks", "30 days", rows)) + tabs("Monitors"))
+
+
+def monitor_body(d):
+    return ('<div class="hd" style="padding-bottom:4px"><a href="#" class="core" aria-label="Back">%s<span class="crumb">Monitors <span>/</span> <span style="color:var(--tx)">api-https</span></span></a><a href="#" class="ibtn" aria-label="More">%s</a></div>'
+            '<div class="sc" style="gap:12px"><div class="pad col g8"><h1 class="h2t">api-https</h1><div class="row g8"><span class="b dn">Down</span><span class="xs fa">GET api.example.com/health</span></div></div>'
+            '%s%s%s%s</div>') % (
+        ic("back", 22), ic("more", 22),
+        expected_actual("200 OK", "under 1.5s", "Timeout", "no response in 10s"),
+        box("Response time", "24 hours", '<div style="padding:10px 14px 8px">%s</div>' % chart(110, True)),
+        box("Uptime", "30 days &middot; 99.20%", '<div style="padding:12px 14px">%s</div>' % uptime()),
+        stats([("Avg", "184ms", ""), ("Checks", "43k", ""), ("Last", "Fail", "")]))
+
+
+def monitor_test(d):
+    return monitor_body(d) + sheet("Test run",
+        '<div class="ea" style="margin:0"><div class="x"><span>Expected</span><b>200 OK</b><small>under 1.5s</small></div><div class="y"><span>Actual, now</span><b style="color:var(--dnt)">Timeout</b><small>no response in 10s</small></div></div>'
+        '<div class="card cp col g8 sm"><div class="row sp"><span class="mu">DNS</span><span>12 ms</span></div><div class="row sp"><span class="mu">Connect</span><span style="color:var(--dnt)">timeout</span></div><div class="row sp"><span class="mu">TLS</span><span class="fa">-</span></div></div>'
+        '<p class="xs mu" style="margin:0">A test run does not change the monitor or open an incident.</p>'
+        '<div class="row g8"><a href="#" class="btn f">Close</a><a href="#" class="btn p f">Run again</a></div>')
