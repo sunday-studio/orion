@@ -43,6 +43,16 @@ const MonitorEditPage = lazy(() =>
     default: module.MonitorEditPage,
   })),
 );
+const ChannelDetailPage = lazy(() =>
+  import("@/features/alerts/channels/channel-detail.view").then((module) => ({
+    default: module.ChannelDetailPage,
+  })),
+);
+const DeliveryDetailPage = lazy(() =>
+  import("@/features/alerts/deliveries/delivery-detail.view").then((module) => ({
+    default: module.DeliveryDetailPage,
+  })),
+);
 const IncidentTriagePage = lazy(() =>
   import("@/features/incidents/incident-triage.view").then((module) => ({
     default: module.IncidentTriagePage,
@@ -116,6 +126,8 @@ function AppRouter() {
           <Route path="health-issues" element={<HealthIssuesPage />} />
           <Route path="incidents/triage" element={<IncidentTriagePage />} />
           <Route path="incidents/:incidentId" element={<IncidentDetailPage />} />
+          <Route path="alerts/channels/:channelId" element={<ChannelDetailPage />} />
+          <Route path="alerts/deliveries/:deliveryId" element={<DeliveryDetailPage />} />
           <Route path="design-system" element={<DesignSystemPage />} />
           <Route path="apps/new" element={<ConnectAppPage />} />
           <Route path="settings/apps" element={<AppsPage />} />
