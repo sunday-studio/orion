@@ -33,6 +33,11 @@ const HealthIssuesPage = lazy(() =>
     default: module.HealthIssuesPage,
   })),
 );
+const AgentMonitorSetupPage = lazy(() =>
+  import("@/features/monitors/agent-setup/agent-monitor-setup.view").then((module) => ({
+    default: module.AgentMonitorSetupPage,
+  })),
+);
 const MonitorEditPage = lazy(() =>
   import("@/features/monitor-detail/edit/monitor-edit.view").then((module) => ({
     default: module.MonitorEditPage,
@@ -105,6 +110,7 @@ function AppRouter() {
           <Route path="servers/new" element={<AddServerPage />} />
           <Route path="servers/:agentId" element={<AgentDetailPage />} />
           <Route path="monitors" element={<MonitorsPage />} />
+          <Route path="monitors/new/agent" element={<AgentMonitorSetupPage />} />
           <Route path="monitors/:monitorId" element={<MonitorDetailPage />} />
           <Route path="monitors/:monitorId/edit" element={<MonitorEditPage />} />
           <Route path="health-issues" element={<HealthIssuesPage />} />

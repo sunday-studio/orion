@@ -137,12 +137,16 @@ export const MonitorCreateDialog = ({
           <ChoiceTiles aria-label="Monitor type" tiles={TILES} value={kind} onValueChange={pick} />
           {kind === "agent" ? (
             <Callout tone="warn" className="leading-[1.5]">
-              Agent monitors run on a server and come from its agent configuration. Open the server,
-              or{" "}
-              <Link className="underline" to="/servers">
-                add a server
-              </Link>{" "}
-              first.
+              Agent monitors run on a server through its agent. Pick the server and what to check on
+              the{" "}
+              <Link
+                className="underline"
+                to="/monitors/new/agent"
+                onClick={() => onOpenChange(false)}
+              >
+                agent monitor page
+              </Link>
+              .
             </Callout>
           ) : (
             <>
