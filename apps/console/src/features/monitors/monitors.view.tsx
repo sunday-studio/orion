@@ -6,6 +6,7 @@ import {
 } from "@/features/monitors/components/core-monitor-dialog";
 import { coreMonitorMutationErrorMessage } from "@/features/monitors/components/core-monitor-errors";
 import { HeartbeatSetupPanel } from "@/features/monitors/components/heartbeat-setup-panel";
+import { MonitorCreateDialog } from "@/features/monitors/create/monitor-create-dialog";
 import { MonitorList } from "@/features/monitors/components/monitor-list";
 import {
   type ApiCoreMonitorConfigResponse,
@@ -28,6 +29,7 @@ import { explainMonitorFailure } from "./monitors.domain";
 
 export const MonitorsPage = () => {
   const [createOpen, setCreateOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [createFeedback, setCreateFeedback] = useState("");
   const [createFeedbackTone, setCreateFeedbackTone] = useState<"neutral" | "error">("neutral");
   const [heartbeatSetup, setHeartbeatSetup] = useState<{
@@ -67,6 +69,7 @@ export const MonitorsPage = () => {
       setCreateFeedback("Heartbeat monitor created.");
       refreshMonitors();
       setCreateOpen(false);
+      setAdvancedOpen(false);
       return;
     }
     setHeartbeatSetup(undefined);
@@ -96,6 +99,7 @@ export const MonitorsPage = () => {
     }
     refreshMonitors();
     setCreateOpen(false);
+    setAdvancedOpen(false);
   };
 
   const total = summary.data?.total;
@@ -145,6 +149,20 @@ export const MonitorsPage = () => {
       ) : (
         <MonitorList workerDiagnostics={workerDiagnostics} />
       )}
+      <MonitorCreateDialog
+        open={createOpen}
+        error={coreMonitorMutationErrorMessage(
+          createMonitor.error,
+          "Unable to create the monitor.",
+        )}
+        pending={createMonitor.isPending}
+        onOpenChange={setCreateOpen}
+        onCreate={(data) => void handleCreate(data, "save")}
+        onMoreTypes={() => {
+          setCreateOpen(false);
+          setAdvancedOpen(true);
+        }}
+      />
       <CoreMonitorDialog
         error={coreMonitorMutationErrorMessage(
           createMonitor.error,
@@ -152,11 +170,11 @@ export const MonitorsPage = () => {
         )}
         isSubmitting={createMonitor.isPending || isTestingCreatedMonitor}
         mode="create"
-        onOpenChange={setCreateOpen}
+        onOpenChange={setAdvancedOpen}
         onSubmit={(data, action) =>
           void handleCreate(data as ServiceCoreManagedMonitorCreateRequest, action)
         }
-        open={createOpen}
+        open={advancedOpen}
       />
     </div>
   );
