@@ -10,6 +10,7 @@ The supported self-hosted setup is:
 - [Core Docker deployment](core-docker.md)
 - [Kubernetes position](kubernetes-position.md)
 - [Server install and upgrade](agent-install-upgrade.md)
+- [Agent configuration reference](agent-config-reference.md)
 - [Release readiness gate](release-readiness.md)
 - [SQLite backup and restore](../sqlite-backup-restore.md)
 
