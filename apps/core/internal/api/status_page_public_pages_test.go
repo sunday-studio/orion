@@ -308,3 +308,13 @@ func TestAlertEmailConfirmPageIsStyled(t *testing.T) {
 	assertContains(t, resp.Body.String(), `class="plain-page`)
 	assertContains(t, resp.Body.String(), "Powered by Orion")
 }
+
+func TestPublicBarTipNamesDayStatusAndUptime(t *testing.T) {
+	ratio := 0.9
+	if got := publicBarTip(StatusPagePublicUptimeBucketResponse{Date: "2026-10-03", Status: "degraded", UptimeRatio: &ratio, UptimeDisplay: "90.0%"}); got != "Oct 3 · Degraded · 90.0%" {
+		t.Fatalf("tip = %q", got)
+	}
+	if got := publicBarTip(StatusPagePublicUptimeBucketResponse{Date: "2026-10-04", Status: "no_data"}); !strings.HasPrefix(got, "Oct 4 · ") {
+		t.Fatalf("no-data tip = %q", got)
+	}
+}
