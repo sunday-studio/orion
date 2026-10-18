@@ -29,7 +29,10 @@ export const DialogContent = ({
       {showCloseButton && (
         <DialogPrimitive.Close
           aria-label="Close"
-          className={cn(focusRing, "absolute right-4 top-4 rounded p-1 text-quiet hover:text-ink")}
+          className={cn(
+            focusRing,
+            "absolute right-3.5 top-3.5 rounded-md p-1.5 text-quiet transition-colors hover:bg-tray hover:text-ink",
+          )}
         >
           <XIcon className="size-4" />
         </DialogPrimitive.Close>

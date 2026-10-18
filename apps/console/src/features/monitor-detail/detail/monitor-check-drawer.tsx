@@ -1,5 +1,13 @@
 import { useState } from "react";
-import { Button, Drawer, DrawerContent, DrawerTitle, StatusBadge, useToast } from "@/design-system";
+import {
+  Button,
+  Drawer,
+  DrawerContent,
+  DrawerTitle,
+  JsonBlock,
+  StatusBadge,
+  useToast,
+} from "@/design-system";
 import type { ApiMonitorReportResponse } from "@/orion-sdk";
 import { formatDate } from "@/utils/date";
 
@@ -81,9 +89,11 @@ export const MonitorCheckDrawer = ({
           ))}
         </div>
         <h3 className="text-[13px] font-medium">Raw payload</h3>
-        <pre className="m-0 max-h-[320px] overflow-auto rounded-lg bg-[#142a23] px-3 py-3 font-mono text-[12.5px] leading-[1.6] text-[#e6f1ec]">
-          {json || "No payload recorded."}
-        </pre>
+        {json ? (
+          <JsonBlock value={shown?.payload} />
+        ) : (
+          <p className="text-[13px] text-quiet">No payload recorded.</p>
+        )}
         <div className="flex gap-2">
           <Button
             size="sm"

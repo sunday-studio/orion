@@ -65,13 +65,26 @@ export const EmailForm = ({
     mutation: { onSuccess: () => toast.add({ title: "Confirmation email sent" }) },
   });
 
-  const commit = () => {
-    const value = typed.trim();
-    if (!EMAIL.test(value)) return;
+  const addAddress = (value: string) => {
+    if (!EMAIL.test(value)) return false;
     if (channelId) add.mutate({ id: channelId, data: { email: value } });
     else if (!draft.recipients.includes(value))
       onChange({ ...draft, recipients: [...draft.recipients, value] });
-    setTyped("");
+    return true;
+  };
+  const commit = () => {
+    if (addAddress(typed.trim())) setTyped("");
+  };
+  /** A comma ends an address: everything before it becomes a tag, the rest keeps typing. */
+  const onType = (value: string) => {
+    if (!value.includes(",")) {
+      setTyped(value);
+      return;
+    }
+    const parts = value.split(",");
+    const rest = parts.pop() ?? "";
+    const kept = parts.map((part) => part.trim()).filter((part) => part && !addAddress(part));
+    setTyped([...kept, rest.trimStart()].filter(Boolean).join(", "));
   };
   const rows = channelId
     ? (saved.data?.recipients ?? []).map((r) => ({
@@ -124,10 +137,10 @@ export const EmailForm = ({
           ))}
           <input
             id="email-recipients"
-            className="min-w-[120px] flex-1 bg-transparent text-[13px] font-normal outline-none placeholder:text-faint"
+            className="min-w-[120px] flex-1 border-0 bg-transparent p-0 text-[13px] font-normal shadow-none outline-none ring-0 placeholder:text-faint focus:ring-0 focus-visible:ring-0"
             placeholder="Add address"
             value={typed}
-            onChange={(event) => setTyped(event.target.value)}
+            onChange={(event) => onType(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === ",") {
                 event.preventDefault();

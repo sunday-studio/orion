@@ -69,7 +69,7 @@ export const RouteDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-[520px] gap-3.5 overflow-y-auto rounded-2xl p-5">
         <form
-          className="flex min-w-0 flex-col gap-3.5"
+          className="-mx-1.5 flex min-w-0 flex-col gap-3.5 px-1.5"
           onSubmit={(event) => {
             event.preventDefault();
             if (!valid) return;
