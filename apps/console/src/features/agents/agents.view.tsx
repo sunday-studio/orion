@@ -12,9 +12,7 @@ export const AgentsPage = () => {
     <div className="mx-auto w-full max-w-[1000px] pb-8">
       <PageHeader
         title="Servers"
-        description={
-          total === undefined ? undefined : `${pluralize(total, "agent")} connected to Core.`
-        }
+        description={!total ? undefined : `${pluralize(total, "agent")} connected to Core.`}
         actions={
           <Link to="/servers/new">
             <Button size="sm">
