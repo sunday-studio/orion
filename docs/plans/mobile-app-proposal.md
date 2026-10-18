@@ -4,8 +4,8 @@ Status: proposal, input for design. Nothing here is built.
 
 ## Goal
 
-Mobile is a **third notification channel** in Orion, next to the Console **inbox** (incident triage) and
-**webhooks**. It plugs into the same alert rules, routes and label routes, shows up in the same
+Mobile is a **new notification channel** in Orion, next to **email**, **webhooks** and the Console
+**inbox** (incident triage), all of which stay. It plugs into the same alert rules, routes and label routes, shows up in the same
 delivery log, and exists so an operator is reached wherever they are and can respond from the
 notification. It is not a second Console. Console stays the place for configuration.
 
@@ -13,7 +13,7 @@ Principles:
 
 1. **Notification first.** Every screen exists to explain, or act on, a notification that arrived.
 2. **Same pipeline as everything else.** No mobile-only alerting logic: rules, routes, quiet hours and
-   delivery logs are shared with inbox and webhook.
+   delivery logs are shared with email, webhook and inbox.
 3. **Self-hosted first.** The app talks only to the user's Core. No Orion account.
 4. **Read-heavy, few safe writes.** Configuration stays on web.
 5. **One app, many Cores.**
@@ -98,7 +98,7 @@ header for audit and support.
 ### Push notifications (the hard part)
 
 APNs and FCM require credentials owned by whoever publishes the app, so a self-hosted Core cannot
-send to phones directly. Alert channels today are webhook-only. Proposal:
+send to phones directly. Alert channels today are email and webhook. Proposal:
 
 1. **Orion Push Relay**: a tiny stateless service run by Sunday Studio (open source, so people can
    self-host it and build their own app variant). It holds the APNs/FCM keys and does one thing:
@@ -107,7 +107,7 @@ send to phones directly. Alert channels today are webhook-only. Proposal:
    `{core_id, incident_id}`. Payload text is a generic "Orion: incident opened". The app wakes,
    fetches the real details from the user's own Core, then shows a local notification (the Matrix
    and Bitwarden pattern). Incident names, hostnames, and log lines never touch Sunday Studio.
-3. **Core side:** add a `mobile_push` alert channel type alongside `webhook` (and the Console inbox),
+3. **Core side:** add a `mobile_push` alert channel type alongside `email` and `webhook` (and the Console inbox),
    reusing the existing rules, routes, label routes, quiet-hours and delivery log. A channel
    targets paired devices (all, or chosen ones), so routes can say "page the on-call phone". Delivery failures show up in
    `/v1/alerts/deliveries` like any other channel. Relay URL is configurable, default to the hosted
