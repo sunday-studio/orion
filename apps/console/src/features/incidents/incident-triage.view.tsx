@@ -2,7 +2,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Button,
-  Dot,
   EmptyState,
   GridRow,
   GridTable,
@@ -23,9 +22,9 @@ import {
   useOpenIncidentCandidate,
 } from "@/orion-sdk";
 import { TIME_FORMAT, formatDate } from "@/utils/date";
-import { healthDot } from "./incident-format";
+import {} from "./incident-format";
 
-const COLUMNS = "10px minmax(0,1.3fr) 90px 80px 100px 90px minmax(0,1.4fr) 56px 150px";
+const COLUMNS = "minmax(0,1.3fr) 90px 80px 100px 90px minmax(0,1.4fr) 56px 150px";
 
 const label = (value?: string) => (value ? value.charAt(0).toUpperCase() + value.slice(1) : "-");
 
@@ -100,7 +99,6 @@ export const IncidentTriagePage = () => {
           <div className="overflow-hidden rounded-xl border border-hairline bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
             <GridTable>
               <GridRow columns={COLUMNS} header>
-                <span />
                 <span>Monitor</span>
                 <span>Server</span>
                 <span>Type</span>
@@ -115,7 +113,6 @@ export const IncidentTriagePage = () => {
                 const name = candidate.monitor_name ?? id;
                 return (
                   <GridRow key={id} flipId={id} columns={COLUMNS}>
-                    <Dot color={healthDot(candidate.health)} />
                     <b className="font-medium">
                       {candidate.agent_name && candidate.monitor_type === "agent"
                         ? `${candidate.agent_name} ${name}`
