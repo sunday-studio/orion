@@ -312,7 +312,7 @@ func (s *Server) updateAlertChannel(c *gin.Context) {
 // @Produce      json
 // @ID           testAlertChannel
 // @Param        id   path      string  true  "Alert channel ID"
-// @Success      200  {object}  utils.APIResponse{data=object{delivery=AlertDeliveryResponse}}
+// @Success      200  {object}  utils.APIResponse{data=object{delivery=AlertDeliveryResponse,result=AlertTestResult}}
 // @Failure      404  {object}  utils.APIResponse
 // @Failure      500  {object}  utils.APIResponse
 // @Router       /v1/alerts/channels/{id}/test [post]
