@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   Button,
+  ColorField,
   Dot,
   FieldPanel,
   Input,
@@ -108,14 +109,10 @@ export const SetupTab = ({
       </FieldPanel>
       <FieldPanel title="Branding">
         <RaisedCard className="grid gap-3.5 p-4">
-          <label>
+          <div className="grid gap-1.5">
             <span className={label}>Accent color</span>
-            <Input
-              placeholder="#2a9f69"
-              value={accent}
-              onChange={(event) => setAccent(event.target.value)}
-            />
-          </label>
+            <ColorField aria-label="Accent color" value={accent} onChange={setAccent} />
+          </div>
           <div className="grid gap-1.5">
             <span className={label}>Layout</span>
             <Segmented
