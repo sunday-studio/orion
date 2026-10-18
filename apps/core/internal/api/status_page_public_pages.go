@@ -73,7 +73,7 @@ func (s *Server) publicIncidentView(base string, incident StatusPagePublicIncide
 func (s *Server) writePublicStatusPageHTML(c *gin.Context, preview StatusPagePreviewResponse) {
 	shell, theme := publicPageShell(c, preview, "", true)
 	word, tone := publicTickerFor(preview.OverallStatus)
-	data := publicpage.StatusData{Shell: shell, ShowStats: theme.showUptime, Updated: preview.LastUpdated}
+	data := publicpage.StatusData{Shell: shell, ShowStats: theme.showUptime && !theme.compact, Updated: preview.LastUpdated}
 	data.Hero = publicpage.Hero{Ticker: ticker(word, tone), Eyebrow: "Current status", Title: publicStatusPageHTMLSummary(preview.OverallStatus), Text: preview.Page.Description}
 	for _, section := range preview.Sections {
 		view := publicpage.Section{Name: section.Name}
