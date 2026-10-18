@@ -52,7 +52,9 @@ type Props = {
 export const ChannelDialog = ({ open, channel, onOpenChange }: Props) => {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const editing = Boolean(channel?.id);
+  const [createdChannel, setCreatedChannel] = useState<ApiAlertChannelResponse>();
+  const active = channel ?? createdChannel;
+  const editing = Boolean(active?.id);
   const [step, setStep] = useState<Step>("pick");
   const [pick, setPick] = useState<"webhook" | "email">("webhook");
   const [webhook, setWebhook] = useState<WebhookDraft>(emptyWebhookDraft);
@@ -64,6 +66,7 @@ export const ChannelDialog = ({ open, channel, onOpenChange }: Props) => {
     if (!open) return;
     setError(undefined);
     setResult(undefined);
+    setCreatedChannel(undefined);
     if (channel) {
       setStep(channel.type === "email" ? "email" : "webhook");
       setWebhook(webhookDraftFrom(channel));
@@ -74,7 +77,9 @@ export const ChannelDialog = ({ open, channel, onOpenChange }: Props) => {
       setWebhook(emptyWebhookDraft);
       setEmail(emptyEmailDraft);
     }
-  }, [open, channel]);
+    // Seed once per open so a background refetch cannot overwrite the draft.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: getGetAlertChannelsQueryKey() });
@@ -116,7 +121,7 @@ export const ChannelDialog = ({ open, channel, onOpenChange }: Props) => {
           subscribed_events: channel?.subscribed_events ?? DEFAULT_EVENTS,
           ...(headers ? { headers } : {}),
         };
-        if (channel?.id) await update.mutateAsync({ id: channel.id, data });
+        if (active?.id) await update.mutateAsync({ id: active.id, data });
         else await create.mutateAsync({ data });
       } else {
         const data = {
@@ -127,13 +132,26 @@ export const ChannelDialog = ({ open, channel, onOpenChange }: Props) => {
           email_delivery_mode: email.mode,
           email_subject_prefix: email.prefix,
         };
-        if (channel?.id) await update.mutateAsync({ id: channel.id, data });
+        if (active?.id) await update.mutateAsync({ id: active.id, data });
         else {
           const created = await create.mutateAsync({ data });
           const id = created.channel?.id;
           if (id) {
+            const failed: string[] = [];
             for (const address of email.recipients) {
-              await addAlertChannelRecipient(id, { email: address });
+              try {
+                await addAlertChannelRecipient(id, { email: address });
+              } catch {
+                failed.push(address);
+              }
+            }
+            refresh();
+            if (failed.length > 0) {
+              // The channel exists now: keep the dialog on it so Save cannot create a second one.
+              setCreatedChannel(created.channel);
+              setEmail((current) => ({ ...current, recipients: failed }));
+              setError(`Channel added, but these addresses were not added: ${failed.join(", ")}.`);
+              return;
             }
           }
         }
@@ -148,7 +166,15 @@ export const ChannelDialog = ({ open, channel, onOpenChange }: Props) => {
 
   const runTest = () => {
     setError(undefined);
-    if (step === "webhook") {
+    if (
+      step === "webhook" &&
+      active?.id &&
+      !webhook.headersTouched &&
+      webhook.url === (active.webhook_url ?? "")
+    ) {
+      // Header values are never returned, so test the saved channel as stored.
+      testSaved.mutate({ id: active.id });
+    } else if (step === "webhook") {
       testRun.mutate({
         data: {
           type: "webhook",
@@ -156,8 +182,8 @@ export const ChannelDialog = ({ open, channel, onOpenChange }: Props) => {
           headers: headersPayload(webhook, false),
         },
       });
-    } else if (channel?.id) {
-      testSaved.mutate({ id: channel.id });
+    } else if (active?.id) {
+      testSaved.mutate({ id: active.id });
     }
   };
 
@@ -214,9 +240,9 @@ export const ChannelDialog = ({ open, channel, onOpenChange }: Props) => {
                   ))}
                 </div>
               ) : step === "webhook" ? (
-                <WebhookForm draft={webhook} channel={channel ?? undefined} onChange={setWebhook} />
+                <WebhookForm draft={webhook} channel={active ?? undefined} onChange={setWebhook} />
               ) : (
-                <EmailForm draft={email} channel={channel ?? undefined} onChange={setEmail} />
+                <EmailForm draft={email} channel={active ?? undefined} onChange={setEmail} />
               )}
               {error && <Callout tone="warn">{error}</Callout>}
             </AnimatedHeight>
@@ -230,11 +256,15 @@ export const ChannelDialog = ({ open, channel, onOpenChange }: Props) => {
                   disabled={
                     testRun.isPending ||
                     testSaved.isPending ||
-                    (step === "webhook" ? !webhookValid : !channel?.id)
+                    (step === "webhook" ? !webhookValid : !active?.id)
                   }
                   onClick={runTest}
                 >
-                  {step === "webhook" ? "Send test" : "Send test email"}
+                  {step === "webhook"
+                    ? editing && !webhook.headersTouched
+                      ? "Send test (saved)"
+                      : "Send test"
+                    : "Send test email"}
                 </Button>
               )}
               <div className="flex gap-2">

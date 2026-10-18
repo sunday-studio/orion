@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Button, Callout, CodeBlock, Input, useToast } from "@/design-system";
+import { Button, Callout, CodeBlock, ConfirmDialog, Input, useToast } from "@/design-system";
 import {
   type ApiAlertChannelResponse,
   getGetAlertChannelsQueryKey,
@@ -35,7 +35,9 @@ export const webhookDraftFrom = (channel: ApiAlertChannelResponse): WebhookDraft
 export const headersPayload = (draft: WebhookDraft, editing: boolean) => {
   if (editing && !draft.headersTouched) return undefined;
   return Object.fromEntries(
-    draft.headers.filter((row) => row.name.trim()).map((row) => [row.name.trim(), row.value]),
+    draft.headers
+      .filter((row) => row.name.trim() && row.value !== "")
+      .map((row) => [row.name.trim(), row.value]),
   );
 };
 
@@ -56,6 +58,7 @@ export const WebhookForm = ({
   const queryClient = useQueryClient();
   const preview = useGetAlertPayloadPreview();
   const [newSecret, setNewSecret] = useState<string>();
+  const [confirmRegen, setConfirmRegen] = useState(false);
   const regenerate = useRegenerateAlertChannelSecret({
     mutation: {
       onSuccess: (result) => {
@@ -112,7 +115,7 @@ export const WebhookForm = ({
             size="sm"
             variant="secondary"
             disabled={!channel?.id || regenerate.isPending}
-            onClick={() => channel?.id && regenerate.mutate({ id: channel.id })}
+            onClick={() => setConfirmRegen(true)}
           >
             Regenerate
           </Button>
@@ -169,9 +172,9 @@ export const WebhookForm = ({
         >
           + Add header
         </button>
-        {channel && !draft.headersTouched && draft.headers.length > 0 && (
+        {channel && draft.headers.length > 0 && (
           <span className={hint}>
-            Values are never shown. Edit a header to replace all of them.
+            Values are never shown. Changing headers replaces all of them, so re-enter every value.
           </span>
         )}
       </div>
@@ -183,6 +186,14 @@ export const WebhookForm = ({
           <Callout tone="warn">Payload preview is unavailable.</Callout>
         )}
       </div>
+      <ConfirmDialog
+        open={confirmRegen}
+        onOpenChange={setConfirmRegen}
+        title="Regenerate the signing secret?"
+        description="Receivers verifying the old secret will reject new deliveries until you update them."
+        confirmLabel="Regenerate"
+        onConfirm={() => channel?.id && regenerate.mutate({ id: channel.id })}
+      />
     </>
   );
 };

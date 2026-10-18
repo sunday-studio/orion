@@ -151,6 +151,16 @@ export const NotificationLogTab = () => {
             </Button>
           }
         />
+      ) : deliveries.length === 0 && total > 0 && offset > 0 ? (
+        <EmptyState
+          title="That page is empty"
+          description="The list is shorter than this page."
+          action={
+            <Button size="sm" variant="secondary" onClick={() => void setQuery({ page: 1 })}>
+              Back to the first page
+            </Button>
+          }
+        />
       ) : deliveries.length === 0 ? (
         <EmptyState
           title={filtersActive ? "No notifications match" : "No notifications yet"}
@@ -219,7 +229,10 @@ export const NotificationLogTab = () => {
             limit={limit}
             offset={offset}
             onOffsetChange={(next) => void setQuery({ page: Math.floor(next / limit) + 1 })}
-            onLimitChange={setLimit}
+            onLimitChange={(next) => {
+              setLimit(next);
+              void setQuery({ page: 1 });
+            }}
           />
         </div>
       )}

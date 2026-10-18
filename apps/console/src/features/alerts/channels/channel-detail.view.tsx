@@ -64,6 +64,7 @@ export const ChannelDetailPage = () => {
   const [deleting, setDeleting] = useState(false);
   const [result, setResult] = useState<ApiAlertTestResult>();
   const [secret, setSecret] = useState<string>();
+  const [confirmRegen, setConfirmRegen] = useState(false);
 
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: getGetAlertChannelQueryKey(channelId) });
@@ -213,7 +214,7 @@ export const ChannelDetailPage = () => {
                       size="sm"
                       variant="secondary"
                       disabled={regenerate.isPending}
-                      onClick={() => regenerate.mutate({ id: channelId })}
+                      onClick={() => setConfirmRegen(true)}
                     >
                       Regenerate
                     </Button>
@@ -333,6 +334,14 @@ export const ChannelDetailPage = () => {
         email={email}
         onRunAgain={() => test.mutate({ id: channelId })}
         onClose={() => setResult(undefined)}
+      />
+      <ConfirmDialog
+        open={confirmRegen}
+        onOpenChange={setConfirmRegen}
+        title="Regenerate the signing secret?"
+        description="Receivers verifying the old secret will reject new deliveries until you update them."
+        confirmLabel="Regenerate"
+        onConfirm={() => regenerate.mutate({ id: channelId })}
       />
       <ConfirmDialog
         open={deleting}
