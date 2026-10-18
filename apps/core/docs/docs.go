@@ -2270,6 +2270,10 @@ const docTemplate = `{
                                                     "type": "integer",
                                                     "format": "int64"
                                                 },
+                                                "hidden_count": {
+                                                    "type": "integer",
+                                                    "format": "int64"
+                                                },
                                                 "limit": {
                                                     "type": "integer"
                                                 },
@@ -2284,6 +2288,10 @@ const docTemplate = `{
                                                 },
                                                 "pagination": {
                                                     "$ref": "#/definitions/orion_core_internal_utils.PaginationMeta"
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "format": "int64"
                                                 }
                                             }
                                         }

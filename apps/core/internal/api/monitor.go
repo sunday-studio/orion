@@ -122,7 +122,7 @@ func (s *Server) unregisterMonitor(c *gin.Context) {
 // @Param        status     query     string  false  "Comma-separated computed statuses to show: up,down,degraded,stale,unknown. total and hidden_count report what the filter hides"
 // @Param        limit      query     int     false  "Maximum number of monitors to return" default(50)
 // @Param        offset     query     int     false  "Number of monitors to skip" default(0)
-// @Success      200        {object}  utils.APIResponse{data=object{monitors=[]MonitorResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta}}
+// @Success      200        {object}  utils.APIResponse{data=object{monitors=[]MonitorResponse,count=int64,total=int64,hidden_count=int64,limit=int,offset=int,pagination=utils.PaginationMeta}}
 // @Failure      400        {object}  utils.APIResponse
 // @Failure      404        {object}  utils.APIResponse
 // @Failure      500        {object}  utils.APIResponse
