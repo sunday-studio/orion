@@ -1,15 +1,17 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { URL, fileURLToPath } from "node:url";
 
-const coreURL = () => {
-  const apiBaseURL = process.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8080/v1";
+const coreURL = (mode: string) => {
+  const env = loadEnv(mode, process.cwd(), "VITE_");
+  const apiBaseURL =
+    process.env.VITE_API_BASE_URL ?? env.VITE_API_BASE_URL ?? "http://127.0.0.1:8999/v1";
   return apiBaseURL.endsWith("/v1") ? apiBaseURL.slice(0, -3) : apiBaseURL;
 };
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
@@ -36,10 +38,11 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      "/status": {
-        target: coreURL(),
+      // Public status pages live at /status/<slug>; do not capture /status-pages (console route).
+      "^/status(/|$)": {
+        target: coreURL(mode),
         changeOrigin: true,
       },
     },
   },
-});
+}));
