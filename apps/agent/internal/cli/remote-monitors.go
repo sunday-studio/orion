@@ -2,6 +2,8 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
+	"os"
 	"sync"
 	"time"
 
@@ -20,6 +22,7 @@ const remoteMonitorPollInterval = time.Minute
 // sync never clears it, so a Core blip cannot make the agent drop its monitors.
 type remoteMonitors struct {
 	store *agentstate.Store
+	path  string // persisted last good set, so a restart during a Core outage keeps them
 	mu    sync.Mutex
 	last  []config.UserMonitor
 	fp    string
@@ -53,6 +56,7 @@ func (r *remoteMonitors) sync() (changed bool, err error) {
 		return false, nil
 	}
 	r.last, r.fp = monitors, fp
+	r.saveLocked()
 	logging.Infof("Console monitor definitions changed: %d check(s)", len(monitors))
 	return true, nil
 }
@@ -81,4 +85,36 @@ func effective(file *config.UserConfig, remote []config.UserMonitor) *config.Use
 	cp.Monitors = append([]config.UserMonitor(nil), file.Monitors...)
 	remotemon.Merge(&cp, remote)
 	return &cp
+}
+
+// load restores the last good set persisted by a previous run.
+func (r *remoteMonitors) load() {
+	if r.path == "" {
+		return
+	}
+	data, err := os.ReadFile(r.path)
+	if err != nil {
+		return
+	}
+	var ms []config.UserMonitor
+	if json.Unmarshal(data, &ms) != nil {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.last, r.fp = ms, remotemon.Fingerprint(ms)
+}
+
+func (r *remoteMonitors) saveLocked() {
+	if r.path == "" {
+		return
+	}
+	data, err := json.Marshal(r.last)
+	if err != nil {
+		return
+	}
+	tmp := r.path + ".tmp"
+	if os.WriteFile(tmp, data, 0o600) == nil {
+		_ = os.Rename(tmp, r.path)
+	}
 }
