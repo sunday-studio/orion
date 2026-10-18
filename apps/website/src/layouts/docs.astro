@@ -14,7 +14,7 @@ const progress = entry.data.progress;
 const edit = `https://github.com/sunday-studio/orion/edit/main/apps/website/${entry.filePath}`;
 const check = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>';
 ---
-<Base title={`${entry.data.title} · Orion docs`} description={entry.data.description} active="docs" docs footer image="/og-docs.png" imageAlt="Orion documentation: run Orion yourself">
+<Base title={`${entry.data.title} · Orion docs`} description={entry.data.description} active="docs" docs footer ogImage={`/og/docs/${entry.id}`} imageAlt={`${entry.data.title}. Orion documentation.`}>
   <div class="dg">
     <div class="sideov" data-side-overlay hidden></div>
     <aside class="side" id="docs-side" aria-label="Documentation">
