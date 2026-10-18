@@ -11,34 +11,24 @@ import { ReportInspectionDrawer } from "@/features/report-inspection/components/
 import { useNow } from "@/features/overview/overview-time";
 import {
   type ApiMonitorReportResponse,
-  type ApiStatusPageIncidentResponse,
   getGetIncidentQueryKey,
   getGetIncidentTimelineQueryKey,
   getGetIncidentsQueryKey,
-  getListStatusPagesQueryKey,
   useAcknowledgeIncident,
   useAddIncidentNote,
   useCoverIncident,
-  useCreateStatusPageIncidentDraft,
   useGetIncident,
   useGetIncidentLogs,
   useGetIncidentPublicTargets,
-  useListStatusPages,
-  usePreviewStatusPageIncidentDraft,
   useReopenIncident,
   useResolveIncident,
   useRetryAlertDelivery,
   useSetIncidentResponder,
 } from "@/orion-sdk";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
-import {
-  ActionNoteDialog,
-  CoverIncidentDialog,
-  PublicIncidentDraftDialog,
-} from "./components/incident-detail-dialogs";
 import {
   type DetailTab,
   type IncidentWithAllowedActions,
@@ -49,6 +39,9 @@ import {
   notificationColumns,
   reportSortTime,
 } from "./components/incident-detail-utils";
+import { ActionNoteDialog, CoverIncidentDialog } from "./detail/incident-action-dialogs";
+import { PublicUpdateDialog } from "./detail/public-update-dialog";
+import { incidentLabel } from "./incident-format";
 import { ExpectedActual } from "./detail/expected-actual";
 import { IncidentDetailHeader } from "./detail/incident-detail-header";
 import { incidentMoments, lifecycleSteps } from "./detail/incident-lifecycle";
@@ -77,33 +70,8 @@ export const IncidentDetailPage = () => {
   const addNote = useAddIncidentNote({ mutation: { onSuccess: refreshIncident } });
   const setResponder = useSetIncidentResponder({ mutation: { onSuccess: refreshIncident } });
   const retryDelivery = useRetryAlertDelivery({ mutation: { onSuccess: refreshIncident } });
-  const [publicDraftDialogOpen, setPublicDraftDialogOpen] = useState(false);
-  const [selectedStatusPageID, setSelectedStatusPageID] = useState("");
-  const [createdPublicDraft, setCreatedPublicDraft] = useState<ApiStatusPageIncidentResponse>();
-  const statusPagesResponse = useListStatusPages({
-    query: { enabled: publicDraftDialogOpen },
-  });
+  const [publicUpdateOpen, setPublicUpdateOpen] = useState(false);
   const incident = incidentResponse.data?.incident;
-  const incidentID = incident?.id ?? "";
-  const statusPages = statusPagesResponse.data?.pages ?? [];
-  const firstStatusPageID = statusPagesResponse.data?.pages?.[0]?.id ?? "";
-  const publicDraftPreview = usePreviewStatusPageIncidentDraft(
-    selectedStatusPageID,
-    { incident_id: incidentID },
-    {
-      query: {
-        enabled: publicDraftDialogOpen && selectedStatusPageID !== "" && incidentID !== "",
-      },
-    },
-  );
-  const createPublicDraft = useCreateStatusPageIncidentDraft({
-    mutation: {
-      onSuccess: (data) => {
-        setCreatedPublicDraft(data.incident);
-        void queryClient.invalidateQueries({ queryKey: getListStatusPagesQueryKey() });
-      },
-    },
-  });
   const evidence = incidentResponse.data?.evidence;
   const timeline = incidentResponse.data?.timeline ?? [];
   const summary = incidentResponse.data?.summary;
@@ -140,13 +108,7 @@ export const IncidentDetailPage = () => {
     acknowledgeIncident.isPending ||
     resolveIncident.isPending ||
     coverIncident.isPending ||
-    reopenIncident.isPending ||
-    createPublicDraft.isPending;
-
-  useEffect(() => {
-    if (!publicDraftDialogOpen || selectedStatusPageID || firstStatusPageID === "") return;
-    setSelectedStatusPageID(firstStatusPageID);
-  }, [firstStatusPageID, publicDraftDialogOpen, selectedStatusPageID]);
+    reopenIncident.isPending;
 
   const handleTabChange = (tab: string) => {
     if (!isDetailTab(tab)) return;
@@ -172,25 +134,6 @@ export const IncidentDetailPage = () => {
     if (actionDialog === "reopen") {
       reopenIncident.mutate({ id, data }, { onSuccess });
     }
-  };
-
-  const handlePublicDraftDialogOpenChange = (open: boolean) => {
-    setPublicDraftDialogOpen(open);
-    if (open) {
-      setCreatedPublicDraft(undefined);
-    }
-  };
-
-  const handleCreatePublicDraft = () => {
-    const draft = publicDraftPreview.data?.draft;
-    if (!incidentID || !selectedStatusPageID || !draft) return;
-    createPublicDraft.mutate({
-      id: selectedStatusPageID,
-      data: {
-        internal_incident_id: incidentID,
-        affected_component_ids: draft.affected_component_ids ?? [],
-      },
-    });
   };
 
   if (incidentResponse.isLoading) {
@@ -311,7 +254,7 @@ export const IncidentDetailPage = () => {
           related={relatedIncidents}
           deliveries={alertDeliveries}
           subscriberCount={publicTargets.data?.targets?.[0]?.subscriber_count}
-          onDraftUpdate={() => handlePublicDraftDialogOpenChange(true)}
+          onDraftUpdate={() => setPublicUpdateOpen(true)}
           onSetResponder={(name) => setResponder.mutate({ id: incidentId, data: { name } })}
         />
       </div>
@@ -324,6 +267,7 @@ export const IncidentDetailPage = () => {
       />
       <CoverIncidentDialog
         open={coverDialogOpen}
+        incidentId={incident.id ?? ""}
         pending={coverIncident.isPending}
         onOpenChange={setCoverDialogOpen}
         onSubmit={(payload) =>
@@ -341,24 +285,11 @@ export const IncidentDetailPage = () => {
         }}
         onSubmit={handleLifecycleAction}
       />
-      <PublicIncidentDraftDialog
-        open={publicDraftDialogOpen}
-        pages={statusPages}
-        selectedStatusPageID={selectedStatusPageID}
-        draft={publicDraftPreview.data?.draft}
-        createdIncident={createdPublicDraft}
-        loadingPages={statusPagesResponse.isLoading}
-        loadingDraft={publicDraftPreview.isLoading}
-        pending={createPublicDraft.isPending}
-        hasError={Boolean(
-          statusPagesResponse.error || publicDraftPreview.error || createPublicDraft.error,
-        )}
-        onOpenChange={handlePublicDraftDialogOpenChange}
-        onStatusPageChange={(statusPageID) => {
-          setSelectedStatusPageID(statusPageID);
-          setCreatedPublicDraft(undefined);
-        }}
-        onCreate={handleCreatePublicDraft}
+      <PublicUpdateDialog
+        open={publicUpdateOpen}
+        incidentId={incident.id ?? ""}
+        incidentLabel={incidentLabel(incident)}
+        onOpenChange={setPublicUpdateOpen}
       />
     </div>
   );
