@@ -759,6 +759,9 @@ definitions:
         type: string
       agent_name:
         type: string
+      detail:
+        example: timeout after 10s
+        type: string
       health:
         description: Health is the computed health that makes this an issue.
         enum:
@@ -766,16 +769,35 @@ definitions:
         - degraded
         - stale
         type: string
+      incident_display_id:
+        type: string
+      incident_id:
+        description: IncidentID and IncidentDisplayID are set when an active incident
+          already covers it.
+        type: string
       issue_type:
         description: IssueType is "stale_data" for stale monitors and omitted otherwise.
         enum:
         - stale_data
+        type: string
+      kind:
+        description: Kind is monitor or server; TargetID/TargetName identify the row
+          to open.
+        enum:
+        - monitor
+        - server
         type: string
       monitor_id:
         type: string
       monitor_name:
         type: string
       monitor_type:
+        type: string
+      since:
+        type: string
+      target_id:
+        type: string
+      target_name:
         type: string
     type: object
   internal_api.HealthIssuesResponse:
@@ -824,6 +846,10 @@ definitions:
         type: string
       agent_name:
         type: string
+      detail:
+        description: Detail is a one-line reason such as "timeout after 10s"; SeenAt
+          is when the signal started.
+        type: string
       down_count:
         description: DownCount is how many of the last 5 reports were down.
         type: integer
@@ -842,6 +868,8 @@ definitions:
       monitor_name:
         type: string
       monitor_type:
+        type: string
+      seen_at:
         type: string
       severity:
         description: 'Severity is derived from recent failures: high (3+ of the last
@@ -1022,6 +1050,49 @@ definitions:
         type: integer
       total_deliveries:
         type: integer
+    type: object
+  internal_api.IncidentPublicTarget:
+    properties:
+      latest_status:
+        type: string
+      linked_incident_id:
+        description: LinkedIncidentID is the status page incident already tied to
+          this incident, if any.
+        type: string
+      published_updates:
+        type: integer
+      slug:
+        type: string
+      status_page_id:
+        type: string
+      subscriber_count:
+        type: integer
+      title:
+        type: string
+      visibility:
+        type: string
+    type: object
+  internal_api.IncidentPublicUpdateRequest:
+    properties:
+      message:
+        type: string
+      notify_subscribers:
+        description: NotifySubscribers emails confirmed subscribers whose component
+          preferences match.
+        type: boolean
+      status:
+        enum:
+        - investigating
+        - identified
+        - monitoring
+        - resolved
+        type: string
+      status_page_id:
+        type: string
+    required:
+    - message
+    - status
+    - status_page_id
     type: object
   internal_api.IncidentRecurringFailureResponse:
     properties:
@@ -7010,6 +7081,95 @@ paths:
       summary: Add incident note
       tags:
       - incidents
+  /v1/incidents/{id}/public-update:
+    get:
+      description: Lists status pages with confirmed subscriber counts and the update
+        state already linked to this incident.
+      operationId: getIncidentPublicTargets
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    targets:
+                      items:
+                        $ref: '#/definitions/internal_api.IncidentPublicTarget'
+                      type: array
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Status pages for an incident public update
+      tags:
+      - incidents
+  /v1/incidents/{id}/public-updates:
+    post:
+      consumes:
+      - application/json
+      description: Creates (or reuses) the status page incident linked to this incident
+        and publishes an update. Affected components come from the incident's impacted
+        components that belong to that page.
+      operationId: postIncidentPublicUpdate
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.IncidentPublicUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    status_page_incident_id:
+                      type: string
+                    subscribers_notified:
+                      type: integer
+                    update:
+                      $ref: '#/definitions/internal_api.StatusPageIncidentUpdateResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Post a public update for an incident
+      tags:
+      - incidents
   /v1/incidents/{id}/reopen:
     post:
       consumes:
@@ -7310,6 +7470,44 @@ paths:
       security:
       - BearerAuth: []
       summary: Dismiss an incident candidate
+      tags:
+      - incidents
+  /v1/incidents/candidates/{id}/open:
+    post:
+      description: The candidate id is the monitor id. Severity and title come from
+        the candidate; alerts are queued. Fails with 409 if the monitor already has
+        an active incident.
+      operationId: openIncidentCandidate
+      parameters:
+      - description: Candidate (monitor) ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    incident:
+                      $ref: '#/definitions/internal_api.IncidentResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Open an incident from a candidate
       tags:
       - incidents
   /v1/incidents/export:

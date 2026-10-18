@@ -5800,6 +5800,65 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/incidents/candidates/{id}/open": {
+            "post": {
+                "description": "The candidate id is the monitor id. Severity and title come from the candidate; alerts are queued. Fails with 409 if the monitor already has an active incident.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "incidents"
+                ],
+                "summary": "Open an incident from a candidate",
+                "operationId": "openIncidentCandidate",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Candidate (monitor) ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "incident": {
+                                                    "$ref": "#/definitions/internal_api.IncidentResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/incidents/export": {
             "get": {
                 "description": "Same filters as GET /v1/incidents (status, severity, q, opened_since, ...), no paging, at most 10,000 rows, newest first.",
@@ -6227,6 +6286,145 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/incidents/{id}/public-update": {
+            "get": {
+                "description": "Lists status pages with confirmed subscriber counts and the update state already linked to this incident.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "incidents"
+                ],
+                "summary": "Status pages for an incident public update",
+                "operationId": "getIncidentPublicTargets",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Incident ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "targets": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/internal_api.IncidentPublicTarget"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/incidents/{id}/public-updates": {
+            "post": {
+                "description": "Creates (or reuses) the status page incident linked to this incident and publishes an update. Affected components come from the incident's impacted components that belong to that page.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "incidents"
+                ],
+                "summary": "Post a public update for an incident",
+                "operationId": "postIncidentPublicUpdate",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Incident ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Update",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.IncidentPublicUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "status_page_incident_id": {
+                                                    "type": "string"
+                                                },
+                                                "subscribers_notified": {
+                                                    "type": "integer"
+                                                },
+                                                "update": {
+                                                    "$ref": "#/definitions/internal_api.StatusPageIncidentUpdateResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
@@ -12588,6 +12786,10 @@ const docTemplate = `{
                 "agent_name": {
                     "type": "string"
                 },
+                "detail": {
+                    "type": "string",
+                    "example": "timeout after 10s"
+                },
                 "health": {
                     "description": "Health is the computed health that makes this an issue.",
                     "type": "string",
@@ -12597,11 +12799,26 @@ const docTemplate = `{
                         "stale"
                     ]
                 },
+                "incident_display_id": {
+                    "type": "string"
+                },
+                "incident_id": {
+                    "description": "IncidentID and IncidentDisplayID are set when an active incident already covers it.",
+                    "type": "string"
+                },
                 "issue_type": {
                     "description": "IssueType is \"stale_data\" for stale monitors and omitted otherwise.",
                     "type": "string",
                     "enum": [
                         "stale_data"
+                    ]
+                },
+                "kind": {
+                    "description": "Kind is monitor or server; TargetID/TargetName identify the row to open.",
+                    "type": "string",
+                    "enum": [
+                        "monitor",
+                        "server"
                     ]
                 },
                 "monitor_id": {
@@ -12611,6 +12828,15 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "monitor_type": {
+                    "type": "string"
+                },
+                "since": {
+                    "type": "string"
+                },
+                "target_id": {
+                    "type": "string"
+                },
+                "target_name": {
                     "type": "string"
                 }
             }
@@ -12686,6 +12912,10 @@ const docTemplate = `{
                 "agent_name": {
                     "type": "string"
                 },
+                "detail": {
+                    "description": "Detail is a one-line reason such as \"timeout after 10s\"; SeenAt is when the signal started.",
+                    "type": "string"
+                },
                 "down_count": {
                     "description": "DownCount is how many of the last 5 reports were down.",
                     "type": "integer"
@@ -12711,6 +12941,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "monitor_type": {
+                    "type": "string"
+                },
+                "seen_at": {
                     "type": "string"
                 },
                 "severity": {
@@ -12982,6 +13215,65 @@ const docTemplate = `{
                 },
                 "total_deliveries": {
                     "type": "integer"
+                }
+            }
+        },
+        "internal_api.IncidentPublicTarget": {
+            "type": "object",
+            "properties": {
+                "latest_status": {
+                    "type": "string"
+                },
+                "linked_incident_id": {
+                    "description": "LinkedIncidentID is the status page incident already tied to this incident, if any.",
+                    "type": "string"
+                },
+                "published_updates": {
+                    "type": "integer"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "status_page_id": {
+                    "type": "string"
+                },
+                "subscriber_count": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "visibility": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.IncidentPublicUpdateRequest": {
+            "type": "object",
+            "required": [
+                "message",
+                "status",
+                "status_page_id"
+            ],
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "notify_subscribers": {
+                    "description": "NotifySubscribers emails confirmed subscribers whose component preferences match.",
+                    "type": "boolean"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "investigating",
+                        "identified",
+                        "monitoring",
+                        "resolved"
+                    ]
+                },
+                "status_page_id": {
+                    "type": "string"
                 }
             }
         },

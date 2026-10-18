@@ -152,3 +152,8 @@ func (s *IncidentService) SetIncidentResponder(incidentID, name string, actor In
 	err := s.db.Where("id = ?", incident.ID).First(&incident).Error
 	return incident, err
 }
+
+// RecordPublicUpdate puts "public update posted" on the incident timeline.
+func (s *IncidentService) RecordPublicUpdate(incidentID, pageTitle, status string, actor IncidentLifecycleActionMetadata) error {
+	return s.createIncidentEvent(incidentID, "incident_public_update", fmt.Sprintf("Public update on %s: %s", pageTitle, status), "", actor)
+}

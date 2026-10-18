@@ -1,5 +1,7 @@
 package api
 
+import "time"
+
 // HealthIssue is a monitor that is down, degraded or stale right now.
 type HealthIssue struct {
 	MonitorID   string `json:"monitor_id"`
@@ -11,6 +13,15 @@ type HealthIssue struct {
 	IssueType string `json:"issue_type,omitempty" enums:"stale_data"`
 	AgentID   string `json:"agent_id"`
 	AgentName string `json:"agent_name"`
+	// Kind is monitor or server; TargetID/TargetName identify the row to open.
+	Kind       string     `json:"kind" enums:"monitor,server"`
+	TargetID   string     `json:"target_id"`
+	TargetName string     `json:"target_name"`
+	Detail     string     `json:"detail,omitempty" example:"timeout after 10s"`
+	Since      *time.Time `json:"since,omitempty"`
+	// IncidentID and IncidentDisplayID are set when an active incident already covers it.
+	IncidentID        string `json:"incident_id,omitempty"`
+	IncidentDisplayID string `json:"incident_display_id,omitempty"`
 }
 
 type HealthIssuesResponse struct {
@@ -31,6 +42,9 @@ type IncidentCandidate struct {
 	AgentName string `json:"agent_name"`
 	// DownCount is how many of the last 5 reports were down.
 	DownCount int `json:"down_count"`
+	// Detail is a one-line reason such as "timeout after 10s"; SeenAt is when the signal started.
+	Detail string     `json:"detail,omitempty"`
+	SeenAt *time.Time `json:"seen_at,omitempty"`
 }
 
 type IncidentCandidatesResponse struct {

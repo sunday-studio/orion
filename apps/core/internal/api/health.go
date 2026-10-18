@@ -263,6 +263,7 @@ func (s *Server) getHealthIssues(c *gin.Context) {
 		}
 	}
 
+	issues = s.enrichHealthIssues(issues)
 	utils.SuccessResponse(c, 200, "Health issues retrieved successfully", gin.H{
 		"issues": issues,
 		"count":  len(issues),
@@ -384,7 +385,7 @@ func (s *Server) getIncidentCandidates(c *gin.Context) {
 		utils.InternalError(c, "Failed to get incident candidates", err)
 		return
 	}
-	candidates = filterDismissedCandidates(candidates, dismissed)
+	candidates = s.enrichCandidates(filterDismissedCandidates(candidates, dismissed))
 
 	utils.SuccessResponse(c, 200, "Incident candidates retrieved successfully", gin.H{
 		"candidates": candidates,
