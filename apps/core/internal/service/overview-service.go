@@ -36,6 +36,7 @@ type OverviewFirstRun struct{ HasServers, HasMonitors, HasApps, HasAlertChannels
 
 type OverviewIncident struct {
 	ID, Title, Severity, Status, Summary string
+	Number                               int
 	OpenedAt                             time.Time
 	ResolvedAt                           *time.Time
 	NotifiedAt                           *time.Time
@@ -181,7 +182,7 @@ func (b *OverviewBuilder) incident(inc db.Incident, now time.Time) OverviewIncid
 	if inc.ResolvedAt != nil {
 		end = *inc.ResolvedAt
 	}
-	return OverviewIncident{ID: inc.ID, Title: inc.Title, Severity: inc.Severity, Status: inc.Status, Summary: inc.LatestEvent,
+	return OverviewIncident{ID: inc.ID, Number: inc.Number, Title: inc.Title, Severity: inc.Severity, Status: inc.Status, Summary: inc.LatestEvent,
 		OpenedAt: inc.OpenedAt, ResolvedAt: inc.ResolvedAt, DurationSeconds: int64(end.Sub(inc.OpenedAt).Seconds())}
 }
 

@@ -137,7 +137,7 @@ func (s *Server) resolveIncident(c *gin.Context) {
 // @Produce      json
 // @ID           coverIncident
 // @Param        id       path      string                   true   "Incident ID"
-// @Param        request  body      incidentCoverageRequest  false  "Coverage payload"
+// @Param        request  body      incidentCoverageRequest  false  "Coverage payload; covered_by names the incident that explains this one"
 // @Success      200      {object}  utils.APIResponse{data=object{incident=IncidentResponse}}
 // @Failure      400      {object}  utils.APIResponse
 // @Failure      404      {object}  utils.APIResponse
@@ -151,8 +151,12 @@ func (s *Server) coverIncident(c *gin.Context) {
 			return
 		}
 	}
-	incident, err := service.NewIncidentService(s.db, s.logger, s.cfg).CoverIncident(c.Param("id"), request.CoveredUntil, request.Note, s.incidentLifecycleActionMetadata(c, request.Note))
+	incident, err := s.coverIncidentWith(c.Param("id"), request, s.incidentLifecycleActionMetadata(c, request.Note))
 	if err != nil {
+		if errors.Is(err, service.ErrIncidentInvalid) {
+			utils.BadRequest(c, err.Error())
+			return
+		}
 		s.handleIncidentActionError(c, err, "Failed to cover incident")
 		return
 	}
@@ -324,7 +328,7 @@ func (s *Server) relatedIncidents(incident db.Incident) ([]IncidentRelatedIncide
 	}
 	responses := make([]IncidentRelatedIncidentResponse, 0, len(incidents))
 	for _, related := range incidents {
-		responses = append(responses, IncidentRelatedIncidentResponse{ID: related.ID, Status: related.Status, Severity: related.Severity, Title: related.Title, ResolutionKind: related.ResolutionKind, OpenedAt: related.OpenedAt, ResolvedAt: related.ResolvedAt, LastEventAt: related.LastEventAt, LatestEvent: related.LatestEvent, NotificationStatus: related.NotificationStatus})
+		responses = append(responses, IncidentRelatedIncidentResponse{ID: related.ID, Number: related.Number, DisplayID: incidentDisplayID(related.Number), Status: related.Status, Severity: related.Severity, Title: related.Title, ResolutionKind: related.ResolutionKind, OpenedAt: related.OpenedAt, ResolvedAt: related.ResolvedAt, LastEventAt: related.LastEventAt, LatestEvent: related.LatestEvent, NotificationStatus: related.NotificationStatus})
 	}
 	return responses, nil
 }
