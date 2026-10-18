@@ -15,12 +15,14 @@ import (
 type Webhook struct {
 	Server *httptest.Server
 
-	mu       sync.Mutex
-	status   func(call int) int
-	delay    time.Duration
-	redirect string
-	bodies   [][]byte
-	calls    atomic.Int32
+	mu          sync.Mutex
+	status      func(call int) int
+	delay       time.Duration
+	redirect    string
+	bodies      [][]byte
+	body        string
+	lastHeaders http.Header
+	calls       atomic.Int32
 }
 
 // NewWebhook starts a receiver that answers 204 until scripted otherwise.
@@ -56,6 +58,21 @@ func (w *Webhook) FailFirst(n int) {
 	}
 }
 
+// SetStatus makes every call return code with body.
+func (w *Webhook) SetStatus(code int, body string) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.status = func(int) int { return code }
+	w.body = body
+}
+
+// LastHeader returns a header of the most recent request.
+func (w *Webhook) LastHeader(name string) string {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.lastHeaders.Get(name)
+}
+
 // AlwaysFail makes every call return 500.
 func (w *Webhook) AlwaysFail() { w.FailFirst(1 << 30) }
 
@@ -71,6 +88,7 @@ func (w *Webhook) handle(rw http.ResponseWriter, r *http.Request) {
 	body, _ := io.ReadAll(r.Body)
 	w.mu.Lock()
 	w.bodies = append(w.bodies, body)
+	w.lastHeaders = r.Header.Clone()
 	status, delay, redirect := w.status, w.delay, w.redirect
 	w.mu.Unlock()
 	if delay > 0 {
@@ -81,4 +99,10 @@ func (w *Webhook) handle(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rw.WriteHeader(status(call))
+	w.mu.Lock()
+	reply := w.body
+	w.mu.Unlock()
+	if reply != "" {
+		_, _ = rw.Write([]byte(reply))
+	}
 }

@@ -398,8 +398,8 @@ func (s *AlertService) TestChannel(channelID string) (*db.AlertDelivery, error) 
 		return nil, err
 	}
 
-	if err := s.attemptDelivery(delivery, func() error {
-		return s.deliverTest(channel, delivery.ID)
+	if err := s.attemptDelivery(delivery, func(rec *SendRecord) error {
+		return s.deliverTest(channel, delivery.ID, rec)
 	}); err != nil {
 		s.logger.Error("Alert channel test failed", "channel", channel.Name, "error", err)
 		return delivery, nil

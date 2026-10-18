@@ -44,7 +44,7 @@ func (s *AlertService) ProcessDueDeliveries(limit int) (int, error) {
 		}
 		channel, err := s.channelForDelivery(*delivery)
 		if err != nil {
-			if attemptErr := s.attemptDelivery(delivery, func() error {
+			if attemptErr := s.attemptDelivery(delivery, func(*SendRecord) error {
 				return newAlertDeliveryError("channel_lookup", err)
 			}); attemptErr != nil {
 				s.logger.Error("Alert delivery retry failed", "delivery_id", delivery.ID, "channel", delivery.Channel, "error", attemptErr)
@@ -59,6 +59,10 @@ func (s *AlertService) ProcessDueDeliveries(limit int) (int, error) {
 			processed++
 			continue
 		}
+		if s.holdForDigest(delivery, channel, now) {
+			processed++
+			continue
+		}
 		if channel.Type == "email" && delivery.EventType != "test" && s.confirmedRecipientCount(channel.ID) == 0 {
 			if err := s.updateDelivery(delivery.ID, "suppressed", "no confirmed email recipients"); err != nil {
 				s.logger.Error("Failed to suppress email delivery", "delivery_id", delivery.ID, "error", err)
@@ -66,11 +70,11 @@ func (s *AlertService) ProcessDueDeliveries(limit int) (int, error) {
 			processed++
 			continue
 		}
-		if err := s.attemptDelivery(delivery, func() error {
+		if err := s.attemptDelivery(delivery, func(rec *SendRecord) error {
 			if delivery.EventType == alertEventGroupSummary && delivery.AlertGroupID != "" {
-				return s.deliverGroupSummary(channel, delivery.ID, delivery.AlertGroupID)
+				return s.deliverGroupSummary(channel, delivery.ID, delivery.AlertGroupID, rec)
 			}
-			return s.deliver(channel, delivery.ID, delivery.IncidentID, delivery.EventType)
+			return s.deliver(channel, delivery.ID, delivery.IncidentID, delivery.EventType, rec)
 		}); err != nil {
 			s.logger.Error("Alert delivery retry failed", "delivery_id", delivery.ID, "channel", delivery.Channel, "error", err)
 		}
@@ -147,4 +151,22 @@ func (s *AlertService) inCooldown(incidentID string, channelName string, eventTy
 		return false
 	}
 	return count > 0
+}
+
+// holdForDigest delays a first send on a digest_15m email channel until the next 15 minute mark.
+// Critical incidents and test mails always go out immediately.
+func (s *AlertService) holdForDigest(delivery *db.AlertDelivery, channel db.AlertChannel, now time.Time) bool {
+	if channel.Type != "email" || channel.EmailDeliveryMode != "digest_15m" || delivery.EventType == "test" || delivery.AttemptCount > 0 || delivery.NextAttemptAt != nil {
+		return false
+	}
+	var incident db.Incident
+	if s.db.Select("severity").Where("id = ?", delivery.IncidentID).Limit(1).Find(&incident).RowsAffected > 0 && incident.Severity == "critical" {
+		return false
+	}
+	due := now.Truncate(15 * time.Minute).Add(15 * time.Minute)
+	if err := s.db.Model(&db.AlertDelivery{}).Where("id = ?", delivery.ID).Updates(map[string]any{"next_attempt_at": due, "locked_by": "", "locked_until": nil}).Error; err != nil {
+		s.logger.Error("Failed to hold digest delivery", "delivery_id", delivery.ID, "error", err)
+		return false
+	}
+	return true
 }

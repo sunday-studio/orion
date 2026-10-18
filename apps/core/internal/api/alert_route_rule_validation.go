@@ -85,6 +85,7 @@ func (s *Server) alertChannelResponse(channel db.AlertChannel) AlertChannelRespo
 		response.LastDeliveryStatus = delivery.Status
 		response.LastDeliveryAt = &delivery.CreatedAt
 	}
+	s.applyChannelHealth(&response, channel)
 	return response
 }
 func (s *Server) ensureUniqueAlertRouteName(name string, excludedID string) error {

@@ -11,7 +11,7 @@ import (
 // deliverEmailPayload mails every confirmed recipient once. Recipients already
 // recorded for this delivery are skipped, so a retry after a partial SMTP
 // failure only resends to the ones that missed it.
-func (s *AlertService) deliverEmailPayload(channel db.AlertChannel, deliveryID string, payload AlertPayload) error {
+func (s *AlertService) deliverEmailPayload(channel db.AlertChannel, deliveryID string, payload AlertPayload, rec *SendRecord) error {
 	if err := AlertEmailConfigured(s.cfg); err != nil {
 		return newAlertDeliveryError("configure", err)
 	}
@@ -21,6 +21,11 @@ func (s *AlertService) deliverEmailPayload(channel db.AlertChannel, deliveryID s
 	}
 	if len(recipients) == 0 {
 		return newAlertDeliveryError("configure", errors.New("no confirmed email recipients"))
+	}
+	if rec != nil {
+		var notConfirmed int64
+		s.db.Model(&db.AlertChannelRecipient{}).Where("channel_id = ? AND status <> ?", channel.ID, "confirmed").Count(&notConfirmed)
+		rec.Skipped = int(notConfirmed)
 	}
 	var failures []string
 	for _, recipient := range recipients {
@@ -33,7 +38,7 @@ func (s *AlertService) deliverEmailPayload(channel db.AlertChannel, deliveryID s
 		unsubscribe := AlertEmailLink(s.cfg, "unsubscribe", SignAlertEmailToken(s.cfg, AlertEmailPurposeUnsubscribe, recipient.ID, 0, now))
 		message := AlertEmailMessage{
 			To:      recipient.Email,
-			Subject: alertEmailSubject(payload),
+			Subject: strings.TrimSpace(strings.TrimSpace(channel.EmailSubjectPrefix) + " " + alertEmailSubject(payload)),
 			Text:    alertEmailBody(payload, unsubscribe),
 			Headers: map[string]string{
 				"List-Unsubscribe":      "<" + unsubscribe + ">",
@@ -46,6 +51,9 @@ func (s *AlertService) deliverEmailPayload(channel db.AlertChannel, deliveryID s
 				break // server unreachable: the remaining recipients are retried on the next attempt
 			}
 			continue
+		}
+		if rec != nil {
+			rec.Delivered++
 		}
 		if err := s.db.Create(&db.AlertDeliveryRecipient{DeliveryID: deliveryID, RecipientID: recipient.ID, SentAt: now}).Error; err != nil {
 			s.logger.Error("Failed to record email delivery; a retry may duplicate it", "delivery_id", deliveryID, "error", err)
