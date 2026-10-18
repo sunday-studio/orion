@@ -23,7 +23,7 @@ func publicComponentView(component StatusPagePublicComponentResponse, withBars b
 	}
 	if withBars {
 		for _, bucket := range component.UptimeHistory {
-			view.Bars = append(view.Bars, publicBarClass(bucket))
+			view.Bars = append(view.Bars, publicpage.Bar{Class: publicBarClass(bucket), Tip: publicBarTip(bucket)})
 		}
 	}
 	return view
@@ -268,4 +268,21 @@ func (s *Server) getStatusPageRSSFeed(c *gin.Context) {
 		return
 	}
 	writePublicStatusPagePayload(c, http.StatusOK, "application/rss+xml; charset=utf-8", append([]byte(xml.Header), payload...))
+}
+
+// publicBarTip is the hover text of one day: "Oct 3 · Operational · 100%".
+func publicBarTip(bucket StatusPagePublicUptimeBucketResponse) string {
+	label := publicStatusDisplay(bucket.Status)
+	if bucket.Status == "no_data" || bucket.Status == "" {
+		label = statusPagePublicNoDataDisplay
+	}
+	day := bucket.Date
+	if t, err := time.Parse("2006-01-02", bucket.Date); err == nil {
+		day = t.Format("Jan 2")
+	}
+	tip := day + " · " + label
+	if bucket.UptimeDisplay != "" && bucket.Status != "no_data" {
+		tip += " · " + bucket.UptimeDisplay
+	}
+	return tip
 }

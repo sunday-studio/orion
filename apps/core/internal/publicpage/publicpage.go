@@ -74,7 +74,13 @@ type Component struct {
 	Reason  string
 	Class   string // up | deg | down | mnt | unk
 	Uptime  string // "99.2%" or "-"
-	Bars    []string
+	Bars    []Bar
+}
+
+// Bar is one day of the uptime strip; Tip is what the hover shows.
+type Bar struct {
+	Class string
+	Tip   string
 }
 
 // Update is one entry of an incident's timeline.
