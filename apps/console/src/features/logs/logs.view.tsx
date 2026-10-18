@@ -98,10 +98,11 @@ export const LogsPage = () => {
   const [exporting, setExporting] = useState(false);
   const [paused, setPaused] = useState(false);
   const [fieldKey, setFieldKey] = useState<string>();
+  const [showAll, setShowAll] = useState(false);
 
   const apps = useListApps();
   const list = useLogList(kind, state, limit, view === "list");
-  const facets = useLogFacets(kind, state, fieldKey);
+  const facets = useLogFacets(kind, state, fieldKey, showAll ? 100 : undefined);
   const histogram = useLogHistogram(kind, state);
   const patterns = useLogPatterns(kind, state, view === "patterns");
   const stream = useLogStream(kind, state, view === "live", paused);
@@ -245,6 +246,8 @@ export const LogsPage = () => {
             plainOnly={plainOnly}
             activeField={fieldKey}
             onPickField={setFieldKey}
+            showAll={showAll}
+            onShowAll={setShowAll}
             onChange={patch}
           />
           <div className="min-w-0 flex-1">

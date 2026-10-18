@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Checkbox } from "@/design-system";
 import type { ApiLogFieldStat } from "@/orion-sdk";
 import type { FacetGroup, FacetItem } from "../use-log-data";
@@ -50,6 +49,8 @@ export const FacetSidebar = ({
   onPickField,
   activeField,
   onTextParser,
+  showAll,
+  onShowAll,
 }: {
   groups: FacetGroup[];
   fields: ApiLogFieldStat[];
@@ -60,17 +61,18 @@ export const FacetSidebar = ({
   onPickField: (key: string | undefined) => void;
   activeField?: string;
   onTextParser?: () => void;
+  showAll: boolean;
+  onShowAll: (showAll: boolean) => void;
 }) => {
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   return (
     <aside className="flex w-[190px] shrink-0 flex-col gap-5">
       {groups
         .filter((group) => group.items.length > 0)
         .map((group) => {
           const key = KEY[group.key];
-          const shown =
-            expanded[group.key] || group.items.length <= 4 ? group.items : group.items.slice(0, 4);
-          const hidden = group.items.length - shown.length + (group.more ?? 0);
+          const shown = showAll ? group.items : group.items.slice(0, 4);
+          const hidden =
+            Math.max(group.items.length - shown.length, 0) + (showAll ? 0 : (group.more ?? 0));
           return (
             <section key={group.key}>
               <h3 className={`${caption} mb-1.5`}>{group.title}</h3>
@@ -91,13 +93,13 @@ export const FacetSidebar = ({
                   }
                 />
               ))}
-              {hidden > 0 && (
+              {(hidden > 0 || showAll) && group.items.length + (group.more ?? 0) > 4 && (
                 <button
                   type="button"
                   className="py-1 text-[13px] text-quiet hover:text-ink"
-                  onClick={() => setExpanded((c) => ({ ...c, [group.key]: !c[group.key] }))}
+                  onClick={() => onShowAll(!showAll)}
                 >
-                  {expanded[group.key] ? "Show fewer" : `Show ${hidden} more`}
+                  {showAll ? "Show fewer" : `Show ${hidden} more`}
                 </button>
               )}
             </section>
