@@ -109,6 +109,7 @@ func (s *AlertService) deliverWebhookPayload(channel db.AlertChannel, payload Al
 	}
 	defer resp.Body.Close()
 	rec.fromResponse(resp)
+	rec.ScrubSnippet(DecodeChannelHeaders(channel.HeadersJSON))
 
 	if resp.StatusCode >= 300 && resp.StatusCode < 400 {
 		return newAlertDeliveryError("http_response", errAlertWebhookRedirect)

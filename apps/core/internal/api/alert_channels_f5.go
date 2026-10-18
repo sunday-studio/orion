@@ -82,10 +82,11 @@ func maskSecret(secret string) string {
 	if secret == "" {
 		return ""
 	}
-	if len(secret) <= 10 {
-		return "••••"
+	if len(secret) < 24 {
+		// A short, user-chosen secret: reveal at most its last four characters.
+		return "••••" + secret[max(len(secret)-4, len(secret)/2):]
 	}
-	return secret[:min(6, len(secret)-4)] + "••••" + secret[len(secret)-4:]
+	return secret[:6] + "••••" + secret[len(secret)-4:]
 }
 
 // applyChannelExtras validates and applies custom headers, email delivery mode and subject prefix.

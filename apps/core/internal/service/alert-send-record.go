@@ -30,6 +30,19 @@ func (r *SendRecord) fromResponse(resp *http.Response) {
 	r.Snippet = strings.TrimSpace(string(body))
 }
 
+// ScrubSnippet removes custom header values from a stored response snippet, so a receiver that
+// echoes the request cannot expose them through the attempt history.
+func (r *SendRecord) ScrubSnippet(headers map[string]string) {
+	if r == nil {
+		return
+	}
+	for _, value := range headers {
+		if len(value) >= 4 {
+			r.Snippet = strings.ReplaceAll(r.Snippet, value, "[redacted]")
+		}
+	}
+}
+
 // forbiddenChannelHeaders cannot be set on a webhook: they would break framing or spoof Orion's own headers.
 var forbiddenChannelHeaders = map[string]bool{"host": true, "content-length": true, "content-type": true, "transfer-encoding": true, "connection": true, "user-agent": true}
 
