@@ -132,6 +132,7 @@ func TestDecommissionKeepsOrDeletesHistoryAndFreesTheMachine(t *testing.T) {
 			seedAgentReports(t, server, id, 3, 40)
 			server.db.Create(&db.Monitor{ID: "m1", Type: "http", Name: "api-https", AgentID: id, Lifecycle: "active", ComputedHealth: "down", Health: "down"})
 			server.db.Create(&db.MonitorReport{ID: "mr1", MonitorID: "m1", Payload: "{}", CollectedAt: time.Now().Format(time.RFC3339), Health: "down", CreatedAt: time.Now().UTC()})
+			server.db.Create(&db.StatusPageComponentMapping{ID: "map1", ComponentID: "comp1", ResourceType: "monitor", ResourceID: "m1", HealthRollupStrategy: "worst", UptimeRollupStrategy: "worst"})
 			server.db.Create(&db.ServiceLogEntry{ID: "sl1", AgentID: id, CreatedAt: time.Now().UTC()})
 			server.db.Create(&db.AlertDelivery{ID: "d-pending", IncidentID: "inc1", EventType: "incident_opened", Channel: "c", Type: "webhook", Status: "pending"})
 			server.db.Create(&db.Incident{ID: "inc1", Number: 1, Status: "open", Severity: "high", Title: "x", AgentID: id, MonitorID: "m1", OpenedAt: time.Now().UTC(), LastEventAt: time.Now().UTC(), Source: "monitor"})
@@ -156,6 +157,11 @@ func TestDecommissionKeepsOrDeletesHistoryAndFreesTheMachine(t *testing.T) {
 			}
 			if body := performJSONRequest(t, server, http.MethodGet, "/v1/search?q=test-server", nil, "").Body.String(); strings.Contains(body, id) {
 				t.Fatalf("removed server still searchable: %s", body)
+			}
+			var mappings int64
+			server.db.Model(&db.StatusPageComponentMapping{}).Where("id = ?", "map1").Count(&mappings)
+			if mappings != 0 {
+				t.Fatal("status page mapping to a removed server's monitor must be detached")
 			}
 			var delivery db.AlertDelivery
 			server.db.First(&delivery, "id = ?", "d-pending")
