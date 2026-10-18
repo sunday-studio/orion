@@ -5342,6 +5342,29 @@ paths:
       summary: Get public status page component uptime
       tags:
       - public-status
+  /status/{slug}/feed.rss:
+    get:
+      operationId: getPublicStatusPageRSSFeed
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - application/rss+xml
+      responses:
+        "200":
+          description: RSS 2.0 document
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Get public status page RSS feed
+      tags:
+      - public-status
   /status/{slug}/history:
     get:
       consumes:
@@ -5518,6 +5541,83 @@ paths:
       summary: Get public status page incident history
       tags:
       - public-status
+  /status/{slug}/subscribe:
+    get:
+      description: HTML form to subscribe to status updates by email
+      operationId: getPublicStatusPageSubscribePage
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: HTML page
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Public subscribe page
+      tags:
+      - public-status
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Form submit of the subscribe page; mails a confirmation link. Answers
+        the same for known and new addresses.
+      operationId: postPublicStatusPageSubscribePage
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Email address
+        in: formData
+        name: email
+        required: true
+        type: string
+      - description: all or selected
+        enum:
+        - all
+        - selected
+        in: formData
+        name: scope
+        type: string
+      - collectionFormat: csv
+        description: Components when scope is selected
+        in: formData
+        items:
+          type: string
+        name: component_ids
+        type: array
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: HTML page
+          schema:
+            type: string
+        "400":
+          description: HTML page with the error
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Submit public subscribe form
+      tags:
+      - public-status
   /status/{slug}/subscribers:
     post:
       consumes:
@@ -5667,6 +5767,48 @@ paths:
       summary: Get public status page subscriber preferences
       tags:
       - public-status
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Form submit of the manage page; keeps the manage and unsubscribe
+        links valid
+      operationId: postPublicStatusPageSubscriberPreferencesForm
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Manage token
+        in: path
+        name: token
+        required: true
+        type: string
+      - collectionFormat: csv
+        description: Selected components; none or all means all
+        in: formData
+        items:
+          type: string
+        name: component_ids
+        type: array
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: HTML page
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Save subscriber preferences (form)
+      tags:
+      - public-status
     put:
       consumes:
       - application/json
@@ -5724,6 +5866,39 @@ paths:
       tags:
       - public-status
   /status/{slug}/subscribers/unsubscribe/{token}:
+    get:
+      description: Asks for confirmation before unsubscribing; a GET never changes
+        state
+      operationId: getPublicStatusPageUnsubscribePage
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Unsubscribe token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: HTML page
+          schema:
+            type: string
+        "404":
+          description: HTML page for an invalid token
+          schema:
+            type: string
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Public unsubscribe page
+      tags:
+      - public-status
     post:
       consumes:
       - application/json

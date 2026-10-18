@@ -1,0 +1,12 @@
+{{define "subscribe.html"}}{{template "open" .}}
+<main>
+{{if .Flash}}<div class="flash{{if .FlashIsError}} err{{end}}" role="status">{{.Flash}}</div>{{end}}
+<form class="card form" method="post" action="{{.Action}}">
+<label class="f">Email<input type="email" name="email" value="{{.Email}}" placeholder="you@example.com" autocomplete="email" required></label>
+{{if .Options}}<div><div class="lbl">Components</div>
+<div class="seg"><label><input type="radio" name="scope" value="all"{{if .All}} checked{{end}}><span class="n">All components</span><span class="s">Everything</span></label><label><input type="radio" name="scope" value="selected"{{if not .All}} checked{{end}}><span class="n">Selected</span><span class="s">Choose below</span></label></div></div>
+<div class="checks">{{range .Options}}<label><input type="checkbox" name="component_ids" value="{{.ID}}"{{if .Checked}} checked{{end}}>{{.Name}}</label>{{end}}</div>{{end}}
+<button class="btn p block" type="submit">Subscribe</button>
+</form>
+</main>
+{{template "close" .}}{{end}}

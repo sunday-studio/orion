@@ -1,0 +1,8 @@
+{{define "history.html"}}{{template "open" .}}
+<main>
+{{if .Empty}}<section class="card"><p>No incidents or maintenance have been published.</p></section>{{end}}
+{{range .Months}}<section class="month"><div class="cta"><span>{{.Label}}</span><span>{{.Count}}</span></div><div class="rows">{{range .Items}}{{template "incident-row" .}}{{end}}</div></section>
+{{end}}
+<div class="pager">{{if .PrevURL}}<a class="plain" href="{{.PrevURL}}">Earlier incidents</a>{{end}}<span class="grow"></span><a class="plain" href="{{.Shell.RSSURL}}">RSS</a><a class="plain" href="{{.Shell.FeedURL}}">Atom</a></div>
+</main>
+{{template "close" .}}{{end}}

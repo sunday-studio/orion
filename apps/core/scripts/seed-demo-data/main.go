@@ -125,6 +125,10 @@ func main() {
 	fmt.Printf("  status page subscribers: %d\n", stats.statusPageSubscribers)
 	fmt.Printf("  status page subscriber component preferences: %d\n", stats.statusPageSubscriberMaps)
 	fmt.Printf("  status page deliveries: %d\n", stats.statusPageDeliveries)
+	fmt.Println("  public pages and subscriber links (add to your Core address):")
+	for _, link := range publicPageLinks() {
+		fmt.Printf("    %s\n", link)
+	}
 }
 
 type seedStats struct {
