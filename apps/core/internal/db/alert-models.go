@@ -66,21 +66,23 @@ type AlertGroupMember struct {
 }
 
 type AlertRoute struct {
-	ID                   string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
-	Name                 string    `json:"name" gorm:"uniqueIndex;not null"`
-	Enabled              bool      `json:"enabled" gorm:"not null;default:true;index:idx_alert_routes_enabled"`
-	Priority             int       `json:"priority" gorm:"not null;default:100;index:idx_alert_routes_priority"`
-	EventTypes           string    `json:"event_types" gorm:"type:text"`
-	Severities           string    `json:"severities" gorm:"type:text"`
-	AgentIDs             string    `json:"agent_ids" gorm:"type:text"`
-	MonitorIDs           string    `json:"monitor_ids" gorm:"type:text"`
-	MonitorTypes         string    `json:"monitor_types" gorm:"type:text"`
-	ChannelIDs           string    `json:"channel_ids" gorm:"type:text"`
-	Suppress             bool      `json:"suppress" gorm:"not null;default:false;index:idx_alert_routes_suppress"`
-	GroupingPolicy       string    `json:"grouping_policy" gorm:"not null;default:suppress;index:idx_alert_routes_grouping_policy"`
-	GroupingDelaySeconds int       `json:"grouping_delay_seconds" gorm:"not null;default:300"`
-	CreatedAt            time.Time `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
+	ID                   string `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	Name                 string `json:"name" gorm:"uniqueIndex;not null"`
+	Enabled              bool   `json:"enabled" gorm:"not null;default:true;index:idx_alert_routes_enabled"`
+	Priority             int    `json:"priority" gorm:"not null;default:100;index:idx_alert_routes_priority"`
+	EventTypes           string `json:"event_types" gorm:"type:text"`
+	Severities           string `json:"severities" gorm:"type:text"`
+	AgentIDs             string `json:"agent_ids" gorm:"type:text"`
+	MonitorIDs           string `json:"monitor_ids" gorm:"type:text"`
+	MonitorTypes         string `json:"monitor_types" gorm:"type:text"`
+	ChannelIDs           string `json:"channel_ids" gorm:"type:text"`
+	Suppress             bool   `json:"suppress" gorm:"not null;default:false;index:idx_alert_routes_suppress"`
+	GroupingPolicy       string `json:"grouping_policy" gorm:"not null;default:suppress;index:idx_alert_routes_grouping_policy"`
+	GroupingDelaySeconds int    `json:"grouping_delay_seconds" gorm:"not null;default:300"`
+	// CooldownSeconds limits repeat notifications per incident and channel for this rule; 0 uses the global default.
+	CooldownSeconds int       `json:"cooldown_seconds" gorm:"not null;default:0"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 type AlertChannel struct {
@@ -148,4 +150,18 @@ type AgentMonitorDefinition struct {
 	FailAfter       int       `gorm:"not null;default:3"`
 	CreatedBy       string    `gorm:"not null;default:''"`
 	CreatedAt       time.Time `gorm:"not null"`
+}
+
+// AlertLabelRoute picks channels by label (the Routes tab): matchers are ANDed; routes are tried in
+// position order and the first match wins unless ContinueMatching is set.
+type AlertLabelRoute struct {
+	ID               string    `json:"id" gorm:"primaryKey"`
+	Position         int       `json:"position" gorm:"not null;default:0;index:idx_alert_label_routes_position"`
+	Name             string    `json:"name" gorm:"not null;default:''"`
+	Enabled          bool      `json:"enabled" gorm:"not null;default:true"`
+	Matchers         string    `json:"matchers" gorm:"type:text;not null;default:'[]'"`
+	ChannelIDs       string    `json:"channel_ids" gorm:"type:text;not null;default:'[]'"`
+	ContinueMatching bool      `json:"continue_matching" gorm:"not null;default:false"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }

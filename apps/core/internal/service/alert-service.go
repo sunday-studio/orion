@@ -31,6 +31,8 @@ type AlertRouteContext struct {
 	AgentID     string `json:"agent_id"`
 	MonitorID   string `json:"monitor_id"`
 	MonitorType string `json:"monitor_type"`
+	// Labels are the key=value pairs label routes match on: the server's labels plus severity, event, monitor_type, server and monitor.
+	Labels []string `json:"labels,omitempty"`
 }
 
 type AlertRouteDryRunResult struct {
@@ -147,7 +149,7 @@ func (s *AlertService) QueueIncidentNotifications(incidentID string, eventType s
 	if grouping.Suppress {
 		return s.queueGroupedSuppression(*event, grouping, routes)
 	}
-	if len(routes) > 0 {
+	if len(routes) > 0 || s.hasLabelRoutes() {
 		return s.queueRouteIncidentNotifications(*event, routes, grouping)
 	}
 	return s.queueLegacyIncidentNotifications(incidentID, eventType, grouping)

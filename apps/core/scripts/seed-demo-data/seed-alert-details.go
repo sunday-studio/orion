@@ -36,7 +36,7 @@ func seedAlertDetails(database *gorm.DB, now time.Time) (alertDetailStats, error
 	}
 	stats.recipients = len(recipients)
 	rules := []db.AlertRoute{
-		{ID: "seed-alert-rule-critical", Name: "Critical down", Enabled: true, Priority: 1, EventTypes: `["incident_opened"]`, Severities: `["critical","high"]`, ChannelIDs: `["seed-alert-channel-ops-team","seed-alert-channel-oncall"]`, GroupingPolicy: "suppress", GroupingDelaySeconds: 300},
+		{ID: "seed-alert-rule-critical", Name: "Critical down", Enabled: true, Priority: 1, EventTypes: `["incident_opened"]`, Severities: `["critical","high"]`, ChannelIDs: `["seed-alert-channel-ops-team","seed-alert-channel-oncall"]`, GroupingPolicy: "suppress", GroupingDelaySeconds: 300, CooldownSeconds: 600},
 		{ID: "seed-alert-rule-disk", Name: "Disk high", Enabled: true, Priority: 2, EventTypes: `["incident_opened"]`, Severities: `["medium"]`, MonitorTypes: `["disk"]`, ChannelIDs: `["seed-alert-channel-ops-team"]`, GroupingPolicy: "suppress", GroupingDelaySeconds: 300},
 		{ID: "seed-alert-rule-latency", Name: "Latency", Enabled: true, Priority: 3, EventTypes: `["incident_opened"]`, Severities: `["low","medium"]`, ChannelIDs: `["seed-alert-channel-ops-team"]`, GroupingPolicy: "suppress", GroupingDelaySeconds: 300},
 	}
@@ -47,6 +47,17 @@ func seedAlertDetails(database *gorm.DB, now time.Time) (alertDetailStats, error
 		return stats, err
 	}
 	stats.rules = len(rules)
+	labelRoutes := []db.AlertLabelRoute{
+		{ID: "seed-label-route-1", Position: 1, Enabled: true, Matchers: `[{"key":"env","op":"=","value":"prod"},{"key":"severity","op":"=","value":"critical"}]`, ChannelIDs: `["seed-alert-channel-oncall"]`, ContinueMatching: true},
+		{ID: "seed-label-route-2", Position: 2, Enabled: true, Matchers: `[{"key":"env","op":"=","value":"prod"}]`, ChannelIDs: `["seed-alert-channel-ops-team"]`},
+		{ID: "seed-label-route-3", Position: 3, Enabled: true, Matchers: `[]`, ChannelIDs: `["seed-alert-channel-staging"]`},
+	}
+	for i := range labelRoutes {
+		labelRoutes[i].CreatedAt, labelRoutes[i].UpdatedAt = now.AddDate(0, 0, -10), now
+	}
+	if err := database.Create(&labelRoutes).Error; err != nil {
+		return stats, err
+	}
 
 	// Attach rules and the oncall channel to seeded deliveries, with attempt history.
 	var deliveries []db.AlertDelivery

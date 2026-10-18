@@ -382,21 +382,26 @@ type AlertChannelResponse struct {
 }
 
 type AlertRuleResponse struct {
-	ID                   string    `json:"id"`
-	Name                 string    `json:"name"`
-	Enabled              bool      `json:"enabled"`
-	Priority             int       `json:"priority"`
-	EventTypes           []string  `json:"event_types"`
-	Severities           []string  `json:"severities"`
-	AgentIDs             []string  `json:"agent_ids"`
-	MonitorIDs           []string  `json:"monitor_ids"`
-	MonitorTypes         []string  `json:"monitor_types"`
-	ChannelIDs           []string  `json:"channel_ids"`
-	Suppress             bool      `json:"suppress"`
-	GroupingPolicy       string    `json:"grouping_policy"`
-	GroupingDelaySeconds int       `json:"grouping_delay_seconds"`
-	CreatedAt            time.Time `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
+	CooldownSeconds int `json:"cooldown_seconds"`
+	// Summary is the sentence in the Rules list; Last24hFired counts distinct incident notifications in the last day.
+	Summary              string        `json:"summary"`
+	Last24hFired         int64         `json:"last_24h_fired"`
+	HowItRuns            RuleHowItRuns `json:"how_it_runs"`
+	ID                   string        `json:"id"`
+	Name                 string        `json:"name"`
+	Enabled              bool          `json:"enabled"`
+	Priority             int           `json:"priority"`
+	EventTypes           []string      `json:"event_types"`
+	Severities           []string      `json:"severities"`
+	AgentIDs             []string      `json:"agent_ids"`
+	MonitorIDs           []string      `json:"monitor_ids"`
+	MonitorTypes         []string      `json:"monitor_types"`
+	ChannelIDs           []string      `json:"channel_ids"`
+	Suppress             bool          `json:"suppress"`
+	GroupingPolicy       string        `json:"grouping_policy"`
+	GroupingDelaySeconds int           `json:"grouping_delay_seconds"`
+	CreatedAt            time.Time     `json:"created_at"`
+	UpdatedAt            time.Time     `json:"updated_at"`
 }
 
 type AlertRouteDryRunResponse struct {

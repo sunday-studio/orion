@@ -213,6 +213,7 @@ func resetSeedData(database *gorm.DB) error {
 		"DELETE FROM alert_delivery_recipients WHERE delivery_id LIKE 'seed-%'",
 		"DELETE FROM alert_channel_recipients WHERE id LIKE 'seed-%'",
 		"DELETE FROM alert_routes WHERE id LIKE 'seed-%'",
+		"DELETE FROM alert_label_routes WHERE id LIKE 'seed-%'",
 		"DELETE FROM alert_channels WHERE id LIKE 'seed-%'",
 	} {
 		if err := database.Exec(statement).Error; err != nil {

@@ -44,7 +44,7 @@ func (s *Server) setAlertRuleEnabled(c *gin.Context, enabled bool) {
 		utils.InternalError(c, "Failed to update alert rule", err)
 		return
 	}
-	utils.SuccessResponse(c, http.StatusOK, "Alert rule updated successfully", gin.H{"rule": alertRuleResponse(rule)})
+	utils.SuccessResponse(c, http.StatusOK, "Alert rule updated successfully", gin.H{"rule": s.enrichedRule(rule)})
 }
 
 // dryRunAlertRules evaluates webhook alert rules without sending notifications.
@@ -145,6 +145,9 @@ func alertRouteFromRuleRequest(request alertRuleRequest) db.AlertRoute {
 	if request.GroupingDelaySeconds != nil {
 		rule.GroupingDelaySeconds = *request.GroupingDelaySeconds
 	}
+	if request.CooldownSeconds != nil {
+		rule.CooldownSeconds = max(0, min(*request.CooldownSeconds, 7*86400))
+	}
 	return rule
 }
 func mergeAlertRuleRequest(rule *db.AlertRoute, request alertRuleRequest) {
@@ -183,6 +186,9 @@ func mergeAlertRuleRequest(rule *db.AlertRoute, request alertRuleRequest) {
 	}
 	if request.GroupingDelaySeconds != nil {
 		rule.GroupingDelaySeconds = *request.GroupingDelaySeconds
+	}
+	if request.CooldownSeconds != nil {
+		rule.CooldownSeconds = max(0, min(*request.CooldownSeconds, 7*86400))
 	}
 }
 func (s *Server) alertRuleDryRunEventFromRequest(c *gin.Context) (service.AlertRouteContext, bool) {
