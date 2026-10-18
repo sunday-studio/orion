@@ -77,7 +77,7 @@ func (b *OverviewBuilder) Build(now time.Time) (*Overview, error) {
 	o := &Overview{GeneratedAt: now}
 
 	var agents []db.Agent
-	if err := b.db.Find(&agents).Error; err != nil {
+	if err := b.db.Where("system = ?", false).Find(&agents).Error; err != nil {
 		return nil, err
 	}
 	var monitors []db.Monitor
@@ -87,18 +87,29 @@ func (b *OverviewBuilder) Build(now time.Time) (*Overview, error) {
 	var apps, channels int64
 	b.db.Model(&db.App{}).Count(&apps)
 	b.db.Model(&db.AlertChannel{}).Count(&channels)
-	o.FirstRun = OverviewFirstRun{HasServers: len(agents) > 0, HasMonitors: len(monitors) > 0, HasApps: apps > 0, HasAlertChannels: channels > 0}
+	userMonitors := 0
+	for _, m := range monitors {
+		if !m.System {
+			userMonitors++
+		}
+	}
+	o.FirstRun = OverviewFirstRun{HasServers: len(agents) > 0, HasMonitors: userMonitors > 0, HasApps: apps > 0, HasAlertChannels: channels > 0}
 
 	// Stats from cached computed health (kept fresh by the Worker), so Overview stays cheap.
 	healthByAgent := map[string]string{}
 	for _, m := range monitors {
-		o.Stats.MonitorsTotal++
 		h := m.ComputedHealth
-		if h == "up" {
-			o.Stats.MonitorsUp++
-		}
+		// Core's own monitors (system) can raise health issues for the header chip, but they
+		// are not counted as the user's monitors, so a fresh install still reads as empty.
 		if h == "down" || h == "degraded" || h == "stale" {
 			o.HealthIssueCount++
+		}
+		if m.System {
+			continue
+		}
+		o.Stats.MonitorsTotal++
+		if h == "up" {
+			o.Stats.MonitorsUp++
 		}
 		healthByAgent[m.AgentID] = worseHealth(healthByAgent[m.AgentID], h)
 	}
@@ -146,7 +157,7 @@ func (b *OverviewBuilder) Build(now time.Time) (*Overview, error) {
 	}
 
 	switch {
-	case !o.FirstRun.HasServers && !o.FirstRun.HasMonitors:
+	case !o.FirstRun.HasServers && !o.FirstRun.HasMonitors && o.OngoingIncidentCount == 0 && o.HealthIssueCount == 0:
 		o.State = "empty"
 	case o.OngoingIncidentCount > 0 || o.HealthIssueCount > 0:
 		o.State = "issues"

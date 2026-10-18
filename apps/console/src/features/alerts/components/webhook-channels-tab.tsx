@@ -10,7 +10,7 @@ import {
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import type { ApiAlertChannelResponse } from "@/orion-sdk";
 import type { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal, Pencil, Send, Trash2 } from "lucide-react";
+import { Mail, MoreHorizontal, Pencil, Send, Trash2 } from "lucide-react";
 import { useMemo } from "react";
 import { alertChannelTypeLabel, boolLabel, eventLabel } from "./alert-constants";
 
@@ -26,6 +26,8 @@ type WebhookChannelsTabProps = {
   isLoading: boolean;
   isTesting: boolean;
   onCreate: () => void;
+  onCreateEmail: () => void;
+  onRecipients: (channel: ApiAlertChannelResponse) => void;
   onDelete: (channel: ApiAlertChannelResponse) => void;
   onEdit: (channel: ApiAlertChannelResponse) => void;
   onTest: (channel: ApiAlertChannelResponse) => void;
@@ -39,6 +41,8 @@ export const WebhookChannelsTab = ({
   isLoading,
   isTesting,
   onCreate,
+  onCreateEmail,
+  onRecipients,
   onDelete,
   onEdit,
   onTest,
@@ -63,12 +67,14 @@ export const WebhookChannelsTab = ({
       },
       {
         id: "configured",
-        header: "Webhook",
+        header: "Destination",
         cell: ({ row }) => (
-          <div className="max-w-88 truncate text-neutral-600">
-            {row.original.webhook_configured
-              ? (row.original.webhook_url ?? "webhook url")
-              : "no webhook configured"}
+          <div className="max-w-88 truncate text-quiet">
+            {row.original.type === "email"
+              ? `${row.original.confirmed_recipient_count ?? 0} of ${row.original.recipient_count ?? 0} recipients confirmed`
+              : row.original.webhook_configured
+                ? (row.original.webhook_url ?? "webhook url")
+                : "no webhook configured"}
           </div>
         ),
       },
@@ -112,7 +118,16 @@ export const WebhookChannelsTab = ({
                   {isTestingThisChannel ? "Sending test..." : "Send test"}
                 </MenuItem>
                 <MenuSeparator />
-                <MenuItem onClick={() => onEdit(row.original)}>
+                {row.original.type === "email" && (
+                  <MenuItem onClick={() => onRecipients(row.original)}>
+                    <Mail className="size-4" />
+                    Recipients
+                  </MenuItem>
+                )}
+                <MenuItem
+                  disabled={row.original.type === "email"}
+                  onClick={() => onEdit(row.original)}
+                >
                   <Pencil className="size-4" />
                   Edit
                 </MenuItem>
@@ -126,21 +141,26 @@ export const WebhookChannelsTab = ({
         },
       },
     ],
-    [isTesting, onDelete, onEdit, onTest, testingChannelId],
+    [isTesting, onDelete, onEdit, onRecipients, onTest, testingChannelId],
   );
 
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-medium">Webhook Channels</h2>
+          <h2 className="text-sm font-medium">Channels</h2>
           <p className="text-sm text-neutral-600">
-            Generic webhooks for incident and recovery notifications.
+            Webhook and email destinations for incident and recovery notifications.
           </p>
         </div>
-        <Button size="sm" onClick={onCreate}>
-          New webhook
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="secondary" onClick={onCreateEmail}>
+            New email channel
+          </Button>
+          <Button size="sm" onClick={onCreate}>
+            New webhook
+          </Button>
+        </div>
       </div>
       {testFeedback && (
         <div
@@ -156,7 +176,7 @@ export const WebhookChannelsTab = ({
         <DataTable
           columns={columns}
           data={channels}
-          emptyMessage="No webhook channels configured."
+          emptyMessage="No channels configured."
           getRowId={(channel, index) => channel.id ?? channel.name ?? `channel-${index}`}
           isLoading={isLoading}
         />

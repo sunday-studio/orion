@@ -315,13 +315,14 @@ func (s *Server) setMaintenanceMode(c *gin.Context) {
 // @Param        maintenance    query  string  false  "Filter by maintenance mode true or false"
 // @Param        stale_only     query  bool    false  "Only return stale servers"
 // @Param        has_incidents  query  bool    false  "Only return servers with active incidents"
+// @Param        include_system query  bool    false  "Include Core's own system agent (default false)"
 // @Success      200            {object}  utils.APIResponse{data=object{agents=[]AgentResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta}}
 // @Failure      500            {object}  utils.APIResponse
 // @Router       /v1/agents [get]
 func (s *Server) listAgents(c *gin.Context) {
 	limit := utils.QueryInt(c, "limit", 50)
 	offset := utils.QueryInt(c, "offset", 0)
-	opts := service.ListAgentsOpts{Limit: limit, Offset: offset, Search: c.Query("search"), Status: c.Query("status"), Maintenance: c.Query("maintenance"), StaleOnly: c.Query("stale_only") == "true", HasIncidents: c.Query("has_incidents") == "true", LastSeen: c.Query("last_seen"), Uptime: c.Query("uptime"), Sort: c.DefaultQuery("sort", "last_seen"), Order: c.DefaultQuery("order", "desc")}
+	opts := service.ListAgentsOpts{Limit: limit, Offset: offset, IncludeSystem: c.Query("include_system") == "true", Search: c.Query("search"), Status: c.Query("status"), Maintenance: c.Query("maintenance"), StaleOnly: c.Query("stale_only") == "true", HasIncidents: c.Query("has_incidents") == "true", LastSeen: c.Query("last_seen"), Uptime: c.Query("uptime"), Sort: c.DefaultQuery("sort", "last_seen"), Order: c.DefaultQuery("order", "desc")}
 	agents, count, err := s.agentService.ListAgents(opts)
 	if err != nil {
 		s.logger.Error("Failed to list agents", "error", err)
@@ -346,7 +347,7 @@ func (s *Server) getAgentSummary(c *gin.Context) {
 	healthService := service.NewHealthService(s.db, s.logger)
 	config := service.DefaultHealthConfig()
 	var agents []db.Agent
-	if err := s.db.Where("deleted_at IS NULL OR deleted_at = ?", time.Time{}).Find(&agents).Error; err != nil {
+	if err := s.db.Where("(deleted_at IS NULL OR deleted_at = ?) AND system = ?", time.Time{}, false).Find(&agents).Error; err != nil {
 		s.logger.Error("Failed to load agent summary", "error", err)
 		utils.InternalError(c, "Failed to get agent summary", err)
 		return

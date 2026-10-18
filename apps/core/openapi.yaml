@@ -99,6 +99,8 @@ definitions:
         type: string
       status_reason:
         type: string
+      system:
+        type: boolean
       uptime_seconds:
         type: integer
     type: object
@@ -1472,6 +1474,8 @@ definitions:
         type: integer
       source:
         type: string
+      system:
+        type: boolean
       type:
         type: string
       updated_at:
@@ -3751,6 +3755,10 @@ paths:
       - description: Only return servers with active incidents
         in: query
         name: has_incidents
+        type: boolean
+      - description: Include Core's own system agent (default false)
+        in: query
+        name: include_system
         type: boolean
       produces:
       - application/json
@@ -7782,6 +7790,10 @@ paths:
         in: query
         name: order
         type: string
+      - description: Include Core self-monitors such as worker liveness (default false)
+        in: query
+        name: include_system
+        type: boolean
       produces:
       - application/json
       responses:

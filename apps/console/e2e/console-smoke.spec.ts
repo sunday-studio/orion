@@ -5,18 +5,18 @@ test.describe.configure({ mode: "serial" });
 
 test("signs in, rejects bad credentials, and signs out", async ({ page }) => {
   await page.goto("/login");
-  await page.getByPlaceholder("Username").fill(username);
-  await page.getByPlaceholder("Password").fill("wrong-password");
-  await page.getByRole("button", { name: "Enter" }).click();
-  await expect(page.getByText("Invalid credentials")).toBeVisible();
+  await page.getByLabel("Username").fill(username);
+  await page.getByLabel("Password").fill("wrong-password");
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByText("Username or password is incorrect.")).toBeVisible();
 
-  await page.getByPlaceholder("Password").fill(password);
-  await page.getByRole("button", { name: "Enter" }).click();
-  await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByRole("heading", { name: /How is it going/ })).toBeVisible();
 
   await page.getByRole("button", { name: "Account menu" }).click();
-  await page.getByRole("menuitem", { name: "Sign out" }).click();
-  await expect(page.getByPlaceholder("Username")).toBeVisible();
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page.getByLabel("Username")).toBeVisible();
 });
 
 test("renders primary operations pages with seeded Core data", async ({ page }) => {
@@ -76,6 +76,7 @@ test("renders primary operations pages with seeded Core data", async ({ page }) 
     .getByRole("link", { name: "Logs", exact: true })
     .click();
   await expect(page.getByRole("heading", { name: "Logs" })).toBeVisible();
+  await page.getByRole("tab", { name: "Status logs" }).click();
   await expect(page.getByPlaceholder("Search events")).toBeVisible();
 
   await page.getByRole("banner").getByRole("link", { name: "Settings", exact: true }).click();
@@ -90,9 +91,9 @@ test("renders primary operations pages with seeded Core data", async ({ page }) 
 test("redirects unauthenticated visits to login and returns after sign in", async ({ page }) => {
   await page.goto("/monitors");
   await expect(page).toHaveURL(/\/login\?from=%2Fmonitors/);
-  await page.getByPlaceholder("Username").fill(username);
-  await page.getByPlaceholder("Password").fill(password);
-  await page.getByRole("button", { name: "Enter" }).click();
+  await page.getByLabel("Username").fill(username);
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/monitors$/);
 });
 
@@ -102,22 +103,19 @@ test("renders a not-found page for unknown routes", async ({ page }) => {
   await expect(page.getByText("Page not found")).toBeVisible();
 });
 
-test("shows the overview landing page and dismisses onboarding", async ({ page }) => {
+test("shows the overview landing page with live health data", async ({ page }) => {
   await signIn(page);
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByLabel("Health summary")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Open incidents" })).toBeVisible();
-  await expect(page.getByLabel("Getting started")).toBeVisible();
-  await page.getByRole("button", { name: "Dismiss" }).click();
-  await expect(page.getByLabel("Getting started")).toHaveCount(0);
-  await page.reload();
-  await expect(page.getByLabel("Getting started")).toHaveCount(0);
+  await expect(page.getByText("Monitors up")).toBeVisible();
+  await expect(page.getByText("Servers up")).toBeVisible();
+  await expect(page.getByText("Open incidents", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Needs you now" })).toBeVisible();
 });
 
 test("opens the command palette and shortcuts sheet from the keyboard", async ({ page }) => {
   await signIn(page);
   await page.keyboard.press("Control+k");
-  await page.getByLabel("Search destinations").fill("mon");
+  await page.getByLabel("Search destinations").fill("Go to Monitors");
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/monitors$/);
   await expect(page.getByLabel("Search destinations")).toHaveCount(0);

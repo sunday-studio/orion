@@ -42,3 +42,10 @@ Cross-cutting pages (States, Flows, Design language) are references used by ever
 
 - `orion:cleanup`: dead-code removal in `apps/console` waits until all features are approved, to avoid fighting the rebuild.
 - `orion:agent`: continues the CLI/agent track and pushes; its feature (F9) is reviewed last.
+
+## Last, before going live with the new version
+
+Deferred on purpose (D-031), done only after features F1 to F9 are approved:
+
+- Agent as a container: container image, Add server "Docker" tab (design + web), Kubernetes DaemonSet/Helm chart (agent plan F2).
+- Re-enable GitHub CI (D-024) and cut the release.

@@ -8,6 +8,7 @@ import (
 
 type AgentResponse struct {
 	ID                       string         `json:"id"`
+	System                   bool           `json:"system"`
 	Name                     string         `json:"name"`
 	OS                       string         `json:"os"`
 	Platform                 string         `json:"platform"`
@@ -55,6 +56,7 @@ type AgentHealthResponse struct {
 
 type MonitorResponse struct {
 	ID                       string     `json:"id"`
+	System                   bool       `json:"system"`
 	Description              *string    `json:"description"`
 	Type                     string     `json:"type"`
 	Name                     string     `json:"name"`

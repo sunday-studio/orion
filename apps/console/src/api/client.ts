@@ -11,6 +11,22 @@ export function getToken(): string | null {
   return localStorage.getItem(AUTH_TOKEN_KEY);
 }
 
+export function getUsername(): string {
+  try {
+    return localStorage.getItem("orion_username") || "admin";
+  } catch {
+    return "admin";
+  }
+}
+
+export function setUsername(username: string): void {
+  try {
+    localStorage.setItem("orion_username", username);
+  } catch {
+    // The greeting falls back to "admin".
+  }
+}
+
 export function setToken(token: string): void {
   localStorage.setItem(AUTH_TOKEN_KEY, token);
 }
@@ -72,6 +88,15 @@ async function toApiError(res: Response): Promise<ApiError> {
 }
 
 function toNetworkApiError(err: unknown): ApiError {
+  // Browsers report an unreachable server as a bare TypeError ("Failed to fetch").
+  if (err instanceof TypeError) {
+    const target = getApiBase() || window.location.origin;
+    const error = new Error(`Can't reach Core at ${target}. Is it running?`, {
+      cause: err,
+    }) as ApiError;
+    error.status = 0;
+    return error;
+  }
   if (err instanceof Error) return err as ApiError;
   return new Error("Network request failed") as ApiError;
 }
@@ -145,5 +170,6 @@ export async function authLogin(username: string, password: string): Promise<{ t
   });
   if (!res.token) throw new Error("Login failed");
   setToken(res.token);
+  setUsername(username);
   return res;
 }

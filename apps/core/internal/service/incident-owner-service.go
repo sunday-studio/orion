@@ -77,6 +77,7 @@ func (s *IncidentService) ensureCoreOwnerAgent(preferredID string) (db.Agent, er
 		ID:                       ownerID,
 		MachineId:                coreOwnerMachineID,
 		Name:                     coreOwnerName,
+		System:                   true,
 		OS:                       "core",
 		Arch:                     "internal",
 		Token:                    token,
