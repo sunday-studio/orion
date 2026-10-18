@@ -58,7 +58,7 @@ export const ResponseTimeChart = ({ monitorId }: { monitorId: string }) => {
           <Segmented
             aria-label="Range"
             size="sm"
-            onField
+            surface="field"
             options={RANGES}
             value={range}
             onValueChange={(next) => setRange(next as Range)}

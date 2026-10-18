@@ -35,7 +35,7 @@ export const Segmented = ({
   className,
   "aria-label": ariaLabel,
   role = "radiogroup",
-  onField = false,
+  surface = "page",
 }: {
   options: readonly SegmentedOption[];
   value: string;
@@ -45,8 +45,11 @@ export const Segmented = ({
   "aria-label": string;
   /** Use "group" with aria-pressed items for view switchers rather than form choices. */
   role?: "radiogroup" | "group";
-  /** Use on a tinted surface (box header, field panel) where the default tray would blend in. */
-  onField?: boolean;
+  /**
+   * What the control sits on, so the tray never blends in: "page" (default), "card" for
+   * dialogs and popovers, "field" for tinted headers and field panels.
+   */
+  surface?: "page" | "card" | "field";
 }) => {
   const layoutId = useId();
   return (
@@ -55,7 +58,9 @@ export const Segmented = ({
       aria-label={ariaLabel}
       className={cn(
         "relative flex w-fit gap-0.5 rounded-lg p-[3px]",
-        onField ? "bg-hairline dark:bg-tray" : "bg-tray",
+        surface === "field" && "bg-hairline dark:bg-tray",
+        surface === "card" && "bg-tray dark:bg-page",
+        surface === "page" && "bg-tray",
         className,
       )}
     >

@@ -81,6 +81,7 @@ export const AccountMenu = () => {
         <div className="my-1.5 h-px bg-hairline" />
         <div className="px-1.5 pb-1 text-xs text-quiet">Theme</div>
         <Segmented
+          surface="card"
           aria-label="Theme"
           size="sm"
           className="mx-1.5 mb-2"
