@@ -192,6 +192,58 @@ Core monitor admin endpoints:
 - Core may refresh the stored server reporting interval from `config_summary.reporting_interval`.
 - Core owns retention and rollups.
 
+### Agent Product-Log Shipping and One-Shot Commands
+
+The Agent can ship application logs to the product-log ingest endpoint. This is
+an optional no-code path; it does not replace direct OTLP from an application,
+and its ingest key is never the Agent token. The full app-log envelope and
+retention contract is in `docs/product-logs.md`.
+
+`logs.sources` selects files, a journald unit, or a Docker container. Each
+source has its own write-only ingest key, supplied through `ingest_key_file` or
+`ingest_key_env`; configuration must never contain the key itself. The Agent
+persists source offsets and a bounded local spool, follows rotations, applies
+configured edge redaction before writing the spool, and retries batches at
+`{core_url}/v1/ingest/logs` unless `logs.endpoint` overrides it.
+
+```yaml
+logs:
+  spool_mb: 64                 # default when omitted or set to 0
+  # endpoint: https://core.example.com/v1/ingest/logs
+  sources:
+    - name: api
+      type: file               # file, journald, or docker
+      path: /srv/api/log/app.log
+      app: api                 # service.name; defaults to name
+      from: end                # end (default) or beginning
+      multiline_start: '^\\d{4}-\\d{2}-\\d{2}'
+      redact: ['(?i)token=[^\\s]+']
+      ingest_key_file: /run/orion/api-ingest-key
+```
+
+File sources may name a not-yet-created log file; the tailer waits for it.
+Journald sources require `unit`, Docker sources require `container`, and the
+`orion` service user must be able to read the selected source and key file.
+`orion-agent doctor` reports unreadable keys and a missing or unreachable
+ingest endpoint without sending a log entry.
+
+`orion-agent emit` sends a single script or cron entry without a running
+daemon. It takes a message plus optional `--severity`, `--event`, repeatable
+`--attr key=value`, `--app`, `--endpoint`, `--source`, and `--key-file`.
+It resolves credentials in this order: `--key-file`, `ORION_INGEST_KEY`, then a
+configured source's key. For example:
+
+```sh
+orion-agent emit --source api --severity error --event backup.failed 'backup failed'
+```
+
+`orion-agent run-job --name <job> [flags] -- <command> [args...]` mirrors a
+job's output, ships its bounded output lines followed by `job.finished` or
+`job.failed`, returns the job's exit code, and can ping a heartbeat token from
+`--heartbeat-token` or `ORION_HEARTBEAT_TOKEN`. Shipping and heartbeat
+failures are printed but never replace the job's exit code. `--max-lines`
+defaults to 2000; excess output is counted in the final entry.
+
 ### Agent Service Logs
 
 - Agent reads only its configured Orion structured JSONL log file for the first product version.
