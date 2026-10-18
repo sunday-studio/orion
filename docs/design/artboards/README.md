@@ -62,9 +62,9 @@ Screen-map ref is the row number in `../screen-map.md` (`9.x` is section 9, prod
 | [heartbeat-setup](heartbeat-setup.html) ([light](png/heartbeat-setup-light.png), [dark](png/heartbeat-setup-dark.png)) | 774 | 14 | panel | apps/console/src/features/monitors/ |
 | [incident-actions](incident-actions.html) ([light](png/incident-actions-light.png), [dark](png/incident-actions-dark.png)) | 640 | 17 | dialogs | apps/console/src/features/incidents/ |
 | [incident-candidates](incident-candidates.html) ([light](png/incident-candidates-light.png), [dark](png/incident-candidates-dark.png)) | 460 | 40 | /incidents/triage | apps/console/src/features/incidents/ (new) |
-| [incident-declare](incident-declare.html) ([light](png/incident-declare-light.png), [dark](png/incident-declare-dark.png)) | 640 | 7 | dialog | apps/console/src/features/incidents/ |
-| [incident-detail](incident-detail.html) ([light](png/incident-detail-light.png), [dark](png/incident-detail-dark.png)) | 878 | 3 | /incidents/:id | apps/console/src/features/incidents/incident-detail.view.tsx |
-| [incident-public-update](incident-public-update.html) ([light](png/incident-public-update-light.png), [dark](png/incident-public-update-dark.png)) | 640 | 7 | dialog | apps/console/src/features/incidents/ |
+| [incident-declare](incident-declare.html) ([light](png/incident-declare-light.png), [dark](png/incident-declare-dark.png)) | 655 | 7 | dialog | apps/console/src/features/incidents/ |
+| [incident-detail](incident-detail.html) ([light](png/incident-detail-light.png), [dark](png/incident-detail-dark.png)) | 1048 | 3 | /incidents/:id | apps/console/src/features/incidents/incident-detail.view.tsx |
+| [incident-public-update](incident-public-update.html) ([light](png/incident-public-update-light.png), [dark](png/incident-public-update-dark.png)) | 656 | 7 | dialog | apps/console/src/features/incidents/ |
 | [incident-resolved](incident-resolved.html) ([light](png/incident-resolved-light.png), [dark](png/incident-resolved-dark.png)) | 698 | 7 | /incidents/:id | apps/console/src/features/incidents/incident-detail.view.tsx |
 | [incidents-bulk](incidents-bulk.html) ([light](png/incidents-bulk-light.png), [dark](png/incidents-bulk-dark.png)) | 460 | 7 | /incidents | apps/console/src/features/incidents/ |
 | [incidents-empty](incidents-empty.html) ([light](png/incidents-empty-light.png), [dark](png/incidents-empty-dark.png)) | 460 | 7 | /incidents | apps/console/src/features/incidents/ |
@@ -77,7 +77,7 @@ Screen-map ref is the row number in `../screen-map.md` (`9.x` is section 9, prod
 | [logs-detail](logs-detail.html) ([light](png/logs-detail-light.png), [dark](png/logs-detail-dark.png)) | 814 | 48 | drawer | apps/console/src/features/event-log/ |
 | [logs-detail-plain](logs-detail-plain.html) ([light](png/logs-detail-plain-light.png), [dark](png/logs-detail-plain-dark.png)) | 556 | 48 | drawer | apps/console/src/features/event-log/ |
 | [logs-error](logs-error.html) ([light](png/logs-error-light.png), [dark](png/logs-error-dark.png)) | 576 | 9.x | /logs | apps/console/src/features/event-log/ |
-| [logs-events](logs-events.html) ([light](png/logs-events-light.png), [dark](png/logs-events-dark.png)) | 700 | 10 | /logs (Status logs) | apps/console/src/features/event-log/ |
+| [logs-events](logs-events.html) ([light](png/logs-events-light.png), [dark](png/logs-events-dark.png)) | 1063 | 10 | /logs (Status logs) | apps/console/src/features/event-log/ |
 | [logs-export](logs-export.html) ([light](png/logs-export-light.png), [dark](png/logs-export-dark.png)) | 640 | 9.x | dialog | apps/console/src/features/event-log/ |
 | [logs-live](logs-live.html) ([light](png/logs-live-light.png), [dark](png/logs-live-dark.png)) | 720 | 9.x | /logs (live) | apps/console/src/features/event-log/ |
 | [logs-no-apps](logs-no-apps.html) ([light](png/logs-no-apps-light.png), [dark](png/logs-no-apps-dark.png)) | 464 | 9.x | /logs | apps/console/src/features/event-log/ |

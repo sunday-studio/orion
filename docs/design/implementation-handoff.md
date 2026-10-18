@@ -116,27 +116,24 @@ Checked against `apps/core/openapi.yaml` on 2026-10-18 after the F1 APIs landed.
 
 ## 8. Feature 2 (Incidents): data and API notes
 
-Checked against `apps/core/openapi.yaml` on 2026-10-18. Artboards: `incidents-list`, `incidents-bulk`, `incidents-empty`, `incident-detail`, `incident-resolved`, `incident-actions`, `incident-declare`, `incident-public-update`, `incident-candidates`, `health-issues` (each with a `-dark` version).
+Reconciled with `apps/core/openapi.yaml` on main after backend finished F2 (94a2335). Artboards: `incidents-list`, `incidents-bulk`, `incidents-empty`, `incident-detail`, `incident-resolved`, `incident-actions`, `incident-declare`, `incident-public-update`, `incident-candidates`, `health-issues`, each with a `-dark` version.
 
-**Incidents list** (`GET /v1/incidents`)
-- Row fields: `title`, `severity` (low, medium, high, critical), `status` (open, acknowledged, covered, resolved), `monitor_name`, `agent_name`, `notification_status`, `opened_at`. The ID column shows the display number `INC-####` (backend pending: ids are opaque strings today).
-- Default filter is active statuses (`open,acknowledged,covered`). Filter tokens map to query params: Status (`status`), Server (`agent_id`), Monitor (`monitor_id`), Resolved by (`actor`: manual or system), Covered (`covered`), Notification (`notification_status`). The quick view "Needs review" is `needs_review=true`; "Resolved" switches `status=resolved`. The artboard has no "Opened in last 7 days" token because there is no date param.
-- Notified column is `notification_status` (Sent, Not delivered).
-- Bulk actions (Acknowledge, Cover, Resolve on selected rows) are proposed; until then run the single-incident calls per row.
+**List** (`GET /v1/incidents`, `GET /v1/incidents/export`)
+- Rows: `display_id` (`INC-####`) and `number`, `title`, `severity`, `status` (open, acknowledged, covered, resolved), `monitor_name`, `agent_name`, `notification_status`, `opened_at`. Default filter `open,acknowledged,covered`; the list reports a hidden count (resolved incidents hidden by the filter) shown in the table footer with a Show them link.
+- Filter tokens: Status (`status`), Severity (`severity`), Server (`agent_id`), Monitor (`monitor_id`), Opened (`opened_since`: 24h, 7d, 30d or a date), Notification (`notification_status`), Resolved by (`actor`), Covered (`covered`). Search box is `q`. Quick views: Active, Needs review (`needs_review`), Resolved.
+- Export CSV uses the same filters (`/v1/incidents/export`, at most 10,000 rows).
+- Bulk (`POST /v1/incidents/bulk`, up to 100 ids, `action` acknowledge, cover or resolve, optional `note`, `covered_by` for cover): each id succeeds or fails alone; the floating bar closes into a result toast ("1 of 2 resolved", failed ids listed with Retry failed).
+- Declare incident (`POST /v1/incidents`): `title` and `severity` required; give `monitor_id` or `agent_id`; optional `summary` and `notify`. A monitor can have only one active incident, so the dialog warns and the API returns an error to show inline.
 
-**Incident detail** (`GET /v1/incidents/{id}`, `/timeline`, `/logs`)
-- Header actions come from `allowed_actions` (hide an action that is not allowed). Tracker: Detected = `opened_at`, Notified = `notification_status`, Acknowledged and Resolved from `status` and the timeline. Summary line is `latest_event`.
-- Source panel: monitor, monitor type, server. Notifications panel: per-channel delivery results (from the notifications tab data). Impacted: `impacted_components`. Duration: time to acknowledge and resolve from timeline and `resolved_at`.
-- Tabs: Timeline (`/timeline`, events have `type`, `message`, `note`, `actor_type`), Checks (monitor history), Notifications (alert deliveries for this incident), Logs (`/incidents/{id}/logs`).
-- There is no responder or assignee and no free-form comment endpoint, so neither appears. Notes are entered only in the Acknowledge, Cover and Resolve dialogs.
-- Draft update opens the public update dialog.
+**Detail** (`GET /v1/incidents/{id}`, `/timeline`, `/logs`)
+- Header actions follow `allowed_actions`. Summary paragraph is `summary`; milestones and timings come from the detail summary (`detected_at`, `notified_at`, `acknowledged_at`, `resolved_at`, `time_to_acknowledge_seconds`, `time_to_resolve_seconds`, `failed_checks`, `notified_channels`). Expected and actual cards are `expected` and `actual` (`title`, `detail`, `at`).
+- Source panel is `source` (monitor, type, `target`, server). People: `responder` (set with `PUT /v1/incidents/{id}/responder` and a name). Notes: `POST /v1/incidents/{id}/notes` with `text`; the composer posts there and notes appear in the timeline. Status page state: `draft_exists`, `published_updates`, subscriber count. Related: `covered_by_display_id` and related incidents.
+- Tabs: Timeline (items have `type`, `message`, `note`, `channel`, `status`, `evidence`), Checks, Notifications, Logs (`/incidents/{id}/logs`).
 
-**Actions** (`POST .../acknowledge`, `/cover`, `/resolve`, `/reopen`): acknowledge and resolve take an optional note; cover takes an optional `covered_until` timestamp and note (the dialog offers 1 hour, 4 hours, tomorrow, custom). Resolved incidents show `resolution_kind` (automatic or manual) and `reopen_count`.
+**Actions**: acknowledge and resolve take an optional note. Cover takes `covered_until`, an optional `covered_by` incident and a note. Reopen restores an incident. Resolved incidents show `resolution_kind` and `reopen_count`.
 
-**Declare incident** (proposed `POST /v1/incidents`): title, severity, monitor, optional note. It needs a monitor because incidents hang off monitors today.
+**Public update** (`POST /v1/incidents/{id}/public-update`; see also `/public-updates`): `status_page_id`, `status` (investigating, identified, monitoring, resolved), `message`, `notify_subscribers`, and `title`, which is required when the target reports `title_required` (system-opened incidents with no public incident yet). The dialog shows the page's subscriber count.
 
-**Public update** (`POST /v1/status-pages/{id}/incidents/{incident_id}/updates`, create the public incident from `.../incidents/draft` first): public status (investigating, identified, monitoring, resolved) and message. If no public incident exists for this internal incident, posting creates a draft one first (shown as a callout).
+**Triage** (`GET /v1/incidents/candidates`, `POST .../{id}/open`, `POST .../{id}/dismiss`): `monitor_name`, `agent_name`, `monitor_type`, `health`, `severity`, `detail`, `seen_at`, `down_count`. Open incident creates the incident; Dismiss hides the candidate.
 
-**Triage** (`GET /v1/incidents/candidates`, `POST .../{id}/dismiss`): row fields are `monitor_name`, `agent_name`, `monitor_type`, `health` (down, degraded, stale), `severity`, `down_count` ("N of 5 reports down"). Open incident creates the incident from the candidate. There is no seen-at time or description text.
-
-**Health issues** (`GET /v1/health/issues`): `monitor_name`, `agent_name`, `monitor_type`, `health`, `issue_type` (stale_data shows "No recent data"). Monitors only, no servers; no "since" field.
+**Health issues** (`GET /v1/health/issues`): `kind` (monitor or server), `target_name`, `agent_name`, `monitor_type`, `health` (down, degraded, stale), `detail`, `since`, `issue_type`, and `incident_id` with `incident_display_id` when an incident already covers it (shown as a link instead of an Open incident button). Server rows appear alongside monitors.
