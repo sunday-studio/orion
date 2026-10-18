@@ -7,7 +7,6 @@ import {
   FieldPanel,
   GridRow,
   GridTable,
-  Input,
   RaisedCard,
   useToast,
 } from "@/design-system";
@@ -15,10 +14,10 @@ import {
   getGetStatusPageDomainQueryKey,
   useGetStatusPageDomain,
   useRemoveStatusPageDomain,
-  useUpdateStatusPage,
   useVerifyStatusPageDomain,
 } from "@/orion-sdk";
 import { formatDate } from "@/utils/date";
+import { DomainDialog } from "../dialogs/domain-dialog";
 
 const COLUMNS = "70px minmax(0,1fr) minmax(0,1.3fr) 70px";
 
@@ -44,24 +43,13 @@ export const DomainPanel = ({
 }) => {
   const toast = useToast();
   const queryClient = useQueryClient();
-  const [draft, setDraft] = useState("");
-  const [error, setError] = useState<string>();
+  const [guide, setGuide] = useState(false);
   const [removing, setRemoving] = useState(false);
   const info = useGetStatusPageDomain(pageId, { query: { enabled: Boolean(domain) } });
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: getGetStatusPageDomainQueryKey(pageId) });
     onChanged();
   };
-  const add = useUpdateStatusPage({
-    mutation: {
-      onSuccess: () => {
-        setDraft("");
-        setError(undefined);
-        refresh();
-      },
-      onError: (failure) => setError((failure as Error).message || "Unable to add the domain."),
-    },
-  });
   const verify = useVerifyStatusPageDomain({
     mutation: {
       onSuccess: (result) => {
@@ -89,28 +77,16 @@ export const DomainPanel = ({
           Serve this page on your own address, like status.example.com. You add one DNS record, then
           Orion verifies it.
         </p>
-        <div className="flex gap-2">
-          <Input
-            aria-label="Custom domain"
-            placeholder="status.example.com"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-          />
-          <Button
-            disabled={add.isPending || !draft.trim()}
-            onClick={() => {
-              setError(undefined);
-              add.mutate({ id: pageId, data: { custom_domain: draft.trim() } });
-            }}
-          >
-            Add domain
-          </Button>
-        </div>
-        {error && (
-          <Callout tone="down" className="mt-3">
-            {error}
-          </Callout>
-        )}
+        <Button size="sm" onClick={() => setGuide(true)}>
+          Add custom domain
+        </Button>
+        <DomainDialog
+          open={guide}
+          pageId={pageId}
+          domain={domain}
+          onOpenChange={setGuide}
+          onChanged={onChanged}
+        />
       </FieldPanel>
     );
   }
@@ -179,13 +155,30 @@ export const DomainPanel = ({
         </p>
       )}
       <div className="mt-3 flex gap-2">
-        <Button size="sm" disabled={verify.isPending} onClick={() => verify.mutate({ id: pageId })}>
+        {status !== "verified" && (
+          <Button size="sm" onClick={() => setGuide(true)}>
+            Open setup guide
+          </Button>
+        )}
+        <Button
+          size="sm"
+          variant={status === "verified" ? "primary" : "secondary"}
+          disabled={verify.isPending}
+          onClick={() => verify.mutate({ id: pageId })}
+        >
           Verify now
         </Button>
         <Button size="sm" variant="secondary" onClick={() => setRemoving(true)}>
           Remove domain
         </Button>
       </div>
+      <DomainDialog
+        open={guide}
+        pageId={pageId}
+        domain={domain}
+        onOpenChange={setGuide}
+        onChanged={onChanged}
+      />
       <ConfirmDialog
         open={removing}
         onOpenChange={setRemoving}
