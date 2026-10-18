@@ -115,3 +115,22 @@ func Wrap(text string, width, hang int) []string {
 	}
 	return lines
 }
+
+// StatusMark is a status glyph; plain mode spells the state in brackets so
+// colour (and even the glyph) is never the only signal.
+func (t *Theme) StatusMark(name string) string {
+	if t.Plain() {
+		switch name {
+		case "up":
+			return "[ok]"
+		case "down":
+			return "[down]"
+		case "degraded":
+			return "[slow]"
+		case "maintenance":
+			return "[maint]"
+		}
+		return "[?]"
+	}
+	return t.StatusGlyph(name)
+}

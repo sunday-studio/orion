@@ -3,8 +3,10 @@ package cli
 import (
 	"context"
 	"fmt"
+	"time"
 
 	agent "orion/agent/internal"
+	"orion/agent/internal/control"
 )
 
 func runStart(_ context.Context, opts *Options) error {
@@ -46,63 +48,31 @@ func runStop(_ context.Context, _ *Options) error {
 
 func runStatus(_ context.Context, opts *Options) error {
 	report := InspectAgentStatus(opts.StatePath)
-	if report.InternalState == nil {
-		// The state file is owned by the orion user; ask the daemon instead.
-		if st, err := controlClient(opts).Status(); err == nil {
-			report.InternalState = statusFromSocket(st)
-			report.StateCheck = DiagnosticCheck{Name: "state", Status: CheckOK, Detail: "via control socket"}
-		}
+	daemon, derr := controlClient(opts).Status()
+	if derr == nil && report.InternalState == nil {
+		// The state file is owned by the orion user; the daemon knows it.
+		report.InternalState = statusFromSocket(daemon)
+		report.StateCheck = DiagnosticCheck{Name: "state", Status: CheckOK, Detail: "via control socket"}
 	}
 	if opts.JSON {
-		return renderJSON(outputWriter, statusJSON(report))
+		payload := statusJSON(report)
+		if derr == nil {
+			payload.Daemon = &daemon
+		}
+		return renderJSON(outputWriter, payload)
 	}
 
-	PrintHeader("status")
-	rows := [][2]string{
-		{"service", theme.Status(serviceStatusName(report.Service))},
-		{"manager", string(report.Service.Manager)},
+	width := terminalWidth()
+	if derr == nil {
+		fmt.Fprint(outputWriter, statusScreen(theme, daemon, time.Now(), width))
+		return nil
 	}
-	if report.Service.ServiceFile != "" {
-		rows = append(rows, [2]string{"service file", report.Service.ServiceFile})
+	hint := "orion-agent service start"
+	if !report.Service.Installed {
+		hint = "orion-agent service install"
 	}
-	if report.Service.Error != nil {
-		rows = append(rows, [2]string{"service error", report.Service.Error.Error()})
-	}
-	rows = append(rows, [2]string{"state database", opts.StatePath})
-	switch {
-	case report.StateCheck.Status != CheckOK:
-		detail := report.StateCheck.Detail
-		if report.StateCheck.Error != nil {
-			detail = report.StateCheck.Error.Error()
-		}
-		rows = append(rows, [2]string{"state", theme.Status("unknown") + " " + detail})
-	case report.InternalState != nil:
-		st := report.InternalState
-		rows = append(rows, [2]string{"state", report.StateCheck.Detail})
-		rows = append(rows, [2]string{"enrolled", fmt.Sprint(st.IsRegistered() || st.Registered)})
-		if st.AgentID != "" {
-			rows = append(rows, [2]string{"agent id", st.AgentID})
-		}
-		if st.CoreURL != "" {
-			rows = append(rows, [2]string{"core", st.CoreURL})
-		}
-		maint := theme.Status("up")
-		if st.MaintenanceMode {
-			maint = theme.Status("maintenance")
-			if st.MaintenanceReason != nil {
-				maint += " " + *st.MaintenanceReason
-			}
-		}
-		rows = append(rows, [2]string{"reporting", maint})
-	}
-	fmt.Fprintln(outputWriter, theme.KV(rows))
-
-	if !report.Service.Running {
-		PrintSkip("service is not running")
-		return &CommandError{Summary: "service is not running", ExitCode: 1}
-	}
-	PrintOK("service is running")
-	return nil
+	fmt.Fprint(outputWriter, statusStopped(theme, hostnameOrEmpty(), "service "+report.Service.State, hint, width))
+	return &CommandError{Summary: "agent is not running", ExitCode: 1, Silent: true}
 }
 
 type statusJSONPayload struct {
@@ -119,6 +89,8 @@ type statusJSONPayload struct {
 	AgentID        string `json:"agent_id,omitempty"`
 	CoreURL        string `json:"core_url,omitempty"`
 	Maintenance    bool   `json:"maintenance"`
+	// Daemon is the running daemon's own view, present when its socket answers.
+	Daemon *control.Status `json:"daemon,omitempty"`
 }
 
 func statusJSON(report AgentStatusReport) statusJSONPayload {

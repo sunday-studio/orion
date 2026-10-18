@@ -20,7 +20,18 @@ type Agent struct {
 	transport     *transport.Client
 	retryQueue    *RetryQueue
 	sampler       *appres.Sampler
+	hooks         Hooks
 }
+
+// Hooks lets the daemon observe results without the agent knowing about the
+// control socket: the status screen shows monitor states and top apps from them.
+type Hooks struct {
+	MonitorResult func(name, kind, health string, at time.Time)
+	SystemReport  func(at time.Time, apps *appres.Report)
+}
+
+// SetHooks installs result observers; call before Run.
+func (a *Agent) SetHooks(h Hooks) { a.hooks = h }
 
 func New(userConfig *config.UserConfig, stateStore *state.Store, internalState *config.InternalState) *Agent {
 	client := transport.NewClient(userConfig.CoreURL, internalState.Token)

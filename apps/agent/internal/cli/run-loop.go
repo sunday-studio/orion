@@ -114,6 +114,7 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 		if err != nil {
 			return NewCommandError("could not initialize agent", err)
 		}
+		instance.SetHooks(ctrl.hooks())
 		PrintStep("starting continuous collection loop")
 
 		runCtx, stopRun := context.WithCancel(ctx)
