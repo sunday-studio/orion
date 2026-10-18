@@ -118,7 +118,7 @@ export const AgentMonitorsTab = ({ agentId }: { agentId: string }) => {
         <div
           className={cn(
             "ds-settled overflow-hidden rounded-xl border border-hairline bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)]",
-            query.isFetching && "ds-fetching",
+            query.isPlaceholderData && "ds-fetching",
           )}
         >
           <GridTable>
