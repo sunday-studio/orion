@@ -9,6 +9,27 @@ npm run dev      # http://localhost:4321
 npm run build    # writes dist/
 ```
 
+## Deploy to Cloudflare
+
+The site is static. It deploys to Cloudflare Workers static assets, configured in `wrangler.jsonc` (assets from `dist/`, a real 404 page, trailing-slash handling). `public/_headers` sets security headers and long caching for the hashed `/_astro` files.
+
+**One-time setup**
+
+1. In Cloudflare, create an API token from the "Edit Cloudflare Workers" template and note your Account ID.
+2. In the GitHub repository, add secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` (Settings, Secrets and variables, Actions).
+3. Run the **Website deploy** workflow once from the Actions tab. The first run creates the `orion-website` Worker and publishes it at `orion-website.<your-subdomain>.workers.dev`.
+4. Attach the real domain in the dashboard (Workers & Pages, `orion-website`, Settings, Domains), or add the `routes` entry shown in `wrangler.jsonc`. The domain's zone must be on your Cloudflare account.
+5. Set the real address in `astro.config.mjs` (`site`), `public/robots.txt` and the fallback in `src/layouts/base.astro`, then redeploy.
+
+**Deploying**
+
+- By hand from your machine: `npx wrangler login`, then `npm run cf:deploy`.
+- By hand from GitHub: run the **Website deploy** workflow.
+- Automatically on every push to `main` that touches `apps/website/`: set the repository variable `WEBSITE_DEPLOY_ENABLED` to `true`. It is off until you do. (Repository CI is switched off separately; see decision D-024.)
+- Try the built site locally the way Cloudflare serves it: `npm run cf:preview`.
+
+Wrangler usage metrics are disabled in the workflow (`WRANGLER_SEND_METRICS=false`). Set the same variable locally if you want them off.
+
 ## Layout
 
 - `src/pages/index.astro`: the home page. Sections live in `src/components/home/`.
@@ -19,6 +40,7 @@ npm run build    # writes dist/
 - `src/scripts/`: the only client JavaScript: ⌘K search, copy buttons, table-of-contents highlight and saved Quickstart progress.
 - `src/styles/`: `tokens.css` (design tokens), `base*.css`, `home.css`, `docs.css`, `search.css`, `responsive.css`.
 - `public/shots/`: Console screens used by the home page tour.
+- `public/_headers`, `wrangler.jsonc`, `src/pages/404.astro`: Cloudflare headers, config and the not-found page.
 
 ## Share images
 

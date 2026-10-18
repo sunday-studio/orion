@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "preview": "astro preview"
+    "preview": "astro preview",
+    "cf:preview": "astro build && wrangler dev",
+    "cf:deploy": "astro build && wrangler deploy"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.3.14",
@@ -16,6 +18,7 @@
     "tailwindcss": "^4.2.4"
   },
   "devDependencies": {
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "wrangler": "^4.151.1"
   }
 }
