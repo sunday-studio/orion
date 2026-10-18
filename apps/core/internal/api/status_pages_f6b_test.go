@@ -223,6 +223,10 @@ func TestStatusPageMaintenanceNoticeAndSubscriberImport(t *testing.T) {
 	if sub.State != statusPageSubscriberStatePending {
 		t.Fatalf("imported state = %q, want pending", sub.State)
 	}
+	tooMany := "email\n" + strings.Repeat("x@acme.test\n", maxSubscriberImportRows+1)
+	if r := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+page.ID+"/subscribers/import", gin.H{"csv": tooMany}, ""); r.Code != http.StatusBadRequest {
+		t.Errorf("oversized import = %d", r.Code)
+	}
 	server.db.Model(&db.StatusPage{}).Where("id = ?", page.ID).Update("visibility", "draft")
 	if r := performJSONRequest(t, server, http.MethodPost, "/v1/status-pages/"+page.ID+"/subscribers/import", gin.H{"csv": "a@b.test"}, ""); r.Code != http.StatusBadRequest {
 		t.Errorf("draft import = %d", r.Code)
