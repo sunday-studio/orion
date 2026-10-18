@@ -1069,6 +1069,10 @@ definitions:
         type: integer
       title:
         type: string
+      title_required:
+        description: TitleRequired is true when the first post must carry a public
+          title.
+        type: boolean
       visibility:
         type: string
     type: object
@@ -1088,6 +1092,12 @@ definitions:
         - resolved
         type: string
       status_page_id:
+        type: string
+      title:
+        description: |-
+          Title is the public headline, used when the first update creates the status page incident.
+          Required for incidents Orion opened itself, because their titles name internal monitors and hosts.
+        example: Elevated API errors
         type: string
     required:
     - message

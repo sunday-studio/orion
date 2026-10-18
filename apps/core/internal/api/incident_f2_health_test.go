@@ -153,3 +153,59 @@ func TestIncidentPublicUpdateCreatesLinkedStatusPageIncident(t *testing.T) {
 		t.Fatalf("timeline public updates = %d, status page = %+v", posted, detail.Data.Summary.StatusPage)
 	}
 }
+
+// Review P2/P3: monitor-generated titles must not go public unreviewed; coverage cannot cycle; reposting after resolve reopens the public incident.
+func TestPublicUpdateNeedsTitleForSystemIncidentsCoverCannotCycleAndResolvedClears(t *testing.T) {
+	server := setupTestServer(t)
+	agent := registerTestAgent(t, server)
+	now := time.Now().UTC()
+	server.db.Create(&db.StatusPage{ID: "sp1", Slug: "example", Title: "Example", Visibility: "public", PublishedAt: &now})
+	server.db.Create(&db.Incident{ID: "sys1", Number: 1, Status: "open", Severity: "high", Title: "db-internal-07 disk above 90%", AgentID: agent.Data.AgentID, OpenedAt: now, LastEventAt: now, Source: "monitor"})
+	path := "/v1/incidents/sys1/public-updates"
+	var targets struct {
+		Data struct {
+			Targets []IncidentPublicTarget `json:"targets"`
+		} `json:"data"`
+	}
+	decodeResponse(t, performJSONRequest(t, server, http.MethodGet, "/v1/incidents/sys1/public-update", nil, ""), &targets)
+	if !targets.Data.Targets[0].TitleRequired {
+		t.Fatal("title_required should be true for a monitor-generated incident")
+	}
+	if r := performJSONRequest(t, server, http.MethodPost, path, gin.H{"status_page_id": "sp1", "status": "investigating", "message": "Looking."}, ""); r.Code != http.StatusBadRequest {
+		t.Fatalf("no title = %d %s", r.Code, r.Body.String())
+	}
+	if r := performJSONRequest(t, server, http.MethodPost, path, gin.H{"status_page_id": "sp1", "status": "resolved", "message": "Fixed.", "title": "Storage degradation"}, ""); r.Code != http.StatusCreated {
+		t.Fatalf("with title = %d %s", r.Code, r.Body.String())
+	}
+	var public db.StatusPageIncident
+	server.db.Where("internal_incident_id = ?", "sys1").First(&public)
+	if public.Title != "Storage degradation" || strings.Contains(public.Title, "internal") || public.ResolvedAt == nil {
+		t.Fatalf("public incident = %+v", public)
+	}
+	if r := performJSONRequest(t, server, http.MethodPost, path, gin.H{"status_page_id": "sp1", "status": "monitoring", "message": "It came back."}, ""); r.Code != http.StatusCreated {
+		t.Fatalf("repost = %d", r.Code)
+	}
+	public = db.StatusPageIncident{} // scanning NULL into an already-set pointer would leave it untouched
+	server.db.Where("internal_incident_id = ?", "sys1").First(&public)
+	if public.ResolvedAt != nil || public.PublicStatus != "monitoring" {
+		t.Fatalf("resolved_at must clear when status moves back: %+v", public)
+	}
+
+	// Cover cycles are rejected.
+	server.db.Create(&db.Incident{ID: "sys2", Number: 2, Status: "open", Severity: "low", Title: "other", AgentID: agent.Data.AgentID, OpenedAt: now, LastEventAt: now, Source: "monitor"})
+	if r := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/sys2/cover", gin.H{"covered_by": "INC-0001"}, ""); r.Code != http.StatusOK {
+		t.Fatalf("cover sys2 by sys1 = %d", r.Code)
+	}
+	if r := performJSONRequest(t, server, http.MethodPost, "/v1/incidents/sys1/cover", gin.H{"covered_by": "INC-0002"}, ""); r.Code != http.StatusBadRequest {
+		t.Fatalf("cover cycle = %d, want 400", r.Code)
+	}
+	// q=0 / INC-0000 must not match unnumbered rows.
+	server.db.Create(&db.Incident{ID: "legacy", Number: 0, Status: "open", Severity: "low", Title: "legacy row", AgentID: agent.Data.AgentID, OpenedAt: now, LastEventAt: now})
+	var list struct {
+		Data struct{ Count int64 } `json:"data"`
+	}
+	decodeResponse(t, performJSONRequest(t, server, http.MethodGet, "/v1/incidents?q=INC-0000", nil, ""), &list)
+	if list.Data.Count != 0 {
+		t.Fatalf("q=INC-0000 matched %d rows", list.Data.Count)
+	}
+}

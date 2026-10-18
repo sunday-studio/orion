@@ -76,11 +76,15 @@ func (s *IncidentService) openOrUpdateIncidentTx(agent db.Agent, monitor db.Moni
 		return s.createIncidentEvent(incident.ID, "monitor_failed", message, monitorReportID, incidentSystemEventMetadata())
 	}
 
+	number, err := s.nextIncidentNumber()
+	if err != nil {
+		return err
+	}
 	newIncident := db.Incident{
 		ID:                 utils.GenerateID("incident"),
 		Status:             "open",
 		Severity:           severity,
-		Number:             s.nextIncidentNumber(),
+		Number:             number,
 		Title:              incidentTitle(agent, monitor, health),
 		AgentID:            agent.ID,
 		MonitorID:          monitor.ID,
