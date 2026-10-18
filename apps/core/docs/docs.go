@@ -11830,6 +11830,167 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/status-pages/{id}/domain": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Status page custom domain",
+                "operationId": "getStatusPageDomain",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.StatusPageDomainResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Remove status page custom domain",
+                "operationId": "removeStatusPageDomain",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.StatusPageDomainResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/status-pages/{id}/domain/verify": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Resolves the domain's CNAME and compares it with the target. Checks closer than 10 seconds apart return the last result.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Verify status page custom domain",
+                "operationId": "verifyStatusPageDomain",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.StatusPageDomainResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/status-pages/{id}/incidents": {
             "get": {
                 "security": [
@@ -12498,6 +12659,269 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/status-pages/{id}/maintenance": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "List status page maintenance windows",
+                "operationId": "listStatusPageMaintenance",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "maintenance": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/internal_api.StatusPageMaintenanceResponse"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Schedule status page maintenance",
+                "operationId": "createStatusPageMaintenance",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Maintenance window",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.StatusPageMaintenanceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "window": {
+                                                    "$ref": "#/definitions/internal_api.StatusPageMaintenanceResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/status-pages/{id}/maintenance/{window_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Delete status page maintenance",
+                "operationId": "deleteStatusPageMaintenance",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Window ID",
+                        "name": "window_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Update status page maintenance",
+                "operationId": "updateStatusPageMaintenance",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Window ID",
+                        "name": "window_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to change",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.StatusPageMaintenanceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "window": {
+                                                    "$ref": "#/definitions/internal_api.StatusPageMaintenanceResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/status-pages/{id}/preview": {
             "get": {
                 "security": [
@@ -13123,6 +13547,77 @@ const docTemplate = `{
                         "description": "CSV",
                         "schema": {
                             "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/status-pages/{id}/subscribers/import": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Imported addresses start pending and get the usual confirmation email, so nobody is subscribed without consent. The page must be published and the subscriber secret configured.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Import status page subscribers",
+                "operationId": "importStatusPageSubscribers",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "CSV text",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.StatusPageSubscriberImportRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.StatusPageSubscriberImportResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
                     },
                     "404": {
@@ -17375,6 +17870,74 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.StatusPageDomainRecord": {
+            "type": "object",
+            "properties": {
+                "host": {
+                    "type": "string",
+                    "example": "status.example.com"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "CNAME"
+                },
+                "value": {
+                    "type": "string",
+                    "example": "pages.orion.example.com"
+                }
+            }
+        },
+        "internal_api.StatusPageDomainResponse": {
+            "type": "object",
+            "properties": {
+                "certificate": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "pending",
+                        "issued"
+                    ]
+                },
+                "domain": {
+                    "type": "string"
+                },
+                "fallback_url": {
+                    "type": "string"
+                },
+                "last_checked_at": {
+                    "type": "string"
+                },
+                "records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.StatusPageDomainRecord"
+                    }
+                },
+                "status": {
+                    "description": "Status is pending, verified or failed.",
+                    "type": "string",
+                    "enum": [
+                        "pending",
+                        "verified",
+                        "failed"
+                    ]
+                },
+                "status_text": {
+                    "description": "StatusText is the short line shown next to the status.",
+                    "type": "string",
+                    "example": "Record not found yet"
+                },
+                "target_known": {
+                    "type": "boolean"
+                },
+                "verified_at": {
+                    "type": "string"
+                },
+                "verify_after_seconds": {
+                    "type": "integer"
+                }
+            }
+        },
         "internal_api.StatusPageIncidentComponentSuggestionMatchResponse": {
             "type": "object",
             "properties": {
@@ -17602,6 +18165,94 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.StatusPageMaintenanceRequest": {
+            "type": "object",
+            "properties": {
+                "component_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "description": {
+                    "type": "string"
+                },
+                "ends_at": {
+                    "type": "string"
+                },
+                "hold_alerts": {
+                    "type": "boolean"
+                },
+                "notify_subscribers": {
+                    "type": "boolean"
+                },
+                "starts_at": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.StatusPageMaintenanceResponse": {
+            "type": "object",
+            "properties": {
+                "component_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "component_names": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "ends_at": {
+                    "type": "string"
+                },
+                "hold_alerts": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "notice_sent": {
+                    "type": "boolean"
+                },
+                "notify_subscribers": {
+                    "type": "boolean"
+                },
+                "starts_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Status is scheduled, in_progress or completed.",
+                    "type": "string",
+                    "enum": [
+                        "scheduled",
+                        "in_progress",
+                        "completed"
+                    ]
+                },
+                "status_page_id": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_api.StatusPagePreviewResponse": {
             "type": "object",
             "properties": {
@@ -17613,6 +18264,13 @@ const docTemplate = `{
                 },
                 "last_updated": {
                     "type": "string"
+                },
+                "maintenance": {
+                    "description": "Maintenance lists windows in progress or starting within 14 days.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.StatusPagePublicMaintenanceResponse"
+                    }
                 },
                 "metadata": {
                     "$ref": "#/definitions/internal_api.StatusPagePublicMetadataResponse"
@@ -17777,6 +18435,39 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.StatusPagePublicMaintenanceResponse": {
+            "type": "object",
+            "properties": {
+                "component_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "description": {
+                    "type": "string"
+                },
+                "ends_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "starts_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "scheduled",
+                        "in_progress"
+                    ]
+                },
+                "title": {
                     "type": "string"
                 }
             }
@@ -18161,6 +18852,43 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "unsubscribed": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_api.StatusPageSubscriberImportRequest": {
+            "type": "object",
+            "required": [
+                "csv"
+            ],
+            "properties": {
+                "csv": {
+                    "description": "CSV is the file text; the first column is the email. A header row named \"email\" is skipped.",
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.StatusPageSubscriberImportResponse": {
+            "type": "object",
+            "properties": {
+                "confirm_mailed": {
+                    "type": "integer"
+                },
+                "imported": {
+                    "type": "integer"
+                },
+                "invalid": {
+                    "description": "Invalid lists rows that are not valid emails (at most 20 shown).",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "invalid_count": {
+                    "type": "integer"
+                },
+                "skipped": {
+                    "description": "Skipped counts addresses that were already subscribed.",
                     "type": "integer"
                 }
             }

@@ -278,6 +278,9 @@ func (s *Server) applyStatusPageRequest(page *db.StatusPage, request statusPageR
 		if err != nil {
 			return err
 		}
+		if domain != page.CustomDomain {
+			page.DomainStatus, page.DomainCheckedAt, page.DomainVerifiedAt, page.DomainError = domainStatusPending, nil, nil, ""
+		}
 		page.CustomDomain = domain
 	}
 	if request.Title != nil {

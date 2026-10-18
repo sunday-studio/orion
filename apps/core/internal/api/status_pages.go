@@ -162,14 +162,16 @@ type StatusPageDetailResponse struct {
 	Incidents  []StatusPageIncidentResponse  `json:"incidents"`
 }
 type StatusPagePreviewResponse struct {
-	Page                 StatusPagePublicPageResponse       `json:"page"`
-	Metadata             StatusPagePublicMetadataResponse   `json:"metadata"`
-	Sections             []StatusPagePublicSectionResponse  `json:"sections"`
-	Incidents            []StatusPagePublicIncidentResponse `json:"incidents"`
-	OverallStatus        string                             `json:"overall_status"`
-	OverallStatusDisplay string                             `json:"overall_status_display"`
-	UptimeWindow         string                             `json:"uptime_window"`
-	LastUpdated          time.Time                          `json:"last_updated"`
+	Page      StatusPagePublicPageResponse       `json:"page"`
+	Metadata  StatusPagePublicMetadataResponse   `json:"metadata"`
+	Sections  []StatusPagePublicSectionResponse  `json:"sections"`
+	Incidents []StatusPagePublicIncidentResponse `json:"incidents"`
+	// Maintenance lists windows in progress or starting within 14 days.
+	Maintenance          []StatusPagePublicMaintenanceResponse `json:"maintenance"`
+	OverallStatus        string                                `json:"overall_status"`
+	OverallStatusDisplay string                                `json:"overall_status_display"`
+	UptimeWindow         string                                `json:"uptime_window"`
+	LastUpdated          time.Time                             `json:"last_updated"`
 }
 type StatusPagePublicMetadataResponse struct {
 	Title        string                            `json:"title"`
@@ -239,6 +241,13 @@ func (s *Server) registerStatusPageAdminRoutes(frontend *gin.RouterGroup) {
 	frontend.GET("/status-pages", s.listStatusPages)
 	frontend.GET("/status-pages/slug-check", s.checkStatusPageSlug)
 	frontend.GET("/status-pages/:id/readiness", s.getStatusPageReadiness)
+	frontend.GET("/status-pages/:id/domain", s.getStatusPageDomain)
+	frontend.POST("/status-pages/:id/domain/verify", s.verifyStatusPageDomain)
+	frontend.DELETE("/status-pages/:id/domain", s.removeStatusPageDomain)
+	frontend.GET("/status-pages/:id/maintenance", s.listStatusPageMaintenance)
+	frontend.POST("/status-pages/:id/maintenance", s.createStatusPageMaintenance)
+	frontend.PATCH("/status-pages/:id/maintenance/:window_id", s.updateStatusPageMaintenance)
+	frontend.DELETE("/status-pages/:id/maintenance/:window_id", s.deleteStatusPageMaintenance)
 	frontend.GET("/status-pages/:id/badges", s.getStatusPageBadges)
 	frontend.POST("/status-pages", s.createStatusPage)
 	frontend.GET("/status-pages/:id", s.getStatusPage)
@@ -269,6 +278,7 @@ func (s *Server) registerStatusPageAdminRoutes(frontend *gin.RouterGroup) {
 	frontend.POST("/status-pages/:id/incidents/draft", s.createStatusPageIncidentDraft)
 	frontend.GET("/status-pages/:id/subscribers", s.listStatusPageSubscribers)
 	frontend.GET("/status-pages/:id/subscribers/export.csv", s.exportStatusPageSubscribers)
+	frontend.POST("/status-pages/:id/subscribers/import", s.importStatusPageSubscribers)
 	frontend.POST("/status-pages/:id/subscribers/:subscriber_id/disable", s.disableStatusPageSubscriber)
 	frontend.POST("/status-pages/:id/subscribers/:subscriber_id/anonymize", s.anonymizeStatusPageSubscriber)
 	frontend.DELETE("/status-pages/:id/subscribers/:subscriber_id", s.deleteStatusPageSubscriber)

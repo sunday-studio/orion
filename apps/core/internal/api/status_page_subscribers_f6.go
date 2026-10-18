@@ -112,7 +112,7 @@ func (s *Server) exportStatusPageSubscribers(c *gin.Context) {
 	w := csv.NewWriter(c.Writer)
 	_ = w.Write([]string{"email", "scope", "status", "since"})
 	for _, r := range rows {
-		_ = w.Write([]string{csvSafe(firstNonEmpty(r.Email, r.MaskedDestination)), r.Scope, r.State, r.Since.UTC().Format("2006-01-02")})
+		_ = w.Write([]string{csvSafe(firstNonEmpty(r.Email, r.MaskedDestination)), csvSafe(r.Scope), r.State, r.Since.UTC().Format("2006-01-02")})
 	}
 	w.Flush()
 	c.Status(http.StatusOK)

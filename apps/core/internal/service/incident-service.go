@@ -109,7 +109,7 @@ func (s *IncidentService) ReconcileMonitorReport(monitorID string, monitorReport
 		return reconcileErr
 	}
 
-	if agent.InMaintenance(time.Now().UTC()) {
+	if agent.InMaintenance(time.Now().UTC()) || StatusPageMaintenanceHolds(s.db, monitor.ID, agent.ID, time.Now().UTC()) {
 		s.logger.Info("Incident suppressed during maintenance", "monitor_id", monitorID, "agent_id", agent.ID)
 		reconcileErr = s.updateMonitorIncidentState(monitor.ID, monitor.ActiveIncidentID, nextIncidentState)
 		return reconcileErr

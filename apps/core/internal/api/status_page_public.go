@@ -133,7 +133,7 @@ func (s *Server) loadPublicStatusPageForRequest(c *gin.Context, slug string) (db
 	if host, ok := publicStatusPageRequestHost(c); ok {
 		var hostPage db.StatusPage
 		err := s.db.
-			Where("custom_domain = ? AND visibility IN ?", host, []string{statusPageVisibilityPublic, statusPageVisibilityUnlisted}).
+			Where("custom_domain = ? AND domain_status = ? AND visibility IN ?", host, domainStatusVerified, []string{statusPageVisibilityPublic, statusPageVisibilityUnlisted}).
 			First(&hostPage).Error
 		if err == nil {
 			if normalizedSlug == "" || normalizedSlug == hostPage.Slug {
@@ -172,11 +172,15 @@ func (s *Server) statusPagePreviewProjection(detail StatusPageDetailResponse, in
 	componentsBySection := map[string][]StatusPagePublicComponentResponse{}
 	overallStatus := "operational"
 	uptimeCache := map[string]statusPagePublicMappedResourceUptime{}
+	maintenance, underMaintenance := s.publicMaintenance(detail, time.Now().UTC())
 	for _, component := range detail.Components {
 		if !component.Visible {
 			continue
 		}
 		componentStatus := s.statusPageComponentStatus(component)
+		if underMaintenance[component.ID] {
+			componentStatus = "maintenance"
+		}
 		if statusPageStatusWeight(componentStatus) > statusPageStatusWeight(overallStatus) {
 			overallStatus = componentStatus
 		}
@@ -235,6 +239,7 @@ func (s *Server) statusPagePreviewProjection(detail StatusPageDetailResponse, in
 		Metadata:             statusPagePublicMetadata(page),
 		Sections:             sections,
 		Incidents:            incidents,
+		Maintenance:          maintenance,
 		OverallStatus:        overallStatus,
 		OverallStatusDisplay: publicStatusDisplay(overallStatus),
 		UptimeWindow:         window,

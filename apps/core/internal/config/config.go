@@ -52,14 +52,16 @@ type Config struct {
 	PublicStatusMailReplyTo        string
 	PublicStatusURLOrigin          string
 	PublicStatusSubscriberSecret   string
-	PublicURL                      string
-	AlertSMTPHost                  string
-	AlertSMTPPort                  int
-	AlertSMTPUsername              string
-	AlertSMTPPassword              string
-	AlertSMTPFrom                  string
-	AlertSMTPTLS                   string // starttls | tls | none
-	AlertEmailSecret               string
+	// StatusPagesCNAMETarget is the host custom domains must point a CNAME at.
+	StatusPagesCNAMETarget string
+	PublicURL              string
+	AlertSMTPHost          string
+	AlertSMTPPort          int
+	AlertSMTPUsername      string
+	AlertSMTPPassword      string
+	AlertSMTPFrom          string
+	AlertSMTPTLS           string // starttls | tls | none
+	AlertEmailSecret       string
 }
 
 // Load reads configuration from environment variables.
@@ -114,6 +116,7 @@ func Load() *Config {
 		PublicStatusMailReplyTo:        getEnv("ORION_PUBLIC_STATUS_MAIL_REPLY_TO", ""),
 		PublicStatusURLOrigin:          getEnv("ORION_PUBLIC_STATUS_URL_ORIGIN", ""),
 		PublicStatusSubscriberSecret:   getEnv("ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET", ""),
+		StatusPagesCNAMETarget:         strings.ToLower(strings.TrimSpace(getEnv("ORION_STATUS_PAGES_CNAME_TARGET", ""))),
 		PublicURL:                      strings.TrimRight(strings.TrimSpace(os.Getenv("ORION_PUBLIC_URL")), "/"),
 		AlertSMTPHost:                  getEnv("ORION_ALERT_SMTP_HOST", ""),
 		AlertSMTPPort:                  getEnvInt("ORION_ALERT_SMTP_PORT", 587),
