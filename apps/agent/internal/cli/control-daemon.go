@@ -61,6 +61,7 @@ func (d *daemonControl) Status() (control.Status, error) {
 		LastSync:        st.LastSync,
 		MaintenanceMode: st.MaintenanceMode,
 		Monitors:        int(d.monitors.Load()),
+		QueuePending:    d.store.PendingReports(),
 		ConfigPath:      d.configPath,
 	}
 	if st.MaintenanceReason != nil {

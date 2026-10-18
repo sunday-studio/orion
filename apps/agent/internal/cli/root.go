@@ -50,6 +50,9 @@ type CommandError struct {
 	Cause     error
 	NextSteps []string
 	ExitCode  int
+	// Silent means the command already printed its own result (for example the
+	// doctor summary line); only the exit code is used.
+	Silent bool
 }
 
 func (e *CommandError) Error() string {
@@ -275,6 +278,9 @@ func renderCommandError(w io.Writer, err error) {
 
 	var commandErr *CommandError
 	if errors.As(err, &commandErr) {
+		if commandErr.Silent {
+			return
+		}
 		fmt.Fprintf(w, "error: %s\n", commandErr.Summary)
 		if commandErr.Cause != nil {
 			fmt.Fprintf(w, "\ncause:\n  %v\n", commandErr.Cause)

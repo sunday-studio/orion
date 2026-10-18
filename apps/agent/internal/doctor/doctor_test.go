@@ -45,6 +45,7 @@ func baseEnv() *Env {
 		CanRead:    func(string) error { return nil },
 		Daemon:     DaemonInfo{Reachable: true, Version: "1.2.3"},
 		TokenProbe: func(context.Context) (int, error) { return 200, nil },
+		Queue:      func() (int, bool) { return 0, true },
 	}
 }
 
@@ -61,7 +62,7 @@ func TestHealthyHostPasses(t *testing.T) {
 	}
 	for _, c := range rep.Checks {
 		if c.Status != OK {
-			t.Errorf("%s = %s %s", c.ID, c.Status, c.Detail)
+			t.Errorf("%s = %s %s", c.ID, c.Status, c.Message)
 		}
 	}
 }
@@ -83,7 +84,6 @@ func TestEveryFailureHasFix(t *testing.T) {
 		"clock":      func(e *Env) { e.HTTP = fakeHTTP{status: 200, date: e.Now().Add(-time.Hour).Format(http.TimeFormat)} },
 		"token":      func(e *Env) { e.TokenProbe = func(context.Context) (int, error) { return 401, nil } },
 		"disk":       func(e *Env) { e.DiskFreeMB = func(string) (uint64, error) { return 10, nil } },
-		"daemon":     func(e *Env) { e.Daemon = DaemonInfo{Err: errors.New("permission denied on agent control socket")} },
 		"version":    func(e *Env) { e.Daemon.Version = "0.9.0" },
 		"log-access": func(e *Env) { e.CanRead = func(string) error { return errors.New("x") } },
 	}
@@ -95,7 +95,7 @@ func TestEveryFailureHasFix(t *testing.T) {
 		}
 		r := run(e)[id]
 		if r.Status != Fail && r.Status != Warn {
-			t.Errorf("%s: status %s, want warn/fail (detail %q)", id, r.Status, r.Detail)
+			t.Errorf("%s: status %s, want warn/fail (detail %q)", id, r.Status, r.Message)
 			continue
 		}
 		if r.Fix == "" && id != "log-access" {
@@ -118,5 +118,14 @@ func TestUnenrolledHostIsWarnedNotFailed(t *testing.T) {
 	rep := Run(context.Background(), e, DefaultChecks(), nil)
 	if !rep.OK {
 		t.Fatal("unenrolled host should not fail doctor")
+	}
+}
+
+func TestUnreachableDaemonWarnsOnServiceRow(t *testing.T) {
+	e := baseEnv()
+	e.Daemon = DaemonInfo{Err: errors.New("permission denied on agent control socket")}
+	r := run(e)["service"]
+	if r.Status != Warn || r.Fix == "" {
+		t.Fatalf("service = %+v", r)
 	}
 }

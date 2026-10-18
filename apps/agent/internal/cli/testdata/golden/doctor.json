@@ -1,10 +1,10 @@
 {
   "checks": [
     {
-      "detail": "string",
       "id": "string",
-      "status": "string",
-      "title": "string"
+      "label": "string",
+      "message": "string",
+      "status": "string"
     }
   ],
   "config_path": "string",
