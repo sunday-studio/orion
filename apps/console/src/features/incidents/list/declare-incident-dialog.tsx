@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
   Input,
+  Segmented,
   Select,
   Textarea,
 } from "@/design-system";
@@ -21,7 +22,6 @@ import {
   useGetAgents,
   useGetMonitors,
 } from "@/orion-sdk";
-import { cn } from "@/utils/cn";
 import { severityOptions } from "../incident-format";
 
 export const DeclareIncidentDialog = ({
@@ -106,32 +106,15 @@ export const DeclareIncidentDialog = ({
           </label>
           <div className="flex flex-col gap-1.5 text-[13px] font-medium">
             Severity
-            <div
-              role="radiogroup"
+            <Segmented
               aria-label="Severity"
-              className="flex w-fit gap-0.5 rounded-lg bg-tray p-[3px]"
-            >
-              {severityOptions
+              options={severityOptions
                 .slice()
                 .reverse()
-                .map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    role="radio"
-                    aria-checked={severity === option.value}
-                    onClick={() => setSeverity(option.value)}
-                    className={cn(
-                      "rounded-md px-3 py-1 text-[13px] font-normal outline-none focus-visible:ring-2 focus-visible:ring-focus",
-                      severity === option.value
-                        ? "bg-chip font-medium shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
-                        : "text-mid",
-                    )}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-            </div>
+                .map((option) => ({ value: option.value, label: option.label }))}
+              value={severity}
+              onValueChange={setSeverity}
+            />
           </div>
           <div className="flex flex-col gap-1.5 text-[13px] font-medium">
             <span>Monitor or server</span>

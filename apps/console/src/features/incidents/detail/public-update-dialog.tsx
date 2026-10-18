@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
   Input,
+  Segmented,
   Select,
   Textarea,
 } from "@/design-system";
@@ -20,7 +21,6 @@ import {
   useGetIncidentPublicTargets,
   usePostIncidentPublicUpdate,
 } from "@/orion-sdk";
-import { cn } from "@/utils/cn";
 
 const statuses = [
   { value: ApiIncidentPublicUpdateRequestStatus.investigating, label: "Investigating" },
@@ -146,29 +146,12 @@ export const PublicUpdateDialog = ({
           )}
           <div className={labelClass}>
             Public status
-            <div
-              role="radiogroup"
+            <Segmented
               aria-label="Public status"
-              className="flex w-fit gap-0.5 rounded-lg bg-tray p-[3px]"
-            >
-              {statuses.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  role="radio"
-                  aria-checked={status === option.value}
-                  onClick={() => setStatus(option.value)}
-                  className={cn(
-                    "rounded-md px-3 py-1 text-[13px] font-normal outline-none focus-visible:ring-2 focus-visible:ring-focus",
-                    status === option.value
-                      ? "bg-chip font-medium shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
-                      : "text-mid",
-                  )}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
+              options={statuses}
+              value={status}
+              onValueChange={setStatus}
+            />
           </div>
           <label className={labelClass}>
             Message
