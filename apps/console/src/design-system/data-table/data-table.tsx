@@ -36,6 +36,8 @@ export type DataTableProps<TData> = {
   sort?: string;
   onSortChange?: (sort: string) => void;
   dense?: boolean;
+  /** Vertical rules between columns. On by default; pass false for a plain table. */
+  columnDividers?: boolean;
   rowClassName?: (row: Row<TData>) => string | undefined;
 };
 
@@ -62,6 +64,7 @@ export function DataTable<TData>({
   sort = "",
   onSortChange,
   dense = false,
+  columnDividers = true,
   rowClassName,
 }: DataTableProps<TData>) {
   const sorting = useMemo(() => parseSort(sort), [sort]);
@@ -111,7 +114,7 @@ export function DataTable<TData>({
   const cellHeight = dense ? "h-[30px]" : undefined;
 
   return (
-    <Table aria-busy={isLoading}>
+    <Table aria-busy={isLoading} dividers={columnDividers}>
       <TableHeader>
         {table.getHeaderGroups().map((group) => (
           <TableRow key={group.id} className="hover:bg-transparent">
