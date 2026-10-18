@@ -286,7 +286,11 @@ export const MonitorCreateDialog = ({
               </>
             )}
             {(error || localError) && <Callout tone="warn">{error || localError}</Callout>}
-            {testRun.isError && <Callout tone="warn">Unable to run the test. Try again.</Callout>}
+            {testRun.isError && !testRun.data && (
+              <Callout tone="warn">
+                {(testRun.error as Error).message || "Unable to run the test."}
+              </Callout>
+            )}
             <DialogFooter className="items-center sm:justify-between">
               <div className="flex items-center gap-1">
                 <Button
@@ -316,6 +320,11 @@ export const MonitorCreateDialog = ({
       <MonitorTestResultDialog
         result={testRun.data}
         running={testRun.isPending}
+        error={
+          testRun.isError
+            ? (testRun.error as Error).message || "Unable to run the test."
+            : undefined
+        }
         onRunAgain={runTest}
         onClose={() => testRun.reset()}
       />

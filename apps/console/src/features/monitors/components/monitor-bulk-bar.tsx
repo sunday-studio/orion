@@ -21,9 +21,12 @@ const VERB: Record<string, string> = {
 export const MonitorBulkBar = ({
   ids,
   onClear,
+  onSucceeded,
 }: {
   ids: readonly string[];
   onClear: () => void;
+  /** Ids that succeeded, so the page can unselect them after a partial failure. */
+  onSucceeded: (ids: readonly string[]) => void;
 }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -52,8 +55,12 @@ export const MonitorBulkBar = ({
     void queryClient.invalidateQueries({ queryKey: getGetMonitorsQueryKey() });
     void queryClient.invalidateQueries({ queryKey: getGetMonitorSummaryQueryKey() });
     const done = target.length - failedIds.length;
+    onSucceeded(target.filter((id) => !failedIds.includes(id)));
     if (failedIds.length === 0) {
-      toast.add({ title: `${done} monitors ${VERB[action] ?? action}` });
+      toast.add({
+        title: `${done} ${done === 1 ? "monitor" : "monitors"} ${VERB[action] ?? action}`,
+        description: action === "maintenance" ? "For one hour." : undefined,
+      });
       onClear();
       return;
     }
