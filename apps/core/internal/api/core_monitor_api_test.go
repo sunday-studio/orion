@@ -341,7 +341,7 @@ func TestCoreMonitorManagementLifecycle(t *testing.T) {
 	if tested.LastRunAt == nil || tested.LastSuccessAt == nil {
 		t.Fatalf("tested config = %+v, want last run and success", tested)
 	}
-	deleteResp := performJSONRequest(t, server, http.MethodDelete, "/v1/monitors/"+monitorID+"?keep_history=true", nil, "")
+	deleteResp := performJSONRequest(t, server, http.MethodDelete, "/v1/monitors/"+monitorID, nil, "")
 	if deleteResp.Code != http.StatusOK {
 		t.Fatalf("delete status = %d, body = %s", deleteResp.Code, deleteResp.Body.String())
 	}

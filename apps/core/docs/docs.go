@@ -8452,7 +8452,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Delete a Core-managed monitor. By default its check history is deleted too; keep_history=true keeps it for 90 days. Incidents are never deleted.",
+                "description": "Delete a Core-managed monitor. By default its check history is deleted too; keep_history=false deletes it immediately; the default keeps it for 90 days. Incidents are never deleted.",
                 "produces": [
                     "application/json"
                 ],
@@ -8471,7 +8471,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
-                        "description": "Keep check history for 90 days (default false)",
+                        "description": "Keep check history for 90 days (default true); false deletes it now",
                         "name": "keep_history",
                         "in": "query"
                     }
