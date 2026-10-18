@@ -290,6 +290,7 @@ func TestPublicPagesRespectThemeAndHiddenHistory(t *testing.T) {
 	}
 	body := htmlGet(server, "/status/"+page.Slug).Body.String()
 	assertContains(t, body, `<body class="theme-light">`)
+	assertContains(t, body, `<link rel="icon" href="data:image/svg+xml,%3Csvg`)
 	assertContains(t, body, "--accent:#10b981")
 	assertNotContains(t, body, "Incident history")
 	assertNotContains(t, body, `class="stats"`)

@@ -283,6 +283,7 @@ func TestPublicStatusPageHTMLRendersSafeMetadataAndTheme(t *testing.T) {
 	assertContains(t, body, `<meta property="og:description" content="Realtime public availability">`)
 	assertContains(t, body, `<meta property="og:image" content="https://cdn.acme.test/status.png">`)
 	assertContains(t, body, `<img src="https://cdn.acme.test/logo.svg" alt="Acme logo">`)
+	assertContains(t, body, `<link rel="icon" href="https://cdn.acme.test/logo.svg">`)
 	assertContains(t, body, `<body class="theme-dark">`)
 	assertContains(t, body, `href="/status/html-status/subscribe"`)
 	assertContains(t, body, `class="bars"`)
