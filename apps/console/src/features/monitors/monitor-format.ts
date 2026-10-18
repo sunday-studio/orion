@@ -1,23 +1,20 @@
 import type { ApiMonitorResponse } from "@/orion-sdk";
 import { healthDot } from "@/features/incidents/incident-format";
 
-/** Fields Core is adding to monitor list rows for F4; optional until they ship. */
-export type MonitorRow = ApiMonitorResponse & {
-  target?: string | null;
-  status_text?: string | null;
-  status_detail?: string | null;
-  recent_checks?: string[] | null;
-};
+export type MonitorRow = ApiMonitorResponse;
 
 export const rowHealth = (monitor: MonitorRow) => {
-  const health = monitor.health ?? monitor.computed_health ?? "unknown";
-  return health;
+  if (monitor.paused) return "paused";
+  return monitor.health ?? monitor.computed_health ?? "unknown";
 };
 
 export const rowDot = (monitor: MonitorRow) => {
   const health = rowHealth(monitor);
   return healthDot(health === "stale" ? "unknown" : health);
 };
+
+export const rowEvery = (monitor: MonitorRow) =>
+  everyLabel(monitor.interval_seconds ?? monitor.reporting_interval_seconds);
 
 export const everyLabel = (seconds?: number) => {
   if (!seconds) return "-";
