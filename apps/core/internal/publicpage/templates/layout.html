@@ -39,6 +39,6 @@
 
 {{define "pill"}}<span class="pill {{.Class}}">{{.Display}}</span>{{end}}
 
-{{define "component"}}<div class="row"><span class="dot {{.Class}}" aria-hidden="true"></span><span class="name">{{.Name}}{{if .Reason}} <span class="muted">· {{.Reason}}</span>{{end}}</span>{{if .Bars}}<span class="bars" aria-hidden="true">{{range .Bars}}<i class="{{.}}"></i>{{end}}</span>{{else}}<span class="grow"></span>{{end}}<span class="pct">{{.Uptime}}</span><span class="pill {{.Class}}">{{.Display}}</span></div>{{end}}
+{{define "component"}}<div class="row svc"><span class="dot {{.Class}}" aria-hidden="true"></span><span class="name">{{.Name}}{{if .Reason}}<span class="muted">{{.Reason}}</span>{{end}}</span>{{if .Bars}}<span class="bars" aria-hidden="true">{{range .Bars}}<i class="{{.}}"></i>{{end}}</span>{{else}}<span class="grow"></span>{{end}}<span class="pct">{{.Uptime}}</span><span class="pill {{.Class}}">{{.Display}}</span></div>{{end}}
 
 {{define "incident-row"}}{{if .URL}}<a class="hist" href="{{.URL}}">{{else}}<div class="hist">{{end}}<span class="t">{{.Title}}</span><span class="d">{{day .Started}}</span><span class="d dur">{{.Duration}}</span><span class="pill {{.Class}}">{{.Display}}</span>{{if .URL}}</a>{{else}}</div>{{end}}{{end}}
