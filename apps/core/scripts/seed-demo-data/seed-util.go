@@ -2,6 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"hash/fnv"
+	"math"
 	"path/filepath"
 	"time"
 
@@ -65,4 +68,27 @@ func clamp(value float64, min float64, max float64) float64 {
 		return max
 	}
 	return value
+}
+
+// monitorReportStep keeps hourly history but samples every 10 minutes over the
+// last 48 hours so the day and week response-time charts have enough points.
+func monitorReportStep(interval time.Duration, t, now time.Time) time.Duration {
+	dense := 10 * time.Minute
+	if now.Sub(t) <= 48*time.Hour && interval > dense {
+		return dense
+	}
+	return interval
+}
+
+// responseTimeMs is a deterministic, smoothly varying latency per monitor:
+// a per-monitor base, a slow daily wave and small jitter.
+func responseTimeMs(key string, t time.Time) int {
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(key))
+	base := 40 + float64(h.Sum32()%260)
+	wave := 1 + 0.3*math.Sin(float64(t.Unix())/(3*3600))
+	jh := fnv.New32a()
+	_, _ = jh.Write([]byte(fmt.Sprintf("%s-%d", key, t.Unix())))
+	jitter := 0.9 + float64(jh.Sum32()%200)/1000
+	return int(base * wave * jitter)
 }
