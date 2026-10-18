@@ -1,0 +1,24 @@
+
+orion-agent  the Orion monitoring agent
+
+USAGE
+  orion-agent [command] [flags]
+
+GET STARTED
+  setup     Connect this host and choose what to monitor
+  doctor    Check the agent and fix problems
+  status    Show the agent and its Core connection
+
+DAY TO DAY
+  logs      View agent and shipped logs
+  service   install, start, stop, restart, uninstall
+  config    show, diff, validate, edit
+  update    Upgrade safely, with rollback
+
+FLAGS
+  --json        Machine-readable output
+  --no-color    Plain output
+  -h, --help    Show help
+
+  More: enroll, discover, usage, token, maintenance, version, run (orion-agent
+        <command> --help)

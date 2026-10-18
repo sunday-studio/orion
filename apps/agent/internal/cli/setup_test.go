@@ -75,7 +75,7 @@ func TestSetupUnknownMonitorIdExplainsFix(t *testing.T) {
 	fixtureDiscovery(t)
 	cfg := filepath.Join(t.TempDir(), "config.yaml")
 	_, errOut, code := runSetupCmd(t, cfg, "--core-url", "https://core.example.com", "--monitor", "service:ghost")
-	if code == 0 || !strings.Contains(errOut, "orion-agent discover") {
+	if code == 0 || !strings.Contains(strings.Join(strings.Fields(errOut), " "), "orion-agent discover") {
 		t.Fatalf("code=%d err=%s", code, errOut)
 	}
 }
