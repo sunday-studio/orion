@@ -189,12 +189,13 @@ func (s *Server) listMonitors(c *gin.Context) {
 // @Param        order          query     string  false  "Sort order (asc|desc)" default(desc)
 // @Success      200            {object}  utils.APIResponse{data=object{monitors=[]MonitorResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta}}
 // @Failure      500            {object}  utils.APIResponse
+// @Param        include_system query  bool    false  "Include Core self-monitors such as worker liveness (default false)"
 // @Router       /v1/monitors [get]
 func (s *Server) listAllMonitors(c *gin.Context) {
 	limit := utils.QueryInt(c, "limit", 50)
 	offset := utils.QueryInt(c, "offset", 0)
 
-	monitors, count, err := s.monitorService.ListAllMonitors(service.ListAllMonitorsOpts{
+	monitors, count, err := s.monitorService.ListAllMonitors(service.ListAllMonitorsOpts{IncludeSystem: c.Query("include_system") == "true",
 		Limit:        limit,
 		Offset:       offset,
 		Search:       c.Query("search"),

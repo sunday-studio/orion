@@ -277,21 +277,25 @@ func (s *AgentService) GetAgent(agentID string) (*db.Agent, error) {
 
 // ListAgentsOpts holds query params for ListAgents.
 type ListAgentsOpts struct {
-	Limit        int
-	Offset       int
-	Search       string // agent name, machine_id, meta, or monitor name (LIKE)
-	Status       string // up, down, degraded, unknown; applied as post-filter
-	Maintenance  string // true, false, or empty
-	StaleOnly    bool
-	HasIncidents bool
-	LastSeen     string // e.g. 24h, 7d: last_seen >= now-duration
-	Uptime       string // e.g. 72h, 3d: uptime_seconds >= parsed
-	Sort         string // name, last_seen, created_at
-	Order        string // asc, desc
+	Limit         int
+	Offset        int
+	Search        string // agent name, machine_id, meta, or monitor name (LIKE)
+	Status        string // up, down, degraded, unknown; applied as post-filter
+	Maintenance   string // true, false, or empty
+	StaleOnly     bool
+	HasIncidents  bool
+	IncludeSystem bool   // include Core's own agent (Settings, System)
+	LastSeen      string // e.g. 24h, 7d: last_seen >= now-duration
+	Uptime        string // e.g. 72h, 3d: uptime_seconds >= parsed
+	Sort          string // name, last_seen, created_at
+	Order         string // asc, desc
 }
 
 func (s *AgentService) ListAgents(opts ListAgentsOpts) ([]AgentListRow, int64, error) {
 	query := s.db.Model(&db.Agent{}).Where("deleted_at IS NULL OR deleted_at = ?", time.Time{})
+	if !opts.IncludeSystem {
+		query = query.Where("system = ?", false)
+	}
 	query = s.applyAgentListDatabaseFilters(query, opts)
 
 	// Sort

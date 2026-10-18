@@ -14,6 +14,7 @@ export const deliveryTypeOptions = [
 ] as const;
 export const alertChannelTypeOptions = [
   { value: "webhook", label: "Webhook", urlPlaceholder: "https://example.com/webhook" },
+  { value: "email", label: "Email", urlPlaceholder: "" },
 ] as const;
 export const manageableAlertChannelTypes = alertChannelTypeOptions.map((option) => option.value);
 export const alertEventOptions = [

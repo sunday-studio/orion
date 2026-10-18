@@ -29,7 +29,7 @@ func Search(database *gorm.DB, q string) ([]SearchHit, error) {
 	var hits []SearchHit
 
 	var monitors []db.Monitor
-	if err := database.Where("lifecycle = ? AND LOWER(name) LIKE ? ESCAPE '\\'", "active", pattern).Order("name ASC").Limit(searchPerGroup).Find(&monitors).Error; err != nil {
+	if err := database.Where("lifecycle = ? AND system = ? AND LOWER(name) LIKE ? ESCAPE '\\'", "active", false, pattern).Order("name ASC").Limit(searchPerGroup).Find(&monitors).Error; err != nil {
 		return nil, err
 	}
 	for _, m := range monitors {
@@ -43,7 +43,7 @@ func Search(database *gorm.DB, q string) ([]SearchHit, error) {
 		hits = append(hits, SearchHit{Type: "incident", ID: i.ID, Name: i.Title, Status: i.Status})
 	}
 	var agents []db.Agent
-	if err := database.Where("LOWER(name) LIKE ? ESCAPE '\\'", pattern).Order("name ASC").Limit(searchPerGroup).Find(&agents).Error; err != nil {
+	if err := database.Where("system = ? AND LOWER(name) LIKE ? ESCAPE '\\'", false, pattern).Order("name ASC").Limit(searchPerGroup).Find(&agents).Error; err != nil {
 		return nil, err
 	}
 	for _, a := range agents {

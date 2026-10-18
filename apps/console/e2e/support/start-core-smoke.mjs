@@ -4,6 +4,7 @@ import { createServer, get } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { startSmtpSink } from "./smtp-sink.mjs";
 
 const consoleDir = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const repoDir = resolve(consoleDir, "../..");
@@ -19,6 +20,7 @@ const jwtSecret = "console-browser-smoke-secret-at-least-long-enough";
 const children = [];
 const webhookCaptures = [];
 let webhookServer;
+let smtpServer;
 let workDir;
 let shuttingDown = false;
 
@@ -133,6 +135,9 @@ const startWebhookReceiver = () =>
 const shutdown = async (exitCode = 0) => {
   if (shuttingDown) return;
   shuttingDown = true;
+  if (smtpServer) {
+    await new Promise((resolveClose) => smtpServer.close(resolveClose));
+  }
   if (webhookServer) {
     await new Promise((resolveClose) => webhookServer.close(resolveClose));
   }
@@ -174,6 +179,7 @@ await run("pnpm", ["run", "generate:api"], {
 });
 
 webhookServer = await startWebhookReceiver();
+smtpServer = await startSmtpSink(19025);
 await waitFor(`${webhookURL}/health`, 10_000);
 
 start("go", ["run", "./cmd/api"], {
@@ -183,6 +189,12 @@ start("go", ["run", "./cmd/api"], {
     ORION_ADMIN_USERNAME: adminUsername,
     ORION_ADMIN_PASSWORD: adminPassword,
     ORION_CORE_MONITOR_ALLOW_PRIVATE_TARGETS: "true",
+    ORION_ALERT_ALLOW_PRIVATE_WEBHOOKS: "true",
+    ORION_ALERT_SMTP_HOST: "127.0.0.1",
+    ORION_ALERT_SMTP_PORT: "19025",
+    ORION_ALERT_SMTP_FROM: "orion@example.test",
+    ORION_ALERT_SMTP_TLS: "none",
+    ORION_PUBLIC_URL: consoleURL,
     ORION_JWT_SECRET: jwtSecret,
     ORION_PORT: corePort,
     ORION_CORS_ORIGINS: consoleURL,

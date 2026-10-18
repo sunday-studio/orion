@@ -117,7 +117,7 @@ docker-dev-up:
 
 # Run only the Console dev server against an already-running Core.
 console-dev:
-	cd apps/console && { test -f .env || cp .env.example .env; } && pnpm install && pnpm dev
+	cd apps/console && { test -f .env || cp .env.example .env; } && pnpm install && pnpm generate:api && pnpm dev
 
 docker-dev-down:
 	docker compose -f docker-compose.dev.yml down

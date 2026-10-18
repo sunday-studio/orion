@@ -3,11 +3,17 @@
  * Light is the default. Dark applies with <html data-theme="dark">.
  * Utilities (bg-card, text-ink, border-hairline ...) are generated from @theme.
  */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 @theme {
   --color-page: #ffffff;
   --color-field: #f7f7f6;
   --color-card: #ffffff;
   --color-sub: #fafaf9;
+  --color-tray: #f4f4f2;
+  --color-chip: #ffffff;
+  --color-line-soft: #f4f4f5;
+  --color-mid: #57534e;
   --color-hairline: #ececea;
   --color-input-border: #e4e4e7;
   --color-ink: #18181b;
@@ -38,8 +44,8 @@
   color-scheme: light;
 
   /* Badge tones and primary button gradient, adapted per theme. */
-  --tone-up-bg: #ccfbf1;
-  --tone-up-fg: #115e59;
+  --tone-up-bg: #dcf5e8;
+  --tone-up-fg: #14532d;
   --tone-down-bg: #ffe4e6;
   --tone-down-fg: #9f1239;
   --tone-degraded-bg: #fef3c7;
@@ -60,17 +66,21 @@
   --tone-critical-fg: #ffffff;
   --tone-medium-bg: #fef9c3;
   --tone-medium-fg: #854d0e;
-  --button-from: #2a9f69;
+  --button-from: #2c9f6a;
   --button-to: #1f7a50;
-  --button-border: #17613f;
+  --button-border: #14573a;
 }
 
 :root[data-theme="dark"] {
   --color-page: #0f1311;
-  --color-field: #161a18;
-  --color-card: #1e2321;
-  --color-sub: #191e1b;
-  --color-hairline: #2a302d;
+  --color-field: #0c0f0e;
+  --color-card: #1a201e;
+  --color-sub: #161b19;
+  --color-tray: #1a1f1d;
+  --color-chip: #2a302d;
+  --color-line-soft: #222926;
+  --color-mid: #c4ccc8;
+  --color-hairline: #252c29;
   --color-input-border: #343b37;
   --color-ink: #ededed;
   --color-quiet: #a1a1aa;
@@ -83,8 +93,8 @@
   --shadow-overlay: 0 8px 24px rgba(0, 0, 0, 0.5);
   color-scheme: dark;
 
-  --tone-up-bg: #042f2e;
-  --tone-up-fg: #5eead4;
+  --tone-up-bg: #0d2b1f;
+  --tone-up-fg: #80ffaa;
   --tone-down-bg: #4c0519;
   --tone-down-fg: #fda4af;
   --tone-degraded-bg: #451a03;

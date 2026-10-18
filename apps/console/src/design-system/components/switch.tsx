@@ -16,6 +16,6 @@ export const Switch = ({
     )}
     {...props}
   >
-    <SwitchPrimitive.Thumb className="block size-3.5 rounded-full bg-white shadow-card transition-transform data-[checked]:translate-x-4" />
+    <SwitchPrimitive.Thumb className="block size-3.5 rounded-full bg-chip shadow-card transition-transform data-[checked]:translate-x-4" />
   </SwitchPrimitive.Root>
 );
