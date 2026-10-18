@@ -35,6 +35,8 @@ type CoreManagedMonitorCreateRequest struct {
 	ConfirmationCheckCount    int                    `json:"confirmation_check_count,omitempty"`
 	RecoveryPeriodSeconds     int                    `json:"recovery_period_seconds,omitempty"`
 	Paused                    bool                   `json:"paused,omitempty"`
+	// RunbookURL (http or https) is shown on incidents for this monitor.
+	RunbookURL string `json:"runbook_url,omitempty"`
 }
 
 type CoreManagedMonitorUpdateRequest struct {
@@ -50,6 +52,8 @@ type CoreManagedMonitorUpdateRequest struct {
 	ConfirmationCheckCount    *int                   `json:"confirmation_check_count,omitempty"`
 	RecoveryPeriodSeconds     *int                   `json:"recovery_period_seconds,omitempty"`
 	Paused                    *bool                  `json:"paused,omitempty"`
+	// RunbookURL sets the runbook link; an empty string clears it.
+	RunbookURL *string `json:"runbook_url,omitempty"`
 }
 
 type CoreManagedMonitorRecord struct {
@@ -101,6 +105,10 @@ func (s *CoreMonitorManagementService) CreateCoreMonitor(req CoreManagedMonitorC
 		return nil, err
 	}
 
+	runbook, err := validateRunbookURL(req.RunbookURL)
+	if err != nil {
+		return nil, err
+	}
 	interval := boundedPositive(req.IntervalSeconds, defaultCoreManagedMonitorIntervalSeconds)
 	timeout := boundedPositive(req.TimeoutSeconds, defaultCoreManagedMonitorTimeoutSeconds)
 	now := time.Now().UTC()
@@ -122,6 +130,7 @@ func (s *CoreMonitorManagementService) CreateCoreMonitor(req CoreManagedMonitorC
 			Health:                   "unknown",
 			ComputedHealth:           "unknown",
 			ReportingIntervalSeconds: interval,
+			RunbookURL:               runbook,
 			Meta:                     `{"owner":"core","source":"core"}`,
 			CreatedAt:                now,
 			UpdatedAt:                now,
@@ -150,6 +159,7 @@ func (s *CoreMonitorManagementService) CreateCoreMonitor(req CoreManagedMonitorC
 			ConfigJSON:                configJSON,
 			SecretRefJSON:             secretRefJSON,
 			HeartbeatTokenHash:        heartbeatTokenHash,
+			HeartbeatTokenPrefix:      tokenPrefix(heartbeatToken),
 			IntervalSeconds:           interval,
 			TimeoutSeconds:            timeout,
 			ConfirmationPeriodSeconds: nonNegative(req.ConfirmationPeriodSeconds),
@@ -246,6 +256,13 @@ func (s *CoreMonitorManagementService) UpdateCoreMonitor(monitorID string, req C
 		if req.Description != nil {
 			monitorUpdates["description"] = req.Description
 		}
+		if req.RunbookURL != nil {
+			runbook, err := validateRunbookURL(*req.RunbookURL)
+			if err != nil {
+				return err
+			}
+			monitorUpdates["runbook_url"] = runbook
+		}
 		if req.Type != nil {
 			monitorType := normalizeCoreManagedMonitorKind(*req.Type)
 			if !isSupportedCoreManagedMonitorKind(monitorType) {
@@ -322,35 +339,17 @@ func (s *CoreMonitorManagementService) UpdateCoreMonitor(monitorID string, req C
 	return &record, nil
 }
 
-func (s *CoreMonitorManagementService) DeleteCoreMonitor(monitorID string) error {
-	now := time.Now().UTC()
-	return s.db.Transaction(func(tx *gorm.DB) error {
-		if err := ensureCoreMonitorExists(tx, monitorID); err != nil {
-			return err
-		}
-		if err := tx.Model(&db.Monitor{}).Where("id = ?", monitorID).Updates(map[string]interface{}{
-			"lifecycle":  "deleted",
-			"health":     "unknown",
-			"updated_at": now,
-			"deleted_at": now,
-		}).Error; err != nil {
-			return err
-		}
-		return tx.Model(&db.CoreMonitorConfig{}).Where("monitor_id = ?", monitorID).Updates(map[string]interface{}{
-			"paused":           true,
-			"lease_owner":      "",
-			"lease_expires_at": nil,
-			"updated_at":       now,
-		}).Error
-	})
+func (s *CoreMonitorManagementService) PauseCoreMonitor(monitorID string) (*CoreManagedMonitorRecord, error) {
+	return s.setCoreMonitorPaused(monitorID, true, "")
 }
 
-func (s *CoreMonitorManagementService) PauseCoreMonitor(monitorID string) (*CoreManagedMonitorRecord, error) {
-	return s.setCoreMonitorPaused(monitorID, true)
+// PauseCoreMonitorBy pauses and records who did it.
+func (s *CoreMonitorManagementService) PauseCoreMonitorBy(monitorID string, actor string) (*CoreManagedMonitorRecord, error) {
+	return s.setCoreMonitorPaused(monitorID, true, actor)
 }
 
 func (s *CoreMonitorManagementService) ResumeCoreMonitor(monitorID string) (*CoreManagedMonitorRecord, error) {
-	return s.setCoreMonitorPaused(monitorID, false)
+	return s.setCoreMonitorPaused(monitorID, false, "")
 }
 
 func (s *CoreMonitorManagementService) GetCoreMonitorConfig(monitorID string) (*CoreManagedMonitorRecord, error) {
@@ -423,7 +422,7 @@ func (s *CoreMonitorManagementService) RecordHeartbeatSignal(monitorID string, h
 	return s.db.Model(&db.CoreMonitorConfig{}).Where("monitor_id = ?", monitorID).Updates(updates).Error
 }
 
-func (s *CoreMonitorManagementService) setCoreMonitorPaused(monitorID string, paused bool) (*CoreManagedMonitorRecord, error) {
+func (s *CoreMonitorManagementService) setCoreMonitorPaused(monitorID string, paused bool, actor string) (*CoreManagedMonitorRecord, error) {
 	now := time.Now().UTC()
 	record := CoreManagedMonitorRecord{}
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -436,8 +435,13 @@ func (s *CoreMonitorManagementService) setCoreMonitorPaused(monitorID string, pa
 			"lease_expires_at": nil,
 			"updated_at":       now,
 		}
-		if !paused {
+		if paused {
+			updates["paused_at"] = now
+			updates["paused_by"] = actor
+		} else {
 			updates["next_run_at"] = now
+			updates["paused_at"] = nil
+			updates["paused_by"] = ""
 		}
 		if err := tx.Model(&db.CoreMonitorConfig{}).Where("monitor_id = ?", monitorID).Updates(updates).Error; err != nil {
 			return err
@@ -469,4 +473,12 @@ func ensureCoreMonitorExists(tx *gorm.DB, monitorID string) error {
 		return ErrCoreManagedMonitorNotFound
 	}
 	return nil
+}
+
+// tokenPrefix keeps a few leading characters so setup screens can show a masked ping URL.
+func tokenPrefix(token string) string {
+	if len(token) <= 6 {
+		return ""
+	}
+	return token[:6]
 }

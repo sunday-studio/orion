@@ -88,11 +88,21 @@ type MonitorResponse struct {
 	Lifecycle                string     `json:"lifecycle"`
 	Health                   string     `json:"health"`
 	// StatusText ("Down 30m") and StatusDetail ("timeout after 10s") are filled on a server's monitor list.
-	StatusText   string    `json:"status_text,omitempty"`
-	StatusDetail string    `json:"status_detail,omitempty"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
-	DeletedAt    time.Time `json:"deleted_at"`
+	StatusText   string `json:"status_text,omitempty"`
+	StatusDetail string `json:"status_detail,omitempty"`
+	// List and detail extras: runner kind, what is checked ("GET api.example.com/health"), cadence, pause state,
+	// runbook link, and the last 24 check results oldest first ("up", "degraded", "down").
+	Kind            string     `json:"kind,omitempty"`
+	Target          string     `json:"target,omitempty"`
+	IntervalSeconds int        `json:"interval_seconds,omitempty"`
+	Paused          bool       `json:"paused"`
+	PausedAt        *time.Time `json:"paused_at,omitempty"`
+	PausedBy        string     `json:"paused_by,omitempty"`
+	RunbookURL      string     `json:"runbook_url,omitempty"`
+	RecentChecks    []string   `json:"recent_checks,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+	DeletedAt       time.Time  `json:"deleted_at"`
 }
 
 type MonitorReportResponse struct {
@@ -102,6 +112,11 @@ type MonitorReportResponse struct {
 	CollectedAt string    `json:"collected_at"`
 	Health      string    `json:"health"`
 	CreatedAt   time.Time `json:"created_at"`
+	// Derived for the check history drawer: passed, a one-line summary ("Timeout, 10,000 ms"), duration and source.
+	Passed     bool   `json:"passed"`
+	Summary    string `json:"summary,omitempty"`
+	DurationMs *int64 `json:"duration_ms,omitempty"`
+	ReportedBy string `json:"reported_by,omitempty"`
 }
 
 type IncidentEvidenceResponse struct {
