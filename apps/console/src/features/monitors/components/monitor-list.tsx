@@ -195,7 +195,7 @@ export const MonitorList = ({
         <div
           className={cn(
             "ds-settled overflow-hidden rounded-xl border border-hairline bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)]",
-            monitorsQuery.isFetching && "ds-fetching",
+            monitorsQuery.isPlaceholderData && "ds-fetching",
           )}
         >
           <GridTable>

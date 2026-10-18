@@ -27,7 +27,8 @@ export const useFlip = <T extends HTMLElement>() => {
     for (const node of nodes)
       next.set(node.dataset.flipId ?? "", node.getBoundingClientRect().top - origin);
 
-    if (mounted.current && !reduced()) {
+    // Only animate changes between two lists of rows, never the first set (skeleton -> rows).
+    if (mounted.current && previous.current.size > 0 && !reduced()) {
       for (const node of nodes) {
         const id = node.dataset.flipId ?? "";
         const before = previous.current.get(id);

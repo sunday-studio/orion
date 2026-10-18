@@ -165,7 +165,7 @@ export const IncidentsPage = () => {
               setSelected(checked ? new Set(incidents.map((i) => i.id ?? "")) : new Set())
             }
             now={now}
-            fetching={query.isFetching}
+            fetching={query.isPlaceholderData}
             hiddenResolved={hiddenResolved}
             onShowResolved={() => filters.setStatuses([...statuses, "resolved"])}
             pagination={{
