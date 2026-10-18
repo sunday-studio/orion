@@ -15,6 +15,9 @@ import (
 	"orion/core/internal/utils"
 )
 
+// agentTokenRotationGrace is how long a rotated-away token keeps working.
+const agentTokenRotationGrace = 10 * time.Minute
+
 type AgentTokenStatus struct {
 	AgentID               string     `json:"agent_id"`
 	State                 string     `json:"state"`
@@ -23,6 +26,10 @@ type AgentTokenStatus struct {
 	TokenRevokedAt        *time.Time `json:"token_revoked_at,omitempty"`
 	TokenRevocationReason string     `json:"token_revocation_reason,omitempty"`
 	TokenExists           bool       `json:"token_exists"`
+	// LastUsedAt is when the agent last authenticated (its last report).
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+	// PreviousTokenValidUntil is set for a few minutes after a rotation.
+	PreviousTokenValidUntil *time.Time `json:"previous_token_valid_until,omitempty"`
 }
 
 type AgentTokenActionInput struct {
@@ -84,11 +91,13 @@ func (s *AgentService) RevokeAgentToken(agentID string, input AgentTokenActionIn
 		}
 
 		updates := map[string]any{
-			"token":                   revokedAgentTokenMarker(agent.ID, agent.TokenVersion+1),
-			"token_hash":              "",
-			"token_version":           normalizedAgentTokenVersion(agent.TokenVersion) + 1,
-			"token_revoked_at":        now,
-			"token_revocation_reason": reason,
+			"token":                     revokedAgentTokenMarker(agent.ID, agent.TokenVersion+1),
+			"token_hash":                "",
+			"token_version":             normalizedAgentTokenVersion(agent.TokenVersion) + 1,
+			"token_revoked_at":          now,
+			"token_revocation_reason":   reason,
+			"previous_token_hash":       "",
+			"previous_token_expires_at": nil,
 		}
 		if err := tx.Model(&db.Agent{}).Where("id = ?", agent.ID).Updates(updates).Error; err != nil {
 			return err
@@ -128,11 +137,18 @@ func (s *AgentService) issueAgentToken(agentID string, input AgentTokenActionInp
 
 		nextVersion := normalizedAgentTokenVersion(agent.TokenVersion) + 1
 		updates := map[string]any{
-			"token":                   storedAgentTokenMarker(token),
-			"token_hash":              hashAgentToken(token),
-			"token_version":           nextVersion,
-			"token_rotated_at":        now,
-			"token_revocation_reason": "",
+			"token":                     storedAgentTokenMarker(token),
+			"token_hash":                hashAgentToken(token),
+			"token_version":             nextVersion,
+			"token_rotated_at":          now,
+			"token_revocation_reason":   "",
+			"previous_token_hash":       "",
+			"previous_token_expires_at": nil,
+		}
+		if !requireRevoked && agent.TokenHash != "" {
+			// A plain rotation keeps the old token alive briefly; reissuing after revocation never does.
+			updates["previous_token_hash"] = agent.TokenHash
+			updates["previous_token_expires_at"] = now.Add(agentTokenRotationGrace)
 		}
 		if err := tx.Model(&db.Agent{}).Where("id = ?", agent.ID).Updates(updates).Error; err != nil {
 			return err
@@ -166,7 +182,12 @@ func agentTokenMatches(agent db.Agent, token string) bool {
 	if agent.TokenHash == "" {
 		return false
 	}
-	return subtle.ConstantTimeCompare([]byte(agent.TokenHash), []byte(hashAgentToken(token))) == 1
+	presented := []byte(hashAgentToken(token))
+	if subtle.ConstantTimeCompare([]byte(agent.TokenHash), presented) == 1 {
+		return true
+	}
+	return agent.PreviousTokenHash != "" && agent.PreviousTokenExpiresAt != nil && time.Now().UTC().Before(*agent.PreviousTokenExpiresAt) &&
+		subtle.ConstantTimeCompare([]byte(agent.PreviousTokenHash), presented) == 1
 }
 
 func agentTokenStatus(agent db.Agent) AgentTokenStatus {
@@ -176,14 +197,21 @@ func agentTokenStatus(agent db.Agent) AgentTokenStatus {
 		state = AgentTokenStateRevoked
 		tokenExists = false
 	}
+	lastUsed := agent.LastSeen
+	var graceUntil *time.Time
+	if agent.PreviousTokenHash != "" && agent.PreviousTokenExpiresAt != nil && time.Now().UTC().Before(*agent.PreviousTokenExpiresAt) {
+		graceUntil = agent.PreviousTokenExpiresAt
+	}
 	return AgentTokenStatus{
-		AgentID:               agent.ID,
-		State:                 state,
-		TokenVersion:          normalizedAgentTokenVersion(agent.TokenVersion),
-		TokenRotatedAt:        agent.TokenRotatedAt,
-		TokenRevokedAt:        agent.TokenRevokedAt,
-		TokenRevocationReason: agent.TokenRevocationReason,
-		TokenExists:           tokenExists,
+		LastUsedAt:              &lastUsed,
+		PreviousTokenValidUntil: graceUntil,
+		AgentID:                 agent.ID,
+		State:                   state,
+		TokenVersion:            normalizedAgentTokenVersion(agent.TokenVersion),
+		TokenRotatedAt:          agent.TokenRotatedAt,
+		TokenRevokedAt:          agent.TokenRevokedAt,
+		TokenRevocationReason:   agent.TokenRevocationReason,
+		TokenExists:             tokenExists,
 	}
 }
 

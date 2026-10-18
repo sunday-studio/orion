@@ -119,6 +119,7 @@ func (s *Server) unregisterMonitor(c *gin.Context) {
 // @Param        id         path      string  true   "Agent ID"
 // @Param        health     query     string  false  "Filter by health status (up|down|degraded|unknown)"
 // @Param        lifecycle  query     string  false  "Filter by lifecycle status (active|disabled|deleted)"
+// @Param        status     query     string  false  "Comma-separated computed statuses to show: up,down,degraded,stale,unknown. total and hidden_count report what the filter hides"
 // @Param        limit      query     int     false  "Maximum number of monitors to return" default(50)
 // @Param        offset     query     int     false  "Number of monitors to skip" default(0)
 // @Success      200        {object}  utils.APIResponse{data=object{monitors=[]MonitorResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta}}
@@ -144,26 +145,53 @@ func (s *Server) listMonitors(c *gin.Context) {
 		return
 	}
 
-	monitors, err := s.monitorService.ListMonitors(agentID, healthFilter, lifecycleFilter, limit, offset)
-	if err != nil {
-		s.logger.Error("Failed to list monitors", "error", err, "agent_id", agentID)
-		utils.InternalError(c, "Failed to list monitors", err)
-		return
-	}
-
-	count, err := s.monitorService.GetMonitorCount(agentID, healthFilter, lifecycleFilter)
-	if err != nil {
-		s.logger.Error("Failed to get monitor count", "error", err, "agent_id", agentID)
-		// Don't fail the request if count fails
+	statusSet := parseStatusSet(c.Query("status"))
+	var monitors []db.Monitor
+	var count, total int64
+	var err error
+	if len(statusSet) > 0 {
+		// Multi-status filter (down,degraded,stale,up,unknown): filter on computed health, then page.
+		all, listErr := s.monitorService.ListMonitors(agentID, healthFilter, lifecycleFilter, 5000, 0)
+		if listErr != nil {
+			s.logger.Error("Failed to list monitors", "error", listErr, "agent_id", agentID)
+			utils.InternalError(c, "Failed to list monitors", listErr)
+			return
+		}
+		total = int64(len(all))
+		matched := all[:0:0]
+		for _, m := range all {
+			if statusSet[effectiveMonitorHealth(m)] {
+				matched = append(matched, m)
+			}
+		}
+		count = int64(len(matched))
+		monitors = matched[min(offset, len(matched)):min(offset+limit, len(matched))]
+	} else {
+		monitors, err = s.monitorService.ListMonitors(agentID, healthFilter, lifecycleFilter, limit, offset)
+		if err != nil {
+			s.logger.Error("Failed to list monitors", "error", err, "agent_id", agentID)
+			utils.InternalError(c, "Failed to list monitors", err)
+			return
+		}
+		count, err = s.monitorService.GetMonitorCount(agentID, healthFilter, lifecycleFilter)
+		if err != nil {
+			s.logger.Error("Failed to get monitor count", "error", err, "agent_id", agentID)
+		}
+		total = count
 	}
 
 	responses := monitorResponses(monitors)
+	for i := range responses {
+		responses[i].StatusText, responses[i].StatusDetail = s.monitorStatusLine(monitors[i], effectiveMonitorHealth(monitors[i]))
+	}
 	utils.SuccessResponse(c, 200, "Monitors retrieved successfully", gin.H{
-		"monitors":   responses,
-		"count":      count,
-		"limit":      limit,
-		"offset":     offset,
-		"pagination": utils.NewPaginationMeta(count, limit, offset, len(responses)),
+		"monitors":     responses,
+		"count":        count,
+		"total":        total,
+		"hidden_count": total - count,
+		"limit":        limit,
+		"offset":       offset,
+		"pagination":   utils.NewPaginationMeta(count, limit, offset, len(responses)),
 	})
 }
 

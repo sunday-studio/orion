@@ -15,13 +15,16 @@ import (
 // AgentListRow extends Agent with list-only fields from joins/subqueries.
 type AgentListRow struct {
 	db.Agent
-	MonitorCount       int64   `json:"monitor_count"`
-	IP                 *string `json:"ip,omitempty"`
-	Status             string  `json:"status"`
-	AvailabilityHealth string  `json:"availability_health,omitempty"`
-	MonitorHealth      string  `json:"monitor_health,omitempty"`
-	StatusReason       string  `json:"status_reason,omitempty"`
-	UptimeSeconds      *uint64 `json:"uptime_seconds,omitempty"`
+	MonitorCount       int64        `json:"monitor_count"`
+	IP                 *string      `json:"ip,omitempty"`
+	Status             string       `json:"status"`
+	AvailabilityHealth string       `json:"availability_health,omitempty"`
+	MonitorHealth      string       `json:"monitor_health,omitempty"`
+	StatusReason       string       `json:"status_reason,omitempty"`
+	UptimeSeconds      *uint64      `json:"uptime_seconds,omitempty"`
+	Metrics            AgentMetrics `json:"-"`
+	StatusText         string       `json:"-"`
+	StatusDetail       string       `json:"-"`
 }
 
 // parseListDuration parses "24h", "7d" into a duration. last_seen filter: agents with last_seen >= now-duration.
@@ -268,7 +271,7 @@ func (s *AgentService) ExpireMaintenance(now time.Time) (int, error) {
 
 func (s *AgentService) GetAgent(agentID string) (*db.Agent, error) {
 	var agent db.Agent
-	if err := s.db.Where("id = ?", agentID).First(&agent).Error; err != nil {
+	if err := s.db.Where("id = ? AND (deleted_at IS NULL OR deleted_at = ?)", agentID, time.Time{}).First(&agent).Error; err != nil {
 		s.logger.Error("Failed to get agent", "agent_id", agentID, "error", err)
 		return nil, err
 	}
@@ -350,12 +353,15 @@ func (s *AgentService) ListAgents(opts ListAgentsOpts) ([]AgentListRow, int64, e
 	// Latest report per agent: uptime_seconds, Location.IP (N+1 acceptable for now)
 	uptimeMap := make(map[string]uint64)
 	ipMap := make(map[string]string)
+	metricsMap := make(map[string]AgentMetrics)
 	for _, id := range ids {
-		var r db.AgentReport
-		if err := s.db.Where("agent_id = ?", id).Order("created_at DESC").Limit(1).First(&r).Error; err == nil {
-			uptimeMap[id] = r.UptimeSeconds
-			if loc := r.Location.Data(); loc.IP != "" {
-				ipMap[id] = loc.IP
+		var reports []db.AgentReport
+		if err := s.db.Where("agent_id = ?", id).Order("created_at DESC").Limit(agentSeriesPoints).Find(&reports).Error; err == nil && len(reports) > 0 {
+			m := metricsFromReports(reports)
+			metricsMap[id] = m
+			uptimeMap[id] = reports[0].UptimeSeconds
+			if m.IP != "" {
+				ipMap[id] = m.IP
 			}
 		}
 	}
@@ -398,7 +404,10 @@ func (s *AgentService) ListAgents(opts ListAgentsOpts) ([]AgentListRow, int64, e
 			AvailabilityHealth: snapshot.AgentHealth,
 			MonitorHealth:      snapshot.MonitorHealth,
 			StatusReason:       snapshot.Reason,
+			Metrics:            metricsMap[a.ID],
 		}
+		row.StatusText = AgentStatusText(snapshot.OverallHealth, a.LastSeen, row.Metrics, time.Now().UTC())
+		row.StatusDetail = AgentStatusDetail(snapshot.OverallHealth, row.Metrics, snapshot.Reason)
 		if v, ok := uptimeMap[a.ID]; ok {
 			row.UptimeSeconds = &v
 		}

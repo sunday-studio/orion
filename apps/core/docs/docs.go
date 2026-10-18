@@ -2000,6 +2000,138 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "delete": {
+                "description": "Revokes the token, deletes the server's monitors, closes its open incidents and hides it. keep_history=true (default) keeps reports for 90 days then purges them; false deletes everything now. The same host can be added again.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "Remove (decommission) a server",
+                "operationId": "decommissionAgent",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Keep reports for 90 days (default true)",
+                        "name": "keep_history",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "result": {
+                                                    "$ref": "#/definitions/orion_core_internal_service.DecommissionResult"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "description": "Change name, labels (key=value, at most 20) and notes. Omitted fields stay as they are.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "Update server details",
+                "operationId": "updateAgent",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to change",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.UpdateAgentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "agent": {
+                                                    "$ref": "#/definitions/internal_api.AgentResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
             }
         },
         "/v1/agents/{id}/health": {
@@ -2097,6 +2229,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Filter by lifecycle status (active|disabled|deleted)",
                         "name": "lifecycle",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated computed statuses to show: up,down,degraded,stale,unknown. total and hidden_count report what the filter hides",
+                        "name": "status",
                         "in": "query"
                     },
                     {
@@ -2209,6 +2347,18 @@ const docTemplate = `{
                         "default": 0,
                         "description": "Number of reports to skip",
                         "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only reports since: 1h, 24h, 7d style duration or RFC3339",
+                        "name": "since",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only reports before this RFC3339 time",
+                        "name": "until",
                         "in": "query"
                     }
                 ],
@@ -11759,14 +11909,30 @@ const docTemplate = `{
         "internal_api.AgentResponse": {
             "type": "object",
             "properties": {
+                "agent_version": {
+                    "description": "Latest system metrics; null until the first report. CPUSeries has up to 12 readings, oldest first.",
+                    "type": "string"
+                },
                 "arch": {
                     "type": "string"
                 },
                 "availability_health": {
                     "type": "string"
                 },
+                "cpu_percent": {
+                    "type": "number"
+                },
+                "cpu_series": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    }
+                },
                 "created_at": {
                     "type": "string"
+                },
+                "disk_percent": {
+                    "type": "number"
                 },
                 "id": {
                     "type": "string"
@@ -11775,6 +11941,16 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "kernel_version": {
+                    "type": "string"
+                },
+                "labels": {
+                    "description": "Labels are \"key=value\" strings; Notes is free text. Both are edited with PATCH /v1/agents/{id}.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "last_report_at": {
                     "type": "string"
                 },
                 "last_seen": {
@@ -11789,6 +11965,9 @@ const docTemplate = `{
                 "maintenance_until": {
                     "type": "string"
                 },
+                "memory_percent": {
+                    "type": "number"
+                },
                 "monitor_count": {
                     "type": "integer"
                 },
@@ -11796,6 +11975,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "notes": {
                     "type": "string"
                 },
                 "os": {
@@ -11810,7 +11992,14 @@ const docTemplate = `{
                 "status": {
                     "type": "string"
                 },
+                "status_detail": {
+                    "type": "string"
+                },
                 "status_reason": {
+                    "type": "string"
+                },
+                "status_text": {
+                    "description": "StatusText is the badge (\"Up 41d\", \"No report 12m\"); StatusDetail the one-line reason (\"Disk 91%\").",
                     "type": "string"
                 },
                 "system": {
@@ -11873,6 +12062,13 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "agent_id": {
+                    "type": "string"
+                },
+                "last_used_at": {
+                    "type": "string"
+                },
+                "previous_token_valid_until": {
+                    "description": "PreviousTokenValidUntil is set for 10 minutes after a rotation while the old token still works.",
                     "type": "string"
                 },
                 "request_id": {
@@ -14153,6 +14349,13 @@ const docTemplate = `{
                 "source": {
                     "type": "string"
                 },
+                "status_detail": {
+                    "type": "string"
+                },
+                "status_text": {
+                    "description": "StatusText (\"Down 30m\") and StatusDetail (\"timeout after 10s\") are filled on a server's monitor list.",
+                    "type": "string"
+                },
                 "system": {
                     "type": "boolean"
                 },
@@ -15227,6 +15430,26 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.UpdateAgentRequest": {
+            "type": "object",
+            "properties": {
+                "labels": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "env=prod"
+                    ]
+                },
+                "name": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_api.UptimeDayBucketResponse": {
             "type": "object",
             "properties": {
@@ -16050,6 +16273,20 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "worker_status_retention_days": {
+                    "type": "integer"
+                }
+            }
+        },
+        "orion_core_internal_service.DecommissionResult": {
+            "type": "object",
+            "properties": {
+                "history_kept": {
+                    "type": "boolean"
+                },
+                "incidents_closed": {
+                    "type": "integer"
+                },
+                "monitors_removed": {
                     "type": "integer"
                 }
             }

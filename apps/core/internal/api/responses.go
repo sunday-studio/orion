@@ -27,6 +27,19 @@ type AgentResponse struct {
 	MonitorCount             int64          `json:"monitor_count,omitempty"`
 	IP                       *string        `json:"ip,omitempty"`
 	UptimeSeconds            *uint64        `json:"uptime_seconds,omitempty"`
+	// Labels are "key=value" strings; Notes is free text. Both are edited with PATCH /v1/agents/{id}.
+	Labels []string `json:"labels"`
+	Notes  string   `json:"notes"`
+	// Latest system metrics; null until the first report. CPUSeries has up to 12 readings, oldest first.
+	AgentVersion  string     `json:"agent_version,omitempty"`
+	LastReportAt  *time.Time `json:"last_report_at,omitempty"`
+	CPUPercent    *float64   `json:"cpu_percent"`
+	MemoryPercent *float64   `json:"memory_percent"`
+	DiskPercent   *float64   `json:"disk_percent"`
+	CPUSeries     []float64  `json:"cpu_series"`
+	// StatusText is the badge ("Up 41d", "No report 12m"); StatusDetail the one-line reason ("Disk 91%").
+	StatusText   string `json:"status_text,omitempty"`
+	StatusDetail string `json:"status_detail,omitempty"`
 }
 
 type AgentSummaryResponse struct {
@@ -74,9 +87,12 @@ type MonitorResponse struct {
 	IncidentState            string     `json:"incident_state,omitempty"`
 	Lifecycle                string     `json:"lifecycle"`
 	Health                   string     `json:"health"`
-	CreatedAt                time.Time  `json:"created_at"`
-	UpdatedAt                time.Time  `json:"updated_at"`
-	DeletedAt                time.Time  `json:"deleted_at"`
+	// StatusText ("Down 30m") and StatusDetail ("timeout after 10s") are filled on a server's monitor list.
+	StatusText   string    `json:"status_text,omitempty"`
+	StatusDetail string    `json:"status_detail,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	DeletedAt    time.Time `json:"deleted_at"`
 }
 
 type MonitorReportResponse struct {

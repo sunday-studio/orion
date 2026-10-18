@@ -76,8 +76,14 @@ func TestAgentTokenLifecycleSupportsLegacyPlaintextThenHashesRotation(t *testing
 	if stored.Token == rotated.Token || !strings.HasPrefix(stored.Token, "sha256:") || stored.TokenHash == "" {
 		t.Fatalf("stored token fields = token:%q hash:%q, want hashed marker and hash only", stored.Token, stored.TokenHash)
 	}
+	if _, err := authService.ValidateToken(legacy.ID, legacy.Token); err != nil {
+		t.Fatalf("ValidateToken() with the replaced token during the grace window error = %v", err)
+	}
+	if err := database.Model(&db.Agent{}).Where("id = ?", legacy.ID).Update("previous_token_expires_at", time.Now().UTC().Add(-time.Second)).Error; err != nil {
+		t.Fatal(err)
+	}
 	if _, err := authService.ValidateToken(legacy.ID, legacy.Token); err == nil {
-		t.Fatal("ValidateToken() with legacy token after rotation got nil error, want rejection")
+		t.Fatal("ValidateToken() with legacy token after the grace window got nil error, want rejection")
 	}
 	if _, err := authService.ValidateToken(legacy.ID, rotated.Token); err != nil {
 		t.Fatalf("ValidateToken() with rotated token error = %v", err)

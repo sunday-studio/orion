@@ -168,6 +168,8 @@ func (s *Server) setupRoutes() {
 			frontend.GET("/agents", s.listAgents)
 			frontend.GET("/agents/summary", s.getAgentSummary)
 			frontend.GET("/agents/:id", s.getAgentDetail)
+			frontend.PATCH("/agents/:id", s.updateAgent)
+			frontend.DELETE("/agents/:id", s.decommissionAgent)
 			frontend.GET("/agents/:id/health", s.getAgentHealth)
 			frontend.GET("/agents/:id/reports", s.getAgentReports)
 			frontend.GET("/agents/:id/service-logs", s.listAgentServiceLogs)

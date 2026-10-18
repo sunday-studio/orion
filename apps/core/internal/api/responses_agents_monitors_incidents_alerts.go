@@ -23,7 +23,7 @@ type OrionEventResponse struct {
 }
 
 func agentResponse(agent db.Agent) AgentResponse {
-	return AgentResponse{ID: agent.ID, System: agent.System, Name: agent.Name, OS: agent.OS, Platform: agent.Platform, KernelVersion: agent.KernelVersion, Arch: agent.Arch, MaintenanceMode: agent.InMaintenance(time.Now().UTC()), MaintenanceUntil: agent.MaintenanceUntil, ReportingIntervalSeconds: agent.ReportingIntervalSeconds, CreatedAt: agent.CreatedAt, LastSeen: agent.LastSeen, Location: agent.Location.Data()}
+	return AgentResponse{Labels: service.DecodeAgentLabels(agent.Labels), Notes: agent.Notes, CPUSeries: []float64{}, ID: agent.ID, System: agent.System, Name: agent.Name, OS: agent.OS, Platform: agent.Platform, KernelVersion: agent.KernelVersion, Arch: agent.Arch, MaintenanceMode: agent.InMaintenance(time.Now().UTC()), MaintenanceUntil: agent.MaintenanceUntil, ReportingIntervalSeconds: agent.ReportingIntervalSeconds, CreatedAt: agent.CreatedAt, LastSeen: agent.LastSeen, Location: agent.Location.Data()}
 }
 func agentListResponse(row service.AgentListRow) AgentResponse {
 	response := agentResponse(row.Agent)
@@ -34,6 +34,8 @@ func agentListResponse(row service.AgentListRow) AgentResponse {
 	response.MonitorHealth = row.MonitorHealth
 	response.StatusReason = row.StatusReason
 	response.UptimeSeconds = row.UptimeSeconds
+	applyAgentMetrics(&response, row.Metrics)
+	response.StatusText, response.StatusDetail = row.StatusText, row.StatusDetail
 	return response
 }
 func agentListResponses(rows []service.AgentListRow) []AgentResponse {
