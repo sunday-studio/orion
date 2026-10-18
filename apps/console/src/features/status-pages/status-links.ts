@@ -1,12 +1,27 @@
 import { getApiBase } from "@/api/client";
 
-/** Absolute URL of a status page: a custom domain as given, or the /status path on Core. */
-export const publicPageHref = (publicUrl: string | undefined, coreUrl?: string) => {
-  const value = publicUrl ?? "";
-  if (/^https?:\/\//.test(value)) return value.replace(/\/$/, "");
+/**
+ * Absolute URL of a status page. A custom domain is used only once Core verified it; until
+ * then the page is reachable at its /status/<slug> path on Core.
+ */
+export const publicPageHref = ({
+  slug,
+  customDomain,
+  domainStatus,
+  coreUrl,
+}: {
+  slug?: string;
+  customDomain?: string;
+  domainStatus?: string;
+  coreUrl?: string;
+}) => {
+  if (customDomain && domainStatus === "verified") {
+    return /^https?:\/\//.test(customDomain)
+      ? customDomain.replace(/\/$/, "")
+      : `https://${customDomain}`;
+  }
   const core = (coreUrl || getApiBase() || window.location.origin).replace(/\/$/, "");
-  if (value.startsWith("/")) return `${core}${value}`;
-  return value ? `https://${value}` : core;
+  return `${core}/status/${slug ?? ""}`;
 };
 
 /** The public pages Core serves for one status page. */

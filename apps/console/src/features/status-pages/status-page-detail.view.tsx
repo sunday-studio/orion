@@ -99,10 +99,12 @@ export const StatusPageDetailPage = () => {
     return <EmptyState tone="error" title="Unable to load the status page" />;
   }
   const published = row?.state ? row.state !== "draft" : page.visibility === "published";
-  const pageHref = publicPageHref(
-    row?.public_url ?? `/status/${page.slug}`,
-    general.data?.public_url,
-  );
+  const pageHref = publicPageHref({
+    slug: page.slug,
+    customDomain: page.custom_domain,
+    domainStatus: page.domain_status,
+    coreUrl: general.data?.public_url,
+  });
   const state = row?.state ?? (published ? "published" : "draft");
 
   return (
@@ -126,7 +128,7 @@ export const StatusPageDetailPage = () => {
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 hover:text-ink hover:underline"
               >
-                {row?.public_url ?? `/status/${page.slug}`}
+                {pageHref.replace(/^https?:\/\//, "")}
                 <ExternalLink className="size-3.5" />
               </a>
             ) : (
