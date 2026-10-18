@@ -28,7 +28,8 @@ services:
       ORION_PUBLIC_STATUS_MAIL_FROM_NAME: ${ORION_PUBLIC_STATUS_MAIL_FROM_NAME:-Orion Status}
       ORION_PUBLIC_STATUS_MAIL_REPLY_TO: ${ORION_PUBLIC_STATUS_MAIL_REPLY_TO:-}
       ORION_PUBLIC_STATUS_URL_ORIGIN: ${ORION_PUBLIC_STATUS_URL_ORIGIN:-}
-      ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET: ${ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET:-}
+      # Dev default so the admin can see subscriber emails and import lists; the seed uses the same value.
+      ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET: ${ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET:-local-subscriber-secret-for-orion-dev-2026}
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8999/health"]
       interval: 30s
@@ -67,6 +68,8 @@ services:
     image: orion-core:dev
     build: *orion-core-dev-build
     profiles: ["seed"]
+    environment:
+      ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET: ${ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET:-local-subscriber-secret-for-orion-dev-2026}
     command:
       - orion-seed-demo-data
       - "-data-dir"

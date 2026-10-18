@@ -211,6 +211,7 @@ func resetSeedData(database *gorm.DB) error {
 
 	for _, statement := range []string{
 		"DELETE FROM alert_delivery_attempts WHERE alert_delivery_id LIKE 'seed-%'",
+		"DELETE FROM alert_deliveries WHERE id LIKE 'seed-%'",
 		"DELETE FROM alert_delivery_recipients WHERE delivery_id LIKE 'seed-%'",
 		"DELETE FROM alert_channel_recipients WHERE id LIKE 'seed-%'",
 		"DELETE FROM alert_routes WHERE id LIKE 'seed-%'",
@@ -246,6 +247,14 @@ func resetSeedData(database *gorm.DB) error {
 		query := database.Exec(fmt.Sprintf("DELETE FROM %s WHERE id LIKE ?", table), "seed-%")
 		if query.Error != nil {
 			return query.Error
+		}
+	}
+	for _, statement := range []string{
+		"DELETE FROM agent_monitor_definitions WHERE id LIKE 'seed-%'",
+		"DELETE FROM enrollment_sessions WHERE id LIKE 'seed-%'",
+	} {
+		if err := database.Exec(statement).Error; err != nil {
+			return err
 		}
 	}
 	if err := database.Exec("DELETE FROM incident_candidate_dismissals WHERE monitor_id LIKE ?", "seed-%").Error; err != nil {
@@ -404,5 +413,8 @@ func seed(database *gorm.DB, cfg seedConfig) (seedStats, error) {
 	stats.statusPageDeliveries += statusPageStats.deliveries
 	stats.statusPageSubscriberMaps += statusPageStats.subscriberComponents
 
+	if err := seedShowcase(database, now); err != nil {
+		return stats, err
+	}
 	return stats, nil
 }

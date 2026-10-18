@@ -32,7 +32,7 @@ func scenarioForIndex(i int) scenario {
 func makeAgent(index int, sc scenario, now time.Time) db.Agent {
 	lastSeen := now.Add(-time.Duration(index%8) * time.Minute)
 	if sc.stale {
-		lastSeen = now.Add(-time.Duration(45+index%72) * time.Minute)
+		lastSeen = staleSince(now, index)
 	}
 	if sc.noReports {
 		lastSeen = now.Add(-time.Duration(index%6) * time.Minute)
@@ -65,7 +65,7 @@ func makeAgent(index int, sc scenario, now time.Time) db.Agent {
 		Arch:                     choose(index%2 == 0, "arm64", "amd64"),
 		Token:                    fmt.Sprintf("seed-token-%02d-%s", index+1, sc.key),
 		MaintenanceMode:          sc.maintenance,
-		ReportingIntervalSeconds: 60,
+		ReportingIntervalSeconds: showcaseIntervalSeconds,
 		CreatedAt:                now.AddDate(0, 0, -120),
 		LastSeen:                 lastSeen,
 		Location:                 datatypes.NewJSONType(location),
@@ -90,7 +90,7 @@ func makeMonitors(agent db.Agent, sc scenario, now time.Time) []db.Monitor {
 			Name:                     fmt.Sprintf("%s %s", sc.name, tpl.name),
 			AgentID:                  agent.ID,
 			LastSuccessfulReportAt:   lastSuccess,
-			ReportingIntervalSeconds: tpl.intervalSec,
+			ReportingIntervalSeconds: showcaseIntervalSeconds,
 			ComputedHealth:           health,
 			LastHealthComputation:    ptrTime(now.Add(-time.Duration(i) * time.Minute)),
 			Lifecycle:                "active",
@@ -102,7 +102,7 @@ func makeMonitors(agent db.Agent, sc scenario, now time.Time) []db.Monitor {
 				"monitor":   tpl.key,
 				"edge_case": edgeCase(sc, tpl),
 			}),
-			CreatedAt: now.AddDate(0, 0, -120),
+			CreatedAt: choose(sc.noReports, now.Add(-2*time.Hour), now.AddDate(0, 0, -120)),
 			UpdatedAt: now.Add(-time.Duration(i) * time.Minute),
 		})
 	}
@@ -140,16 +140,17 @@ func makeMonitors(agent db.Agent, sc scenario, now time.Time) []db.Monitor {
 	if sc.noReports {
 		neverDescription := "Active monitor with no reports for unknown state"
 		monitors = append(monitors, db.Monitor{
-			ID:          fmt.Sprintf("seed-monitor-%s-never-reported", agent.ID),
-			Description: &neverDescription,
-			Type:        "tcp",
-			Name:        fmt.Sprintf("%s Never Reported", sc.name),
-			AgentID:     agent.ID,
-			Lifecycle:   "active",
-			Health:      "unknown",
-			Meta:        mustJSON(map[string]any{"seed": true, "scenario": sc.key, "edge_case": "never_reported"}),
-			CreatedAt:   now.AddDate(0, 0, -20),
-			UpdatedAt:   now.AddDate(0, 0, -20),
+			ID:                       fmt.Sprintf("seed-monitor-%s-never-reported", agent.ID),
+			Description:              &neverDescription,
+			Type:                     "tcp",
+			Name:                     fmt.Sprintf("%s Never Reported", sc.name),
+			AgentID:                  agent.ID,
+			ReportingIntervalSeconds: showcaseIntervalSeconds,
+			Lifecycle:                "active",
+			Health:                   "unknown",
+			Meta:                     mustJSON(map[string]any{"seed": true, "scenario": sc.key, "edge_case": "never_reported"}),
+			CreatedAt:                now.Add(-2 * time.Hour),
+			UpdatedAt:                now.Add(-2 * time.Hour),
 		})
 	}
 	return monitors
@@ -210,8 +211,14 @@ func seedCoreMonitorConfig(database *gorm.DB, monitorID string, now time.Time) e
 		SecretRefJSON:   "{}",
 		IntervalSeconds: 60,
 		TimeoutSeconds:  10,
-		NextRunAt:       now.Add(time.Minute),
+		NextRunAt:       farFuture(now),
 		CreatedAt:       now,
 		UpdatedAt:       now,
 	}).Error
+}
+
+// staleSince is when a "stale" scenario last reported: older than five days, the staleness window of
+// the one day reporting interval, so it stays stale for days instead of only for the first minutes.
+func staleSince(now time.Time, jitter int) time.Time {
+	return now.Add(-6*24*time.Hour - time.Duration(jitter%72)*time.Minute)
 }

@@ -18,7 +18,7 @@ func seedAgentReports(database *gorm.DB, agent db.Agent, sc scenario, cfg seedCo
 	reports := make([]db.AgentReport, 0, cfg.days)
 	stop := now
 	if sc.stale {
-		stop = now.Add(-time.Duration(45+len(sc.key)%72) * time.Minute)
+		stop = staleSince(now, len(sc.key))
 	}
 	for t := start; !t.After(stop); t = t.Add(cfg.reportInterval) {
 		cpu, memory, disk := systemStats(sc, t)
@@ -45,7 +45,7 @@ func seedMonitorReports(database *gorm.DB, monitor db.Monitor, sc scenario, tpl 
 	counts := map[string]dayCounts{}
 	stop := now
 	if sc.stale {
-		stop = now.Add(-time.Duration(45+len(sc.key)%72) * time.Minute)
+		stop = staleSince(now, len(sc.key))
 	}
 	for t := start; !t.After(stop); t = t.Add(monitorReportStep(cfg.reportInterval, t, now)) {
 		health := reportHealth(sc, tpl, t, now)
