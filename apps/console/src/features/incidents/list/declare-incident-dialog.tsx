@@ -12,12 +12,16 @@ import {
   Select,
   Textarea,
 } from "@/design-system";
-import { useGetMonitors } from "@/orion-sdk";
+import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import {
+  getGetIncidentsQueryKey,
+  getGetOverviewQueryKey,
+  useDeclareIncident,
+  useGetMonitors,
+} from "@/orion-sdk";
 import { cn } from "@/utils/cn";
 import { severityOptions } from "../incident-format";
-
-/** Core has no declare-incident route yet (requested from orion:backend); flip when it lands. */
-export const DECLARE_INCIDENT_API_AVAILABLE = false;
 
 export const DeclareIncidentDialog = ({
   open,
@@ -31,7 +35,10 @@ export const DeclareIncidentDialog = ({
   const [monitorId, setMonitorId] = useState("");
   const [summary, setSummary] = useState("");
   const [notify, setNotify] = useState(true);
-  const [unavailable, setUnavailable] = useState(false);
+  const [error, setError] = useState<string>();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const declare = useDeclareIncident();
   const monitors = useGetMonitors({ limit: 100 }, { query: { enabled: open } });
   const monitorOptions = (monitors.data?.monitors ?? []).map((monitor) => ({
     value: monitor.id ?? "",
@@ -51,7 +58,32 @@ export const DeclareIncidentDialog = ({
           className="flex flex-col gap-3.5"
           onSubmit={(event) => {
             event.preventDefault();
-            if (!DECLARE_INCIDENT_API_AVAILABLE) setUnavailable(true);
+            setError(undefined);
+            declare.mutate(
+              {
+                data: {
+                  title: title.trim(),
+                  severity: severity as "low" | "medium" | "high" | "critical",
+                  monitor_id: monitorId || undefined,
+                  summary: summary.trim() || undefined,
+                  notify,
+                },
+              },
+              {
+                onSuccess: (result) => {
+                  void queryClient.invalidateQueries({ queryKey: getGetIncidentsQueryKey() });
+                  void queryClient.invalidateQueries({ queryKey: getGetOverviewQueryKey() });
+                  onOpenChange(false);
+                  if (result.incident?.id) navigate(`/incidents/${result.incident.id}`);
+                },
+                onError: (failure) =>
+                  setError(
+                    (failure as { status?: number }).status === 409
+                      ? "That monitor already has an active incident."
+                      : "Unable to declare the incident. Try again.",
+                  ),
+              },
+            );
           }}
         >
           <label className="flex flex-col gap-1.5 text-[13px] font-medium">
@@ -115,16 +147,12 @@ export const DeclareIncidentDialog = ({
             <Checkbox checked={notify} onCheckedChange={(next) => setNotify(Boolean(next))} />
             Notify channels using the matching rule
           </label>
-          {unavailable && (
-            <Callout tone="warn">
-              Declaring incidents by hand needs a Core update that is not available yet.
-            </Callout>
-          )}
+          {error && <Callout tone="warn">{error}</Callout>}
           <DialogFooter>
             <Button variant="secondary" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!title.trim()}>
+            <Button type="submit" disabled={!title.trim() || declare.isPending}>
               Declare incident
             </Button>
           </DialogFooter>

@@ -23,7 +23,18 @@ const incident = {
 };
 
 const detail = (overrides: Record<string, unknown> = {}) => ({
-  incident: { ...incident, ...overrides },
+  incident: { ...incident, display_id: "INC-0231", ...overrides },
+  summary: {
+    notified_at: "2025-10-16T14:02:11Z",
+    notified_channels: ["ops-team"],
+    source: { monitor_name: "api-https", target: "GET /health", server_name: "edge-01" },
+    expected: { title: "200 OK", detail: "under 1.5s, valid TLS" },
+    actual: {
+      title: "Timeout",
+      detail: "no response in 10s, 3 failures in a row",
+      at: "2025-10-16T14:32:00Z",
+    },
+  },
   evidence: {
     latest_report: {
       id: "r1",
@@ -37,12 +48,36 @@ const detail = (overrides: Record<string, unknown> = {}) => ({
     { id: "d2", channel: "oncall webhook", status: "failed", created_at: "2025-10-16T14:02:12Z" },
   ],
   monitor_reports: Array.from({ length: 12 }, (_, i) => ({ id: `r${i}`, health: "down" })),
-  related_incidents: [{ id: "inc-229", number: 229, title: "Load balancer degraded" }],
+  related_incidents: [{ id: "inc-229", display_id: "INC-0229", title: "Load balancer degraded" }],
   timeline: [
-    { id: "t1", type: "note", note: "Upstream pool drained, restarting the load balancer.", actor_id: "admin", created_at: "2025-10-16T14:21:00Z" },
-    { id: "t2", type: "alert", status: "failed", alert_delivery_id: "d2", message: "Alert to oncall webhook failed after 3 attempts", created_at: "2025-10-16T14:02:12Z" },
-    { id: "t3", type: "alert", status: "sent", message: "Alert sent to ops-team (email, 1.1s)", created_at: "2025-10-16T14:02:11Z" },
-    { id: "t4", type: "incident_opened", message: "Incident opened: api-https failed 3 checks in a row", created_at: "2025-10-16T14:02:08Z" },
+    {
+      id: "t1",
+      type: "note",
+      note: "Upstream pool drained, restarting the load balancer.",
+      actor_id: "admin",
+      created_at: "2025-10-16T14:21:00Z",
+    },
+    {
+      id: "t2",
+      type: "alert",
+      status: "failed",
+      alert_delivery_id: "d2",
+      message: "Alert to oncall webhook failed after 3 attempts",
+      created_at: "2025-10-16T14:02:12Z",
+    },
+    {
+      id: "t3",
+      type: "alert",
+      status: "sent",
+      message: "Alert sent to ops-team (email, 1.1s)",
+      created_at: "2025-10-16T14:02:11Z",
+    },
+    {
+      id: "t4",
+      type: "incident_opened",
+      message: "Incident opened: api-https failed 3 checks in a row",
+      created_at: "2025-10-16T14:02:08Z",
+    },
   ],
 });
 
@@ -64,11 +99,30 @@ test("Incident detail matches the artboard", async ({ page }) => {
   await expectMatchesArtboard(page, "incident-detail", 848);
 });
 
-test("Incident detail posts a note only when Core supports it", async ({ page }) => {
+test("Incident detail posts a note and assigns a responder", async ({ page }) => {
   await freezeClock(page, "2025-10-16T14:32:20Z");
   await mockApi(page, mocks());
+  const bodies: Record<string, unknown> = {};
+  await page.route(/\/v1\/incidents\/inc-231\/notes$/, async (route) => {
+    bodies.note = route.request().postDataJSON();
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: {} }),
+    });
+  });
+  await page.route(/\/v1\/incidents\/inc-231\/responder$/, async (route) => {
+    bodies.responder = route.request().postDataJSON();
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: {} }),
+    });
+  });
   await page.goto("/incidents/inc-231");
   await page.getByLabel("Note").fill("Looking now");
   await page.getByRole("button", { name: "Post" }).click();
-  await expect(page.getByText("Notes need a Core update")).toBeVisible();
+  await expect.poll(() => bodies.note).toEqual({ text: "Looking now" });
+  await page.getByRole("button", { name: "Assign someone" }).click();
+  await page.getByLabel("Responder").fill("sam");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect.poll(() => bodies.responder).toEqual({ name: "sam" });
 });

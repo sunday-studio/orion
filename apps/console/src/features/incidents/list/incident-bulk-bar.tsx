@@ -1,22 +1,13 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
 import { Button, FloatingBar, useToast } from "@/design-system";
 import {
   getGetIncidentsQueryKey,
   getGetOverviewQueryKey,
-  useAcknowledgeIncident,
-  useCoverIncident,
-  useResolveIncident,
+  useBulkIncidentAction,
 } from "@/orion-sdk";
 
 type BulkAction = "acknowledge" | "cover" | "resolve";
 
-const COVER_FOR_MS = 60 * 60 * 1000;
-
-/**
- * Bulk actions run the single-incident endpoints one by one until Core gets a bulk route.
- * Failures are counted and reported so a partial result is never shown as success.
- */
 export const IncidentBulkBar = ({
   ids,
   onClear,
@@ -26,32 +17,23 @@ export const IncidentBulkBar = ({
 }) => {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [busy, setBusy] = useState(false);
-  const acknowledge = useAcknowledgeIncident();
-  const cover = useCoverIncident();
-  const resolve = useResolveIncident();
+  const bulk = useBulkIncidentAction();
+  const busy = bulk.isPending;
 
   const run = async (action: BulkAction) => {
-    setBusy(true);
-    let failed = 0;
-    for (const id of ids) {
-      try {
-        if (action === "acknowledge") await acknowledge.mutateAsync({ id });
-        else if (action === "resolve")
-          await resolve.mutateAsync({ id, data: { note: "Resolved in bulk" } });
-        else
-          await cover.mutateAsync({
-            id,
-            data: {
-              covered_until: new Date(Date.now() + COVER_FOR_MS).toISOString(),
-              note: "Covered in bulk for 1 hour",
-            },
-          });
-      } catch {
-        failed += 1;
-      }
+    let failed = ids.length;
+    try {
+      const result = await bulk.mutateAsync({
+        data: {
+          ids: [...ids],
+          action,
+          note: action === "cover" ? "Covered in bulk for 1 hour" : `Bulk ${action}`,
+        },
+      });
+      failed = result.failed ?? 0;
+    } catch {
+      failed = ids.length;
     }
-    setBusy(false);
     void queryClient.invalidateQueries({ queryKey: getGetIncidentsQueryKey() });
     void queryClient.invalidateQueries({ queryKey: getGetOverviewQueryKey() });
     const done = ids.length - failed;

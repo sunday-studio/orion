@@ -17,6 +17,7 @@ import {
   getGetIncidentsQueryKey,
   getListStatusPagesQueryKey,
   useAcknowledgeIncident,
+  useAddIncidentNote,
   useCoverIncident,
   useCreateStatusPageIncidentDraft,
   useGetIncident,
@@ -25,6 +26,7 @@ import {
   useReopenIncident,
   useResolveIncident,
   useRetryAlertDelivery,
+  useSetIncidentResponder,
 } from "@/orion-sdk";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -66,6 +68,8 @@ export const IncidentDetailPage = () => {
   const coverIncident = useCoverIncident({ mutation: { onSuccess: refreshIncident } });
   const reopenIncident = useReopenIncident({ mutation: { onSuccess: refreshIncident } });
   const now = useNow(1000);
+  const addNote = useAddIncidentNote({ mutation: { onSuccess: refreshIncident } });
+  const setResponder = useSetIncidentResponder({ mutation: { onSuccess: refreshIncident } });
   const retryDelivery = useRetryAlertDelivery({ mutation: { onSuccess: refreshIncident } });
   const [publicDraftDialogOpen, setPublicDraftDialogOpen] = useState(false);
   const [selectedStatusPageID, setSelectedStatusPageID] = useState("");
@@ -96,6 +100,7 @@ export const IncidentDetailPage = () => {
   });
   const evidence = incidentResponse.data?.evidence;
   const timeline = incidentResponse.data?.timeline ?? [];
+  const summary = incidentResponse.data?.summary;
   const alertDeliveries = incidentResponse.data?.alert_deliveries ?? [];
   const monitorReports = incidentResponse.data?.monitor_reports ?? [];
   const relatedIncidents = incidentResponse.data?.related_incidents ?? [];
@@ -194,10 +199,7 @@ export const IncidentDetailPage = () => {
     return <div className="py-3 text-sm text-quiet">Incident not found.</div>;
   }
 
-  const moments = incidentMoments(incident, alertDeliveries, timeline);
-  const notifiedVia = [...new Set(alertDeliveries.map((delivery) => delivery.channel))]
-    .filter(Boolean)
-    .join(", ");
+  const moments = incidentMoments(incident, alertDeliveries, timeline, summary);
   const monitorName = incident.monitor_name ?? "the monitor";
 
   return (
@@ -230,7 +232,12 @@ export const IncidentDetailPage = () => {
           <div className="rounded-xl border border-line-soft bg-field px-4 py-3.5">
             <LifecycleTrack steps={lifecycleSteps(incident, moments, now)} />
           </div>
-          <ExpectedActual report={latestReport} now={now} />
+          <ExpectedActual
+            expected={summary?.expected}
+            actual={summary?.actual}
+            report={latestReport}
+            now={now}
+          />
           <Tabs value={activeTab} onValueChange={handleTabChange} className="gap-3.5">
             <TabsList className="w-full gap-2 self-stretch">
               <TabsTab value="timeline" className="px-2.5">
@@ -244,7 +251,13 @@ export const IncidentDetailPage = () => {
               </TabsTab>
             </TabsList>
             <TabsPanel value="timeline" className="flex flex-col gap-3.5">
-              <NoteComposer />
+              <NoteComposer
+                pending={addNote.isPending}
+                failed={addNote.isError}
+                onPost={(text, done) =>
+                  addNote.mutate({ id: incidentId, data: { text } }, { onSuccess: done })
+                }
+              />
               <IncidentTimeline
                 items={timeline}
                 retrying={retryDelivery.isPending}
@@ -279,12 +292,13 @@ export const IncidentDetailPage = () => {
         </div>
         <IncidentSidePanel
           incident={incident}
+          summary={summary}
           now={now}
-          notified={notifiedVia}
           notifiedAt={moments.notifiedAt}
           acknowledgedAt={moments.acknowledgedAt}
           related={relatedIncidents}
           onDraftUpdate={() => handlePublicDraftDialogOpenChange(true)}
+          onSetResponder={(name) => setResponder.mutate({ id: incidentId, data: { name } })}
         />
       </div>
       <ReportInspectionDrawer

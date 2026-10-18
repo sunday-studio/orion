@@ -1,9 +1,10 @@
 import type { ApiIncidentResponse } from "@/orion-sdk";
 
-/** Core will add `number` (INC-0231); until then a short id stands in. */
-export type NumberedIncident = ApiIncidentResponse & { number?: number };
+/** Core supplies `display_id` (INC-0231); a short id stands in for older records. */
+export type NumberedIncident = ApiIncidentResponse & { number?: number; display_id?: string };
 
 export const incidentLabel = (incident: NumberedIncident) => {
+  if (incident.display_id) return incident.display_id;
   if (typeof incident.number === "number") return `INC-${String(incident.number).padStart(4, "0")}`;
   return `INC-${(incident.id ?? "")
     .replace(/[^a-zA-Z0-9]/g, "")

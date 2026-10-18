@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Button } from "@/design-system";
-import type { ApiIncidentRelatedIncidentResponse } from "@/orion-sdk";
+import { Button, Input } from "@/design-system";
+import type { ApiIncidentDetailSummary, ApiIncidentRelatedIncidentResponse } from "@/orion-sdk";
 import { formatSpan } from "@/features/overview/overview-time";
 import { formatDate } from "@/utils/date";
 import { type NumberedIncident, incidentLabel } from "../incident-format";
@@ -20,50 +21,102 @@ const Facts = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
+const seconds = (value?: number) =>
+  value === undefined ? undefined : formatSpan(0, value * 1000, true);
+
+const Responder = ({ name, onSave }: { name?: string; onSave: (name: string) => void }) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name ?? "");
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        className={name ? "text-left" : "text-left underline"}
+        onClick={() => {
+          setDraft(name ?? "");
+          setEditing(true);
+        }}
+      >
+        {name || "Assign someone"}
+      </button>
+    );
+  }
+  return (
+    <form
+      className="flex gap-1"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSave(draft.trim());
+        setEditing(false);
+      }}
+    >
+      <Input
+        autoFocus
+        aria-label="Responder"
+        className="h-6 text-[12.5px]"
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+      />
+      <Button type="submit" size="sm" variant="secondary">
+        Save
+      </Button>
+    </form>
+  );
+};
+
 type Props = {
   incident: NumberedIncident;
+  summary?: ApiIncidentDetailSummary;
   now: number;
-  notified?: string;
   notifiedAt?: string;
   acknowledgedAt?: string;
   related: ApiIncidentRelatedIncidentResponse[];
   onDraftUpdate: () => void;
+  onSetResponder: (name: string) => void;
 };
 
 /** Facts panel: source, people, timestamps, durations, status page, related. */
 export const IncidentSidePanel = ({
   incident,
+  summary,
   now,
-  notified,
   notifiedAt,
   acknowledgedAt,
   related,
   onDraftUpdate,
+  onSetResponder,
 }: Props) => {
   const opened = incident.opened_at ? new Date(incident.opened_at).getTime() : undefined;
-  const ackedAt = acknowledgedAt;
-  const acked = ackedAt ? new Date(ackedAt).getTime() : undefined;
   const resolved = incident.resolved_at ? new Date(incident.resolved_at).getTime() : undefined;
   const clock = (iso?: string) => (iso ? formatDate(iso, TIME) : undefined);
-  const muted = <span className="text-faint">Not yet</span>;
+  const source = summary?.source;
+  const toAck =
+    seconds(summary?.time_to_acknowledge_seconds) ??
+    (opened && acknowledgedAt
+      ? formatSpan(opened, new Date(acknowledgedAt).getTime(), true)
+      : undefined);
+  const toResolve =
+    seconds(summary?.time_to_resolve_seconds) ??
+    (opened && resolved ? formatSpan(opened, resolved, true) : undefined);
+  const updates = summary?.status_page?.published_updates ?? 0;
   return (
     <aside aria-label="Incident details" className="h-fit rounded-xl bg-[#f7f7f6] dark:bg-card">
       <Section title="Source">
         <Facts>
           <span>Monitor</span>
-          <span className="truncate">{incident.monitor_name ?? "-"}</span>
-          <span>Type</span>
-          <span>{incident.monitor_type ?? "-"}</span>
+          <span className="truncate">{source?.monitor_name ?? incident.monitor_name ?? "-"}</span>
+          <span>Target</span>
+          <span className="truncate">{source?.target ?? incident.monitor_type ?? "-"}</span>
           <span>Server</span>
-          <span className="truncate">{incident.agent_name ?? "-"}</span>
+          <span className="truncate">{source?.server_name ?? incident.agent_name ?? "-"}</span>
         </Facts>
       </Section>
       <Section title="People">
         <Facts>
           <span>Responder</span>
-          <span className="text-faint">Unassigned</span>
+          <Responder name={incident.responder} onSave={onSetResponder} />
           <span>Notified</span>
-          <span>{notified ?? "-"}</span>
+          <span>{summary?.notified_channels?.join(", ") || "-"}</span>
         </Facts>
       </Section>
       <Section title="Timestamps">
@@ -73,14 +126,16 @@ export const IncidentSidePanel = ({
           <span>Notified</span>
           <span className="font-mono">{clock(notifiedAt) ?? "-"}</span>
           <span>Acknowledged</span>
-          <span className="font-mono">{clock(ackedAt) ?? muted}</span>
+          <span className="font-mono">
+            {clock(acknowledgedAt) ?? <span className="text-faint">Not yet</span>}
+          </span>
         </Facts>
       </Section>
       <Section title="Duration">
         <Facts>
           <span>Time to ack</span>
-          {opened && acked ? (
-            <span>{formatSpan(opened, acked, true)}</span>
+          {toAck ? (
+            <span>{toAck}</span>
           ) : opened && !resolved ? (
             <span className="text-[#be123c]">
               {formatSpan(opened, now, false, true)} and counting
@@ -89,17 +144,19 @@ export const IncidentSidePanel = ({
             <span className="text-faint">-</span>
           )}
           <span>Time to resolve</span>
-          {opened && resolved ? (
-            <span>{formatSpan(opened, resolved, true)}</span>
-          ) : (
-            <span className="text-faint">-</span>
-          )}
+          {toResolve ? <span>{toResolve}</span> : <span className="text-faint">-</span>}
         </Facts>
       </Section>
       <Section title="Status page">
-        <div className="text-[12.5px] text-quiet">No public update yet</div>
+        <div className="text-[12.5px] text-quiet">
+          {updates > 0
+            ? `${updates} public ${updates === 1 ? "update" : "updates"} published`
+            : summary?.status_page?.draft_exists
+              ? "Draft saved, not published"
+              : "No public update yet"}
+        </div>
         <Button size="sm" variant="secondary" className="mt-2" onClick={onDraftUpdate}>
-          Draft update
+          {updates > 0 ? "Post update" : "Draft update"}
         </Button>
       </Section>
       {related.length > 0 && (
