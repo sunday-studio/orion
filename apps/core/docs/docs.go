@@ -21714,6 +21714,11 @@ const docTemplate = `{
                             ]
                         },
                         "token": {
+                            "description": "Token is the secret itself; it is returned to Console sessions only, never to API tokens.",
+                            "type": "string"
+                        },
+                        "token_mask": {
+                            "description": "TokenMask is the token with its middle hidden, shown to API tokens.",
                             "type": "string"
                         }
                     }

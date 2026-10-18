@@ -106,6 +106,7 @@ func (s *Server) exportStatusPageSubscribers(c *gin.Context) {
 		utils.InternalError(c, "Failed to export subscribers", err)
 		return
 	}
+	hideSubscriberEmailsFromTokens(c, rows)
 	c.Header("Content-Type", "text/csv; charset=utf-8")
 	c.Header("Content-Disposition", `attachment; filename="subscribers.csv"`)
 	c.Header("Cache-Control", "no-store")

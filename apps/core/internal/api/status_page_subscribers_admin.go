@@ -80,6 +80,7 @@ func (s *Server) listStatusPageSubscribers(c *gin.Context) {
 		utils.InternalError(c, "Failed to list status page subscribers", err)
 		return
 	}
+	hideSubscriberEmailsFromTokens(c, responses)
 	responses = filterSubscriberResponses(responses, c.Query("q"))
 	c.Header("Cache-Control", "no-store")
 
@@ -359,6 +360,7 @@ func statusPageSubscriberAdminResponse(subscriber db.StatusPageSubscriber, compo
 
 func (s *Server) writeStatusPageSubscriberAdminResponse(c *gin.Context, status int, message string, subscriber db.StatusPageSubscriber) {
 	responses, err := s.statusPageSubscriberAdminResponses(subscriber.StatusPageID, []db.StatusPageSubscriber{subscriber})
+	hideSubscriberEmailsFromTokens(c, responses)
 	if err != nil {
 		s.logger.Error("Failed to build status page subscriber response", "status_page_id", subscriber.StatusPageID, "subscriber_id", subscriber.ID, "error", err)
 		utils.InternalError(c, "Failed to load status page subscriber", err)
@@ -375,4 +377,14 @@ func (s *Server) clearStatusPageSubscriberTokenHashes(subscriber *db.StatusPageS
 	subscriber.ManageTokenVersion++
 	subscriber.UnsubscribeTokenHash = ""
 	subscriber.UnsubscribeTokenVersion++
+}
+
+// hideSubscriberEmailsFromTokens keeps full addresses for Console sessions; API tokens (scrapers, dashboards) see the masked form.
+func hideSubscriberEmailsFromTokens(c *gin.Context, rows []StatusPageSubscriberAdminResponse) {
+	if !isAPITokenCaller(c) {
+		return
+	}
+	for i := range rows {
+		rows[i].Email = ""
+	}
 }
