@@ -59,10 +59,18 @@ orion-agent-linux-amd64
 orion-agent-linux-arm64
 orion-agent-darwin-amd64
 orion-agent-darwin-arm64
+orion-agent-sbom.spdx.json
+SHA256SUMS
+SHA256SUMS.sig
+SHA256SUMS.pem
 ```
 
 The installer detects the host OS and architecture and downloads the matching Server binary and
 service assets from the latest GitHub release unless `--version` is explicitly passed.
+
+The SPDX JSON SBOM covers the release asset directory. `SHA256SUMS` covers every executable and
+installer asset the bootstrap script downloads; its keyless cosign signature and certificate let a
+host with cosign verify the release workflow identity before installation.
 
 The Server reports its baked version in system reports, so Core and Console can show which version
 is installed.
