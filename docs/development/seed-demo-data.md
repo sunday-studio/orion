@@ -101,6 +101,43 @@ The generated status page data covers:
 - confirmed, scoped, pending, and unsubscribed public subscribers;
 - sent and pending-sender-configuration subscriber delivery rows.
 
+## Showcase: every state, by name
+
+On top of the generated scenarios the seed adds a small, explicit set of named records (ids start with
+`seed-state-`) so each screen state can be reviewed without creating data by hand. They live in
+`apps/core/scripts/seed-demo-data/seed-states-*.go`, one file per feature, and `seed_test.go` fails when a
+state goes missing.
+
+- Servers: `web-prod-01` up, `api-prod-02` degraded and high CPU, `db-prod-01` down, `cache-stage-01` in
+  maintenance, `batch-eu-03` stale, `edge-new-01` unknown (no reports), `files-prod-01` disk 94% and memory
+  96%, `tools-dev-01` nearly idle, plus labels, notes, a token in its rotation grace window, a rotated token,
+  a revoked token, a removed server with its history kept, and add-server sessions (waiting, claimed,
+  expired, cancelled).
+- Monitors: every Core kind (http, keyword, tcp, dns, tls, udp, ping, domain expiry, api request, smtp,
+  synthetic, playwright, heartbeat ok, late and waiting) and agent kind, in up, degraded, down, stale,
+  unknown, paused and maintenance (active and scheduled) states, with runbooks, spikes and timeouts, and
+  agent monitor definitions that are reporting or still waiting.
+- Incidents: open, acknowledged, covered by another incident, resolved (recovered, manual, monitor
+  removed, decommissioned), reopened twice, declared by hand, every severity, notes, responders, and open
+  and dismissed candidates.
+- Alerts: healthy, failing, disabled, digest and untested channels with confirmed, pending and
+  unsubscribed recipients; deliveries that are sent, retried then sent, failed, exhausted, pending,
+  suppressed and in cooldown; rules with cooldown, suppression and disabled; label routes including a
+  disabled one.
+- Status pages: published with a pending domain, unlisted with a failed domain, verified, draft and empty
+  pages; components in every state including hidden; public incidents in every status plus draft and
+  private; maintenance scheduled, in progress and completed; subscribers confirmed, pending, expired,
+  unsubscribed, disabled and bounced.
+
+The showcase uses a one day reporting interval, because Core treats data as stale after five intervals; the
+states therefore last for days instead of turning stale a few minutes after seeding. Nothing seeded is
+picked up by the worker: Core monitors are scheduled ten years out, undelivered alerts are parked 36 hours
+ahead, and silent monitors already have their stale incident. Set the same
+`ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET` for the seed and for Core (the dev compose file does) and the
+subscriber screens show full email addresses.
+
+Product logs are not seeded yet; they belong to the logs and settings work.
+
 ## Re-running
 
 The script deletes previous `seed-*` rows before inserting new rows unless `-reset-seed=false` is passed.

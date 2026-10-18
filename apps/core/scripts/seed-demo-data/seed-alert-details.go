@@ -90,14 +90,18 @@ func seedAlertDetails(database *gorm.DB, now time.Time) (alertDetailStats, error
 			start := d.CreatedAt.Add(time.Duration((a-1)*2) * time.Minute)
 			attemptStatus := choose(d.Status == "failed", "failed", "sent")
 			errText := choose(d.Status == "failed", fmt.Sprintf("webhook returned status %d", code), "")
-			if err := database.Create(&db.AlertDeliveryAttempt{ID: fmt.Sprintf("seed-alert-attempt-%s-%d", d.ID, a), AlertDeliveryID: d.ID, AttemptNumber: a, Status: attemptStatus, Stage: "http_response",
+			stage := "http_response"
+			if typ == "email" {
+				errText, stage = choose(d.Status == "failed", "smtp: 421 service not available", ""), "transport"
+			}
+			if err := database.Create(&db.AlertDeliveryAttempt{ID: fmt.Sprintf("seed-alert-attempt-%s-%d", d.ID, a), AlertDeliveryID: d.ID, AttemptNumber: a, Status: attemptStatus, Stage: stage,
 				Error: errText, HTTPStatus: code, StartedAt: start, CompletedAt: ptrTime(start.Add(time.Duration(300+a*1900) * time.Millisecond)), CreatedAt: start, UpdatedAt: start}).Error; err != nil {
 				return stats, err
 			}
 			stats.attempts++
 		}
 		if d.Status == "failed" {
-			database.Model(&db.AlertDelivery{}).Where("id = ?", d.ID).Updates(map[string]any{"attempt_count": n, "max_attempts": 8, "error": "webhook returned status 502"})
+			database.Model(&db.AlertDelivery{}).Where("id = ?", d.ID).Updates(map[string]any{"attempt_count": n, "max_attempts": 8, "error": choose(typ == "email", "smtp: 421 service not available", "webhook returned status 502")})
 		}
 	}
 	return stats, nil
