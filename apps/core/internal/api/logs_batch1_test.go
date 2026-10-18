@@ -163,6 +163,13 @@ func TestKeyRotationRedactionRulesPurgeAndTest(t *testing.T) {
 	if r := performJSONRequest(t, server, http.MethodPost, "/v1/apps/"+appID+"/keys/"+keys.Data.Keys[0].ID+"/rotate", nil, ""); r.Code != http.StatusNotFound {
 		t.Errorf("rotating an already rotated key = %d, want 404", r.Code)
 	}
+	// A leaked key can be killed at once, even inside the rotation grace period.
+	if r := performJSONRequest(t, server, http.MethodDelete, "/v1/apps/"+appID+"/keys/"+keys.Data.Keys[0].ID, nil, ""); r.Code != http.StatusOK {
+		t.Errorf("revoking a rotated key = %d, want 200", r.Code)
+	}
+	if r := ingest(server, key, "application/json", `{"body":"hello"}`); r.Code != http.StatusUnauthorized {
+		t.Errorf("revoked old key ingest = %d, want 401", r.Code)
+	}
 
 	rules := gin.H{"redaction": gin.H{"rules": []gin.H{{"type": "key", "pattern": "card_number", "replace_with": "[hidden]"}, {"type": "regex", "pattern": `\b\d{16}\b`, "replace_with": "[card]"}}}}
 	if r := performJSONRequest(t, server, http.MethodPatch, "/v1/apps/"+appID, rules, ""); r.Code != http.StatusOK {
@@ -267,6 +274,16 @@ func TestLogExportCSVAndJSONLines(t *testing.T) {
 	}
 	if r := performJSONRequest(t, server, http.MethodGet, csvExport.DownloadURL, nil, ""); r.Code != http.StatusNotFound {
 		t.Errorf("expired download = %d", r.Code)
+	}
+}
+
+func TestDottedAttributeKeysMustBeWellFormed(t *testing.T) {
+	server := setupLogsServer(t, nil)
+	appID, _ := createAppWithKey(t, server, "x")
+	for _, bad := range []string{"a.", ".a", "a..b"} {
+		if r := performJSONRequest(t, server, http.MethodGet, "/v1/logs?app_id="+appID+"&attr="+bad+":1", nil, ""); r.Code != http.StatusBadRequest {
+			t.Errorf("attr %q = %d, want 400", bad, r.Code)
+		}
 	}
 }
 

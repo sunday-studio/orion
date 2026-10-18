@@ -716,6 +716,8 @@ definitions:
         type: integer
       last_ingest_at:
         type: string
+      lines:
+        type: integer
       max_storage_mb:
         description: MaxStorageMB caps stored log size for this app; the oldest entries
           are pruned first. 0 means the server default.
@@ -723,6 +725,13 @@ definitions:
       name:
         example: checkout-api
         type: string
+      rate_limit_per_second:
+        description: RateLimitPerSecond is this app's ingest limit in lines per second;
+          0 uses the server default.
+        type: integer
+      rate_per_second:
+        description: RatePerSecond is the average over the last minute.
+        type: number
       redaction:
         $ref: '#/definitions/internal_api.RedactionSettings'
       retention_days:
@@ -732,6 +741,21 @@ definitions:
       slug:
         example: checkout-api
         type: string
+      status:
+        description: Status is receiving (a log in the last 5 minutes), quiet or never.
+        enum:
+        - receiving
+        - quiet
+        - never
+        type: string
+      storage_bytes:
+        description: StorageBytes is what the app currently uses; StorageCapBytes
+          its size cap (0 = no cap).
+        type: integer
+      storage_cap_bytes:
+        type: integer
+      storage_percent:
+        type: integer
     type: object
   internal_api.AppRequest:
     properties:
@@ -747,6 +771,8 @@ definitions:
         type: integer
       name:
         type: string
+      rate_limit_per_second:
+        type: integer
       redaction:
         $ref: '#/definitions/internal_api.RedactionSettings'
       retention_days:
@@ -768,6 +794,8 @@ definitions:
         type: integer
       name:
         type: string
+      rate_limit_per_second:
+        type: integer
       redaction:
         $ref: '#/definitions/internal_api.RedactionSettings'
       retention_days:
@@ -1059,6 +1087,64 @@ definitions:
         - expired
         - cancelled
         type: string
+    type: object
+  internal_api.ExportRequest:
+    properties:
+      format:
+        description: Format is csv (default) or jsonl.
+        enum:
+        - csv
+        - jsonl
+        type: string
+      include_raw:
+        description: IncludeRaw adds the raw event as a column (CSV); JSON lines always
+          contain the full event.
+        type: boolean
+      kind:
+        description: Kind is logs (default), events or internal.
+        enum:
+        - logs
+        - events
+        - internal
+        type: string
+      query:
+        description: Query is the screen's filter as a URL query string, for example
+          "severity=error&from=-24h".
+        example: severity=error&from=-24h
+        type: string
+    type: object
+  internal_api.ExportResponse:
+    properties:
+      bytes:
+        type: integer
+      created_at:
+        type: string
+      download_url:
+        type: string
+      error:
+        type: string
+      expires_at:
+        type: string
+      finished_at:
+        type: string
+      format:
+        type: string
+      id:
+        type: string
+      kind:
+        type: string
+      rows:
+        type: integer
+      status:
+        description: Status is queued, running, done or failed.
+        enum:
+        - queued
+        - running
+        - done
+        - failed
+        type: string
+      truncated:
+        type: boolean
     type: object
   internal_api.HealthIssue:
     properties:
@@ -1883,6 +1969,10 @@ definitions:
         type: object
       severity:
         $ref: '#/definitions/internal_api.LogSeverity'
+      severity_inferred:
+        description: SeverityInferred is true when the sender gave no severity and
+          it was read from the text.
+        type: boolean
       severity_number:
         example: 17
         type: integer
@@ -1948,6 +2038,52 @@ definitions:
         example: 4bf92f3577b34da6a3ce929d0e0e4736
         type: string
     type: object
+  internal_api.LogFacetCount:
+    properties:
+      count:
+        type: integer
+      label:
+        description: Label is the display name (an app's name for the source facet).
+        type: string
+      value:
+        type: string
+    type: object
+  internal_api.LogFacetsResponse:
+    properties:
+      environments:
+        items:
+          $ref: '#/definitions/internal_api.LogFacetCount'
+        type: array
+      events:
+        items:
+          $ref: '#/definitions/internal_api.LogFacetCount'
+        type: array
+      events_distinct:
+        description: EventsDistinct is how many different events exist, for "Show
+          41 more".
+        type: integer
+      fields:
+        items:
+          $ref: '#/definitions/internal_api.LogFieldStat'
+        type: array
+      severity:
+        additionalProperties:
+          format: int64
+          type: integer
+        type: object
+      sources:
+        items:
+          $ref: '#/definitions/internal_api.LogFacetCount'
+        type: array
+      total:
+        type: integer
+      values:
+        description: Values lists the most common values when the field query parameter
+          is set.
+        items:
+          $ref: '#/definitions/internal_api.LogFacetCount'
+        type: array
+    type: object
   internal_api.LogFieldCatalogResponse:
     properties:
       fields:
@@ -2001,6 +2137,34 @@ definitions:
           $ref: '#/definitions/internal_api.LogHistogramBucket'
         type: array
     type: object
+  internal_api.LogIngestStatus:
+    properties:
+      behind:
+        type: boolean
+      dropped:
+        description: Dropped counts entries dropped since Core started.
+        type: integer
+      lag_seconds:
+        description: LagSeconds estimates how long newly accepted logs wait before
+          they are searchable.
+        type: integer
+      lines_today:
+        type: integer
+      queue_depth:
+        type: integer
+      queue_max:
+        type: integer
+      rate_limited:
+        type: boolean
+      storage_bytes:
+        type: integer
+      storage_full:
+        type: boolean
+      storage_limit_bytes:
+        description: StorageLimitBytes is the sum of the apps' size caps; 0 when any
+          app has no cap.
+        type: integer
+    type: object
   internal_api.LogListResponse:
     properties:
       entries:
@@ -2013,6 +2177,57 @@ definitions:
         description: Truncated is true when the time range matched more rows than
           the server will scan.
         type: boolean
+    type: object
+  internal_api.LogPattern:
+    properties:
+      count:
+        type: integer
+      first_seen:
+        type: string
+      is_new:
+        type: boolean
+      last_seen:
+        type: string
+      pattern:
+        example: 'Delivery failed: <n> returned <n>'
+        type: string
+      sample_id:
+        type: string
+      severity:
+        $ref: '#/definitions/internal_api.LogSeverity'
+      trend:
+        items:
+          type: integer
+        type: array
+    type: object
+  internal_api.LogPatternsResponse:
+    properties:
+      from:
+        type: string
+      patterns:
+        items:
+          $ref: '#/definitions/internal_api.LogPattern'
+        type: array
+      to:
+        type: string
+    type: object
+  internal_api.LogRelatedResponse:
+    properties:
+      by:
+        description: By is request_id, trace_id or nearby.
+        enum:
+        - request_id
+        - trace_id
+        - nearby
+        type: string
+      entries:
+        items:
+          $ref: '#/definitions/internal_api.LogEntry'
+        type: array
+      total:
+        type: integer
+      value:
+        type: string
     type: object
   internal_api.LogSavedView:
     properties:
@@ -2446,8 +2661,35 @@ definitions:
         description: Uptime30dPercent is null until a daily rollup exists.
         type: number
     type: object
+  internal_api.RedactionDefaultsResponse:
+    properties:
+      keys:
+        items:
+          type: string
+        type: array
+    type: object
+  internal_api.RedactionRule:
+    properties:
+      pattern:
+        example: card_number
+        type: string
+      replace_with:
+        example: '[redacted]'
+        type: string
+      type:
+        enum:
+        - key
+        - regex
+        type: string
+    type: object
   internal_api.RedactionSettings:
     properties:
+      default_keys:
+        description: 'DefaultKeys is read-only: the key names redacted unless defaults
+          are disabled.'
+        items:
+          type: string
+        type: array
       disable_defaults:
         description: DisableDefaults turns off the built-in key list. Not recommended.
         type: boolean
@@ -2457,6 +2699,30 @@ definitions:
         items:
           type: string
         type: array
+      rules:
+        description: Rules are custom rules applied after the defaults.
+        items:
+          $ref: '#/definitions/internal_api.RedactionRule'
+        type: array
+    type: object
+  internal_api.RedactionTestRequest:
+    properties:
+      redaction:
+        allOf:
+        - $ref: '#/definitions/internal_api.RedactionSettings'
+        description: Redaction overrides the app's saved rules; omit to test what
+          is saved.
+      sample:
+        description: Sample is a JSON value (object, array or string).
+        type: object
+    type: object
+  internal_api.RedactionTestResponse:
+    properties:
+      changed:
+        description: Changed is true when at least one value differs from the sample.
+        type: boolean
+      redacted:
+        type: object
     type: object
   internal_api.ReorderLabelRoutesRequest:
     properties:
@@ -2577,6 +2843,12 @@ definitions:
         - incident
         - server
         - app
+        type: string
+    type: object
+  internal_api.SearchTimeoutBody:
+    properties:
+      code:
+        example: search_timeout
         type: string
     type: object
   internal_api.ServiceLogBatchResponse:
@@ -7995,6 +8267,128 @@ paths:
       summary: Revoke an ingest key
       tags:
       - apps
+  /v1/apps/{id}/keys/{key_id}/rotate:
+    post:
+      description: Creates a new key with the same name and returns it once. The old
+        key keeps working for 10 minutes (its revoked_at is set to that time) so a
+        deploy can switch without dropping logs.
+      operationId: rotateIngestKey
+      parameters:
+      - description: App id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Key id
+        in: path
+        name: key_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    key:
+                      $ref: '#/definitions/internal_api.IngestKeyCreated'
+                    previous_key_valid_until:
+                      type: string
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Rotate an ingest key
+      tags:
+      - apps
+  /v1/apps/{id}/purge:
+    post:
+      description: Removes every stored log line of the app (the app, keys and rules
+        stay).
+      operationId: purgeAppLogs
+      parameters:
+      - description: App id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    deleted:
+                      type: integer
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete all logs for an app
+      tags:
+      - apps
+  /v1/apps/{id}/redaction/test:
+    post:
+      consumes:
+      - application/json
+      description: Applies the app's saved rules, or the rules in the request, to
+        a sample and returns the result. Nothing is saved or stored.
+      operationId: testAppRedaction
+      parameters:
+      - description: App id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Sample and optional unsaved rules
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.RedactionTestRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.RedactionTestResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Test redaction rules
+      tags:
+      - apps
   /v1/apps/{id}/test-log:
     post:
       consumes:
@@ -8320,6 +8714,64 @@ paths:
       summary: List Orion events
       tags:
       - events
+  /v1/exports/{id}:
+    get:
+      operationId: getExport
+      parameters:
+      - description: Export id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    export:
+                      $ref: '#/definitions/internal_api.ExportResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get an export
+      tags:
+      - exports
+  /v1/exports/{id}/download:
+    get:
+      operationId: downloadExport
+      parameters:
+      - description: Export id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - text/csv
+      responses:
+        "200":
+          description: File
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Download an export
+      tags:
+      - exports
   /v1/health/issues:
     get:
       consumes:
@@ -9635,6 +10087,43 @@ paths:
       summary: Get one log entry
       tags:
       - logs
+  /v1/logs/{id}/related:
+    get:
+      description: The entries sharing the request id, else the trace id; for plain
+        lines with neither, the lines just before and after in the same app (by=nearby).
+      operationId: getLogRelated
+      parameters:
+      - description: Log entry id
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 10
+        description: Maximum entries
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.LogRelatedResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Related logs
+      tags:
+      - logs
   /v1/logs/alerts:
     get:
       description: Rules that raise an incident when an app's logs match a condition.
@@ -9789,6 +10278,132 @@ paths:
       summary: Update a log alert rule
       tags:
       - logs
+  /v1/logs/export:
+    post:
+      consumes:
+      - application/json
+      description: Starts a CSV or JSON lines export of the rows matching a filter
+        (capped at 100,000 rows). Poll GET /v1/exports/{id}; the download link works
+        for 24 hours.
+      operationId: createExport
+      parameters:
+      - description: What to export
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.ExportRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    export:
+                      $ref: '#/definitions/internal_api.ExportResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Export logs
+      tags:
+      - exports
+  /v1/logs/facets:
+    get:
+      description: Counts per severity, source, event and environment for the same
+        filters as the search, plus the field catalog for a single app. Pass field=<key>
+        to also get that attribute's most common values.
+      operationId: getLogFacets
+      parameters:
+      - description: Filter by app
+        in: query
+        name: app_id
+        type: string
+      - description: Comma-separated severities, or a minimum with >=warn
+        in: query
+        name: severity
+        type: string
+      - description: Exact event name
+        in: query
+        name: event
+        type: string
+      - description: Full-text search
+        in: query
+        name: q
+        type: string
+      - description: Start (RFC 3339, or relative like -1h)
+        in: query
+        name: from
+        type: string
+      - description: End (RFC 3339); default now
+        in: query
+        name: to
+        type: string
+      - description: Exact trace id
+        in: query
+        name: trace_id
+        type: string
+      - description: Exact request id
+        in: query
+        name: request_id
+        type: string
+      - description: Attribute filter key:value, repeatable
+        in: query
+        name: attr
+        type: string
+      - default: 5
+        description: How many events to list
+        in: query
+        name: events
+        type: integer
+      - description: Attribute key to list top values for
+        in: query
+        name: field
+        type: string
+      - default: 10
+        description: How many values
+        in: query
+        name: values
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.LogFacetsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "504":
+          description: Gateway Timeout
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.SearchTimeoutBody'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Log facets
+      tags:
+      - logs
   /v1/logs/fields:
     get:
       consumes:
@@ -9915,6 +10530,116 @@ paths:
       security:
       - BearerAuth: []
       summary: Log volume histogram
+      tags:
+      - logs
+  /v1/logs/ingest-status:
+    get:
+      description: Whether ingest is behind (queue depth, lag estimate, rate limiting,
+        storage full) plus today's volume and storage use, for the "Ingest is behind"
+        banner and the Apps header.
+      operationId: getLogIngestStatus
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.LogIngestStatus'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Log ingest status
+      tags:
+      - logs
+  /v1/logs/patterns:
+    get:
+      description: Groups similar messages (numbers, ids and addresses become placeholders)
+        so a flood of one error is one row. Reads up to 20,000 newest matching lines
+        of the window; is_new marks patterns absent from the previous window of the
+        same length.
+      operationId: getLogPatterns
+      parameters:
+      - description: Filter by app
+        in: query
+        name: app_id
+        type: string
+      - description: Comma-separated severities, or a minimum with >=warn
+        in: query
+        name: severity
+        type: string
+      - description: Exact event name
+        in: query
+        name: event
+        type: string
+      - description: Full-text search
+        in: query
+        name: q
+        type: string
+      - description: Start; default 24 hours ago
+        in: query
+        name: from
+        type: string
+      - description: End; default now
+        in: query
+        name: to
+        type: string
+      - default: 50
+        description: Maximum patterns
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.LogPatternsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "504":
+          description: Gateway Timeout
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.SearchTimeoutBody'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Log patterns
+      tags:
+      - logs
+  /v1/logs/redaction-defaults:
+    get:
+      operationId: getRedactionDefaults
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.RedactionDefaultsResponse'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Default redaction keys
       tags:
       - logs
   /v1/logs/service:

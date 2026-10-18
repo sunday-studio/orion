@@ -120,6 +120,12 @@ func (s *Server) createExportImpl(c *gin.Context) {
 			query.Set(key, t.Format(time.RFC3339Nano))
 		}
 	}
+	var active int64
+	s.db.Model(&db.LogExport{}).Where("status IN ? AND created_at > ?", []string{"queued", "running"}, now.Add(-time.Hour)).Count(&active)
+	if active >= 4 {
+		utils.ErrorResponse(c, http.StatusTooManyRequests, "Too many exports are running. Wait for one to finish.", nil)
+		return
+	}
 	row := db.LogExport{ID: utils.GenerateID("export"), Kind: req.Kind, Format: req.Format, FiltersJSON: query.Encode(), IncludeRaw: req.IncludeRaw, Status: "queued",
 		CreatedBy: frontendActorID(c), CreatedAt: now, ExpiresAt: now.Add(exportTTL)}
 	if err := s.db.Create(&row).Error; err != nil {

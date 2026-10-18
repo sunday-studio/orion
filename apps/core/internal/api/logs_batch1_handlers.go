@@ -1,6 +1,13 @@
 package api
 
-import "github.com/gin-gonic/gin"
+import (
+	"orion/core/internal/utils"
+
+	"github.com/gin-gonic/gin"
+)
+
+// swag resolves utils.APIResponse through this file's imports.
+var _ utils.APIResponse
 
 // getLogFacets Facets for the filter rail.
 // @Summary      Log facets

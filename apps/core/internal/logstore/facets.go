@@ -76,7 +76,7 @@ func (s *Store) Facets(q Query, topEvents int) (Facets, error) {
 
 // FieldValues returns the most common values of one attribute among the matching entries.
 func (s *Store) FieldValues(q Query, field string, limit int) ([]Count, error) {
-	if !attributeKeyPattern.MatchString(field) {
+	if !validAttributeKey(field) {
 		return nil, fmt.Errorf("%w: field must be a plain attribute key", ErrBadFilter)
 	}
 	q.Cursor = ""

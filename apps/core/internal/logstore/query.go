@@ -132,7 +132,7 @@ func (q Query) where() (string, []any, error) {
 	}
 	for _, attr := range q.Attrs {
 		key, value, found := strings.Cut(attr, ":")
-		if !found || !attributeKeyPattern.MatchString(key) {
+		if !found || !validAttributeKey(key) {
 			return "", nil, fmt.Errorf("%w: attr must be key:value with a plain key, got %q", ErrBadFilter, attr)
 		}
 		// The key is validated above and quoted into the JSON path; the value is bound.
@@ -249,4 +249,17 @@ func attrExpr(key string) string {
 	}
 	nested := fmt.Sprintf(`json_extract(attributes, '$.%s')`, key)
 	return fmt.Sprintf(`CASE WHEN attributes <> '' THEN CAST(COALESCE(%s, %s) AS TEXT) END`, literal, nested)
+}
+
+// validAttributeKey accepts plain attribute keys; empty dot segments ("a..b", ".a") are not valid JSON paths.
+func validAttributeKey(key string) bool {
+	if !attributeKeyPattern.MatchString(key) {
+		return false
+	}
+	for _, part := range strings.Split(key, ".") {
+		if part == "" {
+			return false
+		}
+	}
+	return true
 }
