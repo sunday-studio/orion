@@ -80,7 +80,7 @@ const AlertsPage = lazy(() =>
   import("@/features/alerts/alerts.view").then((module) => ({ default: module.AlertsPage })),
 );
 const LogsPage = lazy(() =>
-  import("@/features/event-log/logs.view").then((module) => ({ default: module.LogsPage })),
+  import("@/features/logs/logs.view").then((module) => ({ default: module.LogsPage })),
 );
 const AgentsPage = lazy(() =>
   import("@/features/agents/agents.view").then((module) => ({ default: module.AgentsPage })),
