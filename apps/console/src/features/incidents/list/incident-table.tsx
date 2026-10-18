@@ -1,8 +1,16 @@
 import { useNavigate } from "react-router-dom";
-import { Checkbox, GridFooter, GridRow, GridTable, StatusBadge } from "@/design-system";
+import {
+  Checkbox,
+  GridFooter,
+  GridRow,
+  GridTable,
+  ListPagination,
+  type ListPaginationProps,
+  StatusBadge,
+} from "@/design-system";
 import { type NumberedIncident, incidentLabel, relativeAgo, statusLabel } from "../incident-format";
 
-export const INCIDENT_COLUMNS = "40px 80px minmax(0,1.6fr) 120px 80px minmax(0,0.8fr) 110px 70px";
+export const INCIDENT_COLUMNS = "18px 70px minmax(0,1.6fr) 120px 80px minmax(0,0.8fr) 110px 70px";
 
 export type IncidentTableProps = {
   incidents: NumberedIncident[];
@@ -13,6 +21,8 @@ export type IncidentTableProps = {
   /** Count of closed incidents the status filter is hiding, for the footer hint. */
   hiddenResolved?: number;
   onShowResolved?: () => void;
+  /** Pagination footer, drawn inside the table container. */
+  pagination?: ListPaginationProps;
 };
 
 const notificationLabel = (status?: string) =>
@@ -33,13 +43,14 @@ export const IncidentTable = ({
   now,
   hiddenResolved = 0,
   onShowResolved,
+  pagination,
 }: IncidentTableProps) => {
   const navigate = useNavigate();
   const allSelected = incidents.length > 0 && incidents.every((i) => i.id && selected.has(i.id));
 
   return (
     <div className="overflow-hidden rounded-xl border border-hairline bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-      <GridTable dividers>
+      <GridTable>
         <GridRow columns={INCIDENT_COLUMNS} header>
           <span>
             <Checkbox
@@ -115,6 +126,7 @@ export const IncidentTable = ({
           </GridFooter>
         )}
       </GridTable>
+      {pagination && <ListPagination {...pagination} />}
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import { DataTable, DataTableLink, ListPagination, StatusBadge } from "@/design-system";
+import { DataTable, DataTableLink, StatusBadge } from "@/design-system";
 import { type ApiMonitorResponse, useGetAgentMonitors } from "@/orion-sdk";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
@@ -66,18 +66,17 @@ export const MonitorList = ({ agentId }: { agentId: string }) => {
   return (
     <div className="overflow-hidden">
       <DataTable
+        pagination={{
+          count: count,
+          limit: pageSize,
+          offset: offset,
+          onLimitChange: setPageSize,
+          onOffsetChange: setOffset,
+        }}
         columns={monitorColumns}
         data={monitors}
         emptyMessage="No monitors registered."
         getRowId={(monitor) => monitor.id ?? ""}
-      />
-      <ListPagination
-        count={count}
-        limit={pageSize}
-        offset={offset}
-        onLimitChange={setPageSize}
-        onOffsetChange={setOffset}
-        className=" bg-neutral-100/80 border-t border-neutral-300/60 py-1"
       />
     </div>
   );

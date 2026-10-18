@@ -1,10 +1,4 @@
-import {
-  DataTable,
-  DataTableLink,
-  ListPagination,
-  StatusBadge,
-  usePageSize,
-} from "@/design-system";
+import { DataTable, DataTableLink, StatusBadge, usePageSize } from "@/design-system";
 import {
   type ApiIncidentResponse,
   type ApiMonitorResponse,
@@ -83,6 +77,13 @@ export const AgentMonitorsTab = ({ agentId, highlightedIncident }: AgentMonitors
       {monitorsResponse.error && <div className="text-sm">Unable to load monitors.</div>}
       {!monitorsResponse.error && (
         <DataTable
+          pagination={{
+            onLimitChange: setPageSize,
+            count: count,
+            limit: pageSize,
+            offset: offset,
+            onOffsetChange: setOffset,
+          }}
           columns={monitorColumns(highlightedIncident)}
           data={monitors}
           emptyMessage="No monitors registered"
@@ -91,15 +92,6 @@ export const AgentMonitorsTab = ({ agentId, highlightedIncident }: AgentMonitors
           rowClassName={(row) =>
             cn(highlightedIncident?.monitor_id === row.original.id && "bg-amber-50")
           }
-        />
-      )}
-      {count > 0 && (
-        <ListPagination
-          onLimitChange={setPageSize}
-          count={count}
-          limit={pageSize}
-          offset={offset}
-          onOffsetChange={setOffset}
         />
       )}
     </div>

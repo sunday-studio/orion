@@ -3,7 +3,6 @@ import {
   type DataTableFilterField,
   DataTableLink,
   FilterBar,
-  ListPagination,
   PageHeader,
   Tabs,
   TabsList,
@@ -276,6 +275,13 @@ export const LogsPage = () => {
               onClear={eventTable.clearFilters}
             />
             <DataTable
+              pagination={{
+                count: count,
+                limit: eventTable.limit,
+                offset: eventTable.offset,
+                onLimitChange: eventTable.setLimit,
+                onOffsetChange: eventTable.setOffset,
+              }}
               columns={columns}
               data={events}
               emptyMessage={
@@ -296,15 +302,6 @@ export const LogsPage = () => {
               onResetFilters={eventTable.hasFilters ? eventTable.clearFilters : undefined}
               onRowClick={setSelectedEvent}
             />
-            {count > 0 && (
-              <ListPagination
-                count={count}
-                limit={eventTable.limit}
-                offset={eventTable.offset}
-                onLimitChange={eventTable.setLimit}
-                onOffsetChange={eventTable.setOffset}
-              />
-            )}
           </section>
         </TabsPanel>
 
@@ -334,6 +331,13 @@ export const LogsPage = () => {
               onClear={serviceTable.clearFilters}
             />
             <DataTable
+              pagination={{
+                count: serviceLogCount,
+                limit: serviceTable.limit,
+                onLimitChange: serviceTable.setLimit,
+                offset: serviceTable.offset,
+                onOffsetChange: serviceTable.setOffset,
+              }}
               columns={serviceLogColumns}
               data={serviceLogs}
               emptyMessage={
@@ -353,15 +357,6 @@ export const LogsPage = () => {
               }
               onResetFilters={serviceTable.hasFilters ? serviceTable.clearFilters : undefined}
             />
-            {serviceLogCount > 0 && (
-              <ListPagination
-                count={serviceLogCount}
-                limit={serviceTable.limit}
-                onLimitChange={serviceTable.setLimit}
-                offset={serviceTable.offset}
-                onOffsetChange={serviceTable.setOffset}
-              />
-            )}
           </section>
         </TabsPanel>
       </Tabs>

@@ -23,7 +23,7 @@ import {
 import { TIME_FORMAT, formatDate } from "@/utils/date";
 import { healthDot } from "./incident-format";
 
-const COLUMNS = "28px minmax(0,1.3fr) 90px 80px 100px 90px minmax(0,1.4fr) 56px 150px";
+const COLUMNS = "10px minmax(0,1.3fr) 90px 80px 100px 90px minmax(0,1.4fr) 56px 150px";
 
 const label = (value?: string) => (value ? value.charAt(0).toUpperCase() + value.slice(1) : "-");
 
@@ -95,7 +95,7 @@ export const IncidentTriagePage = () => {
           <EmptyState title="Nothing to triage" description="No failing monitors need attention." />
         ) : (
           <div className="overflow-hidden rounded-xl border border-hairline bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-            <GridTable dividers>
+            <GridTable>
               <GridRow columns={COLUMNS} header>
                 <span />
                 <span>Monitor</span>

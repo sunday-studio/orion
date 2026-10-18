@@ -1,4 +1,4 @@
-import { Button, DataTable, Input, ListPagination, Select, usePageSize } from "@/design-system";
+import { Button, DataTable, Input, Select, usePageSize } from "@/design-system";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { type ApiServiceLogEntryResponse, useGetAgentServiceLogs } from "@/orion-sdk";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -113,6 +113,13 @@ export const AgentServiceLogsTab = ({ agentId }: AgentServiceLogsTabProps) => {
       {logsQuery.error && <div className="text-sm">Unable to load service logs.</div>}
       {!logsQuery.error && (
         <DataTable
+          pagination={{
+            onLimitChange: setPageSize,
+            count: count,
+            limit: pageSize,
+            offset: offset,
+            onOffsetChange: setOffset,
+          }}
           columns={serviceLogColumns}
           data={logs}
           emptyMessage={
@@ -120,15 +127,6 @@ export const AgentServiceLogsTab = ({ agentId }: AgentServiceLogsTabProps) => {
           }
           getRowId={(log, index) => log.id ?? `${log.agent_id ?? "server"}-${index}`}
           isLoading={logsQuery.isLoading}
-        />
-      )}
-      {count > 0 && (
-        <ListPagination
-          onLimitChange={setPageSize}
-          count={count}
-          limit={pageSize}
-          offset={offset}
-          onOffsetChange={setOffset}
         />
       )}
     </div>

@@ -2,19 +2,10 @@ import type * as React from "react";
 import { cn } from "@/utils/cn";
 
 /** Unstyled-by-default table primitives with design-language rows (38px, sticky 30px header). */
-export const Table = ({
-  className,
-  dividers = false,
-  ...props
-}: React.ComponentProps<"table"> & { dividers?: boolean }) => (
+export const Table = ({ className, ...props }: React.ComponentProps<"table">) => (
   <table
     data-slot="ds-table"
-    className={cn(
-      "w-full border-collapse text-[13px] tabular-nums",
-      dividers &&
-        "[&_td:not(:last-child)]:border-r [&_th:not(:last-child)]:border-r [&_td]:border-line-soft [&_th]:border-line-soft",
-      className,
-    )}
+    className={cn("w-full border-collapse text-[13px] tabular-nums", className)}
     {...props}
   />
 );
