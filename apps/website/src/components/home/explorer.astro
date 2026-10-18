@@ -27,8 +27,8 @@ const tabs = [
       <span class="thumb" aria-hidden="true"></span>
       {tabs.map((t, i) => (
         <button type="button" class="segi" aria-pressed={i === 0 ? "true" : "false"} data-segment-active={i === 0 ? "" : undefined} data-i={i}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" set:html={icons[t.key]} />
-          <span>{t.label}</span>
+          <span class="lbl"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" set:html={icons[t.key]} /><span>{t.label}</span></span>
+          <span class="lbl on" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" set:html={icons[t.key]} /><span>{t.label}</span></span>
         </button>
       ))}
     </div>
