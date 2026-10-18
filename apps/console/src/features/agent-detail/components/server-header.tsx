@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Button, ConfirmDialog, StatusBadge, useToast } from "@/design-system";
+import { Button, StatusBadge, useToast } from "@/design-system";
+import { MaintenanceDialog } from "./maintenance-dialog";
 import {
   type ServerRow,
   platformLabel,
@@ -34,11 +35,11 @@ export const useServerMaintenance = (agent: ServerRow) => {
   return {
     inMaintenance: Boolean(agent.maintenance_mode),
     pending: mutation.isPending,
-    set: (enabled: boolean) =>
+    set: (enabled: boolean, durationSeconds = 86_400) =>
       mutation.mutate({
         agentId: agent.id ?? "",
         data: enabled
-          ? { maintenance_mode: true, duration_seconds: 86_400 }
+          ? { maintenance_mode: true, duration_seconds: durationSeconds }
           : { maintenance_mode: false },
       }),
   };
@@ -83,14 +84,14 @@ export const ServerHeader = ({ agent, agentVersion, now, onEdit, onToken }: Prop
           Token
         </Button>
       </div>
-      <ConfirmDialog
+      <MaintenanceDialog
         open={confirm}
+        pending={maintenance.pending}
         onOpenChange={setConfirm}
-        title={`Put ${agent.name ?? "this server"} in maintenance?`}
-        description="Alerts for this server and its monitors pause for 24 hours, or until you end maintenance."
-        confirmLabel="Start maintenance"
-        tone="default"
-        onConfirm={() => maintenance.set(true)}
+        onStart={(seconds) => {
+          maintenance.set(true, seconds);
+          setConfirm(false);
+        }}
       />
     </div>
   );
