@@ -5,9 +5,11 @@ import {
   EmptyState,
   GridRow,
   GridTable,
+  ListPagination,
   PageHeader,
   Skeleton,
   StatusBadge,
+  useClientPagination,
 } from "@/design-system";
 import { healthDot } from "@/features/incidents/incident-format";
 import { useNow } from "@/features/overview/overview-time";
@@ -48,6 +50,7 @@ export const HealthIssuesPage = () => {
   const issues = useGetHealthIssues();
   const now = useNow(60_000);
   const list = issues.data?.issues ?? [];
+  const { pageItems, pagination } = useClientPagination(list);
   return (
     <div className="mx-auto w-full max-w-[1000px] pb-8">
       <PageHeader
@@ -82,7 +85,7 @@ export const HealthIssuesPage = () => {
                 <span>Since</span>
                 <span />
               </GridRow>
-              {list.map((issue, index) => (
+              {pageItems.map((issue, index) => (
                 <GridRow key={`${issue.kind}-${issue.target_id ?? index}`} columns={COLUMNS}>
                   <Dot color={healthDot(issue.health)} />
                   <b className="font-medium">
@@ -103,6 +106,7 @@ export const HealthIssuesPage = () => {
                 </GridRow>
               ))}
             </GridTable>
+            <ListPagination {...pagination} />
           </div>
         )}
       </div>
