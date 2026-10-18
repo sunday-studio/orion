@@ -13,7 +13,6 @@ import {
   GridTable,
   Input,
   RaisedCard,
-  StepIndicator,
   useToast,
 } from "@/design-system";
 import {
@@ -24,7 +23,7 @@ import {
 } from "@/orion-sdk";
 import { formatDate } from "@/utils/date";
 
-const STEPS = ["Domain", "DNS record", "Verify"] as const;
+const STEPS = ["Enter the domain", "Add the DNS record", "Verify"] as const;
 const COLUMNS = "64px minmax(0,1fr) minmax(0,1.3fr) 64px";
 const AUTO_CHECK_MS = 15_000;
 
@@ -114,10 +113,12 @@ export const DomainDialog = ({
       <DialogContent className="max-w-[560px] rounded-2xl p-5">
         <AnimatedHeight>
           <div className="grid gap-3.5 pb-1.5">
-            <DialogHeader>
+            <DialogHeader className="pr-8">
               <DialogTitle className="text-[16px]">Custom domain</DialogTitle>
+              <p className="text-xs text-faint">
+                Step {step} of {STEPS.length} · {STEPS[step - 1]}
+              </p>
             </DialogHeader>
-            <StepIndicator steps={STEPS} current={step} />
             {step === 1 && (
               <>
                 <p className="text-[13px] leading-[1.5] text-quiet">
