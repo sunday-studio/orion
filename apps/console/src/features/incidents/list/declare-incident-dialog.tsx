@@ -3,6 +3,7 @@ import {
   Button,
   Callout,
   Checkbox,
+  Combobox,
   Dialog,
   DialogContent,
   DialogFooter,
@@ -10,7 +11,6 @@ import {
   DialogTitle,
   Input,
   Segmented,
-  Select,
   Textarea,
 } from "@/design-system";
 import { useQueryClient } from "@tanstack/react-query";
@@ -118,12 +118,12 @@ export const DeclareIncidentDialog = ({
           </div>
           <div className="flex flex-col gap-1.5 text-[13px] font-medium">
             <span>Monitor or server</span>
-            <Select
+            <Combobox
               aria-label="Monitor or server"
-              className="w-full font-normal"
+              placeholder="Search monitors and servers"
               options={targetOptions}
-              value={target}
-              onValueChange={setTarget}
+              value={target || null}
+              onValueChange={(next) => setTarget(next ?? "")}
             />
             <span className="text-[13px] font-normal text-quiet">
               A monitor can have only one active incident.
