@@ -78,7 +78,7 @@ func (b *OverviewBuilder) Build(now time.Time) (*Overview, error) {
 	o := &Overview{GeneratedAt: now}
 
 	var agents []db.Agent
-	if err := b.db.Where("system = ?", false).Find(&agents).Error; err != nil {
+	if err := b.db.Where("system = ? AND (deleted_at IS NULL OR deleted_at = ?)", false, time.Time{}).Find(&agents).Error; err != nil {
 		return nil, err
 	}
 	var monitors []db.Monitor

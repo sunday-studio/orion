@@ -132,6 +132,8 @@ func TestDecommissionKeepsOrDeletesHistoryAndFreesTheMachine(t *testing.T) {
 			seedAgentReports(t, server, id, 3, 40)
 			server.db.Create(&db.Monitor{ID: "m1", Type: "http", Name: "api-https", AgentID: id, Lifecycle: "active", ComputedHealth: "down", Health: "down"})
 			server.db.Create(&db.MonitorReport{ID: "mr1", MonitorID: "m1", Payload: "{}", CollectedAt: time.Now().Format(time.RFC3339), Health: "down", CreatedAt: time.Now().UTC()})
+			server.db.Create(&db.ServiceLogEntry{ID: "sl1", AgentID: id, CreatedAt: time.Now().UTC()})
+			server.db.Create(&db.AlertDelivery{ID: "d-pending", IncidentID: "inc1", EventType: "incident_opened", Channel: "c", Type: "webhook", Status: "pending"})
 			server.db.Create(&db.Incident{ID: "inc1", Number: 1, Status: "open", Severity: "high", Title: "x", AgentID: id, MonitorID: "m1", OpenedAt: time.Now().UTC(), LastEventAt: time.Now().UTC(), Source: "monitor"})
 
 			resp := performJSONRequest(t, server, http.MethodDelete, fmt.Sprintf("/v1/agents/%s?keep_history=%v", id, keep), nil, "")
@@ -147,11 +149,28 @@ func TestDecommissionKeepsOrDeletesHistoryAndFreesTheMachine(t *testing.T) {
 			if r := performJSONRequest(t, server, http.MethodDelete, "/v1/agents/"+id, nil, ""); r.Code != http.StatusNotFound {
 				t.Fatalf("second delete = %d", r.Code)
 			}
+			var ov struct{ Data OverviewResponse }
+			decodeResponse(t, performJSONRequest(t, server, http.MethodGet, "/v1/overview", nil, ""), &ov)
+			if ov.Data.Stats.ServersTotal != 0 || ov.Data.FirstRun.HasServers || len(ov.Data.Services) != 0 {
+				t.Fatalf("removed server still on the overview: %+v", ov.Data)
+			}
+			if body := performJSONRequest(t, server, http.MethodGet, "/v1/search?q=test-server", nil, "").Body.String(); strings.Contains(body, id) {
+				t.Fatalf("removed server still searchable: %s", body)
+			}
+			var delivery db.AlertDelivery
+			server.db.First(&delivery, "id = ?", "d-pending")
+			var resolvedEvents int64
+			server.db.Model(&db.IncidentEvent{}).Where("incident_id = ? AND type = ?", "inc1", "incident_resolved").Count(&resolvedEvents)
+			if delivery.Status != "suppressed" || resolvedEvents != 1 {
+				t.Fatalf("pending delivery %q, resolve events %d", delivery.Status, resolvedEvents)
+			}
 			var reports, monitorReports int64
 			server.db.Model(&db.AgentReport{}).Where("agent_id = ?", id).Count(&reports)
 			server.db.Model(&db.MonitorReport{}).Where("monitor_id = ?", "m1").Count(&monitorReports)
-			if keep && (reports != 3 || monitorReports != 1) || !keep && (reports != 0 || monitorReports != 0) {
-				t.Fatalf("keep=%v reports=%d monitor_reports=%d", keep, reports, monitorReports)
+			var logs int64
+			server.db.Model(&db.ServiceLogEntry{}).Where("agent_id = ?", id).Count(&logs)
+			if keep && (reports != 3 || monitorReports != 1 || logs != 1) || !keep && (reports != 0 || monitorReports != 0 || logs != 0) {
+				t.Fatalf("keep=%v reports=%d monitor_reports=%d logs=%d", keep, reports, monitorReports, logs)
 			}
 			var incident db.Incident
 			server.db.First(&incident, "id = ?", "inc1")
