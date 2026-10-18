@@ -2,11 +2,16 @@ import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { useState } from "react";
 import { Button, PageHeader, Tabs, TabsList, TabsPanel, TabsTab } from "@/design-system";
 import { Plus } from "lucide-react";
-import type { ApiAlertChannelResponse } from "@/orion-sdk";
+import type {
+  ApiAlertChannelResponse,
+  ApiAlertRuleResponse,
+  ApiLabelRouteResponse,
+} from "@/orion-sdk";
 import { useGetAlertChannels } from "@/orion-sdk";
-import { AlertRulesTab } from "./components/alert-rules-tab";
 import { ChannelDialog } from "./channels/channel-dialog";
 import { ChannelsTab } from "./tabs/channels-tab";
+import { RoutesTab } from "./tabs/routes-tab";
+import { RulesTab } from "./tabs/rules-tab";
 import { NotificationLogTab } from "./tabs/notification-log-tab";
 
 const TABS = ["logs", "channels", "rules", "routes"] as const;
@@ -14,6 +19,12 @@ const TABS = ["logs", "channels", "rules", "routes"] as const;
 export const AlertsPage = () => {
   const [tab, setTab] = useQueryState("tab", parseAsStringLiteral(TABS).withDefault("logs"));
   const [dialog, setDialog] = useState<{ open: boolean; channel?: ApiAlertChannelResponse }>({
+    open: false,
+  });
+  const [ruleEditor, setRuleEditor] = useState<{ open: boolean; rule?: ApiAlertRuleResponse }>({
+    open: false,
+  });
+  const [routeEditor, setRouteEditor] = useState<{ open: boolean; route?: ApiLabelRouteResponse }>({
     open: false,
   });
   const channels = useGetAlertChannels();
@@ -27,6 +38,14 @@ export const AlertsPage = () => {
           tab === "channels" ? (
             <Button size="sm" onClick={() => setDialog({ open: true })}>
               <Plus /> Add channel
+            </Button>
+          ) : tab === "rules" ? (
+            <Button size="sm" onClick={() => setRuleEditor({ open: true })}>
+              <Plus /> New rule
+            </Button>
+          ) : tab === "routes" ? (
+            <Button size="sm" onClick={() => setRouteEditor({ open: true })}>
+              <Plus /> New route
             </Button>
           ) : undefined
         }
@@ -52,12 +71,18 @@ export const AlertsPage = () => {
           />
         </TabsPanel>
         <TabsPanel value="rules">
-          <AlertRulesTab channels={channels.data?.channels ?? []} />
+          <RulesTab
+            channels={channels.data?.channels ?? []}
+            editor={ruleEditor}
+            onEditorChange={setRuleEditor}
+          />
         </TabsPanel>
         <TabsPanel value="routes">
-          <p className="py-6 text-center text-[13px] text-quiet">
-            Label routes arrive with the next Core update.
-          </p>
+          <RoutesTab
+            channels={channels.data?.channels ?? []}
+            editor={routeEditor}
+            onEditorChange={setRouteEditor}
+          />
         </TabsPanel>
       </Tabs>
       <ChannelDialog
