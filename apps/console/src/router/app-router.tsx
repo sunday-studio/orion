@@ -91,6 +91,11 @@ const SettingsPage = lazy(() =>
 const MonitorsPage = lazy(() =>
   import("@/features/monitors/monitors.view").then((module) => ({ default: module.MonitorsPage })),
 );
+const StatusPageDetailPage = lazy(() =>
+  import("@/features/status-pages/status-page-detail.view").then((module) => ({
+    default: module.StatusPageDetailPage,
+  })),
+);
 const StatusPagesPage = lazy(() =>
   import("@/features/status-pages/status-pages.view").then((module) => ({
     default: module.StatusPagesPage,
@@ -113,6 +118,7 @@ function AppRouter() {
           <Route path="incidents" element={<IncidentsPage />} />
           <Route path="alerts" element={<AlertsPage />} />
           <Route path="status-pages" element={<StatusPagesPage />} />
+          <Route path="status-pages/:pageId" element={<StatusPageDetailPage />} />
           <Route path="logs" element={<LogsPage />} />
           <Route path="agents" element={<Navigate to="/servers" replace />} />
           <Route path="agents/:agentId" element={<AgentDetailRedirect />} />
