@@ -33,7 +33,8 @@ export const AnimatedHeight = ({
       // Padding with a matching negative margin keeps focus rings from being clipped.
       className={cn("-mx-1.5 -my-1.5 overflow-hidden px-1.5 py-1.5", className)}
       initial={false}
-      animate={height === undefined ? undefined : { height }}
+      // Border-box: add the 12px of vertical padding so the content is not clipped.
+      animate={height === undefined ? undefined : { height: height + 12 }}
       transition={reduce ? { duration: 0 } : layoutSpring}
     >
       <div ref={inner} className="flex flex-col gap-3.5">

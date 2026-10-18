@@ -1,5 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   AnimatedHeight,
   Button,
@@ -174,10 +175,10 @@ export const DomainDialog = ({
                     </GridRow>
                     {(data?.records ?? []).map((record) => (
                       <GridRow key={`${record.type}-${record.host}`} columns={COLUMNS}>
-                        <span className="text-faint">{record.type}</span>
-                        <span className="truncate text-faint">{record.host}</span>
-                        <span className="truncate text-faint">
-                          {record.value || "Set by the Core operator"}
+                        <span className="font-medium text-ink">{record.type}</span>
+                        <span className="truncate text-ink">{record.host}</span>
+                        <span className="truncate text-ink">
+                          {record.value || "Set the Public Core URL first"}
                         </span>
                         <span className="text-right">
                           <Button
@@ -197,9 +198,12 @@ export const DomainDialog = ({
                   </GridTable>
                 </RaisedCard>
                 {data?.target_known === false && (
-                  <Callout tone="warn">
-                    Core has no CNAME target configured, so the record value is empty. Ask whoever
-                    runs Core to set it.
+                  <Callout tone="warn" lead="Orion does not know its own address yet.">
+                    The record needs to point at your Orion instance. Set the Public Core URL in{" "}
+                    <Link to="/settings?tab=general" className="underline">
+                      Settings, General
+                    </Link>
+                    , then check this again.
                   </Callout>
                 )}
                 <Callout
