@@ -19,7 +19,9 @@ export const Layout = () => {
           <main className="mx-auto flex w-full max-w-[1040px] flex-col gap-3 px-6 pb-8">
             <Suspense fallback={<div className="py-3 text-sm text-neutral-600">Loading...</div>}>
               <RouteErrorBoundary key={pathname}>
-                <Outlet />
+                <div className="ds-page-in flex w-full flex-col gap-3">
+                  <Outlet />
+                </div>
               </RouteErrorBoundary>
             </Suspense>
           </main>

@@ -1,3 +1,4 @@
+export * from "@/design-system/components/animated-height";
 export * from "@/design-system/components/badge";
 export * from "@/design-system/components/box";
 export * from "@/design-system/components/breadcrumb";

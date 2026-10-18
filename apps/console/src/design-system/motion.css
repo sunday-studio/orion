@@ -1,0 +1,77 @@
+/* Shared motion: pages, tab panels and table rows ease in; everything respects reduced motion. */
+@keyframes ds-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ds-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.ds-page-in {
+  animation: ds-fade-up 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.ds-fade-in {
+  animation: ds-fade 0.18s ease-out both;
+}
+
+/* Rows fade in with a short stagger, so paging, filtering and sorting read as a change. */
+.ds-row-in {
+  animation: ds-fade-up 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.ds-row-in:nth-child(2) {
+  animation-delay: 15ms;
+}
+.ds-row-in:nth-child(3) {
+  animation-delay: 30ms;
+}
+.ds-row-in:nth-child(4) {
+  animation-delay: 45ms;
+}
+.ds-row-in:nth-child(5) {
+  animation-delay: 60ms;
+}
+.ds-row-in:nth-child(6) {
+  animation-delay: 75ms;
+}
+.ds-row-in:nth-child(7) {
+  animation-delay: 90ms;
+}
+.ds-row-in:nth-child(8) {
+  animation-delay: 105ms;
+}
+.ds-row-in:nth-child(9) {
+  animation-delay: 120ms;
+}
+.ds-row-in:nth-child(n + 10) {
+  animation-delay: 135ms;
+}
+
+/* A table that is refetching dims slightly instead of jumping. */
+.ds-fetching {
+  opacity: 0.6;
+  transition: opacity 0.15s ease-out;
+}
+.ds-settled {
+  transition: opacity 0.2s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-page-in,
+  .ds-fade-in,
+  .ds-row-in {
+    animation: none;
+  }
+}

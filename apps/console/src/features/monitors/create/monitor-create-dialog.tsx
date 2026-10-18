@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  AnimatedHeight,
   Button,
   Callout,
   ChoiceTiles,
@@ -154,143 +155,145 @@ export const MonitorCreateDialog = ({
               value={kind}
               onValueChange={pick}
             />
-            {kind === "agent" ? (
-              <Callout tone="warn" className="leading-[1.5]">
-                Agent monitors run on a server through its agent. Pick the server and what to check
-                on the{" "}
-                <Link
-                  className="underline"
-                  to="/monitors/new/agent"
-                  onClick={() => onOpenChange(false)}
-                >
-                  agent monitor page
-                </Link>
-                .
-              </Callout>
-            ) : (
-              <>
-                <label className={label}>
-                  Name
-                  <Input
-                    className="font-normal"
-                    value={form.name}
-                    onChange={(event) => patch({ name: event.target.value })}
-                    placeholder={
-                      kind === "tcp"
-                        ? "pg-tcp"
-                        : kind === "heartbeat"
-                          ? "nightly-backup"
-                          : "api-https"
-                    }
-                  />
-                </label>
-                {kind === "http" && (
+            <AnimatedHeight>
+              {kind === "agent" ? (
+                <Callout tone="warn" className="leading-[1.5]">
+                  Agent monitors run on a server through its agent. Pick the server and what to
+                  check on the{" "}
+                  <Link
+                    className="underline"
+                    to="/monitors/new/agent"
+                    onClick={() => onOpenChange(false)}
+                  >
+                    agent monitor page
+                  </Link>
+                  .
+                </Callout>
+              ) : (
+                <>
                   <label className={label}>
-                    URL
+                    Name
                     <Input
                       className="font-normal"
-                      value={form.url}
-                      onChange={(event) => patch({ url: event.target.value })}
-                      placeholder="https://api.example.com/health"
+                      value={form.name}
+                      onChange={(event) => patch({ name: event.target.value })}
+                      placeholder={
+                        kind === "tcp"
+                          ? "pg-tcp"
+                          : kind === "heartbeat"
+                            ? "nightly-backup"
+                            : "api-https"
+                      }
                     />
-                    <span className={hint}>
-                      Core sends a GET request and expects a 200 response.
-                    </span>
                   </label>
-                )}
-                {kind === "tcp" && (
-                  <div className="grid grid-cols-[1fr_96px] gap-3">
+                  {kind === "http" && (
                     <label className={label}>
-                      Host
+                      URL
                       <Input
                         className="font-normal"
-                        value={form.host}
-                        onChange={(event) => patch({ host: event.target.value })}
-                        placeholder="db-02.internal"
+                        value={form.url}
+                        onChange={(event) => patch({ url: event.target.value })}
+                        placeholder="https://api.example.com/health"
                       />
+                      <span className={hint}>
+                        Core sends a GET request and expects a 200 response.
+                      </span>
                     </label>
-                    <label className={label}>
-                      Port
-                      <Input
-                        className="font-normal"
-                        inputMode="numeric"
-                        value={form.port}
-                        onChange={(event) => patch({ port: event.target.value })}
-                        placeholder="5432"
-                      />
-                    </label>
-                  </div>
-                )}
-                <div
-                  className={
-                    kind === "heartbeat" ? "grid grid-cols-2 gap-3" : "grid grid-cols-3 gap-3"
-                  }
-                >
-                  <div className={label}>
-                    {kind === "heartbeat" ? "Expected every" : "Check every"}
-                    <Select
-                      aria-label={kind === "heartbeat" ? "Expected every" : "Check every"}
-                      className="w-full font-normal"
-                      options={EVERY}
-                      value={form.intervalSeconds}
-                      onValueChange={(next) => patch({ intervalSeconds: next })}
-                    />
-                  </div>
-                  {kind === "heartbeat" ? (
-                    <div className={label}>
-                      Grace period
-                      <Select
-                        aria-label="Grace period"
-                        className="w-full font-normal"
-                        options={GRACE}
-                        value={form.graceSeconds}
-                        onValueChange={(next) => patch({ graceSeconds: next })}
-                      />
-                    </div>
-                  ) : (
-                    <div className={label}>
-                      Timeout
-                      <Select
-                        aria-label="Timeout"
-                        className="w-full font-normal"
-                        options={TIMEOUT}
-                        value={form.timeoutSeconds}
-                        onValueChange={(next) => patch({ timeoutSeconds: next })}
-                      />
+                  )}
+                  {kind === "tcp" && (
+                    <div className="grid grid-cols-[1fr_96px] gap-3">
+                      <label className={label}>
+                        Host
+                        <Input
+                          className="font-normal"
+                          value={form.host}
+                          onChange={(event) => patch({ host: event.target.value })}
+                          placeholder="db-02.internal"
+                        />
+                      </label>
+                      <label className={label}>
+                        Port
+                        <Input
+                          className="font-normal"
+                          inputMode="numeric"
+                          value={form.port}
+                          onChange={(event) => patch({ port: event.target.value })}
+                          placeholder="5432"
+                        />
+                      </label>
                     </div>
                   )}
-                  {kind !== "heartbeat" && (
+                  <div
+                    className={
+                      kind === "heartbeat" ? "grid grid-cols-2 gap-3" : "grid grid-cols-3 gap-3"
+                    }
+                  >
                     <div className={label}>
-                      Fail after
+                      {kind === "heartbeat" ? "Expected every" : "Check every"}
                       <Select
-                        aria-label="Fail after"
+                        aria-label={kind === "heartbeat" ? "Expected every" : "Check every"}
                         className="w-full font-normal"
-                        options={FAIL_AFTER}
-                        value={failAfter}
-                        onValueChange={setFailAfter}
+                        options={EVERY}
+                        value={form.intervalSeconds}
+                        onValueChange={(next) => patch({ intervalSeconds: next })}
                       />
                     </div>
+                    {kind === "heartbeat" ? (
+                      <div className={label}>
+                        Grace period
+                        <Select
+                          aria-label="Grace period"
+                          className="w-full font-normal"
+                          options={GRACE}
+                          value={form.graceSeconds}
+                          onValueChange={(next) => patch({ graceSeconds: next })}
+                        />
+                      </div>
+                    ) : (
+                      <div className={label}>
+                        Timeout
+                        <Select
+                          aria-label="Timeout"
+                          className="w-full font-normal"
+                          options={TIMEOUT}
+                          value={form.timeoutSeconds}
+                          onValueChange={(next) => patch({ timeoutSeconds: next })}
+                        />
+                      </div>
+                    )}
+                    {kind !== "heartbeat" && (
+                      <div className={label}>
+                        Fail after
+                        <Select
+                          aria-label="Fail after"
+                          className="w-full font-normal"
+                          options={FAIL_AFTER}
+                          value={failAfter}
+                          onValueChange={setFailAfter}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  {kind === "tcp" && (
+                    <p className={hint}>
+                      Orion opens a TCP connection and expects it to succeed. It sends no data.
+                    </p>
                   )}
-                </div>
-                {kind === "tcp" && (
-                  <p className={hint}>
-                    Orion opens a TCP connection and expects it to succeed. It sends no data.
-                  </p>
-                )}
-                {kind === "heartbeat" && (
-                  <p className={hint}>
-                    Your job pings a URL when it runs. The monitor turns Down after the grace
-                    period.
-                  </p>
-                )}
-              </>
-            )}
-            {(error || localError) && <Callout tone="warn">{error || localError}</Callout>}
-            {testRun.isError && !testRun.data && (
-              <Callout tone="warn">
-                {(testRun.error as Error).message || "Unable to run the test."}
-              </Callout>
-            )}
+                  {kind === "heartbeat" && (
+                    <p className={hint}>
+                      Your job pings a URL when it runs. The monitor turns Down after the grace
+                      period.
+                    </p>
+                  )}
+                </>
+              )}
+              {(error || localError) && <Callout tone="warn">{error || localError}</Callout>}
+              {testRun.isError && !testRun.data && (
+                <Callout tone="warn">
+                  {(testRun.error as Error).message || "Unable to run the test."}
+                </Callout>
+              )}
+            </AnimatedHeight>
             <DialogFooter className="items-center sm:justify-between">
               <div className="flex items-center gap-1">
                 <Button
