@@ -52,7 +52,7 @@ export const HealthIssuesPage = () => {
   const list = issues.data?.issues ?? [];
   const { pageItems, pagination } = useClientPagination(list);
   return (
-    <div className="mx-auto w-full max-w-[1000px] pb-8">
+    <div className="w-full pb-8">
       <PageHeader
         title="Health issues"
         description="Monitors and servers that are down, degraded or stale, worst first."

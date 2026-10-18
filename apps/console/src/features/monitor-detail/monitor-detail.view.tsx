@@ -20,7 +20,7 @@ export const MonitorDetailPage = () => {
   const actions = useMonitorActions(monitorId, monitor?.name ?? "Monitor");
   const tab = searchParams.get("tab") === "history" ? "history" : "overview";
 
-  if (query.isPending) return <Skeleton className="mx-auto mt-10 h-40 w-full max-w-[712px]" />;
+  if (query.isPending) return <Skeleton className="mt-10 h-40 w-full" />;
   if (query.isError || !monitor) {
     return (
       <EmptyState
@@ -46,11 +46,7 @@ export const MonitorDetailPage = () => {
     );
 
   return (
-    <div
-      className={
-        narrow ? "mx-auto w-full max-w-[712px] pb-8" : "mx-auto w-full max-w-[1000px] pb-8"
-      }
-    >
+    <div className={narrow ? "w-full pb-8" : "w-full pb-8"}>
       <MonitorHeader
         monitor={monitor}
         summary={summary}

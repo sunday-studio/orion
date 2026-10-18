@@ -52,7 +52,7 @@ export const AgentDetailPage = () => {
       { replace: true },
     );
 
-  if (query.isLoading) return <Skeleton className="mx-auto mt-10 h-40 w-full max-w-[712px]" />;
+  if (query.isLoading) return <Skeleton className="mt-10 h-40 w-full" />;
   if (query.isError || !agent) {
     return (
       <EmptyState
@@ -64,7 +64,7 @@ export const AgentDetailPage = () => {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[712px] pb-8">
+    <div className="w-full pb-8">
       <ServerHeader
         agent={agent}
         agentVersion={agent.agent_version ?? latest?.agent_version}

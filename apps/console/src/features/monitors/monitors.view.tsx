@@ -104,7 +104,7 @@ export const MonitorsPage = () => {
 
   const total = summary.data?.total;
   return (
-    <div className="mx-auto w-full max-w-[1000px] pb-8">
+    <div className="w-full pb-8">
       <PageHeader
         title="Monitors"
         description={

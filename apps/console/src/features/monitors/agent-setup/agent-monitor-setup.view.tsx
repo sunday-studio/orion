@@ -107,7 +107,7 @@ export const AgentMonitorSetupPage = () => {
   };
 
   return (
-    <div className="mx-auto w-full max-w-[712px] pb-8">
+    <div className="w-full pb-8">
       <PageHeader
         title="New agent monitor"
         description="Runs on your server through the agent and reports to Core."
