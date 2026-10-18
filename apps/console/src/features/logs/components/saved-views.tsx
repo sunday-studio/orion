@@ -10,6 +10,9 @@ import {
   DialogHeader,
   DialogTitle,
   Input,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   useToast,
 } from "@/design-system";
 import {
@@ -26,8 +29,8 @@ const same = (a: Record<string, string>, b: Record<string, string>) => {
   return [...keys].every((key) => (a[key] ?? "") === (b[key] ?? ""));
 };
 
-/** Saved views as a row of chips under the tabs: click to apply, x to delete. */
-export const SavedViewsBar = ({
+/** Saved views dropdown in the toolbar: click a view to apply it, x to delete it. */
+export const SavedViewsMenu = ({
   current,
   onApply,
 }: {
@@ -43,41 +46,52 @@ export const SavedViewsBar = ({
   });
   const list: ApiLogSavedView[] = views.data?.views ?? [];
   if (list.length === 0) return null;
+  const activeView = list.find((view) => same(view.filters ?? {}, current));
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="text-xs text-quiet">Views</span>
-      {list.map((view) => {
-        const active = same(view.filters ?? {}, current);
-        return (
-          <Badge
-            key={view.id}
-            tone={active ? "up" : "unknown"}
-            shape="square"
-            className={cn(
-              "h-6 gap-1 pl-2.5 pr-1 text-[12.5px] normal-case transition-colors",
-              !active && "hover:bg-[var(--tone-stale-bg)]",
-            )}
-          >
-            <button
-              type="button"
-              aria-pressed={active}
-              className="rounded outline-none focus-visible:ring-2 focus-visible:ring-focus"
-              onClick={() => onApply(view.filters ?? {})}
-            >
-              {view.name}
-            </button>
-            <button
-              type="button"
-              aria-label={`Delete ${view.name}`}
-              className="flex size-4 items-center justify-center rounded opacity-60 outline-none transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-focus"
-              onClick={() => remove.mutate({ id: view.id ?? "" })}
-            >
-              <X className="size-3" />
-            </button>
-          </Badge>
-        );
-      })}
-    </div>
+    <Popover>
+      <PopoverTrigger className="inline-flex h-9 min-w-[130px] items-center justify-between gap-2 rounded-lg border border-input-border bg-card px-3 text-[13px] hover:bg-sub">
+        <span className="truncate">{activeView?.name ?? `Views (${list.length})`}</span>
+        <span aria-hidden className="text-faint">
+          ⌄
+        </span>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-[240px] p-1.5">
+        <p className="px-2.5 py-1.5 text-xs text-quiet">Saved views</p>
+        <div className="grid gap-1">
+          {list.map((view) => {
+            const active = view.id === activeView?.id;
+            return (
+              <Badge
+                key={view.id}
+                tone="down"
+                shape="square"
+                className={cn(
+                  "h-7 w-full justify-between gap-1 pl-2.5 pr-1.5 text-[12.5px] normal-case",
+                  active && "ring-1 ring-current",
+                )}
+              >
+                <button
+                  type="button"
+                  aria-pressed={active}
+                  className="min-w-0 flex-1 truncate rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                  onClick={() => onApply(view.filters ?? {})}
+                >
+                  {view.name}
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Delete ${view.name}`}
+                  className="flex size-4 shrink-0 items-center justify-center rounded opacity-60 outline-none transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-focus"
+                  onClick={() => remove.mutate({ id: view.id ?? "" })}
+                >
+                  <X className="size-3" />
+                </button>
+              </Badge>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 };
 

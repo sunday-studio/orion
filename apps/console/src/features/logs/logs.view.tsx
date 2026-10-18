@@ -20,7 +20,7 @@ import { IngestBanner } from "./components/log-states";
 import { LogPager, LogTable } from "./components/log-table";
 import { RangePicker, SearchBox, SourceSelect, ViewSwitch } from "./components/log-toolbar";
 import { PatternsView } from "./components/patterns-view";
-import { SaveViewButton, SavedViewsBar } from "./components/saved-views";
+import { SaveViewButton, SavedViewsMenu } from "./components/saved-views";
 import { VolumeChart } from "./components/volume-chart";
 import {
   type LogKind,
@@ -324,12 +324,6 @@ export const LogsPage = () => {
       ) : (
         <div className="flex flex-col gap-4">
           {kind === "service" && <IngestBanner />}
-          {kind === "service" && (
-            <SavedViewsBar
-              current={savedFilters(state)}
-              onApply={(filters) => void set({ ...CLEARED, ...fromSavedFilters(filters), log: "" })}
-            />
-          )}
           <div className="flex flex-wrap items-center gap-3">
             <SearchBox
               value={state.q}
@@ -352,13 +346,16 @@ export const LogsPage = () => {
                 patch({ range: next.range, from: next.from ?? "", to: next.to ?? "" })
               }
             />
-            {kind !== "service" && (
-              <ViewSwitch value={view} onChange={(next) => patch({ view: next })} />
+            {kind === "service" && (
+              <SavedViewsMenu
+                current={savedFilters(state)}
+                onApply={(filters) =>
+                  void set({ ...CLEARED, ...fromSavedFilters(filters), log: "" })
+                }
+              />
             )}
-          </div>
-          {kind === "service" && view !== "list" && (
             <ViewSwitch value={view} onChange={(next) => patch({ view: next })} />
-          )}
+          </div>
           {tokens.length > 0 && view === "list" && (
             <div className="flex flex-wrap items-center gap-2">
               {tokens.map((token) => (
