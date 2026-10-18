@@ -1,7 +1,11 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Link } from "react-router-dom";
-import { Button, Input } from "@/design-system";
-import type { ApiIncidentDetailSummary, ApiIncidentRelatedIncidentResponse } from "@/orion-sdk";
+import { Button, Input, StatusBadge } from "@/design-system";
+import type {
+  ApiAlertDeliveryResponse,
+  ApiIncidentDetailSummary,
+  ApiIncidentRelatedIncidentResponse,
+} from "@/orion-sdk";
 import { formatSpan } from "@/features/overview/overview-time";
 import { formatDate } from "@/utils/date";
 import { type NumberedIncident, incidentLabel } from "../incident-format";
@@ -20,6 +24,14 @@ const Facts = ({ children }: { children: React.ReactNode }) => (
     {children}
   </div>
 );
+
+const humanize = (value: string) => {
+  const text = value.replace(/_/g, " ");
+  return text.charAt(0).toUpperCase() + text.slice(1);
+};
+
+const impactTone = (value?: string) =>
+  value && /major|outage|down/i.test(value) ? "down" : value ? "degraded" : "unknown";
 
 const seconds = (value?: number) =>
   value === undefined ? undefined : formatSpan(0, value * 1000, true);
@@ -71,6 +83,8 @@ type Props = {
   notifiedAt?: string;
   acknowledgedAt?: string;
   related: ApiIncidentRelatedIncidentResponse[];
+  deliveries: ApiAlertDeliveryResponse[];
+  subscriberCount?: number;
   onDraftUpdate: () => void;
   onSetResponder: (name: string) => void;
 };
@@ -83,6 +97,8 @@ export const IncidentSidePanel = ({
   notifiedAt,
   acknowledgedAt,
   related,
+  deliveries,
+  subscriberCount,
   onDraftUpdate,
   onSetResponder,
 }: Props) => {
@@ -105,6 +121,8 @@ export const IncidentSidePanel = ({
         <Facts>
           <span>Monitor</span>
           <span className="truncate">{source?.monitor_name ?? incident.monitor_name ?? "-"}</span>
+          <span>Type</span>
+          <span className="uppercase">{source?.monitor_type ?? incident.monitor_type ?? "-"}</span>
           <span>Target</span>
           <span className="truncate">{source?.target ?? incident.monitor_type ?? "-"}</span>
           <span>Server</span>
@@ -115,10 +133,24 @@ export const IncidentSidePanel = ({
         <Facts>
           <span>Responder</span>
           <Responder name={incident.responder} onSave={onSetResponder} />
-          <span>Notified</span>
-          <span>{summary?.notified_channels?.join(", ") || "-"}</span>
         </Facts>
       </Section>
+      {deliveries.length > 0 && (
+        <Section title="Notifications">
+          <Facts>
+            {deliveries.map((delivery, index) => (
+              <Fragment key={delivery.id ?? index}>
+                <span className="truncate">{delivery.channel ?? "channel"}</span>
+                <span>
+                  <StatusBadge status={delivery.status}>
+                    {humanize(delivery.status ?? "unknown")}
+                  </StatusBadge>
+                </span>
+              </Fragment>
+            ))}
+          </Facts>
+        </Section>
+      )}
       <Section title="Timestamps">
         <Facts>
           <span>Started</span>
@@ -147,6 +179,24 @@ export const IncidentSidePanel = ({
           {toResolve ? <span>{toResolve}</span> : <span className="text-faint">-</span>}
         </Facts>
       </Section>
+      {(incident.impacted_components ?? []).length > 0 && (
+        <Section title="Impacted">
+          <Facts>
+            {(incident.impacted_components ?? []).map((component, index) => (
+              <Fragment key={component.component_id ?? index}>
+                <span className="truncate">
+                  {component.component_name ?? component.component_id}
+                </span>
+                <span>
+                  <StatusBadge status={impactTone(component.impact ?? component.status)}>
+                    {humanize(component.impact ?? component.status ?? "unknown")}
+                  </StatusBadge>
+                </span>
+              </Fragment>
+            ))}
+          </Facts>
+        </Section>
+      )}
       <Section title="Status page">
         <div className="text-[12.5px] text-quiet">
           {updates > 0
@@ -154,6 +204,7 @@ export const IncidentSidePanel = ({
             : summary?.status_page?.draft_exists
               ? "Draft saved, not published"
               : "No public update yet"}
+          {subscriberCount ? `, ${subscriberCount} subscribers` : ""}
         </div>
         <Button size="sm" variant="secondary" className="mt-2" onClick={onDraftUpdate}>
           {updates > 0 ? "Post update" : "Draft update"}
