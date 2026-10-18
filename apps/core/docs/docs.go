@@ -3544,6 +3544,9 @@ const docTemplate = `{
                                             "properties": {
                                                 "delivery": {
                                                     "$ref": "#/definitions/internal_api.AlertDeliveryResponse"
+                                                },
+                                                "result": {
+                                                    "$ref": "#/definitions/internal_api.AlertTestResult"
                                                 }
                                             }
                                         }
