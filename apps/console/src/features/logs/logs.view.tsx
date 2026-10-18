@@ -94,7 +94,7 @@ export const LogsPage = () => {
     ["service", "status", "internal"].includes(state.tab) ? state.tab : "service"
   ) as LogKind;
   const view = state.view === "live" || state.view === "patterns" ? state.view : "list";
-  const limit = Number(state.limit) || 50;
+  const limit = Number(state.limit) || 25;
   const [exporting, setExporting] = useState(false);
   const [paused, setPaused] = useState(false);
   const [fieldKey, setFieldKey] = useState<string>();
