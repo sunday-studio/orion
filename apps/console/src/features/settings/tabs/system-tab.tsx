@@ -21,17 +21,11 @@ export const SystemTab = () => {
   if (query.isPending) return <Skeleton className="h-48 w-full rounded-xl" />;
   if (query.isError || !data) return <Callout tone="down">Unable to load system status.</Callout>;
   const worker = data.worker;
-  const dot = worker?.healthy ? "#2a9f69" : worker?.status === "stale" ? "#f59e0b" : "#e5484d";
   return (
     <FieldPanel title="System" aside={`Core ${data.version ?? ""}`}>
       <RaisedCard>
         <SettingRow
-          label={
-            <span className="flex items-center gap-2.5">
-              <i className="size-2 shrink-0 rounded-full" style={{ background: dot }} />
-              Core worker
-            </span>
-          }
+          label="Core worker"
           detail={
             worker?.status === "running"
               ? `Running, last tick ${formatDate(worker.last_tick_at, "HH:mm:ss")}`

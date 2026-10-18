@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Button,
-  Dot,
   EmptyState,
   GridRow,
   GridTable,
@@ -30,7 +29,7 @@ import {
   statusText,
 } from "../server-format";
 
-const COLUMNS = "12px minmax(0,1.1fr) 110px 120px 90px 60px 60px";
+const COLUMNS = "minmax(0,1.1fr) 110px 120px 90px 60px 60px";
 
 const badgeStatus = (row: ServerRow) => {
   const state = serverState(row);
@@ -149,7 +148,6 @@ export const AgentList = () => {
         <div className="overflow-hidden rounded-xl border border-hairline bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
           <GridTable>
             <GridRow columns={COLUMNS} header>
-              <span />
               <span>Server</span>
               <span>Platform</span>
               <span>Status</span>
@@ -165,7 +163,6 @@ export const AgentList = () => {
                 className="cursor-pointer"
                 onClick={() => navigate(`/servers/${agent.id}`)}
               >
-                <Dot color={stateDot[serverState(agent)]} />
                 <Link
                   to={`/servers/${agent.id}`}
                   className="truncate font-medium outline-none hover:underline focus-visible:underline"

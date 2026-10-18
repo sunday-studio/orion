@@ -5,7 +5,6 @@ import {
   AddFilterButton,
   Button,
   CheckFilterPanel,
-  Dot,
   EmptyState,
   FilterToken,
   FilterTokenRow,
@@ -30,14 +29,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import {
   type DeliveryRow,
-  deliveryStatusDot,
   deliveryStatusOptions,
   deliveryTitle,
   sinceOptions,
   statusLabel,
 } from "../alerts-format";
 
-const COLUMNS = "12px minmax(0,1.5fr) minmax(0,1fr) 110px 90px 70px";
+const COLUMNS = "minmax(0,1.5fr) minmax(0,1fr) 110px 90px 70px";
 const MENU = "block w-full rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-tray";
 
 export const NotificationLogTab = () => {
@@ -174,7 +172,6 @@ export const NotificationLogTab = () => {
         <div className="ds-settled overflow-hidden rounded-xl border border-hairline bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
           <GridTable>
             <GridRow columns={COLUMNS} header>
-              <span />
               <span>Alert</span>
               <span>Channel</span>
               <span>Status</span>
@@ -189,7 +186,6 @@ export const NotificationLogTab = () => {
                 className="cursor-pointer"
                 onClick={() => navigate(`/alerts/deliveries/${delivery.id}`)}
               >
-                <Dot color={deliveryStatusDot(delivery.status)} />
                 <span className="truncate">
                   <b className="font-medium">{deliveryTitle(delivery)}</b>{" "}
                   {delivery.incident_display_id && (

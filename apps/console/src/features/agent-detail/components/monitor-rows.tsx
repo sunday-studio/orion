@@ -1,6 +1,6 @@
 import type { ApiMonitorResponse } from "@/orion-sdk";
-import { Dot, StatusBadge } from "@/design-system";
-import { healthDot } from "@/features/incidents/incident-format";
+import { StatusBadge } from "@/design-system";
+import {} from "@/features/incidents/incident-format";
 import { monitorHealth } from "../agent-detail.domain";
 
 type MonitorWithDetail = ApiMonitorResponse;
@@ -24,13 +24,12 @@ export const monitorStatusText = (monitor: MonitorWithDetail) => {
 
 export const monitorDetail = (monitor: MonitorWithDetail) => monitor.status_detail ?? "-";
 
-export const MONITOR_COLUMNS = "12px minmax(0,1.6fr) 76px 112px minmax(0,1.2fr)";
+export const MONITOR_COLUMNS = "minmax(0,1.6fr) 76px 112px minmax(0,1.2fr)";
 
 export const MonitorCells = ({ monitor }: { monitor: MonitorWithDetail }) => {
   const health = monitorHealth(monitor);
   return (
     <>
-      <Dot color={healthDot(health === "stale" ? "unknown" : health)} />
       <b className="font-medium">{monitor.name ?? monitor.id}</b>
       <span className="text-faint">{monitorTypeLabel(monitor.type)}</span>
       <span>
