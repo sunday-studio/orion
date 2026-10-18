@@ -46,13 +46,21 @@ export const AgentMonitorSetupPage = () => {
   const [value, setValue] = useState("");
   const [every, setEvery] = useState("30");
   const [fail, setFail] = useState("3");
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string>();
   const [created, setCreated] = useState<string>();
   const create = useCreateAgentMonitorDefinition();
   const chosen = servers.find((agent) => agent.id === server) ?? servers[0];
   const [label, placeholder] = field[what as keyof typeof field] ?? field.process;
   const definitions = useListAgentMonitorDefinitions(chosen?.id ?? "", {
-    query: { enabled: Boolean(created && chosen?.id), refetchInterval: 5000 },
+    query: {
+      enabled: Boolean(created && chosen?.id),
+      refetchInterval: (query) =>
+        query.state.data?.definitions?.some(
+          (item) => item.id === created && item.state === "reporting",
+        )
+          ? false
+          : 5000,
+    },
   });
   const definition = (definitions.data?.definitions ?? []).find((item) => item.id === created);
 
@@ -75,7 +83,7 @@ export const AgentMonitorSetupPage = () => {
           : what === "port"
             ? `port ${text}`
             : "memory";
-    setError(false);
+    setError(undefined);
     create.mutate(
       {
         agentId: chosen.id,
@@ -89,7 +97,11 @@ export const AgentMonitorSetupPage = () => {
       },
       {
         onSuccess: (result) => setCreated(result.definition?.id),
-        onError: () => setError(true),
+        onError: (failure) =>
+          setError(
+            (failure as Error).message ||
+              "Unable to create the monitor. Check the values and try again.",
+          ),
       },
     );
   };

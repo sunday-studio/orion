@@ -254,7 +254,13 @@ export const MonitorList = ({
         </div>
       )}
       {selected.size > 0 && (
-        <MonitorBulkBar ids={[...selected]} onClear={() => setSelected(new Set())} />
+        <MonitorBulkBar
+          ids={[...selected]}
+          onClear={() => setSelected(new Set())}
+          onSucceeded={(done) =>
+            setSelected((current) => new Set([...current].filter((id) => !done.includes(id))))
+          }
+        />
       )}
     </div>
   );

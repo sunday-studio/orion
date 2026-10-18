@@ -67,6 +67,7 @@ export const MonitorDetailPage = () => {
       <MonitorTestResultDialog
         result={actions.testResult}
         running={actions.testing}
+        error={actions.testError}
         onRunAgain={actions.test}
         onClose={actions.clearTestResult}
       />

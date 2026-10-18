@@ -50,9 +50,7 @@ export const useMonitorActions = (monitorId: string, name: string) => {
       onError: failed("Unable to resume the monitor"),
     },
   });
-  const test = useTestRunMonitor({
-    mutation: { onError: failed("Unable to run the test") },
-  });
+  const test = useTestRunMonitor();
   const clone = useCloneCoreMonitor({
     mutation: {
       onSuccess: (result) => {
@@ -85,6 +83,9 @@ export const useMonitorActions = (monitorId: string, name: string) => {
       pause.isPending || resume.isPending || test.isPending || clone.isPending || remove.isPending,
     testing: test.isPending,
     testResult: test.data,
+    testError: test.isError
+      ? (test.error as Error).message || "Unable to run the test."
+      : undefined,
     clearTestResult: () => test.reset(),
   };
 };
