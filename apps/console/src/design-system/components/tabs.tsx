@@ -10,16 +10,20 @@ export const Tabs = ({ className, ...props }: React.ComponentProps<typeof TabsPr
 /** Centered tab row; the rule sits only under the tabs (design language, Layout). */
 export const TabsList = ({
   className,
+  children,
   ...props
 }: React.ComponentProps<typeof TabsPrimitive.List>) => (
   <TabsPrimitive.List
     activateOnFocus
     className={cn(
-      "inline-flex h-9 w-max items-center gap-5 self-center border-b border-hairline",
+      "relative inline-flex h-9 w-max items-center gap-5 self-center border-b border-hairline",
       className,
     )}
     {...props}
-  />
+  >
+    {children}
+    <TabsPrimitive.Indicator className="absolute bottom-[-1px] left-0 h-0.5 w-[var(--active-tab-width)] translate-x-[var(--active-tab-left)] bg-brand transition-[translate,width] duration-200 ease-out motion-reduce:transition-none" />
+  </TabsPrimitive.List>
 );
 
 export const TabsTab = ({
@@ -29,7 +33,7 @@ export const TabsTab = ({
   <TabsPrimitive.Tab
     className={cn(
       focusRing,
-      "relative h-full whitespace-nowrap rounded px-0.5 text-[13px] text-quiet hover:text-ink data-[active]:font-medium data-[active]:text-ink after:absolute after:inset-x-0 after:bottom-[-1px] after:h-0.5 after:bg-brand after:opacity-0 data-[active]:after:opacity-100",
+      "relative h-full whitespace-nowrap rounded text-[13px] text-quiet hover:text-ink data-[active]:text-ink",
       className,
     )}
     {...props}

@@ -202,17 +202,15 @@ export const IncidentDetailPage = () => {
               now={now}
             />
             <Tabs value={activeTab} onValueChange={handleTabChange} className="gap-3.5">
-              <TabsList className="w-full gap-2 self-stretch">
-                <TabsTab value="timeline" className="px-2.5">
-                  Timeline
-                </TabsTab>
-                <TabsTab value="monitor-reports" className="px-2.5">
+              <TabsList className="w-full self-stretch">
+                <TabsTab value="timeline">Timeline</TabsTab>
+                <TabsTab value="monitor-reports">
                   Checks <TabCount className="ml-1">{monitorReports.length}</TabCount>
                 </TabsTab>
-                <TabsTab value="notifications" className="px-2.5">
+                <TabsTab value="notifications">
                   Notifications <TabCount className="ml-1">{alertDeliveries.length}</TabCount>
                 </TabsTab>
-                <TabsTab value="logs" className="px-2.5">
+                <TabsTab value="logs">
                   Logs <TabCount className="ml-1">{logEntries.length}</TabCount>
                 </TabsTab>
               </TabsList>
