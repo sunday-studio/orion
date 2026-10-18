@@ -35,6 +35,7 @@ export const Segmented = ({
   className,
   "aria-label": ariaLabel,
   role = "radiogroup",
+  onField = false,
 }: {
   options: readonly SegmentedOption[];
   value: string;
@@ -44,13 +45,19 @@ export const Segmented = ({
   "aria-label": string;
   /** Use "group" with aria-pressed items for view switchers rather than form choices. */
   role?: "radiogroup" | "group";
+  /** Use on a tinted surface (box header, field panel) where the default tray would blend in. */
+  onField?: boolean;
 }) => {
   const layoutId = useId();
   return (
     <div
       role={role}
       aria-label={ariaLabel}
-      className={cn("relative flex w-fit gap-0.5 rounded-lg bg-tray p-[3px]", className)}
+      className={cn(
+        "relative flex w-fit gap-0.5 rounded-lg p-[3px]",
+        onField ? "bg-hairline" : "bg-tray",
+        className,
+      )}
     >
       {options.map((option) => {
         const active = option.value === value;
