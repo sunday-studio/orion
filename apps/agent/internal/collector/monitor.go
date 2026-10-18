@@ -183,6 +183,10 @@ func CollectMonitorReport(internalMonitor config.InternalStateMonitor, userMonit
 			Metrics:   &result.Metrics,
 			Error:     result.Error,
 		}, nil
+	case config.UserMonitorTypeDiskUsage:
+		return RunDiskUsageMonitor(userMonitorConfig.DiskUsage.Path, userMonitorConfig.DiskUsage.MaxPercent), nil
+	case config.UserMonitorTypeProcess:
+		return RunProcessMonitor(userMonitorConfig.ProcessRunning.Name), nil
 	case config.UserMonitorTypeDocker:
 		result := RunDockerContainerMonitor(DockerContainerConfig{
 			Name: userMonitorConfig.Docker.Name,
