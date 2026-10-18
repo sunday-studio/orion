@@ -8196,6 +8196,30 @@ const docTemplate = `{
                         "description": "Include Core self-monitors such as worker liveness (default false)",
                         "name": "include_system",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated computed statuses to show: up,down,degraded,stale,unknown; total and hidden_count report what the filter hides",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only monitors owned by this server",
+                        "name": "agent_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Alias of search",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Only paused (true) or only running (false) Core monitors",
+                        "name": "paused",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -8216,6 +8240,10 @@ const docTemplate = `{
                                                     "type": "integer",
                                                     "format": "int64"
                                                 },
+                                                "hidden_count": {
+                                                    "type": "integer",
+                                                    "format": "int64"
+                                                },
                                                 "limit": {
                                                     "type": "integer"
                                                 },
@@ -8230,6 +8258,10 @@ const docTemplate = `{
                                                 },
                                                 "pagination": {
                                                     "$ref": "#/definitions/orion_core_internal_utils.PaginationMeta"
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "format": "int64"
                                                 }
                                             }
                                         }
@@ -8394,6 +8426,9 @@ const docTemplate = `{
                                                     "items": {
                                                         "$ref": "#/definitions/internal_api.MonitorReportResponse"
                                                     }
+                                                },
+                                                "summary": {
+                                                    "$ref": "#/definitions/internal_api.MonitorDetailSummary"
                                                 }
                                             }
                                         }
@@ -8417,7 +8452,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Soft delete a Core-managed monitor and pause its runner configuration.",
+                "description": "Delete a Core-managed monitor. By default its check history is deleted too; keep_history=true keeps it for 90 days. Incidents are never deleted.",
                 "produces": [
                     "application/json"
                 ],
@@ -8433,6 +8468,12 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Keep check history for 90 days (default false)",
+                        "name": "keep_history",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -8537,6 +8578,110 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/monitors/{id}/availability": {
+            "get": {
+                "description": "Per period: check-based availability, incident-based downtime, incident count and the longest incident.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "Monitor availability",
+                "operationId": "getMonitorAvailability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Monitor ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "periods": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/internal_api.AvailabilityPeriod"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/monitors/{id}/clone": {
+            "post": {
+                "description": "Creates a copy with \" copy\" appended to the name. Heartbeat clones get their own token, shown once.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "Clone a Core monitor",
+                "operationId": "cloneCoreMonitor",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Monitor ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.CoreMonitorManagementResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
@@ -8743,6 +8888,61 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/monitors/{id}/response-times": {
+            "get": {
+                "description": "Average and maximum check duration per bucket: day = 5 minute buckets, week = hourly, month = 6 hourly. Empty buckets are omitted.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "Monitor response times",
+                "operationId": "getMonitorResponseTimes",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Monitor ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "day",
+                        "description": "day, week or month",
+                        "name": "range",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.ResponseTimesResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
@@ -12657,6 +12857,36 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.AvailabilityPeriod": {
+            "type": "object",
+            "properties": {
+                "availability_percent": {
+                    "type": "number"
+                },
+                "downtime_seconds": {
+                    "type": "integer"
+                },
+                "incidents": {
+                    "type": "integer"
+                },
+                "longest_ongoing": {
+                    "description": "LongestOngoing is true when the longest incident has not ended.",
+                    "type": "boolean"
+                },
+                "longest_seconds": {
+                    "type": "integer"
+                },
+                "period": {
+                    "type": "string",
+                    "enum": [
+                        "today",
+                        "7d",
+                        "30d",
+                        "365d"
+                    ]
+                }
+            }
+        },
         "internal_api.BulkIncidentRequest": {
             "type": "object",
             "required": [
@@ -14274,6 +14504,98 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.MonitorDetailSummary": {
+            "type": "object",
+            "properties": {
+                "current_state_since": {
+                    "description": "CurrentStateSince is when the monitor entered its current status (a failing run's start); null when unknown.",
+                    "type": "string"
+                },
+                "heartbeat": {
+                    "$ref": "#/definitions/internal_api.MonitorHeartbeatInfo"
+                },
+                "incidents_30d": {
+                    "type": "integer"
+                },
+                "interval_seconds": {
+                    "type": "integer"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "last_checked_at": {
+                    "type": "string"
+                },
+                "last_result": {
+                    "description": "LastResult is the newest check: pass or fail.",
+                    "type": "string",
+                    "enum": [
+                        "pass",
+                        "fail"
+                    ]
+                },
+                "paused": {
+                    "type": "boolean"
+                },
+                "paused_at": {
+                    "type": "string"
+                },
+                "paused_by": {
+                    "type": "string"
+                },
+                "runbook_url": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "up",
+                        "down",
+                        "degraded",
+                        "stale",
+                        "unknown",
+                        "paused"
+                    ]
+                },
+                "status_detail": {
+                    "type": "string"
+                },
+                "status_text": {
+                    "type": "string"
+                },
+                "target": {
+                    "type": "string"
+                },
+                "timeout_seconds": {
+                    "type": "integer"
+                },
+                "tls_days_remaining": {
+                    "description": "TLSDaysRemaining comes from the newest TLS-aware check.",
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_api.MonitorHeartbeatInfo": {
+            "type": "object",
+            "properties": {
+                "expected_every_seconds": {
+                    "type": "integer"
+                },
+                "grace_seconds": {
+                    "type": "integer"
+                },
+                "last_ping_at": {
+                    "type": "string"
+                },
+                "ping_url_failure": {
+                    "type": "string"
+                },
+                "ping_url_success": {
+                    "description": "Ping URLs show only the first characters of the token; the full URL is returned once, when the monitor is created.",
+                    "type": "string"
+                }
+            }
+        },
         "internal_api.MonitorReportResponse": {
             "type": "object",
             "properties": {
@@ -14282,6 +14604,9 @@ const docTemplate = `{
                 },
                 "created_at": {
                     "type": "string"
+                },
+                "duration_ms": {
+                    "type": "integer"
                 },
                 "health": {
                     "type": "string"
@@ -14292,7 +14617,17 @@ const docTemplate = `{
                 "monitor_id": {
                     "type": "string"
                 },
+                "passed": {
+                    "description": "Derived for the check history drawer: passed, a one-line summary (\"Timeout, 10,000 ms\"), duration and source.",
+                    "type": "boolean"
+                },
                 "payload": {
+                    "type": "string"
+                },
+                "reported_by": {
+                    "type": "string"
+                },
+                "summary": {
                     "type": "string"
                 }
             }
@@ -14330,6 +14665,13 @@ const docTemplate = `{
                 "incident_state": {
                     "type": "string"
                 },
+                "interval_seconds": {
+                    "type": "integer"
+                },
+                "kind": {
+                    "description": "List and detail extras: runner kind, what is checked (\"GET api.example.com/health\"), cadence, pause state,\nrunbook link, and the last 24 check results oldest first (\"up\", \"degraded\", \"down\").",
+                    "type": "string"
+                },
                 "last_health_computation": {
                     "type": "string"
                 },
@@ -14351,8 +14693,26 @@ const docTemplate = `{
                 "owner_name": {
                     "type": "string"
                 },
+                "paused": {
+                    "type": "boolean"
+                },
+                "paused_at": {
+                    "type": "string"
+                },
+                "paused_by": {
+                    "type": "string"
+                },
+                "recent_checks": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "reporting_interval_seconds": {
                     "type": "integer"
+                },
+                "runbook_url": {
+                    "type": "string"
                 },
                 "source": {
                     "type": "string"
@@ -14366,6 +14726,9 @@ const docTemplate = `{
                 },
                 "system": {
                     "type": "boolean"
+                },
+                "target": {
+                    "type": "string"
                 },
                 "type": {
                     "type": "string"
@@ -14617,6 +14980,51 @@ const docTemplate = `{
                 },
                 "type": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_api.ResponseTimePoint": {
+            "type": "object",
+            "properties": {
+                "at": {
+                    "type": "string"
+                },
+                "avg_ms": {
+                    "type": "number"
+                },
+                "checks": {
+                    "type": "integer"
+                },
+                "failed": {
+                    "type": "integer"
+                },
+                "max_ms": {
+                    "type": "number"
+                }
+            }
+        },
+        "internal_api.ResponseTimesResponse": {
+            "type": "object",
+            "properties": {
+                "bucket_seconds": {
+                    "type": "integer"
+                },
+                "points": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.ResponseTimePoint"
+                    }
+                },
+                "range": {
+                    "type": "string",
+                    "enum": [
+                        "day",
+                        "week",
+                        "month"
+                    ]
+                },
+                "timeout_ms": {
+                    "type": "integer"
                 }
             }
         },
@@ -16191,6 +16599,10 @@ const docTemplate = `{
                 "recovery_period_seconds": {
                     "type": "integer"
                 },
+                "runbook_url": {
+                    "description": "RunbookURL (http or https) is shown on incidents for this monitor.",
+                    "type": "string"
+                },
                 "secret_refs": {
                     "type": "object",
                     "additionalProperties": true
@@ -16233,6 +16645,10 @@ const docTemplate = `{
                 },
                 "recovery_period_seconds": {
                     "type": "integer"
+                },
+                "runbook_url": {
+                    "description": "RunbookURL sets the runbook link; an empty string clears it.",
+                    "type": "string"
                 },
                 "secret_refs": {
                     "type": "object",
@@ -16332,6 +16748,10 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "has_incidents": {
+                    "type": "integer"
+                },
+                "paused": {
+                    "description": "Paused counts Core-managed monitors that are paused.",
                     "type": "integer"
                 },
                 "stale": {

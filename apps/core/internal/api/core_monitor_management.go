@@ -105,17 +105,18 @@ func (s *Server) updateCoreMonitor(c *gin.Context) {
 
 // deleteCoreMonitor deletes a Core-managed monitor.
 // @Summary      Delete a Core monitor
-// @Description  Soft delete a Core-managed monitor and pause its runner configuration.
+// @Description  Delete a Core-managed monitor. By default its check history is deleted too; keep_history=true keeps it for 90 days. Incidents are never deleted.
 // @Tags         monitors
 // @Produce      json
 // @ID           deleteCoreMonitor
-// @Param        id   path      string true "Monitor ID"
+// @Param        id            path      string true  "Monitor ID"
+// @Param        keep_history  query     bool   false "Keep check history for 90 days (default false)"
 // @Success      200  {object}  utils.APIResponse{data=object{success=bool}}
 // @Failure      404  {object}  utils.APIResponse
 // @Failure      500  {object}  utils.APIResponse
 // @Router       /v1/monitors/{id} [delete]
 func (s *Server) deleteCoreMonitor(c *gin.Context) {
-	if err := s.coreMonitorManagementService.DeleteCoreMonitor(c.Param("id")); err != nil {
+	if err := s.coreMonitorManagementService.DeleteCoreMonitorWith(c.Param("id"), utils.QueryBool(c, "keep_history", false)); err != nil {
 		s.handleCoreMonitorManagementError(c, err, "Failed to delete core monitor")
 		return
 	}
@@ -134,7 +135,7 @@ func (s *Server) deleteCoreMonitor(c *gin.Context) {
 // @Failure      500  {object}  utils.APIResponse
 // @Router       /v1/monitors/{id}/pause [post]
 func (s *Server) pauseCoreMonitor(c *gin.Context) {
-	record, err := s.coreMonitorManagementService.PauseCoreMonitor(c.Param("id"))
+	record, err := s.coreMonitorManagementService.PauseCoreMonitorBy(c.Param("id"), frontendActorID(c))
 	if err != nil {
 		s.handleCoreMonitorManagementError(c, err, "Failed to pause core monitor")
 		return

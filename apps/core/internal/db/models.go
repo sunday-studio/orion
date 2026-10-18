@@ -185,8 +185,10 @@ type Monitor struct {
 	IncidentState            string     `json:"incident_state" gorm:"not null;default:unknown;index:idx_monitors_incident_state"`
 
 	Lifecycle string `json:"lifecycle" gorm:"not null;index:idx_monitors_lifecycle"` // active | disabled | deleted
-	Health    string `json:"health" gorm:"not null;index:idx_monitors_health"`       // up | down | degraded | unknown
-	Meta      string `json:"meta" gorm:"type:text"`
+	// RunbookURL is shown on incidents for this monitor.
+	RunbookURL string `json:"runbook_url" gorm:"not null;default:''"`
+	Health     string `json:"health" gorm:"not null;index:idx_monitors_health"` // up | down | degraded | unknown
+	Meta       string `json:"meta" gorm:"type:text"`
 
 	CreatedAt time.Time `json:"created_at" gorm:"index:idx_monitors_created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -230,16 +232,20 @@ type CoreMonitorConfig struct {
 	ConfirmationCheckCount    int        `json:"confirmation_check_count" gorm:"not null;default:0"`
 	RecoveryPeriodSeconds     int        `json:"recovery_period_seconds" gorm:"not null;default:0"`
 	Paused                    bool       `json:"paused" gorm:"not null;default:false;index:idx_core_monitor_configs_due"`
-	NextRunAt                 time.Time  `json:"next_run_at" gorm:"not null;index:idx_core_monitor_configs_due"`
-	LastRunAt                 *time.Time `json:"last_run_at"`
-	LastSignalAt              *time.Time `json:"last_signal_at"`
-	LastSuccessAt             *time.Time `json:"last_success_at"`
-	LastFailureAt             *time.Time `json:"last_failure_at"`
-	LeaseOwner                string     `json:"lease_owner" gorm:"not null;default:'';index:idx_core_monitor_configs_lease_owner"`
-	LeaseExpiresAt            *time.Time `json:"lease_expires_at" gorm:"index:idx_core_monitor_configs_due;index:idx_core_monitor_configs_lease_expires_at"`
-	CreatedAt                 time.Time  `json:"created_at"`
-	UpdatedAt                 time.Time  `json:"updated_at"`
-	Monitor                   Monitor    `json:"monitor,omitempty" gorm:"foreignKey:MonitorID;references:ID"`
+	PausedAt                  *time.Time `json:"paused_at"`
+	PausedBy                  string     `json:"paused_by" gorm:"not null;default:''"`
+	// HeartbeatTokenPrefix is the first characters of a heartbeat token, so the setup screen can show a masked URL.
+	HeartbeatTokenPrefix string     `json:"-" gorm:"not null;default:''"`
+	NextRunAt            time.Time  `json:"next_run_at" gorm:"not null;index:idx_core_monitor_configs_due"`
+	LastRunAt            *time.Time `json:"last_run_at"`
+	LastSignalAt         *time.Time `json:"last_signal_at"`
+	LastSuccessAt        *time.Time `json:"last_success_at"`
+	LastFailureAt        *time.Time `json:"last_failure_at"`
+	LeaseOwner           string     `json:"lease_owner" gorm:"not null;default:'';index:idx_core_monitor_configs_lease_owner"`
+	LeaseExpiresAt       *time.Time `json:"lease_expires_at" gorm:"index:idx_core_monitor_configs_due;index:idx_core_monitor_configs_lease_expires_at"`
+	CreatedAt            time.Time  `json:"created_at"`
+	UpdatedAt            time.Time  `json:"updated_at"`
+	Monitor              Monitor    `json:"monitor,omitempty" gorm:"foreignKey:MonitorID;references:ID"`
 }
 
 type CoreWorkerStatus struct {
