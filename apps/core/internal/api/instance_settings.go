@@ -158,10 +158,13 @@ type SystemSettings struct {
 	} `json:"sign_in"`
 	Registration struct {
 		// Configured is false when agents can register without a token.
-		Configured bool       `json:"configured"`
-		Token      string     `json:"token,omitempty"`
-		Source     string     `json:"source" enums:"settings,environment,none"`
-		RotatedAt  *time.Time `json:"rotated_at,omitempty"`
+		Configured bool `json:"configured"`
+		// Token is the secret itself; it is returned to Console sessions only, never to API tokens.
+		Token string `json:"token,omitempty"`
+		// TokenMask is the token with its middle hidden, shown to API tokens.
+		TokenMask string     `json:"token_mask,omitempty"`
+		Source    string     `json:"source" enums:"settings,environment,none"`
+		RotatedAt *time.Time `json:"rotated_at,omitempty"`
 	} `json:"registration"`
 	Worker struct {
 		// Status is running, stale or missing.
@@ -192,7 +195,11 @@ func (s *Server) getSystemSettingsImpl(c *gin.Context) {
 	}
 	out.SignIn.AuthEnabled, out.SignIn.Username, out.SignIn.SessionHours = s.cfg.FrontendAuthOn, s.cfg.AdminUsername, s.cfg.SessionHours
 	token, source, rotated := s.effectiveRegistrationToken()
-	out.Registration.Configured, out.Registration.Token, out.Registration.Source, out.Registration.RotatedAt = token != "", token, source, rotated
+	out.Registration.Configured, out.Registration.Source, out.Registration.RotatedAt = token != "", source, rotated
+	out.Registration.TokenMask = maskToken(token)
+	if !isAPITokenCaller(c) {
+		out.Registration.Token = token
+	}
 	out.Worker.Status = "missing"
 	if diag, err := s.workerDiagnosticsService.GetDiagnostics(c.Request.Context(), time.Duration(s.cfg.CoreWorkerStaleSeconds)*time.Second, now); err == nil && len(diag.Workers) > 0 {
 		out.Worker.WorkerCount = diag.WorkerCount
@@ -249,4 +256,12 @@ func (s *Server) rotateRegistrationTokenImpl(c *gin.Context) {
 	}
 	s.logger.Info("Registration token rotated", "actor", frontendActorID(c))
 	utils.SuccessResponse(c, http.StatusOK, "Registration token rotated. Servers already connected keep working; new servers need the new token.", RegistrationTokenResponse{Token: row.RegistrationToken, RotatedAt: now})
+}
+
+// maskToken keeps the start and end of a secret so people can tell tokens apart.
+func maskToken(token string) string {
+	if len(token) <= 12 {
+		return ""
+	}
+	return token[:8] + "••••" + token[len(token)-4:]
 }

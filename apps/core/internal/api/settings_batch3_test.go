@@ -123,6 +123,30 @@ func TestAPITokensScopesAuditAndSessionOnlyManagement(t *testing.T) {
 			t.Errorf("writer %s = %d, want 403", name, r.Code)
 		}
 	}
+	// The registration token and subscriber emails are for Console sessions only; tokens see masks.
+	rot := bearer(t, server, http.MethodPost, "/v1/settings/system/registration-token/rotate", jwt, nil)
+	var rotated struct {
+		Data RegistrationTokenResponse `json:"data"`
+	}
+	json.Unmarshal(rot.Body.Bytes(), &rotated)
+	asToken := bearer(t, server, http.MethodGet, "/v1/settings/system", reader.Token, nil)
+	if asToken.Code != http.StatusOK || strings.Contains(asToken.Body.String(), rotated.Data.Token) || !strings.Contains(asToken.Body.String(), `"token_mask"`) {
+		t.Errorf("read token must not see the registration token: %d %s", asToken.Code, asToken.Body.String())
+	}
+	if asSession := bearer(t, server, http.MethodGet, "/v1/settings/system", jwt, nil); !strings.Contains(asSession.Body.String(), rotated.Data.Token) {
+		t.Errorf("session should see the registration token: %s", asSession.Body.String())
+	}
+	server.cfg.PublicStatusSubscriberSecret = "test-subscriber-secret"
+	page, _, _ := createPublishedStatusPageForSubscriberTest(t, server, "token-pii")
+	seedStatusPageSubscriberForTest(t, server, page.ID, "ada@acme.test", statusPageSubscriberStateConfirmed, "c1", "m1", "u1", nil)
+	if r := bearer(t, server, http.MethodGet, "/v1/status-pages/"+page.ID+"/subscribers", jwt, nil); !strings.Contains(r.Body.String(), "ada@acme.test") {
+		t.Errorf("session should see subscriber emails: %s", r.Body.String())
+	}
+	for _, path := range []string{"/v1/status-pages/" + page.ID + "/subscribers", "/v1/status-pages/" + page.ID + "/subscribers/export.csv"} {
+		if r := bearer(t, server, http.MethodGet, path, reader.Token, nil); r.Code != http.StatusOK || strings.Contains(r.Body.String(), "ada@acme.test") || !strings.Contains(r.Body.String(), "a***@acme.test") {
+			t.Errorf("API token must see masked emails on %s: %d %s", path, r.Code, r.Body.String())
+		}
+	}
 	// Unknown and revoked tokens are refused; last use is recorded.
 	if r := bearer(t, server, http.MethodGet, "/v1/agents", "orn_api_deadbeef", nil); r.Code != http.StatusUnauthorized {
 		t.Errorf("unknown token = %d", r.Code)

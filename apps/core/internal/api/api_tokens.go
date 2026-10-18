@@ -52,10 +52,16 @@ func toAPIToken(t db.APIToken) APIToken {
 	return APIToken{ID: t.ID, Name: t.Name, Prefix: t.Prefix, Scope: t.Scope, CreatedBy: t.CreatedBy, CreatedAt: t.CreatedAt, LastUsedAt: t.LastUsedAt}
 }
 
+// isAPITokenCaller reports whether the request authenticated with an API token rather than a Console session.
+func isAPITokenCaller(c *gin.Context) bool {
+	kind, _ := c.Get(apiTokenKindKey)
+	return kind == "api_token"
+}
+
 // requireSession refuses API-token callers: tokens cannot manage tokens or the registration token.
 // It reports whether the request may continue.
 func (s *Server) requireSession(c *gin.Context) bool {
-	if kind, _ := c.Get(apiTokenKindKey); kind == "api_token" {
+	if isAPITokenCaller(c) {
 		utils.ErrorResponse(c, http.StatusForbidden, "API tokens cannot manage tokens or registration. Sign in to the Console.", nil)
 		return false
 	}

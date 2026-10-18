@@ -41,8 +41,13 @@ func (s *Server) auditMiddleware() gin.HandlerFunc {
 		if mapped && route.Param == "" {
 			// Creates have no id yet: keep the request body to name the target and the response to read the new id.
 			if c.Request.Body != nil {
-				body, _ = io.ReadAll(io.LimitReader(c.Request.Body, auditMaxBody))
-				c.Request.Body = io.NopCloser(bytes.NewReader(body))
+				original := c.Request.Body
+				body, _ = io.ReadAll(io.LimitReader(original, auditMaxBody))
+				// Anything past the cap still reaches the handler, so its own body limit answers (413), not a truncated JSON error.
+				c.Request.Body = struct {
+					io.Reader
+					io.Closer
+				}{io.MultiReader(bytes.NewReader(body), original), original}
 			}
 			capture = &captureWriter{ResponseWriter: c.Writer}
 			c.Writer = capture
