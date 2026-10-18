@@ -44,7 +44,7 @@ export const OverviewFirstRun = ({ onDismiss }: { onDismiss: () => void }) => {
           <Button variant="secondary">Create a monitor</Button>
         </Link>
       </div>
-      <p className="mt-9 whitespace-nowrap text-[12.5px] text-quiet">
+      <p className="mt-9 text-[12.5px] min-[1000px]:whitespace-nowrap text-quiet">
         Then connect an alert channel,{" "}
         <Link className="underline" to="/apps/new">
           connect an app

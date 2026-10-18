@@ -7,9 +7,9 @@ import "./login.css";
 const HEADLINE = ["Know before", "your users do"] as const;
 
 const CAPABILITIES = [
-  "Monitor your servers and services",
-  "Collect product logs from your apps",
-  "Publish a status page for your users",
+  "Know the moment a server, site or job stops responding",
+  "Get told by webhook or email, and see every delivery",
+  "Publish a status page and ship logs from your apps",
 ] as const;
 
 const safeReturnPath = (from: string | null) =>
@@ -93,7 +93,9 @@ export function LoginPage() {
           >
             {CAPABILITIES.map((line) => (
               <li key={line} className="flex items-center gap-2.5">
-                <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-[#80ffaa]" />
+                <span aria-hidden className="shrink-0 text-[#80ffaa]">
+                  ✓
+                </span>
                 {line}
               </li>
             ))}
