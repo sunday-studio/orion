@@ -1358,6 +1358,139 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/agents/{agent_id}/monitor-definitions": {
+            "post": {
+                "description": "Defines a disk, memory, process or port check. The agent fetches its definitions with POST /v1/agents/{agent_id}/monitor-definitions/sync and reports under the same name; state turns reporting after the first report.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "Create an agent monitor definition",
+                "operationId": "createAgentMonitorDefinition",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent ID",
+                        "name": "agent_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Check",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.AgentMonitorDefinitionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "definition": {
+                                                    "$ref": "#/definitions/internal_api.AgentMonitorDefinitionResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/agents/{agent_id}/monitor-definitions/sync": {
+            "post": {
+                "description": "Agent-to-Core. Returns the checks configured for this agent in the Console; the agent registers each as a monitor with the same name and reports to it.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "Agent: sync configured monitor definitions",
+                "operationId": "pullAgentMonitorDefinitions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent ID",
+                        "name": "agent_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "definitions": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/internal_api.AgentPulledDefinition"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/agents/{agent_id}/register-monitor": {
             "post": {
                 "security": [
@@ -2190,6 +2323,103 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/agents/{id}/monitor-definitions": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "List agent monitor definitions",
+                "operationId": "listAgentMonitorDefinitions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "definitions": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/internal_api.AgentMonitorDefinitionResponse"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/agents/{id}/monitor-definitions/{definition_id}": {
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "Delete an agent monitor definition",
+                "operationId": "deleteAgentMonitorDefinition",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Definition ID",
+                        "name": "definition_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
@@ -8336,6 +8566,73 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/monitors/bulk": {
+            "post": {
+                "description": "Pause, resume, set maintenance, delete or clone up to 100 monitors. Each id succeeds or fails on its own. Pause, resume, delete and clone apply to Core-managed monitors only.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "Bulk monitor action",
+                "operationId": "bulkMonitorAction",
+                "parameters": [
+                    {
+                        "description": "Bulk action",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.BulkMonitorRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "failed": {
+                                                    "type": "integer"
+                                                },
+                                                "results": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/internal_api.BulkMonitorResult"
+                                                    }
+                                                },
+                                                "succeeded": {
+                                                    "type": "integer"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/monitors/summary": {
             "get": {
                 "description": "Get aggregate counts for active monitors by health, stale, and incident status",
@@ -8371,6 +8668,65 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/monitors/test-run": {
+            "post": {
+                "description": "Validates the config with the same rules and target policy as creating a monitor, runs it once and returns the result. Nothing is stored.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "Test-run a monitor that is not saved yet",
+                "operationId": "testRunUnsavedMonitor",
+                "parameters": [
+                    {
+                        "description": "Check to run",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.TestRunMonitorRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.MonitorTestRunResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
@@ -8841,6 +9197,110 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/monitors/{id}/maintenance": {
+            "put": {
+                "description": "Checks keep running but incidents and alerts are held between starts_at (default now) and ends_at, at most 30 days. Replaces any existing window.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "Set a monitor maintenance window",
+                "operationId": "setMonitorMaintenance",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Monitor ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Window",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.MonitorMaintenanceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "maintenance": {
+                                                    "$ref": "#/definitions/internal_api.MonitorMaintenanceInfo"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "Clear a monitor maintenance window",
+                "operationId": "clearMonitorMaintenance",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Monitor ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/monitors/{id}/pause": {
             "post": {
                 "description": "Pause a Core-managed monitor so the worker will not claim it.",
@@ -9057,6 +9517,66 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/monitors/{id}/test-run": {
+            "post": {
+                "description": "Runs the check once and returns the result. Unlike POST /v1/monitors/{id}/test it stores no report, changes no health and opens no incident or alert. Limited to 20 runs per minute.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "Test-run a saved monitor",
+                "operationId": "testRunMonitor",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Monitor ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.MonitorTestRunResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
@@ -12076,6 +12596,103 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.AgentMonitorDefinitionRequest": {
+            "type": "object",
+            "required": [
+                "check_type",
+                "name"
+            ],
+            "properties": {
+                "check_type": {
+                    "description": "CheckType: disk (params path, threshold_percent), memory (threshold_percent), process (process_name), port (port).",
+                    "type": "string",
+                    "enum": [
+                        "disk",
+                        "memory",
+                        "process",
+                        "port"
+                    ]
+                },
+                "fail_after": {
+                    "type": "integer"
+                },
+                "interval_seconds": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "params": {
+                    "type": "object",
+                    "additionalProperties": {}
+                }
+            }
+        },
+        "internal_api.AgentMonitorDefinitionResponse": {
+            "type": "object",
+            "properties": {
+                "check_type": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "fail_after": {
+                    "type": "integer"
+                },
+                "first_report_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "interval_seconds": {
+                    "type": "integer"
+                },
+                "monitor_id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "params": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "state": {
+                    "description": "State is waiting until the agent has fetched the definition and reported under this name, then reporting.",
+                    "type": "string",
+                    "enum": [
+                        "waiting",
+                        "reporting"
+                    ]
+                }
+            }
+        },
+        "internal_api.AgentPulledDefinition": {
+            "type": "object",
+            "properties": {
+                "check_type": {
+                    "type": "string"
+                },
+                "fail_after": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "interval_seconds": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "params": {
+                    "type": "object",
+                    "additionalProperties": {}
+                }
+            }
+        },
         "internal_api.AgentReportResponse": {
             "type": "object",
             "properties": {
@@ -12928,6 +13545,61 @@ const docTemplate = `{
                 },
                 "incident": {
                     "$ref": "#/definitions/internal_api.IncidentResponse"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_api.BulkMonitorRequest": {
+            "type": "object",
+            "required": [
+                "action",
+                "ids"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": [
+                        "pause",
+                        "resume",
+                        "maintenance",
+                        "delete",
+                        "clone"
+                    ]
+                },
+                "ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "keep_history": {
+                    "description": "KeepHistory applies to delete (default true).",
+                    "type": "boolean"
+                },
+                "maintenance": {
+                    "description": "Maintenance applies to the maintenance action.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/internal_api.MonitorMaintenanceRequest"
+                        }
+                    ]
+                }
+            }
+        },
+        "internal_api.BulkMonitorResult": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "new_id": {
+                    "description": "NewID is the clone's id for the clone action.",
+                    "type": "string"
                 },
                 "ok": {
                     "type": "boolean"
@@ -14596,6 +15268,41 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.MonitorMaintenanceInfo": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "type": "boolean"
+                },
+                "ends_at": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "starts_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.MonitorMaintenanceRequest": {
+            "type": "object",
+            "properties": {
+                "duration_seconds": {
+                    "type": "integer"
+                },
+                "ends_at": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "starts_at": {
+                    "description": "StartsAt defaults to now. Give EndsAt or DurationSeconds.",
+                    "type": "string"
+                }
+            }
+        },
         "internal_api.MonitorReportResponse": {
             "type": "object",
             "properties": {
@@ -14681,6 +15388,14 @@ const docTemplate = `{
                 "lifecycle": {
                     "type": "string"
                 },
+                "maintenance": {
+                    "description": "Maintenance is set while a window is active or scheduled.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/internal_api.MonitorMaintenanceInfo"
+                        }
+                    ]
+                },
                 "name": {
                     "type": "string"
                 },
@@ -14735,6 +15450,50 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_api.MonitorTestRunResponse": {
+            "type": "object",
+            "properties": {
+                "actual": {
+                    "$ref": "#/definitions/internal_api.IncidentExpectation"
+                },
+                "duration_ms": {
+                    "type": "integer"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "expected": {
+                    "$ref": "#/definitions/internal_api.IncidentExpectation"
+                },
+                "failure_stage": {
+                    "type": "string"
+                },
+                "notes": {
+                    "description": "Notes always includes that a test run creates no history or alerts.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "passed": {
+                    "type": "boolean"
+                },
+                "ran_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Status is passed or failed.",
+                    "type": "string",
+                    "enum": [
+                        "passed",
+                        "failed"
+                    ]
+                },
+                "status_code": {
+                    "type": "integer"
                 }
             }
         },
@@ -15843,6 +16602,29 @@ const docTemplate = `{
                 },
                 "entry_id": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_api.TestRunMonitorRequest": {
+            "type": "object",
+            "required": [
+                "config",
+                "kind"
+            ],
+            "properties": {
+                "config": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "secret_refs": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "timeout_seconds": {
+                    "type": "integer"
                 }
             }
         },

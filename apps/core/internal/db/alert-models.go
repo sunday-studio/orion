@@ -127,3 +127,17 @@ type EnrollmentSession struct {
 	ExpiresAt   time.Time `gorm:"not null"`
 	CreatedAt   time.Time `gorm:"not null"`
 }
+
+// AgentMonitorDefinition is a check the operator configured in the Console for the agent to run
+// ("Agent monitor" setup). The agent pulls its definitions and reports under the same name.
+type AgentMonitorDefinition struct {
+	ID              string    `gorm:"primaryKey"`
+	AgentID         string    `gorm:"not null;uniqueIndex:idx_agent_monitor_definitions_name"`
+	Name            string    `gorm:"not null;uniqueIndex:idx_agent_monitor_definitions_name"`
+	CheckType       string    `gorm:"not null"` // disk | memory | process | port
+	Params          string    `gorm:"type:text;not null;default:'{}'"`
+	IntervalSeconds int       `gorm:"not null;default:30"`
+	FailAfter       int       `gorm:"not null;default:3"`
+	CreatedBy       string    `gorm:"not null;default:''"`
+	CreatedAt       time.Time `gorm:"not null"`
+}
