@@ -5574,6 +5574,203 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/apps/{id}/keys/{key_id}/rotate": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a new key with the same name and returns it once. The old key keeps working for 10 minutes (its revoked_at is set to that time) so a deploy can switch without dropping logs.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "apps"
+                ],
+                "summary": "Rotate an ingest key",
+                "operationId": "rotateIngestKey",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "App id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Key id",
+                        "name": "key_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "key": {
+                                                    "$ref": "#/definitions/internal_api.IngestKeyCreated"
+                                                },
+                                                "previous_key_valid_until": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/apps/{id}/purge": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Removes every stored log line of the app (the app, keys and rules stay).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "apps"
+                ],
+                "summary": "Delete all logs for an app",
+                "operationId": "purgeAppLogs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "App id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "deleted": {
+                                                    "type": "integer"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/apps/{id}/redaction/test": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Applies the app's saved rules, or the rules in the request, to a sample and returns the result. Nothing is saved or stored.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "apps"
+                ],
+                "summary": "Test redaction rules",
+                "operationId": "testAppRedaction",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "App id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Sample and optional unsaved rules",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.RedactionTestRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.RedactionTestResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/apps/{id}/test-log": {
             "post": {
                 "security": [
@@ -6084,6 +6281,103 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/exports/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "exports"
+                ],
+                "summary": "Get an export",
+                "operationId": "getExport",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Export id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "export": {
+                                                    "$ref": "#/definitions/internal_api.ExportResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/exports/{id}/download": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "text/csv"
+                ],
+                "tags": [
+                    "exports"
+                ],
+                "summary": "Download an export",
+                "operationId": "downloadExport",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Export id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "File",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
@@ -8316,6 +8610,207 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/logs/export": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Starts a CSV or JSON lines export of the rows matching a filter (capped at 100,000 rows). Poll GET /v1/exports/{id}; the download link works for 24 hours.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "exports"
+                ],
+                "summary": "Export logs",
+                "operationId": "createExport",
+                "parameters": [
+                    {
+                        "description": "What to export",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ExportRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "export": {
+                                                    "$ref": "#/definitions/internal_api.ExportResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/logs/facets": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Counts per severity, source, event and environment for the same filters as the search, plus the field catalog for a single app. Pass field=\u003ckey\u003e to also get that attribute's most common values.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "logs"
+                ],
+                "summary": "Log facets",
+                "operationId": "getLogFacets",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by app",
+                        "name": "app_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated severities, or a minimum with \u003e=warn",
+                        "name": "severity",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact event name",
+                        "name": "event",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Full-text search",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start (RFC 3339, or relative like -1h)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End (RFC 3339); default now",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact trace id",
+                        "name": "trace_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact request id",
+                        "name": "request_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Attribute filter key:value, repeatable",
+                        "name": "attr",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 5,
+                        "description": "How many events to list",
+                        "name": "events",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Attribute key to list top values for",
+                        "name": "field",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "How many values",
+                        "name": "values",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.LogFacetsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "Gateway Timeout",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.SearchTimeoutBody"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/v1/logs/fields": {
             "get": {
                 "security": [
@@ -8513,6 +9008,188 @@ const docTemplate = `{
                         "description": "Not Implemented",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/logs/ingest-status": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Whether ingest is behind (queue depth, lag estimate, rate limiting, storage full) plus today's volume and storage use, for the \"Ingest is behind\" banner and the Apps header.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "logs"
+                ],
+                "summary": "Log ingest status",
+                "operationId": "getLogIngestStatus",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.LogIngestStatus"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/logs/patterns": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Groups similar messages (numbers, ids and addresses become placeholders) so a flood of one error is one row. Reads up to 20,000 newest matching lines of the window; is_new marks patterns absent from the previous window of the same length.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "logs"
+                ],
+                "summary": "Log patterns",
+                "operationId": "getLogPatterns",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by app",
+                        "name": "app_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated severities, or a minimum with \u003e=warn",
+                        "name": "severity",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact event name",
+                        "name": "event",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Full-text search",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start; default 24 hours ago",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End; default now",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Maximum patterns",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.LogPatternsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "Gateway Timeout",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.SearchTimeoutBody"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/logs/redaction-defaults": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "logs"
+                ],
+                "summary": "Default redaction keys",
+                "operationId": "getRedactionDefaults",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.RedactionDefaultsResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -8988,6 +9665,66 @@ const docTemplate = `{
                     },
                     "501": {
                         "description": "Not Implemented",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/logs/{id}/related": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "The entries sharing the request id, else the trace id; for plain lines with neither, the lines just before and after in the same app (by=nearby).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "logs"
+                ],
+                "summary": "Related logs",
+                "operationId": "getLogRelated",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Log entry id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Maximum entries",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.LogRelatedResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
@@ -14975,6 +15712,9 @@ const docTemplate = `{
                 "last_ingest_at": {
                     "type": "string"
                 },
+                "lines": {
+                    "type": "integer"
+                },
                 "max_storage_mb": {
                     "description": "MaxStorageMB caps stored log size for this app; the oldest entries are pruned first. 0 means the server default.",
                     "type": "integer"
@@ -14982,6 +15722,14 @@ const docTemplate = `{
                 "name": {
                     "type": "string",
                     "example": "checkout-api"
+                },
+                "rate_limit_per_second": {
+                    "description": "RateLimitPerSecond is this app's ingest limit in lines per second; 0 uses the server default.",
+                    "type": "integer"
+                },
+                "rate_per_second": {
+                    "description": "RatePerSecond is the average over the last minute.",
+                    "type": "number"
                 },
                 "redaction": {
                     "$ref": "#/definitions/internal_api.RedactionSettings"
@@ -14994,6 +15742,25 @@ const docTemplate = `{
                 "slug": {
                     "type": "string",
                     "example": "checkout-api"
+                },
+                "status": {
+                    "description": "Status is receiving (a log in the last 5 minutes), quiet or never.",
+                    "type": "string",
+                    "enum": [
+                        "receiving",
+                        "quiet",
+                        "never"
+                    ]
+                },
+                "storage_bytes": {
+                    "description": "StorageBytes is what the app currently uses; StorageCapBytes its size cap (0 = no cap).",
+                    "type": "integer"
+                },
+                "storage_cap_bytes": {
+                    "type": "integer"
+                },
+                "storage_percent": {
+                    "type": "integer"
                 }
             }
         },
@@ -15020,6 +15787,9 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "rate_limit_per_second": {
+                    "type": "integer"
                 },
                 "redaction": {
                     "$ref": "#/definitions/internal_api.RedactionSettings"
@@ -15049,6 +15819,9 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "rate_limit_per_second": {
+                    "type": "integer"
                 },
                 "redaction": {
                     "$ref": "#/definitions/internal_api.RedactionSettings"
@@ -15464,6 +16237,85 @@ const docTemplate = `{
                         "expired",
                         "cancelled"
                     ]
+                }
+            }
+        },
+        "internal_api.ExportRequest": {
+            "type": "object",
+            "properties": {
+                "format": {
+                    "description": "Format is csv (default) or jsonl.",
+                    "type": "string",
+                    "enum": [
+                        "csv",
+                        "jsonl"
+                    ]
+                },
+                "include_raw": {
+                    "description": "IncludeRaw adds the raw event as a column (CSV); JSON lines always contain the full event.",
+                    "type": "boolean"
+                },
+                "kind": {
+                    "description": "Kind is logs (default), events or internal.",
+                    "type": "string",
+                    "enum": [
+                        "logs",
+                        "events",
+                        "internal"
+                    ]
+                },
+                "query": {
+                    "description": "Query is the screen's filter as a URL query string, for example \"severity=error\u0026from=-24h\".",
+                    "type": "string",
+                    "example": "severity=error\u0026from=-24h"
+                }
+            }
+        },
+        "internal_api.ExportResponse": {
+            "type": "object",
+            "properties": {
+                "bytes": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "download_url": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "finished_at": {
+                    "type": "string"
+                },
+                "format": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "rows": {
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "Status is queued, running, done or failed.",
+                    "type": "string",
+                    "enum": [
+                        "queued",
+                        "running",
+                        "done",
+                        "failed"
+                    ]
+                },
+                "truncated": {
+                    "type": "boolean"
                 }
             }
         },
@@ -16660,6 +17512,10 @@ const docTemplate = `{
                 "severity": {
                     "$ref": "#/definitions/internal_api.LogSeverity"
                 },
+                "severity_inferred": {
+                    "description": "SeverityInferred is true when the sender gave no severity and it was read from the text.",
+                    "type": "boolean"
+                },
                 "severity_number": {
                     "type": "integer",
                     "example": 17
@@ -16733,6 +17589,71 @@ const docTemplate = `{
                 "trace_id": {
                     "type": "string",
                     "example": "4bf92f3577b34da6a3ce929d0e0e4736"
+                }
+            }
+        },
+        "internal_api.LogFacetCount": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "label": {
+                    "description": "Label is the display name (an app's name for the source facet).",
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.LogFacetsResponse": {
+            "type": "object",
+            "properties": {
+                "environments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.LogFacetCount"
+                    }
+                },
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.LogFacetCount"
+                    }
+                },
+                "events_distinct": {
+                    "description": "EventsDistinct is how many different events exist, for \"Show 41 more\".",
+                    "type": "integer"
+                },
+                "fields": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.LogFieldStat"
+                    }
+                },
+                "severity": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "sources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.LogFacetCount"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "values": {
+                    "description": "Values lists the most common values when the field query parameter is set.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.LogFacetCount"
+                    }
                 }
             }
         },
@@ -16812,6 +17733,44 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.LogIngestStatus": {
+            "type": "object",
+            "properties": {
+                "behind": {
+                    "type": "boolean"
+                },
+                "dropped": {
+                    "description": "Dropped counts entries dropped since Core started.",
+                    "type": "integer"
+                },
+                "lag_seconds": {
+                    "description": "LagSeconds estimates how long newly accepted logs wait before they are searchable.",
+                    "type": "integer"
+                },
+                "lines_today": {
+                    "type": "integer"
+                },
+                "queue_depth": {
+                    "type": "integer"
+                },
+                "queue_max": {
+                    "type": "integer"
+                },
+                "rate_limited": {
+                    "type": "boolean"
+                },
+                "storage_bytes": {
+                    "type": "integer"
+                },
+                "storage_full": {
+                    "type": "boolean"
+                },
+                "storage_limit_bytes": {
+                    "description": "StorageLimitBytes is the sum of the apps' size caps; 0 when any app has no cap.",
+                    "type": "integer"
+                }
+            }
+        },
         "internal_api.LogListResponse": {
             "type": "object",
             "properties": {
@@ -16827,6 +17786,82 @@ const docTemplate = `{
                 "truncated": {
                     "description": "Truncated is true when the time range matched more rows than the server will scan.",
                     "type": "boolean"
+                }
+            }
+        },
+        "internal_api.LogPattern": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "first_seen": {
+                    "type": "string"
+                },
+                "is_new": {
+                    "type": "boolean"
+                },
+                "last_seen": {
+                    "type": "string"
+                },
+                "pattern": {
+                    "type": "string",
+                    "example": "Delivery failed: \u003cn\u003e returned \u003cn\u003e"
+                },
+                "sample_id": {
+                    "type": "string"
+                },
+                "severity": {
+                    "$ref": "#/definitions/internal_api.LogSeverity"
+                },
+                "trend": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "internal_api.LogPatternsResponse": {
+            "type": "object",
+            "properties": {
+                "from": {
+                    "type": "string"
+                },
+                "patterns": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.LogPattern"
+                    }
+                },
+                "to": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.LogRelatedResponse": {
+            "type": "object",
+            "properties": {
+                "by": {
+                    "description": "By is request_id, trace_id or nearby.",
+                    "type": "string",
+                    "enum": [
+                        "request_id",
+                        "trace_id",
+                        "nearby"
+                    ]
+                },
+                "entries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.LogEntry"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "value": {
+                    "type": "string"
                 }
             }
         },
@@ -17456,9 +18491,47 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.RedactionDefaultsResponse": {
+            "type": "object",
+            "properties": {
+                "keys": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "internal_api.RedactionRule": {
+            "type": "object",
+            "properties": {
+                "pattern": {
+                    "type": "string",
+                    "example": "card_number"
+                },
+                "replace_with": {
+                    "type": "string",
+                    "example": "[redacted]"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "key",
+                        "regex"
+                    ]
+                }
+            }
+        },
         "internal_api.RedactionSettings": {
             "type": "object",
             "properties": {
+                "default_keys": {
+                    "description": "DefaultKeys is read-only: the key names redacted unless defaults are disabled.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "disable_defaults": {
                     "description": "DisableDefaults turns off the built-in key list. Not recommended.",
                     "type": "boolean"
@@ -17469,6 +18542,42 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "rules": {
+                    "description": "Rules are custom rules applied after the defaults.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.RedactionRule"
+                    }
+                }
+            }
+        },
+        "internal_api.RedactionTestRequest": {
+            "type": "object",
+            "properties": {
+                "redaction": {
+                    "description": "Redaction overrides the app's saved rules; omit to test what is saved.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/internal_api.RedactionSettings"
+                        }
+                    ]
+                },
+                "sample": {
+                    "description": "Sample is a JSON value (object, array or string).",
+                    "type": "object"
+                }
+            }
+        },
+        "internal_api.RedactionTestResponse": {
+            "type": "object",
+            "properties": {
+                "changed": {
+                    "description": "Changed is true when at least one value differs from the sample.",
+                    "type": "boolean"
+                },
+                "redacted": {
+                    "type": "object"
                 }
             }
         },
@@ -17649,6 +18758,15 @@ const docTemplate = `{
                         "server",
                         "app"
                     ]
+                }
+            }
+        },
+        "internal_api.SearchTimeoutBody": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "search_timeout"
                 }
             }
         },

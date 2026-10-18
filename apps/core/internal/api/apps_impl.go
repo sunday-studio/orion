@@ -331,7 +331,8 @@ func (s *Server) revokeIngestKeyImpl(c *gin.Context) {
 		return
 	}
 	now := time.Now().UTC()
-	res := s.db.Model(&db.AppIngestKey{}).Where("id = ? AND app_id = ? AND revoked_at IS NULL", c.Param("key_id"), app.ID).Update("revoked_at", now)
+	// A key that is still inside its rotation grace (revoked_at in the future) can be revoked now.
+	res := s.db.Model(&db.AppIngestKey{}).Where("id = ? AND app_id = ? AND (revoked_at IS NULL OR revoked_at > ?)", c.Param("key_id"), app.ID, now).Update("revoked_at", now)
 	if res.Error != nil {
 		utils.InternalError(c, "Failed to revoke the key", res.Error)
 		return
