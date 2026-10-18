@@ -1,57 +1,28 @@
-import { type RefObject, useLayoutEffect, useRef, useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
+import { useId } from "react";
 import { cn } from "@/utils/cn";
 
-type Thumb = { left: number; width: number } | null;
+/** Spring used for shared-layout moves: smooth, no bounce (see docs/web/motion.md). */
+export const layoutSpring = { type: "spring", duration: 0.45, bounce: 0 } as const;
 
 /**
- * Measures the active item inside `container` (the element with `data-segment-active`) so a
- * single thumb can slide under it. Weight never changes with state, so nothing reflows.
+ * The sliding highlight. Render it inside the active item with a `layoutId` shared by the
+ * whole group and Motion moves it between items instead of fading one out and one in.
  */
-export const useSlidingThumb = (container: RefObject<HTMLElement | null>, key: unknown) => {
-  const [thumb, setThumb] = useState<Thumb>(null);
-  const [ready, setReady] = useState(false);
-
-  useLayoutEffect(() => {
-    const root = container.current;
-    if (!root) return;
-    const measure = () => {
-      const active = root.querySelector<HTMLElement>("[data-segment-active]");
-      setThumb(active ? { left: active.offsetLeft, width: active.offsetWidth } : null);
-    };
-    measure();
-    const frame = requestAnimationFrame(() => setReady(true));
-    const observer = new ResizeObserver(measure);
-    observer.observe(root);
-    return () => {
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-    };
-  }, [container, key]);
-
-  return { thumb, ready };
-};
-
-export const SegmentThumb = ({
-  thumb,
-  ready,
-  className,
-}: {
-  thumb: Thumb;
-  ready: boolean;
-  className?: string;
-}) =>
-  thumb && (
-    <span
+export const SegmentThumb = ({ layoutId, className }: { layoutId: string; className?: string }) => {
+  const reduce = useReducedMotion();
+  return (
+    <motion.span
       aria-hidden
+      layoutId={layoutId}
+      transition={reduce ? { duration: 0 } : layoutSpring}
       className={cn(
-        "pointer-events-none absolute bottom-[3px] top-[3px] rounded-md bg-chip shadow-[0_1px_2px_rgba(0,0,0,0.08)]",
-        ready &&
-          "transition-[left,width] duration-[380ms] ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+        "pointer-events-none absolute inset-0 rounded-md bg-chip shadow-[0_1px_2px_rgba(0,0,0,0.08)]",
         className,
       )}
-      style={{ left: thumb.left, width: thumb.width }}
     />
   );
+};
 
 export type SegmentedOption = { value: string; label: React.ReactNode };
 
@@ -74,16 +45,13 @@ export const Segmented = ({
   /** Use "group" with aria-pressed items for view switchers rather than form choices. */
   role?: "radiogroup" | "group";
 }) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const { thumb, ready } = useSlidingThumb(ref, `${value}|${options.map((o) => o.value).join()}`);
+  const layoutId = useId();
   return (
     <div
-      ref={ref}
       role={role}
       aria-label={ariaLabel}
       className={cn("relative flex w-fit gap-0.5 rounded-lg bg-tray p-[3px]", className)}
     >
-      <SegmentThumb thumb={thumb} ready={ready} />
       {options.map((option) => {
         const active = option.value === value;
         return (
@@ -93,16 +61,15 @@ export const Segmented = ({
             role={role === "radiogroup" ? "radio" : undefined}
             aria-checked={role === "radiogroup" ? active : undefined}
             aria-pressed={role === "group" ? active : undefined}
-            data-segment-active={active ? "" : undefined}
             onClick={() => onValueChange(option.value)}
             className={cn(
-              "outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus/60",
-              "relative z-[1] whitespace-nowrap rounded-md px-3 py-1 transition-colors",
+              "relative whitespace-nowrap rounded-md px-3 py-1 outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus/60",
               size === "sm" ? "text-xs" : "text-[13px]",
               active ? "text-ink" : "text-mid hover:text-ink",
             )}
           >
-            {option.label}
+            {active && <SegmentThumb layoutId={layoutId} />}
+            <span className="relative">{option.label}</span>
           </button>
         );
       })}
