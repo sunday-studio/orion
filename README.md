@@ -119,26 +119,13 @@ examples/python-sleep-compose/smoke.sh
 
 ## How it works
 
-```mermaid
-flowchart LR
-    subgraph servers [Servers]
-        A1[Orion Server]
-        A2[Orion Server]
-    end
-    subgraph core [Core host]
-        C[Orion Core API]
-        W[Core monitor worker]
-        DB[(SQLite)]
-        UI[Console]
-    end
-    A1 -->|HTTP/S + token| C
-    A2 -->|HTTP/S + token| C
-    C --> DB
-    W --> DB
-    UI --> C
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/architecture-dark.svg">
+  <img src="assets/architecture-light.svg" alt="Orion architecture: Servers and apps send reports and logs to Core. Core, its monitor worker and SQLite run on one host. The Console reads from Core, and alerts leave by webhook or email.">
+</picture>
 
 - **Server** runs on Linux and macOS hosts and reports system metrics and monitor results.
+- **Your apps** send logs to Core with a write-only ingest key, as JSON or OpenTelemetry.
 - **Core** receives reports, stores data, derives health, opens incidents, sends alerts and serves the API.
 - **Core monitor worker** runs Core-managed checks in its own process, so API health stays separate from
   monitor execution health.
@@ -165,7 +152,7 @@ Good to know:
 - Core refuses to start with no admin credentials. For local experiments only, set
   `ORION_ALLOW_INSECURE_NO_AUTH=true`; every admin route is then open to anyone who can reach the port.
 - Swagger UI is off unless `ORION_ENABLE_SWAGGER=true`.
-- Request bodies are limited (1 MiB, 5 MiB for log batches), and URL paths with embedded tokens are not
+- Request bodies are limited (1 MiB, or 5 MiB for NDJSON log batches), and URL paths with embedded tokens are not
   logged.
 - Public status page subscriber email uses its own sender (`ORION_PUBLIC_STATUS_MAIL_*`). Internal alerts
   are delivered through alert rules, not that SMTP setup.
