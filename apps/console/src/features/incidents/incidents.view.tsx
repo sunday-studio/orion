@@ -6,6 +6,7 @@ import type { NumberedIncident } from "./incident-format";
 import { DeclareIncidentDialog } from "./list/declare-incident-dialog";
 import { IncidentBulkBar } from "./list/incident-bulk-bar";
 import { IncidentFilterRow, useIncidentFilters } from "./list/incident-filters";
+import { IncidentQuickViews } from "./list/incident-quick-views";
 import { IncidentTable } from "./list/incident-table";
 
 const PAGE_SIZE = 50;
@@ -31,6 +32,10 @@ export const IncidentsPage = () => {
     severity: filters.severities.length > 0 ? filters.severities.join(",") : undefined,
     opened_since: filters.since || undefined,
     q: filters.q.trim() || undefined,
+    notification_status: filters.notified.length > 0 ? filters.notified.join(",") : undefined,
+    agent_id: filters.server || undefined,
+    monitor_id: filters.monitor || undefined,
+    needs_review: filters.review || undefined,
   };
   const query = useGetIncidents({ ...params, limit: PAGE_SIZE });
   const incidents: NumberedIncident[] = query.data?.incidents ?? [];
@@ -46,6 +51,12 @@ export const IncidentsPage = () => {
     }
   };
 
+  const view =
+    filters.review || false
+      ? "review"
+      : statuses.length === 1 && statuses[0] === "resolved"
+        ? "resolved"
+        : "active";
   const isEmptyHistory = query.isSuccess && incidents.length === 0 && filters.isDefault;
 
   const toggle = (id: string) =>
@@ -80,18 +91,21 @@ export const IncidentsPage = () => {
       <div className="mt-3 flex flex-col gap-3">
         {!isEmptyHistory && <IncidentFilterRow filters={filters} />}
         {!isEmptyHistory && (
-          <div className="relative">
-            <Search
-              aria-hidden
-              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-faint"
-            />
-            <Input
-              aria-label="Search incidents"
-              placeholder="Search incidents"
-              className="pl-9"
-              value={filters.q}
-              onChange={(event) => filters.setQuery(event.target.value)}
-            />
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1">
+              <Search
+                aria-hidden
+                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-faint"
+              />
+              <Input
+                aria-label="Search incidents"
+                placeholder="Search incidents"
+                className="pl-9"
+                value={filters.q}
+                onChange={(event) => filters.setQuery(event.target.value)}
+              />
+            </div>
+            <IncidentQuickViews filters={filters} current={view} />
           </div>
         )}
         {query.isLoading ? (

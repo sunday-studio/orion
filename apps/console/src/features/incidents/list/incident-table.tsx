@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Checkbox, GridFooter, GridRow, GridTable, StatusBadge } from "@/design-system";
 import { type NumberedIncident, incidentLabel, relativeAgo, statusLabel } from "../incident-format";
 
-export const INCIDENT_COLUMNS = "18px 70px minmax(0,1.6fr) 120px 80px minmax(0,0.8fr) 70px";
+export const INCIDENT_COLUMNS = "18px 70px minmax(0,1.6fr) 120px 80px minmax(0,0.8fr) 110px 70px";
 
 export type IncidentTableProps = {
   incidents: NumberedIncident[];
@@ -14,6 +14,13 @@ export type IncidentTableProps = {
   hiddenResolved?: number;
   onShowResolved?: () => void;
 };
+
+const notificationLabel = (status?: string) =>
+  status === "failed"
+    ? "Not delivered"
+    : status
+      ? status.charAt(0).toUpperCase() + status.slice(1)
+      : "None";
 
 const severityLabel = (severity?: string) =>
   severity ? severity.charAt(0).toUpperCase() + severity.slice(1) : "Unknown";
@@ -46,6 +53,7 @@ export const IncidentTable = ({
           <span>Status</span>
           <span>Severity</span>
           <span>Monitor</span>
+          <span>Notified</span>
           <span>Opened</span>
         </GridRow>
         {incidents.map((incident) => {
@@ -84,6 +92,14 @@ export const IncidentTable = ({
               </span>
               <span className="font-mono text-xs text-faint">
                 {incident.monitor_name ?? incident.agent_name ?? "-"}
+              </span>
+              <span>
+                <StatusBadge
+                  status={incident.notification_status}
+                  shape={incident.notification_status === "failed" ? "square" : undefined}
+                >
+                  {notificationLabel(incident.notification_status)}
+                </StatusBadge>
               </span>
               <span className="text-faint">{relativeAgo(incident.opened_at, now)}</span>
             </GridRow>

@@ -18,6 +18,7 @@ import {
   getGetIncidentsQueryKey,
   getGetOverviewQueryKey,
   useDeclareIncident,
+  useGetAgents,
   useGetMonitors,
 } from "@/orion-sdk";
 import { cn } from "@/utils/cn";
@@ -32,7 +33,7 @@ export const DeclareIncidentDialog = ({
 }) => {
   const [title, setTitle] = useState("");
   const [severity, setSeverity] = useState("high");
-  const [monitorId, setMonitorId] = useState("");
+  const [target, setTarget] = useState("");
   const [summary, setSummary] = useState("");
   const [notify, setNotify] = useState(true);
   const [error, setError] = useState<string>();
@@ -40,10 +41,17 @@ export const DeclareIncidentDialog = ({
   const queryClient = useQueryClient();
   const declare = useDeclareIncident();
   const monitors = useGetMonitors({ limit: 100 }, { query: { enabled: open } });
-  const monitorOptions = (monitors.data?.monitors ?? []).map((monitor) => ({
-    value: monitor.id ?? "",
-    label: monitor.name ?? monitor.id ?? "Monitor",
-  }));
+  const agents = useGetAgents({ limit: 100 }, { query: { enabled: open } });
+  const targetOptions = [
+    ...(monitors.data?.monitors ?? []).map((monitor) => ({
+      value: `monitor:${monitor.id ?? ""}`,
+      label: `${monitor.name ?? monitor.id ?? "Monitor"}${monitor.agent_name ? ` on ${monitor.agent_name}` : ""}`,
+    })),
+    ...(agents.data?.agents ?? []).map((agent) => ({
+      value: `agent:${agent.id ?? ""}`,
+      label: `${agent.name ?? agent.id ?? "Server"} (server)`,
+    })),
+  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -64,7 +72,8 @@ export const DeclareIncidentDialog = ({
                 data: {
                   title: title.trim(),
                   severity: severity as "low" | "medium" | "high" | "critical",
-                  monitor_id: monitorId || undefined,
+                  monitor_id: target.startsWith("monitor:") ? target.slice(8) : undefined,
+                  agent_id: target.startsWith("agent:") ? target.slice(6) : undefined,
                   summary: summary.trim() || undefined,
                   notify,
                 },
@@ -125,17 +134,20 @@ export const DeclareIncidentDialog = ({
             </div>
           </div>
           <div className="flex flex-col gap-1.5 text-[13px] font-medium">
-            <span>Affected monitor or server</span>
+            <span>Monitor or server</span>
             <Select
-              aria-label="Affected monitor or server"
+              aria-label="Monitor or server"
               className="w-full font-normal"
-              options={monitorOptions}
-              value={monitorId}
-              onValueChange={setMonitorId}
+              options={targetOptions}
+              value={target}
+              onValueChange={setTarget}
             />
+            <span className="text-[13px] font-normal text-quiet">
+              A monitor can have only one active incident.
+            </span>
           </div>
           <label className="flex flex-col gap-1.5 text-[13px] font-medium">
-            Summary
+            Summary, optional
             <Textarea
               className="font-normal"
               value={summary}
@@ -152,7 +164,7 @@ export const DeclareIncidentDialog = ({
             <Button variant="secondary" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!title.trim() || declare.isPending}>
+            <Button type="submit" disabled={!title.trim() || !target || declare.isPending}>
               Declare incident
             </Button>
           </DialogFooter>

@@ -20,28 +20,38 @@ export const IncidentBulkBar = ({
   const bulk = useBulkIncidentAction();
   const busy = bulk.isPending;
 
-  const run = async (action: BulkAction) => {
-    let failed = ids.length;
+  const run = async (action: BulkAction, target: readonly string[] = ids) => {
+    let failedIds: string[] = [...target];
+    const reasons = new Map<string, string>();
     try {
       const result = await bulk.mutateAsync({
         data: {
-          ids: [...ids],
+          ids: [...target],
           action,
           note: action === "cover" ? "Covered in bulk for 1 hour" : `Bulk ${action}`,
         },
       });
-      failed = result.failed ?? 0;
+      failedIds = (result.results ?? []).filter((r) => !r.ok).map((r) => r.id ?? "");
+      for (const r of result.results ?? []) if (!r.ok) reasons.set(r.id ?? "", r.error ?? "failed");
     } catch {
-      failed = ids.length;
+      failedIds = [...target];
     }
     void queryClient.invalidateQueries({ queryKey: getGetIncidentsQueryKey() });
     void queryClient.invalidateQueries({ queryKey: getGetOverviewQueryKey() });
-    const done = ids.length - failed;
+    const done = target.length - failedIds.length;
+    const verb = { acknowledge: "acknowledged", cover: "covered", resolve: "resolved" }[action];
+    if (failedIds.length === 0) {
+      toast.add({ title: `${done} incidents ${verb}` });
+      onClear();
+      return;
+    }
     toast.add({
-      title: failed === 0 ? `${done} incidents updated` : `${done} updated, ${failed} failed`,
-      description: failed === 0 ? undefined : "Open the failed incidents to see why.",
+      title: `${done} of ${target.length} ${verb}`,
+      description: failedIds
+        .map((id) => `${id}: ${reasons.get(id) ?? "request failed"}`)
+        .join("\n"),
+      actionProps: { children: "Retry failed", onClick: () => void run(action, failedIds) },
     });
-    if (failed === 0) onClear();
   };
 
   return (
