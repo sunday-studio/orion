@@ -134,3 +134,23 @@ func TestLabelRoutesQueueDeliveriesAndRuleCooldownReplay(t *testing.T) {
 		t.Errorf("missing rule replay = %d", r.Code)
 	}
 }
+
+func TestLabelRoutesKeepLegacyFallbackForUnmatchedEvents(t *testing.T) {
+	server := alertServer(t)
+	seedLabelChannels(server)
+	agent := registerTestAgent(t, server)
+	now := time.Now().UTC()
+	server.db.Create(&db.Incident{ID: "incF", Number: 902, Status: "open", Severity: "low", Title: "slow", AgentID: agent.Data.AgentID, OpenedAt: now, LastEventAt: now, Source: "monitor"})
+	alerts := service.NewAlertService(server.db, server.logger, server.cfg)
+	if _, err := alerts.CreateLabelRoute(service.LabelRouteInput{Matchers: []service.LabelMatcher{{Key: "severity", Op: "=", Value: "critical"}}, ChannelIDs: []string{"ch-ops-team"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := alerts.QueueIncidentNotifications("incF", "incident_opened"); err != nil {
+		t.Fatal(err)
+	}
+	var n int64
+	server.db.Model(&db.AlertDelivery{}).Count(&n)
+	if n != 3 {
+		t.Fatalf("unmatched event with no rules should reach every channel, got %d deliveries", n)
+	}
+}

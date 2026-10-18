@@ -36,7 +36,7 @@ func (s *AlertService) DryRunRoutes(event AlertRouteContext) (*AlertRouteDryRunR
 	if err != nil {
 		return nil, err
 	}
-	if len(routes) == 0 && !s.hasLabelRoutes() {
+	if len(routes) == 0 && !s.labelRoutesMatch(event.Labels) {
 		return s.evaluateLegacyFallback(event)
 	}
 	return s.evaluateRoutes(event, routes)

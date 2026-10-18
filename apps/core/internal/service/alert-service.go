@@ -149,7 +149,7 @@ func (s *AlertService) QueueIncidentNotifications(incidentID string, eventType s
 	if grouping.Suppress {
 		return s.queueGroupedSuppression(*event, grouping, routes)
 	}
-	if len(routes) > 0 || s.hasLabelRoutes() {
+	if len(routes) > 0 || s.labelRoutesMatch(event.Labels) {
 		return s.queueRouteIncidentNotifications(*event, routes, grouping)
 	}
 	return s.queueLegacyIncidentNotifications(incidentID, eventType, grouping)
