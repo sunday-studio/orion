@@ -28,11 +28,12 @@ import { PublishDialog, UnpublishDialog } from "./dialogs/publish-dialogs";
 import { stateLabel, stateTone } from "./status-format";
 import { ComponentsTab } from "./tabs/components-tab";
 import { IncidentsTab } from "./tabs/incidents-tab";
+import { MaintenanceTab } from "./tabs/maintenance-tab";
 import { PreviewTab } from "./tabs/preview-tab";
 import { SetupTab } from "./tabs/setup-tab";
 import { SubscribersTab } from "./tabs/subscribers-tab";
 
-const TABS = ["setup", "components", "incidents", "subscribers", "preview"] as const;
+const TABS = ["setup", "components", "incidents", "maintenance", "subscribers", "preview"] as const;
 type Tab = (typeof TABS)[number];
 
 export const StatusPageDetailPage = () => {
@@ -139,6 +140,7 @@ export const StatusPageDetailPage = () => {
           <TabsTab value="setup">Setup</TabsTab>
           <TabsTab value="components">Components</TabsTab>
           <TabsTab value="incidents">Incidents</TabsTab>
+          <TabsTab value="maintenance">Maintenance</TabsTab>
           <TabsTab value="subscribers">Subscribers</TabsTab>
           <TabsTab value="preview">Preview</TabsTab>
         </TabsList>
@@ -156,6 +158,9 @@ export const StatusPageDetailPage = () => {
         </TabsPanel>
         <TabsPanel value="incidents">
           <IncidentsTab pageId={pageId} detail={detail.data} onChanged={refresh} />
+        </TabsPanel>
+        <TabsPanel value="maintenance">
+          <MaintenanceTab pageId={pageId} components={detail.data?.components ?? []} />
         </TabsPanel>
         <TabsPanel value="subscribers">
           <SubscribersTab pageId={pageId} />

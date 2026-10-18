@@ -1,4 +1,5 @@
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
+import { useRef } from "react";
 import { parseAsString, useQueryStates } from "nuqs";
 import {
   Button,
@@ -14,6 +15,7 @@ import {
   exportStatusPageSubscribers,
   getListStatusPageSubscribersQueryKey,
   getListStatusPagesQueryKey,
+  importStatusPageSubscribers,
   useDisableStatusPageSubscriber,
   useListStatusPageSubscribers,
 } from "@/orion-sdk";
@@ -46,6 +48,28 @@ export const SubscribersTab = ({ pageId }: { pageId: string }) => {
       onError: () => toast.add({ title: "Unable to disable the subscriber" }),
     },
   });
+  const fileInput = useRef<HTMLInputElement>(null);
+  const importCsv = async (file: File) => {
+    const rows = (await file.text()).split(/\r?\n/).filter((row) => row.trim() !== "");
+    let imported = 0;
+    let skipped = 0;
+    let invalid = 0;
+    try {
+      for (let start = 0; start < rows.length; start += 200) {
+        const result = await importStatusPageSubscribers(pageId, {
+          csv: rows.slice(start, start + 200).join("\n"),
+        });
+        imported += result.imported ?? 0;
+        skipped += result.skipped ?? 0;
+        invalid += result.invalid_count ?? 0;
+      }
+      toast.add({ title: `Imported ${imported}, skipped ${skipped}, invalid ${invalid}` });
+    } catch (failure) {
+      toast.add({ title: (failure as Error).message || "Unable to import subscribers" });
+    }
+    void queryClient.invalidateQueries({ queryKey: getListStatusPageSubscribersQueryKey(pageId) });
+    void queryClient.invalidateQueries({ queryKey: getListStatusPagesQueryKey() });
+  };
   const exportCsv = async () => {
     const csv = await exportStatusPageSubscribers(pageId, {
       state: state === "all" ? undefined : state,
@@ -78,6 +102,20 @@ export const SubscribersTab = ({ pageId }: { pageId: string }) => {
           onValueChange={(next) => void setQuery({ state: next })}
         />
         <span className="flex-1" />
+        <input
+          ref={fileInput}
+          type="file"
+          accept=".csv,text/csv"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (file) void importCsv(file);
+          }}
+        />
+        <Button size="sm" variant="secondary" onClick={() => fileInput.current?.click()}>
+          Import CSV
+        </Button>
         <Button
           size="sm"
           variant="secondary"

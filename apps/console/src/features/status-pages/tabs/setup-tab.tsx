@@ -7,6 +7,8 @@ import {
   useUpdateStatusPage,
 } from "@/orion-sdk";
 
+import { DomainPanel } from "./domain-panel";
+
 const label = "mb-1.5 block text-[12.5px] font-medium text-mid";
 
 export const SetupTab = ({
@@ -112,6 +114,7 @@ export const SetupTab = ({
           </label>
         </RaisedCard>
       </FieldPanel>
+      {page.custom_domain && <DomainPanel pageId={pageId} onChanged={onSaved} />}
       <div className="flex justify-end">
         <Button
           disabled={save.isPending || !title.trim()}
