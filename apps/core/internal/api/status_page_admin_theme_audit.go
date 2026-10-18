@@ -6,6 +6,7 @@ import (
 	"orion/core/internal/db"
 	"orion/core/internal/service"
 	"strings"
+	"time"
 )
 
 func sanitizeStatusPageThemeSettings(settings map[string]interface{}) (map[string]interface{}, error) {
@@ -69,6 +70,15 @@ func sanitizeStatusPageThemeSettings(settings map[string]interface{}) (map[strin
 			}
 			if text != "light" && text != "dark" && text != "system" {
 				return nil, &requestValidationError{message: "theme_settings.theme_mode is unsupported"}
+			}
+			sanitized[key] = text
+		case "timezone":
+			text, err := statusPageThemeString(value, "theme_settings.timezone", 64)
+			if err != nil {
+				return nil, err
+			}
+			if _, err := time.LoadLocation(text); err != nil || text == "" {
+				return nil, &requestValidationError{message: "theme_settings.timezone must be an IANA time zone such as Europe/London"}
 			}
 			sanitized[key] = text
 		case "show_uptime_summary", "show_incident_history":

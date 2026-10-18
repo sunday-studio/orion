@@ -384,6 +384,13 @@ func seed(database *gorm.DB, cfg seedConfig) (seedStats, error) {
 		return stats, err
 	}
 	stats.statusPages += statusPageStats.pages
+	draftPages, err := seedStatusPageDraft(database, now)
+	if err != nil {
+		return stats, err
+	}
+	stats.statusPages += draftPages
+	stats.statusPageSections++
+	stats.statusPageComponents += 2
 	stats.statusPageSections += statusPageStats.sections
 	stats.statusPageComponents += statusPageStats.components
 	stats.statusPageMappings += statusPageStats.mappings

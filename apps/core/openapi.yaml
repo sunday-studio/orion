@@ -2617,6 +2617,44 @@ definitions:
       stream:
         type: string
     type: object
+  internal_api.StatusPageBadgeLinks:
+    properties:
+      html:
+        type: string
+      json_url:
+        type: string
+      markdown:
+        type: string
+      svg_url:
+        type: string
+    type: object
+  internal_api.StatusPageBadgesResponse:
+    properties:
+      components:
+        items:
+          $ref: '#/definitions/internal_api.StatusPageComponentBadgeLinks'
+        type: array
+      note:
+        description: 'Note: unpublished pages serve an unknown badge.'
+        type: string
+      page:
+        $ref: '#/definitions/internal_api.StatusPageBadgeLinks'
+    type: object
+  internal_api.StatusPageComponentBadgeLinks:
+    properties:
+      html:
+        type: string
+      id:
+        type: string
+      json_url:
+        type: string
+      markdown:
+        type: string
+      name:
+        type: string
+      svg_url:
+        type: string
+    type: object
   internal_api.StatusPageComponentMappingResponse:
     properties:
       component_id:
@@ -2777,6 +2815,65 @@ definitions:
       published_at:
         type: string
       status:
+        type: string
+    type: object
+  internal_api.StatusPageListRow:
+    properties:
+      canonical_url:
+        type: string
+      component_count:
+        type: integer
+      created_at:
+        type: string
+      custom_domain:
+        type: string
+      default_incident_visibility:
+        type: string
+      description:
+        type: string
+      domain_status:
+        description: DomainStatus is pending, verified or failed; empty without a
+          custom domain.
+        type: string
+      id:
+        type: string
+      last_updated:
+        type: string
+      open_graph_image_url:
+        type: string
+      overall_status:
+        example: operational
+        type: string
+      public_url:
+        description: PublicURL is the custom domain when set, else the /status/<slug>
+          path.
+        example: status.example.com
+        type: string
+      published_at:
+        type: string
+      seo_description:
+        type: string
+      seo_title:
+        type: string
+      slug:
+        type: string
+      state:
+        description: State is published, draft or maintenance.
+        enum:
+        - published
+        - draft
+        - maintenance
+        type: string
+      subscriber_count:
+        type: integer
+      theme_settings:
+        additionalProperties: true
+        type: object
+      title:
+        type: string
+      updated_at:
+        type: string
+      visibility:
         type: string
     type: object
   internal_api.StatusPagePreviewResponse:
@@ -2971,6 +3068,49 @@ definitions:
       window:
         type: string
     type: object
+  internal_api.StatusPagePublishValidationResponse:
+    properties:
+      errors:
+        items:
+          type: string
+        type: array
+      warnings:
+        items:
+          type: string
+        type: array
+    type: object
+  internal_api.StatusPageReadinessCheck:
+    properties:
+      blocking:
+        type: boolean
+      detail:
+        type: string
+      key:
+        example: components_mapped
+        type: string
+      label:
+        example: Every component is mapped to a resource
+        type: string
+      ok:
+        type: boolean
+    type: object
+  internal_api.StatusPageReadinessResponse:
+    properties:
+      checks:
+        items:
+          $ref: '#/definitions/internal_api.StatusPageReadinessCheck'
+        type: array
+      passed:
+        type: integer
+      ready:
+        type: boolean
+      total:
+        type: integer
+      validation:
+        allOf:
+        - $ref: '#/definitions/internal_api.StatusPagePublishValidationResponse'
+        description: Errors and Warnings repeat what publishing would report.
+    type: object
   internal_api.StatusPageResponse:
     properties:
       canonical_url:
@@ -2982,6 +3122,10 @@ definitions:
       default_incident_visibility:
         type: string
       description:
+        type: string
+      domain_status:
+        description: DomainStatus is pending, verified or failed; empty without a
+          custom domain.
         type: string
       id:
         type: string
@@ -3022,6 +3166,15 @@ definitions:
       updated_at:
         type: string
     type: object
+  internal_api.StatusPageSlugCheckResponse:
+    properties:
+      available:
+        type: boolean
+      reason:
+        type: string
+      slug:
+        type: string
+    type: object
   internal_api.StatusPageSubscriberAdminComponentResponse:
     properties:
       id:
@@ -3045,6 +3198,10 @@ definitions:
         type: string
       disabled_at:
         type: string
+      email:
+        description: Email is the full address for operators; empty when the subscriber
+          secret is not configured.
+        type: string
       id:
         type: string
       last_delivery_at:
@@ -3052,6 +3209,13 @@ definitions:
       last_delivery_status:
         type: string
       masked_destination:
+        type: string
+      scope:
+        description: Scope reads "All components", "API only" or "3 components".
+        type: string
+      since:
+        description: Since is when the subscriber confirmed, else when they signed
+          up.
         type: string
       source:
         type: string
@@ -3070,6 +3234,19 @@ definitions:
         type: string
       name:
         type: string
+    type: object
+  internal_api.StatusPageSubscriberCounts:
+    properties:
+      confirmed:
+        type: integer
+      disabled:
+        type: integer
+      pending:
+        type: integer
+      total:
+        type: integer
+      unsubscribed:
+        type: integer
     type: object
   internal_api.StatusPageSubscriberPublicResponse:
     properties:
@@ -3414,6 +3591,10 @@ definitions:
       seo_title:
         type: string
       slug:
+        type: string
+      start_from:
+        description: StartFrom is "blank" (default) or "monitors" to add a component
+          per monitor; create only.
         type: string
       theme_settings:
         additionalProperties: true
@@ -4197,6 +4378,27 @@ paths:
           schema:
             $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get public status page
+      tags:
+      - public-status
+  /status/{slug}/badge.json:
+    get:
+      description: 'Shields.io endpoint format: schemaVersion, label, message, color.'
+      operationId: getPublicStatusPageBadgeJSON
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get public status page badge as JSON
       tags:
       - public-status
   /status/{slug}/badge.svg:
@@ -10924,7 +11126,7 @@ paths:
                       type: integer
                     pages:
                       items:
-                        $ref: '#/definitions/internal_api.StatusPageResponse'
+                        $ref: '#/definitions/internal_api.StatusPageListRow'
                       type: array
                   type: object
               type: object
@@ -11110,6 +11312,36 @@ paths:
       security:
       - BearerAuth: []
       summary: Update status page
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/badges:
+    get:
+      operationId: getStatusPageBadges
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.StatusPageBadgesResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Status page badges
       tags:
       - status-pages
   /v1/status-pages/{id}/components:
@@ -12020,6 +12252,38 @@ paths:
       summary: Publish status page
       tags:
       - status-pages
+  /v1/status-pages/{id}/readiness:
+    get:
+      description: 'Structured publish checks: blocking ones stop publishing, others
+        are advice.'
+      operationId: getStatusPageReadiness
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.StatusPageReadinessResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Status page publish checklist
+      tags:
+      - status-pages
   /v1/status-pages/{id}/sections:
     get:
       consumes:
@@ -12226,9 +12490,13 @@ paths:
         name: id
         required: true
         type: string
-      - description: Subscriber state filter
+      - description: Subscriber state filter (confirmed, pending, disabled, unsubscribed)
         in: query
         name: state
+        type: string
+      - description: Search by email
+        in: query
+        name: q
         type: string
       produces:
       - application/json
@@ -12243,6 +12511,8 @@ paths:
                   properties:
                     count:
                       type: integer
+                    counts:
+                      $ref: '#/definitions/internal_api.StatusPageSubscriberCounts'
                     subscribers:
                       items:
                         $ref: '#/definitions/internal_api.StatusPageSubscriberAdminResponse'
@@ -12400,6 +12670,37 @@ paths:
       summary: Disable status page subscriber
       tags:
       - status-pages
+  /v1/status-pages/{id}/subscribers/export.csv:
+    get:
+      description: CSV with email, scope, status and since. Honors the state filter.
+        Emails need the subscriber secret to be configured.
+      operationId: exportStatusPageSubscribers
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Subscriber state filter
+        in: query
+        name: state
+        type: string
+      produces:
+      - text/csv
+      responses:
+        "200":
+          description: CSV
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Export status page subscribers
+      tags:
+      - status-pages
   /v1/status-pages/{id}/unpublish:
     post:
       consumes:
@@ -12439,6 +12740,36 @@ paths:
       security:
       - BearerAuth: []
       summary: Unpublish status page
+      tags:
+      - status-pages
+  /v1/status-pages/slug-check:
+    get:
+      operationId: checkStatusPageSlug
+      parameters:
+      - description: Slug to check
+        in: query
+        name: slug
+        required: true
+        type: string
+      - description: Page being edited, ignored in the check
+        in: query
+        name: exclude_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.StatusPageSlugCheckResponse'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Check status page slug
       tags:
       - status-pages
 securityDefinitions:

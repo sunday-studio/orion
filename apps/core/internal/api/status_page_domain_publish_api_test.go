@@ -145,8 +145,8 @@ func TestStatusPageCustomDomainHostRoutingAndIsolation(t *testing.T) {
 		t.Fatalf("other history on custom host status = %d, body = %s, want 404", otherHistoryOnCustomHostResp.Code, otherHistoryOnCustomHostResp.Body.String())
 	}
 	otherBadgeOnCustomHostResp := performHostRequest(t, server, http.MethodGet, "/status/other-public/badge.svg", "status.example.com")
-	if otherBadgeOnCustomHostResp.Code != http.StatusNotFound {
-		t.Fatalf("other badge on custom host status = %d, body = %s, want 404", otherBadgeOnCustomHostResp.Code, otherBadgeOnCustomHostResp.Body.String())
+	if otherBadgeOnCustomHostResp.Code != http.StatusOK || !strings.Contains(otherBadgeOnCustomHostResp.Body.String(), "unknown") {
+		t.Fatalf("other badge on custom host status = %d, body = %s, want the neutral unknown badge", otherBadgeOnCustomHostResp.Code, otherBadgeOnCustomHostResp.Body.String())
 	}
 	otherSubscriberOnCustomHostResp := performHostJSONRequest(t, server, http.MethodPost, "/status/other-public/subscribers", "status.example.com", gin.H{"destination": "other-status-subscriber@example.com"})
 	if otherSubscriberOnCustomHostResp.Code != http.StatusNotFound {
