@@ -47,7 +47,7 @@ func seedMonitorReports(database *gorm.DB, monitor db.Monitor, sc scenario, tpl 
 	if sc.stale {
 		stop = now.Add(-time.Duration(45+len(sc.key)%72) * time.Minute)
 	}
-	for t := start; !t.After(stop); t = t.Add(cfg.reportInterval) {
+	for t := start; !t.After(stop); t = t.Add(monitorReportStep(cfg.reportInterval, t, now)) {
 		health := reportHealth(sc, tpl, t, now)
 		payload := reportPayload(sc, tpl, health, t, now)
 		report := db.MonitorReport{
@@ -209,6 +209,14 @@ func reportPayload(sc scenario, tpl monitorTemplate, health string, t time.Time,
 	}
 	latency := 20 + (t.Hour()*7)%400
 	payload["latency_ms"] = latency
+	duration := responseTimeMs(sc.key+tpl.key, t)
+	if health == "degraded" {
+		duration += 900
+	}
+	if health == "down" {
+		duration = 5000
+	}
+	payload["duration_ms"] = duration
 	if health == "up" {
 		payload["ok"] = true
 	}
