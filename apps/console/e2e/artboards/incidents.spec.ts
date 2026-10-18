@@ -65,45 +65,53 @@ const incidentMocks = (incidents = active, resolvedCount = 21) => [
   },
 ];
 
-test("Incidents list matches the artboard", async ({ page }) => {
-  await freezeClock(page, "2025-10-16T14:32:12Z");
-  await mockApi(page, incidentMocks());
-  await page.goto("/incidents");
-  await page.getByText("INC-0231").waitFor();
-  await page.getByRole("button", { name: "Edit Status filter" }).click();
-  await page.getByText("Done", { exact: true }).waitFor();
-  await expectMatchesArtboard(page, "incidents-list", 508);
-});
+for (const theme of ["light", "dark"] as const)
+  test(`Incidents list matches the artboard ${theme}`, async ({ page }) => {
+    await freezeClock(page, "2025-10-16T14:32:12Z");
+    await page.addInitScript((value) => localStorage.setItem("orion.theme.choice", value), theme);
+    await mockApi(page, incidentMocks());
+    await page.goto("/incidents");
+    await page.getByText("INC-0231").waitFor();
+    await page.getByRole("button", { name: "Edit Status filter" }).click();
+    await page.getByText("Done", { exact: true }).waitFor();
+    await expectMatchesArtboard(page, "incidents-list", 508, theme);
+  });
 
-test("Incidents bulk selection matches the artboard", async ({ page }) => {
-  await freezeClock(page, "2025-10-16T14:32:12Z");
-  await mockApi(page, incidentMocks());
-  await page.goto("/incidents?status=open,acknowledged&since=&severity=");
-  await page.getByText("INC-0231").waitFor();
-  await page.getByRole("checkbox", { name: "Select all incidents" }).click();
-  await expect(page.getByText("2 selected")).toBeVisible();
-  await expectMatchesArtboard(page, "incidents-bulk", 460);
-});
+for (const theme of ["light", "dark"] as const)
+  test(`Incidents bulk selection matches the artboard ${theme}`, async ({ page }) => {
+    await freezeClock(page, "2025-10-16T14:32:12Z");
+    await page.addInitScript((value) => localStorage.setItem("orion.theme.choice", value), theme);
+    await mockApi(page, incidentMocks());
+    await page.goto("/incidents?status=open,acknowledged&since=&severity=");
+    await page.getByText("INC-0231").waitFor();
+    await page.getByRole("checkbox", { name: "Select all incidents" }).click();
+    await expect(page.getByText("2 selected")).toBeVisible();
+    await expectMatchesArtboard(page, "incidents-bulk", 460, theme);
+  });
 
-test("Declare incident dialog matches the artboard", async ({ page }) => {
-  await freezeClock(page, "2025-10-16T14:32:12Z");
-  await mockApi(page, incidentMocks());
-  await page.goto("/incidents");
-  await page.getByText("INC-0231").waitFor();
-  await page.getByRole("button", { name: "Declare incident" }).click();
-  await page.getByLabel("Title").fill("Checkout is slow for EU customers");
-  await page.getByRole("combobox", { name: "Monitor or server" }).click();
-  await page.getByRole("option", { name: "checkout-https" }).click();
-  await expectMatchesArtboard(page, "incident-declare", 655);
-});
+for (const theme of ["light", "dark"] as const)
+  test(`Declare incident dialog matches the artboard ${theme}`, async ({ page }) => {
+    await freezeClock(page, "2025-10-16T14:32:12Z");
+    await page.addInitScript((value) => localStorage.setItem("orion.theme.choice", value), theme);
+    await mockApi(page, incidentMocks());
+    await page.goto("/incidents");
+    await page.getByText("INC-0231").waitFor();
+    await page.getByRole("button", { name: "Declare incident" }).click();
+    await page.getByLabel("Title").fill("Checkout is slow for EU customers");
+    await page.getByRole("combobox", { name: "Monitor or server" }).click();
+    await page.getByRole("option", { name: "checkout-https" }).click();
+    await expectMatchesArtboard(page, "incident-declare", 655, theme);
+  });
 
-test("Incidents empty state matches the artboard", async ({ page }) => {
-  await freezeClock(page, "2025-10-16T14:32:12Z");
-  await mockApi(page, incidentMocks([], 0));
-  await page.goto("/incidents");
-  await page.getByText("No open incidents").waitFor();
-  await expectMatchesArtboard(page, "incidents-empty", 460);
-});
+for (const theme of ["light", "dark"] as const)
+  test(`Incidents empty state matches the artboard ${theme}`, async ({ page }) => {
+    await freezeClock(page, "2025-10-16T14:32:12Z");
+    await page.addInitScript((value) => localStorage.setItem("orion.theme.choice", value), theme);
+    await mockApi(page, incidentMocks([], 0));
+    await page.goto("/incidents");
+    await page.getByText("No open incidents").waitFor();
+    await expectMatchesArtboard(page, "incidents-empty", 460, theme);
+  });
 
 test("Bulk action and declare send the Core payloads", async ({ page }) => {
   await freezeClock(page, "2025-10-16T14:32:12Z");
