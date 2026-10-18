@@ -4782,6 +4782,9 @@ paths:
                     count:
                       format: int64
                       type: integer
+                    hidden_count:
+                      format: int64
+                      type: integer
                     limit:
                       type: integer
                     monitors:
@@ -4792,6 +4795,9 @@ paths:
                       type: integer
                     pagination:
                       $ref: '#/definitions/orion_core_internal_utils.PaginationMeta'
+                    total:
+                      format: int64
+                      type: integer
                   type: object
               type: object
         "400":
