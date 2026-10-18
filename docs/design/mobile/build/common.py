@@ -161,6 +161,35 @@ font-family:"TWK Lausanne",system-ui,-apple-system,"Segoe UI",sans-serif;font-si
 .h2t{font-size:26px;line-height:1.15;font-weight:500;margin:0;letter-spacing:-.015em}
 .prose{font-size:14.5px;line-height:1.5;margin:0;color:var(--tx)}.prose b{font-weight:500}
 .deep{background:#142a23;color:#fff}
+
+.bar2{display:flex;padding:8px 8px 28px;border-top:1px solid var(--bd);background:var(--gr);flex:none}
+.bar2 a{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;font-weight:500;color:var(--fa);text-decoration:none;position:relative;padding-top:4px}
+.bar2 a.on{color:var(--tx)}.bar2 a.on svg{stroke-width:2.2}
+.bar2 .bg2{position:absolute;top:0;left:calc(50% + 5px);min-width:17px;height:17px;padding:0 4px;background:var(--crit);color:#fff;font-size:10.5px;font-weight:500;display:flex;align-items:center;justify-content:center;border-radius:9px}
+.si{display:block;flex:none}
+.rw{position:relative;display:flex;align-items:center;gap:12px;padding:12px 16px;color:var(--tx);text-decoration:none;min-height:60px;background:var(--gr)}
+.rw:after{content:"";position:absolute;left:48px;right:0;bottom:0;height:1px;background:var(--bd)}
+.rw .t{flex:1;min-width:0}.rw .t b{display:block;font-weight:500;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rw .t b.u{font-weight:600}
+.rw .t small{display:block;font-size:13px;color:var(--fa);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.rw .r{display:flex;flex-direction:column;align-items:flex-end;gap:7px;font-size:12px;color:var(--fa);min-width:30px}
+.rw .r .unr{margin-right:2px}
+.gh{display:flex;align-items:center;gap:8px;padding:7px 16px;background:var(--fd);font-size:13px;font-weight:500;border-top:1px solid var(--bd);border-bottom:1px solid var(--bd)}.gh span{color:var(--fa);font-weight:400}
+.pls{display:flex;flex-wrap:wrap;gap:8px}
+.pl{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 10px;border:1px solid var(--bd);border-radius:8px;font-size:13px;font-weight:500;background:var(--sf);white-space:nowrap;color:var(--tx)}
+.pl.q{color:var(--mu);font-weight:400}
+.fp{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:15px;background:var(--seg);font-size:13px;font-weight:500;color:var(--mu);white-space:nowrap}
+.fp.on{background:var(--tx);color:var(--gr)}
+.fab{position:absolute;right:16px;bottom:102px;width:52px;height:52px;border-radius:16px;background:linear-gradient(#27905f,#1f7a50);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 6px 16px rgba(20,87,58,.35)}
+.opt{display:flex;align-items:center;gap:12px;min-height:48px;border-top:1px solid var(--bd);font-size:15px}
+.opt .ck{margin-left:auto;color:var(--ac)}
+.cmp{display:flex;align-items:center;gap:8px;padding:10px 12px 30px;border-top:1px solid var(--bd);background:var(--gr);flex:none}
+.cmp .in{flex:1;min-height:42px;display:flex;align-items:center;padding:0 14px;border:1px solid var(--bd2);border-radius:21px;color:var(--fa);font-size:14px}
+.swp{position:relative;overflow:hidden}.swp .rw{transform:translateX(-176px)}
+.swp .acts{position:absolute;right:0;top:0;bottom:0;display:flex}.swp .acts span{width:88px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:12px;font-weight:500;color:#fff}
+.dh{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:56px 8px 6px}
+.dh .core{justify-self:start}.dh .r{justify-self:end;display:flex}
+.hl{font-size:13px;font-weight:500;color:var(--fa);padding:6px 0 2px}
+.ttl2{font-size:30px;line-height:1.1;font-weight:600;margin:0;padding:2px 16px 10px;letter-spacing:-.02em}
 """
 
 ICONS = {
@@ -199,6 +228,8 @@ ICONS = {
  "note": '<path d="M4 4h16v12l-5 5H4z"/><path d="M15 21v-5h5M8 9h8M8 13h4"/>',
  "globe": '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>',
  "copy": '<rect x="8" y="8" width="12" height="12"/><path d="M16 8V4H4v12h4"/>',
+ "sev": '<path d="M5 19v-4M12 19V10M19 19V4"/>',
+ "sliders": '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
  "trash": '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
 }
 

@@ -16,7 +16,7 @@ import pages
 SECTIONS = [
     ("Connect", [("welcome", "Welcome", A.welcome), ("scan", "Scan QR code", A.scan), ("manual", "Enter server address", A.manual),
                  ("manual-insecure", "Insecure address", lambda d: A.manual(d, True)), ("paired", "Paired, permissions", A.paired)]),
-    ("Notifications", [("feed", "Notifications feed", A.feed), ("feed-empty", "All quiet", A.feed_empty), ("lockscreen", "Push on lock screen", A.lockscreen), ("widgets", "Widgets and Live Activity", A.widgets)]),
+    ("Notifications", [("feed", "Notifications feed", A.feed), ("feed-swipe", "Swipe to acknowledge", lambda d: A.feed(d, False, True)), ("feed-empty", "All quiet", A.feed_empty), ("lockscreen", "Push on lock screen", A.lockscreen), ("widgets", "Widgets and Live Activity", A.widgets)]),
     ("Incidents", [("incidents-list", "Incidents", A.incidents_list), ("incident-review", "Needs review", A.incident_review), ("incident-detail", "Incident detail", A.incident_detail),
                    ("incident-ack", "Acknowledge sheet", A.incident_ack), ("incident-resolve", "Resolve sheet", A.incident_resolve),
                    ("incident-handoff", "Take or cover sheet", A.incident_handoff), ("incident-public", "Status page update sheet", A.incident_public)]),
