@@ -7,7 +7,7 @@ export const Tabs = ({ className, ...props }: React.ComponentProps<typeof TabsPr
   <TabsPrimitive.Root className={cn("flex flex-col gap-4", className)} {...props} />
 );
 
-/** Centered tab row; the rule sits only under the tabs (design language, Layout). */
+/** Left-aligned tab row with a full-width rule and a sliding underline. */
 export const TabsList = ({
   className,
   children,
@@ -16,7 +16,7 @@ export const TabsList = ({
   <TabsPrimitive.List
     activateOnFocus
     className={cn(
-      "relative inline-flex h-9 w-max items-center gap-5 self-center border-b border-hairline",
+      "relative flex h-9 w-full items-center gap-5 self-stretch border-b border-hairline",
       className,
     )}
     {...props}
