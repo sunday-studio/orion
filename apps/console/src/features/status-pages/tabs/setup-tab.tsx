@@ -38,6 +38,12 @@ export const SetupTab = ({
   const [slug, setSlug] = useState(page.slug ?? "");
   const [accent, setAccent] = useState(theme?.accent_color ?? "");
   const [density, setDensity] = useState(theme?.density === "compact" ? "compact" : "standard");
+  const dirty =
+    title !== (page.title ?? "") ||
+    description !== (page.description ?? "") ||
+    slug !== (page.slug ?? "") ||
+    accent !== (theme?.accent_color ?? "") ||
+    density !== (theme?.density === "compact" ? "compact" : "standard");
   const badges = useGetStatusPageBadges(pageId);
   const save = useUpdateStatusPage({
     mutation: {
@@ -132,7 +138,7 @@ export const SetupTab = ({
       <DomainPanel pageId={pageId} domain={page.custom_domain} onChanged={onSaved} />
       <div className="flex justify-end">
         <Button
-          disabled={save.isPending || !title.trim()}
+          disabled={save.isPending || !title.trim() || !dirty}
           onClick={() =>
             save.mutate({
               id: pageId,
