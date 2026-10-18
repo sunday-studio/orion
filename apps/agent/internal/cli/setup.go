@@ -21,9 +21,12 @@ import (
 type setupPlan struct {
 	CoreURL   string
 	TokenFile string // empty: do not enroll now
-	Selected  []discover.Candidate
-	Force     bool
-	Confirmed bool // the wizard already showed the diff
+	// RemoveTokenFile only applies to a temporary file created from --token or
+	// the interactive password field. A caller-owned --token-file is preserved.
+	RemoveTokenFile bool
+	Selected        []discover.Candidate
+	Force           bool
+	Confirmed       bool // the wizard already showed the diff
 }
 
 func stdinIsTerminal() bool { return term.IsTerminal(os.Stdin.Fd()) && term.IsTerminal(os.Stdout.Fd()) }
@@ -53,6 +56,13 @@ func discoverHost(ctx context.Context) discover.Result { return discoverFn(ctx) 
 // planFromFlags builds the plan for automation (cloud-init, Ansible, Docker).
 func planFromFlags(ctx context.Context, opts *Options) (setupPlan, error) {
 	plan := setupPlan{CoreURL: strings.TrimSpace(opts.SetupCoreURL), TokenFile: opts.SetupTokenFile, Force: opts.SetupForce}
+	if opts.SetupToken != "" {
+		path, err := stageEnrollmentToken(opts.SetupToken)
+		if err != nil {
+			return plan, err
+		}
+		plan.TokenFile, plan.RemoveTokenFile = path, true
+	}
 	if plan.CoreURL == "" {
 		plan.CoreURL, _ = config.Env(config.EnvCoreURL)
 	}
@@ -64,9 +74,13 @@ func planFromFlags(ctx context.Context, opts *Options) (setupPlan, error) {
 	if plan.CoreURL == "" {
 		return plan, NewCommandError("could not create config", errors.New("--core-url is required"), "pass --core-url https://your-core, or set "+config.EnvCoreURL)
 	}
-	if len(opts.SetupMonitors) > 0 {
+	if len(opts.SetupMonitors) > 0 || opts.SetupAcceptDiscovered {
 		found := discoverHost(ctx)
-		sel, err := discover.Select(found.Candidates, opts.SetupMonitors)
+		selectors := opts.SetupMonitors
+		if opts.SetupAcceptDiscovered {
+			selectors = []string{"high"}
+		}
+		sel, err := discover.Select(found.Candidates, selectors)
 		if err != nil {
 			return plan, NewCommandError("could not select monitors", err)
 		}
@@ -99,6 +113,9 @@ func buildSetupConfig(opts *Options, plan setupPlan) (next config.UserConfig, be
 }
 
 func applySetup(ctx context.Context, opts *Options, plan setupPlan) error {
+	if plan.RemoveTokenFile {
+		defer os.Remove(plan.TokenFile)
+	}
 	next, before, err := buildSetupConfig(opts, plan)
 	if err != nil {
 		return NewCommandError("config validation failed", err)
@@ -136,9 +153,6 @@ func applySetup(ctx context.Context, opts *Options, plan setupPlan) error {
 
 	switch {
 	case plan.TokenFile != "":
-		if plan.Confirmed { // the wizard staged the typed token in a temp file; never leave it behind
-			defer os.Remove(plan.TokenFile)
-		}
 		if err := runEnroll(ctx, &Options{ConfigPath: opts.ConfigPath, StatePath: opts.StatePath, SocketPath: opts.SocketPath, JSON: false}, plan.CoreURL, "", plan.TokenFile); err != nil {
 			return err
 		}
