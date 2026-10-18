@@ -1,4 +1,5 @@
 import { Download, Plus, Search } from "lucide-react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button, EmptyState, Input, PageHeader, Skeleton, usePageSize } from "@/design-system";
 import { exportIncidentsCSV, useGetIncidents } from "@/orion-sdk";
@@ -39,7 +40,10 @@ export const IncidentsPage = () => {
   };
   const { limit, setLimit } = usePageSize(PAGE_SIZE);
   const offset = (filters.page - 1) * limit;
-  const query = useGetIncidents({ ...params, limit, offset });
+  const query = useGetIncidents(
+    { ...params, limit, offset },
+    { query: { placeholderData: keepPreviousData } },
+  );
   const incidents: NumberedIncident[] = query.data?.incidents ?? [];
   const total =
     (query.data as { pagination?: { total_items?: number } } | undefined)?.pagination
@@ -161,6 +165,7 @@ export const IncidentsPage = () => {
               setSelected(checked ? new Set(incidents.map((i) => i.id ?? "")) : new Set())
             }
             now={now}
+            fetching={query.isFetching}
             hiddenResolved={hiddenResolved}
             onShowResolved={() => filters.setStatuses([...statuses, "resolved"])}
             pagination={{

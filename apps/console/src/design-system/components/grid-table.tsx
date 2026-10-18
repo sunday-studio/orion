@@ -18,7 +18,9 @@ export const GridRow = ({
     style={{ gridTemplateColumns: columns, ...style }}
     className={cn(
       "grid items-center gap-3 border-t border-line-soft px-3.5 first:border-t-0 [&>*]:min-w-0 [&>*]:truncate",
-      header ? "h-[30px] bg-sub text-[11.5px] font-medium text-quiet" : "h-[38px] hover:bg-sub",
+      header
+        ? "h-[30px] bg-sub text-[11.5px] font-medium text-quiet"
+        : "ds-row-in h-[38px] hover:bg-sub",
       className,
     )}
     {...props}

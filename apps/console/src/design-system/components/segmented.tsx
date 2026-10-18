@@ -1,5 +1,4 @@
 import { type RefObject, useLayoutEffect, useRef, useState } from "react";
-import { focusRing } from "@/design-system/styles";
 import { cn } from "@/utils/cn";
 
 type Thumb = { left: number; width: number } | null;
@@ -96,7 +95,7 @@ export const Segmented = ({
             data-segment-active={active ? "" : undefined}
             onClick={() => onValueChange(option.value)}
             className={cn(
-              focusRing,
+              "outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus/60",
               "relative z-[1] whitespace-nowrap rounded-md px-3 py-1 transition-colors",
               size === "sm" ? "text-xs" : "text-[13px]",
               active ? "text-ink" : "text-mid hover:text-ink",

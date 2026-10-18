@@ -53,6 +53,10 @@ export const ResponseTimeChart = ({ monitorId }: { monitorId: string }) => {
       />
       {query.isPending ? (
         <Skeleton className="m-4 h-40" />
+      ) : query.isError ? (
+        <p className="px-4 py-10 text-center text-[13px] text-quiet">
+          Unable to load response times. Core may need updating.
+        </p>
       ) : points.length < 2 ? (
         <p className="px-4 py-10 text-center text-[13px] text-quiet">
           No response times in this range yet.

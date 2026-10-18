@@ -1,3 +1,4 @@
+import { cn } from "@/utils/cn";
 import { keepPreviousData } from "@tanstack/react-query";
 import { parseAsInteger, parseAsString, useQueryState } from "nuqs";
 import { useEffect } from "react";
@@ -114,7 +115,12 @@ export const AgentMonitorsTab = ({ agentId }: { agentId: string }) => {
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-hairline bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+        <div
+          className={cn(
+            "ds-settled overflow-hidden rounded-xl border border-hairline bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)]",
+            query.isFetching && "ds-fetching",
+          )}
+        >
           <GridTable>
             <GridRow columns={MONITOR_COLUMNS} header>
               <span />

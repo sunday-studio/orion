@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { cn } from "@/utils/cn";
 import {
   Checkbox,
   GridFooter,
@@ -23,6 +24,8 @@ export type IncidentTableProps = {
   onShowResolved?: () => void;
   /** Pagination footer, drawn inside the table container. */
   pagination?: ListPaginationProps;
+  /** Dim the table while a refetch (filter, page) is in flight. */
+  fetching?: boolean;
 };
 
 const notificationLabel = (status?: string) =>
@@ -44,12 +47,18 @@ export const IncidentTable = ({
   hiddenResolved = 0,
   onShowResolved,
   pagination,
+  fetching,
 }: IncidentTableProps) => {
   const navigate = useNavigate();
   const allSelected = incidents.length > 0 && incidents.every((i) => i.id && selected.has(i.id));
 
   return (
-    <div className="overflow-hidden rounded-xl border border-hairline bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+    <div
+      className={cn(
+        "ds-settled overflow-hidden rounded-xl border border-hairline bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)]",
+        fetching && "ds-fetching",
+      )}
+    >
       <GridTable>
         <GridRow columns={INCIDENT_COLUMNS} header>
           <span>

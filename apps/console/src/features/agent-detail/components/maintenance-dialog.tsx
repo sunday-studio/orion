@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  AnimatedHeight,
   Button,
   Callout,
   Checkbox,
@@ -74,47 +75,49 @@ export const MaintenanceDialog = ({
             value={mode}
             onValueChange={setMode}
           />
-          {mode === "now" ? (
-            <div className="flex flex-col gap-1.5 text-[13px] font-medium">
-              Duration
-              <Select
-                aria-label="Duration"
-                className="w-full font-normal"
-                options={DURATIONS.map(([value, label]) => ({ value: String(value), label }))}
-                value={duration}
-                onValueChange={setDuration}
-              />
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="flex flex-col gap-1.5 text-[13px] font-medium">
-                  Starts
-                  <Input className="font-normal" type="datetime-local" />
-                </label>
-                <label className="flex flex-col gap-1.5 text-[13px] font-medium">
-                  Ends
-                  <Input className="font-normal" type="datetime-local" />
-                </label>
+          <AnimatedHeight>
+            {mode === "now" ? (
+              <div className="flex flex-col gap-1.5 text-[13px] font-medium">
+                Duration
+                <Select
+                  aria-label="Duration"
+                  className="w-full font-normal"
+                  options={DURATIONS.map(([value, label]) => ({ value: String(value), label }))}
+                  value={duration}
+                  onValueChange={setDuration}
+                />
               </div>
-              <label className="flex flex-col gap-1.5 text-[13px] font-medium">
-                Reason shown on the status page
-                <Input
-                  className="font-normal"
-                  value={reason}
-                  placeholder="Kernel upgrade"
-                  onChange={(event) => setReason(event.target.value)}
-                />
-              </label>
-              <label className="flex items-center gap-2 text-[13px]">
-                <Checkbox
-                  checked={pauseMonitors}
-                  onCheckedChange={(next) => setPauseMonitors(Boolean(next))}
-                />
-                Pause monitors on this server
-              </label>
-            </>
-          )}
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="flex flex-col gap-1.5 text-[13px] font-medium">
+                    Starts
+                    <Input className="font-normal" type="datetime-local" />
+                  </label>
+                  <label className="flex flex-col gap-1.5 text-[13px] font-medium">
+                    Ends
+                    <Input className="font-normal" type="datetime-local" />
+                  </label>
+                </div>
+                <label className="flex flex-col gap-1.5 text-[13px] font-medium">
+                  Reason shown on the status page
+                  <Input
+                    className="font-normal"
+                    value={reason}
+                    placeholder="Kernel upgrade"
+                    onChange={(event) => setReason(event.target.value)}
+                  />
+                </label>
+                <label className="flex items-center gap-2 text-[13px]">
+                  <Checkbox
+                    checked={pauseMonitors}
+                    onCheckedChange={(next) => setPauseMonitors(Boolean(next))}
+                  />
+                  Pause monitors on this server
+                </label>
+              </>
+            )}
+          </AnimatedHeight>
           {notice && (
             <Callout tone="warn">
               Scheduled windows need a Core update that is not available yet. Use Start now.

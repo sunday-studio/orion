@@ -17,7 +17,7 @@ export const TableHeader = ({ className, ...props }: React.ComponentProps<"thead
 export const TableBody = (props: React.ComponentProps<"tbody">) => <tbody {...props} />;
 
 export const TableRow = ({ className, ...props }: React.ComponentProps<"tr">) => (
-  <tr className={cn("border-b border-hairline hover:bg-sub", className)} {...props} />
+  <tr className={cn("ds-row-in border-b border-hairline hover:bg-sub", className)} {...props} />
 );
 
 export const TableHead = ({ className, ...props }: React.ComponentProps<"th">) => (

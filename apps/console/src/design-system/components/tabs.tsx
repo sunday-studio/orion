@@ -44,7 +44,7 @@ export const TabsPanel = ({
   className,
   ...props
 }: React.ComponentProps<typeof TabsPrimitive.Panel>) => (
-  <TabsPrimitive.Panel className={cn("outline-none", className)} {...props} />
+  <TabsPrimitive.Panel className={cn("ds-fade-in outline-none", className)} {...props} />
 );
 
 export const TabCount = ({ className, children, ...props }: React.ComponentProps<"span">) => (

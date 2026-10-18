@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "./design-system/tokens.css";
+@import "./design-system/motion.css";
 
 @font-face {
   font-family: "GT America Standard";

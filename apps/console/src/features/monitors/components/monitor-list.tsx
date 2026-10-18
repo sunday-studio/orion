@@ -1,3 +1,4 @@
+import { keepPreviousData } from "@tanstack/react-query";
 import { Search } from "lucide-react";
 import { parseAsString, useQueryStates } from "nuqs";
 import { useMemo, useState } from "react";
@@ -17,6 +18,7 @@ import {
   StatusBadge,
   usePageSize,
 } from "@/design-system";
+import { cn } from "@/utils/cn";
 import {
   type CoreWorkerDiagnostics,
   CoreWorkerWarning,
@@ -73,7 +75,7 @@ export const MonitorList = ({
     sort: "updated_at",
     order: "desc",
   };
-  const monitorsQuery = useGetMonitors(params);
+  const monitorsQuery = useGetMonitors(params, { query: { placeholderData: keepPreviousData } });
   const summary = useGetMonitorSummary();
   const agents = useGetAgents({ limit: 200 });
   const monitors = useMemo(
@@ -190,7 +192,12 @@ export const MonitorList = ({
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-hairline bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+        <div
+          className={cn(
+            "ds-settled overflow-hidden rounded-xl border border-hairline bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)]",
+            monitorsQuery.isFetching && "ds-fetching",
+          )}
+        >
           <GridTable>
             <GridRow columns={COLUMNS} header>
               <span>
