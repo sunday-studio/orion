@@ -17,6 +17,7 @@ import {
 import type { ServerRow } from "@/features/agents/server-format";
 import {
   getGetAgentsQueryKey,
+  getGetIncidentsQueryKey,
   getGetOverviewQueryKey,
   useDecommissionAgent,
   useGetAgentMonitors,
@@ -70,7 +71,7 @@ export const ServerRemoveDialog = ({
   const total = monitors.data?.count ?? list.length;
   const [keepHistory, setKeepHistory] = useState(true);
   const [typed, setTyped] = useState("");
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -80,7 +81,7 @@ export const ServerRemoveDialog = ({
     if (!open) return;
     setKeepHistory(true);
     setTyped("");
-    setError(false);
+    setError(undefined);
   }, [open]);
 
   return (
@@ -90,18 +91,33 @@ export const ServerRemoveDialog = ({
           className="flex min-w-0 flex-col gap-3.5"
           onSubmit={(event) => {
             event.preventDefault();
-            setError(false);
+            setError(undefined);
             decommission.mutate(
               { id: agent.id ?? "", params: { keep_history: keepHistory } },
               {
                 onSuccess: () => {
                   void queryClient.invalidateQueries({ queryKey: getGetAgentsQueryKey() });
                   void queryClient.invalidateQueries({ queryKey: getGetOverviewQueryKey() });
+                  void queryClient.invalidateQueries({ queryKey: getGetIncidentsQueryKey() });
                   toast.add({ title: `${agent.name} removed` });
                   onOpenChange(false);
                   navigate("/servers", { replace: true });
                 },
-                onError: () => setError(true),
+                onError: (failure) => {
+                  const status = (failure as { status?: number }).status;
+                  if (status === 404) {
+                    // Already removed elsewhere: the goal is met.
+                    void queryClient.invalidateQueries({ queryKey: getGetAgentsQueryKey() });
+                    onOpenChange(false);
+                    navigate("/servers", { replace: true });
+                    return;
+                  }
+                  setError(
+                    status === 400
+                      ? (failure as Error).message || "This server cannot be removed."
+                      : "Unable to remove the server. Try again.",
+                  );
+                },
               },
             );
           }}
@@ -148,7 +164,7 @@ export const ServerRemoveDialog = ({
               placeholder={agent.name}
             />
           </label>
-          {error && <Callout tone="warn">Unable to remove the server. Try again.</Callout>}
+          {error && <Callout tone="warn">{error}</Callout>}
           <DialogFooter>
             <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
               Cancel

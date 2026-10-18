@@ -49,10 +49,14 @@ type AgentLogsTabProps = {
 };
 
 export const AgentLogsTab = ({ agentId }: AgentLogsTabProps) => {
-  const [{ reportsPage, since }, setReportsQuery] = useQueryStates({
+  const [{ reportsPage, since: sinceParam }, setReportsQuery] = useQueryStates({
     reportsPage: parseAsInteger.withDefault(1),
     since: parseAsString.withDefault("1h"),
   });
+  const since =
+    sinceParam === "all" || SINCE_OPTIONS.some((option) => option.value === sinceParam)
+      ? sinceParam
+      : "1h";
   const { limit: pageSize, setLimit: setPageSize } = usePageSize(20, {
     key: "reportsSize",
     pageKey: "reportsPage",
