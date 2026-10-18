@@ -277,11 +277,12 @@ func friendlyYAMLError(err error, name string) error {
 			continue
 		}
 		if m := unknownFieldRe.FindStringSubmatch(l); m != nil {
-			s := fmt.Sprintf("%s:%s: unknown field %q", name, m[1], m[2])
-			if guess := closest(m[2]); guess != "" {
-				s += fmt.Sprintf(" (did you mean %q?)", guess)
+			if len(out) == 0 {
+				line, _ := strconv.Atoi(m[1])
+				src := sourceLine(name, line)
+				return &Diagnostic{File: name, Line: line, Col: keyColumn(src, m[2]), Key: m[2], Message: "unknown key", Suggest: closest(m[2]), Source: src}
 			}
-			out = append(out, s)
+			out = append(out, fmt.Sprintf("%s:%s: unknown key %q", name, m[1], m[2]))
 			continue
 		}
 		if m := lineRe.FindStringSubmatch(l); m != nil {
@@ -299,7 +300,8 @@ func locate(err error, lines []monitorLine, mainFile string) error {
 	msg := err.Error()
 	if m := regexp.MustCompile(`monitor\[(\d+)\]`).FindStringSubmatch(msg); m != nil {
 		if i, _ := strconv.Atoi(m[1]); i < len(lines) && lines[i].line > 0 {
-			return fmt.Errorf("%s:%d: %s%s", lines[i].file, lines[i].line, msg, hint(msg))
+			h := strings.TrimSpace(hint(msg))
+			return &Diagnostic{File: lines[i].file, Line: lines[i].line, Message: msg, Source: sourceLine(lines[i].file, lines[i].line), Hint: h}
 		}
 	}
 	return fmt.Errorf("%s: %s%s", mainFile, msg, hint(msg))

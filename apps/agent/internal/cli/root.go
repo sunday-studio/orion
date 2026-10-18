@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/charmbracelet/fang"
 	"io"
+	"orion/agent/internal/ui"
 	"os"
 	"runtime"
 	"strconv"
@@ -96,9 +97,10 @@ func Execute(ctx context.Context, args []string, out, errOut io.Writer) int {
 	cmd.SetArgs(normalizedArgs)
 	SetOutput(out)
 
-	if len(normalizedArgs) == 0 {
-		_ = cmd.Help()
-		return 1
+	if len(normalizedArgs) == 0 || isRootHelp(normalizedArgs) {
+		SetColorEnabled(!hasFlag(normalizedArgs, "--no-color") && writerSupportsColor(out))
+		fmt.Fprint(out, rootHelp(theme, ui.Width(os.Stdout)))
+		return 0
 	}
 
 	// fang styles --help from the design tokens; errors keep our own renderer.
@@ -275,32 +277,67 @@ func renderCommandError(w io.Writer, err error) {
 	if w == nil {
 		w = os.Stderr
 	}
-
 	var commandErr *CommandError
-	if errors.As(err, &commandErr) {
-		if commandErr.Silent {
-			return
-		}
-		fmt.Fprintf(w, "error: %s\n", commandErr.Summary)
-		if commandErr.Cause != nil {
-			fmt.Fprintf(w, "\ncause:\n  %v\n", commandErr.Cause)
-		}
-		if len(commandErr.NextSteps) > 0 {
-			fmt.Fprintln(w, "\nnext steps:")
-			for _, step := range commandErr.NextSteps {
-				fmt.Fprintf(w, "  %s\n", step)
-			}
-		}
+	if errors.As(err, &commandErr) && commandErr.Silent {
 		return
 	}
+	if commandErr == nil && isUsageError(err) {
+		err = &CommandError{Summary: err.Error(), NextSteps: []string{"orion-agent --help"}, ExitCode: ExitUsage}
+	}
+	fmt.Fprint(w, renderErrorScreen(errorTheme(w), err, ui.Width(os.Stderr)))
+}
 
-	fmt.Fprintf(w, "error: %v\n", err)
+// errorTheme styles errors for w: colour only on a terminal that wants it.
+func errorTheme(w io.Writer) *ui.Theme {
+	if !colorEnabled {
+		return ui.Plain()
+	}
+	return ui.Detect(w)
 }
 
 func commandExitCode(err error) int {
 	var commandErr *CommandError
 	if errors.As(err, &commandErr) {
+		if strings.Contains(commandErr.Summary, "could not elevate privileges") {
+			return ExitElevate
+		}
 		return commandErr.code()
 	}
-	return 1
+	if isUsageError(err) {
+		return ExitUsage
+	}
+	return ExitFailed
+}
+
+// isUsageError recognises cobra's own argument and flag errors.
+func isUsageError(err error) bool {
+	m := err.Error()
+	for _, p := range []string{"unknown command", "unknown flag", "unknown shorthand flag", "required flag", "invalid argument", "accepts ", "flag needs an argument"} {
+		if strings.Contains(m, p) {
+			return true
+		}
+	}
+	return false
+}
+
+func isRootHelp(args []string) bool {
+	for _, a := range args {
+		switch a {
+		case "--no-color", "--json", "--verbose":
+			continue
+		case "-h", "--help", "help":
+			return true
+		}
+		return false
+	}
+	return false
+}
+
+func hasFlag(args []string, name string) bool {
+	for _, a := range args {
+		if a == name {
+			return true
+		}
+	}
+	return false
 }

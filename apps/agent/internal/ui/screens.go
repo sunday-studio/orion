@@ -134,3 +134,20 @@ func (t *Theme) StatusMark(name string) string {
 	}
 	return t.StatusGlyph(name)
 }
+
+// Chip is a filled badge ("ERROR"): coloured background in colour mode, and
+// the bracketed word in plain mode.
+func (t *Theme) Chip(status, text string) string {
+	if t.Plain() {
+		return "[" + strings.ToLower(strings.TrimSpace(text)) + "]"
+	}
+	tok, ok := statusTokens[status]
+	if !ok {
+		tok = statusTokens["unknown"]
+	}
+	bg := tok.Light
+	if t.dark {
+		bg = tok.Dark
+	}
+	return t.renderer.NewStyle().Bold(true).Background(lipgloss.Color(bg)).Foreground(lipgloss.Color("#ffffff")).Render(text)
+}

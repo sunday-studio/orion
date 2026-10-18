@@ -1,0 +1,24 @@
+
+[1morion-agent[0m[38;2;113;113;121m  the Orion monitoring agent[0m
+
+[1mUSAGE[0m
+  orion-agent [38;2;113;113;121m[command] [flags][0m
+
+[1mGET STARTED[0m
+  [38;2;31;121;80msetup     [0mConnect this host and choose what to monitor
+  [38;2;31;121;80mdoctor    [0mCheck the agent and fix problems
+  [38;2;31;121;80mstatus    [0mShow the agent and its Core connection
+
+[1mDAY TO DAY[0m
+  [38;2;31;121;80mlogs      [0mView agent and shipped logs
+  [38;2;31;121;80mservice   [0minstall, start, stop, restart, uninstall
+  [38;2;31;121;80mconfig    [0mshow, diff, validate, edit
+  [38;2;31;121;80mupdate    [0mUpgrade safely, with rollback
+
+[1mFLAGS[0m
+  --json        Machine-readable output
+  --no-color    Plain output
+  -h, --help    Show help
+
+  [38;2;113;113;121mMore: enroll, discover, usage, token, maintenance, version, run (orion-agent[0m
+  [38;2;113;113;121m      <command> --help)[0m
