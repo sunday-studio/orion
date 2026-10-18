@@ -31,13 +31,13 @@ const UptimeBar = ({ history }: { history?: Tick[] }) => {
   const active = index === null ? undefined : ticks[index];
   const x = index === null ? 0 : ((index + 0.5) / ticks.length) * 100;
   return (
-    <div className="relative">
-      <div {...bind} className="flex h-[18px] gap-[2px]">
+    <div className="relative min-w-0">
+      <div {...bind} className="flex h-[34px] gap-[2px]">
         {ticks.map((tick, i) => (
           <i
             key={tick.date ?? i}
             className={cn(
-              "min-w-[2px] flex-1 rounded-[2px] transition-[opacity,transform] duration-150",
+              "min-w-0 flex-1 rounded-[2px] transition-[opacity,transform] duration-150",
               i === index ? "scale-y-110 opacity-100" : "opacity-85",
             )}
             style={{ background: tick.status ? statusDot(tick.status) : "#2a9f69" }}
@@ -46,13 +46,13 @@ const UptimeBar = ({ history }: { history?: Tick[] }) => {
       </div>
       {active && (
         <ChartTooltip x={x} className="!top-auto bottom-[calc(100%+6px)]">
-          {active.date && (
-            <div className="font-medium">{formatDate(active.date, "MMM d, yyyy")}</div>
-          )}
-          <div className="opacity-80">
-            {active.status ? publicStatusLabel(active.status) : "No data"}
-            {active.uptime_display ? ` · ${active.uptime_display}` : ""}
-          </div>
+          {[
+            active.date ? formatDate(active.date, "MMM d") : undefined,
+            active.status ? publicStatusLabel(active.status) : "No data",
+            active.uptime_display,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
         </ChartTooltip>
       )}
     </div>
@@ -74,7 +74,7 @@ export const PreviewTab = ({
   const data = preview.data?.preview;
   if (preview.isError || !data)
     return <EmptyState tone="error" title="Unable to load the preview" />;
-  const components = (data.sections ?? []).flatMap((section) => section.components ?? []);
+  const sections = data.sections ?? [];
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
@@ -104,20 +104,49 @@ export const PreviewTab = ({
         <div className="border-b border-hairline bg-field px-3.5 py-2 font-mono text-xs text-faint">
           {url}
         </div>
-        <div className="grid gap-3.5 bg-card px-8 py-7 max-sm:px-5">
+        <div
+          className={cn(
+            "grid grid-cols-[minmax(0,1fr)] gap-3.5 bg-card py-7",
+            device === "mobile" ? "px-5" : "px-8",
+          )}
+        >
           <h2 className="text-[28px] font-medium leading-tight tracking-[-0.02em]">
             {headline(data.overall_status)}
           </h2>
-          {components.map((component) => (
-            <div key={component.id} className="grid gap-[5px]">
-              <div className="flex items-center justify-between gap-3 text-[13.5px]">
-                <b className="min-w-0 truncate font-medium">{component.name}</b>
-                <StatusBadge status={publicStatusTone(component.status)}>
-                  {component.status_display ?? publicStatusLabel(component.status)}
-                </StatusBadge>
+          {sections.map((section) => (
+            <section key={section.id} className="grid min-w-0 gap-2">
+              <h3 className="text-[13px] font-medium text-quiet">{section.name}</h3>
+              <div className="overflow-hidden rounded-xl border border-hairline">
+                {(section.components ?? []).map((component) => (
+                  <div
+                    key={component.id}
+                    className="flex min-w-0 flex-col gap-3 border-t border-hairline p-3.5 first:border-t-0"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <i
+                        className="size-2 shrink-0 rounded-full"
+                        style={{ background: statusDot(component.status) }}
+                      />
+                      <span className="min-w-0 flex-1 break-words text-[13.5px] font-medium">
+                        {component.name}
+                        {(component.status_reason || component.description) && (
+                          <small className="block text-xs font-normal text-quiet">
+                            {component.status_reason || component.description}
+                          </small>
+                        )}
+                      </span>
+                      <span className="shrink-0 text-[13px] text-quiet">
+                        {component.uptime?.uptime_display ?? ""}
+                      </span>
+                      <StatusBadge className="shrink-0" status={publicStatusTone(component.status)}>
+                        {component.status_display ?? publicStatusLabel(component.status)}
+                      </StatusBadge>
+                    </div>
+                    <UptimeBar history={component.uptime_history} />
+                  </div>
+                ))}
               </div>
-              <UptimeBar history={component.uptime_history} />
-            </div>
+            </section>
           ))}
         </div>
       </div>

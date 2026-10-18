@@ -73,6 +73,15 @@ type statusPagePublicMappedResourceUptime struct {
 // @Failure      500     {object}  utils.APIResponse
 // @Router       /status/{slug}/history [get]
 func (s *Server) getPublicStatusPageHistory(c *gin.Context) {
+	if publicStatusPageRequestWantsHTML(c) {
+		page, err := s.loadPublicStatusPageForRequest(c, c.Param("slug"))
+		if err != nil {
+			writeStatusPageLoadError(c, err, "Status page not found")
+			return
+		}
+		s.writePublicStatusPageHistoryHTML(c, page)
+		return
+	}
 	window, ok := publicStatusPageWindow(c)
 	if !ok {
 		return

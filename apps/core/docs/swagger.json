@@ -410,6 +410,41 @@
                 }
             }
         },
+        "/status/{slug}/feed.rss": {
+            "get": {
+                "produces": [
+                    "application/rss+xml"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Get public status page RSS feed",
+                "operationId": "getPublicStatusPageRSSFeed",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "RSS 2.0 document",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/status/{slug}/history": {
             "get": {
                 "description": "Get sanitized public history for a published or unlisted status page",
@@ -684,6 +719,108 @@
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/status/{slug}/subscribe": {
+            "get": {
+                "description": "HTML form to subscribe to status updates by email",
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Public subscribe page",
+                "operationId": "getPublicStatusPageSubscribePage",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "HTML page",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Form submit of the subscribe page; mails a confirmation link. Answers the same for known and new addresses. When scope is selected, send one repeated component_ids form field per component (not modelled here because generated clients cannot type repeated form fields).",
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Submit public subscribe form",
+                "operationId": "postPublicStatusPageSubscribePage",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Email address",
+                        "name": "email",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "all",
+                            "selected"
+                        ],
+                        "type": "string",
+                        "description": "all or selected",
+                        "name": "scope",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "HTML page",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "HTML page with the error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
@@ -1013,9 +1150,106 @@
                         }
                     }
                 }
+            },
+            "post": {
+                "description": "Form submit of the manage page; keeps the manage and unsubscribe links valid. Send one repeated component_ids form field per selected component; selecting every component means all components; at least one is required.",
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Save subscriber preferences (form)",
+                "operationId": "postPublicStatusPageSubscriberPreferencesForm",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Manage token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "HTML page",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
             }
         },
         "/status/{slug}/subscribers/unsubscribe/{token}": {
+            "get": {
+                "description": "Asks for confirmation before unsubscribing; a GET never changes state",
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Public unsubscribe page",
+                "operationId": "getPublicStatusPageUnsubscribePage",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Unsubscribe token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "HTML page",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "HTML page for an invalid token",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            },
             "post": {
                 "description": "Idempotently unsubscribe a public status page subscriber by token",
                 "consumes": [

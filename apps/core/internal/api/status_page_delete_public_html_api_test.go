@@ -283,9 +283,10 @@ func TestPublicStatusPageHTMLRendersSafeMetadataAndTheme(t *testing.T) {
 	assertContains(t, body, `<meta property="og:description" content="Realtime public availability">`)
 	assertContains(t, body, `<meta property="og:image" content="https://cdn.acme.test/status.png">`)
 	assertContains(t, body, `<img src="https://cdn.acme.test/logo.svg" alt="Acme logo">`)
+	assertContains(t, body, `<link rel="icon" href="https://cdn.acme.test/logo.svg">`)
 	assertContains(t, body, `<body class="theme-dark">`)
-	assertContains(t, body, `data-subscribe-form`)
-	assertContains(t, body, `class="uptime-bars"`)
+	assertContains(t, body, `href="/status/html-status/subscribe"`)
+	assertContains(t, body, `class="bars"`)
 	assertContains(t, body, "Checkout API")
 	assertContains(t, body, "Elevated latency")
 	assertContains(t, body, "Checkout latency")
@@ -309,5 +310,5 @@ func TestPublicStatusPageHTMLRendersSafeMetadataAndTheme(t *testing.T) {
 	if customDomainResp.Code != http.StatusOK {
 		t.Fatalf("custom domain HTML status = %d, body = %s", customDomainResp.Code, customDomainResp.Body.String())
 	}
-	assertContains(t, customDomainResp.Body.String(), `<a href="http://status.acme.test/feed.atom">Atom feed</a>`)
+	assertContains(t, customDomainResp.Body.String(), `href="/status/html-status/feed.atom"`)
 }

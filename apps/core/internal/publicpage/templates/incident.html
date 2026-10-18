@@ -1,0 +1,6 @@
+{{define "incident.html"}}{{template "open" .}}
+<main>
+<section class="panel"><header>Updates</header><div class="rows">{{range .Updates}}<div class="update"><time datetime="{{iso .At}}">{{utc .At}}</time><span class="st"><span class="dot {{.Class}}" aria-hidden="true"></span>{{.Display}}</span><span class="msg">{{.Message}}</span></div>{{else}}<div class="row"><span class="muted">No updates yet.</span></div>{{end}}</div></section>
+<section class="card deep"><span class="k">Stay informed</span><h2>Get updates for this incident by email</h2><div class="actions"><a class="btn p" href="{{.Subscribe}}">Subscribe</a></div></section>
+</main>
+{{template "close" .}}{{end}}

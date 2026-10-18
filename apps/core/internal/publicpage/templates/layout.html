@@ -1,0 +1,45 @@
+{{define "open"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{.Shell.Title}}</title>
+<meta name="description" content="{{.Shell.Description}}">
+{{if .Shell.Robots}}<meta name="robots" content="{{.Shell.Robots}}">{{end}}
+{{if .Shell.Canonical}}<link rel="canonical" href="{{.Shell.Canonical}}">{{end}}
+<meta property="og:type" content="{{or .Shell.OGType "website"}}">
+<meta property="og:title" content="{{or .Shell.OGTitle .Shell.Title}}">
+<meta property="og:description" content="{{or .Shell.OGDesc .Shell.Description}}">
+{{if .Shell.OGURL}}<meta property="og:url" content="{{.Shell.OGURL}}">{{end}}
+{{if .Shell.OGImage}}<meta property="og:image" content="{{.Shell.OGImage}}">{{end}}
+{{if .Shell.FeedURL}}<link rel="alternate" type="application/atom+xml" title="{{.Shell.SiteName}} incidents" href="{{.Shell.FeedURL}}">{{end}}
+{{if .Shell.RSSURL}}<link rel="alternate" type="application/rss+xml" title="{{.Shell.SiteName}} incidents" href="{{.Shell.RSSURL}}">{{end}}
+<link rel="icon" href="{{if .Shell.LogoURL}}{{.Shell.LogoURL}}{{else}}data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23142a23'/%3E%3Cg transform='translate(5 5) scale(.9167)' fill='none' stroke='%237dffb0' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Ccircle cx='12' cy='12' r='9' stroke-dasharray='2 4'/%3E%3C/g%3E%3C/svg%3E{{end}}">
+<style>{{css}}{{if .Shell.AccentColor}}body[class]{--accent:{{.Shell.AccentColor}};--on-accent:#fff}{{end}}</style>
+</head>
+<body class="{{.Shell.ThemeClass}}">
+<div class="wrap">
+<header class="top">
+<a class="brand" href="{{.Shell.HomeURL}}"><span class="mk">{{if .Shell.LogoURL}}<img src="{{.Shell.LogoURL}}" alt="{{.Shell.LogoAlt}}">{{else}}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9" stroke-dasharray="2 4"/></svg>{{end}}</span><span>{{.Shell.SiteName}}</span></a>
+<nav class="nav">{{if .Shell.ShowHistory}}<a class="btn" href="{{.Shell.HistoryURL}}">History</a>{{end}}<a class="btn p" href="{{.Shell.SubscribeURL}}">Subscribe to updates</a></nav>
+</header>
+<section class="hero">
+{{.Hero.Ticker}}
+{{if .Hero.Eyebrow}}<div class="eyebrow">{{.Hero.Eyebrow}}</div>{{end}}
+<h1>{{.Hero.Title}}</h1>
+{{if .Hero.Text}}<p>{{.Hero.Text}}</p>{{end}}
+</section>
+{{end}}
+
+{{define "close"}}
+<footer class="cta">{{if .Shell.ShowHistory}}<a href="{{.Shell.HistoryURL}}">Incident history</a>{{else}}<span></span>{{end}}<span>Powered by Orion</span></footer>
+</div>
+</body>
+</html>
+{{end}}
+
+{{define "pill"}}<span class="pill {{.Class}}">{{.Display}}</span>{{end}}
+
+{{define "component"}}<div class="svc"><div class="svc-h"><span class="dot {{.Class}}" aria-hidden="true"></span><span class="name">{{.Name}}{{if .Reason}}<span class="muted">{{.Reason}}</span>{{end}}</span>{{if .Uptime}}<span class="pct">{{.Uptime}}</span>{{end}}<span class="pill {{.Class}}">{{.Display}}</span></div>{{if .Bars}}<div class="bars" role="img" aria-label="Uptime, last {{len .Bars}} days">{{range .Bars}}<i class="{{.Class}}" data-tip="{{.Tip}}"></i>{{end}}</div>{{end}}</div>{{end}}
+
+{{define "incident-row"}}{{if .URL}}<a class="hist" href="{{.URL}}">{{else}}<div class="hist">{{end}}<span class="t">{{.Title}}</span><span class="d">{{day .Started}}</span><span class="d dur">{{.Duration}}</span><span class="pill {{.Class}}">{{.Display}}</span>{{if .URL}}</a>{{else}}</div>{{end}}{{end}}

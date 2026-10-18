@@ -24,6 +24,9 @@ func seedShowcase(database *gorm.DB, dbPath string, now time.Time) error {
 	if err := seedShowcaseStatusPages(database, now); err != nil {
 		return err
 	}
+	if err := seedShowcasePublicPages(database, now); err != nil {
+		return err
+	}
 	if err := seedShowcaseLogs(database, dbPath, now); err != nil {
 		return err
 	}

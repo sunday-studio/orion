@@ -1,4 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
@@ -18,6 +19,7 @@ import {
   getGetStatusPageReadinessQueryKey,
   getListStatusPagesQueryKey,
   getPreviewStatusPageQueryKey,
+  useGetGeneralSettings,
   useGetStatusPage,
   useGetStatusPageReadiness,
   useListStatusPages,
@@ -26,6 +28,7 @@ import {
 } from "@/orion-sdk";
 import { PublishDialog, UnpublishDialog } from "./dialogs/publish-dialogs";
 import { stateLabel, stateTone } from "./status-format";
+import { publicPageHref, publicPageLinks } from "./status-links";
 import { ComponentsTab } from "./tabs/components-tab";
 import { IncidentsTab } from "./tabs/incidents-tab";
 import { MaintenanceTab } from "./tabs/maintenance-tab";
@@ -46,6 +49,7 @@ export const StatusPageDetailPage = () => {
   const readiness = useGetStatusPageReadiness(pageId);
   const list = useListStatusPages();
   const row = list.data?.pages?.find((item) => item.id === pageId);
+  const general = useGetGeneralSettings();
   const [publishing, setPublishing] = useState(false);
   const [unpublishing, setUnpublishing] = useState(false);
   const [publishError, setPublishError] = useState<string>();
@@ -95,6 +99,10 @@ export const StatusPageDetailPage = () => {
     return <EmptyState tone="error" title="Unable to load the status page" />;
   }
   const published = row?.state ? row.state !== "draft" : page.visibility === "published";
+  const pageHref = publicPageHref(
+    row?.public_url ?? `/status/${page.slug}`,
+    general.data?.public_url,
+  );
   const state = row?.state ?? (published ? "published" : "draft");
 
   return (
@@ -111,8 +119,36 @@ export const StatusPageDetailPage = () => {
             <StatusBadge status={stateTone(state)} shape={state === "draft" ? "hollow" : undefined}>
               {stateLabel(state)}
             </StatusBadge>
-            <span>{row?.public_url ?? `/status/${page.slug}`}</span>
+            {published ? (
+              <a
+                href={pageHref}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 hover:text-ink hover:underline"
+              >
+                {row?.public_url ?? `/status/${page.slug}`}
+                <ExternalLink className="size-3.5" />
+              </a>
+            ) : (
+              <span>{row?.public_url ?? `/status/${page.slug}`}</span>
+            )}
           </div>
+          {published && (
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]">
+              {publicPageLinks(pageHref).map((link) => (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-quiet hover:text-ink hover:underline"
+                >
+                  {link.label}
+                  <ExternalLink className="size-3" />
+                </a>
+              ))}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-1.5">
           <Button size="sm" variant="secondary" onClick={() => setTab("preview")}>

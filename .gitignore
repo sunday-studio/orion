@@ -31,3 +31,8 @@ apps/core/web/assets/
 *.cpu
 *.block
 *.mutex
+
+# local server runs
+apps/core/orion-*
+apps/core/*.log
+apps/core/*.err

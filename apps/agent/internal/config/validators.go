@@ -252,9 +252,35 @@ func (m UserMonitor) Validate() error {
 		}
 		return m.Systemd.Validate()
 
+	case UserMonitorTypeDiskUsage:
+		if m.DiskUsage == nil {
+			return errors.New("disk_usage config is required")
+		}
+		return m.DiskUsage.Validate()
+
+	case UserMonitorTypeProcess:
+		if m.ProcessRunning == nil {
+			return errors.New("process_running config is required")
+		}
+		return m.ProcessRunning.Validate()
+
 	default:
 		return fmt.Errorf("unsupported monitor type: %s", m.Type)
 	}
+}
+
+func (d DiskUsageConfig) Validate() error {
+	if !filepath.IsAbs(d.Path) {
+		return errors.New("path must be an absolute path")
+	}
+	return validatePercentThreshold(d.MaxPercent, "max_percent")
+}
+
+func (p ProcessRunningConfig) Validate() error {
+	if strings.TrimSpace(p.Name) == "" {
+		return errors.New("name is required")
+	}
+	return nil
 }
 
 func (c *UserConfig) Validate() error {
