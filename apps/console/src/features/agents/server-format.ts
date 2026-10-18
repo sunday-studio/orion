@@ -1,13 +1,7 @@
 import type { ApiAgentResponse } from "@/orion-sdk";
 import { formatSpan } from "@/features/overview/overview-time";
 
-/** Fields Core is adding to the agents list for F3; all optional until they ship. */
-export type ServerRow = ApiAgentResponse & {
-  cpu_percent?: number | null;
-  memory_percent?: number | null;
-  cpu_series?: number[] | null;
-  status_detail?: string | null;
-};
+export type ServerRow = ApiAgentResponse;
 
 export type ServerState = "up" | "degraded" | "down" | "stale" | "maintenance" | "unknown";
 
@@ -50,6 +44,7 @@ export const platformLabel = (agent: ServerRow) =>
 
 /** "Up 41d", "No report 12m", "Disk 91%", "Down". */
 export const statusText = (agent: ServerRow, now: number) => {
+  if (agent.status_text) return agent.status_text;
   const state = serverState(agent);
   const seen = agent.last_seen ? new Date(agent.last_seen).getTime() : undefined;
   if (state === "up") {

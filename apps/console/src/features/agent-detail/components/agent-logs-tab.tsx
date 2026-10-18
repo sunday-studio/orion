@@ -1,9 +1,17 @@
-import { DataTable, usePageSize } from "@/design-system";
+import {
+  AddFilterButton,
+  DataTable,
+  FilterToken,
+  FilterTokenRow,
+  PopoverClose,
+  PopoverContent,
+  usePageSize,
+} from "@/design-system";
 import { ReportInspectionDrawer } from "@/features/report-inspection/components/report-inspection-drawer";
 import { formatDate } from "@/utils/date";
 import { type ApiAgentReportResponse, useGetAgentReports } from "@/orion-sdk";
 import type { ColumnDef } from "@tanstack/react-table";
-import { parseAsInteger, useQueryStates } from "nuqs";
+import { parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 import { useState } from "react";
 
 const whole = (value?: number) => (typeof value === "number" ? `${Math.round(value)}%` : "-");
@@ -30,20 +38,31 @@ const agentLogColumns: ColumnDef<ApiAgentReportResponse>[] = [
   },
 ];
 
+const SINCE_OPTIONS = [
+  { value: "1h", label: "last hour" },
+  { value: "24h", label: "last 24 hours" },
+  { value: "7d", label: "last 7 days" },
+] as const;
+
 type AgentLogsTabProps = {
   agentId: string;
 };
 
 export const AgentLogsTab = ({ agentId }: AgentLogsTabProps) => {
-  const [{ reportsPage }, setReportsQuery] = useQueryStates({
+  const [{ reportsPage, since }, setReportsQuery] = useQueryStates({
     reportsPage: parseAsInteger.withDefault(1),
+    since: parseAsString.withDefault("1h"),
   });
   const { limit: pageSize, setLimit: setPageSize } = usePageSize(20, {
     key: "reportsSize",
     pageKey: "reportsPage",
   });
   const offset = (Math.max(reportsPage, 1) - 1) * pageSize;
-  const reportsQuery = useGetAgentReports(agentId, { limit: pageSize, offset });
+  const reportsQuery = useGetAgentReports(agentId, {
+    limit: pageSize,
+    offset,
+    since: since === "all" ? undefined : since,
+  });
   const reports = reportsQuery.data?.reports ?? [];
   const count = reportsQuery.data?.count ?? reports.length;
   const [selectedReport, setSelectedReport] = useState<ApiAgentReportResponse>();
@@ -53,6 +72,40 @@ export const AgentLogsTab = ({ agentId }: AgentLogsTabProps) => {
 
   return (
     <div className="space-y-3">
+      <FilterTokenRow onClearAll={() => void setReportsQuery({ since: "1h", reportsPage: 1 })}>
+        {since !== "all" && (
+          <FilterToken
+            field="Time"
+            operator="in"
+            value={SINCE_OPTIONS.find((option) => option.value === since)?.label ?? since}
+            onRemove={() => void setReportsQuery({ since: "all", reportsPage: 1 })}
+          >
+            <PopoverContent className="w-[200px] p-1.5">
+              {SINCE_OPTIONS.map((option) => (
+                <PopoverClose
+                  key={option.value}
+                  onClick={() => void setReportsQuery({ since: option.value, reportsPage: 1 })}
+                  className="block w-full rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-tray"
+                >
+                  {option.label}
+                </PopoverClose>
+              ))}
+            </PopoverContent>
+          </FilterToken>
+        )}
+        {since === "all" && (
+          <AddFilterButton>
+            <PopoverContent className="w-[200px] p-1.5">
+              <PopoverClose
+                onClick={() => void setReportsQuery({ since: "1h", reportsPage: 1 })}
+                className="block w-full rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-tray"
+              >
+                Time
+              </PopoverClose>
+            </PopoverContent>
+          </AddFilterButton>
+        )}
+      </FilterTokenRow>
       {reportsQuery.error && <div className="text-sm">Unable to load reports.</div>}
       {!reportsQuery.error && (
         <DataTable

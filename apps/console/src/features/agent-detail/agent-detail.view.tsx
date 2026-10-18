@@ -67,7 +67,7 @@ export const AgentDetailPage = () => {
     <div className="mx-auto w-full max-w-[712px] pb-8">
       <ServerHeader
         agent={agent}
-        agentVersion={latest?.agent_version}
+        agentVersion={agent.agent_version ?? latest?.agent_version}
         now={now}
         onEdit={() => setEditing(true)}
         onToken={() => setTab("token")}

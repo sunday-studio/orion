@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { type KeyboardEvent, useEffect, useState } from "react";
 import {
@@ -12,11 +13,11 @@ import {
   Textarea,
 } from "@/design-system";
 import type { ServerRow } from "@/features/agents/server-format";
-import { SERVER_EDIT_API_AVAILABLE } from "../server-api-flags";
+import { getGetAgentQueryKey, getGetAgentsQueryKey, useUpdateAgent } from "@/orion-sdk";
 
 type Props = {
   open: boolean;
-  agent: ServerRow & { labels?: string[] | null; notes?: string | null };
+  agent: ServerRow;
   onOpenChange: (open: boolean) => void;
   onRemove: () => void;
 };
@@ -28,7 +29,9 @@ export const ServerEditDialog = ({ open, agent, onOpenChange, onRemove }: Props)
   const [labels, setLabels] = useState<string[]>([]);
   const [draft, setDraft] = useState("");
   const [notes, setNotes] = useState("");
-  const [unavailable, setUnavailable] = useState(false);
+  const [error, setError] = useState<string>();
+  const queryClient = useQueryClient();
+  const update = useUpdateAgent();
 
   useEffect(() => {
     if (!open) return;
@@ -36,7 +39,7 @@ export const ServerEditDialog = ({ open, agent, onOpenChange, onRemove }: Props)
     setLabels(agent.labels ?? []);
     setNotes(agent.notes ?? "");
     setDraft("");
-    setUnavailable(false);
+    setError(undefined);
     // Seed once per open: a background refetch must not overwrite what is being typed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -63,7 +66,25 @@ export const ServerEditDialog = ({ open, agent, onOpenChange, onRemove }: Props)
           className="flex min-w-0 flex-col gap-3.5"
           onSubmit={(event) => {
             event.preventDefault();
-            if (!SERVER_EDIT_API_AVAILABLE) setUnavailable(true);
+            setError(undefined);
+            update.mutate(
+              { id: agent.id ?? "", data: { name: name.trim(), labels, notes: notes.trim() } },
+              {
+                onSuccess: () => {
+                  void queryClient.invalidateQueries({
+                    queryKey: getGetAgentQueryKey(agent.id ?? ""),
+                  });
+                  void queryClient.invalidateQueries({ queryKey: getGetAgentsQueryKey() });
+                  onOpenChange(false);
+                },
+                onError: (failure) =>
+                  setError(
+                    (failure as { status?: number }).status === 400
+                      ? "Check the labels: use key=value, up to 20."
+                      : "Unable to save the server. Try again.",
+                  ),
+              },
+            );
           }}
         >
           <DialogHeader>
@@ -119,11 +140,7 @@ export const ServerEditDialog = ({ open, agent, onOpenChange, onRemove }: Props)
               onChange={(event) => setNotes(event.target.value)}
             />
           </label>
-          {unavailable && (
-            <Callout tone="warn">
-              Editing a server needs a Core update that is not available yet.
-            </Callout>
-          )}
+          {error && <Callout tone="warn">{error}</Callout>}
           <DialogFooter className="sm:justify-between">
             <Button type="button" variant="destructive" onClick={onRemove}>
               Remove server
@@ -132,7 +149,7 @@ export const ServerEditDialog = ({ open, agent, onOpenChange, onRemove }: Props)
               <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={!name.trim()}>
+              <Button type="submit" disabled={!name.trim() || update.isPending}>
                 Save
               </Button>
             </div>
