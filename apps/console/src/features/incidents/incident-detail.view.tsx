@@ -21,6 +21,8 @@ import {
   useCoverIncident,
   useCreateStatusPageIncidentDraft,
   useGetIncident,
+  useGetIncidentLogs,
+  useGetIncidentPublicTargets,
   useListStatusPages,
   usePreviewStatusPageIncidentDraft,
   useReopenIncident,
@@ -50,6 +52,7 @@ import {
 import { ExpectedActual } from "./detail/expected-actual";
 import { IncidentDetailHeader } from "./detail/incident-detail-header";
 import { incidentMoments, lifecycleSteps } from "./detail/incident-lifecycle";
+import { IncidentLogs } from "./detail/incident-logs";
 import { IncidentSidePanel } from "./detail/incident-side-panel";
 import { IncidentTimeline, NoteComposer } from "./detail/incident-timeline";
 
@@ -68,6 +71,9 @@ export const IncidentDetailPage = () => {
   const coverIncident = useCoverIncident({ mutation: { onSuccess: refreshIncident } });
   const reopenIncident = useReopenIncident({ mutation: { onSuccess: refreshIncident } });
   const now = useNow(1000);
+  const publicTargets = useGetIncidentPublicTargets(incidentId);
+  const logs = useGetIncidentLogs(incidentId, { limit: 100 });
+  const logEntries = logs.data?.entries ?? [];
   const addNote = useAddIncidentNote({ mutation: { onSuccess: refreshIncident } });
   const setResponder = useSetIncidentResponder({ mutation: { onSuccess: refreshIncident } });
   const retryDelivery = useRetryAlertDelivery({ mutation: { onSuccess: refreshIncident } });
@@ -249,6 +255,9 @@ export const IncidentDetailPage = () => {
               <TabsTab value="notifications" className="px-2.5">
                 Notifications <TabCount className="ml-1">{alertDeliveries.length}</TabCount>
               </TabsTab>
+              <TabsTab value="logs" className="px-2.5">
+                Logs <TabCount className="ml-1">{logEntries.length}</TabCount>
+              </TabsTab>
             </TabsList>
             <TabsPanel value="timeline" className="flex flex-col gap-3.5">
               <NoteComposer
@@ -280,6 +289,9 @@ export const IncidentDetailPage = () => {
                 onRowClick={setSelectedMonitorReport}
               />
             </TabsPanel>
+            <TabsPanel value="logs">
+              <IncidentLogs entries={logEntries} />
+            </TabsPanel>
             <TabsPanel value="notifications">
               <DataTable
                 columns={notificationColumns}
@@ -297,6 +309,8 @@ export const IncidentDetailPage = () => {
           notifiedAt={moments.notifiedAt}
           acknowledgedAt={moments.acknowledgedAt}
           related={relatedIncidents}
+          deliveries={alertDeliveries}
+          subscriberCount={publicTargets.data?.targets?.[0]?.subscriber_count}
           onDraftUpdate={() => handlePublicDraftDialogOpenChange(true)}
           onSetResponder={(name) => setResponder.mutate({ id: incidentId, data: { name } })}
         />

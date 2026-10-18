@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { expectMatchesArtboard, freezeClock, mockApi } from "./support";
 
-test.use({ timezoneId: "UTC", viewport: { width: 1280, height: 848 } });
+test.use({ timezoneId: "UTC", viewport: { width: 1280, height: 1048 } });
 
 const incident = {
   id: "inc-231",
@@ -23,7 +23,15 @@ const incident = {
 };
 
 const detail = (overrides: Record<string, unknown> = {}) => ({
-  incident: { ...incident, display_id: "INC-0231", ...overrides },
+  incident: {
+    ...incident,
+    display_id: "INC-0231",
+    impacted_components: [
+      { component_id: "c1", component_name: "Public API", impact: "major_outage" },
+      { component_id: "c2", component_name: "Checkout", impact: "degraded" },
+    ],
+    ...overrides,
+  },
   summary: {
     notified_at: "2025-10-16T14:02:11Z",
     notified_channels: ["ops-team"],
@@ -51,25 +59,18 @@ const detail = (overrides: Record<string, unknown> = {}) => ({
   related_incidents: [{ id: "inc-229", display_id: "INC-0229", title: "Load balancer degraded" }],
   timeline: [
     {
-      id: "t1",
-      type: "note",
-      note: "Upstream pool drained, restarting the load balancer.",
-      actor_id: "admin",
-      created_at: "2025-10-16T14:21:00Z",
-    },
-    {
       id: "t2",
       type: "alert",
       status: "failed",
       alert_delivery_id: "d2",
-      message: "Alert to oncall webhook failed after 3 attempts",
-      created_at: "2025-10-16T14:02:12Z",
+      message: "Delivery to oncall webhook failed after 3 attempts",
+      created_at: "2025-10-16T14:04:12Z",
     },
     {
       id: "t3",
       type: "alert",
       status: "sent",
-      message: "Alert sent to ops-team (email, 1.1s)",
+      message: "Notified ops-team (email)",
       created_at: "2025-10-16T14:02:11Z",
     },
     {
@@ -89,6 +90,14 @@ const mocks = (overrides: Record<string, unknown> = {}) => [
   { pattern: /\/v1\/auth\/me$/, body: { username: "admin" } },
   { pattern: /\/v1\/health\/issues$/, body: { count: 0, issues: [] } },
   { pattern: /\/v1\/incidents\/inc-231$/, body: detail(overrides) },
+  {
+    pattern: /\/v1\/incidents\/inc-231\/logs/,
+    body: { entries: Array.from({ length: 14 }, (_, i) => ({ id: `l${i}`, body: "log" })) },
+  },
+  {
+    pattern: /\/v1\/incidents\/inc-231\/public/,
+    body: { targets: [{ status_page_id: "p1", title: "Example Status", subscriber_count: 128 }] },
+  },
 ];
 
 test("Incident detail matches the artboard", async ({ page }) => {
@@ -96,7 +105,7 @@ test("Incident detail matches the artboard", async ({ page }) => {
   await mockApi(page, mocks());
   await page.goto("/incidents/inc-231");
   await page.getByRole("heading", { name: "api.example.com unreachable" }).waitFor();
-  await expectMatchesArtboard(page, "incident-detail", 848);
+  await expectMatchesArtboard(page, "incident-detail", 1048);
 });
 
 test("Incident detail posts a note and assigns a responder", async ({ page }) => {
