@@ -57,7 +57,7 @@ export const AttentionBox = ({ issues, total }: { issues: ApiHealthIssue[]; tota
           </GridRow>
         ))}
         <GridFooter>
-          <Link className="underline" to="/monitors">
+          <Link className="underline" to="/health-issues">
             View all health issues
           </Link>
         </GridFooter>
