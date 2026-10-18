@@ -334,3 +334,25 @@ The agent CLI (`orion-agent`) uses Charm (`lipgloss`, `bubbletea`, `huh`, `fang`
 ## 16. Sign in
 
 The left brand panel is dark green and fades into the white form side through a pale mint transition (no hard edge). Behind the headline, a dot grid at 16px spacing twinkles slowly (5s) and a brighter band of dots sweeps left to right (7s). Both stop under `prefers-reduced-motion`. The form column is 340px, centered in the right half.
+
+## 17. Standardization rules (2026-10-18)
+
+- **Elevation scale** (one value per tier, nothing ad hoc): `e1` cards, tables, stat cards, empty states, choice cards: `0 1px 2px rgb(24 24 27 / .05)`. `e2` menus, popovers, tooltips: `0 12px 32px -8px rgb(0 0 0 / .18), 0 2px 6px rgb(0 0 0 / .06)`. `e3` dialogs, drawers, floating bulk bar: `0 24px 48px -12px rgb(24 24 27 / .28), 0 6px 14px -4px rgb(24 24 27 / .10), 0 0 0 1px rgb(24 24 27 / .06)`. Fields have no shadow. Buttons: secondary inset top highlight plus `0 1px 2px rgb(24 24 27 / .08)`; primary and destructive inset highlight, inset bottom line and a 1px drop shadow only (no glow).
+- **Radii**: field 14, card 10, control 8, chip 6, badge 4, dialog 16 (drawer rounds its left edge).
+- **Alignment**: page headers and everything inside a column are left aligned; actions in a page header sit at the right of the title row; form and wizard footers are right aligned (secondary left of primary); notes and helper text are left aligned. Only empty states and the first-run Overview are centered.
+- **Header and body widths match**: list pages use the 1040 header with the 1040 body; detail, form and wizard pages use the 760 header with the 760 body.
+- **Wizard pattern** (Add server, Connect an app): narrow header (title, one muted line, ghost Cancel at the right), a stepper, fields, right-aligned actions. Stepper: numbered 22px circles joined by 2px lines; done = green fill with a tick and a green line; current = green ring and ink label; upcoming = gray.
+- **Live rows** use a pulsing dot in the same slot as a status dot, never a different layout.
+
+## 18. Dark mode, end to end
+
+Every screen has a dark artboard (`<name>-dark`) next to its light one on the canvas, grouped by flow. The token values are in section 11. Layering rules:
+
+1. The page is `#111513`. Fields are sunken: darker than the page (`#0c0f0e`) with an inner shadow. Cards, tables and dialogs are raised above the field (`#1a201e`) with a hairline `#252c29` border and a faint top highlight; there are no white borders.
+2. Text `#e9efec`, muted `#8b9892`, faint `#6a7570`. Inline colors in legacy markup map: `#3f3f46` to `#c9d3ce`, `#71717a` to `#8b9892`, `#a1a1aa` to `#6a7570`.
+3. Status badges use dark tints (section 11); the critical badge stays solid. Dots keep their colors.
+4. Menus, popovers and dialogs use deeper shadows (`0 12px 32px -8px rgb(0 0 0 / .7)` and `0 24px 60px -12px rgb(0 0 0 / .75)`); cards use no outer shadow.
+5. Charts: histogram info bars `#3c6b55`, warn `#f5b942`, error `#e5484d`; uptime strips keep their greens.
+6. Inputs `#0f1311` with `#2a312e` border; checkboxes unchecked `#0f1311` with `#3a4540`, checked `#2a9f69`.
+7. Sign in: the brand panel fades into the page color (not white). Public status pages use the same dark tokens with the hero unchanged. CLI screens are terminals and keep their own dark palette in both themes.
+8. Theme switch lives in the account menu (Light, Dark, System). Default System.

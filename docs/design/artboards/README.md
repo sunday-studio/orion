@@ -1,6 +1,6 @@
 # Artboards
 
-Static exports of every canvas artboard (116), so the web and agent threads can build 1:1 without access to the canvas artifact.
+Static exports of every canvas artboard (light and dark), so the web and agent threads can build 1:1 without access to the canvas artifact.
 
 Source of truth is the canvas (https://claude.ai/artifact/L7gFM2gipuTveU5hkGqMRY); these files are a snapshot taken 2026-10-18 and mirror `docs/design/design-language.md`. If they disagree, `design-language.md` wins.
 
@@ -8,7 +8,7 @@ Source of truth is the canvas (https://claude.ai/artifact/L7gFM2gipuTveU5hkGqMRY
 
 - `<name>.html`: self-contained artboard, markup plus the shared `orion.css` in this folder. Open it in a browser at 1280px width. It has no scripts.
 - `png/<name>-light.png`: render at 1280px width, height as listed below.
-- `png/<name>-dark.png`: dark render. Only Overview has a hand-drawn dark design (`dashboard-dark`). Every other dark image is a derived preview using the dark tokens from `design-language.md` section 11 and may need small adjustments. Login, public pages and CLI screens have no separate dark design, so their dark image matches the light one (CLI terminals are dark by nature).
+- `<name>-dark.html` and `png/<name>-dark.png`: the dark artboard, designed end to end (see `design-language.md` section 18). CLI screens are terminals and have one palette, so their dark image matches the light one. The old `dashboard-dark` is now `Main-dark`.
 - `orion.css`: shared stylesheet, later rules override earlier ones. It is the canvas stylesheet, so class names are canvas class names, not production names: build components from `design-language.md` section 14 and use this file only for exact values.
 
 ## Fonts
@@ -22,17 +22,17 @@ Screen-map ref is the row number in `../screen-map.md` (`9.x` is section 9, prod
 | Artboard | Height | Screen map | Route | Console file |
 |---|---|---|---|---|
 | [Main](Main.html) ([light](png/Main-light.png), [dark](png/Main-dark.png)) | 788 | 38 | / | apps/console/src/features/overview/ (new) |
-| [add-server](add-server.html) ([light](png/add-server-light.png), [dark](png/add-server-dark.png)) | 623 | 37 | /servers/new | new |
-| [add-server-connected](add-server-connected.html) ([light](png/add-server-connected-light.png), [dark](png/add-server-connected-dark.png)) | 540 | 37 | /servers/new | new |
-| [add-server-failed](add-server-failed.html) ([light](png/add-server-failed-light.png), [dark](png/add-server-failed-dark.png)) | 523 | 37 | /servers/new | new |
-| [add-server-waiting](add-server-waiting.html) ([light](png/add-server-waiting-light.png), [dark](png/add-server-waiting-dark.png)) | 600 | 37 | /servers/new | new |
+| [add-server](add-server.html) ([light](png/add-server-light.png), [dark](png/add-server-dark.png)) | 616 | 37 | /servers/new | new |
+| [add-server-connected](add-server-connected.html) ([light](png/add-server-connected-light.png), [dark](png/add-server-connected-dark.png)) | 592 | 37 | /servers/new | new |
+| [add-server-failed](add-server-failed.html) ([light](png/add-server-failed-light.png), [dark](png/add-server-failed-dark.png)) | 575 | 37 | /servers/new | new |
+| [add-server-waiting](add-server-waiting.html) ([light](png/add-server-waiting-light.png), [dark](png/add-server-waiting-dark.png)) | 652 | 37 | /servers/new | new |
 | [alerts-channels](alerts-channels.html) ([light](png/alerts-channels-light.png), [dark](png/alerts-channels-dark.png)) | 460 | 8 | /alerts/channels | apps/console/src/features/alerts/ |
 | [alerts-log](alerts-log.html) ([light](png/alerts-log-light.png), [dark](png/alerts-log-dark.png)) | 527 | 8 | /alerts | apps/console/src/features/alerts/alerts.view.tsx |
-| [alerts-routes](alerts-routes.html) ([light](png/alerts-routes-light.png), [dark](png/alerts-routes-dark.png)) | 592 | 20 | /alerts/routes | apps/console/src/features/alerts/ |
+| [alerts-routes](alerts-routes.html) ([light](png/alerts-routes-light.png), [dark](png/alerts-routes-dark.png)) | 591 | 20 | /alerts/routes | apps/console/src/features/alerts/ |
 | [alerts-rules](alerts-rules.html) ([light](png/alerts-rules-light.png), [dark](png/alerts-rules-dark.png)) | 578 | 19 | /alerts/rules | apps/console/src/features/alerts/ |
-| [app-connect-create](app-connect-create.html) ([light](png/app-connect-create-light.png), [dark](png/app-connect-create-dark.png)) | 477 | 9.x | /apps/new | new |
+| [app-connect-create](app-connect-create.html) ([light](png/app-connect-create-light.png), [dark](png/app-connect-create-dark.png)) | 493 | 9.x | /apps/new | new |
 | [app-connect-received](app-connect-received.html) ([light](png/app-connect-received-light.png), [dark](png/app-connect-received-dark.png)) | 460 | 9.x | /apps/new | new |
-| [app-connect-snippet](app-connect-snippet.html) ([light](png/app-connect-snippet-light.png), [dark](png/app-connect-snippet-dark.png)) | 629 | 9.x | /apps/new | new |
+| [app-connect-snippet](app-connect-snippet.html) ([light](png/app-connect-snippet-light.png), [dark](png/app-connect-snippet-dark.png)) | 645 | 9.x | /apps/new | new |
 | [app-connect-waiting](app-connect-waiting.html) ([light](png/app-connect-waiting-light.png), [dark](png/app-connect-waiting-dark.png)) | 460 | 9.x | /apps/new | new |
 | [app-display](app-display.html) ([light](png/app-display-light.png), [dark](png/app-display-dark.png)) | 898 | 9.x | /settings/apps/:id | apps/console/src/features/settings/ |
 | [app-key-new](app-key-new.html) ([light](png/app-key-new-light.png), [dark](png/app-key-new-dark.png)) | 640 | 9.x | dialog | apps/console/src/features/settings/ |
@@ -41,11 +41,11 @@ Screen-map ref is the row number in `../screen-map.md` (`9.x` is section 9, prod
 | [app-retention](app-retention.html) ([light](png/app-retention-light.png), [dark](png/app-retention-dark.png)) | 654 | 9.x | /settings/apps/:id | apps/console/src/features/settings/ |
 | [app-send-test](app-send-test.html) ([light](png/app-send-test-light.png), [dark](png/app-send-test-dark.png)) | 992 | 9.x | /settings/apps/:id | apps/console/src/features/settings/ |
 | [avatar-menu](avatar-menu.html) ([light](png/avatar-menu-light.png), [dark](png/avatar-menu-dark.png)) | 460 | 49 | global header | components/shared/app-header.tsx |
-| [channel-detail](channel-detail.html) ([light](png/channel-detail-light.png), [dark](png/channel-detail-dark.png)) | 994 | 7 | /alerts/channels/:id | apps/console/src/features/alerts/ |
+| [channel-detail](channel-detail.html) ([light](png/channel-detail-light.png), [dark](png/channel-detail-dark.png)) | 993 | 7 | /alerts/channels/:id | apps/console/src/features/alerts/ |
 | [channel-dialog](channel-dialog.html) ([light](png/channel-dialog-light.png), [dark](png/channel-dialog-dark.png)) | 640 | 18 | dialog | apps/console/src/features/alerts/ |
 | [channel-email](channel-email.html) ([light](png/channel-email-light.png), [dark](png/channel-email-dark.png)) | 640 | 18 | dialog | apps/console/src/features/alerts/ |
 | [channel-test](channel-test.html) ([light](png/channel-test-light.png), [dark](png/channel-test-dark.png)) | 640 | 18 | dialogs | apps/console/src/features/alerts/ |
-| [channel-webhook](channel-webhook.html) ([light](png/channel-webhook-light.png), [dark](png/channel-webhook-dark.png)) | 697 | 18 | dialog | apps/console/src/features/alerts/ |
+| [channel-webhook](channel-webhook.html) ([light](png/channel-webhook-light.png), [dark](png/channel-webhook-dark.png)) | 702 | 18 | dialog | apps/console/src/features/alerts/ |
 | [cli-doctor](cli-doctor.html) ([light](png/cli-doctor-light.png), [dark](png/cli-doctor-dark.png)) | 749 | 10 (CLI) | terminal | apps/agent |
 | [cli-help-error](cli-help-error.html) ([light](png/cli-help-error-light.png), [dark](png/cli-help-error-dark.png)) | 1098 | 10 (CLI) | terminal | apps/agent |
 | [cli-install](cli-install.html) ([light](png/cli-install-light.png), [dark](png/cli-install-dark.png)) | 781 | 10 (CLI) | terminal | apps/agent |
@@ -53,9 +53,8 @@ Screen-map ref is the row number in `../screen-map.md` (`9.x` is section 9, prod
 | [cli-setup](cli-setup.html) ([light](png/cli-setup-light.png), [dark](png/cli-setup-dark.png)) | 1206 | 10 (CLI) | terminal | apps/agent |
 | [cli-status](cli-status.html) ([light](png/cli-status-light.png), [dark](png/cli-status-dark.png)) | 747 | 10 (CLI) | terminal | apps/agent |
 | [command-palette](command-palette.html) ([light](png/command-palette-light.png), [dark](png/command-palette-dark.png)) | 640 | 52 | global dialog | components/shared/ (new) |
-| [dashboard-dark](dashboard-dark.html) ([light](png/dashboard-dark-light.png), [dark](png/dashboard-dark-dark.png)) | 790 | 38 | / | dark reference |
 | [delete-confirm](delete-confirm.html) ([light](png/delete-confirm-light.png), [dark](png/delete-confirm-dark.png)) | 640 | 44 | dialogs | components/ui/dialog.tsx |
-| [delivery-detail](delivery-detail.html) ([light](png/delivery-detail-light.png), [dark](png/delivery-detail-dark.png)) | 511 | 47 | /alerts/deliveries/:id | apps/console/src/features/alerts/ |
+| [delivery-detail](delivery-detail.html) ([light](png/delivery-detail-light.png), [dark](png/delivery-detail-dark.png)) | 512 | 47 | /alerts/deliveries/:id | apps/console/src/features/alerts/ |
 | [design-language](design-language.html) ([light](png/design-language-light.png), [dark](png/design-language-dark.png)) | 4500 | reference | component library | docs/design/design-language.md |
 | [email-confirm](email-confirm.html) ([light](png/email-confirm-light.png), [dark](png/email-confirm-dark.png)) | 700 | 7 | public (Core) | Core-served |
 | [flows](flows.html) ([light](png/flows-light.png), [dark](png/flows-dark.png)) | 2684 | 5 (flows) | reference | none |
@@ -105,7 +104,7 @@ Screen-map ref is the row number in `../screen-map.md` (`9.x` is section 9, prod
 | [public-subscribe](public-subscribe.html) ([light](png/public-subscribe-light.png), [dark](png/public-subscribe-dark.png)) | 660 | 31 | /status/:slug/subscribe | Core-served |
 | [public-unsubscribe](public-unsubscribe.html) ([light](png/public-unsubscribe-light.png), [dark](png/public-unsubscribe-dark.png)) | 560 | 34 | .../subscribers/unsubscribe/:token | Core-served |
 | [report-drawer](report-drawer.html) ([light](png/report-drawer-light.png), [dark](png/report-drawer-dark.png)) | 460 | 16 | drawer | apps/console/src/features/report-inspection/ |
-| [server-decommission](server-decommission.html) ([light](png/server-decommission-light.png), [dark](png/server-decommission-dark.png)) | 652 | 45 | dialog | apps/console/src/features/agent-detail/ |
+| [server-decommission](server-decommission.html) ([light](png/server-decommission-light.png), [dark](png/server-decommission-dark.png)) | 654 | 45 | dialog | apps/console/src/features/agent-detail/ |
 | [server-detail](server-detail.html) ([light](png/server-detail-light.png), [dark](png/server-detail-dark.png)) | 831 | 5 | /servers/:id | apps/console/src/features/agent-detail/agent-detail.view.tsx |
 | [server-edit](server-edit.html) ([light](png/server-edit-light.png), [dark](png/server-edit-dark.png)) | 640 | 7 | dialog | apps/console/src/features/agent-detail/ |
 | [server-metrics](server-metrics.html) ([light](png/server-metrics-light.png), [dark](png/server-metrics-dark.png)) | 528 | 5 | /servers/:id (Reports tab) | apps/console/src/features/agent-detail/ |
