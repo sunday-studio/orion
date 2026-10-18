@@ -77,7 +77,8 @@ ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET=replace-with-a-long-random-secret
 ```
 
 Custom status page domains: operators point a CNAME at `ORION_STATUS_PAGES_CNAME_TARGET` (defaults
-to the host of `ORION_PUBLIC_STATUS_URL_ORIGIN`, then `ORION_PUBLIC_URL`). Core checks the record when
+to the host of `ORION_PUBLIC_STATUS_URL_ORIGIN`, then `ORION_PUBLIC_URL`). Verification checks a CNAME only, so apex domains that use ALIAS/ANAME/flattened records
+cannot be verified yet; use a subdomain such as status.example.com. Core checks the record when
 the operator presses Verify and only serves a custom domain once it is verified. TLS for that domain
 is terminated by your reverse proxy; Core only reports whether DNS is verified. The subscriber
 secret is also what lets operators see full subscriber emails, export them, and import CSV lists.

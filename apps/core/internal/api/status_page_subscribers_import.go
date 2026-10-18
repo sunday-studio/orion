@@ -13,7 +13,8 @@ import (
 	"gorm.io/gorm"
 )
 
-const maxSubscriberImportRows = 5000
+// Each row sends a confirmation mail inside the request, so one request stays well under the 60 s write timeout.
+const maxSubscriberImportRows = 200
 
 type StatusPageSubscriberImportRequest struct {
 	// CSV is the file text; the first column is the email. A header row named "email" is skipped.
@@ -74,7 +75,7 @@ func (s *Server) importStatusPageSubscribers(c *gin.Context) {
 		return
 	}
 	if len(records) > maxSubscriberImportRows+1 {
-		utils.BadRequest(c, "At most 5000 rows can be imported at once")
+		utils.BadRequest(c, "At most 200 rows can be imported at once; split larger lists into batches")
 		return
 	}
 	out := StatusPageSubscriberImportResponse{Invalid: []string{}}
