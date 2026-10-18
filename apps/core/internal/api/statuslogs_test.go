@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"orion/core/internal/db"
 	"orion/core/internal/logstore"
 	"orion/core/internal/utils"
@@ -317,5 +318,52 @@ func TestInternalLogsAreCapturedSeparately(t *testing.T) {
 	}
 	if hist := getData[LogHistogramResponse](t, server, "/v1/internal-logs/histogram?from=-1h"); len(hist.Buckets) == 0 {
 		t.Error("internal histogram is empty")
+	}
+}
+
+func TestStatusLogStreamPollsAreTimeBoundedAndRangeIsCapped(t *testing.T) {
+	now := time.Now().UTC()
+	last := now.Add(-3 * time.Second).UnixMilli()
+	f := streamFilter(statusFilter{Levels: []string{"error"}}, last)
+	if f.From.IsZero() || !f.To.IsZero() || now.Sub(f.From) > time.Minute {
+		t.Fatalf("stream filter = %+v, want a From close to the resume point", f)
+	}
+	union, args := f.union()
+	// Every time-based branch carries the lower bound: seven range clauses plus the state-change window.
+	if got := strings.Count(union, "created_at >= ?"); got < 7 || len(args) < 8 {
+		t.Fatalf("stream union has %d bounded branches and %d args:\n%s", got, len(args), union)
+	}
+	unbounded, _ := statusFilter{}.union()
+	if strings.Contains(unbounded, "created_at >= ?") {
+		t.Fatal("sanity check: an empty filter should not carry bounds")
+	}
+	if _, err := parseStatusFilter(url.Values{"from": {"-45d"}}, now); err == nil {
+		t.Error("a 45 day range must be refused")
+	}
+	if _, err := parseStatusFilter(url.Values{"from": {"-29d"}}, now); err != nil {
+		t.Errorf("a 29 day range is fine: %v", err)
+	}
+}
+
+func TestInternalSinkScrubsCredentialsInText(t *testing.T) {
+	server := setupLogsServer(t, nil)
+	logger := utils.NewLoggerWithWriter(&strings.Builder{})
+	logger.AttachSink(logstore.NewCoreLogSink(server.logs.store, "worker"))
+	logger.Error("Alert delivery retry failed", "error", `Post "https://user:hunter2@pager.example.com/hook?token=abc123&x=1": EOF`, "header", "Authorization: Bearer abcdefghijklmnop")
+	logger.Error("webhook https://pager.example.com/hook?secret=zzz failed")
+	server.logs.store.Flush(5 * time.Second)
+	list := getData[LogListResponse](t, server, "/v1/internal-logs?limit=10")
+	var all string
+	for _, e := range list.Entries {
+		raw, _ := json.Marshal(e)
+		all += string(raw)
+	}
+	for _, leaked := range []string{"hunter2", "abc123", "abcdefghijklmnop", "secret=zzz"} {
+		if strings.Contains(all, leaked) {
+			t.Errorf("internal logs leaked %q: %s", leaked, all)
+		}
+	}
+	if !strings.Contains(all, "[redacted]") || !strings.Contains(all, "pager.example.com") {
+		t.Errorf("scrubbing should keep the host and mark removals: %s", all)
 	}
 }

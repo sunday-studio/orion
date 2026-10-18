@@ -11,7 +11,7 @@ var _ utils.APIResponse
 
 // listStatusLogs List status logs.
 // @Summary      List status logs
-// @Description  Checks, state changes, server reports, incident steps, alert deliveries and admin actions, newest first, with the total for the filter. Page with cursor (older) or cursor plus direction=newer. The default window is the last 24 hours.
+// @Description  Checks, state changes, server reports, incident steps, alert deliveries and admin actions, newest first, with the total for the filter. Page with cursor (older) or cursor plus direction=newer. The default window is the last 24 hours and no query may span more than 30 days (400 otherwise). Relative times accept -15m, -24h and -7d.
 // @Tags         status-logs
 // @Produce      json
 // @Security     BearerAuth
