@@ -1,5 +1,6 @@
 import { parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 import { useCallback, useMemo } from "react";
+import { usePageSize } from "@/design-system/data-table/use-page-size";
 import {
   type DataTableFilterField,
   type DataTableFilterValues,
@@ -21,8 +22,16 @@ const prefixed = (prefix: string | undefined, key: string) =>
  * URL-backed (nuqs) filter, sort and page state for a schema-driven data table.
  * `fields` must be a stable, module-level constant.
  */
-export function useDataTableUrlState({ fields, limit, prefix }: UseDataTableUrlStateOptions) {
+export function useDataTableUrlState({
+  fields,
+  limit: defaultLimit,
+  prefix,
+}: UseDataTableUrlStateOptions) {
   const pageKey = prefixed(prefix, "page");
+  const { limit, setLimit } = usePageSize(defaultLimit, {
+    key: prefixed(prefix, "pageSize"),
+    pageKey,
+  });
   const sortKey = prefixed(prefix, "sort");
 
   const parsers = useMemo(() => {
@@ -79,6 +88,7 @@ export function useDataTableUrlState({ fields, limit, prefix }: UseDataTableUrlS
     page,
     offset,
     limit,
+    setLimit,
     sort,
     hasFilters,
     setFilter,

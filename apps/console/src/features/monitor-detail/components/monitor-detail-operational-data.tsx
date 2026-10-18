@@ -18,7 +18,6 @@ import type {
 } from "@/orion-sdk";
 import {
   DetailItem,
-  HISTORY_LIMIT,
   type MonitorDetailTab,
   coreConfigArrayCount,
   coreConfigValue,
@@ -37,6 +36,8 @@ type MonitorDetailOperationalDataProps = {
   historyError: unknown;
   historyLoading: boolean;
   historyOffset: number;
+  historyLimit: number;
+  onHistoryLimitChange: (limit: number) => void;
   incidentsError: unknown;
   incidentsLoading: boolean;
   isCoreMonitor: boolean;
@@ -58,6 +59,8 @@ export const MonitorDetailOperationalData = ({
   historyError,
   historyLoading,
   historyOffset,
+  historyLimit,
+  onHistoryLimitChange,
   incidentsError,
   incidentsLoading,
   isCoreMonitor,
@@ -98,8 +101,9 @@ export const MonitorDetailOperationalData = ({
           {reportCount > 0 && (
             <ListPagination
               count={reportCount}
-              limit={HISTORY_LIMIT}
+              limit={historyLimit}
               offset={historyOffset}
+              onLimitChange={onHistoryLimitChange}
               onOffsetChange={onHistoryOffsetChange}
             />
           )}

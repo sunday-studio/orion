@@ -1,4 +1,4 @@
-import { parseAsString, useQueryStates } from "nuqs";
+import { parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 import { useGetAgents, useGetMonitors } from "@/orion-sdk";
 import {
   AddFilterButton,
@@ -29,19 +29,22 @@ export const useIncidentFilters = () => {
     server: parseAsString.withDefault(""),
     monitor: parseAsString.withDefault(""),
     review: parseAsString.withDefault(""),
+    page: parseAsInteger.withDefault(1),
   });
   return {
     statuses: csv(state.status),
     severities: csv(state.severity),
     since: state.since,
     q: state.q,
+    page: Math.max(state.page, 1),
+    setPage: (next: number) => void setState({ page: next }),
     notified: csv(state.notified),
     server: state.server,
     monitor: state.monitor,
     review: state.review === "1",
-    setNotified: (next: string[]) => void setState({ notified: next.join(",") }),
-    setServer: (next: string) => void setState({ server: next }),
-    setMonitor: (next: string) => void setState({ monitor: next }),
+    setNotified: (next: string[]) => void setState({ notified: next.join(","), page: 1 }),
+    setServer: (next: string) => void setState({ server: next, page: 1 }),
+    setMonitor: (next: string) => void setState({ monitor: next, page: 1 }),
     /** Quick views: Active, Needs review, Resolved. */
     setView: (view: "active" | "review" | "resolved") =>
       void setState({
@@ -57,11 +60,12 @@ export const useIncidentFilters = () => {
         notified: "",
         server: "",
         monitor: "",
+        page: 1,
       }),
-    setStatuses: (next: string[]) => void setState({ status: next.join(",") || "none" }),
-    setSeverities: (next: string[]) => void setState({ severity: next.join(",") }),
-    setSince: (next: string) => void setState({ since: next }),
-    setQuery: (next: string) => void setState({ q: next }),
+    setStatuses: (next: string[]) => void setState({ status: next.join(",") || "none", page: 1 }),
+    setSeverities: (next: string[]) => void setState({ severity: next.join(","), page: 1 }),
+    setSince: (next: string) => void setState({ since: next, page: 1 }),
+    setQuery: (next: string) => void setState({ q: next, page: 1 }),
     clearAll: () =>
       void setState({
         status: "",
@@ -72,6 +76,7 @@ export const useIncidentFilters = () => {
         server: "",
         monitor: "",
         review: "",
+        page: 1,
       }),
     isDefault:
       state.status === DEFAULT_STATUSES.join(",") &&

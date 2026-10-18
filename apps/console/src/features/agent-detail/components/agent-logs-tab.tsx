@@ -1,4 +1,4 @@
-import { DataTable, ListPagination } from "@/design-system";
+import { DataTable, ListPagination, usePageSize } from "@/design-system";
 import { ReportInspectionDrawer } from "@/features/report-inspection/components/report-inspection-drawer";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { type ApiAgentReportResponse, useGetAgentReports } from "@/orion-sdk";
@@ -6,8 +6,6 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { parseAsInteger, useQueryStates } from "nuqs";
 import { useState } from "react";
 import { formatDuration, formatPercent } from "../agent-detail.domain";
-
-const AGENT_LOG_LIMIT = 20;
 
 const agentLogColumns: ColumnDef<ApiAgentReportResponse>[] = [
   {
@@ -46,13 +44,17 @@ export const AgentLogsTab = ({ agentId }: AgentLogsTabProps) => {
   const [{ reportsPage }, setReportsQuery] = useQueryStates({
     reportsPage: parseAsInteger.withDefault(1),
   });
-  const offset = (Math.max(reportsPage, 1) - 1) * AGENT_LOG_LIMIT;
-  const reportsQuery = useGetAgentReports(agentId, { limit: AGENT_LOG_LIMIT, offset });
+  const { limit: pageSize, setLimit: setPageSize } = usePageSize(20, {
+    key: "reportsSize",
+    pageKey: "reportsPage",
+  });
+  const offset = (Math.max(reportsPage, 1) - 1) * pageSize;
+  const reportsQuery = useGetAgentReports(agentId, { limit: pageSize, offset });
   const reports = reportsQuery.data?.reports ?? [];
   const count = reportsQuery.data?.count ?? reports.length;
   const [selectedReport, setSelectedReport] = useState<ApiAgentReportResponse>();
   const setOffset = (nextOffset: number) => {
-    void setReportsQuery({ reportsPage: Math.floor(nextOffset / AGENT_LOG_LIMIT) + 1 });
+    void setReportsQuery({ reportsPage: Math.floor(nextOffset / pageSize) + 1 });
   };
 
   return (
@@ -70,8 +72,9 @@ export const AgentLogsTab = ({ agentId }: AgentLogsTabProps) => {
       )}
       {count > 0 && (
         <ListPagination
+          onLimitChange={setPageSize}
           count={count}
-          limit={AGENT_LOG_LIMIT}
+          limit={pageSize}
           offset={offset}
           onOffsetChange={setOffset}
         />

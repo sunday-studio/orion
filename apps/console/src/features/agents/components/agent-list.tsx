@@ -1,11 +1,9 @@
 import { type GetAgentsParams, useGetAgentSummary, useGetAgents } from "@/orion-sdk";
 import { AgentRow } from "./agent-row";
 import { AgentSummary, type AgentSummaryFilter } from "./agent-summary";
-import { Button, EmptyState, ListPagination, Skeleton } from "@/design-system";
+import { Button, EmptyState, ListPagination, Skeleton, usePageSize } from "@/design-system";
 import { parseAsBoolean, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 import { Fragment } from "react/jsx-runtime";
-
-const AGENT_LIMIT = 20;
 
 export const AgentList = () => {
   const [{ search, status, maintenance, stale, incidents, page }, setServerQuery] = useQueryStates({
@@ -17,10 +15,14 @@ export const AgentList = () => {
     page: parseAsInteger.withDefault(1),
   });
   const currentPage = Math.max(page, 1);
-  const offset = (currentPage - 1) * AGENT_LIMIT;
+  const { limit: pageSize, setLimit: setPageSize } = usePageSize(20, {
+    key: "pageSize",
+    pageKey: "page",
+  });
+  const offset = (currentPage - 1) * pageSize;
 
   const params: GetAgentsParams = {
-    limit: AGENT_LIMIT,
+    limit: pageSize,
     offset,
     search: search.trim() || undefined,
     status: status === "all" ? undefined : status,
@@ -44,7 +46,7 @@ export const AgentList = () => {
           : "all";
 
   const setOffset = (nextOffset: number) => {
-    void setServerQuery({ page: Math.floor(nextOffset / AGENT_LIMIT) + 1 });
+    void setServerQuery({ page: Math.floor(nextOffset / pageSize) + 1 });
   };
 
   const setSummaryFilter = (filter: AgentSummaryFilter) => {
@@ -111,8 +113,9 @@ export const AgentList = () => {
       </div>
       {count > 0 && (
         <ListPagination
+          onLimitChange={setPageSize}
           count={count}
-          limit={AGENT_LIMIT}
+          limit={pageSize}
           offset={offset}
           onOffsetChange={setOffset}
         />

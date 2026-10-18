@@ -1,6 +1,14 @@
 import { Download, Plus, Search } from "lucide-react";
 import { useState } from "react";
-import { Button, EmptyState, Input, PageHeader, Skeleton } from "@/design-system";
+import {
+  Button,
+  EmptyState,
+  Input,
+  ListPagination,
+  PageHeader,
+  Skeleton,
+  usePageSize,
+} from "@/design-system";
 import { exportIncidentsCSV, useGetIncidents } from "@/orion-sdk";
 import type { NumberedIncident } from "./incident-format";
 import { DeclareIncidentDialog } from "./list/declare-incident-dialog";
@@ -37,8 +45,15 @@ export const IncidentsPage = () => {
     monitor_id: filters.monitor || undefined,
     needs_review: filters.review || undefined,
   };
-  const query = useGetIncidents({ ...params, limit: PAGE_SIZE });
+  const { limit, setLimit } = usePageSize(PAGE_SIZE);
+  const offset = (filters.page - 1) * limit;
+  const query = useGetIncidents({ ...params, limit, offset });
   const incidents: NumberedIncident[] = query.data?.incidents ?? [];
+  const total =
+    (query.data as { pagination?: { total_items?: number } } | undefined)?.pagination
+      ?.total_items ??
+    query.data?.count ??
+    incidents.length;
   const hiddenResolved =
     (query.data as { hidden_resolved_count?: number } | undefined)?.hidden_resolved_count ?? 0;
   const [exporting, setExporting] = useState(false);
@@ -159,6 +174,16 @@ export const IncidentsPage = () => {
           />
         )}
       </div>
+      {!isEmptyHistory && total > 0 && (
+        <ListPagination
+          count={total}
+          limit={limit}
+          offset={offset}
+          onOffsetChange={(next) => filters.setPage(Math.floor(next / limit) + 1)}
+          onLimitChange={setLimit}
+          className="mt-2"
+        />
+      )}
       {selected.size > 0 && (
         <IncidentBulkBar ids={Array.from(selected)} onClear={() => setSelected(new Set())} />
       )}

@@ -38,12 +38,17 @@ const monitorColumns: ColumnDef<ApiMonitorResponse>[] = [
 
 export const MonitorList = ({ agentId }: { agentId: string }) => {
   const [page, setPage] = useState(1);
-  const offset = (Math.max(page, 1) - 1) * MONITOR_LIMIT;
-  const monitorsResponse = useGetAgentMonitors(agentId, { limit: MONITOR_LIMIT, offset });
+  const [pageSize, setPageSizeState] = useState(MONITOR_LIMIT);
+  const offset = (Math.max(page, 1) - 1) * pageSize;
+  const monitorsResponse = useGetAgentMonitors(agentId, { limit: pageSize, offset });
   const monitors = monitorsResponse.data?.monitors ?? [];
   const count = monitorsResponse.data?.count ?? monitors.length;
   const setOffset = (nextOffset: number) => {
-    setPage(Math.floor(nextOffset / MONITOR_LIMIT) + 1);
+    setPage(Math.floor(nextOffset / pageSize) + 1);
+  };
+  const setPageSize = (next: number) => {
+    setPageSizeState(next);
+    setPage(1);
   };
 
   if (monitorsResponse.isLoading) {
@@ -68,8 +73,9 @@ export const MonitorList = ({ agentId }: { agentId: string }) => {
       />
       <ListPagination
         count={count}
-        limit={MONITOR_LIMIT}
+        limit={pageSize}
         offset={offset}
+        onLimitChange={setPageSize}
         onOffsetChange={setOffset}
         className=" bg-neutral-100/80 border-t border-neutral-300/60 py-1"
       />
