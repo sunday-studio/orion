@@ -74,6 +74,13 @@ func parseStatusFilter(values url.Values, now time.Time) (statusFilter, error) {
 	if f.From.IsZero() {
 		f.From = now.Add(-statusLogsDefaultWindow)
 	}
+	end := now
+	if !f.To.IsZero() {
+		end = f.To
+	}
+	if end.Sub(f.From) > maxStatusRange {
+		return f, fmt.Errorf("the time range is limited to 30 days")
+	}
 	return f, nil
 }
 
@@ -345,7 +352,7 @@ func (s *Server) streamStatusLogsImpl(c *gin.Context) {
 			}
 			flusher.Flush()
 		case <-poll.C:
-			rows, err := statusPage(s.db, f, 200, lastMs, lastID, true, true)
+			rows, err := statusPage(s.db, streamFilter(f, lastMs), 200, lastMs, lastID, true, true)
 			if err != nil {
 				continue
 			}
@@ -402,3 +409,17 @@ func (s *Server) statusExportSource() exportSource {
 		},
 	}
 }
+
+// streamSlack covers rows written slightly out of order (a report stored a moment after a later event).
+const streamSlack = 30 * time.Second
+
+// streamFilter bounds a live-tail poll to the time since the last event, so every source branch (and the
+// state-change window) reads a few seconds of history instead of all of it.
+func streamFilter(f statusFilter, lastMs int64) statusFilter {
+	f.From = time.UnixMilli(lastMs).Add(-streamSlack)
+	f.To = time.Time{}
+	return f
+}
+
+// maxStatusRange bounds how far back one query may look; older history is reached by narrowing the window.
+const maxStatusRange = 30 * 24 * time.Hour

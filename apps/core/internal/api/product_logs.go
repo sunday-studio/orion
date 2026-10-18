@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"orion/core/internal/logstore"
 	"orion/core/internal/utils"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -42,6 +44,12 @@ func parseLogTime(value string, now time.Time) (time.Time, bool) {
 	if len(value) > 1 && value[0] == '-' {
 		if d, err := time.ParseDuration(value[1:]); err == nil {
 			return now.Add(-d), true
+		}
+		// -7d: Go durations have no day unit.
+		if days, ok := strings.CutSuffix(value[1:], "d"); ok {
+			if n, err := strconv.Atoi(days); err == nil && n >= 0 && n <= 3650 {
+				return now.AddDate(0, 0, -n), true
+			}
 		}
 	}
 	return time.Time{}, false

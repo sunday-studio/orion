@@ -11827,7 +11827,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Checks, state changes, server reports, incident steps, alert deliveries and admin actions, newest first, with the total for the filter. Page with cursor (older) or cursor plus direction=newer. The default window is the last 24 hours.",
+                "description": "Checks, state changes, server reports, incident steps, alert deliveries and admin actions, newest first, with the total for the filter. Page with cursor (older) or cursor plus direction=newer. The default window is the last 24 hours and no query may span more than 30 days (400 otherwise). Relative times accept -15m, -24h and -7d.",
                 "produces": [
                     "application/json"
                 ],

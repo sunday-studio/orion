@@ -19,6 +19,14 @@ const (
 	ComponentGateway   = "agent gateway"
 )
 
+// scrubRules remove credentials that travel inside text: URL user info, secret-looking query parameters
+// and bearer tokens. They run over every string value and the message of Core's own log lines.
+var scrubRules = []Rule{
+	{Type: "regex", Pattern: `(?i)(https?://)[^/\s@]+@`, ReplaceWith: "${1}[redacted]@"},
+	{Type: "regex", Pattern: `(?i)([?&](?:token|key|secret|signature|sig|password|passwd|apikey|api_key|access_token|auth)=)[^&\s"']+`, ReplaceWith: "${1}[redacted]"},
+	{Type: "regex", Pattern: `(?i)(bearer\s+)[A-Za-z0-9._~+/=-]{8,}`, ReplaceWith: "${1}[redacted]"},
+}
+
 // coreLogSink turns Core's JSON log lines into log entries. It implements io.Writer so a Logger can tee into it.
 type coreLogSink struct {
 	store   *Store
@@ -29,7 +37,7 @@ type coreLogSink struct {
 // NewCoreLogSink records the process's own log lines in the log store (Internal logs). Writes never
 // block: when the queue is full the line is dropped.
 func NewCoreLogSink(store *Store, process string) io.Writer {
-	return &coreLogSink{store: store, process: process, redact: NewRedactor(nil, false)}
+	return &coreLogSink{store: store, process: process, redact: NewRedactorRules(nil, false, scrubRules)}
 }
 
 func (c *coreLogSink) Write(p []byte) (int, error) {
