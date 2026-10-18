@@ -157,7 +157,36 @@ type UserConfig struct {
 	Logging         LoggingConfig      `yaml:"logging,omitempty"`
 	Transport       TransportConfig    `yaml:"transport,omitempty"`
 	AppResources    AppResourcesConfig `yaml:"app_resources,omitempty"`
+	Logs            LogsConfig         `yaml:"logs,omitempty"`
 	Monitors        []UserMonitor      `yaml:"monitors"`
+}
+
+// LogsConfig ships logs from this host to Core's product-log ingest
+// (docs/product-logs.md). Sources are read from files, journald or containers;
+// everything goes through a bounded on-disk spool first.
+type LogsConfig struct {
+	SpoolMB  int         `yaml:"spool_mb,omitempty"` // default 64
+	Endpoint string      `yaml:"endpoint,omitempty"` // default {core_url}/v1/ingest/logs
+	Sources  []LogSource `yaml:"sources,omitempty"`
+}
+
+// LogSource is one thing to read logs from. Exactly one of Path, Unit or
+// Container applies, chosen by Type.
+type LogSource struct {
+	Name           string   `yaml:"name"`
+	Type           string   `yaml:"type"` // file | journald | docker
+	Path           string   `yaml:"path,omitempty"`
+	Unit           string   `yaml:"unit,omitempty"`
+	Container      string   `yaml:"container,omitempty"`
+	App            string   `yaml:"app,omitempty"`  // service.name; defaults to Name
+	From           string   `yaml:"from,omitempty"` // "end" (default) or "beginning"
+	MultilineStart string   `yaml:"multiline_start,omitempty"`
+	Redact         []string `yaml:"redact,omitempty"`
+	MinLevel       string   `yaml:"min_level,omitempty"`
+	// IngestKeyFile or IngestKeyEnv names where this source's write-only ingest
+	// key lives; the key itself never goes in the config file.
+	IngestKeyFile string `yaml:"ingest_key_file,omitempty"`
+	IngestKeyEnv  string `yaml:"ingest_key_env,omitempty"`
 }
 
 // AppResourcesConfig controls passive per-app resource metrics. They need no

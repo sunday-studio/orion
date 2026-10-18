@@ -2,9 +2,11 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"orion/agent/internal/appres"
+	"orion/agent/internal/logship"
 	"os"
 	"os/user"
 	"sort"
@@ -26,6 +28,8 @@ type daemonControl struct {
 	logPath    string
 	monitors   atomic.Int64
 	logSources atomic.Int64
+	spoolMu    sync.Mutex
+	spool      *logship.Spool
 	obsMu      sync.Mutex
 	states     map[string]control.MonitorState
 	lastReport time.Time
@@ -212,4 +216,31 @@ func runMode() string {
 		return "system service, user " + name
 	}
 	return "manual run, user " + name
+}
+
+func (d *daemonControl) setSpool(s *logship.Spool) {
+	d.spoolMu.Lock()
+	defer d.spoolMu.Unlock()
+	d.spool = s
+}
+
+// SpoolRecent returns the newest shipped-log entries as NDJSON, so an
+// unprivileged `orion-agent logs` works offline through the socket.
+func (d *daemonControl) SpoolRecent(n int) ([]byte, error) {
+	d.spoolMu.Lock()
+	sp := d.spool
+	d.spoolMu.Unlock()
+	if sp == nil {
+		return nil, errors.New("log shipping is not configured (add logs.sources to the config)")
+	}
+	entries, err := sp.Recent(n)
+	if err != nil {
+		return nil, err
+	}
+	var out []byte
+	for _, e := range entries {
+		b, _ := json.Marshal(e)
+		out = append(append(out, b...), '\n')
+	}
+	return out, nil
 }

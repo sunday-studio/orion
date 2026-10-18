@@ -40,6 +40,7 @@ func NewServer(path string, h Handler) *Server {
 	mux.HandleFunc("POST /v1/reload", s.reload)
 	mux.HandleFunc("GET /v1/logs", s.logs)
 	mux.HandleFunc("GET /v1/token-check", s.tokenCheck)
+	mux.HandleFunc("GET /v1/spool", s.spool)
 	s.http = &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
 	return s
 }
@@ -202,4 +203,18 @@ func (s *Server) tokenCheck(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, TokenCheck{HTTPStatus: code})
+}
+
+func (s *Server) spool(w http.ResponseWriter, r *http.Request) {
+	n, _ := strconv.Atoi(r.URL.Query().Get("lines"))
+	if n <= 0 || n > 5000 {
+		n = 200
+	}
+	data, err := s.handler.SpoolRecent(n)
+	if err != nil {
+		writeErr(w, http.StatusNotFound, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/x-ndjson")
+	_, _ = w.Write(data)
 }
