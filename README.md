@@ -2,18 +2,54 @@
 
 [![CI](https://github.com/sunday-studio/orion/actions/workflows/ci.yml/badge.svg)](https://github.com/sunday-studio/orion/actions/workflows/ci.yml)
 
+<p align="center">
+  <img src="assets/orion-banner.png" alt="Orion: run monitoring and incident response on a machine you own" width="880">
+</p>
+
 **Self-hosted monitoring, incident response and logs for personal projects and small teams.**
 
 Run Orion on a machine you own. When something breaks you hear it first, and every byte stays on your
 server. There is no hosted version and no account to create.
 
-| Incidents | Servers |
-|---|---|
-| ![Incidents list](assets/incidents-list.png) | ![Servers list](assets/servers-list.png) |
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/console-overview-dark.png">
+  <img src="assets/console-overview-light.png" alt="The Orion Console overview: an open incident, server health and recent incidents">
+</picture>
 
-| Monitors | Monitor detail |
-|---|---|
-| ![Monitors list](assets/monitors-list.png) | ![Monitor detail](assets/monitor-detail.png) |
+<table>
+  <tr>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="assets/console-incident-detail-dark.png">
+        <img src="assets/console-incident-detail-light.png" alt="An incident with its timeline, notifications and affected components">
+      </picture>
+      <sub><b>Incidents</b> with a timeline and who was told</sub>
+    </td>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="assets/console-servers-dark.png">
+        <img src="assets/console-servers-light.png" alt="The Servers list with status, CPU and memory">
+      </picture>
+      <sub><b>Servers</b> reporting from Linux and macOS hosts</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="assets/console-monitors-dark.png">
+        <img src="assets/console-monitors-light.png" alt="The Monitors list with recent checks">
+      </picture>
+      <sub><b>Monitors</b> for HTTP, TCP, Docker, systemd and more</sub>
+    </td>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="assets/console-alerts-dark.png">
+        <img src="assets/console-alerts-light.png" alt="The notification log showing sent and failed deliveries">
+      </picture>
+      <sub><b>Alerts</b> to webhook or email, every delivery recorded</sub>
+    </td>
+  </tr>
+</table>
 
 ## What you get
 
