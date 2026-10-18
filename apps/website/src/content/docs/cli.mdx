@@ -1,0 +1,76 @@
+---
+title: Agent CLI
+description: "Every command for the orion-agent on a Linux or macOS server."
+group: Reference
+order: 8
+---
+import Callout from "../../components/docs/callout.astro";
+import Cmd from "../../components/docs/cmd.astro";
+
+<Cmd name="orion-agent status" desc="Show whether the service is running and connected to Core." open>
+
+```sh
+orion-agent status
+✔ service running
+✔ connected to core.example.com
+✔ last report 4 s ago
+```
+
+</Cmd>
+
+<Cmd name="orion-agent doctor" desc="Check config, connectivity and the service, and suggest fixes.">
+
+```sh
+orion-agent doctor
+✔ config valid
+✔ docker socket readable
+! 1 monitor has not reported
+```
+
+</Cmd>
+
+<Cmd name="orion-agent logs" desc="Show recent log entries from the agent, pretty-printed." open>
+
+| Flag | What it does |
+|---|---|
+| `--lines N` | How many entries to show. |
+| `--level error` | Only entries at or above a level. |
+| `--since 1h` | Only entries from the last hour. |
+
+```sh
+orion-agent logs --level error --since 1h
+```
+
+</Cmd>
+
+<Cmd name="orion-agent update" desc="Update to the latest release, or roll back to a version.">
+
+| Flag | What it does |
+|---|---|
+| `-version X.Y.Z` | Install a specific version. |
+
+```sh
+orion-agent update
+orion-agent update -version 0.1.1
+```
+
+</Cmd>
+
+<Cmd name="orion-agent token apply" desc="Apply a replacement token when the agent can no longer authenticate.">
+
+```sh
+orion-agent token apply --token-file /secure/path/replacement-token
+orion-agent restart
+```
+
+</Cmd>
+
+<Cmd name="orion-agent reconfigure" desc="Create a new local registration. Core will see this machine as a new server.">
+
+```sh
+orion-agent reconfigure
+```
+
+</Cmd>
+
+<Callout type="warn" title="Use reconfigure sparingly.">It registers the machine as a new server instead of reusing its identity.</Callout>

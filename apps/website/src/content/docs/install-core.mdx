@@ -1,0 +1,86 @@
+---
+title: Install Core
+description: "Run Core and its worker with Docker Compose, then turn on authentication so only you can sign in."
+group: Guides
+order: 3
+readTime: 4 min read
+note: Docker and Compose required
+---
+import Callout from "../../components/docs/callout.astro";
+import CodeTabs from "../../components/docs/code-tabs.astro";
+import Steps from "../../components/docs/steps.astro";
+import Step from "../../components/docs/step.astro";
+
+<Callout title="Where to run it.">Anywhere your servers can reach: a small VPS, a home server, or a machine on your Tailscale network.</Callout>
+
+## Run with Compose
+
+Core ships as one image, run as two services that share a single volume: `orion-core` for the API and Console, and `orion-core-worker` for monitor checks and alert delivery.
+
+<CodeTabs labels={["Run", ".env", "compose.yaml"]}>
+
+```sh
+# download the sample, then start both services
+curl -fsSL -o orion-compose.yaml \
+  https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/examples/core-console-compose.yaml
+docker compose -f orion-compose.yaml up -d
+```
+
+```sh
+ORION_CORE_IMAGE=ghcr.io/sunday-studio/orion-core:<version>
+ORION_HTTP_PORT=8999
+ORION_REQUIRE_FRONTEND_AUTH=true
+ORION_ADMIN_USERNAME=admin
+ORION_ADMIN_PASSWORD=<12+ characters>
+ORION_JWT_SECRET=<32+ characters>
+```
+
+```yaml
+services:
+  orion-core:
+    image: ghcr.io/sunday-studio/orion-core:latest
+    ports:
+      - "8999:8999"
+    volumes:
+      - orion-data:/data
+  orion-core-worker:
+    command: ["./orion-core-worker"]
+    volumes:
+      - orion-data:/data
+volumes:
+  orion-data:
+```
+
+</CodeTabs>
+
+Core listens on port `8999` by default. Open `http://localhost:8999` once both containers are healthy.
+
+## Required settings
+
+Authentication is on by default. Core refuses to start unless these are set.
+
+| Variable | What it does |
+|---|---|
+| `ORION_ADMIN_USERNAME` | The admin username for the Console. |
+| `ORION_ADMIN_PASSWORD` | The admin password. At least 12 characters. |
+| `ORION_JWT_SECRET` | Signs sessions. At least 32 characters. |
+| `ORION_HTTP_PORT` | The port Core listens on. Defaults to `8999`. |
+
+<Callout type="warn" title="Do not reuse a password.">Generate both secrets, for example with `openssl rand -hex 32`, and keep the `.env` file out of version control.</Callout>
+
+## Verify it is running
+
+<Steps>
+<Step title="Check the health endpoint">It returns `ok` when the API is up.</Step>
+<Step title="Sign in to the Console">Use the admin username and password you set.</Step>
+<Step title="Confirm the worker is alive">The diagnostics endpoint reports whether monitor checks are running.</Step>
+</Steps>
+
+```sh
+curl http://localhost:8999/health
+curl http://localhost:8999/v1/diagnostics/core-worker
+```
+
+## Upgrading
+
+Pull the new image and recreate both services. Core applies migrations when it starts and copies the database to `backups/` first, so you can roll back. See [Backups and restore](/docs/backups/).

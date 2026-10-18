@@ -1,0 +1,50 @@
+---
+title: Quickstart
+description: "Core running, one server connected and a first alert delivered. About ten minutes, one machine."
+group: Start
+order: 2
+progress: ["Start Core", "Connect a server", "Add a monitor", "Add an alert channel"]
+---
+import Callout from "../../components/docs/callout.astro";
+import Done from "../../components/docs/done.astro";
+
+## Start Core
+
+Download the sample Compose file, set an admin password and a JWT secret in a `.env` file next to it, then bring it up.
+
+```sh
+curl -fsSL -o orion-compose.yaml \
+  https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/examples/core-console-compose.yaml
+docker compose -f orion-compose.yaml up -d
+```
+
+<Done id="s1">http://localhost:8999 shows the sign-in page</Done>
+
+## Connect a server
+
+Run the installer on any Linux or macOS machine you want to watch, and point it at your Core.
+
+```sh
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash -s -- \
+  --core-url http://orion-core.local:8999
+```
+
+<Callout>Check it from that machine with `orion-agent status`. The server appears in the Console within a minute.</Callout>
+
+<Done id="s2">the server shows as Up under Servers</Done>
+
+## Add a monitor
+
+Open **Monitors**, choose **New monitor**, pick HTTP, enter a URL and save. The first check runs straight away.
+
+<Done id="s3">the monitor shows a green check</Done>
+
+## Add an alert channel
+
+Open **Alerts, Channels** and add a webhook or an email channel. Use **Send test** to confirm it arrives, then route your monitors to it.
+
+<Done id="s4">the test message arrives</Done>
+
+## You are running Orion
+
+Everything lives on your machine, in one SQLite file. Good next steps: [send logs from an app](/docs/send-logs/), [back up the database](/docs/backups/) and [learn the concepts](/docs/concepts/).

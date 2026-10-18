@@ -1,0 +1,30 @@
+# Website and docs handoff
+
+Source of truth for the public site is `apps/website/`. The approved layouts live on the Orion Console Design canvas, pages **Website** and **Docs**.
+
+## Home (canvas board: Home, merged flow)
+
+1. Hero: heartbeat line that draws in, with hover hotspots on each beat and the flatline.
+2. Watch it work: four-step storyboard that autoplays (pull the plug, Orion notices, incident opens, you are told).
+3. Why it is yours: four bento cards with spot illustrations (rules, no middleman, logs, whole setup).
+4. Three steps to running your own: click a step to see its commands, with a Copy button.
+5. What is in the box: tabs over real Console screens that autoplay; clicking a tab takes over.
+6. A night in the life: full-width single-axis timeline.
+7. Self-hosting FAQ and the closing call to action.
+
+## Docs (canvas boards: Docs home, article, search, Quickstart, Send logs, Agent CLI)
+
+- Sidebar with groups, centred article column, on-this-page list on the right.
+- Code blocks are dark green with Copy; multi-pane examples use tabs.
+- Callouts (note, warning), numbered steps, status badges, expandable command cards.
+- Quickstart shows a progress rail driven by "Done when" checkboxes, saved in the browser.
+- ⌘K opens search over page titles and level-2 headings.
+
+## Not yet designed or built
+
+API overview, Concepts and Backups as designed pages (they build from plain Markdown today), a dark-mode review of the home page, and the mobile pass beyond the stacking rules in `responsive.css`.
+
+## Open items
+
+- Home illustrations in "Why it is yours" are to be cleaned up (an earlier refinement was reverted).
+- Verify the site visually in a browser before launch; the build has only been checked structurally.

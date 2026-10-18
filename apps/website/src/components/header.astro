@@ -1,0 +1,23 @@
+---
+import Logo from "./logo.astro";
+interface Props { active?: "product" | "docs" | ""; docs?: boolean }
+const { active = "", docs = false } = Astro.props;
+const links = [
+  ["Product", "/", "product"],
+  ["Docs", "/docs/", "docs"],
+  ["How it works", "/#start", ""],
+  ["GitHub", "https://github.com/sunday-studio/orion", ""],
+] as const;
+---
+<header class={docs ? "nv dnav" : "nv"}>
+  <a class="lg" href="/"><Logo />Orion{docs && <span class="docs-tag m">docs</span>}</a>
+  <nav class="nl" aria-label="Main">
+    {links.map(([t, h, k]) => <a href={h} class={k && active === k ? "on" : ""}>{t}</a>)}
+  </nav>
+  <div class="nr">
+    {docs
+      ? <button type="button" class="dsrch" data-search-open aria-label="Search docs"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg> Search docs <kbd>⌘K</kbd></button>
+      : <a class="b" href="/docs/">Docs</a>}
+    <a class="b p" href="/docs/quickstart/">Get started</a>
+  </div>
+</header>

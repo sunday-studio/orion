@@ -1,101 +1,24 @@
 ---
-import Base from "../layouts/Base.astro";
-import Shot from "../components/Shot.astro";
-import Features from "../components/Features.astro";
-import Architecture from "../components/Architecture.astro";
+import Base from "../layouts/base.astro";
+import Hero from "../components/home/hero.astro";
+import Storyboard from "../components/home/storyboard.astro";
+import Why from "../components/home/why.astro";
+import Gates from "../components/home/gates.astro";
+import Explorer from "../components/home/explorer.astro";
+import Timeline from "../components/home/timeline.astro";
+import Faq from "../components/home/faq.astro";
+import Cta from "../components/home/cta.astro";
 import "../styles/home.css";
-import "../styles/features.css";
-
-const audience = [
-  ["Homelab", "Know when the NAS, the router or that one container quietly dies, without sending anything to a SaaS."],
-  ["Indie hackers", "Watch your side projects, get a webhook or email when one is down, and publish a status page in minutes."],
-  ["Small teams", "A calm Console for incidents, who was notified and whether the alert actually arrived."],
-  ["Agencies", "One Core, many client servers. Give each client their own status page."],
-  ["Platform engineers", "Local service state, Docker, systemd and cron heartbeats next to your logs, with an API for everything."],
-  ["Open-source maintainers", "Send logs from apps you do not control with OpenTelemetry. No custom schema to adopt."],
-];
-const faqs = [
-  ["What does Orion need to run?", "Docker. Core, the monitor worker and the Console ship as one image, and everything is stored in a SQLite database on a single volume. There is no Postgres, Kubernetes or hosted dependency."],
-  ["Where does my data live?", "On the machine that runs Core. You can back it up with the SQLite online backup command and restore it by copying a file."],
-  ["Which systems can I monitor?", "Linux and macOS hosts with the Orion server agent, plus HTTP and TCP targets and cron heartbeats from Core. Docker containers and systemd units are checked locally by the agent."],
-  ["How do alerts work?", "Alert rules send to webhook or email channels. Every delivery is recorded, and failed deliveries can be retried from the Console."],
-  ["Can my apps send logs?", "Yes. Create an app, copy its ingest key and send JSON with curl, or point an OpenTelemetry exporter at Orion. No schema is required."],
-  ["Is there a hosted version?", "No. Orion is self-hosted by design, so your monitoring does not depend on someone else's uptime."],
-];
 ---
-<Base title="Orion: self-hosted monitoring for servers, sites and apps" nav="Product">
-  <main>
-    <section class="hero">
-      <div class="wrap">
-        <span class="eyebrow"><i></i>Self-hosted monitoring</span>
-        <h1 class="h1">Know <em class="ann g">before<span class="tag t1">check failed 14:02:08</span></em><span class="inl" aria-hidden="true"><svg viewBox="0 0 40 8"><g fill="#6ee7b7"><rect x="0" width="3" height="8" rx="1"/><rect x="5" width="3" height="8" rx="1"/><rect x="10" width="3" height="8" rx="1"/><rect x="15" width="3" height="8" rx="1"/><rect x="20" width="3" height="8" rx="1"/><rect x="25" width="3" height="8" rx="1"/></g><rect x="30" width="3" height="8" rx="1" fill="#f59e0b"/><rect x="35" width="3" height="8" rx="1" fill="#e5484d"/></svg></span> your <em class="ann">users<span class="tag t2">0 customer reports</span></em> do.</h1>
-        <p class="lead">Orion watches your servers, sites, jobs and apps from your own infrastructure. Incidents, alerts, status pages and logs live in one calm Console.</p>
-        <div class="hero-cta">
-          <a class="btn p lg" href="/docs/quickstart/">Get started</a>
-          <a class="btn lg" href="/docs/">Read the docs</a>
-        </div>
-        <div class="install"><span>$</span><b>docker compose -f orion-compose.yaml up -d</b></div>
-        <div class="facts"><span>Linux and macOS</span><span>One SQLite file</span><span>Webhook and email alerts</span><span>OpenTelemetry logs</span></div>
-        <div class="stage">
-          <div class="frame"><div class="bar"><i></i><i></i><i></i><span>core.example.com</span></div><Shot name="Main" alt="The Orion Overview with an open incident, server health and recent incidents" height={788} /></div>
-          <div class="float f1"><span class="badge down">Down</span> <b>api.example.com</b><small>Incident INC-0231 opened, ops-team notified</small></div>
-          <div class="float f2"><b>Server health</b><small>edge-01, last 90 days</small><div class="strip"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="w"></i><i></i><i></i><i class="d"></i></div></div>
-          <div class="float f3"><span class="badge up">Delivered</span> <b>ops-team</b><small>Email sent in 0.9 s, webhook retried once</small></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="sec wrap">
-      <div class="sec-head"><div class="kicker">Who it is for</div><h2 class="h2">Built for people who run their own infrastructure.</h2><p class="lead">If you would rather not hand your home lab, small fleet or side projects to an external service, Orion is for you.</p></div>
-      <div class="grid3">{audience.map(([t, p], i) => <div class="card"><div class="ico">{String(i + 1).padStart(2, "0")}</div><h3>{t}</h3><p>{p}</p></div>)}</div>
-    </section>
-
-    <section class="sec wrap">
-      <div class="sec-head"><div class="kicker">The problem</div><h2 class="h2">Outside uptime checks cannot see inside your network.</h2></div>
-      <div class="trio">
-        <div><b>Blind</b><p>Hosted tools ping from the internet. They miss containers, systemd units, processes and the machine's own resource pressure.</p></div>
-        <div><b>Heavy</b><p>Prometheus, Postgres and Kubernetes are a lot to adopt before you have a single alert.</p></div>
-        <div><b>Someone else's uptime</b><p>When your monitoring lives on a vendor, it goes down with the vendor, and your data goes with it.</p></div>
-      </div>
-    </section>
-
-    <section class="wrap"><Features /></section>
-
-    <section class="sec wrap">
-      <div class="sec-head"><div class="kicker">At a glance</div><h2 class="h2">Small on purpose.</h2></div>
-      <div class="glance">
-        <div><b>4</b><span>monitor types: HTTP, TCP, heartbeat and server checks</span></div>
-        <div><b>2</b><span>alert channels: webhook and email</span></div>
-        <div><b>1</b><span>database file, backed up with one command</span></div>
-        <div><b>0</b><span>external services required to run it</span></div>
-      </div>
-    </section>
-
-    <section class="sec wrap" id="how">
-      <div class="sec-head"><div class="kicker">How it works</div><h2 class="h2">One Core. Agents and apps report to it.</h2><p class="lead">Core stores everything in SQLite, derives health, opens incidents and serves the Console and status page. Monitor checks run in a separate worker so the API stays healthy even if a check misbehaves.</p></div>
-      <Architecture />
-    </section>
-
-    <section class="sec wrap" id="start">
-      <div class="sec-head"><div class="kicker">Quickstart</div><h2 class="h2">From nothing to a first alert in about ten minutes.</h2></div>
-      <div class="steps">
-        <div class="step"><div class="n">1</div><div><h3>Start Core</h3><p>Download the Compose file, set an admin password and a JWT secret, then bring it up.</p><pre>curl -fsSL -o orion-compose.yaml \
-  https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/examples/core-console-compose.yaml
-docker compose -f orion-compose.yaml up -d</pre></div></div>
-        <div class="step"><div class="n">2</div><div><h3>Install a server</h3><p>Run the installer on any Linux or macOS machine you want to watch.</p><pre>curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash -s -- \
-  --core-url http://orion-core.local:8999</pre></div></div>
-        <div class="step"><div class="n">3</div><div><h3>Add a monitor and a channel</h3><p>Open Core on port 8999, create a monitor, add a webhook or email channel and send a test. You are done.</p><a class="btn" href="/docs/quickstart/">Full quickstart</a></div></div>
-      </div>
-    </section>
-
-    <section class="sec wrap">
-      <div class="sec-head"><div class="kicker">FAQ</div><h2 class="h2">Questions, answered.</h2></div>
-      <div class="faq">{faqs.map(([q, a]) => <details><summary>{q}</summary><p>{a}</p></details>)}</div>
-    </section>
-
-    <section class="wrap">
-      <div class="cta-band"><div class="sdots"></div><h2>Know before your users do.</h2><p>Self-host Orion today. Your servers, your data, your status page.</p>
-        <div class="hero-cta"><a class="btn p lg" href="/docs/quickstart/">Get started</a><a class="btn lg" href="https://github.com/sunday-studio/orion">View on GitHub</a></div></div>
-    </section>
+<Base title="Orion: self-hosted monitoring for personal software" active="product">
+  <main id="main">
+    <Hero />
+    <Storyboard />
+    <Why />
+    <Gates />
+    <Explorer />
+    <Timeline />
+    <Faq />
+    <Cta />
   </main>
 </Base>

@@ -1,8 +1,0 @@
----
-interface Props { name: string; alt: string; width?: number; height?: number }
-const { name, alt, width = 1280, height = 800 } = Astro.props;
----
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset={`/shots/${name}-dark.png`} />
-  <img src={`/shots/${name}-light.png`} alt={alt} width={width} height={height} loading="lazy" decoding="async" />
-</picture>
