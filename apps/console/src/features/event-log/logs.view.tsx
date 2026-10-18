@@ -27,8 +27,8 @@ import { useState } from "react";
 import { EventDetailDrawer } from "./components/event-detail-drawer";
 import { ServiceLogsTab } from "./components/service-logs-tab";
 
-const EVENT_LIMIT = 40;
-const SERVICE_LOG_LIMIT = 40;
+const EVENT_LIMIT = 20;
+const SERVICE_LOG_LIMIT = 20;
 
 const sourceOptions = [
   { value: "all", label: "All sources" },

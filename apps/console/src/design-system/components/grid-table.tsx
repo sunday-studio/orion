@@ -2,8 +2,22 @@ import type * as React from "react";
 import { cn } from "@/utils/cn";
 
 /** Rows built on a CSS grid with a shared column template (canvas `.gt`). */
-export const GridTable = ({ className, ...props }: React.ComponentProps<"div">) => (
-  <div role="table" className={cn("bg-card text-[13px]", className)} {...props} />
+export const GridTable = ({
+  className,
+  dividers = false,
+  ...props
+}: React.ComponentProps<"div"> & { dividers?: boolean }) => (
+  <div
+    role="table"
+    className={cn(
+      "bg-card text-[13px]",
+      // Cells take the 12px gap as padding so a rule can sit between columns.
+      dividers &&
+        "[&_[role=row]]:gap-x-0 [&_[role=row]]:px-0 [&_[role=row]>*]:flex [&_[role=row]>*]:h-full [&_[role=row]>*]:items-center [&_[role=row]>*]:border-line-soft [&_[role=row]>*]:px-3 [&_[role=row]>*:not(:last-child)]:border-r",
+      className,
+    )}
+    {...props}
+  />
 );
 
 export const GridRow = ({
