@@ -202,7 +202,7 @@ export const IncidentDetailPage = () => {
               now={now}
             />
             <Tabs value={activeTab} onValueChange={handleTabChange} className="gap-3.5">
-              <TabsList className="w-full self-stretch">
+              <TabsList>
                 <TabsTab value="timeline">Timeline</TabsTab>
                 <TabsTab value="monitor-reports">
                   Checks <TabCount className="ml-1">{monitorReports.length}</TabCount>

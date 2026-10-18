@@ -28,7 +28,7 @@ Every screen imports from `@/design-system`; keep token names descriptive (`bran
 | `Badge`, `StatusBadge` | tones: up down degraded unknown maintenance stale covered resolved info critical medium. label plus glyph shape (dot, square, half, hollow, pause), so status is never colour-only. `StatusBadge status="down"` maps API strings to a tone. |
 | `Input`, `Checkbox`, `Switch` | pass `aria-label` when there is no visible label. |
 | `Select` | typed `options`, optional `label` prefix. `Combobox` is the searchable variant. |
-| `Tabs`, `TabsList`, `TabsTab`, `TabsPanel` | centered; arrow keys activate. |
+| `Tabs`, `TabsList`, `TabsTab`, `TabsPanel` | left-aligned with a full-width rule and a sliding underline; arrow keys activate. |
 | `Dialog*`, `ConfirmDialog` | `ConfirmDialog` takes a title, a description naming the blast radius, and a confirm label. |
 | `Drawer*` | right-side detail panel, Escape closes. |
 | `Popover*`, `Tooltip`, `Menu*` | Tooltip wraps one focusable child and also shows on focus. |
