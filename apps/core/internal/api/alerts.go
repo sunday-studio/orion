@@ -52,6 +52,8 @@ type alertRuleRequest struct {
 	Suppress             *bool    `json:"suppress"`
 	GroupingPolicy       string   `json:"grouping_policy"`
 	GroupingDelaySeconds *int     `json:"grouping_delay_seconds"`
+	// CooldownSeconds limits repeat notifications for this rule (0 = global default, max 7 days).
+	CooldownSeconds *int `json:"cooldown_seconds"`
 }
 type alertRouteDryRunRequest struct {
 	IncidentID  string `json:"incident_id"`

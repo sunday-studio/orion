@@ -3821,6 +3821,301 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/alerts/label-routes": {
+            "get": {
+                "description": "Routes pick channels by label. They are tried in order; the first match wins unless Continue is on. A route's channels are added to the channels chosen by rules.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "List label routes",
+                "operationId": "listLabelRoutes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "routes": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/internal_api.LabelRouteResponse"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Create a label route",
+                "operationId": "createLabelRoute",
+                "parameters": [
+                    {
+                        "description": "Route",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.LabelRouteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "route": {
+                                                    "$ref": "#/definitions/internal_api.LabelRouteResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/alerts/label-routes/dry-run": {
+            "post": {
+                "description": "Tests a label set (for example env=prod, severity=critical) and returns which routes match and which channels would be notified. Nothing is sent.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Dry-run label routes",
+                "operationId": "dryRunLabelRoutes",
+                "parameters": [
+                    {
+                        "description": "Labels",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.LabelRouteDryRunRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.LabelRouteDryRunResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/alerts/label-routes/reorder": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Reorder label routes",
+                "operationId": "reorderLabelRoutes",
+                "parameters": [
+                    {
+                        "description": "All route ids in the new order",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ReorderLabelRoutesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/alerts/label-routes/{id}": {
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Delete a label route",
+                "operationId": "deleteLabelRoute",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Route ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Update a label route",
+                "operationId": "updateLabelRoute",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Route ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Route",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.LabelRouteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "route": {
+                                                    "$ref": "#/definitions/internal_api.LabelRouteResponse"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/alerts/payload-preview": {
             "get": {
                 "produces": [
@@ -4612,6 +4907,61 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/alerts/rules/{id}/replay": {
+            "post": {
+                "description": "Replays the last 24 hours (hours up to 168) against this rule and lists the notifications it would send. Nothing is delivered or stored.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Replay an alert rule",
+                "operationId": "replayAlertRule",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Rule ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 24,
+                        "description": "Window in hours",
+                        "name": "hours",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.RuleReplayResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
@@ -13742,6 +14092,9 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "cooldown_seconds": {
+                    "type": "integer"
+                },
                 "created_at": {
                     "type": "string"
                 },
@@ -13760,8 +14113,14 @@ const docTemplate = `{
                 "grouping_policy": {
                     "type": "string"
                 },
+                "how_it_runs": {
+                    "$ref": "#/definitions/internal_api.RuleHowItRuns"
+                },
                 "id": {
                     "type": "string"
+                },
+                "last_24h_fired": {
+                    "type": "integer"
                 },
                 "monitor_ids": {
                     "type": "array",
@@ -13786,6 +14145,10 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "summary": {
+                    "description": "Summary is the sentence in the Rules list; Last24hFired counts distinct incident notifications in the last day.",
+                    "type": "string"
                 },
                 "suppress": {
                     "type": "boolean"
@@ -15216,6 +15579,169 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.LabelMatcherDTO": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string",
+                    "example": "env"
+                },
+                "op": {
+                    "type": "string",
+                    "enum": [
+                        "=",
+                        "!="
+                    ],
+                    "example": "="
+                },
+                "value": {
+                    "type": "string",
+                    "example": "prod"
+                }
+            }
+        },
+        "internal_api.LabelRouteDryRunRequest": {
+            "type": "object",
+            "properties": {
+                "labels": {
+                    "description": "Labels are key=value pairs, for example [\"env=prod\", \"severity=critical\"].",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "internal_api.LabelRouteDryRunResponse": {
+            "type": "object",
+            "properties": {
+                "channels": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "evaluations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.LabelRouteEvaluation"
+                    }
+                },
+                "summary": {
+                    "description": "Summary reads \"Routes 1 and 2 deliver to oncall webhook and ops-team.\"",
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.LabelRouteEvaluation": {
+            "type": "object",
+            "properties": {
+                "channel_names": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "matched": {
+                    "type": "boolean"
+                },
+                "number": {
+                    "type": "integer"
+                },
+                "route_id": {
+                    "type": "string"
+                },
+                "skipped": {
+                    "description": "Skipped: an earlier matching route without Continue ended the evaluation.",
+                    "type": "boolean"
+                },
+                "when": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.LabelRouteRequest": {
+            "type": "object",
+            "properties": {
+                "channel_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "continue_matching": {
+                    "type": "boolean"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "matchers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.LabelMatcherDTO"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.LabelRouteResponse": {
+            "type": "object",
+            "properties": {
+                "channel_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "channel_names": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "continue_matching": {
+                    "type": "boolean"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "matchers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.LabelMatcherDTO"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "number": {
+                    "type": "integer"
+                },
+                "then": {
+                    "description": "Then reads \"Continue\" or \"Stop\".",
+                    "type": "string",
+                    "enum": [
+                        "Continue",
+                        "Stop"
+                    ]
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "when": {
+                    "type": "string",
+                    "example": "env=prod AND severity=critical"
+                }
+            }
+        },
         "internal_api.LogAlertRule": {
             "type": "object",
             "properties": {
@@ -16204,6 +16730,20 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.ReorderLabelRoutesRequest": {
+            "type": "object",
+            "required": [
+                "ids"
+            ],
+            "properties": {
+                "ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "internal_api.ReportResponse": {
             "type": "object",
             "properties": {
@@ -16263,6 +16803,80 @@ const docTemplate = `{
                 },
                 "timeout_ms": {
                     "type": "integer"
+                }
+            }
+        },
+        "internal_api.RuleHowItRuns": {
+            "type": "object",
+            "properties": {
+                "if": {
+                    "type": "string",
+                    "example": "Severity is critical or high"
+                },
+                "limit": {
+                    "type": "string",
+                    "example": "Once per 10 min"
+                },
+                "notify": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "quiet": {
+                    "description": "Quiet is true for suppress rules, which notify nobody.",
+                    "type": "boolean"
+                },
+                "when": {
+                    "type": "string",
+                    "example": "An incident opens"
+                }
+            }
+        },
+        "internal_api.RuleReplayItem": {
+            "type": "object",
+            "properties": {
+                "at": {
+                    "type": "string"
+                },
+                "channels": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "event": {
+                    "type": "string"
+                },
+                "incident_display_id": {
+                    "type": "string"
+                },
+                "incident_id": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.RuleReplayResponse": {
+            "type": "object",
+            "properties": {
+                "incidents_checked": {
+                    "type": "integer"
+                },
+                "note": {
+                    "description": "Nothing is delivered; the note repeats that for the screen.",
+                    "type": "string"
+                },
+                "window_hours": {
+                    "type": "integer"
+                },
+                "would_send": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.RuleReplayItem"
+                    }
                 }
             }
         },
@@ -17339,6 +17953,10 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "cooldown_seconds": {
+                    "description": "CooldownSeconds limits repeat notifications for this rule (0 = global default, max 7 days).",
+                    "type": "integer"
+                },
                 "enabled": {
                     "type": "boolean"
                 },
@@ -17933,6 +18551,13 @@ const docTemplate = `{
                 },
                 "incident_id": {
                     "type": "string"
+                },
+                "labels": {
+                    "description": "Labels are the key=value pairs label routes match on: the server's labels plus severity, event, monitor_type, server and monitor.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "monitor_id": {
                     "type": "string"

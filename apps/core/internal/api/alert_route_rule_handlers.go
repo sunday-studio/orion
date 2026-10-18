@@ -256,7 +256,10 @@ func (s *Server) listAlertRules(c *gin.Context) {
 		utils.InternalError(c, "Failed to list alert rules", err)
 		return
 	}
-	responses := alertRuleResponses(rules)
+	responses := make([]AlertRuleResponse, 0, len(rules))
+	for _, rule := range rules {
+		responses = append(responses, s.enrichedRule(rule))
+	}
 	utils.SuccessResponse(c, http.StatusOK, "Alert rules retrieved successfully", gin.H{"rules": responses, "count": len(responses)})
 }
 
@@ -306,7 +309,7 @@ func (s *Server) createAlertRule(c *gin.Context) {
 		utils.InternalError(c, "Failed to create alert rule", err)
 		return
 	}
-	utils.SuccessResponse(c, http.StatusCreated, "Alert rule created successfully", gin.H{"rule": alertRuleResponse(rule)})
+	utils.SuccessResponse(c, http.StatusCreated, "Alert rule created successfully", gin.H{"rule": s.enrichedRule(rule)})
 }
 
 // updateAlertRule updates a webhook alert rule.
@@ -368,7 +371,7 @@ func (s *Server) updateAlertRule(c *gin.Context) {
 		utils.InternalError(c, "Failed to update alert rule", err)
 		return
 	}
-	utils.SuccessResponse(c, http.StatusOK, "Alert rule updated successfully", gin.H{"rule": alertRuleResponse(rule)})
+	utils.SuccessResponse(c, http.StatusOK, "Alert rule updated successfully", gin.H{"rule": s.enrichedRule(rule)})
 }
 
 // deleteAlertRule deletes a webhook alert rule.

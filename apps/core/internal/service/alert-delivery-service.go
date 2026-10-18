@@ -52,7 +52,7 @@ func (s *AlertService) ProcessDueDeliveries(limit int) (int, error) {
 			processed++
 			continue
 		}
-		if delivery.AttemptCount == 0 && s.inCooldown(delivery.IncidentID, channel.Name, delivery.EventType, delivery.ID) {
+		if delivery.AttemptCount == 0 && s.inCooldown(delivery.RouteID, delivery.IncidentID, channel.Name, delivery.EventType, delivery.ID) {
 			if err := s.updateDelivery(delivery.ID, "cooldown", "alert cooldown active"); err != nil {
 				s.logger.Error("Failed to mark alert delivery cooldown", "delivery_id", delivery.ID, "error", err)
 			}
@@ -137,11 +137,26 @@ func (s *AlertService) updateDelivery(deliveryID string, status string, message 
 	}).Error
 }
 
-func (s *AlertService) inCooldown(incidentID string, channelName string, eventType string, currentDeliveryID string) bool {
-	if s.cfg == nil || s.cfg.AlertCooldownSeconds <= 0 {
+// cooldownSecondsFor is the rule's own cooldown, else the global default.
+func (s *AlertService) cooldownSecondsFor(routeID string) int {
+	if routeID != "" {
+		var route db.AlertRoute
+		if s.db.Select("cooldown_seconds").Where("id = ?", routeID).Limit(1).Find(&route).RowsAffected > 0 && route.CooldownSeconds > 0 {
+			return route.CooldownSeconds
+		}
+	}
+	if s.cfg == nil {
+		return 0
+	}
+	return s.cfg.AlertCooldownSeconds
+}
+
+func (s *AlertService) inCooldown(routeID string, incidentID string, channelName string, eventType string, currentDeliveryID string) bool {
+	seconds := s.cooldownSecondsFor(routeID)
+	if seconds <= 0 {
 		return false
 	}
-	since := time.Now().UTC().Add(-time.Duration(s.cfg.AlertCooldownSeconds) * time.Second)
+	since := time.Now().UTC().Add(-time.Duration(seconds) * time.Second)
 
 	var count int64
 	if err := s.db.Model(&db.AlertDelivery{}).
