@@ -1,5 +1,12 @@
 import { useState } from "react";
-import { EmptyState, Segmented, Skeleton, StatusBadge, Tooltip } from "@/design-system";
+import {
+  ChartTooltip,
+  EmptyState,
+  Segmented,
+  Skeleton,
+  StatusBadge,
+  usePlotHover,
+} from "@/design-system";
 import { usePreviewStatusPage } from "@/orion-sdk";
 import { cn } from "@/utils/cn";
 import { formatDate } from "@/utils/date";
@@ -20,27 +27,34 @@ type Tick = { date?: string; status?: string; uptime_display?: string };
 const UptimeBar = ({ history }: { history?: Tick[] }) => {
   const ticks: Tick[] =
     history && history.length > 0 ? history : Array.from({ length: 90 }, () => ({}));
+  const { index, bind } = usePlotHover(ticks.length);
+  const active = index === null ? undefined : ticks[index];
+  const x = index === null ? 0 : ((index + 0.5) / ticks.length) * 100;
   return (
-    <div className="flex h-[18px] gap-[2px]">
-      {ticks.map((tick, index) => (
-        <Tooltip
-          key={tick.date ?? index}
-          content={
-            <span className="grid gap-0.5">
-              {tick.date && <b className="font-medium">{formatDate(tick.date, "MMM d, yyyy")}</b>}
-              <span>
-                {tick.status ? publicStatusLabel(tick.status) : "No data"}
-                {tick.uptime_display ? ` · ${tick.uptime_display}` : ""}
-              </span>
-            </span>
-          }
-        >
+    <div className="relative">
+      <div {...bind} className="flex h-[18px] gap-[2px]">
+        {ticks.map((tick, i) => (
           <i
-            className="min-w-[2px] flex-1 rounded-[2px] opacity-85 transition-[opacity,transform] duration-150 hover:scale-y-110 hover:opacity-100"
+            key={tick.date ?? i}
+            className={cn(
+              "min-w-[2px] flex-1 rounded-[2px] transition-[opacity,transform] duration-150",
+              i === index ? "scale-y-110 opacity-100" : "opacity-85",
+            )}
             style={{ background: tick.status ? statusDot(tick.status) : "#2a9f69" }}
           />
-        </Tooltip>
-      ))}
+        ))}
+      </div>
+      {active && (
+        <ChartTooltip x={x} className="!top-auto bottom-[calc(100%+6px)]">
+          {active.date && (
+            <div className="font-medium">{formatDate(active.date, "MMM d, yyyy")}</div>
+          )}
+          <div className="opacity-80">
+            {active.status ? publicStatusLabel(active.status) : "No data"}
+            {active.uptime_display ? ` · ${active.uptime_display}` : ""}
+          </div>
+        </ChartTooltip>
+      )}
     </div>
   );
 };
