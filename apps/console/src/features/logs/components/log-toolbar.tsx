@@ -1,11 +1,17 @@
 import { Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Input, Popover, PopoverContent, PopoverTrigger, Segmented, Select } from "@/design-system";
+import {
+  Input,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Segmented,
+  Select,
+  SelectChevron,
+  selectTriggerClass,
+} from "@/design-system";
 import { cn } from "@/utils/cn";
 import { RANGES, rangeLabel } from "../logs-state";
-
-const pill =
-  "inline-flex h-9 items-center justify-between gap-2 rounded-lg border border-input-border bg-card px-3 text-[13px] hover:bg-sub";
 
 export const SearchBox = ({
   value,
@@ -44,7 +50,7 @@ export const SearchBox = ({
         ref={ref}
         aria-label="Search logs"
         placeholder={placeholder}
-        className="h-9 pl-9 pr-8"
+        className="pl-9 pr-8"
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
       />
@@ -72,15 +78,13 @@ export const RangePicker = ({
 }) => {
   const [custom, setCustom] = useState({ from: toLocalInput(from), to: toLocalInput(to) });
   if (live) {
-    return <span className={cn(pill, "min-w-[150px] cursor-default")}>Now</span>;
+    return <span className={cn(selectTriggerClass, "min-w-[150px] cursor-default")}>Now</span>;
   }
   return (
     <Popover>
-      <PopoverTrigger className={cn(pill, "min-w-[150px]")}>
-        {rangeLabel(range)}
-        <span aria-hidden className="text-faint">
-          ⌄
-        </span>
+      <PopoverTrigger className={cn(selectTriggerClass, "min-w-[150px]")}>
+        <span className="min-w-0 flex-1 truncate text-left">{rangeLabel(range)}</span>
+        <SelectChevron />
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[230px] p-1.5">
         <p className="px-2.5 py-1.5 text-xs text-quiet">Time range</p>

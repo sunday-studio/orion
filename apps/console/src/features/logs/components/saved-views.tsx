@@ -13,6 +13,8 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  SelectChevron,
+  selectTriggerClass,
   useToast,
 } from "@/design-system";
 import {
@@ -48,13 +50,11 @@ export const SavedViewsMenu = ({
   const activeView = list.find((view) => same(view.filters ?? {}, current));
   return (
     <Popover>
-      <PopoverTrigger className="inline-flex h-9 min-w-[130px] items-center justify-between gap-2 rounded-lg border border-input-border bg-card px-3 text-[13px] hover:bg-sub">
-        <span className="truncate">
+      <PopoverTrigger className={cn(selectTriggerClass, "min-w-[130px]")}>
+        <span className="min-w-0 flex-1 truncate text-left">
           {activeView?.name ?? (views.isPending ? "Views" : `Views (${list.length})`)}
         </span>
-        <span aria-hidden className="text-faint">
-          ⌄
-        </span>
+        <SelectChevron />
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[240px] p-1.5">
         <p className="px-2.5 py-1.5 text-xs text-quiet">Saved views</p>
@@ -118,7 +118,8 @@ export const SaveViewButton = ({ current }: { current: Record<string, string> })
         setName("");
         toast.add({ title: "View saved" });
       },
-      onError: () => toast.add({ title: "Unable to save the view" }),
+      onError: (failure) =>
+        toast.add({ title: (failure as Error).message || "Unable to save the view" }),
     },
   });
   return (
