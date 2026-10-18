@@ -30,8 +30,8 @@ import {
 } from "@/orion-sdk";
 import {
   type MonitorRow,
-  everyLabel,
   rowDot,
+  rowEvery,
   rowHealth,
   statusLabel,
   targetLabel,
@@ -65,11 +65,11 @@ export const MonitorList = ({
   const params: GetMonitorsParams = {
     limit,
     offset,
-    search: q.trim() || undefined,
-    health: health === "all" ? undefined : health,
+    q: q.trim() || undefined,
+    status: health === "all" ? undefined : health,
     type: type || undefined,
-    owner_kind: server === "core" ? "core" : server ? "agent" : undefined,
-    owner_name: server && server !== "core" ? server : undefined,
+    owner_kind: server === "core" ? "core" : undefined,
+    agent_id: server && server !== "core" ? server : undefined,
     sort: "updated_at",
     order: "desc",
   };
@@ -80,7 +80,7 @@ export const MonitorList = ({
     () => (monitorsQuery.data?.monitors ?? []) as MonitorRow[],
     [monitorsQuery.data],
   );
-  const total = monitorsQuery.data?.count ?? monitors.length;
+  const total = monitorsQuery.data?.total ?? monitorsQuery.data?.count ?? monitors.length;
   const filtersActive = Boolean(q.trim() || health !== "all" || type || server);
 
   const typeOptions = useMemo(() => {
@@ -237,9 +237,7 @@ export const MonitorList = ({
                   <span>
                     <StatusBadge status={rowHealth(monitor)}>{statusLabel(monitor)}</StatusBadge>
                   </span>
-                  <span className="text-faint">
-                    {everyLabel(monitor.reporting_interval_seconds)}
-                  </span>
+                  <span className="text-faint">{rowEvery(monitor)}</span>
                   <CheckStrip checks={monitor.recent_checks} />
                 </GridRow>
               );
