@@ -1,38 +1,32 @@
 import { DataTable, usePageSize } from "@/design-system";
 import { ReportInspectionDrawer } from "@/features/report-inspection/components/report-inspection-drawer";
-import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
+import { formatDate } from "@/utils/date";
 import { type ApiAgentReportResponse, useGetAgentReports } from "@/orion-sdk";
 import type { ColumnDef } from "@tanstack/react-table";
 import { parseAsInteger, useQueryStates } from "nuqs";
 import { useState } from "react";
-import { formatDuration, formatPercent } from "../agent-detail.domain";
+
+const whole = (value?: number) => (typeof value === "number" ? `${Math.round(value)}%` : "-");
 
 const agentLogColumns: ColumnDef<ApiAgentReportResponse>[] = [
   {
-    accessorKey: "created_at",
+    id: "time",
     header: "Time",
-    cell: ({ row }) =>
-      formatDate(row.original.created_at ?? row.original.timestamp, DATE_TIME_FORMAT),
+    cell: ({ row }) => (
+      <span className="font-mono text-faint">
+        {formatDate(row.original.created_at ?? row.original.timestamp, "HH:mm:ss")}
+      </span>
+    ),
   },
+  { id: "cpu", header: "CPU", cell: ({ row }) => whole(row.original.cpu?.usage_percent) },
+  { id: "memory", header: "Memory", cell: ({ row }) => whole(row.original.memory?.used_percent) },
+  { id: "disk", header: "Disk", cell: ({ row }) => whole(row.original.disk?.used_percent) },
   {
-    accessorKey: "cpu",
-    header: "CPU",
-    cell: ({ row }) => formatPercent(row.original.cpu?.usage_percent),
-  },
-  {
-    accessorKey: "memory",
-    header: "Memory",
-    cell: ({ row }) => formatPercent(row.original.memory?.used_percent),
-  },
-  {
-    accessorKey: "disk",
-    header: "Disk",
-    cell: ({ row }) => formatPercent(row.original.disk?.used_percent),
-  },
-  {
-    accessorKey: "uptime_seconds",
-    header: "Uptime",
-    cell: ({ row }) => formatDuration(row.original.uptime_seconds),
+    id: "monitors",
+    header: "Monitors",
+    cell: ({ row }) => (
+      <span className="text-faint">{row.original.config_summary?.monitor_count ?? "-"}</span>
+    ),
   },
 ];
 
