@@ -116,7 +116,7 @@ export const DomainDialog = ({
           <div className="grid gap-3.5 pb-1.5">
             <DialogHeader className="pr-8">
               <DialogTitle className="text-[16px]">Custom domain</DialogTitle>
-              <p className="text-xs text-faint">
+              <p className="text-xs text-quiet">
                 Step {step} of {STEPS.length} · {STEPS[step - 1]}
               </p>
             </DialogHeader>
