@@ -1,0 +1,25 @@
+---
+import Shot from "./Shot.astro";
+const rows = [
+  { k: "Monitors", h: "Watch every server, site and job from one place.", p: "Orion runs next to the things it watches, so it sees local state that outside uptime checks cannot: systemd units, Docker containers, processes, disk and memory.", b: ["HTTP and TCP checks from Core", "Heartbeats for cron jobs and backups", "Server checks for processes, containers, services and disk", "Uptime history per monitor"], shot: "servers-list", alt: "The Servers list showing status, platform, CPU and memory", href: "/docs/concepts/" },
+  { k: "Incidents", h: "Incidents that open themselves and say what to do.", p: "After repeated failures Orion opens an incident, notifies your channels and tracks it from detected to resolved. You acknowledge, cover or resolve in one click.", b: ["Opens on consecutive failed checks", "Detect, notify, acknowledge, resolve, with a timeline", "Declare one by hand when Orion has not noticed", "Triage inbox for signals that have not become incidents"], shot: "incident-detail", alt: "An incident with its lifecycle tracker, expected versus actual and timeline", href: "/docs/concepts/#incidents" },
+  { k: "Alerts", h: "Webhook and email, with proof they arrived.", p: "Send alerts to a webhook or email address. Every delivery is logged, failures can be retried, and rules can be dry-run before you trust them.", b: ["Rules and label-based routes", "Delivery log with attempts and retry", "Email recipients confirm once", "Signed webhooks you can verify"], shot: "alerts-channels", alt: "Alert channels list with status and last delivery", href: "/docs/concepts/#alerts" },
+  { k: "Status pages", h: "A public status page your users can trust.", p: "Map monitors to components, post updates during an incident and let people subscribe by email. The page is calm, fast and yours.", b: ["Components mapped to real monitors", "90-day history and incident updates", "Email subscribers with one-click unsubscribe", "Your own domain and branding"], shot: "status-setup", alt: "Status page setup with publish checklist", href: "/docs/concepts/#status-pages" },
+  { k: "Logs", h: "Product logs from any app, no schema required.", p: "Send a line with curl or point an OpenTelemetry exporter at Orion. Search, tail and alert on what your apps say about themselves, next to the servers that run them.", b: ["One ingest key per app, shown once", "Plain text or rich attributes, same view", "Live tail, saved views and field facets", "Secrets redacted before anything is stored"], shot: "logs", alt: "The Logs page with histogram, facets and one-line rows", href: "/docs/send-logs/" },
+  { k: "Server agent", h: "An agent you install in two minutes.", p: "One command installs a small unprivileged service on Linux or macOS. It reports host metrics and your checks to Core, and doctor tells you the exact fix when something is wrong.", b: ["Linux and macOS, systemd and launchd", "Works with just a Core URL", "doctor, status and logs from the terminal", "Safe upgrades that keep the same identity"], shot: "cli-status", alt: "orion-agent status in a terminal", href: "/docs/install-server/" },
+];
+---
+<div id="product">
+  {rows.map((r, i) => (
+    <section class={`feat ${i % 2 ? "rev" : ""}`}>
+      <div class="copy">
+        <div class="kicker">{r.k}</div>
+        <h3 class="h3">{r.h}</h3>
+        <p>{r.p}</p>
+        <ul>{r.b.map((x) => <li>{x}</li>)}</ul>
+        <a class="more" href={r.href}>Read more →</a>
+      </div>
+      <div class="shot"><Shot name={r.shot} alt={r.alt} /></div>
+    </section>
+  ))}
+</div>

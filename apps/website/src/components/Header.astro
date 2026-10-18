@@ -1,0 +1,16 @@
+---
+const { active = "" } = Astro.props;
+const links = [["Product", "/#product"], ["Docs", "/docs/"], ["How it works", "/#how"], ["GitHub", "https://github.com/sunday-studio/orion"]];
+---
+<header class="site-head">
+  <div class="wrap">
+    <a class="logo" href="/"><span class="mk"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9" stroke-dasharray="2 4"/></svg></span>Orion</a>
+    <nav class="nav" aria-label="Main">
+      {links.map(([t, h]) => <a href={h} class={active === t ? "on" : ""}>{t}</a>)}
+    </nav>
+    <div class="head-r">
+      <a class="btn gh" href="/docs/">Docs</a>
+      <a class="btn p" href="/docs/quickstart/">Get started</a>
+    </div>
+  </div>
+</header>

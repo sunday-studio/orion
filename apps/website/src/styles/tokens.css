@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+/* Tokens from docs/design/design-language.md section 11. Light is default; dark follows the device. */
+@theme {
+  --color-page: #ffffff;
+  --color-field: #f7f7f6;
+  --color-sub: #fafaf9;
+  --color-card: #ffffff;
+  --color-tray: #f4f4f2;
+  --color-line: #ececea;
+  --color-line-strong: #e4e4e7;
+  --color-ink: #18181b;
+  --color-muted: #71717a;
+  --color-faint: #a1a1aa;
+  --color-accent: #1f7a50;
+  --color-accent-hover: #238556;
+  --color-accent-top: #2c9f6a;
+  --color-accent-edge: #14573a;
+  --color-chart-green: #2a9f69;
+  --color-deep: #142a23;
+  --color-mint: #6ee7b7;
+  --color-down: #e5484d;
+  --color-amber: #f59e0b;
+  --radius-badge: 4px;
+  --radius-control: 8px;
+  --radius-card: 10px;
+  --radius-field: 14px;
+  --radius-dialog: 16px;
+  --font-sans: "TWK Lausanne", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+:root {
+  --e1: 0 1px 2px rgb(24 24 27 / 0.05);
+  --e2: 0 12px 32px -8px rgb(0 0 0 / 0.18), 0 2px 6px rgb(0 0 0 / 0.06);
+  --e3: 0 24px 48px -12px rgb(24 24 27 / 0.28), 0 6px 14px -4px rgb(24 24 27 / 0.1), 0 0 0 1px rgb(24 24 27 / 0.06);
+  --btn-bg: linear-gradient(180deg, #fff 0%, #f7f7f8 100%);
+  --hl: inset 0 1px 0 rgb(255 255 255 / 0.9);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-page: #111513;
+    --color-field: #0c0f0e;
+    --color-sub: #161b19;
+    --color-card: #1a201e;
+    --color-tray: #0b0e0d;
+    --color-line: #252c29;
+    --color-line-strong: #2a312e;
+    --color-ink: #e9efec;
+    --color-muted: #8b9892;
+    --color-faint: #6a7570;
+    --e1: inset 0 1px 0 rgb(255 255 255 / 0.03);
+    --e2: 0 12px 32px -8px rgb(0 0 0 / 0.7);
+    --e3: 0 24px 60px -12px rgb(0 0 0 / 0.75);
+    --btn-bg: linear-gradient(180deg, #242b28, #1d2321);
+    --hl: inset 0 1px 0 rgb(255 255 255 / 0.05);
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@sunday-studio/orion-website",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "astro": "^5.0.0",
+    "@tailwindcss/vite": "^4.2.4",
+    "tailwindcss": "^4.2.4"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3"
+  }
+}

@@ -1,0 +1,10 @@
+---
+import { getCollection } from "astro:content";
+import Docs from "../../layouts/Docs.astro";
+const all = (await getCollection("docs")).sort((a, b) => a.data.order - b.data.order);
+---
+<Docs title="Documentation" description="Everything you need to run Orion: install Core, connect servers, send logs and operate it.">
+  <div class="cards">
+    {all.map((d) => <a class="dcard" href={`/docs/${d.id}/`}><small>{d.data.group}</small><b>{d.data.title}</b><span>{d.data.description}</span></a>)}
+  </div>
+</Docs>
