@@ -14,6 +14,9 @@ func (s *Server) registerProductLogRoutes(frontend *gin.RouterGroup) {
 	frontend.POST("/apps/:id/keys", s.createIngestKey)
 	frontend.DELETE("/apps/:id/keys/:key_id", s.revokeIngestKey)
 	frontend.POST("/apps/:id/test-log", s.sendAppTestLog)
+	frontend.POST("/apps/:id/keys/:key_id/rotate", s.rotateIngestKey)
+	frontend.POST("/apps/:id/purge", s.purgeAppLogs)
+	frontend.POST("/apps/:id/redaction/test", s.testAppRedaction)
 
 	frontend.GET("/logs", s.searchLogs)
 	frontend.GET("/logs/histogram", s.getLogHistogram)
@@ -27,5 +30,13 @@ func (s *Server) registerProductLogRoutes(frontend *gin.RouterGroup) {
 	frontend.PATCH("/logs/alerts/:id", s.updateLogAlertRule)
 	frontend.DELETE("/logs/alerts/:id", s.deleteLogAlertRule)
 	frontend.GET("/incidents/:id/logs", s.getIncidentLogs)
+	frontend.GET("/logs/facets", s.getLogFacets)
+	frontend.GET("/logs/patterns", s.getLogPatterns)
+	frontend.GET("/logs/ingest-status", s.getLogIngestStatus)
+	frontend.GET("/logs/redaction-defaults", s.getRedactionDefaults)
+	frontend.POST("/logs/export", s.createExport)
+	frontend.GET("/exports/:id", s.getExport)
+	frontend.GET("/exports/:id/download", s.downloadExport)
+	frontend.GET("/logs/:id/related", s.getLogRelated)
 	frontend.GET("/logs/:id", s.getLogEntry)
 }

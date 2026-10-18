@@ -40,7 +40,7 @@ func (s *Store) Histogram(q Query, from, to time.Time, buckets int) (int, []Hist
 		N        int
 	}
 	w := int64(width)
-	if err := s.db.Raw(fmt.Sprintf("SELECT (ts / %d) * %d AS bucket, severity, COUNT(*) AS n FROM log_entries%s GROUP BY bucket, severity", w, w, where), args...).Scan(&rows).Error; err != nil {
+	if err := s.dbq(q).Raw(fmt.Sprintf("SELECT (ts / %d) * %d AS bucket, severity, COUNT(*) AS n FROM log_entries%s GROUP BY bucket, severity", w, w, where), args...).Scan(&rows).Error; err != nil {
 		return 0, nil, err
 	}
 	byStart := map[int64]*HistogramBucket{}

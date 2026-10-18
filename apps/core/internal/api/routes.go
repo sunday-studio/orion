@@ -346,6 +346,7 @@ func (s *Server) Start(ctx context.Context, addr string) error {
 	}
 
 	go s.runMaintenanceNoticeLoop(baseCtx)
+	go s.runExportCleanupLoop(baseCtx)
 
 	errCh := make(chan error, 1)
 	go func() {

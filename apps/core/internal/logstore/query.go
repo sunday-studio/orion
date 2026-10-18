@@ -1,6 +1,7 @@
 package logstore
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -8,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 const (
@@ -32,30 +35,41 @@ type Query struct {
 	Attrs     []string // key:value
 	Limit     int
 	Cursor    string
+	// Ctx bounds the database work of this query (nil = unbounded).
+	Ctx context.Context
+}
+
+// dbq returns the database handle scoped to the query's context.
+func (s *Store) dbq(q Query) *gorm.DB {
+	if q.Ctx != nil {
+		return s.db.WithContext(q.Ctx)
+	}
+	return s.db
 }
 
 type logRow struct {
-	ID             string
-	AppID          string
-	Ts             int64
-	IngestedAt     int64
-	Severity       string
-	SeverityNumber int
-	Event          string
-	Body           string
-	BodyJSON       string
-	Attributes     string
-	Resource       string
-	TraceID        string
-	SpanID         string
-	RequestID      string
+	ID               string
+	AppID            string
+	Ts               int64
+	IngestedAt       int64
+	Severity         string
+	SeverityNumber   int
+	Event            string
+	Body             string
+	BodyJSON         string
+	Attributes       string
+	Resource         string
+	TraceID          string
+	SpanID           string
+	RequestID        string
+	SeverityInferred bool
 }
 
 func (r logRow) entry() Entry {
 	e := Entry{
 		ID: r.ID, AppID: r.AppID, Timestamp: time.Unix(0, r.Ts).UTC(), IngestedAt: time.Unix(0, r.IngestedAt).UTC(),
 		Severity: r.Severity, SeverityNumber: r.SeverityNumber, Event: r.Event, Body: r.Body, BodyJSON: r.BodyJSON,
-		Attributes: decodeObject(r.Attributes), Resource: decodeObject(r.Resource), TraceID: r.TraceID, SpanID: r.SpanID, RequestID: r.RequestID,
+		Attributes: decodeObject(r.Attributes), Resource: decodeObject(r.Resource), TraceID: r.TraceID, SpanID: r.SpanID, RequestID: r.RequestID, SeverityInferred: r.SeverityInferred,
 	}
 	return e
 }
@@ -122,7 +136,7 @@ func (q Query) where() (string, []any, error) {
 			return "", nil, fmt.Errorf("%w: attr must be key:value with a plain key, got %q", ErrBadFilter, attr)
 		}
 		// The key is validated above and quoted into the JSON path; the value is bound.
-		clauses = append(clauses, fmt.Sprintf(`CAST(json_extract(attributes, '$."%s"') AS TEXT) = ?`, key))
+		clauses = append(clauses, attrExpr(key)+" = ?")
 		args = append(args, value)
 	}
 	if q.Cursor != "" {
@@ -174,7 +188,7 @@ func (s *Store) List(q Query) ([]Entry, string, error) {
 	}
 	var rows []logRow
 	args = append(args, limit+1)
-	if err := s.db.Raw("SELECT * FROM log_entries"+where+" ORDER BY ts DESC, id DESC LIMIT ?", args...).Scan(&rows).Error; err != nil {
+	if err := s.dbq(q).Raw("SELECT * FROM log_entries"+where+" ORDER BY ts DESC, id DESC LIMIT ?", args...).Scan(&rows).Error; err != nil {
 		return nil, "", err
 	}
 	next := ""
@@ -221,6 +235,18 @@ func (s *Store) Count(q Query) (int64, error) {
 		return 0, err
 	}
 	var n int64
-	err = s.db.Raw("SELECT COUNT(*) FROM log_entries"+where, args...).Scan(&n).Error
+	err = s.dbq(q).Raw("SELECT COUNT(*) FROM log_entries"+where, args...).Scan(&n).Error
 	return n, err
+}
+
+// attrExpr reads one attribute as text. Entries without attributes store an empty string, which
+// json_extract rejects, so those rows are guarded. A dotted key matches a literal key ("http.status")
+// or a nested object (http: {status}).
+func attrExpr(key string) string {
+	literal := fmt.Sprintf(`json_extract(attributes, '$."%s"')`, key)
+	if !strings.Contains(key, ".") {
+		return fmt.Sprintf(`CASE WHEN attributes <> '' THEN CAST(%s AS TEXT) END`, literal)
+	}
+	nested := fmt.Sprintf(`json_extract(attributes, '$.%s')`, key)
+	return fmt.Sprintf(`CASE WHEN attributes <> '' THEN CAST(COALESCE(%s, %s) AS TEXT) END`, literal, nested)
 }

@@ -58,8 +58,16 @@ func validateAppRequest(req AppRequest, creating bool) error {
 	if req.DebugSampleRate != nil && (*req.DebugSampleRate < 0 || *req.DebugSampleRate > 1) {
 		return errors.New("debug_sample_rate must be between 0 and 1")
 	}
+	if req.RateLimitPerSecond != nil && (*req.RateLimitPerSecond < 0 || *req.RateLimitPerSecond > 100000) {
+		return errors.New("rate_limit_per_second must be between 0 and 100000")
+	}
 	if req.Redaction != nil && len(req.Redaction.ExtraKeys) > 50 {
 		return errors.New("redaction.extra_keys is limited to 50 keys")
+	}
+	if req.Redaction != nil {
+		if err := logstore.ValidateRules(toStoreRules(req.Redaction.Rules)); err != nil {
+			return err
+		}
 	}
 	if req.Display != nil && (len(req.Display.Columns) > 50 || len(req.Display.Hidden) > 50) {
 		return errors.New("display_profile lists are limited to 50 keys")
@@ -68,13 +76,36 @@ func validateAppRequest(req AppRequest, creating bool) error {
 }
 
 func (s *Server) appResponse(app db.App) App {
+	var stats logstore.AppStats
+	if s.logs != nil {
+		if all, err := s.logs.store.StatsByApp(time.Now().UTC()); err == nil {
+			stats = all[app.ID]
+		}
+	}
+	return s.appResponseWith(app, stats)
+}
+
+func (s *Server) appResponseWith(app db.App, stats logstore.AppStats) App {
 	out := App{
 		ID: app.ID, Name: app.Name, Slug: app.Slug, Environment: app.Environment, Description: app.Description,
-		RetentionDays: app.RetentionDays, MaxStorageMB: app.MaxStorageMB, DebugSampleRate: app.DebugSampleRate,
+		RetentionDays: app.RetentionDays, MaxStorageMB: app.MaxStorageMB, DebugSampleRate: app.DebugSampleRate, RateLimitPerSecond: app.RateLimitPerSecond,
 		CreatedAt: app.CreatedAt, LastIngestAt: app.LastIngestAt,
+		RatePerSecond: float64(stats.LastMinute) / 60, StorageBytes: stats.Bytes, StorageCapBytes: int64(app.MaxStorageMB) << 20, Lines: stats.Entries,
+	}
+	switch {
+	case app.LastIngestAt == nil:
+		out.Status = "never"
+	case time.Since(*app.LastIngestAt) <= 5*time.Minute:
+		out.Status = "receiving"
+	default:
+		out.Status = "quiet"
+	}
+	if out.StorageCapBytes > 0 {
+		out.StoragePercent = int(min(100, stats.Bytes*100/out.StorageCapBytes))
 	}
 	_ = json.Unmarshal([]byte(app.DisplayJSON), &out.Display)
 	_ = json.Unmarshal([]byte(app.RedactionJSON), &out.Redaction)
+	out.Redaction.DefaultKeys = logstore.DefaultKeys()
 	var keys int64
 	s.db.Model(&db.AppIngestKey{}).Where("app_id = ? AND revoked_at IS NULL", app.ID).Count(&keys)
 	out.KeyCount = int(keys)
@@ -100,9 +131,13 @@ func (s *Server) listAppsImpl(c *gin.Context) {
 		utils.InternalError(c, "Failed to list apps", err)
 		return
 	}
+	var stats map[string]logstore.AppStats
+	if s.logs != nil {
+		stats, _ = s.logs.store.StatsByApp(time.Now().UTC())
+	}
 	out := make([]App, 0, len(apps))
 	for _, app := range apps {
-		out = append(out, s.appResponse(app))
+		out = append(out, s.appResponseWith(app, stats[app.ID]))
 	}
 	utils.SuccessResponse(c, http.StatusOK, "Apps retrieved successfully", gin.H{"apps": out})
 }
@@ -146,12 +181,17 @@ func applyAppRequest(app *db.App, req AppRequest) {
 	if req.DebugSampleRate != nil {
 		app.DebugSampleRate = *req.DebugSampleRate
 	}
+	if req.RateLimitPerSecond != nil {
+		app.RateLimitPerSecond = *req.RateLimitPerSecond
+	}
 	if req.Display != nil {
 		encoded, _ := json.Marshal(req.Display)
 		app.DisplayJSON = string(encoded)
 	}
 	if req.Redaction != nil {
-		encoded, _ := json.Marshal(req.Redaction)
+		stored := *req.Redaction
+		stored.DefaultKeys = nil // read-only, derived on read
+		encoded, _ := json.Marshal(stored)
 		app.RedactionJSON = string(encoded)
 	}
 }

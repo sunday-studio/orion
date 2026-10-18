@@ -51,7 +51,7 @@ func TestIngesterAuthenticatesRevokesAndIsolatesApps(t *testing.T) {
 	}
 
 	// Revocation takes effect once the cache is invalidated.
-	ing.main.Model(&db.AppIngestKey{}).Where("id = ?", "key-1").Update("revoked_at", time.Now())
+	ing.main.Model(&db.AppIngestKey{}).Where("id = ?", "key-1").Update("revoked_at", time.Now().UTC().Add(-time.Second))
 	ing.Invalidate()
 	if _, err := ing.Authenticate(key); err != ErrInvalidKey {
 		t.Fatalf("revoked key error = %v, want ErrInvalidKey", err)

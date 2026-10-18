@@ -1,7 +1,6 @@
 package api
 
 import (
-	"errors"
 	"net/http"
 	"orion/core/internal/db"
 	"orion/core/internal/logstore"
@@ -38,7 +37,7 @@ func (s *Server) appNames(ids []string) map[string]string {
 func toLogEntry(e logstore.Entry, appNames map[string]string) LogEntry {
 	out := LogEntry{
 		ID: e.ID, Source: "app", AppID: e.AppID, AppName: appNames[e.AppID], Timestamp: e.Timestamp, IngestedAt: e.IngestedAt,
-		Severity: LogSeverity(e.Severity), SeverityValue: e.SeverityNumber, Event: e.Event, Body: e.Body,
+		Severity: LogSeverity(e.Severity), SeverityValue: e.SeverityNumber, SeverityInferred: e.SeverityInferred, Event: e.Event, Body: e.Body,
 		Attributes: e.Attributes, Resource: e.Resource, TraceID: e.TraceID, SpanID: e.SpanID, RequestID: e.RequestID,
 	}
 	if e.BodyJSON != "" {
@@ -69,17 +68,15 @@ func (s *Server) searchLogsImpl(c *gin.Context) {
 		return
 	}
 
-	entries, next, err := s.logs.store.List(logstore.Query{
+	query, cancel := scoped(c, logstore.Query{
 		AppIDs: appIDs, Severity: c.Query("severity"), Event: c.Query("event"), Text: c.Query("q"), From: from, To: to,
 		TraceID: c.Query("trace_id"), RequestID: c.Query("request_id"), Attrs: c.QueryArray("attr"),
 		Limit: utils.QueryInt(c, "limit", logstore.DefaultPageSize), Cursor: c.Query("cursor"),
 	})
+	defer cancel()
+	entries, next, err := s.logs.store.List(query)
 	if err != nil {
-		if errors.Is(err, logstore.ErrBadFilter) {
-			utils.BadRequest(c, err.Error())
-			return
-		}
-		utils.InternalError(c, "Failed to search logs", err)
+		logQueryFailed(c, err, "Failed to search logs")
 		return
 	}
 	ids := make([]string, 0, len(entries))
