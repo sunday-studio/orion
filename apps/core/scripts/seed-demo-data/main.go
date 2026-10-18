@@ -190,6 +190,7 @@ func openDatabase(cfg seedConfig) *gorm.DB {
 
 func resetSeedData(database *gorm.DB) error {
 	statusPageTables := []string{
+		"status_page_maintenance",
 		"status_page_subscriber_deliveries",
 		"status_page_subscriber_components",
 		"status_page_subscribers",
@@ -389,6 +390,9 @@ func seed(database *gorm.DB, cfg seedConfig) (seedStats, error) {
 		return stats, err
 	}
 	stats.statusPages += draftPages
+	if _, err := seedStatusPageMaintenance(database, now); err != nil {
+		return stats, err
+	}
 	stats.statusPageSections++
 	stats.statusPageComponents += 2
 	stats.statusPageSections += statusPageStats.sections

@@ -72,6 +72,9 @@ func (s *Server) deleteStatusPage(c *gin.Context) {
 				return err
 			}
 		}
+		if err := tx.Where("status_page_id = ?", page.ID).Delete(&db.StatusPageMaintenance{}).Error; err != nil {
+			return err
+		}
 		if err := tx.Where("status_page_id = ?", page.ID).Delete(&db.StatusPageComponent{}).Error; err != nil {
 			return err
 		}

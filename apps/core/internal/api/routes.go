@@ -41,6 +41,7 @@ type Server struct {
 	testRunLimiter               *RateLimiter
 	publicSubscriberLimiter      *RateLimiter
 	publicStatusMailSend         func(publicStatusMailMessage) error
+	lookupCNAME                  func(ctx context.Context, host string) (string, error)
 	router                       *gin.Engine
 	logs                         *productLogs
 }
@@ -104,6 +105,7 @@ func NewServer(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *Ser
 		router:                       router,
 	}
 	server.publicStatusMailSend = server.deliverPublicStatusMail
+	server.lookupCNAME = net.DefaultResolver.LookupCNAME
 
 	server.setupRoutes()
 
@@ -342,6 +344,8 @@ func (s *Server) Start(ctx context.Context, addr string) error {
 		WriteTimeout:      60 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}
+
+	go s.runMaintenanceNoticeLoop(baseCtx)
 
 	errCh := make(chan error, 1)
 	go func() {

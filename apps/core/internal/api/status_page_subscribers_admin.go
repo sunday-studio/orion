@@ -81,6 +81,7 @@ func (s *Server) listStatusPageSubscribers(c *gin.Context) {
 		return
 	}
 	responses = filterSubscriberResponses(responses, c.Query("q"))
+	c.Header("Cache-Control", "no-store")
 
 	utils.SuccessResponse(c, http.StatusOK, "Status page subscribers retrieved successfully", gin.H{
 		"subscribers": responses,
@@ -363,6 +364,7 @@ func (s *Server) writeStatusPageSubscriberAdminResponse(c *gin.Context, status i
 		utils.InternalError(c, "Failed to load status page subscriber", err)
 		return
 	}
+	c.Header("Cache-Control", "no-store")
 	utils.SuccessResponse(c, status, message, gin.H{"subscriber": responses[0]})
 }
 

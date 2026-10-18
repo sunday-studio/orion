@@ -40,8 +40,16 @@ type statusPageHTMLView struct {
 	ShowIncidentHistory  bool
 	HasComponents        bool
 	Sections             []statusPageHTMLSection
+	Maintenance          []statusPageHTMLMaintenance
 	ActiveIncidents      []statusPageHTMLIncident
 	RecentIncidents      []statusPageHTMLIncident
+}
+type statusPageHTMLMaintenance struct {
+	Title       string
+	Description string
+	Window      string
+	InProgress  bool
+	Components  []string
 }
 type statusPageHTMLSection struct {
 	ID         string
@@ -217,6 +225,22 @@ var statusPageHTMLTemplate = template.Must(template.New("status-page").Parse(`<!
       <time datetime="{{ .LastUpdated }}">{{ .LastUpdated }}</time>
     </section>
 
+    {{- if .Maintenance }}
+    <section class="section" aria-labelledby="maintenance">
+      <h2 id="maintenance">Scheduled maintenance</h2>
+      <div class="incident-list">
+        {{- range .Maintenance }}
+        <article class="incident status-maintenance">
+          <div class="incident-head"><span class="incident-title">{{ .Title }}</span><span class="pill">{{ if .InProgress }}In progress{{ else }}Scheduled{{ end }}</span></div>
+          {{- if .Description }}<p class="muted">{{ .Description }}</p>{{ end }}
+          <p class="muted">{{ .Window }}</p>
+          {{- if .Components }}<div class="chips" aria-label="Affected components">{{ range .Components }}<span class="chip">{{ . }}</span>{{ end }}</div>{{ end }}
+        </article>
+        {{- end }}
+      </div>
+    </section>
+    {{- end }}
+
     {{- if .ActiveIncidents }}
     <section class="section" aria-labelledby="active-events">
       <h2 id="active-events">Active events</h2>
@@ -378,7 +402,7 @@ func renderPublicStatusPageHTML(c *gin.Context, preview StatusPagePreviewRespons
 	canonicalURL := firstNonEmpty(strings.TrimSpace(preview.Metadata.CanonicalURL), publicURL)
 	openGraphURL := firstNonEmpty(strings.TrimSpace(preview.Metadata.OpenGraph.URL), canonicalURL)
 	sections := statusPageHTMLSections(preview.Sections)
-	view := statusPageHTMLView{Title: firstNonEmpty(preview.Metadata.Title, preview.Page.Title), Description: firstNonEmpty(preview.Metadata.Description, preview.Page.Description), CanonicalURL: canonicalURL, OpenGraphTitle: firstNonEmpty(preview.Metadata.OpenGraph.Title, preview.Metadata.Title, preview.Page.Title), OpenGraphDescription: firstNonEmpty(preview.Metadata.OpenGraph.Description, preview.Metadata.Description, preview.Page.Description), OpenGraphURL: openGraphURL, OpenGraphType: firstNonEmpty(preview.Metadata.OpenGraph.Type, "website"), OpenGraphSiteName: firstNonEmpty(preview.Metadata.OpenGraph.SiteName, preview.Page.Title), OpenGraphImageURL: preview.Metadata.OpenGraph.ImageURL, PageTitle: preview.Page.Title, PageDescription: preview.Page.Description, OverallStatus: preview.OverallStatus, OverallStatusDisplay: preview.OverallStatusDisplay, OverallStatusMessage: publicStatusPageHTMLSummary(preview.OverallStatus), StatusClass: statusPageHTMLStatusClass(preview.OverallStatus), LastUpdated: publicStatusPageHTMLTime(preview.LastUpdated), AccentColor: theme.AccentColor, LogoURL: theme.LogoURL, LogoAlt: theme.LogoAlt, HeaderClass: theme.HeaderClass, DensityClass: theme.DensityClass, ThemeClass: theme.ThemeClass, FeedURL: strings.TrimRight(publicURL, "/") + "/feed.atom", BadgeURL: strings.TrimRight(publicURL, "/") + "/badge.svg", HistoryURL: strings.TrimRight(publicURL, "/") + "/history", SubscribeURL: "/status/" + url.PathEscape(preview.Page.Slug) + "/subscribers", ShowUptimeSummary: theme.ShowUptimeSummary, ShowIncidentHistory: theme.ShowIncidentHistory, HasComponents: statusPageHTMLHasComponents(sections), Sections: sections, ActiveIncidents: statusPageHTMLIncidents(publicURL, preview.Incidents, sections, true), RecentIncidents: statusPageHTMLIncidents(publicURL, preview.Incidents, sections, false)}
+	view := statusPageHTMLView{Title: firstNonEmpty(preview.Metadata.Title, preview.Page.Title), Description: firstNonEmpty(preview.Metadata.Description, preview.Page.Description), CanonicalURL: canonicalURL, OpenGraphTitle: firstNonEmpty(preview.Metadata.OpenGraph.Title, preview.Metadata.Title, preview.Page.Title), OpenGraphDescription: firstNonEmpty(preview.Metadata.OpenGraph.Description, preview.Metadata.Description, preview.Page.Description), OpenGraphURL: openGraphURL, OpenGraphType: firstNonEmpty(preview.Metadata.OpenGraph.Type, "website"), OpenGraphSiteName: firstNonEmpty(preview.Metadata.OpenGraph.SiteName, preview.Page.Title), OpenGraphImageURL: preview.Metadata.OpenGraph.ImageURL, PageTitle: preview.Page.Title, PageDescription: preview.Page.Description, OverallStatus: preview.OverallStatus, OverallStatusDisplay: preview.OverallStatusDisplay, OverallStatusMessage: publicStatusPageHTMLSummary(preview.OverallStatus), StatusClass: statusPageHTMLStatusClass(preview.OverallStatus), LastUpdated: publicStatusPageHTMLTime(preview.LastUpdated), AccentColor: theme.AccentColor, LogoURL: theme.LogoURL, LogoAlt: theme.LogoAlt, HeaderClass: theme.HeaderClass, DensityClass: theme.DensityClass, ThemeClass: theme.ThemeClass, FeedURL: strings.TrimRight(publicURL, "/") + "/feed.atom", BadgeURL: strings.TrimRight(publicURL, "/") + "/badge.svg", HistoryURL: strings.TrimRight(publicURL, "/") + "/history", SubscribeURL: "/status/" + url.PathEscape(preview.Page.Slug) + "/subscribers", ShowUptimeSummary: theme.ShowUptimeSummary, ShowIncidentHistory: theme.ShowIncidentHistory, HasComponents: statusPageHTMLHasComponents(sections), Sections: sections, Maintenance: statusPageHTMLMaintenanceList(preview.Maintenance, sections), ActiveIncidents: statusPageHTMLIncidents(publicURL, preview.Incidents, sections, true), RecentIncidents: statusPageHTMLIncidents(publicURL, preview.Incidents, sections, false)}
 	var body bytes.Buffer
 	if err := statusPageHTMLTemplate.Execute(&body, view); err != nil {
 		return nil, err

@@ -2722,6 +2722,54 @@ definitions:
           $ref: '#/definitions/internal_api.StatusPageSectionResponse'
         type: array
     type: object
+  internal_api.StatusPageDomainRecord:
+    properties:
+      host:
+        example: status.example.com
+        type: string
+      type:
+        example: CNAME
+        type: string
+      value:
+        example: pages.orion.example.com
+        type: string
+    type: object
+  internal_api.StatusPageDomainResponse:
+    properties:
+      certificate:
+        enum:
+        - none
+        - pending
+        - issued
+        type: string
+      domain:
+        type: string
+      fallback_url:
+        type: string
+      last_checked_at:
+        type: string
+      records:
+        items:
+          $ref: '#/definitions/internal_api.StatusPageDomainRecord'
+        type: array
+      status:
+        description: Status is pending, verified or failed.
+        enum:
+        - pending
+        - verified
+        - failed
+        type: string
+      status_text:
+        description: StatusText is the short line shown next to the status.
+        example: Record not found yet
+        type: string
+      target_known:
+        type: boolean
+      verified_at:
+        type: string
+      verify_after_seconds:
+        type: integer
+    type: object
   internal_api.StatusPageIncidentComponentSuggestionMatchResponse:
     properties:
       match_reason:
@@ -2876,6 +2924,65 @@ definitions:
       visibility:
         type: string
     type: object
+  internal_api.StatusPageMaintenanceRequest:
+    properties:
+      component_ids:
+        items:
+          type: string
+        type: array
+      description:
+        type: string
+      ends_at:
+        type: string
+      hold_alerts:
+        type: boolean
+      notify_subscribers:
+        type: boolean
+      starts_at:
+        type: string
+      title:
+        type: string
+    type: object
+  internal_api.StatusPageMaintenanceResponse:
+    properties:
+      component_ids:
+        items:
+          type: string
+        type: array
+      component_names:
+        items:
+          type: string
+        type: array
+      created_at:
+        type: string
+      description:
+        type: string
+      ends_at:
+        type: string
+      hold_alerts:
+        type: boolean
+      id:
+        type: string
+      notice_sent:
+        type: boolean
+      notify_subscribers:
+        type: boolean
+      starts_at:
+        type: string
+      status:
+        description: Status is scheduled, in_progress or completed.
+        enum:
+        - scheduled
+        - in_progress
+        - completed
+        type: string
+      status_page_id:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
   internal_api.StatusPagePreviewResponse:
     properties:
       incidents:
@@ -2884,6 +2991,11 @@ definitions:
         type: array
       last_updated:
         type: string
+      maintenance:
+        description: Maintenance lists windows in progress or starting within 14 days.
+        items:
+          $ref: '#/definitions/internal_api.StatusPagePublicMaintenanceResponse'
+        type: array
       metadata:
         $ref: '#/definitions/internal_api.StatusPagePublicMetadataResponse'
       overall_status:
@@ -2991,6 +3103,28 @@ definitions:
       published_at:
         type: string
       status:
+        type: string
+    type: object
+  internal_api.StatusPagePublicMaintenanceResponse:
+    properties:
+      component_ids:
+        items:
+          type: string
+        type: array
+      description:
+        type: string
+      ends_at:
+        type: string
+      id:
+        type: string
+      starts_at:
+        type: string
+      status:
+        enum:
+        - scheduled
+        - in_progress
+        type: string
+      title:
         type: string
     type: object
   internal_api.StatusPagePublicMetadataResponse:
@@ -3246,6 +3380,32 @@ definitions:
       total:
         type: integer
       unsubscribed:
+        type: integer
+    type: object
+  internal_api.StatusPageSubscriberImportRequest:
+    properties:
+      csv:
+        description: CSV is the file text; the first column is the email. A header
+          row named "email" is skipped.
+        type: string
+    required:
+    - csv
+    type: object
+  internal_api.StatusPageSubscriberImportResponse:
+    properties:
+      confirm_mailed:
+        type: integer
+      imported:
+        type: integer
+      invalid:
+        description: Invalid lists rows that are not valid emails (at most 20 shown).
+        items:
+          type: string
+        type: array
+      invalid_count:
+        type: integer
+      skipped:
+        description: Skipped counts addresses that were already subscribed.
         type: integer
     type: object
   internal_api.StatusPageSubscriberPublicResponse:
@@ -11757,6 +11917,101 @@ paths:
       summary: Update status page component mapping
       tags:
       - status-pages
+  /v1/status-pages/{id}/domain:
+    delete:
+      operationId: removeStatusPageDomain
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.StatusPageDomainResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Remove status page custom domain
+      tags:
+      - status-pages
+    get:
+      operationId: getStatusPageDomain
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.StatusPageDomainResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Status page custom domain
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/domain/verify:
+    post:
+      description: Resolves the domain's CNAME and compares it with the target. Checks
+        closer than 10 seconds apart return the last result.
+      operationId: verifyStatusPageDomain
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.StatusPageDomainResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Verify status page custom domain
+      tags:
+      - status-pages
   /v1/status-pages/{id}/incidents:
     get:
       consumes:
@@ -12170,6 +12425,166 @@ paths:
       security:
       - BearerAuth: []
       summary: Suggest status page incident components
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/maintenance:
+    get:
+      operationId: listStatusPageMaintenance
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    maintenance:
+                      items:
+                        $ref: '#/definitions/internal_api.StatusPageMaintenanceResponse'
+                      type: array
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List status page maintenance windows
+      tags:
+      - status-pages
+    post:
+      consumes:
+      - application/json
+      operationId: createStatusPageMaintenance
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Maintenance window
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.StatusPageMaintenanceRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    window:
+                      $ref: '#/definitions/internal_api.StatusPageMaintenanceResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Schedule status page maintenance
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/maintenance/{window_id}:
+    delete:
+      operationId: deleteStatusPageMaintenance
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Window ID
+        in: path
+        name: window_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete status page maintenance
+      tags:
+      - status-pages
+    patch:
+      consumes:
+      - application/json
+      operationId: updateStatusPageMaintenance
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Window ID
+        in: path
+        name: window_id
+        required: true
+        type: string
+      - description: Fields to change
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.StatusPageMaintenanceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    window:
+                      $ref: '#/definitions/internal_api.StatusPageMaintenanceResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update status page maintenance
       tags:
       - status-pages
   /v1/status-pages/{id}/preview:
@@ -12699,6 +13114,51 @@ paths:
       security:
       - BearerAuth: []
       summary: Export status page subscribers
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/subscribers/import:
+    post:
+      consumes:
+      - application/json
+      description: Imported addresses start pending and get the usual confirmation
+        email, so nobody is subscribed without consent. The page must be published
+        and the subscriber secret configured.
+      operationId: importStatusPageSubscribers
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: CSV text
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.StatusPageSubscriberImportRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.StatusPageSubscriberImportResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Import status page subscribers
       tags:
       - status-pages
   /v1/status-pages/{id}/unpublish:

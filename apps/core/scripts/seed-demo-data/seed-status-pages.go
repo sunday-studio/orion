@@ -33,6 +33,7 @@ func seedStatusPages(database *gorm.DB, monitors []db.Monitor, now time.Time) (s
 		ID:                        "seed-status-page-main",
 		Slug:                      "seed-orion-status",
 		CustomDomain:              "status.seed-orion.local",
+		DomainStatus:              "verified",
 		Title:                     "Seed Orion Status",
 		Description:               "Public-facing demo status page seeded from Orion monitor and incident data.",
 		SEOTitle:                  "Seed Orion public service status",

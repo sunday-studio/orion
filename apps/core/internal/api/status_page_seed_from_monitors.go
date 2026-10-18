@@ -9,7 +9,7 @@ import (
 // seedStatusPageFromMonitors adds a Services section with one mapped component per user monitor.
 func (s *Server) seedStatusPageFromMonitors(pageID string) error {
 	var monitors []db.Monitor
-	if err := s.db.Where("system = ? AND (deleted_at IS NULL OR deleted_at = ?)", false, time.Time{}).Order("name ASC").Limit(20).Find(&monitors).Error; err != nil {
+	if err := s.db.Where("system = ? AND lifecycle = ? AND (deleted_at IS NULL OR deleted_at = ?)", false, "active", time.Time{}).Order("name ASC").Limit(20).Find(&monitors).Error; err != nil {
 		return err
 	}
 	if len(monitors) == 0 {

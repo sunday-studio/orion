@@ -76,6 +76,12 @@ ORION_PUBLIC_STATUS_URL_ORIGIN=https://status.example.com
 ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET=replace-with-a-long-random-secret
 ```
 
+Custom status page domains: operators point a CNAME at `ORION_STATUS_PAGES_CNAME_TARGET` (defaults
+to the host of `ORION_PUBLIC_STATUS_URL_ORIGIN`, then `ORION_PUBLIC_URL`). Core checks the record when
+the operator presses Verify and only serves a custom domain once it is verified. TLS for that domain
+is terminated by your reverse proxy; Core only reports whether DNS is verified. The subscriber
+secret is also what lets operators see full subscriber emails, export them, and import CSV lists.
+
 Subscriber privacy retention runs inside the Core data lifecycle scheduler. The current hot-database
 defaults are 7 days after pending confirmation expiry, 90 days for unsubscribed or bounced
 subscriber suppression records, and 180 days for subscriber delivery rows. The job records audit

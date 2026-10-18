@@ -98,6 +98,8 @@ func (s *Server) statusPageReadiness(pageID string) (StatusPageReadinessResponse
 	for _, check := range checks {
 		if check.OK {
 			out.Passed++
+		} else if check.Blocking {
+			out.Ready = false
 		}
 	}
 	return out, nil

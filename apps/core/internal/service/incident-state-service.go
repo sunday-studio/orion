@@ -34,7 +34,7 @@ func (s *IncidentService) openOrUpdateIncident(agent db.Agent, monitor db.Monito
 func (s *IncidentService) openOrUpdateIncidentTx(agent db.Agent, monitor db.Monitor, monitorReportID string, health string, incidentState string) error {
 	now := time.Now().UTC()
 	// Maintenance holds incidents and alerts; the check itself still ran and its report is stored.
-	if monitor.InMaintenance(now) || agent.InMaintenance(now) {
+	if monitor.InMaintenance(now) || agent.InMaintenance(now) || StatusPageMaintenanceHolds(s.db, monitor.ID, agent.ID, now) {
 		return nil
 	}
 	message := incidentMessage(agent, monitor, health)
