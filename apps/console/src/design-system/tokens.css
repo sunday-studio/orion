@@ -66,9 +66,9 @@
   --tone-critical-fg: #ffffff;
   --tone-medium-bg: #fef9c3;
   --tone-medium-fg: #854d0e;
-  --button-from: #2a9f69;
+  --button-from: #2c9f6a;
   --button-to: #1f7a50;
-  --button-border: #17613f;
+  --button-border: #14573a;
 }
 
 :root[data-theme="dark"] {

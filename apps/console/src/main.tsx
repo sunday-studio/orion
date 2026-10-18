@@ -4,10 +4,10 @@ import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NuqsAdapter } from "nuqs/adapters/react-router/v7";
 import "@/index.css";
-import { applyTheme, readThemePreference } from "@/design-system";
+import { initTheme } from "@/design-system";
 import AppRouter from "@/router/app-router";
 
-applyTheme(readThemePreference());
+initTheme();
 
 const queryClient = new QueryClient();
 
