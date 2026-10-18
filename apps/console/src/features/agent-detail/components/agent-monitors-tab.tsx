@@ -1,4 +1,6 @@
+import { keepPreviousData } from "@tanstack/react-query";
 import { parseAsInteger, parseAsString, useQueryState } from "nuqs";
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   AddFilterButton,
@@ -45,11 +47,11 @@ export const AgentMonitorsTab = ({ agentId }: { agentId: string }) => {
     void setPage(1);
   };
   const offset = (Math.max(page, 1) - 1) * limit;
-  const query = useGetAgentMonitors(agentId, {
-    status: selected.length > 0 ? selected.join(",") : undefined,
-    limit,
-    offset,
-  });
+  const query = useGetAgentMonitors(
+    agentId,
+    { status: selected.length > 0 ? selected.join(",") : undefined, limit, offset },
+    { query: { placeholderData: keepPreviousData } },
+  );
   const shown = query.data?.monitors ?? [];
   const total = query.data?.count ?? shown.length;
   const hidden = (query.data as { hidden_count?: number } | undefined)?.hidden_count ?? 0;
@@ -63,8 +65,10 @@ export const AgentMonitorsTab = ({ agentId }: { agentId: string }) => {
   const pageItems = shown;
   const isDefault = statusParam === DEFAULT;
 
-  if (query.isLoading) return <Skeleton className="h-40 w-full rounded-xl" />;
-  if (query.isError) return <EmptyState tone="error" title="Unable to load monitors" />;
+  // A stale ?monitorsPage past the end would show an empty tab with no way back.
+  useEffect(() => {
+    if (total > 0 && offset >= total) void setPage(Math.ceil(total / limit));
+  }, [limit, offset, setPage, total]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -96,7 +100,11 @@ export const AgentMonitorsTab = ({ agentId }: { agentId: string }) => {
           </PopoverContent>
         </AddFilterButton>
       </FilterTokenRow>
-      {shown.length === 0 ? (
+      {query.isPending ? (
+        <Skeleton className="h-40 w-full rounded-xl" />
+      ) : query.isError ? (
+        <EmptyState tone="error" title="Unable to load monitors" />
+      ) : shown.length === 0 ? (
         <EmptyState
           title={isDefault ? "No unhealthy monitors" : "No monitors match"}
           description={

@@ -80,7 +80,8 @@ export const ServerEditDialog = ({ open, agent, onOpenChange, onRemove }: Props)
                 onError: (failure) =>
                   setError(
                     (failure as { status?: number }).status === 400
-                      ? "Check the labels: use key=value, up to 20."
+                      ? (failure as Error).message ||
+                          "Check the name, labels (key=value) and notes."
                       : "Unable to save the server. Try again.",
                   ),
               },
