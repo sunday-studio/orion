@@ -51,7 +51,7 @@ func (s *Server) statusPageCNAMETarget() string {
 	if t := strings.TrimSpace(s.cfg.StatusPagesCNAMETarget); t != "" {
 		return strings.ToLower(t)
 	}
-	for _, origin := range []string{s.cfg.PublicStatusURLOrigin, s.cfg.PublicURL} {
+	for _, origin := range []string{s.cfg.PublicStatusURLOrigin, s.cfg.PublicBaseURL()} {
 		if u, err := url.Parse(strings.TrimSpace(origin)); err == nil && u.Hostname() != "" {
 			return strings.ToLower(u.Hostname())
 		}

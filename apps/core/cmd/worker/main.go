@@ -72,6 +72,21 @@ func main() {
 		logger.AttachSink(logstore.NewCoreLogSink(logStore, "worker"))
 	}
 
+	// The Public Core URL can be changed in Settings while the Worker runs.
+	cfg.SetPublicURLOverride(service.SavedPublicURL(database))
+	go func() {
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				cfg.SetPublicURLOverride(service.SavedPublicURL(database))
+			}
+		}
+	}()
+
 	app := worker.NewApp(database, logger, worker.Options{
 		WorkerID:    cfg.CoreWorkerID,
 		Config:      cfg,

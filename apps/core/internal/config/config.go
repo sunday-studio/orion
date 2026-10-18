@@ -8,6 +8,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 )
 
 // Config holds runtime configuration from environment.
@@ -58,13 +60,17 @@ type Config struct {
 	// StatusPagesCNAMETarget is the host custom domains must point a CNAME at.
 	StatusPagesCNAMETarget string
 	PublicURL              string
-	AlertSMTPHost          string
-	AlertSMTPPort          int
-	AlertSMTPUsername      string
-	AlertSMTPPassword      string
-	AlertSMTPFrom          string
-	AlertSMTPTLS           string // starttls | tls | none
-	AlertEmailSecret       string
+	// publicURLOverride is the Public Core URL saved in Settings; it wins over ORION_PUBLIC_URL.
+	publicURLOverride *publicURLBox
+	// SessionHours is how long a Console sign-in lasts.
+	SessionHours      int
+	AlertSMTPHost     string
+	AlertSMTPPort     int
+	AlertSMTPUsername string
+	AlertSMTPPassword string
+	AlertSMTPFrom     string
+	AlertSMTPTLS      string // starttls | tls | none
+	AlertEmailSecret  string
 }
 
 // Load reads configuration from environment variables.
@@ -123,6 +129,7 @@ func Load() *Config {
 		PublicStatusSubscriberSecret:   getEnv("ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET", ""),
 		StatusPagesCNAMETarget:         strings.ToLower(strings.TrimSpace(getEnv("ORION_STATUS_PAGES_CNAME_TARGET", ""))),
 		PublicURL:                      strings.TrimRight(strings.TrimSpace(os.Getenv("ORION_PUBLIC_URL")), "/"),
+		SessionHours:                   max(getEnvInt("ORION_SESSION_HOURS", 12), 1),
 		AlertSMTPHost:                  getEnv("ORION_ALERT_SMTP_HOST", ""),
 		AlertSMTPPort:                  getEnvInt("ORION_ALERT_SMTP_PORT", 587),
 		AlertSMTPUsername:              getEnv("ORION_ALERT_SMTP_USERNAME", ""),
@@ -419,4 +426,32 @@ func getEnvOrFile(key string) string {
 		}
 	}
 	return ""
+}
+
+// publicURLBox holds the saved Public Core URL. It is a pointer in Config so Config values stay copyable.
+type publicURLBox struct{ v atomic.Pointer[string] }
+
+var publicURLBoxMu sync.Mutex
+
+func (c *Config) urlBox() *publicURLBox {
+	publicURLBoxMu.Lock()
+	defer publicURLBoxMu.Unlock()
+	if c.publicURLOverride == nil {
+		c.publicURLOverride = &publicURLBox{}
+	}
+	return c.publicURLOverride
+}
+
+// PublicBaseURL is the public address of Core: the value saved in Settings, else ORION_PUBLIC_URL.
+func (c *Config) PublicBaseURL() string {
+	if v := c.urlBox().v.Load(); v != nil && *v != "" {
+		return *v
+	}
+	return c.PublicURL
+}
+
+// SetPublicURLOverride applies the Public Core URL saved in Settings ("" falls back to the environment).
+func (c *Config) SetPublicURLOverride(value string) {
+	value = strings.TrimRight(strings.TrimSpace(value), "/")
+	c.urlBox().v.Store(&value)
 }
