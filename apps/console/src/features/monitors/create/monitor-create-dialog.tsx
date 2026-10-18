@@ -174,7 +174,7 @@ export const MonitorCreateDialog = ({
                     onChange={(event) => patch({ url: event.target.value })}
                     placeholder="https://api.example.com/health"
                   />
-                  <span className={hint}>Core sends a GET request and expects a 2xx response.</span>
+                  <span className={hint}>Core sends a GET request and expects a 200 response.</span>
                 </label>
               )}
               {kind === "tcp" && (
@@ -236,7 +236,7 @@ export const MonitorCreateDialog = ({
                     />
                   </div>
                 )}
-                {kind === "http" && (
+                {kind !== "heartbeat" && (
                   <div className={label}>
                     Fail after
                     <Select

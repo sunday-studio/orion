@@ -157,7 +157,7 @@ export const MonitorsPage = () => {
         )}
         pending={createMonitor.isPending}
         onOpenChange={setCreateOpen}
-        onCreate={(data) => void handleCreate(data, "save")}
+        onCreate={(data) => void handleCreate(data, "save").catch(() => undefined)}
         onMoreTypes={() => {
           setCreateOpen(false);
           setAdvancedOpen(true);

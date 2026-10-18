@@ -17,7 +17,9 @@ import {
   defaultForm,
   formFromMonitor,
 } from "@/features/monitors/components/core-monitor-dialog-state";
+import { CoreMonitorDialog } from "@/features/monitors/components/core-monitor-dialog";
 import {
+  type ServiceCoreManagedMonitorUpdateRequest,
   getGetCoreMonitorConfigQueryKey,
   getGetMonitorQueryKey,
   getGetMonitorsQueryKey,
@@ -53,10 +55,11 @@ export const MonitorEditPage = () => {
   const queryClient = useQueryClient();
   const toast = useToast();
   const monitorQuery = useGetMonitor(monitorId);
-  const configQuery = useGetCoreMonitorConfig(monitorId);
   const monitor = monitorQuery.data?.monitor;
   const summary = monitorQuery.data?.summary;
   const core = monitor?.owner_kind === "core" || monitor?.source === "core";
+  const configQuery = useGetCoreMonitorConfig(monitorId, { query: { enabled: Boolean(core) } });
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [form, setForm] = useState<FormState>(defaultForm);
   const [runbook, setRunbook] = useState("");
   const [error, setError] = useState("");
@@ -72,11 +75,32 @@ export const MonitorEditPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monitor?.id, configQuery.data?.config?.monitor_id]);
 
-  if (monitorQuery.isPending || configQuery.isPending) {
+  if (monitorQuery.isPending || (core && configQuery.isPending)) {
     return <Skeleton className="mx-auto mt-10 h-60 w-full max-w-[712px]" />;
   }
   if (monitorQuery.isError || !monitor) {
     return <EmptyState tone="error" title="Unable to load monitor" />;
+  }
+
+  if (!core) {
+    return (
+      <div className="mx-auto w-full max-w-[712px] pb-8">
+        <div className="flex items-start justify-between gap-3 pb-4 pt-7">
+          <h1 className="text-[28px] font-medium leading-10 tracking-[-0.025em]">
+            Configure {monitor.name}
+          </h1>
+          <Link to={`/monitors/${monitorId}`}>
+            <Button size="sm" variant="secondary">
+              Back
+            </Button>
+          </Link>
+        </div>
+        <Callout tone="warn">
+          This monitor runs on a server through its agent, so it is configured there and cannot be
+          changed from Core.
+        </Callout>
+      </div>
+    );
   }
 
   const patch = (next: Partial<FormState>) => setForm((current) => ({ ...current, ...next }));
@@ -146,12 +170,6 @@ export const MonitorEditPage = () => {
         </div>
       </div>
       <div className="flex flex-col gap-3">
-        {!core && (
-          <Callout tone="warn">
-            This monitor is managed by the agent on its server, so it is configured there. You can
-            still pause, clone or delete it.
-          </Callout>
-        )}
         {error && <Callout tone="warn">{error}</Callout>}
         <FieldPanel title="General">
           <div className="flex flex-col gap-3">
@@ -274,6 +292,13 @@ export const MonitorEditPage = () => {
             </div>
           </FieldPanel>
         )}
+        {!http && !tcp && !heartbeat && (
+          <FieldPanel title="Check settings" aside={form.kind}>
+            <Button size="sm" variant="secondary" onClick={() => setAdvancedOpen(true)}>
+              Edit {form.kind} settings
+            </Button>
+          </FieldPanel>
+        )}
         <FieldPanel title="Alerting" aside="When it fails">
           <div className={label}>
             Fail after
@@ -331,6 +356,34 @@ export const MonitorEditPage = () => {
           </Button>
         </div>
       </div>
+      <CoreMonitorDialog
+        mode="edit"
+        open={advancedOpen}
+        monitor={monitor}
+        config={configQuery.data?.config}
+        isSubmitting={update.isPending}
+        error={error}
+        onOpenChange={setAdvancedOpen}
+        onSubmit={(data) =>
+          update.mutate(
+            { id: monitorId, data: data as ServiceCoreManagedMonitorUpdateRequest },
+            {
+              onSuccess: () => {
+                for (const queryKey of [
+                  getGetMonitorQueryKey(monitorId),
+                  getGetCoreMonitorConfigQueryKey(monitorId),
+                  getGetMonitorsQueryKey(),
+                ]) {
+                  void queryClient.invalidateQueries({ queryKey });
+                }
+                setAdvancedOpen(false);
+                toast.add({ title: "Changes saved" });
+              },
+              onError: (failure) => setError((failure as Error).message || "Unable to save."),
+            },
+          )
+        }
+      />
       <DeleteMonitorDialog
         open={deleting}
         name={monitor.name ?? "This monitor"}

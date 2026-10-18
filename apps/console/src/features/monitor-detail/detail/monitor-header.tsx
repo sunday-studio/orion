@@ -13,6 +13,9 @@ type Props = {
   onPause: () => void;
   onResume: () => void;
   breadcrumb?: boolean;
+  /** Core-run monitors can be tested, paused and configured; agent monitors cannot. */
+  core: boolean;
+  heartbeat: boolean;
 };
 
 export const MonitorHeader = ({
@@ -25,6 +28,8 @@ export const MonitorHeader = ({
   onPause,
   onResume,
   breadcrumb = true,
+  core,
+  heartbeat,
 }: Props) => {
   const status = paused ? "paused" : (summary?.status ?? monitor.health ?? "unknown");
   const label = paused ? "Paused" : (summary?.status_text ?? status);
@@ -53,27 +58,31 @@ export const MonitorHeader = ({
           </span>
         </div>
       </div>
-      <div className="flex items-center gap-1.5">
-        <Button size="sm" variant="secondary" disabled={pending} onClick={onTest}>
-          {testing ? "Testing..." : "Test now"}
-        </Button>
-        {paused ? (
-          <Button size="sm" disabled={pending} onClick={onResume}>
-            Resume
-          </Button>
-        ) : (
-          <>
-            <Button size="sm" variant="secondary" disabled={pending} onClick={onPause}>
-              Pause
+      {core && (
+        <div className="flex items-center gap-1.5">
+          {!heartbeat && (
+            <Button size="sm" variant="secondary" disabled={pending} onClick={onTest}>
+              {testing ? "Testing..." : "Test now"}
             </Button>
-            <Link to={`/monitors/${monitor.id}/edit`}>
-              <Button size="sm" variant="secondary">
-                Configure
+          )}
+          {paused ? (
+            <Button size="sm" disabled={pending} onClick={onResume}>
+              Resume
+            </Button>
+          ) : (
+            <>
+              <Button size="sm" variant="secondary" disabled={pending} onClick={onPause}>
+                Pause
               </Button>
-            </Link>
-          </>
-        )}
-      </div>
+              <Link to={`/monitors/${monitor.id}/edit`}>
+                <Button size="sm" variant="secondary">
+                  Configure
+                </Button>
+              </Link>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 };
