@@ -30,7 +30,8 @@ export const AnimatedHeight = ({
 
   return (
     <motion.div
-      className={cn("overflow-hidden", className)}
+      // Padding with a matching negative margin keeps focus rings from being clipped.
+      className={cn("-mx-1.5 -my-1.5 overflow-hidden px-1.5 py-1.5", className)}
       initial={false}
       animate={height === undefined ? undefined : { height }}
       transition={reduce ? { duration: 0 } : layoutSpring}

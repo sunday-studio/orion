@@ -3,6 +3,7 @@ import {
   DrawerContent,
   DrawerDescription,
   DrawerTitle,
+  JsonBlock,
   StatusBadge,
 } from "@/design-system";
 import type { ApiLogEntry } from "@/orion-sdk";
@@ -47,12 +48,7 @@ export const LogEntryDrawer = ({ entry, onOpenChange }: LogEntryDrawerProps) => 
               </>
             )}
           </dl>
-          <pre
-            aria-label="Raw log entry"
-            className="max-h-96 overflow-auto rounded-lg bg-field p-3 font-mono text-xs"
-          >
-            {JSON.stringify(entry, null, 2)}
-          </pre>
+          <JsonBlock value={entry} />
         </div>
       )}
     </DrawerContent>
