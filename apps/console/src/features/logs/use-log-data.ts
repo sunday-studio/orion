@@ -20,7 +20,7 @@ import { type LogKind, type LogQueryState, filterParams } from "./logs-state";
 
 const keep = { query: { placeholderData: keepPreviousData } };
 
-export type FacetItem = { value: string; label: string; count: number };
+export type FacetItem = { value: string; label: string; count: number; disabled?: boolean };
 export type FacetGroup = { key: string; title: string; items: FacetItem[]; more?: number };
 
 export const isSearchTimeout = (error: unknown) =>
@@ -88,7 +88,7 @@ export const useLogList = (kind: LogKind, state: LogQueryState, limit: number, e
   };
 };
 
-export const useLogFacets = (kind: LogKind, state: LogQueryState, field?: string) => {
+const useRawFacets = (kind: LogKind, state: LogQueryState, field?: string) => {
   const params = filterParams(state, kind);
   const service = useGetLogFacets(
     { ...params, field },
@@ -211,5 +211,56 @@ export const useLogPatterns = (kind: LogKind, state: LogQueryState, enabled: boo
     isError: active.isError,
     error: active.error,
     refetch: () => void active.refetch(),
+  };
+};
+
+const GROUP_STATE: Record<string, keyof LogQueryState> = {
+  severity: "severity",
+  source: "source",
+  event: "event",
+  type: "type",
+  server: "server",
+  monitor: "monitor",
+  component: "component",
+};
+
+/**
+ * Facets for the sidebar. Every option stays listed (from the search without facet filters);
+ * options that no result matches under the other selected filters are disabled instead of
+ * disappearing, so picking one never removes its siblings.
+ */
+export const useLogFacets = (kind: LogKind, state: LogQueryState, field?: string) => {
+  const filtered = useRawFacets(kind, state, field);
+  const baseState = {
+    ...state,
+    source: "",
+    severity: "",
+    event: "",
+    type: "",
+    server: "",
+    monitor: "",
+    component: "",
+    attr: "",
+  };
+  const base = useRawFacets(kind, baseState);
+  const groups = base.groups.map((group) => {
+    const own = String(state[GROUP_STATE[group.key]] ?? "");
+    const live = new Map(
+      (filtered.groups.find((g) => g.key === group.key)?.items ?? []).map((item) => [
+        item.value,
+        item.count,
+      ]),
+    );
+    return {
+      ...group,
+      items: group.items.map((item) => {
+        const count = own ? item.count : (live.get(item.value) ?? 0);
+        return { ...item, count, disabled: !own && count === 0 };
+      }),
+    };
+  });
+  return {
+    ...filtered,
+    groups: base.isPending ? filtered.groups : groups,
   };
 };
