@@ -78,7 +78,7 @@ Dark mode (Overview is the reference artboard): the sunken look comes from layer
 
 Radii: fields 14px, cards and tables 10px, buttons and inputs 8px, tray and chips 6 to 9px, badges 4px. No pills, no fully rounded controls except avatars and dots. Empty states use a single solid hairline container (white, 10px radius). No dashed borders and no border inside a border; inside an existing card the empty state has no border of its own.
 
-Buttons are layered: a 1px border, an inset top highlight and a soft drop shadow. Primary is a green gradient with white text; secondary is white; destructive is rose; ghost is text only. Heights: 30px default (12.5px text, 14px icons), 24px small (`sm`, used in page headers, table rows and bulk bars), 36px large only for single full-width CTAs on auth and first-run screens.
+Buttons are layered: a 1px border, an inset top highlight and a soft drop shadow. Primary is a green gradient with white text; secondary is white; destructive is rose; ghost is text only. Heights: 30px default (12.5px text, 14px icons) for form and dialog footers and inline actions; 24px small (`sm`) for page-header actions, table rows and bulk bars; 36px large (`lg`) only for single CTAs on auth and first-run screens (Sign in, first-run Overview). Every page-header action, including Overview's New monitor, is `sm` (24px). Do not mix sizes within one row.
 
 ## 7. Component inventory
 
@@ -128,7 +128,7 @@ Names match the "Components" artboard. "Exists" means a Console component alread
 
 The full list with routes is in `screen-map.md`; flows are on the Flows artboard (twenty journeys). Patterns specific to an area:
 
-- Overview (D-003, D-006): "Needs you now" field holding the highest-severity open incident with the lifecycle tracker; a Needs attention table from health issues; ongoing incidents table; three stat cards (monitors up, servers up, open incidents); recent incidents. Data sources are in `implementation-handoff.md` section 7. First run is the same route with one sentence and one button (Add your first server); it is not a separate route and carries a dismiss action. When all is well the first field reads "All systems normal".
+- Overview (D-003, D-006): "Needs you now" field holding the highest-severity open incident with the lifecycle tracker; server health strips (90 days, per server); ongoing incidents table; three stat cards (monitors up, servers reporting, uptime 30 days); recent incidents. Data sources are in `implementation-handoff.md` section 7. First run is the same route with one sentence and one button (Add your first server); it is not a separate route and carries a dismiss action. When all is well the first field reads "All systems normal".
 - Incidents: table (id, title, status, severity, monitor, opened). Bulk actions appear in a floating bar at the bottom of the screen with standard buttons; selected rows get a light green tint. Resolved detail shows one status badge, a muted meta line, one primary action and a More menu. Detail: tracker, expected vs actual, timeline, facts panel, public update dialog. Declare incident is a dialog. Triage lists candidates with Dismiss and Open incident (D-004).
 - Servers: table with CPU sparkline. Detail tabs: Overview (needs attention first, chart), Reports, Monitors (filter, issues first), Token. States: no reports (checklist), edit, remove with monitor-count preview, token reveal.
 - Monitors: table with target as a column, uptime strip. Create dialog per type (HTTP, TCP, Heartbeat, Agent). Configure is a page. Bulk bar (Pause, Maintenance, Clone, Delete). Paused state banner.
@@ -329,8 +329,40 @@ The agent CLI (`orion-agent`) uses Charm (`lipgloss`, `bubbletea`, `huh`, `fang`
 
 **Screens.** Install script output (plan, step lines, Doctor summary, link to the server). Setup wizard in three steps (connect, choose what to watch with confidence labels, review a diff, apply without restart). Doctor streaming checklist with a fix command under every warning and failure and a stable `--json` schema. Status box plus a table of what is watched and a short "using now" line from passive metrics. Log viewer with a status line (follow, level, source, search), level as a colored word padded to five characters, and a key footer. Help grouped by intent (fang) and errors with file, line and fix. Exit codes: 0 ok, 1 failed checks, 2 usage, 3 needs elevation.
 
-**Console Add server flow (plan A1).** The Console shows one copy-paste command with a one-time enrollment token baked in (expires in 15 minutes). The same step vocabulary appears live while waiting: command started, agent downloaded and verified, registered as the new name, waiting for the first report. Connected shows the server and the shown-once agent token; not connected shows the doctor checklist. Artboards: add-server, add-server-waiting, add-server-connected, add-server-failed.
+**Console Add server flow (plan A1).** The Console shows one copy-paste command with a one-time enrollment token baked in (expires in 15 minutes). While waiting, a static list labelled "The command will:" describes what the installer does (never live, Core cannot observe it) and a single live row says "Waiting for the server". The only live states are waiting, connected and not connected. Connected shows the server facts; there is no token panel. Platform tiles are Linux and macOS only (agent as a container is out of the current designs, D-031). Artboards: add-server, add-server-waiting, add-server-connected, add-server-failed.
 
 ## 16. Sign in
 
 The left brand panel is dark green and fades into the white form side through a pale mint transition (no hard edge). Behind the headline, a dot grid at 16px spacing twinkles slowly (5s) and a brighter band of dots sweeps left to right (7s). Both stop under `prefers-reduced-motion`. The form column is 340px, centered in the right half.
+
+## 17. Standardization rules (2026-10-18)
+
+- **Elevation scale** (one value per tier, nothing ad hoc): `e1` cards, tables, stat cards, empty states, choice cards: `0 1px 2px rgb(24 24 27 / .05)`. `e2` menus, popovers, tooltips: `0 12px 32px -8px rgb(0 0 0 / .18), 0 2px 6px rgb(0 0 0 / .06)`. `e3` dialogs, drawers, floating bulk bar: `0 24px 48px -12px rgb(24 24 27 / .28), 0 6px 14px -4px rgb(24 24 27 / .10), 0 0 0 1px rgb(24 24 27 / .06)`. Fields have no shadow. Buttons: secondary inset top highlight plus `0 1px 2px rgb(24 24 27 / .08)`; primary and destructive inset highlight, inset bottom line and a 1px drop shadow only (no glow).
+- **Radii**: field 14, card 10, control 8, chip 6, badge 4, dialog 16 (drawer rounds its left edge).
+- **Alignment**: page headers and everything inside a column are left aligned; actions in a page header sit at the right of the title row; form and wizard footers are right aligned (secondary left of primary); notes and helper text are left aligned. Only empty states and the first-run Overview are centered.
+- **Header and body widths match**: list pages use the 1040 header with the 1040 body; detail, form and wizard pages use the 760 header with the 760 body.
+- **Wizard pattern** (Add server, Connect an app): narrow header (title, one muted line, ghost Cancel at the right), a stepper, fields, right-aligned actions. Stepper: numbered 22px circles joined by 2px lines; done = green fill with a tick and a green line; current = green ring and ink label; upcoming = gray.
+- **Live rows** use a pulsing dot in the same slot as a status dot, never a different layout.
+
+## 18. Dark mode, end to end
+
+Every screen has a dark artboard (`<name>-dark`) next to its light one on the canvas, grouped by flow. The token values are in section 11. Layering rules:
+
+1. The page is `#111513`. Fields are sunken: darker than the page (`#0c0f0e`) with an inner shadow. Cards, tables and dialogs are raised above the field (`#1a201e`) with a hairline `#252c29` border and a faint top highlight; there are no white borders.
+2. Text `#e9efec`, muted `#8b9892`, faint `#6a7570`. Inline colors in legacy markup map: `#3f3f46` to `#c9d3ce`, `#71717a` to `#8b9892`, `#a1a1aa` to `#6a7570`.
+3. Status badges use dark tints (section 11); the critical badge stays solid. Dots keep their colors.
+4. Menus, popovers and dialogs use deeper shadows (`0 12px 32px -8px rgb(0 0 0 / .7)` and `0 24px 60px -12px rgb(0 0 0 / .75)`); cards use no outer shadow.
+5. Charts: histogram info bars `#3c6b55`, warn `#f5b942`, error `#e5484d`; uptime strips keep their greens.
+6. Inputs `#0f1311` with `#2a312e` border; checkboxes unchecked `#0f1311` with `#3a4540`, checked `#2a9f69`.
+7. Sign in: the brand panel fades into the page color (not white). Public status pages use the same dark tokens with the hero unchanged. CLI screens are terminals and keep their own dark palette in both themes.
+8. Theme switch lives in the account menu (Light, Dark, System). Default System.
+
+## 19. Sign in at every width, theme default
+
+- Layout is proportional, not fixed: 50/50 split at every width. The brand panel gradient covers the left 64 percent and fades into the page color. The right half centers a 340px form that never scales (max width 340).
+- Artboards at 1280, 1440, 1920 and 2560 (`login`, `login-1440`, `login-1920`, `login-2560`, each with a dark version) show the scaling: left padding 56, 64, 80, 96px; headline dot-matrix width 474, 520, 640, 760px; left content max width 560, 600, 680, 760px; capability text 14, 14, 16, 17px. Above 2560 center a max-width stage.
+- Left column content: eyebrow, dot-matrix headline, one sentence, three capability lines (Monitor your servers, sites and jobs; Collect product logs from your apps; Publish a status page for your users), footer. No statistics (there is no data source on an unauthenticated screen).
+- The Sign in button is the `lg` (36px) size.
+- **Theme follows the device by default.** The Console reads `prefers-color-scheme` and applies light or dark; the account menu offers Light, Dark and System, with System as the default and selected state. The user's explicit choice is stored in the browser. The sign-in screen follows the same rule.
+
+Dark mode details fixed after review (2026-10-18): the active state of segmented controls, tabs and the nav tray is one pattern, a raised chip (`#222926`, inset top highlight, small shadow) with no outline; there are no light or white borders anywhere (popovers, tokens, separators, inline dividers all use `#252c29` to `#2a312e`); checked checkboxes keep their tick (dark tick on `#2a9f69`); the incident facts panel keeps its 10px radius; toggles are `#2a312e` off and `#2a9f69` on. A script check over all dark artboards finds no light borders or light surfaces (except the brand mark on Sign in).
