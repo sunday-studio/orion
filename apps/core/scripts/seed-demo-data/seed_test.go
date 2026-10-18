@@ -11,11 +11,14 @@ import (
 	"gorm.io/gorm"
 )
 
-func seedForTest(t *testing.T, database *gorm.DB) {
+func seedForTest(t *testing.T, database *gorm.DB, dir string) {
 	t.Helper()
-	cfg := seedConfig{dbPath: filepath.Join(t.TempDir(), "x.db"), days: 3, agents: 10, reportInterval: 6 * time.Hour, resetSeed: true, updateSettings: true}
+	cfg := seedConfig{dbPath: filepath.Join(dir, "x.db"), days: 3, agents: 10, reportInterval: 6 * time.Hour, resetSeed: true, updateSettings: true}
 	if err := resetSeedData(database); err != nil {
 		t.Fatalf("reset: %v", err)
+	}
+	if err := resetSeedLogs(cfg.dbPath); err != nil {
+		t.Fatalf("reset logs: %v", err)
 	}
 	if _, err := seed(database, cfg); err != nil {
 		t.Fatalf("seed: %v", err)
@@ -41,9 +44,14 @@ func TestSeedCoversEveryState(t *testing.T) {
 	if err := db.Migrate(database); err != nil {
 		t.Fatal(err)
 	}
-	seedForTest(t, database)
+	dir := t.TempDir()
+	seedForTest(t, database, dir)
 	first := count(t, database, "SELECT COUNT(*) FROM monitors")
-	seedForTest(t, database)
+	logsFirst := logRowCount(t, dir)
+	seedForTest(t, database, dir)
+	if again := logRowCount(t, dir); again != logsFirst || again == 0 {
+		t.Fatalf("second seed changed the log line count: %d -> %d", logsFirst, again)
+	}
 	if again := count(t, database, "SELECT COUNT(*) FROM monitors"); again != first {
 		t.Fatalf("second seed changed the monitor count: %d -> %d", first, again)
 	}
@@ -126,4 +134,80 @@ func TestSeedCoversEveryState(t *testing.T) {
 	if n := count(t, database, "SELECT COUNT(*) FROM alert_deliveries WHERE id LIKE 'seed-%' AND status IN ('pending','failed') AND attempt_count < max_attempts AND (next_attempt_at IS NULL OR next_attempt_at < ?)", now.Add(time.Hour)); n != 0 {
 		t.Errorf("%d seeded deliveries are due within the hour; the worker would send them", n)
 	}
+}
+
+func logRowCount(t *testing.T, dir string) int {
+	t.Helper()
+	store, err := openSeedLogStore(filepath.Join(dir, "x.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	var n int
+	store.DB().Raw("SELECT COUNT(*) FROM log_entries").Scan(&n)
+	return n
+}
+
+func TestSeedCoversLogsAndSettings(t *testing.T) {
+	database, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Migrate(database); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	seedForTest(t, database, dir)
+	store, err := openSeedLogStore(filepath.Join(dir, "x.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	logCount := func(query string, args ...any) int {
+		t.Helper()
+		var n int
+		if err := store.DB().Raw(query, args...).Scan(&n).Error; err != nil {
+			t.Fatalf("%s: %v", query, err)
+		}
+		return n
+	}
+	atLeast := func(name string, n, min int) {
+		t.Helper()
+		if n < min {
+			t.Errorf("%s: %d, want at least %d", name, n, min)
+		}
+	}
+	for _, sev := range []string{"debug", "info", "warn", "error", "fatal"} {
+		atLeast("severity "+sev, logCount("SELECT COUNT(*) FROM log_entries WHERE app_id <> 'orion-internal' AND severity = ?", sev), 1)
+	}
+	for _, sev := range []string{"info", "warn", "error"} {
+		atLeast("internal severity "+sev, logCount("SELECT COUNT(*) FROM log_entries WHERE app_id = 'orion-internal' AND severity = ?", sev), 1)
+	}
+	atLeast("distinct events", logCount("SELECT COUNT(DISTINCT event) FROM log_entries WHERE event <> ''"), 10)
+	atLeast("plain text lines with inferred severity", logCount("SELECT COUNT(*) FROM log_entries WHERE severity_inferred = 1 AND severity = 'error'"), 1)
+	atLeast("structured bodies", logCount("SELECT COUNT(*) FROM log_entries WHERE body_json <> ''"), 100)
+	atLeast("correlated requests", logCount("SELECT COUNT(*) FROM (SELECT request_id FROM log_entries WHERE request_id <> '' GROUP BY request_id HAVING COUNT(*) >= 3)"), 50)
+	atLeast("internal components", logCount("SELECT COUNT(DISTINCT json_extract(attributes, '$.component')) FROM log_entries WHERE app_id = 'orion-internal'"), 4)
+	atLeast("lines in the last minute", logCount("SELECT COUNT(*) FROM log_entries WHERE app_id = ? AND ts > ?", appIDFor("billing-api"), time.Now().Add(-time.Minute).UnixNano()), 20)
+	if n := logCount("SELECT COUNT(*) FROM log_entries WHERE app_id = ?", appIDFor("umami")); n != 0 {
+		t.Errorf("umami should have no logs yet, has %d", n)
+	}
+	one := func(query string, args ...any) int {
+		t.Helper()
+		var n int
+		database.Raw(query, args...).Scan(&n)
+		return n
+	}
+	atLeast("apps", one("SELECT COUNT(*) FROM apps WHERE id LIKE 'seed-%'"), 5)
+	atLeast("never-ingested app", one("SELECT COUNT(*) FROM apps WHERE id LIKE 'seed-%' AND last_ingest_at IS NULL"), 1)
+	atLeast("keys: used, unused, revoked, rotating", one("SELECT COUNT(DISTINCT CASE WHEN revoked_at > ? THEN 'rotating' WHEN revoked_at IS NOT NULL THEN 'revoked' WHEN last_used_at IS NULL THEN 'unused' ELSE 'used' END) FROM app_ingest_keys WHERE id LIKE 'seed-%'", time.Now().UTC()), 4)
+	atLeast("size capped app", one("SELECT COUNT(*) FROM apps WHERE max_storage_mb > 0"), 1)
+	atLeast("custom redaction rules", one("SELECT COUNT(*) FROM apps WHERE redaction_json LIKE '%rules%'"), 1)
+	atLeast("display profile", one("SELECT COUNT(*) FROM apps WHERE display_json LIKE '%columns%'"), 1)
+	atLeast("saved views", one("SELECT COUNT(*) FROM log_saved_views WHERE id LIKE 'seed-%'"), 3)
+	atLeast("agent service logs at every level", one("SELECT COUNT(DISTINCT level) FROM service_log_entries WHERE id LIKE 'seed-%'"), 3)
+	atLeast("audit actors", one("SELECT COUNT(DISTINCT actor_id) FROM audit_events WHERE id LIKE 'seed-audit-%'"), 3)
+	atLeast("audit actor types", one("SELECT COUNT(DISTINCT actor_type) FROM audit_events WHERE id LIKE 'seed-audit-%'"), 2)
+	atLeast("api token scopes", one("SELECT COUNT(DISTINCT scope) FROM api_tokens WHERE id LIKE 'seed-%'"), 2)
+	atLeast("revoked and unused tokens", one("SELECT COUNT(*) FROM api_tokens WHERE id LIKE 'seed-%' AND (revoked_at IS NOT NULL OR last_used_at IS NULL)"), 2)
 }

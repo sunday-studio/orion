@@ -260,8 +260,12 @@ func (s *Server) rotateRegistrationTokenImpl(c *gin.Context) {
 
 // maskToken keeps the start and end of a secret so people can tell tokens apart.
 func maskToken(token string) string {
-	if len(token) <= 12 {
+	switch {
+	case len(token) <= 12:
 		return ""
+	case strings.HasPrefix(token, "orn_reg_"):
+		return token[:8] + "••••" + token[len(token)-4:]
+	default: // an operator-chosen secret: reveal as little as possible
+		return "••••" + token[len(token)-4:]
 	}
-	return token[:8] + "••••" + token[len(token)-4:]
 }

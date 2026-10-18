@@ -136,7 +136,14 @@ ahead, and silent monitors already have their stale incident. Set the same
 `ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET` for the seed and for Core (the dev compose file does) and the
 subscriber screens show full email addresses.
 
-Product logs are not seeded yet; they belong to the logs and settings work.
+- Logs and settings: five apps (receiving, quiet, never connected; one near its size cap, one with custom
+  redaction rules and a display profile, one that only sends plain text) with ingest keys that are in use,
+  unused, revoked and mid-rotation; about 8,000 log lines over a week across debug to fatal with correlated
+  requests, structured bodies, plain text lines whose severity is read from the text and a recently started
+  failure for the Patterns tab; Core's own log lines for Internal logs; agent service log lines; saved views;
+  one disabled log alert rule; an audit log with several people and API tokens; API tokens (read, write, unused,
+  revoked) and instance settings. Log lines live in `logs.db` next to the main database, so `-db` or
+  `-data-dir` decides where they go.
 
 ## Re-running
 
