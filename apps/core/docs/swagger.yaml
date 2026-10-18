@@ -8821,7 +8821,8 @@ paths:
   /v1/monitors/{id}:
     delete:
       description: Delete a Core-managed monitor. By default its check history is
-        deleted too; keep_history=true keeps it for 90 days. Incidents are never deleted.
+        deleted too; keep_history=false deletes it immediately; the default keeps
+        it for 90 days. Incidents are never deleted.
       operationId: deleteCoreMonitor
       parameters:
       - description: Monitor ID
@@ -8829,7 +8830,8 @@ paths:
         name: id
         required: true
         type: string
-      - description: Keep check history for 90 days (default false)
+      - description: Keep check history for 90 days (default true); false deletes
+          it now
         in: query
         name: keep_history
         type: boolean

@@ -216,7 +216,7 @@ func TestMonitorCloneAndDeleteWithOrWithoutHistory(t *testing.T) {
 
 	// Default delete removes history and keeps incidents.
 	server.db.Create(&db.Incident{ID: "i1", Number: 1, Status: "open", Severity: "low", Title: "x", AgentID: "a", MonitorID: id, OpenedAt: time.Now().UTC(), LastEventAt: time.Now().UTC(), Source: "monitor"})
-	if r := performJSONRequest(t, server, http.MethodDelete, "/v1/monitors/"+id, nil, ""); r.Code != http.StatusOK {
+	if r := performJSONRequest(t, server, http.MethodDelete, "/v1/monitors/"+id+"?keep_history=false", nil, ""); r.Code != http.StatusOK {
 		t.Fatalf("delete = %d", r.Code)
 	}
 	var reports, incidents, monitors int64
@@ -225,6 +225,11 @@ func TestMonitorCloneAndDeleteWithOrWithoutHistory(t *testing.T) {
 	server.db.Model(&db.Monitor{}).Where("id = ?", id).Count(&monitors)
 	if reports != 0 || incidents != 1 || monitors != 0 {
 		t.Fatalf("after default delete reports=%d incidents=%d monitors=%d", reports, incidents, monitors)
+	}
+	var closed db.Incident
+	server.db.First(&closed, "id = ?", "i1")
+	if closed.Status != "resolved" || closed.ResolutionKind != "monitor_removed" {
+		t.Fatalf("incident of a deleted monitor = %+v", closed)
 	}
 
 	// keep_history=true soft-deletes; retention purges it after 90 days.
@@ -244,5 +249,32 @@ func TestMonitorCloneAndDeleteWithOrWithoutHistory(t *testing.T) {
 	server.db.Model(&db.MonitorReport{}).Where("monitor_id = ?", cid).Count(&reports)
 	if reports != 0 {
 		t.Fatalf("reports after purge = %d", reports)
+	}
+}
+
+// Review P1: list enrichment must not scan a monitor's whole history.
+func TestMonitorListStaysFastWithLargeHistory(t *testing.T) {
+	server := setupTestServer(t)
+	registerTestAgent(t, server)
+	ids := []string{}
+	for i := 0; i < 5; i++ {
+		m := createHTTPMonitor(t, server, fmt.Sprintf("big-%d", i), nil)
+		ids = append(ids, m.Data.Monitor.ID)
+	}
+	for _, id := range ids {
+		// 100k always-up reports per monitor via a recursive CTE (fast, no per-row Go work).
+		if err := server.db.Exec(`WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM n WHERE i < 100000)
+			INSERT INTO monitor_reports (id, monitor_id, payload, collected_at, health, created_at)
+			SELECT ? || '-' || i, ?, '{"runner":"core","duration_ms":50}', '', 'up', datetime('now', '-' || (i * 30) || ' seconds') FROM n`, id, id).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	start := time.Now()
+	resp := performJSONRequest(t, server, http.MethodGet, "/v1/monitors", nil, "")
+	if resp.Code != http.StatusOK {
+		t.Fatalf("list = %d", resp.Code)
+	}
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Fatalf("list over 500k reports took %v, want index-bounded work", elapsed)
 	}
 }

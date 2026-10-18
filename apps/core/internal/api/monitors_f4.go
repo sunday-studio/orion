@@ -27,7 +27,6 @@ func (s *Server) enrichMonitorRows(rows []MonitorResponse, monitors []db.Monitor
 	}
 	agents := s.monitorAgentsByID(monitors)
 	recent := s.recentMonitorChecks(ids)
-	lastFailure := s.lastNonUpCheck(ids)
 	for i := range rows {
 		m := monitors[i]
 		health := effectiveMonitorHealth(m)
@@ -45,11 +44,7 @@ func (s *Server) enrichMonitorRows(rows []MonitorResponse, monitors []db.Monitor
 		checks := recent[m.ID]
 		r.RecentChecks = checkStates(checks)
 		since, detail := failureFromChecks(checks)
-		upSince := m.CreatedAt
-		if t, ok := lastFailure[m.ID]; ok {
-			upSince = t
-		}
-		r.StatusText, r.StatusDetail = monitorStatusFor(m, cfg, isCore, health, since, detail, upSince)
+		r.StatusText, r.StatusDetail = monitorStatusFor(m, cfg, isCore, health, since, detail, s.upSince(m, checks))
 	}
 }
 
@@ -59,20 +54,18 @@ type recentCheck struct {
 	createdAt time.Time
 }
 
-// recentMonitorChecks loads the newest recentCheckCount reports per monitor, newest first.
+// recentMonitorChecks loads the newest recentCheckCount reports per monitor, newest first. One
+// index-ordered LIMIT query per monitor keeps the cost independent of how much history exists.
 func (s *Server) recentMonitorChecks(ids []string) map[string][]recentCheck {
-	var rows []struct {
-		MonitorID string
-		Health    string
-		Payload   string
-		CreatedAt time.Time
-	}
-	s.db.Raw(`SELECT monitor_id, health, payload, created_at FROM (
-		SELECT monitor_id, health, payload, created_at, ROW_NUMBER() OVER (PARTITION BY monitor_id ORDER BY created_at DESC) AS rn
-		FROM monitor_reports WHERE monitor_id IN ?) WHERE rn <= ? ORDER BY monitor_id, created_at DESC`, ids, recentCheckCount).Scan(&rows)
 	out := make(map[string][]recentCheck, len(ids))
-	for _, r := range rows {
-		out[r.MonitorID] = append(out[r.MonitorID], recentCheck{health: r.Health, payload: r.Payload, createdAt: r.CreatedAt})
+	for _, id := range ids {
+		var rows []db.MonitorReport
+		if err := s.db.Select("health", "payload", "created_at").Where("monitor_id = ?", id).Order("created_at DESC").Limit(recentCheckCount).Find(&rows).Error; err != nil {
+			continue
+		}
+		for _, r := range rows {
+			out[id] = append(out[id], recentCheck{health: r.Health, payload: r.Payload, createdAt: r.CreatedAt})
+		}
 	}
 	return out
 }
@@ -166,21 +159,18 @@ func monitorStatusFor(m db.Monitor, cfg db.CoreMonitorConfig, isCore bool, healt
 	}
 }
 
-// lastNonUpCheck is the time of each monitor's most recent failing check, for "Up 3d".
-func (s *Server) lastNonUpCheck(ids []string) map[string]time.Time {
-	var rows []struct {
-		MonitorID string
-		Last      string
-	}
-	s.db.Raw(`SELECT monitor_id, MAX(created_at) AS last FROM monitor_reports WHERE monitor_id IN ? AND health <> 'up' GROUP BY monitor_id`, ids).Scan(&rows)
-	out := make(map[string]time.Time, len(rows))
-	for _, r := range rows {
-		for _, layout := range []string{"2006-01-02 15:04:05.999999999-07:00", "2006-01-02 15:04:05.999999999Z07:00", time.RFC3339Nano} {
-			if t, err := time.Parse(layout, r.Last); err == nil {
-				out[r.MonitorID] = t
-				break
-			}
+// upSince estimates how long a healthy monitor has been up: the newest failing check among the
+// recent ones, else the last day with failures in the daily rollups (day granularity), else its age.
+func (s *Server) upSince(m db.Monitor, recent []recentCheck) time.Time {
+	for _, c := range recent {
+		if c.health != "up" {
+			return c.createdAt
 		}
 	}
-	return out
+	var last string
+	s.db.Model(&db.MonitorUptimeRollup{}).Select("MAX(date)").Where("monitor_id = ? AND (down_count > 0 OR degraded_count > 0)", m.ID).Scan(&last)
+	if t, err := time.Parse("2006-01-02", last); err == nil && t.AddDate(0, 0, 1).After(m.CreatedAt) {
+		return t.AddDate(0, 0, 1)
+	}
+	return m.CreatedAt
 }

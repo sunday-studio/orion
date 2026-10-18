@@ -105,18 +105,18 @@ func (s *Server) updateCoreMonitor(c *gin.Context) {
 
 // deleteCoreMonitor deletes a Core-managed monitor.
 // @Summary      Delete a Core monitor
-// @Description  Delete a Core-managed monitor. By default its check history is deleted too; keep_history=true keeps it for 90 days. Incidents are never deleted.
+// @Description  Delete a Core-managed monitor. By default its check history is deleted too; keep_history=false deletes it immediately; the default keeps it for 90 days. Incidents are never deleted.
 // @Tags         monitors
 // @Produce      json
 // @ID           deleteCoreMonitor
 // @Param        id            path      string true  "Monitor ID"
-// @Param        keep_history  query     bool   false "Keep check history for 90 days (default false)"
+// @Param        keep_history  query     bool   false "Keep check history for 90 days (default true); false deletes it now"
 // @Success      200  {object}  utils.APIResponse{data=object{success=bool}}
 // @Failure      404  {object}  utils.APIResponse
 // @Failure      500  {object}  utils.APIResponse
 // @Router       /v1/monitors/{id} [delete]
 func (s *Server) deleteCoreMonitor(c *gin.Context) {
-	if err := s.coreMonitorManagementService.DeleteCoreMonitorWith(c.Param("id"), utils.QueryBool(c, "keep_history", false)); err != nil {
+	if err := s.coreMonitorManagementService.DeleteCoreMonitorWith(c.Param("id"), utils.QueryBool(c, "keep_history", true)); err != nil {
 		s.handleCoreMonitorManagementError(c, err, "Failed to delete core monitor")
 		return
 	}

@@ -86,6 +86,17 @@ func (s *CoreMonitorManagementService) CloneCoreMonitor(monitorID string) (*Core
 		}
 		name = fmt.Sprintf("%s copy %d", strings.TrimSpace(source.Monitor.Name), i)
 	}
+	for attempt := 0; ; attempt++ {
+		record, err := s.cloneAs(source, config, secrets, name)
+		if err != nil && attempt < 5 && strings.Contains(err.Error(), "UNIQUE") {
+			name = fmt.Sprintf("%s copy %d", strings.TrimSpace(source.Monitor.Name), attempt+3)
+			continue
+		}
+		return record, err
+	}
+}
+
+func (s *CoreMonitorManagementService) cloneAs(source *CoreManagedMonitorRecord, config, secrets map[string]interface{}, name string) (*CoreManagedMonitorRecord, error) {
 	return s.CreateCoreMonitor(CoreManagedMonitorCreateRequest{
 		Name: name, Description: source.Monitor.Description, Type: source.Monitor.Type, Kind: source.Config.Kind, Config: config, SecretRefs: secrets,
 		IntervalSeconds: source.Config.IntervalSeconds, TimeoutSeconds: source.Config.TimeoutSeconds, ConfirmationPeriodSeconds: source.Config.ConfirmationPeriodSeconds,
@@ -119,6 +130,9 @@ func (s *CoreMonitorManagementService) DeleteCoreMonitorWith(monitorID string, k
 		if err := ensureCoreMonitorExists(tx, monitorID); err != nil {
 			return err
 		}
+		if err := resolveIncidentsForRemovedMonitor(tx, s.logger, monitorID); err != nil {
+			return err
+		}
 		if !keepHistory {
 			return purgeMonitorsHistory(tx, []string{monitorID})
 		}
@@ -137,4 +151,23 @@ func (s *CoreMonitorManagementService) DeleteCoreMonitorWith(monitorID string, k
 			"updated_at":       now,
 		}).Error
 	})
+}
+
+// resolveIncidentsForRemovedMonitor closes the monitor's active incident (resolution kind
+// monitor_removed) and stops its undelivered alerts, so nothing pages for a deleted monitor.
+func resolveIncidentsForRemovedMonitor(tx *gorm.DB, logger *utils.Logger, monitorID string) error {
+	incidents := NewIncidentService(tx, logger, nil)
+	incidents.inTransaction = true
+	incident, found, err := incidents.findActiveIncident(monitorID)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return nil
+	}
+	if err := incidents.resolveIncidentRecordTx(incident, "Monitor removed; active incident resolved", "", "unknown", "monitor_removed", false, incidentSystemEventMetadata()); err != nil {
+		return err
+	}
+	return tx.Model(&db.AlertDelivery{}).Where("incident_id = ? AND status IN ?", incident.ID, []string{"pending", "failed"}).
+		Updates(map[string]any{"status": "suppressed", "error": "monitor removed", "locked_until": nil}).Error
 }
