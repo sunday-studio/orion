@@ -80,7 +80,7 @@ func (s *Server) getPublicSubscribePage(c *gin.Context) {
 // postPublicSubscribePage takes the subscribe form. It answers the same whether or not the address was
 // already subscribed, so the form cannot be used to find out who is on a list.
 // @Summary      Submit public subscribe form
-// @Description  Form submit of the subscribe page; mails a confirmation link. Answers the same for known and new addresses.
+// @Description  Form submit of the subscribe page; mails a confirmation link. Answers the same for known and new addresses. When scope is selected, send one repeated component_ids form field per component (not modelled here because generated clients cannot type repeated form fields).
 // @Tags         public-status
 // @Accept       x-www-form-urlencoded
 // @Produce      html
@@ -88,7 +88,6 @@ func (s *Server) getPublicSubscribePage(c *gin.Context) {
 // @Param        slug          path      string    true   "Status page slug"
 // @Param        email         formData  string    true   "Email address"
 // @Param        scope         formData  string    false  "all or selected" Enums(all, selected)
-// @Param        component_ids formData  []string  false  "Components when scope is selected"
 // @Success      200   {string}  string  "HTML page"
 // @Failure      400   {string}  string  "HTML page with the error"
 // @Failure      404   {object}  utils.APIResponse
@@ -197,14 +196,13 @@ func (s *Server) expiredManageHTML(c *gin.Context, page db.StatusPage) {
 // postPublicSubscriberPreferencesForm saves the manage form. Unlike the JSON PUT it keeps the links in the
 // subscriber's inbox working, because the page is reloaded from the same address.
 // @Summary      Save subscriber preferences (form)
-// @Description  Form submit of the manage page; keeps the manage and unsubscribe links valid
+// @Description  Form submit of the manage page; keeps the manage and unsubscribe links valid. Send one repeated component_ids form field per selected component; selecting every component means all components; at least one is required.
 // @Tags         public-status
 // @Accept       x-www-form-urlencoded
 // @Produce      html
 // @ID           postPublicStatusPageSubscriberPreferencesForm
 // @Param        slug          path      string    true   "Status page slug"
 // @Param        token         path      string    true   "Manage token"
-// @Param        component_ids formData  []string  false  "Selected components; none or all means all"
 // @Success      200   {string}  string  "HTML page"
 // @Failure      404   {object}  utils.APIResponse
 // @Failure      429   {object}  utils.APIResponse
