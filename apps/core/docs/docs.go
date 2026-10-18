@@ -768,7 +768,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Form submit of the subscribe page; mails a confirmation link. Answers the same for known and new addresses.",
+                "description": "Form submit of the subscribe page; mails a confirmation link. Answers the same for known and new addresses. When scope is selected, send one repeated component_ids form field per component (not modelled here because generated clients cannot type repeated form fields).",
                 "consumes": [
                     "application/x-www-form-urlencoded"
                 ],
@@ -803,16 +803,6 @@ const docTemplate = `{
                         "type": "string",
                         "description": "all or selected",
                         "name": "scope",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "Components when scope is selected",
-                        "name": "component_ids",
                         "in": "formData"
                     }
                 ],
@@ -1168,7 +1158,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Form submit of the manage page; keeps the manage and unsubscribe links valid",
+                "description": "Form submit of the manage page; keeps the manage and unsubscribe links valid. Send one repeated component_ids form field per selected component; selecting every component means all components; at least one is required.",
                 "consumes": [
                     "application/x-www-form-urlencoded"
                 ],
@@ -1194,16 +1184,6 @@ const docTemplate = `{
                         "name": "token",
                         "in": "path",
                         "required": true
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "Selected components; none or all means all",
-                        "name": "component_ids",
-                        "in": "formData"
                     }
                 ],
                 "responses": {
