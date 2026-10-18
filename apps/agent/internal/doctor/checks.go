@@ -1,6 +1,7 @@
 package doctor
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -331,10 +332,13 @@ func checkLogSources(ctx context.Context, e *Env) Result {
 	if endpoint == "" {
 		endpoint = strings.TrimRight(e.Config.CoreURL, "/") + "/v1/ingest/logs"
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	// Core intentionally exposes ingest as POST only. An empty array does not
+	// create a log entry, while a 401/400 still proves the route is reachable.
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewBufferString("[]"))
 	if err != nil {
 		return fail("invalid ingest endpoint", "set logs.endpoint to the Core /v1/ingest/logs URL")
 	}
+	req.Header.Set("Content-Type", "application/json")
 	client := e.HTTP
 	if client == nil {
 		client = &http.Client{Timeout: 6 * time.Second}
