@@ -11,7 +11,7 @@
 body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
 a{color:inherit}
 .wrap{max-width:970px;margin:0 auto;padding:36px 24px 56px;display:flex;flex-direction:column;gap:32px}
-main{display:flex;flex-direction:column;gap:36px}
+main{display:flex;flex-direction:column;gap:24px}
 .top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:10px;font-weight:500;font-size:16px;text-decoration:none}
 .mk{width:22px;height:22px;border-radius:7px;background:var(--deep);color:var(--mint);display:inline-flex;align-items:center;justify-content:center;overflow:hidden}
