@@ -14,6 +14,7 @@
   --color-chip: #ffffff;
   --color-line-soft: #f4f4f5;
   --color-mid: #57534e;
+  --color-selected-row: #f0f8f3;
   --color-hairline: #ececea;
   --color-input-border: #e4e4e7;
   --color-ink: #18181b;
@@ -80,6 +81,7 @@
   --color-chip: #2a302d;
   --color-line-soft: #222926;
   --color-mid: #c4ccc8;
+  --color-selected-row: #14231c;
   --color-hairline: #252c29;
   --color-input-border: #343b37;
   --color-ink: #ededed;
