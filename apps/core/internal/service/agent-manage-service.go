@@ -158,6 +158,13 @@ func (s *AgentService) DecommissionAgent(agentID string, keepHistory bool, actor
 		if err := tx.Model(&db.Monitor{}).Where("agent_id = ?", agent.ID).Updates(map[string]any{"lifecycle": "deleted", "deleted_at": now}).Error; err != nil {
 			return err
 		}
+		// A removed server must not keep a public status page component stale or down.
+		if err := tx.Where("resource_type = ? AND resource_id IN ?", "monitor", monitorIDsOrNone(monitorIDs)).Delete(&db.StatusPageComponentMapping{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("resource_type = ? AND resource_id = ?", "agent", agent.ID).Delete(&db.StatusPageComponentMapping{}).Error; err != nil {
+			return err
+		}
 		if !keepHistory {
 			if err := purgeAgentHistory(tx, []string{agent.ID}); err != nil {
 				return err
@@ -211,4 +218,11 @@ func PurgeDecommissionedAgents(database *gorm.DB, logger *utils.Logger, now time
 	}
 	logger.Info("Purged decommissioned servers", "count", len(ids))
 	return int64(len(ids)), nil
+}
+
+func monitorIDsOrNone(ids []string) []string {
+	if len(ids) == 0 {
+		return []string{""}
+	}
+	return ids
 }
