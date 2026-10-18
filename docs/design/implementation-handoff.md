@@ -2,7 +2,7 @@
 
 Read `design-language.md` (rules and tokens) first, then this file. The canvas is https://claude.ai/artifact/L7gFM2gipuTveU5hkGqMRY; artboard names below match its file names (`<name>.dc.html`). `screen-map.md` numbers screens; this file maps them to code and API. API items marked "approved" are covered by D-004; items marked "proposed" need a Core route, OpenAPI annotations and `docs/agent-core-contract.md` review before the UI can ship, so build the screen against a typed stub and a feature flag.
 
-**Artboard exports (build 1:1 from these).** Every canvas artboard is exported to `docs/design/artboards/`: `<name>.html` (self-contained, shared `orion.css`), `png/<name>-light.png` and `-dark.png` at 1280px, and `README.md` with the artboard to screen-map to route to Console file index. Artboard names in the table below match those files. Compare each screen to its PNG during review.
+**Artboard exports (build 1:1 from these).** Every screen now has a light and a dark artboard (`<name>.html` and `<name>-dark.html`), grouped by flow on the canvas. Every canvas artboard is exported to `docs/design/artboards/`: `<name>.html` (self-contained, shared `orion.css`), `png/<name>-light.png` and `-dark.png` at 1280px, and `README.md` with the artboard to screen-map to route to Console file index. Artboard names in the table below match those files. Compare each screen to its PNG during review.
 
 ## 1. Build order
 
@@ -17,7 +17,7 @@ Read `design-language.md` (rules and tokens) first, then this file. The canvas i
 | Artboard(s) | Route | Console file | API |
 |---|---|---|---|
 | login, session-expired | `/login` | `features/auth/login.view.tsx` | existing |
-| Main (Overview), overview-all-good, onboarding, dashboard-dark | `/` (D-003) | new `features/overview/` | `/v1/health/summary`, `/v1/health/issues`, `/v1/incidents` |
+| Main (Overview), overview-all-good, onboarding | `/` (D-003) | new `features/overview/` | `/v1/health/summary`, `/v1/health/issues`, `/v1/incidents` |
 | health-issues | `/health` or panel | new | `/v1/health/issues` |
 | incidents-list, incidents-bulk, incidents-empty | `/incidents` | `features/incidents/` | existing; bulk proposed |
 | incident-detail, incident-resolved, incident-actions, incident-public-update | `/incidents/:id` | `features/incidents/incident-detail.view.tsx` | existing |
@@ -92,26 +92,51 @@ Compare each screen to its artboard at 1280px width. Check: one-line rows, cente
 
 ## 7. Feature 1 (Entry and home): data and API notes
 
-Checked against `apps/core/openapi.yaml` on 2026-10-18. Where the first drawing used data Core does not have, the artboard was changed (Overview, Add server connected).
+Checked against `apps/core/openapi.yaml` on 2026-10-18 after the F1 APIs landed.
 
-**Overview** (`Main`, `overview-all-good`, `dashboard-dark`, `onboarding`)
-- Greeting uses the signed-in username. Header health chip: `GET /v1/health/summary` `overall_health` and the count of down, degraded and stale monitors.
-- Stat cards: Monitors up = `health/summary.monitors.up` of `.total`. Servers up = `GET /v1/agents/summary` `up` of `total`. Open incidents = count of `GET /v1/incidents` with status open.
-- Needs you now: the highest-severity open incident from `GET /v1/incidents` (`title`, `severity`, `status`, `opened_at`, `latest_event`, `notification_status`, `allowed_actions`). Tracker: Detected = `opened_at`; Notified from `notification_status` (sent, failed shows an amber "Not delivered"); Acknowledged and Resolved from `status`. The Acknowledge button calls `POST /v1/incidents/{id}/acknowledge`.
-- Needs attention: `GET /v1/health/issues` (`monitor_name`, `agent_name`, `monitor_type`, `health`). Columns are monitor, server, type, status. Show five, then a link. There is no "since" field, so the artboard has none.
-- Ongoing incidents: open and acknowledged incidents, duration from `opened_at`. Recent incidents: resolved, duration `resolved_at` minus `opened_at`.
-- Removed because Core has no source: the 90-day per-service uptime strips and the organization-wide 30-day uptime percentage. If wanted later: `GET /v1/overview` (proposed).
-- States: first run when agents total and monitors total are both 0 (`onboarding`, with a dismiss link, D-006); all good when `overall_health` is up and no incident is open (`overview-all-good`); dark is `dashboard-dark`.
+**Overview** (`Main`, `overview-all-good`, `Main-dark`, `onboarding`): one call, `GET /v1/overview`.
+- Greeting uses `GET /v1/auth/me`. Header health chip: `health_issue_count` and `state` (empty, ok, issues).
+- Stat cards: Monitors up = `stats.monitors_up` of `monitors_total`; Servers reporting = `servers_reporting` of `servers_total`; Uptime, 30 days = `uptime_30d_percent`, which is null until a daily rollup exists, so show "No data yet" in that card until then.
+- Needs you now: `needs_you` (`title`, `severity`, `status`, `summary`, `opened_at`, `notified_at`, `acknowledged_at`, `duration_seconds`). Tracker: Detected = `opened_at`, Notified = `notified_at`, Acknowledged = `acknowledged_at`, Resolved = `resolved_at`. The summary line is the incident `summary`. Acknowledge calls `POST /v1/incidents/{id}/acknowledge`.
+- Server health: `services` (the artboard calls it Server health): per server, worst first, at most 8, with `status`, `uptime_percent` and a 90 day strip of `days` (`up`, `warn`, `down`, `none`).
+- Ongoing incidents: `ongoing_incidents`, `ongoing_incident_count`. Recent incidents: `recent_incidents`, duration from `duration_seconds`.
+- States: `state = empty` and `first_run` flags drive the first-run screen (all four flags false, with the dismissible card, D-006); `state = ok` shows the all-good screen; `state = issues` shows Needs you now.
 
 **Sign in** (`login`): `POST /v1/auth/login`. Error callout text is the API message. No sign-up.
 
-**Add server** (`add-server`, `add-server-waiting`, `add-server-connected`, `add-server-failed`)
-- Today `POST /v1/register` is called by the agent with the static `X-Orion-Enrollment-Token` header (env `ORION_ENROLLMENT_TOKEN` on Core). The one-time, expiring token in the artboards (15 minutes) needs a new endpoint, for example `POST /v1/enrollment-tokens` returning `token` and `expires_at`. Until it exists, the Console shows the command with the static token and omits the expiry line.
-- "Waiting" and "connected": poll `GET /v1/agents` for an agent created after the page opened (an agent-connected event would be better). Waiting steps map to installer output; only "registered" and "first report" are observable from Core, so the first two steps are shown as soon as the agent registers.
-- The agent token is returned to the agent, never to the Console, so the connected screen shows where it is stored on the host and links to the Token tab (rotate), not the secret.
-- Not connected after 5 minutes: static doctor checklist, no API.
+**Add server** (`add-server`, `add-server-waiting`, `add-server-connected`, `add-server-failed`; D-028)
+- Platform tiles: Linux and macOS only (Windows is out of scope, D-014; running the agent as a container is out until the last item before go-live, D-031). `POST /v1/enrollments` with the tile as `platform` returns a one-time `token`, `install_command` and `expires_at` (15 minutes). The token is shown only in the command.
+- The waiting screen has a static list labelled "The command will:" (download and verify, create user and directories, install and start the service, register, run doctor). It never ticks, because Core cannot observe those steps.
+- Live states are only three, from polling `GET /v1/enrollments/{id}`: waiting (`waiting`, `claimed`, `registered`), connected (`reporting`, with `agent_name`, `agent_os`, `agent_arch`, `agent_version`, `first_report_at`), not connected (`expired`, or no report 5 minutes after the command was shown).
+- The agent token goes to the agent, not the Console. There is no shown-once token panel on any add-server artboard.
 
-**Connect an app** (`app-connect-create`, `-snippet`, `-waiting`, `-received`)
-- Create: `POST /v1/apps`. Key: `POST /v1/apps/{id}/keys` returns the secret once. Snippets are client-side. Waiting: poll the app (`GET /v1/apps/{id}`) or the logs list for the first line. "Send a test log": `POST /v1/apps/{id}/test-log`. Received row is the first log from the logs list.
+**Connect an app** (`app-connect-create`, `-snippet`, `-waiting`, `-received`): create `POST /v1/apps`; key `POST /v1/apps/{id}/keys` returns the secret once; snippets are client-side; waiting polls the app or the logs list for the first line; "Send a test log" is `POST /v1/apps/{id}/test-log`.
 
-**Command palette, account menu, shortcuts**: client side. Palette searches already loaded monitors, incidents and servers and lists static actions. Theme and timezone are stored in the browser until a settings endpoint exists. Sign out clears the token.
+**Command palette**: `GET /v1/search?q=` (at most 5 hits per type, grouped monitor, incident, server, app) plus static actions. **Account menu**: theme and timezone stored in the browser until a settings endpoint exists; sign out clears the token. **Shortcuts**: client side.
+
+## 8. Feature 2 (Incidents): data and API notes
+
+Checked against `apps/core/openapi.yaml` on 2026-10-18. Artboards: `incidents-list`, `incidents-bulk`, `incidents-empty`, `incident-detail`, `incident-resolved`, `incident-actions`, `incident-declare`, `incident-public-update`, `incident-candidates`, `health-issues` (each with a `-dark` version).
+
+**Incidents list** (`GET /v1/incidents`)
+- Row fields: `title`, `severity` (low, medium, high, critical), `status` (open, acknowledged, covered, resolved), `monitor_name`, `agent_name`, `notification_status`, `opened_at`. The ID column shows the display number `INC-####` (backend pending: ids are opaque strings today).
+- Default filter is active statuses (`open,acknowledged,covered`). Filter tokens map to query params: Status (`status`), Server (`agent_id`), Monitor (`monitor_id`), Resolved by (`actor`: manual or system), Covered (`covered`), Notification (`notification_status`). The quick view "Needs review" is `needs_review=true`; "Resolved" switches `status=resolved`. The artboard has no "Opened in last 7 days" token because there is no date param.
+- Notified column is `notification_status` (Sent, Not delivered).
+- Bulk actions (Acknowledge, Cover, Resolve on selected rows) are proposed; until then run the single-incident calls per row.
+
+**Incident detail** (`GET /v1/incidents/{id}`, `/timeline`, `/logs`)
+- Header actions come from `allowed_actions` (hide an action that is not allowed). Tracker: Detected = `opened_at`, Notified = `notification_status`, Acknowledged and Resolved from `status` and the timeline. Summary line is `latest_event`.
+- Source panel: monitor, monitor type, server. Notifications panel: per-channel delivery results (from the notifications tab data). Impacted: `impacted_components`. Duration: time to acknowledge and resolve from timeline and `resolved_at`.
+- Tabs: Timeline (`/timeline`, events have `type`, `message`, `note`, `actor_type`), Checks (monitor history), Notifications (alert deliveries for this incident), Logs (`/incidents/{id}/logs`).
+- There is no responder or assignee and no free-form comment endpoint, so neither appears. Notes are entered only in the Acknowledge, Cover and Resolve dialogs.
+- Draft update opens the public update dialog.
+
+**Actions** (`POST .../acknowledge`, `/cover`, `/resolve`, `/reopen`): acknowledge and resolve take an optional note; cover takes an optional `covered_until` timestamp and note (the dialog offers 1 hour, 4 hours, tomorrow, custom). Resolved incidents show `resolution_kind` (automatic or manual) and `reopen_count`.
+
+**Declare incident** (proposed `POST /v1/incidents`): title, severity, monitor, optional note. It needs a monitor because incidents hang off monitors today.
+
+**Public update** (`POST /v1/status-pages/{id}/incidents/{incident_id}/updates`, create the public incident from `.../incidents/draft` first): public status (investigating, identified, monitoring, resolved) and message. If no public incident exists for this internal incident, posting creates a draft one first (shown as a callout).
+
+**Triage** (`GET /v1/incidents/candidates`, `POST .../{id}/dismiss`): row fields are `monitor_name`, `agent_name`, `monitor_type`, `health` (down, degraded, stale), `severity`, `down_count` ("N of 5 reports down"). Open incident creates the incident from the candidate. There is no seen-at time or description text.
+
+**Health issues** (`GET /v1/health/issues`): `monitor_name`, `agent_name`, `monitor_type`, `health`, `issue_type` (stale_data shows "No recent data"). Monitors only, no servers; no "since" field.
