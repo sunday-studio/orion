@@ -1,0 +1,35 @@
+---
+import Base from "./Base.astro";
+import { getCollection } from "astro:content";
+import "../styles/docs.css";
+interface Props { title: string; description: string; slug?: string }
+const { title, description, slug = "" } = Astro.props;
+const all = (await getCollection("docs")).sort((a, b) => a.data.order - b.data.order);
+const groups = ["Start", "Guides", "Reference"].map((g) => [g, all.filter((d) => d.data.group === g)] as const);
+const idx = all.findIndex((d) => d.id === slug);
+const prev = idx > 0 ? all[idx - 1] : undefined;
+const next = idx >= 0 && idx < all.length - 1 ? all[idx + 1] : undefined;
+---
+<Base title={`${title} · Orion docs`} description={description} nav="Docs" footer={false}>
+  <div class="docs wrap">
+    <aside class="side" aria-label="Documentation">
+      {groups.map(([g, items]) => (
+        <div class="grp"><div class="gt">{g}</div>
+          {items.map((d) => <a href={`/docs/${d.id}/`} class={d.id === slug ? "on" : ""}>{d.data.title}</a>)}
+        </div>
+      ))}
+    </aside>
+    <article class="doc">
+      <div class="crumb">Docs{slug && <> / <span>{title}</span></>}</div>
+      <h1>{title}</h1>
+      <p class="sub">{description}</p>
+      <div class="prose"><slot /></div>
+      {(prev || next) && (
+        <nav class="pn">
+          {prev ? <a href={`/docs/${prev.id}/`}><small>Previous</small>{prev.data.title}</a> : <span />}
+          {next ? <a class="r" href={`/docs/${next.id}/`}><small>Next</small>{next.data.title}</a> : <span />}
+        </nav>
+      )}
+    </article>
+  </div>
+</Base>
