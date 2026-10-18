@@ -1,0 +1,6 @@
+---
+interface Props { id: string }
+const { id } = Astro.props;
+---
+<input type="checkbox" id={id} class="sx rx" />
+<label for={id} class="done"><span class="bx"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></span><span class="t">Done when</span> <b><slot /></b></label>

@@ -1,0 +1,32 @@
+/* Small screens. The design is specified at 1280; below that the layout stacks. */
+@media (max-width: 1100px) {
+  .dg { grid-template-columns: 220px minmax(0, 1fr); }
+  .toc { display: none; }
+}
+@media (max-width: 900px) {
+  .nv { padding: 0 20px; }
+  .nl { display: none; }
+  .dsrch { width: auto; }
+  .dsrch kbd { display: none; }
+  .sec, .sec3 { padding-left: 20px; padding-right: 20px; }
+  .h1 { font-size: 48px !important; }
+  .h2 { font-size: 32px; }
+  .stgrid { grid-template-columns: repeat(2, 1fr); }
+  .bn { grid-template-columns: 1fr; }
+  .bn .cell { grid-column: auto; }
+  .gcs { grid-template-columns: 1fr; }
+  .frame, .x1w .tbs { max-width: 100%; }
+  .tbs { flex-wrap: wrap; }
+  .dg { grid-template-columns: 1fr; padding: 0 20px; gap: 0; }
+  .side { display: flex; flex-wrap: wrap; gap: 4px 18px; padding: 16px 0 0; }
+  .side .grp { margin: 0; }
+  .qg, .tg3 { grid-template-columns: 1fr; padding-left: 20px; padding-right: 20px; }
+  .dh { padding-left: 20px; padding-right: 20px; }
+  .help { margin-left: 20px; margin-right: 20px; flex-direction: column; align-items: flex-start; gap: 16px; }
+  .ft { padding-left: 20px; padding-right: 20px; flex-direction: column; gap: 12px; }
+}
+@media (max-width: 560px) {
+  .stgrid { grid-template-columns: 1fr; }
+  .h1 { font-size: 38px !important; }
+  .pn { grid-template-columns: 1fr; }
+}
