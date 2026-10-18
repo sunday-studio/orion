@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
-import { EmptyState, Skeleton, Tabs, TabsList, TabsPanel, TabsTab } from "@/design-system";
+import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Callout, EmptyState, Skeleton, Tabs, TabsList, TabsPanel, TabsTab } from "@/design-system";
 import type { ServerRow } from "@/features/agents/server-format";
 import { useNow } from "@/features/overview/overview-time";
-import { type ApiAgentReportResponse, useGetAgent } from "@/orion-sdk";
+import { incidentLabel } from "@/features/incidents/incident-format";
+import { type ApiAgentReportResponse, useGetAgent, useGetIncidents } from "@/orion-sdk";
 import { AgentLogsTab } from "./components/agent-logs-tab";
 import { AgentMonitorsTab } from "./components/agent-monitors-tab";
 import { ServerEditDialog } from "./components/server-edit-dialog";
@@ -31,6 +32,12 @@ export const AgentDetailPage = () => {
   const [editing, setEditing] = useState(false);
   const [removing, setRemoving] = useState(false);
 
+  const incidents = useGetIncidents({
+    agent_id: agentId,
+    status: "open,acknowledged,covered",
+    limit: 1,
+  });
+  const activeIncident = incidents.data?.incidents?.[0];
   const agent = query.data?.agent as ServerRow | undefined;
   const latest = (query.data?.latest_report ?? undefined) as ApiAgentReportResponse | undefined;
 
@@ -65,6 +72,17 @@ export const AgentDetailPage = () => {
         onEdit={() => setEditing(true)}
         onToken={() => setTab("token")}
       />
+      {activeIncident && (
+        <Callout tone="down" className="mt-2 flex items-center justify-between gap-3">
+          <span>
+            <b className="mr-1.5 font-semibold">{incidentLabel(activeIncident)}</b>
+            {activeIncident.title}
+          </span>
+          <Link className="shrink-0 underline" to={`/incidents/${activeIncident.id}`}>
+            View incident
+          </Link>
+        </Callout>
+      )}
       <Tabs value={tab} onValueChange={setTab} className="mt-3 gap-3">
         <TabsList>
           <TabsTab value="overview">Overview</TabsTab>

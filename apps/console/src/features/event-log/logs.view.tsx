@@ -167,7 +167,7 @@ const serviceLogColumns: ColumnDef<ApiServiceLogEntryResponse>[] = [
       const log = row.original;
       if (!log.agent_id) return "—";
       return (
-        <DataTableLink to={`/servers/${log.agent_id}?tab=service-logs`} className="font-medium">
+        <DataTableLink to={`/servers/${log.agent_id}`} className="font-medium">
           {log.agent_name || "server"}
         </DataTableLink>
       );

@@ -116,7 +116,7 @@ export const AgentMonitorsTab = ({ agentId }: { agentId: string }) => {
                   Show them
                 </button>{" "}
                 ·{" "}
-                <Link className="underline" to={`/monitors?agent=${agentId}`}>
+                <Link className="underline" to={`/monitors?target=server:${agentId}`}>
                   Open in Monitors
                 </Link>
               </GridFooter>

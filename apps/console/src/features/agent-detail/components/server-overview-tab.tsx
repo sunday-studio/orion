@@ -57,7 +57,11 @@ export const ServerOverviewTab = ({ agent, latest, onOpenMonitors }: Props) => {
   const attention = list
     .filter((monitor) => monitorPriority(monitor) < 2)
     .sort((a, b) => monitorPriority(a) - monitorPriority(b));
-  const reportList = reports.data?.reports ?? [];
+  const reportList = [...(reports.data?.reports ?? [])].sort(
+    (a, b) =>
+      new Date(b.timestamp ?? b.created_at ?? 0).getTime() -
+      new Date(a.timestamp ?? a.created_at ?? 0).getTime(),
+  );
   const lastSeen = agent.last_seen ? formatDate(agent.last_seen, TIME_FORMAT) : undefined;
 
   if (state === "stale") {
@@ -160,7 +164,7 @@ export const ServerOverviewTab = ({ agent, latest, onOpenMonitors }: Props) => {
         </FieldPanel>
       )}
       <Box>
-        <BoxHeader title="CPU, last hour" aside={lastSeen ? `as of ${lastSeen}` : undefined} />
+        <BoxHeader title="Recent CPU" aside={lastSeen ? `as of ${lastSeen}` : undefined} />
         <CpuChart reports={reportList} />
       </Box>
       {total === 0 && !monitors.isLoading && (
