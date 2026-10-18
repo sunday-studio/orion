@@ -20,7 +20,7 @@ import { IngestBanner } from "./components/log-states";
 import { LogPager, LogTable } from "./components/log-table";
 import { RangePicker, SearchBox, SourceSelect, ViewSwitch } from "./components/log-toolbar";
 import { PatternsView } from "./components/patterns-view";
-import { ViewsMenu } from "./components/views-menu";
+import { SaveViewButton, SavedViewsBar } from "./components/saved-views";
 import { VolumeChart } from "./components/volume-chart";
 import {
   type LogKind,
@@ -176,10 +176,7 @@ export const LogsPage = () => {
       <Button size="sm" variant="secondary" onClick={() => setExporting(true)}>
         Export
       </Button>
-      <ViewsMenu
-        current={savedFilters(state)}
-        onApply={(filters) => void set({ ...CLEARED, ...fromSavedFilters(filters), log: "" })}
-      />
+      {kind === "service" && <SaveViewButton current={savedFilters(state)} />}
       {kind === "service" && view === "list" && (
         <Button size="sm" variant="secondary" onClick={() => patch({ view: "live" })}>
           <i className="mr-1.5 inline-block size-1.5 rounded-full bg-[#2a9f69]" />
@@ -327,6 +324,12 @@ export const LogsPage = () => {
       ) : (
         <div className="flex flex-col gap-4">
           {kind === "service" && <IngestBanner />}
+          {kind === "service" && (
+            <SavedViewsBar
+              current={savedFilters(state)}
+              onApply={(filters) => void set({ ...CLEARED, ...fromSavedFilters(filters), log: "" })}
+            />
+          )}
           <div className="flex flex-wrap items-center gap-3">
             <SearchBox
               value={state.q}
