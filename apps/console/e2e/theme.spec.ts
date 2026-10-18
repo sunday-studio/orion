@@ -30,3 +30,24 @@ test("a manual theme choice overrides the device and survives reloads", async ({
   await page.getByRole("radio", { name: "System" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 });
+
+test("a legacy orion.theme=light value is not treated as a manual choice", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.addInitScript(() => localStorage.setItem("orion.theme", "light"));
+  await signIn(page);
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.getByRole("button", { name: "Account menu" }).click();
+  await expect(page.getByRole("radio", { name: "System" })).toHaveAttribute("aria-checked", "true");
+  // The stale key is removed so it cannot come back as a choice.
+  expect(await page.evaluate(() => localStorage.getItem("orion.theme"))).toBeNull();
+});
+
+test("the login page follows the device theme", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/login");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  const background = await page
+    .locator("main")
+    .evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(background).toBe("rgb(15, 19, 17)");
+});

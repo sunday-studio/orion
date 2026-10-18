@@ -1,6 +1,8 @@
 export type ThemePreference = "light" | "dark" | "system";
 
-const STORAGE_KEY = "orion.theme";
+/** Manual choice only. The older "orion.theme" key stored every visit, so it is never read. */
+const STORAGE_KEY = "orion.theme.choice";
+const LEGACY_STORAGE_KEY = "orion.theme";
 const DARK_QUERY = "(prefers-color-scheme: dark)";
 
 const resolve = (preference: ThemePreference): "light" | "dark" =>
@@ -36,6 +38,11 @@ export const applyTheme = (preference: ThemePreference) => {
  * Returns a cleanup function.
  */
 export const initTheme = () => {
+  try {
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
+  } catch {
+    // Nothing to clean up when storage is unavailable.
+  }
   paint(readThemePreference());
   const query = window.matchMedia(DARK_QUERY);
   const onChange = () => {
