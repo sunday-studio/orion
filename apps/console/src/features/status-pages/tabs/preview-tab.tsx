@@ -31,13 +31,13 @@ const UptimeBar = ({ history }: { history?: Tick[] }) => {
   const active = index === null ? undefined : ticks[index];
   const x = index === null ? 0 : ((index + 0.5) / ticks.length) * 100;
   return (
-    <div className="relative">
+    <div className="relative min-w-0">
       <div {...bind} className="flex h-[18px] gap-[2px]">
         {ticks.map((tick, i) => (
           <i
             key={tick.date ?? i}
             className={cn(
-              "min-w-[2px] flex-1 rounded-[2px] transition-[opacity,transform] duration-150",
+              "min-w-0 flex-1 rounded-[2px] transition-[opacity,transform] duration-150",
               i === index ? "scale-y-110 opacity-100" : "opacity-85",
             )}
             style={{ background: tick.status ? statusDot(tick.status) : "#2a9f69" }}
@@ -104,15 +104,20 @@ export const PreviewTab = ({
         <div className="border-b border-hairline bg-field px-3.5 py-2 font-mono text-xs text-faint">
           {url}
         </div>
-        <div className="grid gap-3.5 bg-card px-8 py-7 max-sm:px-5">
+        <div
+          className={cn(
+            "grid grid-cols-[minmax(0,1fr)] gap-3.5 bg-card py-7",
+            device === "mobile" ? "px-5" : "px-8",
+          )}
+        >
           <h2 className="text-[28px] font-medium leading-tight tracking-[-0.02em]">
             {headline(data.overall_status)}
           </h2>
           {components.map((component) => (
-            <div key={component.id} className="grid gap-[5px]">
+            <div key={component.id} className="grid min-w-0 gap-[5px]">
               <div className="flex items-center justify-between gap-3 text-[13.5px]">
                 <b className="min-w-0 truncate font-medium">{component.name}</b>
-                <StatusBadge status={publicStatusTone(component.status)}>
+                <StatusBadge className="shrink-0" status={publicStatusTone(component.status)}>
                   {component.status_display ?? publicStatusLabel(component.status)}
                 </StatusBadge>
               </div>
