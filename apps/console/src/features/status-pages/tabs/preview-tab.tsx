@@ -123,10 +123,6 @@ export const PreviewTab = ({
                     className="flex min-w-0 flex-col gap-3 border-t border-hairline p-3.5 first:border-t-0"
                   >
                     <div className="flex min-w-0 items-center gap-3">
-                      <i
-                        className="size-2 shrink-0 rounded-full"
-                        style={{ background: statusDot(component.status) }}
-                      />
                       <span className="min-w-0 flex-1 break-words text-[13.5px] font-medium">
                         {component.name}
                         {(component.status_reason || component.description) && (
