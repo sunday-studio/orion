@@ -1,5 +1,13 @@
 import { useState } from "react";
-import { Box, BoxHeader, Segmented, Skeleton } from "@/design-system";
+import {
+  Box,
+  BoxHeader,
+  ChartMarker,
+  ChartTooltip,
+  Segmented,
+  Skeleton,
+  usePlotHover,
+} from "@/design-system";
 import { useGetMonitorResponseTimes } from "@/orion-sdk";
 import { TIME_FORMAT, formatDate } from "@/utils/date";
 
@@ -36,6 +44,11 @@ export const ResponseTimeChart = ({ monitorId }: { monitorId: string }) => {
   const fmt = (iso?: string) =>
     range === "day" ? formatDate(iso, TIME_FORMAT) : formatDate(iso, "MMM d");
   const ticks = [top, top / 2, 0];
+  const hover = usePlotHover(points.length);
+  const active = hover.index === null ? undefined : points[hover.index];
+  const activeX =
+    hover.index === null || points.length < 2 ? 0 : (hover.index / (points.length - 1)) * 100;
+  const activeY = active ? (y(active.avg_ms ?? 0) / h) * 100 : 0;
 
   return (
     <Box>
@@ -65,6 +78,7 @@ export const ResponseTimeChart = ({ monitorId }: { monitorId: string }) => {
       ) : (
         <div className="px-4 pb-3 pt-4">
           <div className="relative ml-8">
+            <div className="absolute inset-0 z-[1]" {...hover.bind} />
             <svg
               viewBox={`0 0 ${w} ${h}`}
               preserveAspectRatio="none"
@@ -105,6 +119,29 @@ export const ResponseTimeChart = ({ monitorId }: { monitorId: string }) => {
                 vectorEffect="non-scaling-stroke"
               />
             </svg>
+            {active && (
+              <>
+                <ChartMarker x={activeX} y={activeY} />
+                <ChartTooltip x={activeX}>
+                  <div className="text-[11px] opacity-70">
+                    {formatDate(active.at, "MMM d, HH:mm")}
+                  </div>
+                  <div className="font-medium">
+                    {Math.round(active.avg_ms ?? 0).toLocaleString()} ms avg
+                  </div>
+                  {typeof active.max_ms === "number" && (
+                    <div className="opacity-70">
+                      max {Math.round(active.max_ms).toLocaleString()} ms
+                    </div>
+                  )}
+                  {active.failed ? (
+                    <div className="text-[#ff8a95]">
+                      {active.failed} failed of {active.checks}
+                    </div>
+                  ) : null}
+                </ChartTooltip>
+              </>
+            )}
             {ticks.map((value) => (
               <span
                 key={value}

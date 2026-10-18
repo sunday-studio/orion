@@ -14,6 +14,7 @@ export const CheckStrip = ({ checks }: { checks?: readonly string[] | null }) =>
       {checks.slice(-24).map((check, index) => (
         <i
           key={index}
+          title={check}
           className={cn("block h-4 w-[3px] rounded-[1px]", COLOR[check] ?? "bg-[#d4d4d8]")}
         />
       ))}
