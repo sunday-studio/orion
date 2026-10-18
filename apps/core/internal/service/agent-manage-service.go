@@ -122,9 +122,26 @@ func (s *AgentService) DecommissionAgent(agentID string, keepHistory bool, actor
 		result.MonitorsRemoved = len(monitorIDs)
 
 		// Close what is open, so nothing keeps paging for a server that no longer exists.
-		closed := tx.Model(&db.Incident{}).Where("agent_id = ? AND status IN ?", agent.ID, []string{"open", "acknowledged", "covered"}).
-			Updates(map[string]any{"status": "resolved", "resolved_at": now, "resolution_kind": "decommissioned", "last_event_at": now, "latest_event": "Server removed"})
-		result.IncidentsClosed = int(closed.RowsAffected)
+		var openIncidents []string
+		tx.Model(&db.Incident{}).Where("agent_id = ? AND status IN ?", agent.ID, []string{"open", "acknowledged", "covered"}).Pluck("id", &openIncidents)
+		if len(openIncidents) > 0 {
+			if err := tx.Model(&db.Incident{}).Where("id IN ?", openIncidents).
+				Updates(map[string]any{"status": "resolved", "resolved_at": now, "resolution_kind": "decommissioned", "last_event_at": now, "latest_event": "Server removed"}).Error; err != nil {
+				return err
+			}
+			// Nothing may page for a server that no longer exists.
+			if err := tx.Model(&db.AlertDelivery{}).Where("incident_id IN ? AND status IN ?", openIncidents, []string{"pending", "failed"}).
+				Updates(map[string]any{"status": "suppressed", "error": "server removed", "locked_until": nil}).Error; err != nil {
+				return err
+			}
+			for i, incidentID := range openIncidents {
+				event := db.IncidentEvent{ID: utils.GenerateID("incident_event") + fmt.Sprintf("-%d", i), IncidentID: incidentID, Type: "incident_resolved", Message: "Server removed", ActorType: "user", ActorID: firstNonEmpty(actor.ActorID, "admin"), CreatedAt: now}
+				if err := tx.Create(&event).Error; err != nil {
+					return err
+				}
+			}
+		}
+		result.IncidentsClosed = len(openIncidents)
 		if len(monitorIDs) > 0 {
 			tx.Model(&db.Monitor{}).Where("id IN ?", monitorIDs).Updates(map[string]any{"active_incident_id": "", "incident_state": "unknown"})
 		}
@@ -161,6 +178,10 @@ func purgeAgentHistory(tx *gorm.DB, agentIDs []string) error {
 	}
 	monitors := tx.Model(&db.Monitor{}).Select("id").Where("agent_id IN ?", agentIDs)
 	steps := []*gorm.DB{
+		tx.Where("agent_id IN ?", agentIDs).Delete(&db.ServiceLogEntry{}),
+		tx.Where("monitor_id IN (?)", monitors).Delete(&db.IncidentCandidateDismissal{}),
+		tx.Where("resource_type = ? AND resource_id IN (?)", "monitor", monitors).Delete(&db.StatusPageComponentMapping{}),
+		tx.Where("resource_type = ? AND resource_id IN ?", "agent", agentIDs).Delete(&db.StatusPageComponentMapping{}),
 		tx.Where("monitor_id IN (?)", monitors).Delete(&db.MonitorReport{}),
 		tx.Where("monitor_id IN (?)", monitors).Delete(&db.MonitorUptimeRollup{}),
 		tx.Where("agent_id IN ?", agentIDs).Delete(&db.AgentReport{}),
