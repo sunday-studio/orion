@@ -34,6 +34,12 @@ export const DisplayTab = ({ app, onSaved }: { app: ApiApp; onSaved: () => void 
   const id = app.id ?? "";
   const catalog = useGetLogFieldCatalog({ app_id: id });
   const sample = useSearchLogs({ app_id: id, limit: 2 });
+  const sameList = (a: string[], b: string[]) =>
+    a.length === b.length && a.every((x, i) => x === b[i]);
+  const dirty =
+    title !== (profile?.title_field ?? "") ||
+    !sameList(columns, profile?.columns ?? []) ||
+    !sameList(hidden, profile?.hidden ?? []);
   const fields = (catalog.data?.fields ?? []).map((field) => field.key ?? "").filter(Boolean);
   const save = useUpdateApp({
     mutation: {
@@ -98,7 +104,7 @@ export const DisplayTab = ({ app, onSaved }: { app: ApiApp; onSaved: () => void 
       </FieldPanel>
       <div className="flex justify-end">
         <Button
-          disabled={save.isPending}
+          disabled={save.isPending || !dirty}
           onClick={() =>
             save.mutate({
               id,

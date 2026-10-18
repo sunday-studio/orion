@@ -5,7 +5,6 @@ import {
   Button,
   Callout,
   ConfirmDialog,
-  Dot,
   EmptyState,
   FieldPanel,
   GridFooter,
@@ -28,7 +27,7 @@ import {
   useTestAlertChannel,
   useUpdateAlertChannel,
 } from "@/orion-sdk";
-import { channelTypeLabel, deliveryStatusDot, deliveryTitle, healthLabel } from "../alerts-format";
+import { channelTypeLabel, deliveryTitle, healthLabel } from "../alerts-format";
 import { ChannelDialog } from "./channel-dialog";
 import { ChannelTestResultDialog } from "./channel-test-result-dialog";
 
@@ -124,7 +123,7 @@ export const ChannelDetailPage = () => {
   const deliveries = detail?.recent_deliveries ?? [];
   const total = detail?.recent_total ?? deliveries.length;
   const rules = detail?.rules_using ?? [];
-  const COLS = "12px 64px minmax(0,1fr) minmax(0,1fr) 64px";
+  const COLS = "64px minmax(0,1fr) minmax(0,1fr) 64px";
 
   return (
     <div className="w-full pb-8">
@@ -238,7 +237,6 @@ export const ChannelDetailPage = () => {
             ) : (
               <GridTable>
                 <GridRow columns={COLS} header>
-                  <span />
                   <span>Time</span>
                   <span>Alert</span>
                   <span>Result</span>
@@ -252,7 +250,6 @@ export const ChannelDetailPage = () => {
                     className="cursor-pointer"
                     onClick={() => navigate(`/alerts/deliveries/${delivery.id}`)}
                   >
-                    <Dot color={deliveryStatusDot(delivery.status)} />
                     <span className="text-faint">{formatWhen(delivery.created_at, now)}</span>
                     <span className="truncate">
                       <b className="font-medium">{deliveryTitle(delivery)}</b>{" "}

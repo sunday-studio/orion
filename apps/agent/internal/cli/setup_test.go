@@ -71,11 +71,39 @@ func TestSetupDryRunWritesNothing(t *testing.T) {
 	}
 }
 
+func TestSetupAcceptDiscoveredSelectsHighConfidenceMonitors(t *testing.T) {
+	fixtureDiscovery(t)
+	cfg := filepath.Join(t.TempDir(), "config.yaml")
+	out, errOut, code := runSetupCmd(t, cfg, "--core-url", "https://core.example.com", "--accept-discovered", "--dry-run")
+	if code != 0 || !strings.Contains(out, "svc-nginx") {
+		t.Fatalf("code=%d err=%s out=%s", code, errOut, out)
+	}
+}
+
+func TestSetupTokenIsStagedForEnrollmentAndRemovedOnDryRun(t *testing.T) {
+	fixtureDiscovery(t)
+	cfg := filepath.Join(t.TempDir(), "config.yaml")
+	opts := &Options{ConfigPath: cfg, SetupCoreURL: "https://core.example.com", SetupToken: "orn_enr_secret", SetupDryRun: true}
+	plan, err := planFromFlags(context.Background(), opts)
+	if err != nil || !plan.RemoveTokenFile || plan.TokenFile == "" {
+		t.Fatalf("plan=%+v err=%v", plan, err)
+	}
+	if data, err := os.ReadFile(plan.TokenFile); err != nil || string(data) != "orn_enr_secret" {
+		t.Fatalf("staged token = %q, %v", data, err)
+	}
+	if err := applySetup(context.Background(), opts, plan); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(plan.TokenFile); !os.IsNotExist(err) {
+		t.Fatalf("staged token still exists: %v", err)
+	}
+}
+
 func TestSetupUnknownMonitorIdExplainsFix(t *testing.T) {
 	fixtureDiscovery(t)
 	cfg := filepath.Join(t.TempDir(), "config.yaml")
 	_, errOut, code := runSetupCmd(t, cfg, "--core-url", "https://core.example.com", "--monitor", "service:ghost")
-	if code == 0 || !strings.Contains(errOut, "orion-agent discover") {
+	if code == 0 || !strings.Contains(strings.Join(strings.Fields(errOut), " "), "orion-agent discover") {
 		t.Fatalf("code=%d err=%s", code, errOut)
 	}
 }

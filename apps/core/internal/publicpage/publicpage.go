@@ -53,6 +53,8 @@ type Shell struct {
 	RSSURL       string
 	// ShowHistory hides the History link and footer link when the page turned history off.
 	ShowHistory bool
+	// Compact renders the tight variant: one line status, no summary cards, smaller gaps.
+	Compact bool
 	// Robots is "noindex" for pages that must not be indexed (token pages).
 	Robots string
 }

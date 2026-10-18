@@ -4,7 +4,6 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   Button,
   Callout,
-  Dot,
   EmptyState,
   FieldPanel,
   GridRow,
@@ -26,9 +25,7 @@ import {
 } from "@/features/apps/app-format";
 import { useGetLogIngestStatus, useListApps } from "@/orion-sdk";
 
-const COLUMNS = "14px minmax(0,1.2fr) 120px 110px 110px 80px";
-const dotColor = (status?: string) =>
-  status === "receiving" ? "#2a9f69" : status === "quiet" ? "#f59e0b" : "#a1a1aa";
+const COLUMNS = "minmax(0,1.2fr) 120px 110px 110px 80px";
 
 export const AppsTab = () => {
   const navigate = useNavigate();
@@ -76,7 +73,6 @@ export const AppsTab = () => {
           <RaisedCard>
             <GridTable>
               <GridRow columns={COLUMNS} header>
-                <span />
                 <span>App</span>
                 <span>Environment</span>
                 <span>Status</span>
@@ -90,7 +86,6 @@ export const AppsTab = () => {
                   className="cursor-pointer"
                   onClick={() => navigate(`/settings/apps/${app.id}`)}
                 >
-                  <Dot color={dotColor(app.status)} />
                   <Link
                     to={`/settings/apps/${app.id}`}
                     className="truncate font-medium outline-none hover:underline focus-visible:underline"

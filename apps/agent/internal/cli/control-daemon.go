@@ -2,9 +2,15 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"orion/agent/internal/appres"
+	"orion/agent/internal/logship"
 	"os"
+	"os/user"
+	"sort"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -21,6 +27,13 @@ type daemonControl struct {
 	configPath string
 	logPath    string
 	monitors   atomic.Int64
+	logSources atomic.Int64
+	spoolMu    sync.Mutex
+	spool      *logship.Spool
+	obsMu      sync.Mutex
+	states     map[string]control.MonitorState
+	lastReport time.Time
+	topApps    []control.AppUsage
 	store      *agentstate.Store
 	reload     atomic.Pointer[func() error]
 }
@@ -40,9 +53,57 @@ func newDaemonControl(opts *Options, userConfig *config.UserConfig, store *agent
 	return d
 }
 
+// hooks feeds monitor results and system reports into the status view.
+func (d *daemonControl) hooks() agent.Hooks {
+	return agent.Hooks{
+		MonitorResult: func(name, kind, health string, at time.Time) {
+			d.obsMu.Lock()
+			defer d.obsMu.Unlock()
+			if d.states == nil {
+				d.states = map[string]control.MonitorState{}
+			}
+			d.states[name] = control.MonitorState{Name: name, Kind: kind, Health: health, At: at}
+		},
+		SystemReport: func(at time.Time, apps *appres.Report) {
+			d.obsMu.Lock()
+			defer d.obsMu.Unlock()
+			d.lastReport = at
+			d.topApps = topApps(apps, 3)
+		},
+	}
+}
+
+func topApps(r *appres.Report, n int) []control.AppUsage {
+	if r == nil {
+		return nil
+	}
+	var out []control.AppUsage
+	for _, s := range r.Series {
+		if s.CPUPercent != nil && s.Kind != appres.KindPath {
+			out = append(out, control.AppUsage{Name: s.Name, CPUPercent: *s.CPUPercent})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].CPUPercent > out[j].CPUPercent })
+	if len(out) > n {
+		out = out[:n]
+	}
+	return out
+}
+
 // update refreshes the values the daemon reports after a config reload.
 func (d *daemonControl) update(userConfig *config.UserConfig) {
 	d.monitors.Store(int64(len(userConfig.Monitors)))
+	keep := map[string]bool{}
+	for _, m := range userConfig.Monitors {
+		keep[m.Name] = true
+	}
+	d.obsMu.Lock()
+	for name := range d.states {
+		if !keep[name] { // removed from config or Console
+			delete(d.states, name)
+		}
+	}
+	d.obsMu.Unlock()
 }
 
 func (d *daemonControl) Status() (control.Status, error) {
@@ -61,8 +122,20 @@ func (d *daemonControl) Status() (control.Status, error) {
 		LastSync:        st.LastSync,
 		MaintenanceMode: st.MaintenanceMode,
 		Monitors:        int(d.monitors.Load()),
+		QueuePending:    d.store.PendingReports(),
 		ConfigPath:      d.configPath,
+		Name:            hostnameOrEmpty(),
+		Mode:            runMode(),
+		LogSources:      int(d.logSources.Load()),
 	}
+	d.obsMu.Lock()
+	out.LastReportAt = d.lastReport
+	out.TopApps = append([]control.AppUsage(nil), d.topApps...)
+	for _, s := range d.states {
+		out.MonitorStates = append(out.MonitorStates, s)
+	}
+	d.obsMu.Unlock()
+	sort.Slice(out.MonitorStates, func(i, j int) bool { return out.MonitorStates[i].Name < out.MonitorStates[j].Name })
 	if st.MaintenanceReason != nil {
 		out.MaintenanceReason = *st.MaintenanceReason
 	}
@@ -129,4 +202,45 @@ func (d *daemonControl) TokenStatus() (int, error) {
 		return 0, err
 	}
 	return probeToken(context.Background(), st.CoreURL, st.AgentID, st.Token)
+}
+
+// runMode says how this daemon was started, for the status screen.
+func runMode() string {
+	name := "unknown"
+	if u, err := user.Current(); err == nil {
+		name = u.Username
+	}
+	// A service manager (systemd, launchd) is the parent of a managed daemon.
+	// XPC_SERVICE_NAME alone is set for every macOS process, so it is not enough.
+	if os.Getppid() == 1 || os.Getenv("XPC_SERVICE_NAME") == "com.orion.agent" {
+		return "system service, user " + name
+	}
+	return "manual run, user " + name
+}
+
+func (d *daemonControl) setSpool(s *logship.Spool) {
+	d.spoolMu.Lock()
+	defer d.spoolMu.Unlock()
+	d.spool = s
+}
+
+// SpoolRecent returns the newest shipped-log entries as NDJSON, so an
+// unprivileged `orion-agent logs` works offline through the socket.
+func (d *daemonControl) SpoolRecent(n int) ([]byte, error) {
+	d.spoolMu.Lock()
+	sp := d.spool
+	d.spoolMu.Unlock()
+	if sp == nil {
+		return nil, errors.New("log shipping is not configured (add logs.sources to the config)")
+	}
+	entries, err := sp.Recent(n)
+	if err != nil {
+		return nil, err
+	}
+	var out []byte
+	for _, e := range entries {
+		b, _ := json.Marshal(e)
+		out = append(append(out, b...), '\n')
+	}
+	return out, nil
 }

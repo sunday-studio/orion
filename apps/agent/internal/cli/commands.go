@@ -129,7 +129,7 @@ func newSetupCommand(ctx context.Context, opts *Options) *cobra.Command {
 		Long: "Interactive on a terminal: asks for the Core URL and enrollment token, discovers services, " +
 			"containers and ports on this host, lets you pick what to monitor, shows the config diff and applies it " +
 			"without a restart. Non-interactive with --yes (or when stdin is not a terminal): pass --core-url, " +
-			"--token-file and --monitor selectors; `orion-agent discover` lists the ids.",
+			"--token and --accept-discovered, or use --token-file and --monitor selectors; `orion-agent discover` lists the ids.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if commandNeedsElevation("setup", commandArgs(opts, "setup")) {
@@ -146,8 +146,12 @@ func newSetupCommand(ctx context.Context, opts *Options) *cobra.Command {
 	f.BoolVar(&opts.SetupInitState, "init-state", false, "Initialize the state database after writing config")
 	f.BoolVar(&opts.SetupYes, "yes", false, "Never prompt; apply the flags as given")
 	f.BoolVar(&opts.SetupDryRun, "dry-run", false, "Show the config diff and change nothing")
+	f.StringVar(&opts.SetupToken, "token", "", "One-time enrollment token; prefer --token-file for unattended use")
 	f.StringVar(&opts.SetupTokenFile, "token-file", "", "File with a one-time enrollment token; enrolls this host")
+	f.BoolVar(&opts.SetupAcceptDiscovered, "accept-discovered", false, "Add all high-confidence discovered monitors")
 	f.StringSliceVar(&opts.SetupMonitors, "monitor", nil, "Discovered ids to monitor (e.g. service:nginx), or high, medium, all; repeatable")
+	cmd.MarkFlagsMutuallyExclusive("token", "token-file")
+	cmd.MarkFlagsMutuallyExclusive("accept-discovered", "monitor")
 	return cmd
 }
 

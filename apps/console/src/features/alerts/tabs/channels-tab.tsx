@@ -2,7 +2,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
   Button,
-  Dot,
   EmptyState,
   GridRow,
   GridTable,
@@ -19,11 +18,11 @@ import {
   useRetryAlertDelivery,
   useTestAlertChannel,
 } from "@/orion-sdk";
-import { channelDot, channelTypeLabel, healthLabel } from "../alerts-format";
+import { channelTypeLabel, healthLabel } from "../alerts-format";
 import { ChannelTestResultDialog } from "../channels/channel-test-result-dialog";
 import { useState } from "react";
 
-const COLUMNS = "12px minmax(0,1.2fr) 90px minmax(0,1fr) 100px 150px";
+const COLUMNS = "minmax(0,1.2fr) 90px minmax(0,1fr) 100px 150px";
 
 export const ChannelsTab = ({
   onEdit,
@@ -107,7 +106,6 @@ export const ChannelsTab = ({
     <div className="mt-3 overflow-hidden rounded-xl border border-hairline bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
       <GridTable>
         <GridRow columns={COLUMNS} header>
-          <span />
           <span>Channel</span>
           <span>Type</span>
           <span>Last delivery</span>
@@ -124,7 +122,6 @@ export const ChannelsTab = ({
               className="cursor-pointer"
               onClick={() => navigate(`/alerts/channels/${channel.id}`)}
             >
-              <Dot color={channelDot(channel.health)} />
               <b className="font-medium">{channel.name}</b>
               <span className="text-faint">{channelTypeLabel(channel.type)}</span>
               <span className="text-faint">{channel.last_delivery_text ?? "-"}</span>

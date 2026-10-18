@@ -1,0 +1,10 @@
+
+[following]  level >= info   source nginx   search: none
+──────────────────────────────────────────────────────────────────────
+14:32:08 info  nginx   GET /api/orders 200 84ms
+14:32:07 info  nginx   GET /products 200 41ms
+14:32:06 warn  nginx   upstream response is buffered to a temporary file
+14:32:05 error nginx   connect() failed (111) while connecting to upstream
+14:32:05 info  nginx   GET /health 502 3ms
+14:32:04 info  nginx   GET /products 200 38ms
+14:32:03 info  nginx   POST /orders 201 91ms

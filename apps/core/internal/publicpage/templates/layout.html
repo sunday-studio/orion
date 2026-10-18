@@ -17,22 +17,23 @@
 <link rel="icon" href="{{if .Shell.LogoURL}}{{.Shell.LogoURL}}{{else}}data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23142a23'/%3E%3Cg transform='translate(5 5) scale(.9167)' fill='none' stroke='%237dffb0' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Ccircle cx='12' cy='12' r='9' stroke-dasharray='2 4'/%3E%3C/g%3E%3C/svg%3E{{end}}">
 <style>{{css}}{{if .Shell.AccentColor}}body[class]{--accent:{{.Shell.AccentColor}};--on-accent:#fff}{{end}}</style>
 </head>
-<body class="{{.Shell.ThemeClass}}">
+<body class="{{.Shell.ThemeClass}}{{if .Shell.Compact}} compact{{end}}">
 <div class="wrap">
 <header class="top">
 <a class="brand" href="{{.Shell.HomeURL}}"><span class="mk">{{if .Shell.LogoURL}}<img src="{{.Shell.LogoURL}}" alt="{{.Shell.LogoAlt}}">{{else}}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9" stroke-dasharray="2 4"/></svg>{{end}}</span><span>{{.Shell.SiteName}}</span></a>
 <nav class="nav">{{if .Shell.ShowHistory}}<a class="btn" href="{{.Shell.HistoryURL}}">History</a>{{end}}<a class="btn p" href="{{.Shell.SubscribeURL}}">Subscribe to updates</a></nav>
 </header>
-<section class="hero">
+{{if .Shell.Compact}}<section class="hero slim">{{if .Hero.Eyebrow}}<span class="eyebrow">{{.Hero.Eyebrow}}</span>{{end}}<h1>{{.Hero.Title}}</h1></section>
+{{else}}<section class="hero">
 {{.Hero.Ticker}}
 {{if .Hero.Eyebrow}}<div class="eyebrow">{{.Hero.Eyebrow}}</div>{{end}}
 <h1>{{.Hero.Title}}</h1>
 {{if .Hero.Text}}<p>{{.Hero.Text}}</p>{{end}}
-</section>
+</section>{{end}}
 {{end}}
 
 {{define "close"}}
-<footer class="cta">{{if .Shell.ShowHistory}}<a href="{{.Shell.HistoryURL}}">Incident history</a>{{else}}<span></span>{{end}}<span>Powered by Orion</span></footer>
+<footer class="cta">{{if .Shell.ShowHistory}}<a href="{{.Shell.HistoryURL}}">Incident history</a>{{else}}<span></span>{{end}}<a href="https://orion.thesunday.studio" target="_blank" rel="noopener">Powered by Orion</a></footer>
 </div>
 </body>
 </html>

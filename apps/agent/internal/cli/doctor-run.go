@@ -12,7 +12,6 @@ import (
 	"orion/agent/internal/config"
 	"orion/agent/internal/doctor"
 	agentstate "orion/agent/internal/state"
-	"orion/agent/internal/ui"
 
 	"github.com/shirou/gopsutil/v4/disk"
 )
@@ -41,7 +40,7 @@ func probeToken(ctx context.Context, coreURL, agentID, token string) (int, error
 func buildDoctorEnv(opts *Options) *doctor.Env {
 	e := &doctor.Env{
 		ConfigPath: opts.ConfigPath, StatePath: opts.StatePath, SocketPath: opts.SocketPath,
-		Version: agent.Version, GOOS: runtime.GOOS,
+		Version: agent.Version, GOOS: runtime.GOOS, Hostname: hostnameOrEmpty(),
 		Service: func() (bool, bool, string) {
 			s := GetServiceStatusResult()
 			return s.Installed, s.Running, s.State
@@ -58,8 +57,9 @@ func buildDoctorEnv(opts *Options) *doctor.Env {
 
 	client := controlClient(opts)
 	if st, err := client.Status(); err == nil {
-		e.Daemon = doctor.DaemonInfo{Reachable: true, Version: st.Version, LastSync: st.LastSync}
+		e.Daemon = doctor.DaemonInfo{Reachable: true, Version: st.Version, LastSync: st.LastSync, Uptime: time.Duration(st.UptimeSeconds) * time.Second}
 		e.Registered = st.Registered
+		e.Queue = func() (int, bool) { return st.QueuePending, true }
 		e.TokenProbe = func(context.Context) (int, error) { return client.TokenCheck() }
 	} else {
 		e.Daemon = doctor.DaemonInfo{Err: err}
@@ -83,21 +83,34 @@ func runDoctor(ctx context.Context, opts *Options) error {
 			return err
 		}
 		if !rep.OK {
-			return &CommandError{Summary: "doctor found errors", ExitCode: 1}
+			return &CommandError{Summary: "doctor found errors", ExitCode: 1, Silent: true}
 		}
 		return nil
 	}
 
-	PrintHeader("doctor")
-	PrintInfo("config", opts.ConfigPath)
-	PrintInfo("version", agent.Version)
+	width := terminalWidth()
+	live := !theme.Plain() && stdoutIsTerminal() // spinner only where it can be erased
 	fmt.Fprintln(outputWriter)
-	rep := doctor.Run(ctx, env, checks, printDoctorResult)
-	fmt.Fprintln(outputWriter)
-	if !rep.OK {
-		return &CommandError{Summary: "doctor found errors", ExitCode: 1}
+	frame := 0
+	start := func(c doctor.Check) {
+		if live {
+			fmt.Fprintf(outputWriter, "  %s Checking %s...", theme.Spinner(frame), strings.ToLower(c.Label))
+			frame++
+		}
 	}
-	PrintOK("doctor checks passed")
+	emit := func(r doctor.Result) {
+		if live {
+			fmt.Fprint(outputWriter, "\r\x1b[2K") // erase the spinner line
+		}
+		fmt.Fprintln(outputWriter, doctorRow(theme, r, width))
+	}
+	rep := doctor.RunWithStart(ctx, env, checks, start, emit)
+	sum, exit := doctorSummary(theme, rep)
+	fmt.Fprintln(outputWriter)
+	fmt.Fprintln(outputWriter, sum)
+	if exit != 0 {
+		return &CommandError{Summary: "doctor found errors", ExitCode: exit, Silent: true}
+	}
 	return nil
 }
 
@@ -106,17 +119,4 @@ type doctorReportJSON struct {
 	ConfigPath string `json:"config_path"`
 	StatePath  string `json:"state_path"`
 	Version    string `json:"version"`
-}
-
-// Status is always spelled out in text, never colour alone.
-func printDoctorResult(r doctor.Result) {
-	state := map[doctor.Status]ui.StepState{doctor.OK: ui.StepOK, doctor.Warn: ui.StepWarn, doctor.Fail: ui.StepFail, doctor.Skip: ui.StepSkip}[r.Status]
-	line := r.Title
-	if r.Detail != "" {
-		line += theme.Muted(": " + r.Detail)
-	}
-	fmt.Fprintln(outputWriter, theme.Step(state, line))
-	if r.Fix != "" && (r.Status == doctor.Fail || r.Status == doctor.Warn) {
-		fmt.Fprintf(outputWriter, "         %s %s\n", theme.Accent("fix:"), r.Fix)
-	}
 }

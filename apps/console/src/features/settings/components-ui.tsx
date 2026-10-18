@@ -32,9 +32,9 @@ export const SettingRow = ({
   detail?: ReactNode;
   children?: ReactNode;
 }) => (
-  <div className="grid min-h-[38px] grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto] items-center gap-3 border-t border-line-soft px-3.5 py-2 text-[13px] first:border-t-0">
+  <div className="grid min-h-[44px] grid-cols-[180px_minmax(0,1fr)_auto] items-center gap-3 border-t border-line-soft px-3.5 py-2 text-[13px] first:border-t-0">
     <b className="font-medium">{label}</b>
-    <span className="truncate text-quiet">{detail}</span>
+    <span className="min-w-0 truncate text-quiet">{detail}</span>
     <span className="text-right">{children}</span>
   </div>
 );

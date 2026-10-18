@@ -27,7 +27,7 @@ make_release() {
 
 run_bootstrap() {
   local dir="$1"; shift
-  ORION_RELEASE_BASE_URL="file://$dir" bash "$BOOTSTRAP" --dry-run --core-url http://core.example:8999 --version v0.0.0 "$@" >"$WORK/out.txt" 2>&1
+  ORION_RELEASE_BASE_URL="file://$dir" bash "$BOOTSTRAP" --verify-only --core-url http://core.example:8999 --version v0.0.0 "$@" >"$WORK/out.txt" 2>&1
 }
 
 fail() { echo "FAIL: $1"; echo "--- output ---"; cat "$WORK/out.txt"; exit 1; }

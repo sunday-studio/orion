@@ -16,6 +16,9 @@ func wizardTheme() *huh.Theme {
 	downL, downD := ui.StatusColors("down")
 	t.Focused.Title = t.Focused.Title.Foreground(accent).Bold(true)
 	t.Focused.Description = t.Focused.Description.Foreground(muted)
+	// huh's focused field has a thick left border; colouring it makes the
+	// artboard's green ┃ focus bar visible without relying on colour alone.
+	t.Focused.Base = t.Focused.Base.BorderForeground(accent)
 	t.Focused.SelectedOption = t.Focused.SelectedOption.Foreground(accent)
 	t.Focused.SelectedPrefix = t.Focused.SelectedPrefix.Foreground(accent)
 	t.Focused.UnselectedOption = t.Focused.UnselectedOption.Foreground(text)

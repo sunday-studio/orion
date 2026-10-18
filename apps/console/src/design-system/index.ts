@@ -10,6 +10,7 @@ export * from "@/design-system/components/code-block";
 export * from "@/design-system/components/code-tabs";
 export * from "@/design-system/components/chart-hover";
 export * from "@/design-system/components/checkbox";
+export * from "@/design-system/components/color-field";
 export * from "@/design-system/components/combobox";
 export * from "@/design-system/components/confirm-dialog";
 export * from "@/design-system/components/dialog";

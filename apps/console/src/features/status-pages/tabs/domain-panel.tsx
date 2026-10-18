@@ -1,20 +1,52 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { Button, Dot, FieldPanel, RaisedCard, StatusBadge, useToast } from "@/design-system";
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  Button,
+  Callout,
+  ConfirmDialog,
+  FieldPanel,
+  GridRow,
+  GridTable,
+  RaisedCard,
+  useToast,
+} from "@/design-system";
 import {
   getGetStatusPageDomainQueryKey,
   useGetStatusPageDomain,
   useRemoveStatusPageDomain,
   useVerifyStatusPageDomain,
 } from "@/orion-sdk";
+import { formatDate } from "@/utils/date";
+import { DomainDialog } from "../dialogs/domain-dialog";
 
-const tone = (status?: string) =>
-  status === "verified" ? "up" : status === "failed" ? "down" : "degraded";
+const COLUMNS = "70px minmax(0,1fr) minmax(0,1.3fr) 70px";
 
-/** DNS records and verification for a custom domain. Only rendered when one is set. */
-export const DomainPanel = ({ pageId, onChanged }: { pageId: string; onChanged: () => void }) => {
+const ago = (iso?: string) => {
+  if (!iso) return "not yet";
+  const minutes = Math.max(Math.round((Date.now() - new Date(iso).getTime()) / 60000), 0);
+  return minutes < 1
+    ? "just now"
+    : minutes < 60
+      ? `${minutes} min ago`
+      : formatDate(iso, "MMM d, HH:mm");
+};
+
+/** Custom domain: add one, see the DNS record to create, verify it, or remove it. */
+export const DomainPanel = ({
+  pageId,
+  domain,
+  onChanged,
+}: {
+  pageId: string;
+  domain?: string;
+  onChanged: () => void;
+}) => {
   const toast = useToast();
   const queryClient = useQueryClient();
-  const domain = useGetStatusPageDomain(pageId);
+  const [guide, setGuide] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const info = useGetStatusPageDomain(pageId, { query: { enabled: Boolean(domain) } });
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: getGetStatusPageDomainQueryKey(pageId) });
     onChanged();
@@ -30,76 +62,136 @@ export const DomainPanel = ({ pageId, onChanged }: { pageId: string; onChanged: 
   });
   const remove = useRemoveStatusPageDomain({
     mutation: {
-      onSuccess: refresh,
+      onSuccess: () => {
+        setRemoving(false);
+        refresh();
+        toast.add({ title: "Domain removed" });
+      },
       onError: () => toast.add({ title: "Unable to remove the domain" }),
     },
   });
-  const data = domain.data;
-  if (!data?.domain) return null;
+
+  if (!domain) {
+    return (
+      <FieldPanel title="Custom domain" aside="Optional">
+        <p className="mb-3 text-[13px] text-quiet">
+          Serve this page on your own address, like status.example.com. You add one DNS record, then
+          Orion verifies it.
+        </p>
+        <Button size="sm" onClick={() => setGuide(true)}>
+          Add custom domain
+        </Button>
+        <DomainDialog
+          open={guide}
+          pageId={pageId}
+          domain={domain}
+          onOpenChange={setGuide}
+          onChanged={onChanged}
+        />
+      </FieldPanel>
+    );
+  }
+
+  const data = info.data;
+  const status = data?.status;
   return (
-    <FieldPanel
-      title="Custom domain"
-      aside={
-        data.certificate && data.certificate !== "none"
-          ? `Certificate ${data.certificate}`
-          : undefined
-      }
-    >
+    <FieldPanel title="Custom domain" aside={domain}>
+      <p className="mb-3 text-[13px] text-quiet">
+        Add this record at your DNS provider, then verify. Changes can take up to an hour.
+      </p>
       <RaisedCard>
-        <div className="flex items-center justify-between gap-3 px-3.5 py-3 text-[13px]">
-          <span className="flex min-w-0 items-center gap-2.5">
-            <Dot
-              color={
-                data.status === "verified"
-                  ? "#2a9f69"
-                  : data.status === "failed"
-                    ? "#e5484d"
-                    : "#f59e0b"
-              }
-            />
-            <b className="truncate font-medium">{data.domain}</b>
-            <StatusBadge status={tone(data.status)}>{data.status_text ?? data.status}</StatusBadge>
-          </span>
-          <span className="flex gap-1.5">
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={verify.isPending}
-              onClick={() => verify.mutate({ id: pageId })}
-            >
-              Verify now
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={remove.isPending}
-              onClick={() => remove.mutate({ id: pageId })}
-            >
-              Remove
-            </Button>
-          </span>
-        </div>
-        {(data.records ?? []).map((record) => (
-          <div
-            key={`${record.type}-${record.host}`}
-            className="grid grid-cols-[60px_minmax(0,1fr)_minmax(0,1.4fr)] gap-3 border-t border-line-soft px-3.5 py-2.5 font-mono text-xs"
-          >
-            <span className="text-faint">{record.type}</span>
-            <span className="truncate">{record.host}</span>
-            <span className="truncate">{record.value || "Set by the Core operator"}</span>
-          </div>
-        ))}
+        <GridTable>
+          <GridRow columns={COLUMNS} header>
+            <span>Type</span>
+            <span>Host</span>
+            <span>Points to</span>
+            <span />
+          </GridRow>
+          {(data?.records ?? []).map((record) => (
+            <GridRow key={`${record.type}-${record.host}`} columns={COLUMNS}>
+              <span className="font-medium text-ink">{record.type}</span>
+              <span className="truncate text-ink">{record.host}</span>
+              <span className="truncate text-ink">
+                {record.value || "Set the Public Core URL first"}
+              </span>
+              <span className="text-right">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={!record.value}
+                  onClick={() => {
+                    void navigator.clipboard.writeText(record.value ?? "");
+                    toast.add({ title: "Record copied" });
+                  }}
+                >
+                  Copy
+                </Button>
+              </span>
+            </GridRow>
+          ))}
+        </GridTable>
       </RaisedCard>
-      {data.target_known === false && (
-        <p className="mt-2 text-xs text-faint">
-          Core has no CNAME target configured, so the record value is empty.
+      {status && (
+        <Callout
+          tone={status === "verified" ? "up" : status === "failed" ? "down" : "warn"}
+          className="mt-3"
+          lead={
+            status === "verified"
+              ? "Verified."
+              : status === "failed"
+                ? "Failed."
+                : "Waiting for DNS."
+          }
+        >
+          {data?.status_text ? `${data.status_text}. ` : ""}We last checked{" "}
+          {ago(data?.last_checked_at)}.
+          {data?.certificate && data.certificate !== "none"
+            ? ` Certificate ${data.certificate}.`
+            : ""}
+        </Callout>
+      )}
+      {data?.target_known === false && (
+        <p className="mt-2 text-[13px] text-mid">
+          Orion does not know its own address yet. Set the Public Core URL in{" "}
+          <Link to="/settings?tab=general" className="underline">
+            Settings, General
+          </Link>
+          .
         </p>
       )}
-      {data.fallback_url && data.status !== "verified" && (
-        <p className="mt-2 text-xs text-faint">
-          Until verified, the page stays at {data.fallback_url}.
-        </p>
-      )}
+      <div className="mt-3 flex gap-2">
+        {status !== "verified" && (
+          <Button size="sm" onClick={() => setGuide(true)}>
+            Open setup guide
+          </Button>
+        )}
+        <Button
+          size="sm"
+          variant={status === "verified" ? "primary" : "secondary"}
+          disabled={verify.isPending}
+          onClick={() => verify.mutate({ id: pageId })}
+        >
+          Verify now
+        </Button>
+        <Button size="sm" variant="secondary" onClick={() => setRemoving(true)}>
+          Remove domain
+        </Button>
+      </div>
+      <DomainDialog
+        open={guide}
+        pageId={pageId}
+        domain={domain}
+        onOpenChange={setGuide}
+        onChanged={onChanged}
+      />
+      <ConfirmDialog
+        open={removing}
+        onOpenChange={setRemoving}
+        title="Remove the custom domain"
+        description={`${domain} stops serving this page. The page stays available on its Orion address.`}
+        confirmLabel="Remove domain"
+        onConfirm={() => remove.mutate({ id: pageId })}
+      />
     </FieldPanel>
   );
 };

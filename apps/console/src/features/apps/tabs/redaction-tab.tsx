@@ -33,6 +33,9 @@ export const RedactionTab = ({ app, onSaved }: { app: ApiApp; onSaved: () => voi
   const [output, setOutput] = useState("");
   const [draft, setDraft] = useState<ApiRedactionRule>();
   const id = app.id ?? "";
+  const dirty =
+    JSON.stringify(extra) !== JSON.stringify(saved?.extra_keys ?? []) ||
+    JSON.stringify(rules) !== JSON.stringify(saved?.rules ?? []);
   const defaultKeys = saved?.default_keys ?? defaults.data?.keys ?? [];
   const test = useTestAppRedaction({
     mutation: {
@@ -173,7 +176,7 @@ export const RedactionTab = ({ app, onSaved }: { app: ApiApp; onSaved: () => voi
       </FieldPanel>
       <div className="flex justify-end">
         <Button
-          disabled={save.isPending}
+          disabled={save.isPending || !dirty}
           onClick={() => save.mutate({ id, data: { redaction: { extra_keys: extra, rules } } })}
         >
           Save rules
