@@ -44,7 +44,7 @@ export const ChannelsTab = ({
   const test = useTestAlertChannel({
     mutation: {
       onSuccess: (data, variables) => {
-        const result = (data as { result?: ApiAlertTestResult }).result;
+        const result = data.result;
         const channel = channels.find((item) => item.id === variables.id);
         if (result && channel) setTested({ channel, result });
         void queryClient.invalidateQueries({ queryKey: getGetAlertChannelsQueryKey() });
