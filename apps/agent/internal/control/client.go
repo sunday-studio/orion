@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -137,4 +138,9 @@ func (c *Client) TokenCheck() (int, error) {
 		return 0, err
 	}
 	return tc.HTTPStatus, nil
+}
+
+// Spool returns the newest n shipped-log entries as NDJSON.
+func (c *Client) Spool(n int) ([]byte, error) {
+	return c.do(http.MethodGet, "/v1/spool?lines="+strconv.Itoa(n), nil)
 }

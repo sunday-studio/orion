@@ -130,8 +130,10 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 			case <-runCtx.Done():
 			}
 		}()
+		waitLogs := startLogShipper(runCtx, opts, userConfig, store, ctrl)
 		runErr := instance.Run(runCtx)
 		stopRun()
+		waitLogs()
 
 		mu.Lock()
 		wasReload := reloaded

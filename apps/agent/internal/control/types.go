@@ -97,6 +97,8 @@ type Handler interface {
 	// TokenStatus asks Core, with the agent token, for a cheap authenticated
 	// resource and returns the HTTP status (the token itself never leaves the daemon).
 	TokenStatus() (int, error)
+	// SpoolRecent returns the newest n shipped-log entries as NDJSON.
+	SpoolRecent(n int) ([]byte, error)
 }
 
 // TokenCheck is the result of a daemon-side token probe.
