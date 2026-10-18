@@ -203,7 +203,7 @@ export const DomainDialog = ({
                     <Link to="/settings?tab=general" className="underline">
                       Settings, General
                     </Link>
-                    , then check this again.
+                    , or set ORION_PUBLIC_URL when you deploy Core, then check this again.
                   </Callout>
                 )}
                 <Callout
