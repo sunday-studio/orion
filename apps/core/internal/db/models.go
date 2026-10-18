@@ -107,19 +107,26 @@ type DiskStats struct {
 type Agent struct {
 	ID string `json:"id" gorm:"primaryKey"`
 	// System marks Core's own owner agent; it is not a user server and is hidden from counts and default lists.
-	System                   bool                            `json:"system" gorm:"not null;default:false"`
-	MachineId                string                          `json:"machine_id" gorm:"uniqueIndex;not null"`
-	Name                     string                          `json:"name" gorm:"not null"`
-	OS                       string                          `json:"os" gorm:"not null"`
-	Platform                 string                          `json:"platform"`
-	KernelVersion            string                          `json:"kernel_version"`
-	Arch                     string                          `json:"arch" gorm:"not null"`
-	Token                    string                          `json:"token" gorm:"uniqueIndex;not null"`
-	TokenHash                string                          `json:"token_hash" gorm:"not null;default:'';index:idx_agents_token_hash"`
-	TokenVersion             int                             `json:"token_version" gorm:"not null;default:1"`
-	TokenRotatedAt           *time.Time                      `json:"token_rotated_at"`
-	TokenRevokedAt           *time.Time                      `json:"token_revoked_at" gorm:"index:idx_agents_token_revoked_at"`
-	TokenRevocationReason    string                          `json:"token_revocation_reason" gorm:"type:text;not null;default:''"`
+	System                bool       `json:"system" gorm:"not null;default:false"`
+	MachineId             string     `json:"machine_id" gorm:"uniqueIndex;not null"`
+	Name                  string     `json:"name" gorm:"not null"`
+	OS                    string     `json:"os" gorm:"not null"`
+	Platform              string     `json:"platform"`
+	KernelVersion         string     `json:"kernel_version"`
+	Arch                  string     `json:"arch" gorm:"not null"`
+	Token                 string     `json:"token" gorm:"uniqueIndex;not null"`
+	TokenHash             string     `json:"token_hash" gorm:"not null;default:'';index:idx_agents_token_hash"`
+	TokenVersion          int        `json:"token_version" gorm:"not null;default:1"`
+	TokenRotatedAt        *time.Time `json:"token_rotated_at"`
+	TokenRevokedAt        *time.Time `json:"token_revoked_at" gorm:"index:idx_agents_token_revoked_at"`
+	TokenRevocationReason string     `json:"token_revocation_reason" gorm:"type:text;not null;default:''"`
+	// PreviousTokenHash keeps the replaced token valid until PreviousTokenExpiresAt after a rotation,
+	// so the agent can be updated without a gap.
+	PreviousTokenHash      string     `json:"-" gorm:"not null;default:''"`
+	PreviousTokenExpiresAt *time.Time `json:"-"`
+	// Labels is a JSON array of "key=value" strings; Notes is free text for operators.
+	Labels                   string                          `json:"labels" gorm:"type:text;not null;default:'[]'"`
+	Notes                    string                          `json:"notes" gorm:"type:text;not null;default:''"`
 	MaintenanceMode          bool                            `json:"maintenance_mode" gorm:"default:false"`
 	MaintenanceUntil         *time.Time                      `json:"maintenance_until"`
 	ReportingIntervalSeconds int                             `json:"reporting_interval_seconds" gorm:"default:60"` // System metrics reporting interval
