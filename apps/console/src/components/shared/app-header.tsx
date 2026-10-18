@@ -59,7 +59,7 @@ export const AppHeader = () => {
   const hasSession = Boolean(getToken());
   const { pathname } = useLocation();
   // Connecting an app starts from Overview, so that tab stays highlighted (canvas artboard).
-  const overviewOwns = pathname.startsWith("/apps/new");
+  const overviewOwns = pathname.startsWith("/apps/new") || pathname.startsWith("/health-issues");
 
   return (
     <header className="z-50 grid h-[52px] shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-4 border-b border-hairline bg-page px-5">
