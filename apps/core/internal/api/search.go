@@ -13,6 +13,9 @@ type SearchHitResponse struct {
 	ID     string `json:"id"`
 	Name   string `json:"name"`
 	Status string `json:"status,omitempty"`
+	// Number and DisplayID are set for incidents.
+	Number    int    `json:"number,omitempty"`
+	DisplayID string `json:"display_id,omitempty"`
 }
 
 // searchEverything powers the command palette.
@@ -33,7 +36,7 @@ func (s *Server) searchEverything(c *gin.Context) {
 	}
 	out := make([]SearchHitResponse, 0, len(hits))
 	for _, h := range hits {
-		out = append(out, SearchHitResponse{Type: h.Type, ID: h.ID, Name: h.Name, Status: h.Status})
+		out = append(out, SearchHitResponse{Type: h.Type, ID: h.ID, Name: h.Name, Status: h.Status, Number: h.Number, DisplayID: incidentDisplayID(h.Number)})
 	}
 	utils.SuccessResponse(c, http.StatusOK, "Search results", gin.H{"hits": out, "count": len(out)})
 }

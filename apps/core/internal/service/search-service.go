@@ -15,6 +15,7 @@ type SearchHit struct {
 	ID     string
 	Name   string
 	Status string // health for monitors/servers, incident status for incidents
+	Number int    // incident number, 0 for other types
 }
 
 var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
@@ -40,7 +41,7 @@ func Search(database *gorm.DB, q string) ([]SearchHit, error) {
 		return nil, err
 	}
 	for _, i := range incidents {
-		hits = append(hits, SearchHit{Type: "incident", ID: i.ID, Name: i.Title, Status: i.Status})
+		hits = append(hits, SearchHit{Type: "incident", ID: i.ID, Name: i.Title, Status: i.Status, Number: i.Number})
 	}
 	var agents []db.Agent
 	if err := database.Where("system = ? AND LOWER(name) LIKE ? ESCAPE '\\'", false, pattern).Order("name ASC").Limit(searchPerGroup).Find(&agents).Error; err != nil {

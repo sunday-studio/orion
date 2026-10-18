@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"orion/core/internal/db"
 	"orion/core/internal/utils"
 	"strings"
@@ -66,6 +67,29 @@ func (s *IncidentService) ResolveIncident(incidentID string, metadata IncidentLi
 }
 
 func (s *IncidentService) CoverIncident(incidentID string, coveredUntil *time.Time, note string, metadata IncidentLifecycleActionMetadata) (db.Incident, error) {
+	return s.CoverIncidentBy(incidentID, coveredUntil, note, "", metadata)
+}
+
+// CoverIncidentBy covers an incident because another incident already explains it. A covering
+// incident must exist, differ from the covered one, and must not itself be covered by it
+// (directly or through a chain), so coverage never forms a cycle.
+func (s *IncidentService) CoverIncidentBy(incidentID string, coveredUntil *time.Time, note string, coveredByID string, metadata IncidentLifecycleActionMetadata) (db.Incident, error) {
+	if coveredByID != "" {
+		if coveredByID == incidentID {
+			return db.Incident{}, fmt.Errorf("%w: an incident cannot cover itself", ErrIncidentInvalid)
+		}
+		next := coveredByID
+		for hops := 0; next != "" && hops < 50; hops++ {
+			if next == incidentID {
+				return db.Incident{}, fmt.Errorf("%w: that would make the incidents cover each other", ErrIncidentInvalid)
+			}
+			var link db.Incident
+			if s.db.Select("covered_by_incident_id").Where("id = ?", next).Limit(1).Find(&link).RowsAffected == 0 {
+				break
+			}
+			next = link.CoveredByIncidentID
+		}
+	}
 	var incident db.Incident
 	if err := s.db.Where("id = ?", incidentID).First(&incident).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -89,6 +113,9 @@ func (s *IncidentService) CoverIncident(incidentID string, coveredUntil *time.Ti
 		"last_event_at":   now,
 		"latest_event":    message,
 		"resolution_kind": "",
+	}
+	if coveredByID != "" {
+		updates["covered_by_incident_id"] = coveredByID
 	}
 	if err := s.db.Model(&incident).
 		Updates(updates).Error; err != nil {
