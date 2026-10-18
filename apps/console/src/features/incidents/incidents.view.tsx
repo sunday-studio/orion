@@ -17,7 +17,7 @@ import { IncidentFilterRow, useIncidentFilters } from "./list/incident-filters";
 import { IncidentQuickViews } from "./list/incident-quick-views";
 import { IncidentTable } from "./list/incident-table";
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 20;
 
 const downloadBlob = (blob: Blob) => {
   const url = URL.createObjectURL(blob);

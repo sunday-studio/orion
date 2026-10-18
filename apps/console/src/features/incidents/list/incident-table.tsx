@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Checkbox, GridFooter, GridRow, GridTable, StatusBadge } from "@/design-system";
 import { type NumberedIncident, incidentLabel, relativeAgo, statusLabel } from "../incident-format";
 
-export const INCIDENT_COLUMNS = "18px 70px minmax(0,1.6fr) 120px 80px minmax(0,0.8fr) 110px 70px";
+export const INCIDENT_COLUMNS = "40px 80px minmax(0,1.6fr) 120px 80px minmax(0,0.8fr) 110px 70px";
 
 export type IncidentTableProps = {
   incidents: NumberedIncident[];
@@ -39,7 +39,7 @@ export const IncidentTable = ({
 
   return (
     <div className="overflow-hidden rounded-xl border border-hairline bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-      <GridTable>
+      <GridTable dividers>
         <GridRow columns={INCIDENT_COLUMNS} header>
           <span>
             <Checkbox

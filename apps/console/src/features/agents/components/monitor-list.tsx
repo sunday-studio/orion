@@ -4,7 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { useState } from "react";
 
-const MONITOR_LIMIT = 10;
+const MONITOR_LIMIT = 20;
 
 const monitorColumns: ColumnDef<ApiMonitorResponse>[] = [
   {

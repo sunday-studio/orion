@@ -13,7 +13,7 @@ import { healthDot } from "@/features/incidents/incident-format";
 import { useNow } from "@/features/overview/overview-time";
 import { type ApiHealthIssue, useGetHealthIssues } from "@/orion-sdk";
 
-const COLUMNS = "10px minmax(0,1.3fr) 110px 90px 110px minmax(0,1.5fr) 60px 120px";
+const COLUMNS = "28px minmax(0,1.3fr) 110px 90px 110px minmax(0,1.5fr) 60px 120px";
 
 const label = (value?: string) => (value ? value.charAt(0).toUpperCase() + value.slice(1) : "-");
 
@@ -71,7 +71,7 @@ export const HealthIssuesPage = () => {
           <EmptyState title="No health issues" description="Everything Orion watches is healthy." />
         ) : (
           <div className="overflow-hidden rounded-xl border border-hairline bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-            <GridTable>
+            <GridTable dividers>
               <GridRow columns={COLUMNS} header>
                 <span />
                 <span>Name</span>
