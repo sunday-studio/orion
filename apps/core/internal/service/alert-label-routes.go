@@ -260,10 +260,19 @@ func (s *AlertService) EvaluateLabelRoutes(labels []string) ([]LabelRouteMatch, 
 	return out, nil
 }
 
-func (s *AlertService) hasLabelRoutes() bool {
-	var n int64
-	s.db.Model(&db.AlertLabelRoute{}).Where("enabled = ?", true).Count(&n)
-	return n > 0
+// labelRoutesMatch reports whether any enabled label route matches the labels. With no rules,
+// an event that no label route matches still uses the legacy "notify every channel" fallback.
+func (s *AlertService) labelRoutesMatch(labels []string) bool {
+	matches, err := s.EvaluateLabelRoutes(labels)
+	if err != nil {
+		return false
+	}
+	for _, m := range matches {
+		if m.Matched {
+			return true
+		}
+	}
+	return false
 }
 
 // RuleMatchesEvent reports whether a rule would fire for the event (used by replay).
