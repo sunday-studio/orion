@@ -1,7 +1,7 @@
 # Orion coordinator handoff
 
 Written 2026-10-18 for an agent taking over coordination of the Orion build. Read this first, then
-`docs/plans/decision-log.md` (D-001 to D-045, the canonical record of every decision), `COORDINATION.md`
+`docs/plans/decision-log.md` (D-001 to D-046, the canonical record of every decision), `COORDINATION.md`
 and `AGENTS.md`.
 
 ## 1. What Orion is
@@ -41,7 +41,7 @@ You cannot poll or schedule (scheduling was denied by the classifier; do not wor
 ### Standing rules from the user (do not break these)
 
 1. Threads work autonomously. They report only decisions they cannot make; the coordinator decides and
-   logs each decision in `docs/plans/decision-log.md` (next id is D-046).
+   logs each decision in `docs/plans/decision-log.md` (next id is D-047).
 2. **Commit as you go; if a hook fails use `--no-verify`.** Push straight to main: `git pull --rebase
    origin main` then `git push origin HEAD:main`. Never force. **No PRs** (D-023).
 3. **No git worktrees or feature branches.** Everyone works in the main checkout on `main`
@@ -77,7 +77,7 @@ Plan: `docs/plans/canvas-build-plan.md`. Decision log entries in brackets.
 | F5 | Alerts | approved [D-041] |
 | F6 | Status pages (admin) | approved [D-042] |
 | F7 | Logs and settings (F7a logs, F7b settings) | approved [D-044] |
-| F8 | Public status | built by backend as Core server-rendered HTML (e51fa80); **under the user's review**. Layout fixes keep landing (ticker alignment, spacing, service rows, a compact variant 571e9a2). Web has a compact layout setting in status pages (dbfba5d). Not yet approved. |
+| F8 | Public status (server-rendered in Core, e51fa80 plus layout fixes) | approved [D-046] |
 | F9 | CLI and agent (6 artboards: install, setup, doctor, status, logs, help-error) | **active, owned by orion:agent** [D-045]. |
 
 ### F9 detail (the current work)
@@ -151,9 +151,8 @@ make agent-build            # builds apps/agent/orion-agent
 ## 6. Pending and final list (in order)
 
 1. **F9**: wait for orion:agent ("agent monitors done", then "F9 ready"). Merge-check on main, tell the user, get the verdict.
-2. **F8 verdict** from the user (they are reviewing it now); relay layout notes to backend (public pages) or web
-   (admin status page screens).
-3. After every feature is approved: release `orion:cleanup` for dead-code removal in `apps/console`.
+2. F8 is approved; nothing pending. Any later layout note on the public pages goes to backend, on the admin status page screens to web.
+3. After F9 is approved (every feature then approved): release `orion:cleanup` for dead-code removal in `apps/console`.
 4. **Last, before going live (D-031):** agent as a container (image, Add server "Docker" tab, Kubernetes DaemonSet
    or Helm), re-enable GitHub CI (`gh workflow enable 285533778`, `279035417`, `279035418`), cut the release.
 5. Optional cleanups: unmerged branches `codex/reliability-cleanup` (1 commit) and `codex/remove-playwright-monitor`
@@ -163,7 +162,7 @@ make agent-build            # builds apps/agent/orion-agent
 
 ## 7. How to run a feature (the loop)
 
-1. User names the next feature. Log it (D-046+), push.
+1. User names the next feature. Log it (D-047+), push.
 2. Message backend: close API gaps against the artboards, typed OpenAPI, tests, seed data for all states, push, tell web.
 3. Message web: build each screen to its artboard against typed stubs until backend pushes, then wire; send one "F<n> ready".
 4. When "ready" arrives: `git pull --rebase --autostash origin main`, regenerate the SDK, run the code-level checks
