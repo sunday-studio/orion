@@ -55,7 +55,7 @@ export const Segmented = ({
       aria-label={ariaLabel}
       className={cn(
         "relative flex w-fit gap-0.5 rounded-lg p-[3px]",
-        onField ? "bg-hairline dark:bg-page" : "bg-tray",
+        onField ? "bg-hairline dark:bg-tray" : "bg-tray",
         className,
       )}
     >
