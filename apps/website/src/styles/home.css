@@ -1,5 +1,5 @@
 /* Home page: hero, storyboard, bento, steps, explorer, timeline, FAQ. Ported from the approved canvas. */
-.h1{font-size:76px;line-height:1.02;letter-spacing:-.035em;font-weight:300;text-align:center}
+.h1{font-size:64px;line-height:1.02;letter-spacing:-.035em;font-weight:300;text-align:center}
 .h1 em{font-style:normal;color:#1f7a50}
 .pl{position:relative;height:300px;margin-top:12px}
 .pl svg{position:absolute;left:0;top:0}
@@ -288,3 +288,15 @@
 /* Tour screens: no app header; plain crossfade between screens. */
 .fi { position: absolute; left: 0; top: 0; width: 100%; height: auto; opacity: 0; transition: opacity 0.5s ease; }
 .fi.is-active { opacity: 1; }
+
+.hero-note { margin-top: 14px; font-size: 13px; color: var(--color-faint); }
+.aud { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 40px; }
+.audc { padding: 28px; border: 1px solid var(--color-line); border-radius: 14px; background: var(--color-card); box-shadow: var(--e1); transition: border-color 0.15s, box-shadow 0.15s; }
+.audc:hover { border-color: var(--color-line-hover); box-shadow: var(--e2); }
+.audk { font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--color-accent); }
+.audc h3 { font-size: 24px; font-weight: 400; letter-spacing: -0.02em; line-height: 1.2; margin: 10px 0 14px; }
+.audc ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.audc li { position: relative; padding-left: 18px; color: var(--color-muted); line-height: 1.5; }
+.audc li::before { content: ""; position: absolute; left: 0; top: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--color-accent); }
+.audc code { font: 12.5px var(--font-mono); background: var(--color-tray); border: 1px solid var(--color-line); border-radius: 4px; padding: 1px 5px; }
+@media (max-width: 900px) { .aud { grid-template-columns: 1fr; } }

@@ -1,12 +1,4 @@
 ---
-const icons = {
-  monitors: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
-  incidents: '<path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/>',
-  alerts: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
-  logs: '<path d="M4 6h16M4 12h16M4 18h10"/>',
-  servers: '<rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/>',
-  status: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
-};
 const tabs = [
   { key: "monitors", label: "Monitors", img: "monitors-list", cap: "HTTP, TCP, heartbeats, server checks", alt: "The Monitors list with status and recent checks" },
   { key: "incidents", label: "Incidents", img: "incident-detail", cap: "Opened, grouped, timed, resolved", alt: "An incident with its timeline and notifications" },
@@ -20,15 +12,15 @@ const tabs = [
   <div class="sechead">
     <span class="k">What is in the box</span>
     <h2 class="h2">Everything you need. Nothing you rent.</h2>
-    <p class="lead">Pick a tab. These are the real screens.</p>
+    <p class="lead">Monitoring, incidents, alerts, logs and status pages in one tool, so there is nothing to wire together.</p>
   </div>
   <div class="tour" data-tour>
     <div class="seg" role="group" aria-label="Console screens">
       <span class="thumb" aria-hidden="true"></span>
       {tabs.map((t, i) => (
         <button type="button" class="segi" aria-pressed={i === 0 ? "true" : "false"} data-segment-active={i === 0 ? "" : undefined} data-i={i}>
-          <span class="lbl"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" set:html={icons[t.key]} /><span>{t.label}</span></span>
-          <span class="lbl on" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" set:html={icons[t.key]} /><span>{t.label}</span></span>
+          <span class="lbl"><span>{t.label}</span></span>
+          <span class="lbl on" aria-hidden="true"><span>{t.label}</span></span>
         </button>
       ))}
     </div>

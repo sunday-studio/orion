@@ -28,3 +28,11 @@ API overview, Concepts and Backups as designed pages (they build from plain Mark
 
 - Home illustrations in "Why it is yours" are to be cleaned up (an earlier refinement was reverted).
 - Verify the site visually in a browser before launch; the build has only been checked structurally.
+
+## Messaging
+
+Voice follows the pattern OpenStatus uses on its site: a concrete "run X on Y" headline, a "when something breaks…" subhead, scenario-led section titles and a short why-list. Ours differs by being self-hosted first with no hosted version, personal projects first and small teams second.
+
+- Headline: Run monitoring and incident response on a machine you own.
+- Subhead: self-hosted uptime monitoring, incident response and logs for personal projects and small teams; every byte stays on your server.
+- Claims to avoid until confirmed: open source or licence terms, pricing, seat or member limits, Windows support, a hosted offering.
