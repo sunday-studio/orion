@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -124,5 +125,17 @@ func TestExitCodes(t *testing.T) {
 	}
 	if commandExitCode(NewCommandError("could not elevate privileges", os.ErrPermission)) != ExitElevate {
 		t.Fatal("elevation failures must exit 3")
+	}
+}
+
+func TestHelpSubcommandStillReachesCommandHelp(t *testing.T) {
+	if isRootHelp([]string{"help", "doctor"}) || isRootHelp([]string{"doctor", "--help"}) {
+		t.Fatal("help for a command must not be replaced by the root help")
+	}
+	if !isRootHelp([]string{"--no-color", "--help"}) || !isRootHelp([]string{"help"}) {
+		t.Fatal("root help forms not recognised")
+	}
+	if isUsageError(errors.New("write: invalid argument")) {
+		t.Fatal("a syscall error is not a usage error")
 	}
 }

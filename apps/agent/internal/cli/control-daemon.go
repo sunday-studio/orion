@@ -206,7 +206,9 @@ func runMode() string {
 	if u, err := user.Current(); err == nil {
 		name = u.Username
 	}
-	if os.Getenv("INVOCATION_ID") != "" || os.Getenv("XPC_SERVICE_NAME") != "" {
+	// A service manager (systemd, launchd) is the parent of a managed daemon.
+	// XPC_SERVICE_NAME alone is set for every macOS process, so it is not enough.
+	if os.Getppid() == 1 || os.Getenv("XPC_SERVICE_NAME") == "com.orion.agent" {
 		return "system service, user " + name
 	}
 	return "manual run, user " + name
