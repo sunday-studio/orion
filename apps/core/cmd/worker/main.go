@@ -62,12 +62,30 @@ func main() {
 		}
 	}()
 
-	logStore, err := logstore.OpenReader(cfg.DataDir, logger)
+	// The Worker also records its own log lines (Internal logs), so it opens logs.db with a writer;
+	// the API process still owns product log ingest and retention.
+	logStore, err := logstore.Open(cfg.DataDir, logger, cfg.LogsQueueMax)
 	if err != nil {
-		logger.Warn("Product logs database unavailable; log alerts are disabled in this Worker", "error", err)
+		logger.Warn("Product logs database unavailable; log alerts and internal logs are disabled in this Worker", "error", err)
 	} else {
 		defer logStore.Close()
+		logger.AttachSink(logstore.NewCoreLogSink(logStore, "worker"))
 	}
+
+	// The Public Core URL can be changed in Settings while the Worker runs.
+	cfg.SetPublicURLOverride(service.SavedPublicURL(database))
+	go func() {
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				cfg.SetPublicURLOverride(service.SavedPublicURL(database))
+			}
+		}
+	}()
 
 	app := worker.NewApp(database, logger, worker.Options{
 		WorkerID:    cfg.CoreWorkerID,

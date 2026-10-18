@@ -26,12 +26,15 @@ type AlertDelivery struct {
 }
 
 type AlertDeliveryAttempt struct {
-	ID              string     `json:"id" gorm:"primaryKey;type:varchar(255)"`
-	AlertDeliveryID string     `json:"alert_delivery_id" gorm:"index:idx_alert_delivery_attempts_delivery_id;not null"`
-	AttemptNumber   int        `json:"attempt_number" gorm:"not null;index:idx_alert_delivery_attempts_delivery_number"`
-	Status          string     `json:"status" gorm:"not null"` // pending | sent | failed
-	Stage           string     `json:"stage" gorm:"not null"`  // load_incident | serialize | http_request | http_response | channel_lookup | transport
-	Error           string     `json:"error" gorm:"type:text"`
+	ID              string `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	AlertDeliveryID string `json:"alert_delivery_id" gorm:"index:idx_alert_delivery_attempts_delivery_id;not null"`
+	AttemptNumber   int    `json:"attempt_number" gorm:"not null;index:idx_alert_delivery_attempts_delivery_number"`
+	Status          string `json:"status" gorm:"not null"` // pending | sent | failed
+	Stage           string `json:"stage" gorm:"not null"`  // load_incident | serialize | http_request | http_response | channel_lookup | transport
+	Error           string `json:"error" gorm:"type:text"`
+	// HTTPStatus is the webhook response code (0 when none was received); ResponseSnippet its first bytes.
+	HTTPStatus      int        `json:"http_status" gorm:"not null;default:0"`
+	ResponseSnippet string     `json:"-" gorm:"type:text;not null;default:''"`
 	StartedAt       time.Time  `json:"started_at" gorm:"not null;index:idx_alert_delivery_attempts_started_at"`
 	CompletedAt     *time.Time `json:"completed_at"`
 	CreatedAt       time.Time  `json:"created_at"`
@@ -63,33 +66,40 @@ type AlertGroupMember struct {
 }
 
 type AlertRoute struct {
-	ID                   string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
-	Name                 string    `json:"name" gorm:"uniqueIndex;not null"`
-	Enabled              bool      `json:"enabled" gorm:"not null;default:true;index:idx_alert_routes_enabled"`
-	Priority             int       `json:"priority" gorm:"not null;default:100;index:idx_alert_routes_priority"`
-	EventTypes           string    `json:"event_types" gorm:"type:text"`
-	Severities           string    `json:"severities" gorm:"type:text"`
-	AgentIDs             string    `json:"agent_ids" gorm:"type:text"`
-	MonitorIDs           string    `json:"monitor_ids" gorm:"type:text"`
-	MonitorTypes         string    `json:"monitor_types" gorm:"type:text"`
-	ChannelIDs           string    `json:"channel_ids" gorm:"type:text"`
-	Suppress             bool      `json:"suppress" gorm:"not null;default:false;index:idx_alert_routes_suppress"`
-	GroupingPolicy       string    `json:"grouping_policy" gorm:"not null;default:suppress;index:idx_alert_routes_grouping_policy"`
-	GroupingDelaySeconds int       `json:"grouping_delay_seconds" gorm:"not null;default:300"`
-	CreatedAt            time.Time `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
+	ID                   string `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	Name                 string `json:"name" gorm:"uniqueIndex;not null"`
+	Enabled              bool   `json:"enabled" gorm:"not null;default:true;index:idx_alert_routes_enabled"`
+	Priority             int    `json:"priority" gorm:"not null;default:100;index:idx_alert_routes_priority"`
+	EventTypes           string `json:"event_types" gorm:"type:text"`
+	Severities           string `json:"severities" gorm:"type:text"`
+	AgentIDs             string `json:"agent_ids" gorm:"type:text"`
+	MonitorIDs           string `json:"monitor_ids" gorm:"type:text"`
+	MonitorTypes         string `json:"monitor_types" gorm:"type:text"`
+	ChannelIDs           string `json:"channel_ids" gorm:"type:text"`
+	Suppress             bool   `json:"suppress" gorm:"not null;default:false;index:idx_alert_routes_suppress"`
+	GroupingPolicy       string `json:"grouping_policy" gorm:"not null;default:suppress;index:idx_alert_routes_grouping_policy"`
+	GroupingDelaySeconds int    `json:"grouping_delay_seconds" gorm:"not null;default:300"`
+	// CooldownSeconds limits repeat notifications per incident and channel for this rule; 0 uses the global default.
+	CooldownSeconds int       `json:"cooldown_seconds" gorm:"not null;default:0"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 type AlertChannel struct {
-	ID                   string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
-	Name                 string    `json:"name" gorm:"uniqueIndex;not null"`
-	Type                 string    `json:"type" gorm:"not null"` // webhook
-	Enabled              bool      `json:"enabled" gorm:"not null"`
-	WebhookURL           string    `json:"webhook_url" gorm:"type:text"`
-	WebhookSigningSecret string    `json:"webhook_signing_secret" gorm:"type:text"`
-	SubscribedEvents     string    `json:"subscribed_events" gorm:"type:text"`
-	CreatedAt            time.Time `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
+	ID                   string `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	Name                 string `json:"name" gorm:"uniqueIndex;not null"`
+	Type                 string `json:"type" gorm:"not null"` // webhook
+	Enabled              bool   `json:"enabled" gorm:"not null"`
+	WebhookURL           string `json:"webhook_url" gorm:"type:text"`
+	WebhookSigningSecret string `json:"webhook_signing_secret" gorm:"type:text"`
+	// HeadersJSON holds custom webhook request headers as a JSON object; values are never returned by the API.
+	HeadersJSON string `json:"-" gorm:"type:text;not null;default:'{}'"`
+	// EmailDeliveryMode is instant, or digest_15m (non-critical alerts wait for the next 15 minute mark).
+	EmailDeliveryMode  string    `json:"email_delivery_mode" gorm:"not null;default:instant"`
+	EmailSubjectPrefix string    `json:"email_subject_prefix" gorm:"not null;default:''"`
+	SubscribedEvents   string    `json:"subscribed_events" gorm:"type:text"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
 }
 
 // AlertChannelRecipient is one address on an email alert channel. Alerts go only to
@@ -126,4 +136,32 @@ type EnrollmentSession struct {
 	CancelledAt *time.Time
 	ExpiresAt   time.Time `gorm:"not null"`
 	CreatedAt   time.Time `gorm:"not null"`
+}
+
+// AgentMonitorDefinition is a check the operator configured in the Console for the agent to run
+// ("Agent monitor" setup). The agent pulls its definitions and reports under the same name.
+type AgentMonitorDefinition struct {
+	ID              string    `gorm:"primaryKey"`
+	AgentID         string    `gorm:"not null;uniqueIndex:idx_agent_monitor_definitions_name"`
+	Name            string    `gorm:"not null;uniqueIndex:idx_agent_monitor_definitions_name"`
+	CheckType       string    `gorm:"not null"` // disk | memory | process | port
+	Params          string    `gorm:"type:text;not null;default:'{}'"`
+	IntervalSeconds int       `gorm:"not null;default:30"`
+	FailAfter       int       `gorm:"not null;default:3"`
+	CreatedBy       string    `gorm:"not null;default:''"`
+	CreatedAt       time.Time `gorm:"not null"`
+}
+
+// AlertLabelRoute picks channels by label (the Routes tab): matchers are ANDed; routes are tried in
+// position order and the first match wins unless ContinueMatching is set.
+type AlertLabelRoute struct {
+	ID               string    `json:"id" gorm:"primaryKey"`
+	Position         int       `json:"position" gorm:"not null;default:0;index:idx_alert_label_routes_position"`
+	Name             string    `json:"name" gorm:"not null;default:''"`
+	Enabled          bool      `json:"enabled" gorm:"not null;default:true"`
+	Matchers         string    `json:"matchers" gorm:"type:text;not null;default:'[]'"`
+	ChannelIDs       string    `json:"channel_ids" gorm:"type:text;not null;default:'[]'"`
+	ContinueMatching bool      `json:"continue_matching" gorm:"not null;default:false"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }

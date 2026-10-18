@@ -67,7 +67,7 @@ export const IncidentTriagePage = () => {
   });
 
   return (
-    <div className="mx-auto w-full max-w-[1000px] pb-8">
+    <div className="w-full pb-8">
       <PageHeader
         title="Triage"
         description="Signals Orion has not opened an incident for. Severity comes from recent failures."
@@ -114,7 +114,7 @@ export const IncidentTriagePage = () => {
                 const id = candidate.monitor_id ?? "";
                 const name = candidate.monitor_name ?? id;
                 return (
-                  <GridRow key={id} columns={COLUMNS}>
+                  <GridRow key={id} flipId={id} columns={COLUMNS}>
                     <Dot color={healthDot(candidate.health)} />
                     <b className="font-medium">
                       {candidate.agent_name && candidate.monitor_type === "agent"

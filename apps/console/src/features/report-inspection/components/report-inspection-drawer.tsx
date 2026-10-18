@@ -1,4 +1,11 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle, StatusBadge } from "@/design-system";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  JsonBlock,
+  StatusBadge,
+} from "@/design-system";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import type { ApiAgentReportResponse, ApiMonitorReportResponse } from "@/orion-sdk";
 import type { ReactNode } from "react";
@@ -84,8 +91,6 @@ const formatLatency = (payload: Payload) => {
   return typeof latency === "number" ? `${latency} ms` : EMPTY_VALUE;
 };
 
-const prettyJson = (value: unknown) => JSON.stringify(value, null, 2);
-
 const metadataEntries = (payload: Payload) =>
   Object.entries(payload).filter(
     ([key]) =>
@@ -123,11 +128,7 @@ const Section = ({ title, children }: { title: string; children: ReactNode }) =>
   </section>
 );
 
-const RawJson = ({ value }: { value: unknown }) => (
-  <pre className="max-h-80 overflow-auto bg-neutral-950 p-3 text-xs leading-5 whitespace-pre-wrap text-neutral-50">
-    {prettyJson(value)}
-  </pre>
-);
+const RawJson = ({ value }: { value: unknown }) => <JsonBlock value={value} maxHeight={320} />;
 
 const AgentReportInspection = ({ report }: { report: ApiAgentReportResponse }) => (
   <>

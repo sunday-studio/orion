@@ -105,7 +105,7 @@ func (i *Ingester) Authenticate(authorization string) (*AppContext, error) {
 	i.mu.Unlock()
 
 	var key db.AppIngestKey
-	if err := i.main.Where("key_hash = ? AND revoked_at IS NULL", hash).First(&key).Error; err != nil {
+	if err := i.main.Where("key_hash = ? AND (revoked_at IS NULL OR revoked_at > ?)", hash, i.now().UTC()).First(&key).Error; err != nil {
 		return nil, ErrInvalidKey
 	}
 	if subtle.ConstantTimeCompare([]byte(key.KeyHash), []byte(hash)) != 1 {
@@ -118,9 +118,10 @@ func (i *Ingester) Authenticate(authorization string) (*AppContext, error) {
 	var redaction struct {
 		ExtraKeys       []string `json:"extra_keys"`
 		DisableDefaults bool     `json:"disable_defaults"`
+		Rules           []Rule   `json:"rules"`
 	}
 	_ = json.Unmarshal([]byte(app.RedactionJSON), &redaction)
-	ctx := &AppContext{App: app, KeyID: key.ID, Redactor: NewRedactor(redaction.ExtraKeys, redaction.DisableDefaults), loadedAt: i.now()}
+	ctx := &AppContext{App: app, KeyID: key.ID, Redactor: NewRedactorRules(redaction.ExtraKeys, redaction.DisableDefaults, redaction.Rules), loadedAt: i.now()}
 
 	i.mu.Lock()
 	if gen == i.gen { // an Invalidate during the lookup means this read may be stale: serve it once, do not cache it
@@ -165,7 +166,7 @@ func (i *Ingester) ingestParsed(app *AppContext, parsed Parsed, now time.Time) (
 		return result, nil
 	}
 
-	if ok, wait := i.limiter.Allow(app.App.ID, len(parsed.Entries)); !ok {
+	if ok, wait := i.limiter.AllowAt(app.App.ID, len(parsed.Entries), app.App.RateLimitPerSecond); !ok {
 		return Result{}, &RateLimitedError{RetryAfter: wait}
 	}
 
@@ -206,3 +207,11 @@ func (i *Ingester) touch(app *AppContext, now time.Time) {
 	i.main.Model(&db.AppIngestKey{}).Where("id = ?", app.KeyID).Update("last_used_at", now)
 	i.main.Model(&db.App{}).Where("id = ?", app.App.ID).Update("last_ingest_at", now)
 }
+
+// RecentlyLimited reports whether the rate limiter refused an app within the window.
+func (i *Ingester) RecentlyLimited(window time.Duration) bool {
+	return i.limiter.RecentlyLimited(window)
+}
+
+// QueueDepth returns the queued and maximum entry counts of the write queue.
+func (s *Store) QueueDepth() (queued, max int64) { return s.queued.Load(), s.queueMax }

@@ -21,7 +21,7 @@ import (
 // @Produce      json
 // @Security     BearerAuth
 // @ID           listStatusPages
-// @Success      200  {object}  utils.APIResponse{data=object{pages=[]StatusPageResponse,count=int}}
+// @Success      200  {object}  utils.APIResponse{data=object{pages=[]StatusPageListRow,count=int}}
 // @Failure      500  {object}  utils.APIResponse
 // @Router       /v1/status-pages [get]
 func (s *Server) listStatusPages(c *gin.Context) {
@@ -31,9 +31,9 @@ func (s *Server) listStatusPages(c *gin.Context) {
 		utils.InternalError(c, "Failed to list status pages", err)
 		return
 	}
-	responses := make([]StatusPageResponse, 0, len(pages))
+	responses := make([]StatusPageListRow, 0, len(pages))
 	for _, page := range pages {
-		responses = append(responses, statusPageResponse(page))
+		responses = append(responses, s.statusPageListRow(page))
 	}
 	utils.SuccessResponse(c, http.StatusOK, "Status pages retrieved successfully", gin.H{"pages": responses, "count": len(responses)})
 }
@@ -63,9 +63,18 @@ func (s *Server) createStatusPage(c *gin.Context) {
 		utils.BadRequest(c, err.Error())
 		return
 	}
+	if request.StartFrom != nil && *request.StartFrom != "blank" && *request.StartFrom != "monitors" {
+		utils.BadRequest(c, "start_from must be blank or monitors")
+		return
+	}
 	if err := s.db.Create(&page).Error; err != nil {
 		writeStatusPageCreateError(c, err, "Status page slug already exists")
 		return
+	}
+	if request.StartFrom != nil && *request.StartFrom == "monitors" {
+		if err := s.seedStatusPageFromMonitors(page.ID); err != nil {
+			s.logger.Error("Failed to seed status page from monitors", "status_page_id", page.ID, "error", err)
+		}
 	}
 	utils.SuccessResponse(c, http.StatusCreated, "Status page created successfully", gin.H{"page": statusPageResponse(page)})
 }
@@ -268,6 +277,9 @@ func (s *Server) applyStatusPageRequest(page *db.StatusPage, request statusPageR
 		domain, err := normalizeStatusPageCustomDomain(*request.CustomDomain)
 		if err != nil {
 			return err
+		}
+		if domain != page.CustomDomain {
+			page.DomainStatus, page.DomainCheckedAt, page.DomainVerifiedAt, page.DomainError = domainStatusPending, nil, nil, ""
 		}
 		page.CustomDomain = domain
 	}

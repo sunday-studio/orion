@@ -76,6 +76,15 @@ ORION_PUBLIC_STATUS_URL_ORIGIN=https://status.example.com
 ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET=replace-with-a-long-random-secret
 ```
 
+Console sessions last `ORION_SESSION_HOURS` hours (default 12). The Public Core URL, time zone and registration token can also be changed in Settings; a value saved there wins over `ORION_PUBLIC_URL` and `ORION_ENROLLMENT_TOKEN`. Internal log retention is `ORION_INTERNAL_LOG_RETENTION_DAYS` (7) and `ORION_INTERNAL_LOG_MAX_STORAGE_MB` (200).
+
+Custom status page domains: operators point a CNAME at `ORION_STATUS_PAGES_CNAME_TARGET` (defaults
+to the host of `ORION_PUBLIC_STATUS_URL_ORIGIN`, then `ORION_PUBLIC_URL`). Verification checks a CNAME only, so apex domains that use ALIAS/ANAME/flattened records
+cannot be verified yet; use a subdomain such as status.example.com. Core checks the record when
+the operator presses Verify and only serves a custom domain once it is verified. TLS for that domain
+is terminated by your reverse proxy; Core only reports whether DNS is verified. The subscriber
+secret is also what lets operators see full subscriber emails, export them, and import CSV lists.
+
 Subscriber privacy retention runs inside the Core data lifecycle scheduler. The current hot-database
 defaults are 7 days after pending confirmation expiry, 90 days for unsubscribed or bounced
 subscriber suppression records, and 180 days for subscriber delivery rows. The job records audit

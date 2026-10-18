@@ -139,8 +139,13 @@ func TestAgentTokenLifecycleFlow(t *testing.T) {
 		t.Fatalf("rotate response = %+v", rotated)
 	}
 	oldTokenResp := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+registered.Data.AgentID+"/report", map[string]interface{}{"uptime_seconds": 300, "timestamp": time.Now().UTC().Format(time.RFC3339)}, registered.Data.Token)
-	if oldTokenResp.Code != http.StatusUnauthorized {
-		t.Fatalf("old token report status = %d, body = %s", oldTokenResp.Code, oldTokenResp.Body.String())
+	// A rotated-away token keeps working for the 10 minute grace window, then stops.
+	if oldTokenResp.Code != http.StatusOK {
+		t.Fatalf("old token report status during grace = %d, body = %s", oldTokenResp.Code, oldTokenResp.Body.String())
+	}
+	server.db.Model(&db.Agent{}).Where("id = ?", registered.Data.AgentID).Update("previous_token_expires_at", time.Now().UTC().Add(-time.Second))
+	if expired := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+registered.Data.AgentID+"/report", map[string]interface{}{"uptime_seconds": 300, "timestamp": time.Now().UTC().Format(time.RFC3339)}, registered.Data.Token); expired.Code != http.StatusUnauthorized {
+		t.Fatalf("old token report status after grace = %d, body = %s", expired.Code, expired.Body.String())
 	}
 	newTokenResp := performJSONRequest(t, server, http.MethodPost, "/v1/agents/"+registered.Data.AgentID+"/report", map[string]interface{}{"uptime_seconds": 301, "timestamp": time.Now().UTC().Format(time.RFC3339)}, rotated.Data.Token)
 	if newTokenResp.Code != http.StatusOK {

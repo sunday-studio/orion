@@ -152,5 +152,5 @@ func (s *AlertService) UnsubscribeRecipient(token string) error {
 
 // AlertEmailLink builds a public confirm/unsubscribe URL.
 func AlertEmailLink(cfg *config.Config, action, token string) string {
-	return strings.TrimRight(cfg.PublicURL, "/") + "/alerts/email/" + action + "/" + token
+	return strings.TrimRight(cfg.PublicBaseURL(), "/") + "/alerts/email/" + action + "/" + token
 }

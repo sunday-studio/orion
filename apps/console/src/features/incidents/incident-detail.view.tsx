@@ -166,7 +166,7 @@ export const IncidentDetailPage = () => {
         onPublicUpdate={() => setPublicUpdateOpen(true)}
       />
     ) : (
-      <div className="mx-auto w-full max-w-[1040px]">
+      <div className="w-full">
         <IncidentDetailHeader
           incident={incident}
           now={now}

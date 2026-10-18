@@ -1,5 +1,66 @@
 basePath: /
 definitions:
+  internal_api.APIToken:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      id:
+        type: string
+      last_used_at:
+        type: string
+      name:
+        example: ci-deploys
+        type: string
+      prefix:
+        example: orn_api_3Fk9
+        type: string
+      scope:
+        enum:
+        - read
+        - write
+        type: string
+    type: object
+  internal_api.APITokenCreated:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      id:
+        type: string
+      last_used_at:
+        type: string
+      name:
+        example: ci-deploys
+        type: string
+      prefix:
+        example: orn_api_3Fk9
+        type: string
+      scope:
+        enum:
+        - read
+        - write
+        type: string
+      token:
+        example: orn_api_3Fk9d2a7c1e5b8046a9d3f2e1c7b5a40
+        type: string
+    type: object
+  internal_api.APITokenRequest:
+    properties:
+      name:
+        type: string
+      scope:
+        description: Scope is read (GET requests only) or write (everything except
+          token management).
+        enum:
+        - read
+        - write
+        type: string
+    required:
+    - name
+    type: object
   internal_api.AgentConfigSummaryResponse:
     properties:
       monitor_count:
@@ -36,6 +97,75 @@ definitions:
       up_count:
         type: integer
     type: object
+  internal_api.AgentMonitorDefinitionRequest:
+    properties:
+      check_type:
+        description: 'CheckType: disk (params path, threshold_percent), memory (threshold_percent),
+          process (process_name), port (port).'
+        enum:
+        - disk
+        - memory
+        - process
+        - port
+        type: string
+      fail_after:
+        type: integer
+      interval_seconds:
+        type: integer
+      name:
+        type: string
+      params:
+        additionalProperties: {}
+        type: object
+    required:
+    - check_type
+    - name
+    type: object
+  internal_api.AgentMonitorDefinitionResponse:
+    properties:
+      check_type:
+        type: string
+      created_at:
+        type: string
+      fail_after:
+        type: integer
+      first_report_at:
+        type: string
+      id:
+        type: string
+      interval_seconds:
+        type: integer
+      monitor_id:
+        type: string
+      name:
+        type: string
+      params:
+        additionalProperties: {}
+        type: object
+      state:
+        description: State is waiting until the agent has fetched the definition and
+          reported under this name, then reporting.
+        enum:
+        - waiting
+        - reporting
+        type: string
+    type: object
+  internal_api.AgentPulledDefinition:
+    properties:
+      check_type:
+        type: string
+      fail_after:
+        type: integer
+      id:
+        type: string
+      interval_seconds:
+        type: integer
+      name:
+        type: string
+      params:
+        additionalProperties: {}
+        type: object
+    type: object
   internal_api.AgentReportResponse:
     properties:
       agent_id:
@@ -63,17 +193,37 @@ definitions:
     type: object
   internal_api.AgentResponse:
     properties:
+      agent_version:
+        description: Latest system metrics; null until the first report. CPUSeries
+          has up to 12 readings, oldest first.
+        type: string
       arch:
         type: string
       availability_health:
         type: string
+      cpu_percent:
+        type: number
+      cpu_series:
+        items:
+          type: number
+        type: array
       created_at:
         type: string
+      disk_percent:
+        type: number
       id:
         type: string
       ip:
         type: string
       kernel_version:
+        type: string
+      labels:
+        description: Labels are "key=value" strings; Notes is free text. Both are
+          edited with PATCH /v1/agents/{id}.
+        items:
+          type: string
+        type: array
+      last_report_at:
         type: string
       last_seen:
         type: string
@@ -83,11 +233,15 @@ definitions:
         type: boolean
       maintenance_until:
         type: string
+      memory_percent:
+        type: number
       monitor_count:
         type: integer
       monitor_health:
         type: string
       name:
+        type: string
+      notes:
         type: string
       os:
         type: string
@@ -97,7 +251,13 @@ definitions:
         type: integer
       status:
         type: string
+      status_detail:
+        type: string
       status_reason:
+        type: string
+      status_text:
+        description: StatusText is the badge ("Up 41d", "No report 12m"); StatusDetail
+          the one-line reason ("Disk 91%").
         type: string
       system:
         type: boolean
@@ -139,6 +299,12 @@ definitions:
     properties:
       agent_id:
         type: string
+      last_used_at:
+        type: string
+      previous_token_valid_until:
+        description: PreviousTokenValidUntil is set for 10 minutes after a rotation
+          while the old token still works.
+        type: string
       request_id:
         type: string
       state:
@@ -154,24 +320,71 @@ definitions:
       token_version:
         type: integer
     type: object
+  internal_api.AlertChannelDetailResponse:
+    properties:
+      alert:
+        description: 'Alert is set while the channel is failing: the banner text.'
+        type: string
+      channel:
+        $ref: '#/definitions/internal_api.AlertChannelResponse'
+      consecutive_failures:
+        type: integer
+      payload_preview:
+        allOf:
+        - $ref: '#/definitions/orion_core_internal_service.AlertPayload'
+        description: PayloadPreview is a sample of what a webhook receives.
+      recent_deliveries:
+        items:
+          $ref: '#/definitions/internal_api.AlertDeliveryResponse'
+        type: array
+      recent_total:
+        type: integer
+      rules_using:
+        items:
+          $ref: '#/definitions/internal_api.AlertRuleRef'
+        type: array
+    type: object
   internal_api.AlertChannelResponse:
     properties:
       confirmed_recipient_count:
         type: integer
+      consecutive_failures:
+        type: integer
       created_at:
+        type: string
+      email_delivery_mode:
+        type: string
+      email_subject_prefix:
         type: string
       enabled:
         type: boolean
+      header_names:
+        items:
+          type: string
+        type: array
+      health:
+        description: 'Health: failing (the newest delivery failed), healthy (it succeeded)
+          or untested (never delivered).'
+        enum:
+        - failing
+        - healthy
+        - untested
+        type: string
       id:
         type: string
       last_delivery_at:
         type: string
       last_delivery_status:
         type: string
+      last_delivery_text:
+        description: LastDeliveryText reads "3 failed, 502", "Sent" or "Never".
+        type: string
       name:
         type: string
       recipient_count:
         type: integer
+      signing_secret_mask:
+        type: string
       subscribed_events:
         items:
           type: string
@@ -187,6 +400,17 @@ definitions:
       webhook_url:
         type: string
     type: object
+  internal_api.AlertChannelSummary:
+    properties:
+      enabled:
+        type: boolean
+      id:
+        type: string
+      name:
+        type: string
+      type:
+        type: string
+    type: object
   internal_api.AlertDeliveryAttemptResponse:
     properties:
       alert_delivery_id:
@@ -197,9 +421,17 @@ definitions:
         type: string
       created_at:
         type: string
+      duration_ms:
+        type: integer
       error:
         type: string
+      http_status:
+        type: integer
       id:
+        type: string
+      result_text:
+        description: ResultText reads "502 Bad Gateway" or "Timeout"; HTTPStatus is
+          0 when no response arrived.
         type: string
       stage:
         type: string
@@ -210,9 +442,29 @@ definitions:
       updated_at:
         type: string
     type: object
+  internal_api.AlertDeliveryDetailResponse:
+    properties:
+      channel:
+        $ref: '#/definitions/internal_api.AlertChannelSummary'
+      delivery:
+        $ref: '#/definitions/internal_api.AlertDeliveryResponse'
+      payload:
+        $ref: '#/definitions/orion_core_internal_service.AlertPayload'
+      retry_note:
+        description: 'RetryNote repeats the screen''s promise: a retry resends the
+          same payload and creates no new record.'
+        type: string
+      retryable:
+        type: boolean
+    type: object
   internal_api.AlertDeliveryResponse:
     properties:
       alert_group_id:
+        type: string
+      alert_title:
+        description: |-
+          Filled on list and detail: the alert's title ("Critical down", the rule name), the incident's INC id,
+          the channel id, and the newest result ("502", "Timeout", "Sent") with how long the last attempt took.
         type: string
       attempt_count:
         type: integer
@@ -222,13 +474,19 @@ definitions:
         type: array
       channel:
         type: string
+      channel_id:
+        type: string
       created_at:
         type: string
+      duration_ms:
+        type: integer
       error:
         type: string
       event_type:
         type: string
       id:
+        type: string
+      incident_display_id:
         type: string
       incident_id:
         type: string
@@ -237,6 +495,8 @@ definitions:
       max_attempts:
         type: integer
       next_attempt_at:
+        type: string
+      result_text:
         type: string
       route_id:
         type: string
@@ -400,6 +660,15 @@ definitions:
       suppressed:
         type: boolean
     type: object
+  internal_api.AlertRuleRef:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      summary:
+        type: string
+    type: object
   internal_api.AlertRuleResponse:
     properties:
       agent_ids:
@@ -410,6 +679,8 @@ definitions:
         items:
           type: string
         type: array
+      cooldown_seconds:
+        type: integer
       created_at:
         type: string
       enabled:
@@ -422,8 +693,12 @@ definitions:
         type: integer
       grouping_policy:
         type: string
+      how_it_runs:
+        $ref: '#/definitions/internal_api.RuleHowItRuns'
       id:
         type: string
+      last_24h_fired:
+        type: integer
       monitor_ids:
         items:
           type: string
@@ -440,10 +715,45 @@ definitions:
         items:
           type: string
         type: array
+      summary:
+        description: Summary is the sentence in the Rules list; Last24hFired counts
+          distinct incident notifications in the last day.
+        type: string
       suppress:
         type: boolean
       updated_at:
         type: string
+    type: object
+  internal_api.AlertTestResult:
+    properties:
+      actual:
+        $ref: '#/definitions/internal_api.IncidentExpectation'
+      body:
+        type: string
+      duration_ms:
+        type: integer
+      expected:
+        $ref: '#/definitions/internal_api.IncidentExpectation'
+      hint:
+        type: string
+      passed:
+        type: boolean
+      recipients:
+        description: 'Recipients is set for email channels: confirmed addresses mailed
+          vs addresses skipped as unconfirmed.'
+        properties:
+          delivered:
+            type: integer
+          skipped:
+            type: integer
+        type: object
+      status:
+        enum:
+        - passed
+        - failed
+        type: string
+      status_code:
+        type: integer
     type: object
   internal_api.App:
     properties:
@@ -467,6 +777,8 @@ definitions:
         type: integer
       last_ingest_at:
         type: string
+      lines:
+        type: integer
       max_storage_mb:
         description: MaxStorageMB caps stored log size for this app; the oldest entries
           are pruned first. 0 means the server default.
@@ -474,6 +786,13 @@ definitions:
       name:
         example: checkout-api
         type: string
+      rate_limit_per_second:
+        description: RateLimitPerSecond is this app's ingest limit in lines per second;
+          0 uses the server default.
+        type: integer
+      rate_per_second:
+        description: RatePerSecond is the average over the last minute.
+        type: number
       redaction:
         $ref: '#/definitions/internal_api.RedactionSettings'
       retention_days:
@@ -483,6 +802,21 @@ definitions:
       slug:
         example: checkout-api
         type: string
+      status:
+        description: Status is receiving (a log in the last 5 minutes), quiet or never.
+        enum:
+        - receiving
+        - quiet
+        - never
+        type: string
+      storage_bytes:
+        description: StorageBytes is what the app currently uses; StorageCapBytes
+          its size cap (0 = no cap).
+        type: integer
+      storage_cap_bytes:
+        type: integer
+      storage_percent:
+        type: integer
     type: object
   internal_api.AppRequest:
     properties:
@@ -498,6 +832,8 @@ definitions:
         type: integer
       name:
         type: string
+      rate_limit_per_second:
+        type: integer
       redaction:
         $ref: '#/definitions/internal_api.RedactionSettings'
       retention_days:
@@ -519,10 +855,85 @@ definitions:
         type: integer
       name:
         type: string
+      rate_limit_per_second:
+        type: integer
       redaction:
         $ref: '#/definitions/internal_api.RedactionSettings'
       retention_days:
         type: integer
+    type: object
+  internal_api.AuditActor:
+    properties:
+      actor:
+        type: string
+      count:
+        type: integer
+    type: object
+  internal_api.AuditEntry:
+    properties:
+      action:
+        description: Action is the phrase shown in the log, for example "Resolved
+          incident".
+        type: string
+      action_key:
+        example: incident_resolved
+        type: string
+      actor:
+        example: admin
+        type: string
+      actor_type:
+        description: ActorType is user, api_token or system.
+        enum:
+        - user
+        - api_token
+        - system
+        type: string
+      at:
+        type: string
+      id:
+        type: string
+      object_id:
+        type: string
+      object_type:
+        type: string
+      target:
+        description: Target names what was changed, for example "INC-0231" or "api-https".
+        type: string
+    type: object
+  internal_api.AuditListResponse:
+    properties:
+      actors:
+        description: Actors lists who appears in the log, for the Actor filter.
+        items:
+          $ref: '#/definitions/internal_api.AuditActor'
+        type: array
+      entries:
+        items:
+          $ref: '#/definitions/internal_api.AuditEntry'
+        type: array
+      next_cursor:
+        type: string
+    type: object
+  internal_api.AvailabilityPeriod:
+    properties:
+      availability_percent:
+        type: number
+      downtime_seconds:
+        type: integer
+      incidents:
+        type: integer
+      longest_ongoing:
+        description: LongestOngoing is true when the longest incident has not ended.
+        type: boolean
+      longest_seconds:
+        type: integer
+      period:
+        enum:
+        - today
+        - 7d
+        - 30d
+        - 365d
+        type: string
     type: object
   internal_api.BulkIncidentRequest:
     properties:
@@ -553,6 +964,43 @@ definitions:
         type: string
       incident:
         $ref: '#/definitions/internal_api.IncidentResponse'
+      ok:
+        type: boolean
+    type: object
+  internal_api.BulkMonitorRequest:
+    properties:
+      action:
+        enum:
+        - pause
+        - resume
+        - maintenance
+        - delete
+        - clone
+        type: string
+      ids:
+        items:
+          type: string
+        type: array
+      keep_history:
+        description: KeepHistory applies to delete (default true).
+        type: boolean
+      maintenance:
+        allOf:
+        - $ref: '#/definitions/internal_api.MonitorMaintenanceRequest'
+        description: Maintenance applies to the maintenance action.
+    required:
+    - action
+    - ids
+    type: object
+  internal_api.BulkMonitorResult:
+    properties:
+      error:
+        type: string
+      id:
+        type: string
+      new_id:
+        description: NewID is the clone's id for the clone action.
+        type: string
       ok:
         type: boolean
     type: object
@@ -751,6 +1199,101 @@ definitions:
         - reporting
         - expired
         - cancelled
+        type: string
+    type: object
+  internal_api.ExportRequest:
+    properties:
+      format:
+        description: Format is csv (default) or jsonl.
+        enum:
+        - csv
+        - jsonl
+        type: string
+      include_raw:
+        description: IncludeRaw adds the raw event as a column (CSV); JSON lines always
+          contain the full event.
+        type: boolean
+      kind:
+        description: Kind is logs (default), status, internal or audit.
+        enum:
+        - logs
+        - status
+        - internal
+        - audit
+        type: string
+      query:
+        description: Query is the screen's filter as a URL query string, for example
+          "severity=error&from=-24h".
+        example: severity=error&from=-24h
+        type: string
+    type: object
+  internal_api.ExportResponse:
+    properties:
+      bytes:
+        type: integer
+      created_at:
+        type: string
+      download_url:
+        type: string
+      error:
+        type: string
+      expires_at:
+        type: string
+      finished_at:
+        type: string
+      format:
+        type: string
+      id:
+        type: string
+      kind:
+        type: string
+      rows:
+        type: integer
+      status:
+        description: Status is queued, running, done or failed.
+        enum:
+        - queued
+        - running
+        - done
+        - failed
+        type: string
+      truncated:
+        type: boolean
+    type: object
+  internal_api.GeneralSettings:
+    properties:
+      instance_name:
+        example: Acme Orion
+        type: string
+      public_url:
+        example: https://orion.acme.test
+        type: string
+      public_url_source:
+        description: PublicURLSource is settings, environment or empty.
+        enum:
+        - settings
+        - environment
+        type: string
+      time_format:
+        enum:
+        - "12"
+        - "24"
+        type: string
+      timezone:
+        example: UTC
+        type: string
+      updated_at:
+        type: string
+    type: object
+  internal_api.GeneralSettingsRequest:
+    properties:
+      instance_name:
+        type: string
+      public_url:
+        type: string
+      time_format:
+        type: string
+      timezone:
         type: string
     type: object
   internal_api.HealthIssue:
@@ -1340,6 +1883,117 @@ definitions:
         example: 2
         type: integer
     type: object
+  internal_api.LabelMatcherDTO:
+    properties:
+      key:
+        example: env
+        type: string
+      op:
+        enum:
+        - =
+        - '!='
+        example: =
+        type: string
+      value:
+        example: prod
+        type: string
+    type: object
+  internal_api.LabelRouteDryRunRequest:
+    properties:
+      labels:
+        description: Labels are key=value pairs, for example ["env=prod", "severity=critical"].
+        items:
+          type: string
+        type: array
+    type: object
+  internal_api.LabelRouteDryRunResponse:
+    properties:
+      channels:
+        items:
+          type: string
+        type: array
+      evaluations:
+        items:
+          $ref: '#/definitions/internal_api.LabelRouteEvaluation'
+        type: array
+      summary:
+        description: Summary reads "Routes 1 and 2 deliver to oncall webhook and ops-team."
+        type: string
+    type: object
+  internal_api.LabelRouteEvaluation:
+    properties:
+      channel_names:
+        items:
+          type: string
+        type: array
+      matched:
+        type: boolean
+      number:
+        type: integer
+      route_id:
+        type: string
+      skipped:
+        description: 'Skipped: an earlier matching route without Continue ended the
+          evaluation.'
+        type: boolean
+      when:
+        type: string
+    type: object
+  internal_api.LabelRouteRequest:
+    properties:
+      channel_ids:
+        items:
+          type: string
+        type: array
+      continue_matching:
+        type: boolean
+      enabled:
+        type: boolean
+      matchers:
+        items:
+          $ref: '#/definitions/internal_api.LabelMatcherDTO'
+        type: array
+      name:
+        type: string
+    type: object
+  internal_api.LabelRouteResponse:
+    properties:
+      channel_ids:
+        items:
+          type: string
+        type: array
+      channel_names:
+        items:
+          type: string
+        type: array
+      continue_matching:
+        type: boolean
+      created_at:
+        type: string
+      enabled:
+        type: boolean
+      id:
+        type: string
+      matchers:
+        items:
+          $ref: '#/definitions/internal_api.LabelMatcherDTO'
+        type: array
+      name:
+        type: string
+      number:
+        type: integer
+      then:
+        description: Then reads "Continue" or "Stop".
+        enum:
+        - Continue
+        - Stop
+        type: string
+      updated_at:
+        type: string
+      when:
+        example: env=prod AND severity=critical
+        type: string
+    type: object
   internal_api.LogAlertRule:
     properties:
       app_id:
@@ -1465,6 +2119,10 @@ definitions:
         type: object
       severity:
         $ref: '#/definitions/internal_api.LogSeverity'
+      severity_inferred:
+        description: SeverityInferred is true when the sender gave no severity and
+          it was read from the text.
+        type: boolean
       severity_number:
         example: 17
         type: integer
@@ -1530,6 +2188,52 @@ definitions:
         example: 4bf92f3577b34da6a3ce929d0e0e4736
         type: string
     type: object
+  internal_api.LogFacetCount:
+    properties:
+      count:
+        type: integer
+      label:
+        description: Label is the display name (an app's name for the source facet).
+        type: string
+      value:
+        type: string
+    type: object
+  internal_api.LogFacetsResponse:
+    properties:
+      environments:
+        items:
+          $ref: '#/definitions/internal_api.LogFacetCount'
+        type: array
+      events:
+        items:
+          $ref: '#/definitions/internal_api.LogFacetCount'
+        type: array
+      events_distinct:
+        description: EventsDistinct is how many different events exist, for "Show
+          41 more".
+        type: integer
+      fields:
+        items:
+          $ref: '#/definitions/internal_api.LogFieldStat'
+        type: array
+      severity:
+        additionalProperties:
+          format: int64
+          type: integer
+        type: object
+      sources:
+        items:
+          $ref: '#/definitions/internal_api.LogFacetCount'
+        type: array
+      total:
+        type: integer
+      values:
+        description: Values lists the most common values when the field query parameter
+          is set.
+        items:
+          $ref: '#/definitions/internal_api.LogFacetCount'
+        type: array
+    type: object
   internal_api.LogFieldCatalogResponse:
     properties:
       fields:
@@ -1583,6 +2287,34 @@ definitions:
           $ref: '#/definitions/internal_api.LogHistogramBucket'
         type: array
     type: object
+  internal_api.LogIngestStatus:
+    properties:
+      behind:
+        type: boolean
+      dropped:
+        description: Dropped counts entries dropped since Core started.
+        type: integer
+      lag_seconds:
+        description: LagSeconds estimates how long newly accepted logs wait before
+          they are searchable.
+        type: integer
+      lines_today:
+        type: integer
+      queue_depth:
+        type: integer
+      queue_max:
+        type: integer
+      rate_limited:
+        type: boolean
+      storage_bytes:
+        type: integer
+      storage_full:
+        type: boolean
+      storage_limit_bytes:
+        description: StorageLimitBytes is the sum of the apps' size caps; 0 when any
+          app has no cap.
+        type: integer
+    type: object
   internal_api.LogListResponse:
     properties:
       entries:
@@ -1595,6 +2327,57 @@ definitions:
         description: Truncated is true when the time range matched more rows than
           the server will scan.
         type: boolean
+    type: object
+  internal_api.LogPattern:
+    properties:
+      count:
+        type: integer
+      first_seen:
+        type: string
+      is_new:
+        type: boolean
+      last_seen:
+        type: string
+      pattern:
+        example: 'Delivery failed: <n> returned <n>'
+        type: string
+      sample_id:
+        type: string
+      severity:
+        $ref: '#/definitions/internal_api.LogSeverity'
+      trend:
+        items:
+          type: integer
+        type: array
+    type: object
+  internal_api.LogPatternsResponse:
+    properties:
+      from:
+        type: string
+      patterns:
+        items:
+          $ref: '#/definitions/internal_api.LogPattern'
+        type: array
+      to:
+        type: string
+    type: object
+  internal_api.LogRelatedResponse:
+    properties:
+      by:
+        description: By is request_id, trace_id or nearby.
+        enum:
+        - request_id
+        - trace_id
+        - nearby
+        type: string
+      entries:
+        items:
+          $ref: '#/definitions/internal_api.LogEntry'
+        type: array
+      total:
+        type: integer
+      value:
+        type: string
     type: object
   internal_api.LogSavedView:
     properties:
@@ -1661,19 +2444,118 @@ definitions:
         example: admin
         type: string
     type: object
+  internal_api.MonitorDetailSummary:
+    properties:
+      current_state_since:
+        description: CurrentStateSince is when the monitor entered its current status
+          (a failing run's start); null when unknown.
+        type: string
+      heartbeat:
+        $ref: '#/definitions/internal_api.MonitorHeartbeatInfo'
+      incidents_30d:
+        type: integer
+      interval_seconds:
+        type: integer
+      kind:
+        type: string
+      last_checked_at:
+        type: string
+      last_result:
+        description: 'LastResult is the newest check: pass or fail.'
+        enum:
+        - pass
+        - fail
+        type: string
+      paused:
+        type: boolean
+      paused_at:
+        type: string
+      paused_by:
+        type: string
+      runbook_url:
+        type: string
+      status:
+        enum:
+        - up
+        - down
+        - degraded
+        - stale
+        - unknown
+        - paused
+        type: string
+      status_detail:
+        type: string
+      status_text:
+        type: string
+      target:
+        type: string
+      timeout_seconds:
+        type: integer
+      tls_days_remaining:
+        description: TLSDaysRemaining comes from the newest TLS-aware check.
+        type: integer
+    type: object
+  internal_api.MonitorHeartbeatInfo:
+    properties:
+      expected_every_seconds:
+        type: integer
+      grace_seconds:
+        type: integer
+      last_ping_at:
+        type: string
+      ping_url_failure:
+        type: string
+      ping_url_success:
+        description: Ping URLs show only the first characters of the token; the full
+          URL is returned once, when the monitor is created.
+        type: string
+    type: object
+  internal_api.MonitorMaintenanceInfo:
+    properties:
+      active:
+        type: boolean
+      ends_at:
+        type: string
+      reason:
+        type: string
+      starts_at:
+        type: string
+    type: object
+  internal_api.MonitorMaintenanceRequest:
+    properties:
+      duration_seconds:
+        type: integer
+      ends_at:
+        type: string
+      reason:
+        type: string
+      starts_at:
+        description: StartsAt defaults to now. Give EndsAt or DurationSeconds.
+        type: string
+    type: object
   internal_api.MonitorReportResponse:
     properties:
       collected_at:
         type: string
       created_at:
         type: string
+      duration_ms:
+        type: integer
       health:
         type: string
       id:
         type: string
       monitor_id:
         type: string
+      passed:
+        description: 'Derived for the check history drawer: passed, a one-line summary
+          ("Timeout, 10,000 ms"), duration and source.'
+        type: boolean
       payload:
+        type: string
+      reported_by:
+        type: string
+      summary:
         type: string
     type: object
   internal_api.MonitorResponse:
@@ -1698,12 +2580,23 @@ definitions:
         type: string
       incident_state:
         type: string
+      interval_seconds:
+        type: integer
+      kind:
+        description: |-
+          List and detail extras: runner kind, what is checked ("GET api.example.com/health"), cadence, pause state,
+          runbook link, and the last 24 check results oldest first ("up", "degraded", "down").
+        type: string
       last_health_computation:
         type: string
       last_successful_report_at:
         type: string
       lifecycle:
         type: string
+      maintenance:
+        allOf:
+        - $ref: '#/definitions/internal_api.MonitorMaintenanceInfo'
+        description: Maintenance is set while a window is active or scheduled.
       name:
         type: string
       owner_id:
@@ -1712,16 +2605,66 @@ definitions:
         type: string
       owner_name:
         type: string
+      paused:
+        type: boolean
+      paused_at:
+        type: string
+      paused_by:
+        type: string
+      recent_checks:
+        items:
+          type: string
+        type: array
       reporting_interval_seconds:
         type: integer
+      runbook_url:
+        type: string
       source:
+        type: string
+      status_detail:
+        type: string
+      status_text:
+        description: StatusText ("Down 30m") and StatusDetail ("timeout after 10s")
+          are filled on a server's monitor list.
         type: string
       system:
         type: boolean
+      target:
+        type: string
       type:
         type: string
       updated_at:
         type: string
+    type: object
+  internal_api.MonitorTestRunResponse:
+    properties:
+      actual:
+        $ref: '#/definitions/internal_api.IncidentExpectation'
+      duration_ms:
+        type: integer
+      error:
+        type: string
+      expected:
+        $ref: '#/definitions/internal_api.IncidentExpectation'
+      failure_stage:
+        type: string
+      notes:
+        description: Notes always includes that a test run creates no history or alerts.
+        items:
+          type: string
+        type: array
+      passed:
+        type: boolean
+      ran_at:
+        type: string
+      status:
+        description: Status is passed or failed.
+        enum:
+        - passed
+        - failed
+        type: string
+      status_code:
+        type: integer
     type: object
   internal_api.OrionEventResponse:
     properties:
@@ -1868,8 +2811,35 @@ definitions:
         description: Uptime30dPercent is null until a daily rollup exists.
         type: number
     type: object
+  internal_api.RedactionDefaultsResponse:
+    properties:
+      keys:
+        items:
+          type: string
+        type: array
+    type: object
+  internal_api.RedactionRule:
+    properties:
+      pattern:
+        example: card_number
+        type: string
+      replace_with:
+        example: '[redacted]'
+        type: string
+      type:
+        enum:
+        - key
+        - regex
+        type: string
+    type: object
   internal_api.RedactionSettings:
     properties:
+      default_keys:
+        description: 'DefaultKeys is read-only: the key names redacted unless defaults
+          are disabled.'
+        items:
+          type: string
+        type: array
       disable_defaults:
         description: DisableDefaults turns off the built-in key list. Not recommended.
         type: boolean
@@ -1879,6 +2849,47 @@ definitions:
         items:
           type: string
         type: array
+      rules:
+        description: Rules are custom rules applied after the defaults.
+        items:
+          $ref: '#/definitions/internal_api.RedactionRule'
+        type: array
+    type: object
+  internal_api.RedactionTestRequest:
+    properties:
+      redaction:
+        allOf:
+        - $ref: '#/definitions/internal_api.RedactionSettings'
+        description: Redaction overrides the app's saved rules; omit to test what
+          is saved.
+      sample:
+        description: Sample is a JSON value (object, array or string).
+        type: object
+    type: object
+  internal_api.RedactionTestResponse:
+    properties:
+      changed:
+        description: Changed is true when at least one value differs from the sample.
+        type: boolean
+      redacted:
+        type: object
+    type: object
+  internal_api.RegistrationTokenResponse:
+    properties:
+      rotated_at:
+        type: string
+      token:
+        example: orn_reg_3Fk9d2a7c1e5b8046a9d3f2e
+        type: string
+    type: object
+  internal_api.ReorderLabelRoutesRequest:
+    properties:
+      ids:
+        items:
+          type: string
+        type: array
+    required:
+    - ids
     type: object
   internal_api.ReportResponse:
     properties:
@@ -1890,6 +2901,86 @@ definitions:
         type: string
       type:
         type: string
+    type: object
+  internal_api.ResponseTimePoint:
+    properties:
+      at:
+        type: string
+      avg_ms:
+        type: number
+      checks:
+        type: integer
+      failed:
+        type: integer
+      max_ms:
+        type: number
+    type: object
+  internal_api.ResponseTimesResponse:
+    properties:
+      bucket_seconds:
+        type: integer
+      points:
+        items:
+          $ref: '#/definitions/internal_api.ResponseTimePoint'
+        type: array
+      range:
+        enum:
+        - day
+        - week
+        - month
+        type: string
+      timeout_ms:
+        type: integer
+    type: object
+  internal_api.RuleHowItRuns:
+    properties:
+      if:
+        example: Severity is critical or high
+        type: string
+      limit:
+        example: Once per 10 min
+        type: string
+      notify:
+        items:
+          type: string
+        type: array
+      quiet:
+        description: Quiet is true for suppress rules, which notify nobody.
+        type: boolean
+      when:
+        example: An incident opens
+        type: string
+    type: object
+  internal_api.RuleReplayItem:
+    properties:
+      at:
+        type: string
+      channels:
+        items:
+          type: string
+        type: array
+      event:
+        type: string
+      incident_display_id:
+        type: string
+      incident_id:
+        type: string
+      title:
+        type: string
+    type: object
+  internal_api.RuleReplayResponse:
+    properties:
+      incidents_checked:
+        type: integer
+      note:
+        description: Nothing is delivered; the note repeats that for the screen.
+        type: string
+      window_hours:
+        type: integer
+      would_send:
+        items:
+          $ref: '#/definitions/internal_api.RuleReplayItem'
+        type: array
     type: object
   internal_api.SearchHitResponse:
     properties:
@@ -1910,6 +3001,12 @@ definitions:
         - incident
         - server
         - app
+        type: string
+    type: object
+  internal_api.SearchTimeoutBody:
+    properties:
+      code:
+        example: search_timeout
         type: string
     type: object
   internal_api.ServiceLogBatchResponse:
@@ -1948,6 +3045,145 @@ definitions:
       source:
         type: string
       stream:
+        type: string
+    type: object
+  internal_api.StatusLogEntry:
+    properties:
+      at:
+        type: string
+      detail:
+        example: oncall webhook returned 502, attempt 3 of 3
+        type: string
+      id:
+        type: string
+      incident_display_id:
+        type: string
+      incident_id:
+        type: string
+      kind:
+        description: Kind is the specific event (check, transition, report, registered,
+          created, delivery, audit, or an incident event type).
+        type: string
+      level:
+        description: Level is info, warn or error.
+        enum:
+        - info
+        - warn
+        - error
+        type: string
+      monitor_id:
+        type: string
+      monitor_name:
+        type: string
+      server_id:
+        type: string
+      server_name:
+        type: string
+      title:
+        example: Delivery failed
+        type: string
+      type:
+        description: Type is monitor, alert, server, incident or system.
+        enum:
+        - monitor
+        - alert
+        - server
+        - incident
+        - system
+        type: string
+    type: object
+  internal_api.StatusLogFacet:
+    properties:
+      count:
+        type: integer
+      label:
+        type: string
+      value:
+        type: string
+    type: object
+  internal_api.StatusLogFacetsResponse:
+    properties:
+      levels:
+        additionalProperties:
+          format: int64
+          type: integer
+        type: object
+      monitors:
+        items:
+          $ref: '#/definitions/internal_api.StatusLogFacet'
+        type: array
+      monitors_distinct:
+        type: integer
+      servers:
+        items:
+          $ref: '#/definitions/internal_api.StatusLogFacet'
+        type: array
+      servers_distinct:
+        description: ServersDistinct is how many different servers appear, for "Show
+          3 more".
+        type: integer
+      total:
+        type: integer
+      types:
+        additionalProperties:
+          format: int64
+          type: integer
+        type: object
+    type: object
+  internal_api.StatusLogListResponse:
+    properties:
+      count:
+        type: integer
+      entries:
+        items:
+          $ref: '#/definitions/internal_api.StatusLogEntry'
+        type: array
+      next_cursor:
+        description: NextCursor pages to older events, PrevCursor to newer ones; empty
+          at the ends.
+        type: string
+      prev_cursor:
+        type: string
+      total:
+        description: Total is how many events match the filter in the window.
+        type: integer
+    type: object
+  internal_api.StatusPageBadgeLinks:
+    properties:
+      html:
+        type: string
+      json_url:
+        type: string
+      markdown:
+        type: string
+      svg_url:
+        type: string
+    type: object
+  internal_api.StatusPageBadgesResponse:
+    properties:
+      components:
+        items:
+          $ref: '#/definitions/internal_api.StatusPageComponentBadgeLinks'
+        type: array
+      note:
+        description: 'Note: unpublished pages serve an unknown badge.'
+        type: string
+      page:
+        $ref: '#/definitions/internal_api.StatusPageBadgeLinks'
+    type: object
+  internal_api.StatusPageComponentBadgeLinks:
+    properties:
+      html:
+        type: string
+      id:
+        type: string
+      json_url:
+        type: string
+      markdown:
+        type: string
+      name:
+        type: string
+      svg_url:
         type: string
     type: object
   internal_api.StatusPageComponentMappingResponse:
@@ -2016,6 +3252,54 @@ definitions:
         items:
           $ref: '#/definitions/internal_api.StatusPageSectionResponse'
         type: array
+    type: object
+  internal_api.StatusPageDomainRecord:
+    properties:
+      host:
+        example: status.example.com
+        type: string
+      type:
+        example: CNAME
+        type: string
+      value:
+        example: pages.orion.example.com
+        type: string
+    type: object
+  internal_api.StatusPageDomainResponse:
+    properties:
+      certificate:
+        enum:
+        - none
+        - pending
+        - issued
+        type: string
+      domain:
+        type: string
+      fallback_url:
+        type: string
+      last_checked_at:
+        type: string
+      records:
+        items:
+          $ref: '#/definitions/internal_api.StatusPageDomainRecord'
+        type: array
+      status:
+        description: Status is pending, verified or failed.
+        enum:
+        - pending
+        - verified
+        - failed
+        type: string
+      status_text:
+        description: StatusText is the short line shown next to the status.
+        example: Record not found yet
+        type: string
+      target_known:
+        type: boolean
+      verified_at:
+        type: string
+      verify_after_seconds:
+        type: integer
     type: object
   internal_api.StatusPageIncidentComponentSuggestionMatchResponse:
     properties:
@@ -2112,6 +3396,124 @@ definitions:
       status:
         type: string
     type: object
+  internal_api.StatusPageListRow:
+    properties:
+      canonical_url:
+        type: string
+      component_count:
+        type: integer
+      created_at:
+        type: string
+      custom_domain:
+        type: string
+      default_incident_visibility:
+        type: string
+      description:
+        type: string
+      domain_status:
+        description: DomainStatus is pending, verified or failed; empty without a
+          custom domain.
+        type: string
+      id:
+        type: string
+      last_updated:
+        type: string
+      open_graph_image_url:
+        type: string
+      overall_status:
+        example: operational
+        type: string
+      public_url:
+        description: PublicURL is the custom domain when set, else the /status/<slug>
+          path.
+        example: status.example.com
+        type: string
+      published_at:
+        type: string
+      seo_description:
+        type: string
+      seo_title:
+        type: string
+      slug:
+        type: string
+      state:
+        description: State is published, draft or maintenance.
+        enum:
+        - published
+        - draft
+        - maintenance
+        type: string
+      subscriber_count:
+        type: integer
+      theme_settings:
+        additionalProperties: true
+        type: object
+      title:
+        type: string
+      updated_at:
+        type: string
+      visibility:
+        type: string
+    type: object
+  internal_api.StatusPageMaintenanceRequest:
+    properties:
+      component_ids:
+        items:
+          type: string
+        type: array
+      description:
+        type: string
+      ends_at:
+        type: string
+      hold_alerts:
+        type: boolean
+      notify_subscribers:
+        type: boolean
+      starts_at:
+        type: string
+      title:
+        type: string
+    type: object
+  internal_api.StatusPageMaintenanceResponse:
+    properties:
+      component_ids:
+        items:
+          type: string
+        type: array
+      component_names:
+        items:
+          type: string
+        type: array
+      created_at:
+        type: string
+      description:
+        type: string
+      ends_at:
+        type: string
+      hold_alerts:
+        type: boolean
+      id:
+        type: string
+      notice_sent:
+        type: boolean
+      notify_subscribers:
+        type: boolean
+      starts_at:
+        type: string
+      status:
+        description: Status is scheduled, in_progress or completed.
+        enum:
+        - scheduled
+        - in_progress
+        - completed
+        type: string
+      status_page_id:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
   internal_api.StatusPagePreviewResponse:
     properties:
       incidents:
@@ -2120,6 +3522,11 @@ definitions:
         type: array
       last_updated:
         type: string
+      maintenance:
+        description: Maintenance lists windows in progress or starting within 14 days.
+        items:
+          $ref: '#/definitions/internal_api.StatusPagePublicMaintenanceResponse'
+        type: array
       metadata:
         $ref: '#/definitions/internal_api.StatusPagePublicMetadataResponse'
       overall_status:
@@ -2229,6 +3636,28 @@ definitions:
       status:
         type: string
     type: object
+  internal_api.StatusPagePublicMaintenanceResponse:
+    properties:
+      component_ids:
+        items:
+          type: string
+        type: array
+      description:
+        type: string
+      ends_at:
+        type: string
+      id:
+        type: string
+      starts_at:
+        type: string
+      status:
+        enum:
+        - scheduled
+        - in_progress
+        type: string
+      title:
+        type: string
+    type: object
   internal_api.StatusPagePublicMetadataResponse:
     properties:
       canonical_url:
@@ -2304,6 +3733,49 @@ definitions:
       window:
         type: string
     type: object
+  internal_api.StatusPagePublishValidationResponse:
+    properties:
+      errors:
+        items:
+          type: string
+        type: array
+      warnings:
+        items:
+          type: string
+        type: array
+    type: object
+  internal_api.StatusPageReadinessCheck:
+    properties:
+      blocking:
+        type: boolean
+      detail:
+        type: string
+      key:
+        example: components_mapped
+        type: string
+      label:
+        example: Every component is mapped to a resource
+        type: string
+      ok:
+        type: boolean
+    type: object
+  internal_api.StatusPageReadinessResponse:
+    properties:
+      checks:
+        items:
+          $ref: '#/definitions/internal_api.StatusPageReadinessCheck'
+        type: array
+      passed:
+        type: integer
+      ready:
+        type: boolean
+      total:
+        type: integer
+      validation:
+        allOf:
+        - $ref: '#/definitions/internal_api.StatusPagePublishValidationResponse'
+        description: Errors and Warnings repeat what publishing would report.
+    type: object
   internal_api.StatusPageResponse:
     properties:
       canonical_url:
@@ -2315,6 +3787,10 @@ definitions:
       default_incident_visibility:
         type: string
       description:
+        type: string
+      domain_status:
+        description: DomainStatus is pending, verified or failed; empty without a
+          custom domain.
         type: string
       id:
         type: string
@@ -2355,6 +3831,15 @@ definitions:
       updated_at:
         type: string
     type: object
+  internal_api.StatusPageSlugCheckResponse:
+    properties:
+      available:
+        type: boolean
+      reason:
+        type: string
+      slug:
+        type: string
+    type: object
   internal_api.StatusPageSubscriberAdminComponentResponse:
     properties:
       id:
@@ -2378,6 +3863,10 @@ definitions:
         type: string
       disabled_at:
         type: string
+      email:
+        description: Email is the full address for operators; empty when the subscriber
+          secret is not configured.
+        type: string
       id:
         type: string
       last_delivery_at:
@@ -2385,6 +3874,13 @@ definitions:
       last_delivery_status:
         type: string
       masked_destination:
+        type: string
+      scope:
+        description: Scope reads "All components", "API only" or "3 components".
+        type: string
+      since:
+        description: Since is when the subscriber confirmed, else when they signed
+          up.
         type: string
       source:
         type: string
@@ -2404,6 +3900,45 @@ definitions:
       name:
         type: string
     type: object
+  internal_api.StatusPageSubscriberCounts:
+    properties:
+      confirmed:
+        type: integer
+      disabled:
+        type: integer
+      pending:
+        type: integer
+      total:
+        type: integer
+      unsubscribed:
+        type: integer
+    type: object
+  internal_api.StatusPageSubscriberImportRequest:
+    properties:
+      csv:
+        description: CSV is the file text; the first column is the email. A header
+          row named "email" is skipped.
+        type: string
+    required:
+    - csv
+    type: object
+  internal_api.StatusPageSubscriberImportResponse:
+    properties:
+      confirm_mailed:
+        type: integer
+      imported:
+        type: integer
+      invalid:
+        description: Invalid lists rows that are not valid emails (at most 20 shown).
+        items:
+          type: string
+        type: array
+      invalid_count:
+        type: integer
+      skipped:
+        description: Skipped counts addresses that were already subscribed.
+        type: integer
+    type: object
   internal_api.StatusPageSubscriberPublicResponse:
     properties:
       available_components:
@@ -2421,11 +3956,134 @@ definitions:
       state:
         type: string
     type: object
+  internal_api.SystemSettings:
+    properties:
+      backups:
+        properties:
+          guide_url:
+            type: string
+          note:
+            type: string
+        type: object
+      database:
+        properties:
+          engine:
+            example: SQLite
+            type: string
+          size_bytes:
+            type: integer
+        type: object
+      registration:
+        properties:
+          configured:
+            description: Configured is false when agents can register without a token.
+            type: boolean
+          rotated_at:
+            type: string
+          source:
+            enum:
+            - settings
+            - environment
+            - none
+            type: string
+          token:
+            description: Token is the secret itself; it is returned to Console sessions
+              only, never to API tokens.
+            type: string
+          token_mask:
+            description: TokenMask is the token with its middle hidden, shown to API
+              tokens.
+            type: string
+        type: object
+      sign_in:
+        properties:
+          auth_enabled:
+            type: boolean
+          session_hours:
+            type: integer
+          username:
+            type: string
+        type: object
+      started_at:
+        type: string
+      uptime_seconds:
+        type: integer
+      version:
+        example: 0.9.2
+        type: string
+      worker:
+        properties:
+          healthy:
+            type: boolean
+          last_error:
+            type: string
+          last_tick_at:
+            type: string
+          status:
+            description: Status is running, stale or missing.
+            enum:
+            - running
+            - stale
+            - missing
+            type: string
+          version:
+            type: string
+          worker_count:
+            type: integer
+        type: object
+    type: object
+  internal_api.TestAlertChannelRequest:
+    properties:
+      headers:
+        additionalProperties:
+          type: string
+        type: object
+      signing_secret:
+        type: string
+      type:
+        enum:
+        - webhook
+        type: string
+      webhook_url:
+        type: string
+    required:
+    - type
+    - webhook_url
+    type: object
   internal_api.TestLogResponse:
     properties:
       accepted:
         type: boolean
       entry_id:
+        type: string
+    type: object
+  internal_api.TestRunMonitorRequest:
+    properties:
+      config:
+        additionalProperties: true
+        type: object
+      kind:
+        type: string
+      secret_refs:
+        additionalProperties: true
+        type: object
+      timeout_seconds:
+        type: integer
+    required:
+    - config
+    - kind
+    type: object
+  internal_api.UpdateAgentRequest:
+    properties:
+      labels:
+        example:
+        - env=prod
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      notes:
         type: string
     type: object
   internal_api.UptimeDayBucketResponse:
@@ -2441,8 +4099,19 @@ definitions:
     type: object
   internal_api.alertChannelRequest:
     properties:
+      email_delivery_mode:
+        description: EmailDeliveryMode is instant or digest_15m (email channels).
+        type: string
+      email_subject_prefix:
+        type: string
       enabled:
         type: boolean
+      headers:
+        additionalProperties:
+          type: string
+        description: Headers are custom webhook request headers; sending the field
+          replaces all of them. Values are never returned.
+        type: object
       name:
         type: string
       subscribed_events:
@@ -2540,6 +4209,10 @@ definitions:
         items:
           type: string
         type: array
+      cooldown_seconds:
+        description: CooldownSeconds limits repeat notifications for this rule (0
+          = global default, max 7 days).
+        type: integer
       enabled:
         type: boolean
       event_types:
@@ -2685,6 +4358,10 @@ definitions:
       seo_title:
         type: string
       slug:
+        type: string
+      start_from:
+        description: StartFrom is "blank" (default) or "monitors" to add a component
+          per monitor; create only.
         type: string
       theme_settings:
         additionalProperties: true
@@ -2855,6 +4532,75 @@ definitions:
       status:
         type: string
     type: object
+  orion_core_internal_service.AlertPayload:
+    properties:
+      agent:
+        $ref: '#/definitions/orion_core_internal_service.AlertPayloadAgent'
+      delivered_at:
+        type: string
+      event_type:
+        type: string
+      incident:
+        $ref: '#/definitions/orion_core_internal_service.AlertPayloadIncident'
+      monitor:
+        $ref: '#/definitions/orion_core_internal_service.AlertPayloadMonitor'
+      summary:
+        $ref: '#/definitions/orion_core_internal_service.AlertPayloadSummary'
+      test:
+        type: boolean
+      version:
+        type: string
+    type: object
+  orion_core_internal_service.AlertPayloadAgent:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  orion_core_internal_service.AlertPayloadIncident:
+    properties:
+      agent_id:
+        type: string
+      id:
+        type: string
+      last_event_at:
+        type: string
+      latest_event:
+        type: string
+      monitor_id:
+        type: string
+      opened_at:
+        type: string
+      resolved_at:
+        type: string
+      severity:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+    type: object
+  orion_core_internal_service.AlertPayloadMonitor:
+    properties:
+      computed_health:
+        type: string
+      health:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      type:
+        type: string
+    type: object
+  orion_core_internal_service.AlertPayloadSummary:
+    properties:
+      text:
+        type: string
+      title:
+        type: string
+    type: object
   orion_core_internal_service.AlertRouteContext:
     properties:
       agent_id:
@@ -2863,6 +4609,12 @@ definitions:
         type: string
       incident_id:
         type: string
+      labels:
+        description: 'Labels are the key=value pairs label routes match on: the server''s
+          labels plus severity, event, monitor_type, server and monitor.'
+        items:
+          type: string
+        type: array
       monitor_id:
         type: string
       monitor_type:
@@ -2908,6 +4660,9 @@ definitions:
         type: boolean
       recovery_period_seconds:
         type: integer
+      runbook_url:
+        description: RunbookURL (http or https) is shown on incidents for this monitor.
+        type: string
       secret_refs:
         additionalProperties: true
         type: object
@@ -2941,6 +4696,9 @@ definitions:
         type: boolean
       recovery_period_seconds:
         type: integer
+      runbook_url:
+        description: RunbookURL sets the runbook link; an empty string clears it.
+        type: string
       secret_refs:
         additionalProperties: true
         type: object
@@ -2976,6 +4734,15 @@ definitions:
       worker_status_retention_days:
         type: integer
     type: object
+  orion_core_internal_service.DecommissionResult:
+    properties:
+      history_kept:
+        type: boolean
+      incidents_closed:
+        type: integer
+      monitors_removed:
+        type: integer
+    type: object
   orion_core_internal_service.MonitorReportPayload:
     properties:
       error: {}
@@ -3002,6 +4769,9 @@ definitions:
       down:
         type: integer
       has_incidents:
+        type: integer
+      paused:
+        description: Paused counts Core-managed monitors that are paused.
         type: integer
       stale:
         type: integer
@@ -3375,6 +5145,27 @@ paths:
           schema:
             $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get public status page
+      tags:
+      - public-status
+  /status/{slug}/badge.json:
+    get:
+      description: 'Shields.io endpoint format: schemaVersion, label, message, color.'
+      operationId: getPublicStatusPageBadgeJSON
+      parameters:
+      - description: Status page slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get public status page badge as JSON
       tags:
       - public-status
   /status/{slug}/badge.svg:
@@ -4188,6 +5979,92 @@ paths:
       summary: Set agent maintenance mode
       tags:
       - agents
+  /v1/agents/{agent_id}/monitor-definitions:
+    post:
+      consumes:
+      - application/json
+      description: Defines a disk, memory, process or port check. The agent fetches
+        its definitions with POST /v1/agents/{agent_id}/monitor-definitions/sync and
+        reports under the same name; state turns reporting after the first report.
+      operationId: createAgentMonitorDefinition
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agent_id
+        required: true
+        type: string
+      - description: Check
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.AgentMonitorDefinitionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    definition:
+                      $ref: '#/definitions/internal_api.AgentMonitorDefinitionResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Create an agent monitor definition
+      tags:
+      - agents
+  /v1/agents/{agent_id}/monitor-definitions/sync:
+    post:
+      description: Agent-to-Core. Returns the checks configured for this agent in
+        the Console; the agent registers each as a monitor with the same name and
+        reports to it.
+      operationId: pullAgentMonitorDefinitions
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agent_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    definitions:
+                      items:
+                        $ref: '#/definitions/internal_api.AgentPulledDefinition'
+                      type: array
+                  type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: 'Agent: sync configured monitor definitions'
+      tags:
+      - agents
   /v1/agents/{agent_id}/register-monitor:
     post:
       consumes:
@@ -4502,6 +6379,48 @@ paths:
       tags:
       - monitors
   /v1/agents/{id}:
+    delete:
+      description: Revokes the token, deletes the server's monitors, closes its open
+        incidents and hides it. keep_history=true (default) keeps reports for 90 days
+        then purges them; false deletes everything now. The same host can be added
+        again.
+      operationId: decommissionAgent
+      parameters:
+      - description: Agent ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Keep reports for 90 days (default true)
+        in: query
+        name: keep_history
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    result:
+                      $ref: '#/definitions/orion_core_internal_service.DecommissionResult'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Remove (decommission) a server
+      tags:
+      - agents
     get:
       consumes:
       - application/json
@@ -4540,6 +6459,50 @@ paths:
           schema:
             $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get agent details
+      tags:
+      - agents
+    patch:
+      consumes:
+      - application/json
+      description: Change name, labels (key=value, at most 20) and notes. Omitted
+        fields stay as they are.
+      operationId: updateAgent
+      parameters:
+      - description: Agent ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to change
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.UpdateAgentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    agent:
+                      $ref: '#/definitions/internal_api.AgentResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Update server details
       tags:
       - agents
   /v1/agents/{id}/health:
@@ -4582,6 +6545,67 @@ paths:
       summary: Get agent health
       tags:
       - agents
+  /v1/agents/{id}/monitor-definitions:
+    get:
+      operationId: listAgentMonitorDefinitions
+      parameters:
+      - description: Agent ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    definitions:
+                      items:
+                        $ref: '#/definitions/internal_api.AgentMonitorDefinitionResponse'
+                      type: array
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: List agent monitor definitions
+      tags:
+      - agents
+  /v1/agents/{id}/monitor-definitions/{definition_id}:
+    delete:
+      operationId: deleteAgentMonitorDefinition
+      parameters:
+      - description: Agent ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Definition ID
+        in: path
+        name: definition_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Delete an agent monitor definition
+      tags:
+      - agents
   /v1/agents/{id}/monitors:
     get:
       consumes:
@@ -4602,6 +6626,11 @@ paths:
       - description: Filter by lifecycle status (active|disabled|deleted)
         in: query
         name: lifecycle
+        type: string
+      - description: 'Comma-separated computed statuses to show: up,down,degraded,stale,unknown.
+          total and hidden_count report what the filter hides'
+        in: query
+        name: status
         type: string
       - default: 50
         description: Maximum number of monitors to return
@@ -4627,6 +6656,9 @@ paths:
                     count:
                       format: int64
                       type: integer
+                    hidden_count:
+                      format: int64
+                      type: integer
                     limit:
                       type: integer
                     monitors:
@@ -4637,6 +6669,9 @@ paths:
                       type: integer
                     pagination:
                       $ref: '#/definitions/orion_core_internal_utils.PaginationMeta'
+                    total:
+                      format: int64
+                      type: integer
                   type: object
               type: object
         "400":
@@ -4676,6 +6711,14 @@ paths:
         in: query
         name: offset
         type: integer
+      - description: 'Only reports since: 1h, 24h, 7d style duration or RFC3339'
+        in: query
+        name: since
+        type: string
+      - description: Only reports before this RFC3339 time
+        in: query
+        name: until
+        type: string
       produces:
       - application/json
       responses:
@@ -4973,6 +7016,45 @@ paths:
       summary: Delete alert channel
       tags:
       - alerts
+    get:
+      description: Channel configuration with masked secrets, header names, recent
+        deliveries (paged with limit and offset), and the rules that notify it.
+      operationId: getAlertChannel
+      parameters:
+      - description: Channel ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 10
+        description: Recent deliveries to return
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Recent deliveries to skip
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.AlertChannelDetailResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Get alert channel
+      tags:
+      - alerts
     patch:
       consumes:
       - application/json
@@ -5167,6 +7249,45 @@ paths:
       summary: Resend recipient confirmation
       tags:
       - alerts
+  /v1/alerts/channels/{id}/secret/regenerate:
+    post:
+      description: Replaces the signing secret and returns the new one once. Receivers
+        must be updated before the next delivery verifies.
+      operationId: regenerateAlertChannelSecret
+      parameters:
+      - description: Channel ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    channel:
+                      $ref: '#/definitions/internal_api.AlertChannelResponse'
+                    secret:
+                      type: string
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Regenerate a webhook signing secret
+      tags:
+      - alerts
   /v1/alerts/channels/{id}/test:
     post:
       consumes:
@@ -5193,6 +7314,8 @@ paths:
                   properties:
                     delivery:
                       $ref: '#/definitions/internal_api.AlertDeliveryResponse'
+                    result:
+                      $ref: '#/definitions/internal_api.AlertTestResult'
                   type: object
               type: object
         "404":
@@ -5206,6 +7329,43 @@ paths:
       summary: Test alert channel
       tags:
       - alerts
+  /v1/alerts/channels/test-run:
+    post:
+      consumes:
+      - application/json
+      description: Posts a sample payload to the URL (same URL policy as saving) and
+        returns the result. Nothing is stored. Limited to 20 runs per minute.
+      operationId: testRunAlertChannel
+      parameters:
+      - description: Webhook to test
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.TestAlertChannelRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.AlertTestResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Test an unsaved webhook
+      tags:
+      - alerts
   /v1/alerts/deliveries:
     get:
       consumes:
@@ -5217,7 +7377,7 @@ paths:
         in: query
         name: incident_id
         type: string
-      - description: Filter by delivery status
+      - description: Comma-separated delivery statuses (sent,failed,cooldown,suppressed,pending)
         in: query
         name: status
         type: string
@@ -5228,6 +7388,18 @@ paths:
       - description: Filter by delivery channel name
         in: query
         name: channel
+        type: string
+      - description: Filter by channel id
+        in: query
+        name: channel_id
+        type: string
+      - description: 'Only deliveries since: 1h, 24h, 7d style duration or RFC3339'
+        in: query
+        name: since
+        type: string
+      - description: Text search over channel, rule name and incident title
+        in: query
+        name: q
         type: string
       - description: Filter by alert event type
         in: query
@@ -5274,6 +7446,36 @@ paths:
           schema:
             $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: List alert deliveries
+      tags:
+      - alerts
+  /v1/alerts/deliveries/{id}:
+    get:
+      description: One delivery with its attempts (result, duration), the payload
+        that is or was sent, the channel and the incident's INC id.
+      operationId: getAlertDelivery
+      parameters:
+      - description: Delivery ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.AlertDeliveryDetailResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Get alert delivery
       tags:
       - alerts
   /v1/alerts/deliveries/{id}/retry:
@@ -5323,6 +7525,215 @@ paths:
       security:
       - BearerAuth: []
       summary: Retry an alert delivery
+      tags:
+      - alerts
+  /v1/alerts/label-routes:
+    get:
+      description: Routes pick channels by label. They are tried in order; the first
+        match wins unless Continue is on. A route's channels are added to the channels
+        chosen by rules.
+      operationId: listLabelRoutes
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    routes:
+                      items:
+                        $ref: '#/definitions/internal_api.LabelRouteResponse'
+                      type: array
+                  type: object
+              type: object
+      summary: List label routes
+      tags:
+      - alerts
+    post:
+      consumes:
+      - application/json
+      operationId: createLabelRoute
+      parameters:
+      - description: Route
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.LabelRouteRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    route:
+                      $ref: '#/definitions/internal_api.LabelRouteResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Create a label route
+      tags:
+      - alerts
+  /v1/alerts/label-routes/{id}:
+    delete:
+      operationId: deleteLabelRoute
+      parameters:
+      - description: Route ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Delete a label route
+      tags:
+      - alerts
+    patch:
+      consumes:
+      - application/json
+      operationId: updateLabelRoute
+      parameters:
+      - description: Route ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Route
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.LabelRouteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    route:
+                      $ref: '#/definitions/internal_api.LabelRouteResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Update a label route
+      tags:
+      - alerts
+  /v1/alerts/label-routes/dry-run:
+    post:
+      consumes:
+      - application/json
+      description: Tests a label set (for example env=prod, severity=critical) and
+        returns which routes match and which channels would be notified. Nothing is
+        sent.
+      operationId: dryRunLabelRoutes
+      parameters:
+      - description: Labels
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.LabelRouteDryRunRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.LabelRouteDryRunResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Dry-run label routes
+      tags:
+      - alerts
+  /v1/alerts/label-routes/reorder:
+    post:
+      consumes:
+      - application/json
+      operationId: reorderLabelRoutes
+      parameters:
+      - description: All route ids in the new order
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.ReorderLabelRoutesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Reorder label routes
+      tags:
+      - alerts
+  /v1/alerts/payload-preview:
+    get:
+      operationId: getAlertPayloadPreview
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    payload:
+                      $ref: '#/definitions/orion_core_internal_service.AlertPayload'
+                    signature_header:
+                      type: string
+                  type: object
+              type: object
+      summary: Webhook payload preview
       tags:
       - alerts
   /v1/alerts/routes:
@@ -5759,6 +8170,41 @@ paths:
       summary: Enable alert rule
       tags:
       - alerts
+  /v1/alerts/rules/{id}/replay:
+    post:
+      description: Replays the last 24 hours (hours up to 168) against this rule and
+        lists the notifications it would send. Nothing is delivered or stored.
+      operationId: replayAlertRule
+      parameters:
+      - description: Rule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 24
+        description: Window in hours
+        in: query
+        name: hours
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.RuleReplayResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Replay an alert rule
+      tags:
+      - alerts
   /v1/alerts/rules/dry-run:
     post:
       consumes:
@@ -6156,6 +8602,128 @@ paths:
       summary: Revoke an ingest key
       tags:
       - apps
+  /v1/apps/{id}/keys/{key_id}/rotate:
+    post:
+      description: Creates a new key with the same name and returns it once. The old
+        key keeps working for 10 minutes (its revoked_at is set to that time) so a
+        deploy can switch without dropping logs.
+      operationId: rotateIngestKey
+      parameters:
+      - description: App id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Key id
+        in: path
+        name: key_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    key:
+                      $ref: '#/definitions/internal_api.IngestKeyCreated'
+                    previous_key_valid_until:
+                      type: string
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Rotate an ingest key
+      tags:
+      - apps
+  /v1/apps/{id}/purge:
+    post:
+      description: Removes every stored log line of the app (the app, keys and rules
+        stay).
+      operationId: purgeAppLogs
+      parameters:
+      - description: App id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    deleted:
+                      type: integer
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete all logs for an app
+      tags:
+      - apps
+  /v1/apps/{id}/redaction/test:
+    post:
+      consumes:
+      - application/json
+      description: Applies the app's saved rules, or the rules in the request, to
+        a sample and returns the result. Nothing is saved or stored.
+      operationId: testAppRedaction
+      parameters:
+      - description: App id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Sample and optional unsaved rules
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.RedactionTestRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.RedactionTestResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Test redaction rules
+      tags:
+      - apps
   /v1/apps/{id}/test-log:
     post:
       consumes:
@@ -6481,6 +9049,64 @@ paths:
       summary: List Orion events
       tags:
       - events
+  /v1/exports/{id}:
+    get:
+      operationId: getExport
+      parameters:
+      - description: Export id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    export:
+                      $ref: '#/definitions/internal_api.ExportResponse'
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get an export
+      tags:
+      - exports
+  /v1/exports/{id}/download:
+    get:
+      operationId: downloadExport
+      parameters:
+      - description: Export id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - text/csv
+      responses:
+        "200":
+          description: File
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Download an export
+      tags:
+      - exports
   /v1/health/issues:
     get:
       consumes:
@@ -7662,6 +10288,233 @@ paths:
       summary: Ingest logs over OTLP/HTTP
       tags:
       - ingest
+  /v1/internal-logs:
+    get:
+      description: Core's own log lines (API, worker, scheduler, agent gateway), newest
+        first with a cursor. Same filters and shape as GET /v1/logs; the component
+        of each line is attributes.component. Routine successful HTTP requests are
+        not recorded; failed and slow ones are.
+      operationId: searchInternalLogs
+      parameters:
+      - description: Comma-separated severities, or a minimum with >=warn
+        in: query
+        name: severity
+        type: string
+      - description: Full-text search
+        in: query
+        name: q
+        type: string
+      - description: Start (RFC 3339, or relative like -1h)
+        in: query
+        name: from
+        type: string
+      - description: End (RFC 3339); default now
+        in: query
+        name: to
+        type: string
+      - description: Attribute filter key:value, repeatable (attr=component:worker)
+        in: query
+        name: attr
+        type: string
+      - default: 50
+        description: Page size, max 200
+        in: query
+        name: limit
+        type: integer
+      - description: Cursor from a previous page
+        in: query
+        name: cursor
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.LogListResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "504":
+          description: Gateway Timeout
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.SearchTimeoutBody'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Search internal logs
+      tags:
+      - internal-logs
+  /v1/internal-logs/facets:
+    get:
+      description: Severity counts and, in values, the components (core api, worker,
+        scheduler, agent gateway) with counts; pass field=<key> to list another attribute.
+      operationId: getInternalLogFacets
+      parameters:
+      - description: Comma-separated severities, or a minimum with >=warn
+        in: query
+        name: severity
+        type: string
+      - description: Full-text search
+        in: query
+        name: q
+        type: string
+      - description: Start
+        in: query
+        name: from
+        type: string
+      - description: End
+        in: query
+        name: to
+        type: string
+      - description: Attribute filter key:value, repeatable
+        in: query
+        name: attr
+        type: string
+      - default: component
+        description: Attribute to list values for
+        in: query
+        name: field
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.LogFacetsResponse'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Internal log facets
+      tags:
+      - internal-logs
+  /v1/internal-logs/histogram:
+    get:
+      operationId: getInternalLogHistogram
+      parameters:
+      - description: Comma-separated severities, or a minimum with >=warn
+        in: query
+        name: severity
+        type: string
+      - description: Full-text search
+        in: query
+        name: q
+        type: string
+      - description: Start
+        in: query
+        name: from
+        type: string
+      - description: End
+        in: query
+        name: to
+        type: string
+      - description: Attribute filter key:value, repeatable
+        in: query
+        name: attr
+        type: string
+      - default: 60
+        description: Number of buckets
+        in: query
+        name: buckets
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.LogHistogramResponse'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Internal log histogram
+      tags:
+      - internal-logs
+  /v1/internal-logs/patterns:
+    get:
+      operationId: getInternalLogPatterns
+      parameters:
+      - description: Comma-separated severities, or a minimum with >=warn
+        in: query
+        name: severity
+        type: string
+      - description: Attribute filter key:value, repeatable
+        in: query
+        name: attr
+        type: string
+      - description: Start; default 24 hours ago
+        in: query
+        name: from
+        type: string
+      - description: End; default now
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.LogPatternsResponse'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Internal log patterns
+      tags:
+      - internal-logs
+  /v1/internal-logs/stream:
+    get:
+      description: Server-sent events; each event is one log entry. Resume with Last-Event-ID.
+      operationId: streamInternalLogs
+      parameters:
+      - description: Comma-separated severities, or a minimum with >=warn
+        in: query
+        name: severity
+        type: string
+      - description: Full-text search
+        in: query
+        name: q
+        type: string
+      - description: Attribute filter key:value, repeatable
+        in: query
+        name: attr
+        type: string
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: event stream
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Stream internal logs live
+      tags:
+      - internal-logs
   /v1/logs:
     get:
       consumes:
@@ -7794,6 +10647,43 @@ paths:
       security:
       - BearerAuth: []
       summary: Get one log entry
+      tags:
+      - logs
+  /v1/logs/{id}/related:
+    get:
+      description: The entries sharing the request id, else the trace id; for plain
+        lines with neither, the lines just before and after in the same app (by=nearby).
+      operationId: getLogRelated
+      parameters:
+      - description: Log entry id
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 10
+        description: Maximum entries
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.LogRelatedResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Related logs
       tags:
       - logs
   /v1/logs/alerts:
@@ -7950,6 +10840,132 @@ paths:
       summary: Update a log alert rule
       tags:
       - logs
+  /v1/logs/export:
+    post:
+      consumes:
+      - application/json
+      description: Starts a CSV or JSON lines export of the rows matching a filter
+        (capped at 100,000 rows). Poll GET /v1/exports/{id}; the download link works
+        for 24 hours.
+      operationId: createExport
+      parameters:
+      - description: What to export
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.ExportRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    export:
+                      $ref: '#/definitions/internal_api.ExportResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Export logs
+      tags:
+      - exports
+  /v1/logs/facets:
+    get:
+      description: Counts per severity, source, event and environment for the same
+        filters as the search, plus the field catalog for a single app. Pass field=<key>
+        to also get that attribute's most common values.
+      operationId: getLogFacets
+      parameters:
+      - description: Filter by app
+        in: query
+        name: app_id
+        type: string
+      - description: Comma-separated severities, or a minimum with >=warn
+        in: query
+        name: severity
+        type: string
+      - description: Exact event name
+        in: query
+        name: event
+        type: string
+      - description: Full-text search
+        in: query
+        name: q
+        type: string
+      - description: Start (RFC 3339, or relative like -1h)
+        in: query
+        name: from
+        type: string
+      - description: End (RFC 3339); default now
+        in: query
+        name: to
+        type: string
+      - description: Exact trace id
+        in: query
+        name: trace_id
+        type: string
+      - description: Exact request id
+        in: query
+        name: request_id
+        type: string
+      - description: Attribute filter key:value, repeatable
+        in: query
+        name: attr
+        type: string
+      - default: 5
+        description: How many events to list
+        in: query
+        name: events
+        type: integer
+      - description: Attribute key to list top values for
+        in: query
+        name: field
+        type: string
+      - default: 10
+        description: How many values
+        in: query
+        name: values
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.LogFacetsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "504":
+          description: Gateway Timeout
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.SearchTimeoutBody'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Log facets
+      tags:
+      - logs
   /v1/logs/fields:
     get:
       consumes:
@@ -8076,6 +11092,116 @@ paths:
       security:
       - BearerAuth: []
       summary: Log volume histogram
+      tags:
+      - logs
+  /v1/logs/ingest-status:
+    get:
+      description: Whether ingest is behind (queue depth, lag estimate, rate limiting,
+        storage full) plus today's volume and storage use, for the "Ingest is behind"
+        banner and the Apps header.
+      operationId: getLogIngestStatus
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.LogIngestStatus'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Log ingest status
+      tags:
+      - logs
+  /v1/logs/patterns:
+    get:
+      description: Groups similar messages (numbers, ids and addresses become placeholders)
+        so a flood of one error is one row. Reads up to 20,000 newest matching lines
+        of the window; is_new marks patterns absent from the previous window of the
+        same length.
+      operationId: getLogPatterns
+      parameters:
+      - description: Filter by app
+        in: query
+        name: app_id
+        type: string
+      - description: Comma-separated severities, or a minimum with >=warn
+        in: query
+        name: severity
+        type: string
+      - description: Exact event name
+        in: query
+        name: event
+        type: string
+      - description: Full-text search
+        in: query
+        name: q
+        type: string
+      - description: Start; default 24 hours ago
+        in: query
+        name: from
+        type: string
+      - description: End; default now
+        in: query
+        name: to
+        type: string
+      - default: 50
+        description: Maximum patterns
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.LogPatternsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "504":
+          description: Gateway Timeout
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.SearchTimeoutBody'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Log patterns
+      tags:
+      - logs
+  /v1/logs/redaction-defaults:
+    get:
+      operationId: getRedactionDefaults
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.RedactionDefaultsResponse'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Default redaction keys
       tags:
       - logs
   /v1/logs/service:
@@ -8401,6 +11527,23 @@ paths:
         in: query
         name: include_system
         type: boolean
+      - description: 'Comma-separated computed statuses to show: up,down,degraded,stale,unknown;
+          total and hidden_count report what the filter hides'
+        in: query
+        name: status
+        type: string
+      - description: Only monitors owned by this server
+        in: query
+        name: agent_id
+        type: string
+      - description: Alias of search
+        in: query
+        name: q
+        type: string
+      - description: Only paused (true) or only running (false) Core monitors
+        in: query
+        name: paused
+        type: boolean
       produces:
       - application/json
       responses:
@@ -8415,6 +11558,9 @@ paths:
                     count:
                       format: int64
                       type: integer
+                    hidden_count:
+                      format: int64
+                      type: integer
                     limit:
                       type: integer
                     monitors:
@@ -8425,6 +11571,9 @@ paths:
                       type: integer
                     pagination:
                       $ref: '#/definitions/orion_core_internal_utils.PaginationMeta'
+                    total:
+                      format: int64
+                      type: integer
                   type: object
               type: object
         "500":
@@ -8471,7 +11620,9 @@ paths:
       - monitors
   /v1/monitors/{id}:
     delete:
-      description: Soft delete a Core-managed monitor and pause its runner configuration.
+      description: Delete a Core-managed monitor. Its active incident is resolved.
+        The default keeps check history for 90 days; keep_history=false deletes it
+        immediately. Incidents are never deleted.
       operationId: deleteCoreMonitor
       parameters:
       - description: Monitor ID
@@ -8479,6 +11630,11 @@ paths:
         name: id
         required: true
         type: string
+      - description: Keep check history for 90 days (default true); false deletes
+          it now
+        in: query
+        name: keep_history
+        type: boolean
       produces:
       - application/json
       responses:
@@ -8536,6 +11692,8 @@ paths:
                       items:
                         $ref: '#/definitions/internal_api.MonitorReportResponse'
                       type: array
+                    summary:
+                      $ref: '#/definitions/internal_api.MonitorDetailSummary'
                   type: object
               type: object
         "400":
@@ -8591,6 +11749,71 @@ paths:
           schema:
             $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Update a Core monitor
+      tags:
+      - monitors
+  /v1/monitors/{id}/availability:
+    get:
+      description: 'Per period: check-based availability, incident-based downtime,
+        incident count and the longest incident.'
+      operationId: getMonitorAvailability
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    periods:
+                      items:
+                        $ref: '#/definitions/internal_api.AvailabilityPeriod'
+                      type: array
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Monitor availability
+      tags:
+      - monitors
+  /v1/monitors/{id}/clone:
+    post:
+      description: Creates a copy with " copy" appended to the name. Heartbeat clones
+        get their own token, shown once.
+      operationId: cloneCoreMonitor
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.CoreMonitorManagementResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Clone a Core monitor
       tags:
       - monitors
   /v1/monitors/{id}/config:
@@ -8689,6 +11912,73 @@ paths:
       summary: Get monitor history
       tags:
       - monitors
+  /v1/monitors/{id}/maintenance:
+    delete:
+      operationId: clearMonitorMaintenance
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Clear a monitor maintenance window
+      tags:
+      - monitors
+    put:
+      consumes:
+      - application/json
+      description: Checks keep running but incidents and alerts are held between starts_at
+        (default now) and ends_at, at most 30 days. Replaces any existing window.
+      operationId: setMonitorMaintenance
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Window
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.MonitorMaintenanceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    maintenance:
+                      $ref: '#/definitions/internal_api.MonitorMaintenanceInfo'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Set a monitor maintenance window
+      tags:
+      - monitors
   /v1/monitors/{id}/pause:
     post:
       description: Pause a Core-managed monitor so the worker will not claim it.
@@ -8720,6 +12010,41 @@ paths:
           schema:
             $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Pause a Core monitor
+      tags:
+      - monitors
+  /v1/monitors/{id}/response-times:
+    get:
+      description: 'Average and maximum check duration per bucket: day = 5 minute
+        buckets, week = hourly, month = 6 hourly. Empty buckets are omitted.'
+      operationId: getMonitorResponseTimes
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: day
+        description: day, week or month
+        in: query
+        name: range
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.ResponseTimesResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Monitor response times
       tags:
       - monitors
   /v1/monitors/{id}/resume:
@@ -8793,6 +12118,45 @@ paths:
       summary: Test a Core monitor
       tags:
       - monitors
+  /v1/monitors/{id}/test-run:
+    post:
+      description: Runs the check once and returns the result. Unlike POST /v1/monitors/{id}/test
+        it stores no report, changes no health and opens no incident or alert. Limited
+        to 20 runs per minute.
+      operationId: testRunMonitor
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.MonitorTestRunResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Test-run a saved monitor
+      tags:
+      - monitors
   /v1/monitors/{id}/uptime:
     get:
       description: Returns daily uptime buckets and overall uptime percentage for
@@ -8837,6 +12201,49 @@ paths:
       summary: Get monitor uptime
       tags:
       - monitors
+  /v1/monitors/bulk:
+    post:
+      consumes:
+      - application/json
+      description: Pause, resume, set maintenance, delete or clone up to 100 monitors.
+        Each id succeeds or fails on its own. Pause, resume, delete and clone apply
+        to Core-managed monitors only.
+      operationId: bulkMonitorAction
+      parameters:
+      - description: Bulk action
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.BulkMonitorRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    failed:
+                      type: integer
+                    results:
+                      items:
+                        $ref: '#/definitions/internal_api.BulkMonitorResult'
+                      type: array
+                    succeeded:
+                      type: integer
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Bulk monitor action
+      tags:
+      - monitors
   /v1/monitors/summary:
     get:
       consumes:
@@ -8861,6 +12268,43 @@ paths:
           schema:
             $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get monitor summary
+      tags:
+      - monitors
+  /v1/monitors/test-run:
+    post:
+      consumes:
+      - application/json
+      description: Validates the config with the same rules and target policy as creating
+        a monitor, runs it once and returns the result. Nothing is stored.
+      operationId: testRunUnsavedMonitor
+      parameters:
+      - description: Check to run
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.TestRunMonitorRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.MonitorTestRunResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Test-run a monitor that is not saved yet
       tags:
       - monitors
   /v1/overview:
@@ -8974,6 +12418,174 @@ paths:
       summary: Search monitors, incidents, servers and apps
       tags:
       - search
+  /v1/settings/api-tokens:
+    get:
+      description: Name, prefix, scope and last use. Secrets are never returned. Not
+        available to API tokens.
+      operationId: listAPITokens
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    tokens:
+                      items:
+                        $ref: '#/definitions/internal_api.APIToken'
+                      type: array
+                  type: object
+              type: object
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List API tokens
+      tags:
+      - settings
+    post:
+      consumes:
+      - application/json
+      description: 'Returns the token once. scope read allows GET requests only; write
+        allows everything except managing tokens and the registration token. Send
+        it as Authorization: Bearer orn_api_...'
+      operationId: createAPIToken
+      parameters:
+      - description: Token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.APITokenRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    token:
+                      $ref: '#/definitions/internal_api.APITokenCreated'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create an API token
+      tags:
+      - settings
+  /v1/settings/api-tokens/{id}:
+    delete:
+      operationId: revokeAPIToken
+      parameters:
+      - description: Token id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Revoke an API token
+      tags:
+      - settings
+  /v1/settings/audit:
+    get:
+      description: 'Admin actions (resolved an incident, paused a monitor, rotated
+        a token, changed settings...), newest first, with the people and tokens that
+        appear for the Actor filter. Page with cursor. Export with POST /v1/logs/export
+        {kind: "audit"}.'
+      operationId: listAuditLog
+      parameters:
+      - description: Only this actor (username or API token name)
+        in: query
+        name: actor
+        type: string
+      - description: Search actor, action and target
+        in: query
+        name: q
+        type: string
+      - description: Exact action key, for example incident_resolved
+        in: query
+        name: action
+        type: string
+      - description: Only this kind of object
+        in: query
+        name: object_type
+        type: string
+      - description: Start (RFC 3339, or relative like -7d)
+        in: query
+        name: from
+        type: string
+      - description: End
+        in: query
+        name: to
+        type: string
+      - default: 50
+        description: Rows per page
+        in: query
+        name: limit
+        type: integer
+      - description: Cursor from a previous page
+        in: query
+        name: cursor
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.AuditListResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List the audit log
+      tags:
+      - settings
   /v1/settings/data-lifecycle:
     get:
       consumes:
@@ -9108,6 +12720,405 @@ paths:
       summary: Run data lifecycle rollup
       tags:
       - settings
+  /v1/settings/general:
+    get:
+      description: Instance name, Public Core URL (with whether it comes from settings
+        or the environment), time zone and time format.
+      operationId: getGeneralSettings
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.GeneralSettings'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Get general settings
+      tags:
+      - settings
+    put:
+      consumes:
+      - application/json
+      description: Send only the fields to change. The Public Core URL applies to
+        emails, install commands and status page links at once.
+      operationId: updateGeneralSettings
+      parameters:
+      - description: Fields to change
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.GeneralSettingsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.GeneralSettings'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update general settings
+      tags:
+      - settings
+  /v1/settings/system:
+    get:
+      description: Core version, the Console sign-in username and session length,
+        the token agents register with (empty when registration is open), the worker's
+        last heartbeat, and the database size.
+      operationId: getSystemSettings
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.SystemSettings'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Get system settings
+      tags:
+      - settings
+  /v1/settings/system/registration-token/rotate:
+    post:
+      description: Replaces the secret new agents register with. Connected servers
+        are not affected. Not available to API tokens.
+      operationId: rotateRegistrationToken
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.RegistrationTokenResponse'
+              type: object
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Rotate the registration token
+      tags:
+      - settings
+  /v1/status-logs:
+    get:
+      description: Checks, state changes, server reports, incident steps, alert deliveries
+        and admin actions, newest first, with the total for the filter. Page with
+        cursor (older) or cursor plus direction=newer. The default window is the last
+        24 hours and no query may span more than 30 days (400 otherwise). Relative
+        times accept -15m, -24h and -7d.
+      operationId: listStatusLogs
+      parameters:
+      - description: 'Comma-separated: info, warn, error'
+        in: query
+        name: level
+        type: string
+      - description: 'Comma-separated: monitor, alert, server, incident, system'
+        in: query
+        name: type
+        type: string
+      - description: Only this server
+        in: query
+        name: server_id
+        type: string
+      - description: Only this monitor
+        in: query
+        name: monitor_id
+        type: string
+      - description: Only this incident
+        in: query
+        name: incident_id
+        type: string
+      - description: Search servers, monitors, titles and details
+        in: query
+        name: q
+        type: string
+      - description: Start (RFC 3339, or relative like -1h); default 24 hours ago
+        in: query
+        name: from
+        type: string
+      - description: End (RFC 3339); default now
+        in: query
+        name: to
+        type: string
+      - default: 100
+        description: Rows per page, max 200
+        in: query
+        name: limit
+        type: integer
+      - description: Cursor from a previous page
+        in: query
+        name: cursor
+        type: string
+      - description: older (default) or newer
+        enum:
+        - older
+        - newer
+        in: query
+        name: direction
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.StatusLogListResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List status logs
+      tags:
+      - status-logs
+  /v1/status-logs/facets:
+    get:
+      description: Counts per level and type, and the busiest servers and monitors
+        (top=3 by default, with the distinct totals for "Show N more"), for the same
+        filters as the list.
+      operationId: getStatusLogFacets
+      parameters:
+      - description: 'Comma-separated: info, warn, error'
+        in: query
+        name: level
+        type: string
+      - description: 'Comma-separated: monitor, alert, server, incident, system'
+        in: query
+        name: type
+        type: string
+      - description: Only this server
+        in: query
+        name: server_id
+        type: string
+      - description: Only this monitor
+        in: query
+        name: monitor_id
+        type: string
+      - description: Search
+        in: query
+        name: q
+        type: string
+      - description: Start; default 24 hours ago
+        in: query
+        name: from
+        type: string
+      - description: End
+        in: query
+        name: to
+        type: string
+      - default: 3
+        description: How many servers and monitors to list
+        in: query
+        name: top
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.StatusLogFacetsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Status log facets
+      tags:
+      - status-logs
+  /v1/status-logs/histogram:
+    get:
+      description: Events per bucket split by level (info, warn, error), for "Events
+        per 15 minutes". Empty buckets are included.
+      operationId: getStatusLogHistogram
+      parameters:
+      - description: 'Comma-separated: info, warn, error'
+        in: query
+        name: level
+        type: string
+      - description: 'Comma-separated: monitor, alert, server, incident, system'
+        in: query
+        name: type
+        type: string
+      - description: Only this server
+        in: query
+        name: server_id
+        type: string
+      - description: Only this monitor
+        in: query
+        name: monitor_id
+        type: string
+      - description: Search
+        in: query
+        name: q
+        type: string
+      - description: Start; default 24 hours ago
+        in: query
+        name: from
+        type: string
+      - description: End
+        in: query
+        name: to
+        type: string
+      - default: 60
+        description: Target number of buckets
+        in: query
+        name: buckets
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.LogHistogramResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Status log histogram
+      tags:
+      - status-logs
+  /v1/status-logs/patterns:
+    get:
+      description: Groups similar events (numbers and ids become placeholders) so
+        a flood of one failure is one row; is_new marks patterns absent from the previous
+        window.
+      operationId: getStatusLogPatterns
+      parameters:
+      - description: 'Comma-separated: info, warn, error'
+        in: query
+        name: level
+        type: string
+      - description: 'Comma-separated: monitor, alert, server, incident, system'
+        in: query
+        name: type
+        type: string
+      - description: Only this server
+        in: query
+        name: server_id
+        type: string
+      - description: Only this monitor
+        in: query
+        name: monitor_id
+        type: string
+      - description: Start; default 24 hours ago
+        in: query
+        name: from
+        type: string
+      - description: End
+        in: query
+        name: to
+        type: string
+      - default: 50
+        description: Maximum patterns
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.LogPatternsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Status log patterns
+      tags:
+      - status-logs
+  /v1/status-logs/stream:
+    get:
+      description: Server-sent events, one StatusLogEntry per event; new events appear
+        within about two seconds. Resume with Last-Event-ID.
+      operationId: streamStatusLogs
+      parameters:
+      - description: 'Comma-separated: info, warn, error'
+        in: query
+        name: level
+        type: string
+      - description: 'Comma-separated: monitor, alert, server, incident, system'
+        in: query
+        name: type
+        type: string
+      - description: Only this server
+        in: query
+        name: server_id
+        type: string
+      - description: Only this monitor
+        in: query
+        name: monitor_id
+        type: string
+      - description: Search
+        in: query
+        name: q
+        type: string
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: event stream
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Stream status logs live
+      tags:
+      - status-logs
   /v1/status-pages:
     get:
       consumes:
@@ -9129,7 +13140,7 @@ paths:
                       type: integer
                     pages:
                       items:
-                        $ref: '#/definitions/internal_api.StatusPageResponse'
+                        $ref: '#/definitions/internal_api.StatusPageListRow'
                       type: array
                   type: object
               type: object
@@ -9315,6 +13326,36 @@ paths:
       security:
       - BearerAuth: []
       summary: Update status page
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/badges:
+    get:
+      operationId: getStatusPageBadges
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.StatusPageBadgesResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Status page badges
       tags:
       - status-pages
   /v1/status-pages/{id}/components:
@@ -9728,6 +13769,101 @@ paths:
       security:
       - BearerAuth: []
       summary: Update status page component mapping
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/domain:
+    delete:
+      operationId: removeStatusPageDomain
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.StatusPageDomainResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Remove status page custom domain
+      tags:
+      - status-pages
+    get:
+      operationId: getStatusPageDomain
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.StatusPageDomainResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Status page custom domain
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/domain/verify:
+    post:
+      description: Resolves the domain's CNAME and compares it with the target. Checks
+        closer than 10 seconds apart return the last result.
+      operationId: verifyStatusPageDomain
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.StatusPageDomainResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Verify status page custom domain
       tags:
       - status-pages
   /v1/status-pages/{id}/incidents:
@@ -10145,6 +14281,166 @@ paths:
       summary: Suggest status page incident components
       tags:
       - status-pages
+  /v1/status-pages/{id}/maintenance:
+    get:
+      operationId: listStatusPageMaintenance
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    maintenance:
+                      items:
+                        $ref: '#/definitions/internal_api.StatusPageMaintenanceResponse'
+                      type: array
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List status page maintenance windows
+      tags:
+      - status-pages
+    post:
+      consumes:
+      - application/json
+      operationId: createStatusPageMaintenance
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Maintenance window
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.StatusPageMaintenanceRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    window:
+                      $ref: '#/definitions/internal_api.StatusPageMaintenanceResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Schedule status page maintenance
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/maintenance/{window_id}:
+    delete:
+      operationId: deleteStatusPageMaintenance
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Window ID
+        in: path
+        name: window_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete status page maintenance
+      tags:
+      - status-pages
+    patch:
+      consumes:
+      - application/json
+      operationId: updateStatusPageMaintenance
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Window ID
+        in: path
+        name: window_id
+        required: true
+        type: string
+      - description: Fields to change
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.StatusPageMaintenanceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    window:
+                      $ref: '#/definitions/internal_api.StatusPageMaintenanceResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update status page maintenance
+      tags:
+      - status-pages
   /v1/status-pages/{id}/preview:
     get:
       consumes:
@@ -10223,6 +14519,38 @@ paths:
       security:
       - BearerAuth: []
       summary: Publish status page
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/readiness:
+    get:
+      description: 'Structured publish checks: blocking ones stop publishing, others
+        are advice.'
+      operationId: getStatusPageReadiness
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.StatusPageReadinessResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Status page publish checklist
       tags:
       - status-pages
   /v1/status-pages/{id}/sections:
@@ -10431,9 +14759,13 @@ paths:
         name: id
         required: true
         type: string
-      - description: Subscriber state filter
+      - description: Subscriber state filter (confirmed, pending, disabled, unsubscribed)
         in: query
         name: state
+        type: string
+      - description: Search by email
+        in: query
+        name: q
         type: string
       produces:
       - application/json
@@ -10448,6 +14780,8 @@ paths:
                   properties:
                     count:
                       type: integer
+                    counts:
+                      $ref: '#/definitions/internal_api.StatusPageSubscriberCounts'
                     subscribers:
                       items:
                         $ref: '#/definitions/internal_api.StatusPageSubscriberAdminResponse'
@@ -10605,6 +14939,82 @@ paths:
       summary: Disable status page subscriber
       tags:
       - status-pages
+  /v1/status-pages/{id}/subscribers/export.csv:
+    get:
+      description: CSV with email, scope, status and since. Honors the state filter.
+        Emails need the subscriber secret to be configured.
+      operationId: exportStatusPageSubscribers
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Subscriber state filter
+        in: query
+        name: state
+        type: string
+      produces:
+      - text/csv
+      responses:
+        "200":
+          description: CSV
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Export status page subscribers
+      tags:
+      - status-pages
+  /v1/status-pages/{id}/subscribers/import:
+    post:
+      consumes:
+      - application/json
+      description: Imported addresses start pending and get the usual confirmation
+        email, so nobody is subscribed without consent. The page must be published
+        and the subscriber secret configured.
+      operationId: importStatusPageSubscribers
+      parameters:
+      - description: Status page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: CSV text
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.StatusPageSubscriberImportRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.StatusPageSubscriberImportResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Import status page subscribers
+      tags:
+      - status-pages
   /v1/status-pages/{id}/unpublish:
     post:
       consumes:
@@ -10644,6 +15054,36 @@ paths:
       security:
       - BearerAuth: []
       summary: Unpublish status page
+      tags:
+      - status-pages
+  /v1/status-pages/slug-check:
+    get:
+      operationId: checkStatusPageSlug
+      parameters:
+      - description: Slug to check
+        in: query
+        name: slug
+        required: true
+        type: string
+      - description: Page being edited, ignored in the check
+        in: query
+        name: exclude_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.StatusPageSlugCheckResponse'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Check status page slug
       tags:
       - status-pages
 securityDefinitions:

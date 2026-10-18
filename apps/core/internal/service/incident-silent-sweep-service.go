@@ -34,6 +34,7 @@ func (s *IncidentService) SweepSilentMonitors(now time.Time) (int, error) {
 	if err := s.db.Model(&db.Monitor{}).
 		Select("monitors.*, (SELECT MAX(created_at) FROM monitor_reports WHERE monitor_reports.monitor_id = monitors.id) AS last_report_at").
 		Where("lifecycle = ?", "active").
+		Where("maintenance_ends_at IS NULL OR maintenance_ends_at <= ? OR (maintenance_starts_at IS NOT NULL AND maintenance_starts_at > ?)", now, now).
 		Where("NOT (incident_state = ? AND active_incident_id <> '')", "stale").
 		Where("id NOT IN (?)", s.db.Model(&db.CoreMonitorConfig{}).Select("monitor_id")).
 		Scan(&rows).Error; err != nil {

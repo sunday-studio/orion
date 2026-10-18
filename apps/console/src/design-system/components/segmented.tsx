@@ -1,57 +1,28 @@
-import { type RefObject, useLayoutEffect, useRef, useState } from "react";
-import { focusRing } from "@/design-system/styles";
+import { motion, useReducedMotion } from "motion/react";
+import { useId } from "react";
 import { cn } from "@/utils/cn";
 
-type Thumb = { left: number; width: number } | null;
+/** Spring used for shared-layout moves: smooth, no bounce (see docs/web/motion.md). */
+export const layoutSpring = { type: "spring", duration: 0.45, bounce: 0 } as const;
 
 /**
- * Measures the active item inside `container` (the element with `data-segment-active`) so a
- * single thumb can slide under it. Weight never changes with state, so nothing reflows.
+ * The sliding highlight. Render it inside the active item with a `layoutId` shared by the
+ * whole group and Motion moves it between items instead of fading one out and one in.
  */
-export const useSlidingThumb = (container: RefObject<HTMLElement | null>, key: unknown) => {
-  const [thumb, setThumb] = useState<Thumb>(null);
-  const [ready, setReady] = useState(false);
-
-  useLayoutEffect(() => {
-    const root = container.current;
-    if (!root) return;
-    const measure = () => {
-      const active = root.querySelector<HTMLElement>("[data-segment-active]");
-      setThumb(active ? { left: active.offsetLeft, width: active.offsetWidth } : null);
-    };
-    measure();
-    const frame = requestAnimationFrame(() => setReady(true));
-    const observer = new ResizeObserver(measure);
-    observer.observe(root);
-    return () => {
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-    };
-  }, [container, key]);
-
-  return { thumb, ready };
-};
-
-export const SegmentThumb = ({
-  thumb,
-  ready,
-  className,
-}: {
-  thumb: Thumb;
-  ready: boolean;
-  className?: string;
-}) =>
-  thumb && (
-    <span
+export const SegmentThumb = ({ layoutId, className }: { layoutId: string; className?: string }) => {
+  const reduce = useReducedMotion();
+  return (
+    <motion.span
       aria-hidden
+      layoutId={layoutId}
+      transition={reduce ? { duration: 0 } : layoutSpring}
       className={cn(
-        "pointer-events-none absolute bottom-[3px] top-[3px] rounded-md bg-chip shadow-[0_1px_2px_rgba(0,0,0,0.08)]",
-        ready && "transition-[left,width] duration-200 ease-out motion-reduce:transition-none",
+        "pointer-events-none absolute inset-0 rounded-md bg-chip shadow-[0_1px_2px_rgba(0,0,0,0.08)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.07)]",
         className,
       )}
-      style={{ left: thumb.left, width: thumb.width }}
     />
   );
+};
 
 export type SegmentedOption = { value: string; label: React.ReactNode };
 
@@ -64,6 +35,7 @@ export const Segmented = ({
   className,
   "aria-label": ariaLabel,
   role = "radiogroup",
+  surface = "page",
 }: {
   options: readonly SegmentedOption[];
   value: string;
@@ -73,17 +45,25 @@ export const Segmented = ({
   "aria-label": string;
   /** Use "group" with aria-pressed items for view switchers rather than form choices. */
   role?: "radiogroup" | "group";
+  /**
+   * What the control sits on, so the tray never blends in: "page" (default), "card" for
+   * dialogs and popovers, "field" for tinted headers and field panels.
+   */
+  surface?: "page" | "card" | "field";
 }) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const { thumb, ready } = useSlidingThumb(ref, `${value}|${options.map((o) => o.value).join()}`);
+  const layoutId = useId();
   return (
     <div
-      ref={ref}
       role={role}
       aria-label={ariaLabel}
-      className={cn("relative flex w-fit gap-0.5 rounded-lg bg-tray p-[3px]", className)}
+      className={cn(
+        "relative flex w-fit gap-0.5 rounded-lg p-[3px]",
+        surface === "field" && "bg-hairline dark:bg-tray",
+        surface === "card" && "bg-tray dark:bg-page",
+        surface === "page" && "bg-tray",
+        className,
+      )}
     >
-      <SegmentThumb thumb={thumb} ready={ready} />
       {options.map((option) => {
         const active = option.value === value;
         return (
@@ -93,16 +73,17 @@ export const Segmented = ({
             role={role === "radiogroup" ? "radio" : undefined}
             aria-checked={role === "radiogroup" ? active : undefined}
             aria-pressed={role === "group" ? active : undefined}
-            data-segment-active={active ? "" : undefined}
+            // Mouse clicks should not leave a focus ring; keyboard focus still shows it.
+            onMouseDown={(event) => event.preventDefault()}
             onClick={() => onValueChange(option.value)}
             className={cn(
-              focusRing,
-              "relative z-[1] whitespace-nowrap rounded-md px-3 py-1 transition-colors",
+              "relative whitespace-nowrap rounded-md px-3 py-1 outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus/60",
               size === "sm" ? "text-xs" : "text-[13px]",
               active ? "text-ink" : "text-mid hover:text-ink",
             )}
           >
-            {option.label}
+            {active && <SegmentThumb layoutId={layoutId} />}
+            <span className="relative">{option.label}</span>
           </button>
         );
       })}

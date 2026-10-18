@@ -3,6 +3,8 @@ package api
 import (
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -39,7 +41,7 @@ func (s *Server) getAgentDetail(c *gin.Context) {
 	if len(reports) > 0 {
 		latestReport = agentReportResponse(reports[0])
 	}
-	utils.SuccessResponse(c, 200, "Agent retrieved successfully", gin.H{"agent": agentResponse(*agent), "latest_report": latestReport})
+	utils.SuccessResponse(c, 200, "Agent retrieved successfully", gin.H{"agent": s.agentDetailResponse(*agent), "latest_report": latestReport})
 }
 
 // getAgentHealth retrieves health status for a specific agent.
@@ -86,6 +88,8 @@ func (s *Server) getAgentHealth(c *gin.Context) {
 // @Param        id      path      string  true   "Agent ID"
 // @Param        limit   query     int     false  "Maximum number of reports to return" default(50)
 // @Param        offset  query     int     false  "Number of reports to skip" default(0)
+// @Param        since   query     string  false  "Only reports since: 1h, 24h, 7d style duration or RFC3339"
+// @Param        until   query     string  false  "Only reports before this RFC3339 time"
 // @Success      200     {object}  utils.APIResponse{data=object{reports=[]AgentReportResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta}}
 // @Failure      400     {object}  utils.APIResponse
 // @Failure      404     {object}  utils.APIResponse
@@ -103,16 +107,31 @@ func (s *Server) getAgentReports(c *gin.Context) {
 		utils.NotFound(c, "Agent not found")
 		return
 	}
-	reports, err := s.reportService.GetAgentReportsById(agentID, limit, offset)
+	if limit > 1000 {
+		limit = 1000
+	}
+	var since, until *time.Time
+	if raw := strings.TrimSpace(c.Query("since")); raw != "" {
+		t, err := parseSinceParam(raw, time.Now().UTC())
+		if err != nil {
+			utils.BadRequest(c, "since must be a duration like 1h or 7d, or an RFC3339 time")
+			return
+		}
+		since = &t
+	}
+	if raw := strings.TrimSpace(c.Query("until")); raw != "" {
+		t, err := time.Parse(time.RFC3339, raw)
+		if err != nil {
+			utils.BadRequest(c, "until must be an RFC3339 time")
+			return
+		}
+		until = &t
+	}
+	reports, count, err := s.reportService.GetAgentReportsInRange(agentID, since, until, limit, offset)
 	if err != nil {
 		s.logger.Error("Failed to get agent reports", "error", err, "agent_id", agentID)
 		utils.InternalError(c, "Failed to get agent reports", err)
 		return
-	}
-	count, err := s.reportService.GetAgentReportCountById(agentID)
-	if err != nil {
-		s.logger.Error("Failed to get agent report count", "error", err, "agent_id", agentID)
-		count = int64(len(reports))
 	}
 	responses := agentReportResponses(reports)
 	utils.SuccessResponse(c, 200, "Agent reports retrieved successfully", gin.H{"reports": responses, "count": count, "limit": limit, "offset": offset, "pagination": utils.NewPaginationMeta(count, limit, offset, len(responses))})

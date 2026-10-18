@@ -33,6 +33,26 @@ const HealthIssuesPage = lazy(() =>
     default: module.HealthIssuesPage,
   })),
 );
+const AgentMonitorSetupPage = lazy(() =>
+  import("@/features/monitors/agent-setup/agent-monitor-setup.view").then((module) => ({
+    default: module.AgentMonitorSetupPage,
+  })),
+);
+const MonitorEditPage = lazy(() =>
+  import("@/features/monitor-detail/edit/monitor-edit.view").then((module) => ({
+    default: module.MonitorEditPage,
+  })),
+);
+const ChannelDetailPage = lazy(() =>
+  import("@/features/alerts/channels/channel-detail.view").then((module) => ({
+    default: module.ChannelDetailPage,
+  })),
+);
+const DeliveryDetailPage = lazy(() =>
+  import("@/features/alerts/deliveries/delivery-detail.view").then((module) => ({
+    default: module.DeliveryDetailPage,
+  })),
+);
 const IncidentTriagePage = lazy(() =>
   import("@/features/incidents/incident-triage.view").then((module) => ({
     default: module.IncidentTriagePage,
@@ -71,6 +91,11 @@ const SettingsPage = lazy(() =>
 const MonitorsPage = lazy(() =>
   import("@/features/monitors/monitors.view").then((module) => ({ default: module.MonitorsPage })),
 );
+const StatusPageDetailPage = lazy(() =>
+  import("@/features/status-pages/status-page-detail.view").then((module) => ({
+    default: module.StatusPageDetailPage,
+  })),
+);
 const StatusPagesPage = lazy(() =>
   import("@/features/status-pages/status-pages.view").then((module) => ({
     default: module.StatusPagesPage,
@@ -93,6 +118,7 @@ function AppRouter() {
           <Route path="incidents" element={<IncidentsPage />} />
           <Route path="alerts" element={<AlertsPage />} />
           <Route path="status-pages" element={<StatusPagesPage />} />
+          <Route path="status-pages/:pageId" element={<StatusPageDetailPage />} />
           <Route path="logs" element={<LogsPage />} />
           <Route path="agents" element={<Navigate to="/servers" replace />} />
           <Route path="agents/:agentId" element={<AgentDetailRedirect />} />
@@ -100,10 +126,14 @@ function AppRouter() {
           <Route path="servers/new" element={<AddServerPage />} />
           <Route path="servers/:agentId" element={<AgentDetailPage />} />
           <Route path="monitors" element={<MonitorsPage />} />
+          <Route path="monitors/new/agent" element={<AgentMonitorSetupPage />} />
           <Route path="monitors/:monitorId" element={<MonitorDetailPage />} />
+          <Route path="monitors/:monitorId/edit" element={<MonitorEditPage />} />
           <Route path="health-issues" element={<HealthIssuesPage />} />
           <Route path="incidents/triage" element={<IncidentTriagePage />} />
           <Route path="incidents/:incidentId" element={<IncidentDetailPage />} />
+          <Route path="alerts/channels/:channelId" element={<ChannelDetailPage />} />
+          <Route path="alerts/deliveries/:deliveryId" element={<DeliveryDetailPage />} />
           <Route path="design-system" element={<DesignSystemPage />} />
           <Route path="apps/new" element={<ConnectAppPage />} />
           <Route path="settings/apps" element={<AppsPage />} />

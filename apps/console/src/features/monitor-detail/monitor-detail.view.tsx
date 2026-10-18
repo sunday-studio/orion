@@ -1,436 +1,95 @@
-import {
-  Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  PageHeader,
-  StatusBadge,
-  usePageSize,
-} from "@/design-system";
-import { PageBreadcrumbs } from "@/components/shared/page-breadcrumbs";
-import {
-  CoreWorkerWarning,
-  coreWorkerDiagnosticsFromPayload,
-  shouldWarnForCoreWorker,
-} from "@/features/monitors/components/core-worker-diagnostics";
-import { coreMonitorMutationErrorMessage } from "@/features/monitors/components/core-monitor-errors";
-import { CoreMonitorDialog } from "@/features/monitors/components/core-monitor-dialog";
-import {
-  explainMonitorFailure,
-  parseMonitorPayload,
-  summarizeMonitorResult,
-} from "@/features/monitors/monitors.domain";
-import { ReportInspectionDrawer } from "@/features/report-inspection/components/report-inspection-drawer";
-import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
-import { cn } from "@/utils/cn";
-import {
-  type ApiMonitorReportResponse,
-  type ServiceCoreManagedMonitorUpdateRequest,
-  getGetCoreMonitorConfigQueryKey,
-  getGetMonitorHistoryQueryKey,
-  getGetMonitorQueryKey,
-  getGetMonitorSummaryQueryKey,
-  getGetMonitorsQueryKey,
-  getMonitorHistory,
-  useDeleteCoreMonitor,
-  useGetCoreMonitorConfig,
-  useGetCoreWorkerDiagnostics,
-  useGetIncident,
-  useGetIncidents,
-  useGetMonitor,
-  useGetMonitorHistory,
-  useGetMonitorUptime,
-  usePauseCoreMonitor,
-  useResumeCoreMonitor,
-  useTestCoreMonitor,
-  useUpdateCoreMonitor,
-} from "@/orion-sdk";
-import { useQueryClient } from "@tanstack/react-query";
-import { Pause, Play, RefreshCw, Save, Trash2 } from "lucide-react";
-import { parseAsInteger, useQueryStates } from "nuqs";
-import { useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { MonitorDetailOperationalData } from "./components/monitor-detail-operational-data";
-import {
-  HighlightedIncidentBanner,
-  MonitorDetailOverview,
-} from "./components/monitor-detail-overview";
-import {
-  HISTORY_LIMIT,
-  type MonitorDetailTab,
-  isCoreOwnedMonitor,
-  isHeartbeatPayload,
-  isMonitorDetailTab,
-  reportTimestamp,
-} from "./components/monitor-detail-shared";
+import { useParams, useSearchParams } from "react-router-dom";
+import { EmptyState, Skeleton, Tabs, TabsList, TabsPanel, TabsTab } from "@/design-system";
+import { useNow } from "@/features/overview/overview-time";
+import { useGetMonitor } from "@/orion-sdk";
+import { MonitorTestResultDialog } from "@/features/monitors/create/monitor-test-result-dialog";
+import { MonitorHeader } from "./detail/monitor-header";
+import { MonitorHeartbeat } from "./detail/monitor-heartbeat";
+import { MonitorHistory } from "./detail/monitor-history";
+import { MonitorOverview } from "./detail/monitor-overview";
+import { MonitorPaused } from "./detail/monitor-paused";
+import { useMonitorActions } from "./detail/use-monitor-actions";
 
 export const MonitorDetailPage = () => {
   const { monitorId = "" } = useParams();
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const [{ historyPage }, setHistoryQuery] = useQueryStates({
-    historyPage: parseAsInteger.withDefault(1),
-  });
-  const { limit: historyLimit, setLimit: setHistoryLimit } = usePageSize(HISTORY_LIMIT, {
-    key: "historySize",
-    pageKey: "historyPage",
-  });
-  const historyOffset = (Math.max(historyPage, 1) - 1) * historyLimit;
   const [searchParams, setSearchParams] = useSearchParams();
-  const selectedTab = searchParams.get("tab");
-  const activeTab: MonitorDetailTab = isMonitorDetailTab(selectedTab) ? selectedTab : "history";
-  const highlightedIncidentId = searchParams.get("incident") ?? "";
-  const monitorResponse = useGetMonitor(monitorId);
-  const uptimeResponse = useGetMonitorUptime(monitorId, { period: "90d" });
-  const historyQuery = useGetMonitorHistory(monitorId, {
-    limit: historyLimit,
-    offset: historyOffset,
-  });
-  const incidentsResponse = useGetIncidents({
-    monitor_id: monitorId,
-    status: "open,acknowledged,covered,resolved",
-    limit: 50,
-  });
-  const highlightedIncidentResponse = useGetIncident(highlightedIncidentId);
+  const now = useNow(1000);
+  const query = useGetMonitor(monitorId);
+  const monitor = query.data?.monitor;
+  const summary = query.data?.summary;
+  const actions = useMonitorActions(monitorId, monitor?.name ?? "Monitor");
+  const tab = searchParams.get("tab") === "history" ? "history" : "overview";
 
-  const monitor = monitorResponse.data?.monitor;
-  const isCoreMonitor = isCoreOwnedMonitor(monitor);
-  const workerDiagnosticsResponse = useGetCoreWorkerDiagnostics({
-    query: { enabled: Boolean(isCoreMonitor), refetchInterval: 30_000 },
-  });
-  const workerDiagnostics = coreWorkerDiagnosticsFromPayload(workerDiagnosticsResponse.data);
-  const coreConfigResponse = useGetCoreMonitorConfig(monitorId, {
-    query: { enabled: Boolean(monitorId && isCoreMonitor) },
-  });
-  const coreConfig = coreConfigResponse.data?.config;
-  const reports = historyQuery.data?.reports ?? [];
-  const reportCount = historyQuery.data?.count ?? reports.length;
-  const latestReport = monitorResponse.data?.recent_reports?.[0] ?? reports[0];
-  const [selectedReport, setSelectedReport] = useState<ApiMonitorReportResponse>();
-  const monitorKind = coreConfig?.kind ?? monitor?.type;
-  const latestSummary = summarizeMonitorResult(latestReport, monitorKind);
-  const heartbeatReports = reports.filter((report) =>
-    isHeartbeatPayload(parseMonitorPayload(report.payload)),
-  );
-  const latestHeartbeatReport = heartbeatReports[0];
-  const latestHeartbeatFailure = heartbeatReports.find(
-    (report) => report.health && report.health !== "up",
-  );
-  const uptimeBuckets = uptimeResponse.data?.daily_buckets ?? [];
-  const recentUptimeBuckets = uptimeBuckets.slice(-7);
-  const health =
-    monitorResponse.data?.computed_health ??
-    monitor?.computed_health ??
-    monitor?.health ??
-    "unknown";
-  const relatedIncidents = incidentsResponse.data?.incidents ?? [];
-  const activeIncidents = relatedIncidents.filter((incident) =>
-    ["open", "acknowledged"].includes(incident.status ?? ""),
-  );
-  const highlightedIncidentFromList = relatedIncidents.find(
-    (incident) => incident.id === highlightedIncidentId,
-  );
-  const highlightedIncident =
-    highlightedIncidentResponse.data?.incident?.monitor_id === monitorId
-      ? highlightedIncidentResponse.data.incident
-      : highlightedIncidentFromList;
-  const incidentContext = highlightedIncident ?? activeIncidents[0] ?? relatedIncidents[0];
-  const incidentContextLabel = highlightedIncident
-    ? "highlighted"
-    : activeIncidents[0]
-      ? "active"
-      : relatedIncidents[0]
-        ? "latest"
-        : "none";
-  const [editOpen, setEditOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [actionFeedback, setActionFeedback] = useState("");
-  const refreshMonitor = () => {
-    void queryClient.invalidateQueries({ queryKey: getGetMonitorQueryKey(monitorId) });
-    void queryClient.invalidateQueries({ queryKey: getGetCoreMonitorConfigQueryKey(monitorId) });
-    void queryClient.invalidateQueries({ queryKey: getGetMonitorHistoryQueryKey(monitorId) });
-    void queryClient.invalidateQueries({ queryKey: getGetMonitorsQueryKey() });
-    void queryClient.invalidateQueries({ queryKey: getGetMonitorSummaryQueryKey() });
-  };
-  const updateMonitor = useUpdateCoreMonitor({
-    mutation: {
-      onSuccess: () => {
-        setActionFeedback("Core monitor saved.");
-        setEditOpen(false);
-        refreshMonitor();
-      },
-    },
-  });
-  const testMonitor = useTestCoreMonitor({
-    mutation: {
-      onSuccess: (result) => {
-        const testHealth =
-          result.monitor?.computed_health ??
-          result.monitor?.health ??
-          result.result?.status ??
-          "unknown";
-        void getMonitorHistory(monitorId, { limit: 1, offset: 0 })
-          .then((history) => {
-            const explanation = explainMonitorFailure(history.reports?.[0], result.config?.kind);
-            setActionFeedback(
-              testHealth === "up"
-                ? "Core monitor test reported up."
-                : `Core monitor test reported ${testHealth}: ${explanation}`,
-            );
-          })
-          .catch(() => {
-            setActionFeedback(
-              testHealth === "up"
-                ? "Core monitor test reported up."
-                : `Core monitor test reported ${testHealth}. Review the latest check history row.`,
-            );
-          });
-        refreshMonitor();
-      },
-    },
-  });
-  const pauseMonitor = usePauseCoreMonitor({
-    mutation: {
-      onSuccess: () => {
-        setActionFeedback("Core monitor paused.");
-        refreshMonitor();
-      },
-    },
-  });
-  const resumeMonitor = useResumeCoreMonitor({
-    mutation: {
-      onSuccess: () => {
-        setActionFeedback("Core monitor resumed.");
-        refreshMonitor();
-      },
-    },
-  });
-  const deleteMonitor = useDeleteCoreMonitor({
-    mutation: {
-      onSuccess: () => {
-        void queryClient.invalidateQueries({ queryKey: getGetMonitorsQueryKey() });
-        void queryClient.invalidateQueries({ queryKey: getGetMonitorSummaryQueryKey() });
-        setDeleteOpen(false);
-        navigate("/monitors");
-      },
-    },
-  });
-  const setHistoryOffset = (nextOffset: number) => {
-    void setHistoryQuery({ historyPage: Math.floor(nextOffset / historyLimit) + 1 });
-  };
-  const handleTabChange = (tab: string) => {
-    if (!isMonitorDetailTab(tab)) return;
+  if (query.isPending) return <Skeleton className="mt-10 h-40 w-full" />;
+  if (query.isError || !monitor) {
+    return (
+      <EmptyState
+        tone="error"
+        title="Unable to load monitor"
+        description="It may have been deleted, or Core is unreachable."
+      />
+    );
+  }
+
+  const paused = Boolean(summary?.paused ?? monitor.paused);
+  const heartbeat = summary?.kind === "heartbeat" || monitor.kind === "heartbeat";
+  const narrow = paused || heartbeat;
+  const setTab = (next: string) =>
     setSearchParams(
       (params) => {
-        if (tab === "history") {
-          params.delete("tab");
-        } else {
-          params.set("tab", tab);
-        }
-        return params;
+        const copy = new URLSearchParams(params);
+        if (next === "history") copy.set("tab", "history");
+        else copy.delete("tab");
+        return copy;
       },
       { replace: true },
     );
-  };
-  const actionError =
-    coreMonitorMutationErrorMessage(testMonitor.error, "Unable to test Core monitor.") ||
-    coreMonitorMutationErrorMessage(pauseMonitor.error, "Unable to pause Core monitor.") ||
-    coreMonitorMutationErrorMessage(resumeMonitor.error, "Unable to resume Core monitor.") ||
-    coreMonitorMutationErrorMessage(updateMonitor.error, "Unable to save Core monitor.") ||
-    coreMonitorMutationErrorMessage(deleteMonitor.error, "Unable to delete Core monitor.");
-  const isActionPending =
-    testMonitor.isPending ||
-    pauseMonitor.isPending ||
-    resumeMonitor.isPending ||
-    updateMonitor.isPending ||
-    deleteMonitor.isPending;
-
-  if (monitorResponse.isLoading) {
-    return <div className="py-3 text-sm text-neutral-600">Loading monitor...</div>;
-  }
-
-  if (monitorResponse.error || !monitor) {
-    return <div className="py-3 text-sm">Unable to load monitor.</div>;
-  }
 
   return (
-    <div className="space-y-7">
-      <div className="space-y-2">
-        <PageBreadcrumbs
-          items={[{ label: "Monitors", to: "/monitors" }, { label: monitor.name ?? "Monitor" }]}
-        />
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <PageHeader
-            title={monitor.name ?? monitor.id ?? "Unknown monitor"}
-            description={
-              <p className="text-sm text-neutral-600">
-                <StatusBadge status={health} className="px-1.5 py-0.5 text-[13px]" /> ·{" "}
-                {isCoreMonitor ? "Core" : "Server"} · {monitor.type ?? "unknown"} · last checked{" "}
-                {formatDate(reportTimestamp(latestReport), DATE_TIME_FORMAT)}
-              </p>
-            }
-          />
-          {isCoreMonitor && (
-            <div className="flex flex-wrap gap-2">
-              <Button
-                disabled={isActionPending}
-                size="sm"
-                variant="secondary"
-                onClick={() => testMonitor.mutate({ id: monitor.id ?? "" })}
-              >
-                <Play />
-                Test
-              </Button>
-              {coreConfig?.paused ? (
-                <Button
-                  disabled={isActionPending}
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => resumeMonitor.mutate({ id: monitor.id ?? "" })}
-                >
-                  <RefreshCw />
-                  Resume
-                </Button>
-              ) : (
-                <Button
-                  disabled={isActionPending}
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => pauseMonitor.mutate({ id: monitor.id ?? "" })}
-                >
-                  <Pause />
-                  Pause
-                </Button>
-              )}
-              <Button
-                disabled={isActionPending || coreConfigResponse.isLoading}
-                size="sm"
-                variant="secondary"
-                onClick={() => setEditOpen(true)}
-              >
-                <Save />
-                Edit
-              </Button>
-              <Button
-                disabled={isActionPending}
-                size="sm"
-                variant="destructive"
-                onClick={() => setDeleteOpen(true)}
-              >
-                <Trash2 />
-                Delete
-              </Button>
-            </div>
-          )}
-        </div>
-        {(actionFeedback || actionError) && (
-          <p className={cn("text-sm", actionError ? "text-rose-700" : "text-neutral-600")}>
-            {actionError || actionFeedback}
-          </p>
-        )}
-      </div>
-
-      {isCoreMonitor && shouldWarnForCoreWorker(workerDiagnostics) && (
-        <CoreWorkerWarning worker={workerDiagnostics} />
-      )}
-
-      <HighlightedIncidentBanner incident={highlightedIncident} />
-
-      <MonitorDetailOverview
-        activeIncidents={activeIncidents}
-        coreConfig={coreConfig}
-        health={health}
-        highlightedIncident={highlightedIncident}
-        incidentContext={incidentContext}
-        incidentContextLabel={incidentContextLabel}
-        isCoreMonitor={isCoreMonitor}
-        latestHeartbeatFailure={latestHeartbeatFailure}
-        latestHeartbeatReport={latestHeartbeatReport}
-        latestReport={latestReport}
-        latestSummary={latestSummary}
+    <div className={narrow ? "w-full pb-8" : "w-full pb-8"}>
+      <MonitorHeader
         monitor={monitor}
-        recentUptimeBuckets={recentUptimeBuckets}
-        relatedIncidents={relatedIncidents}
-        setSelectedReport={setSelectedReport}
-        uptimeBucketCount={uptimeBuckets.length}
-        uptimePercent={uptimeResponse.data?.uptime_percent}
+        summary={summary}
+        paused={paused}
+        pending={actions.pending}
+        testing={actions.testing}
+        breadcrumb={!narrow}
+        core={monitor.owner_kind === "core" || monitor.source === "core"}
+        heartbeat={heartbeat}
+        onTest={actions.test}
+        onPause={actions.pause}
+        onResume={actions.resume}
       />
-
-      <MonitorDetailOperationalData
-        activeTab={activeTab}
-        coreConfig={coreConfig}
-        coreConfigError={coreConfigResponse.error}
-        coreConfigLoading={coreConfigResponse.isLoading}
-        handleTabChange={handleTabChange}
-        highlightedIncidentId={highlightedIncidentId}
-        historyError={historyQuery.error}
-        historyLoading={historyQuery.isLoading}
-        historyOffset={historyOffset}
-        historyLimit={historyLimit}
-        onHistoryLimitChange={setHistoryLimit}
-        incidentsError={incidentsResponse.error}
-        incidentsLoading={incidentsResponse.isLoading}
-        isCoreMonitor={isCoreMonitor}
-        monitor={monitor}
-        onHistoryOffsetChange={setHistoryOffset}
-        onReportClick={setSelectedReport}
-        relatedIncidents={relatedIncidents}
-        reportCount={reportCount}
-        reports={reports}
+      <MonitorTestResultDialog
+        result={actions.testResult}
+        running={actions.testing}
+        error={actions.testError}
+        onRunAgain={actions.test}
+        onClose={actions.clearTestResult}
       />
-      <ReportInspectionDrawer
-        kind="monitor"
-        report={selectedReport}
-        onOpenChange={(open) => {
-          if (!open) setSelectedReport(undefined);
-        }}
-      />
-      {isCoreMonitor && (
-        <CoreMonitorDialog
-          config={coreConfig}
-          error={coreMonitorMutationErrorMessage(
-            updateMonitor.error,
-            "Unable to save Core monitor.",
+      <Tabs value={tab} onValueChange={setTab} className="mt-3 gap-3">
+        <TabsList>
+          <TabsTab value="overview">{heartbeat ? "Setup" : "Overview"}</TabsTab>
+          <TabsTab value="history">Check history</TabsTab>
+        </TabsList>
+        <TabsPanel value="overview">
+          {paused ? (
+            <MonitorPaused
+              summary={summary}
+              pending={actions.pending}
+              core={monitor.owner_kind === "core" || monitor.source === "core"}
+              onResume={actions.resume}
+            />
+          ) : heartbeat ? (
+            <MonitorHeartbeat monitorId={monitorId} summary={summary} now={now} />
+          ) : (
+            <MonitorOverview monitorId={monitorId} summary={summary} now={now} />
           )}
-          isSubmitting={updateMonitor.isPending}
-          mode="edit"
-          monitor={monitor}
-          onOpenChange={setEditOpen}
-          onSubmit={(data) =>
-            updateMonitor.mutate({
-              id: monitor.id ?? "",
-              data: data as ServiceCoreManagedMonitorUpdateRequest,
-            })
-          }
-          open={editOpen}
-        />
-      )}
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Core Monitor</DialogTitle>
-            <DialogDescription>
-              Delete {monitor.name ?? "this monitor"} and stop future Core checks.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="secondary" onClick={() => setDeleteOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              disabled={deleteMonitor.isPending}
-              variant="destructive"
-              onClick={() => deleteMonitor.mutate({ id: monitor.id ?? "" })}
-            >
-              <Trash2 />
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </TabsPanel>
+        <TabsPanel value="history">
+          <MonitorHistory monitorId={monitorId} monitorName={monitor.name ?? "Monitor"} />
+        </TabsPanel>
+      </Tabs>
     </div>
   );
 };

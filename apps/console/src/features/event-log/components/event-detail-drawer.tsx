@@ -1,4 +1,4 @@
-import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "@/design-system";
+import { Drawer, DrawerContent, DrawerDescription, DrawerTitle, JsonBlock } from "@/design-system";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import type { ApiOrionEventResponse } from "@/orion-sdk";
 
@@ -31,12 +31,7 @@ export const EventDetailDrawer = ({ event, onOpenChange }: EventDetailDrawerProp
             <dt className="text-quiet">Event ID</dt>
             <dd className="font-mono text-xs text-faint">{formatValue(event.id)}</dd>
           </dl>
-          <pre
-            aria-label="Raw event"
-            className="max-h-96 overflow-auto rounded-lg bg-field p-3 font-mono text-xs"
-          >
-            {JSON.stringify(event, null, 2)}
-          </pre>
+          <JsonBlock value={event} />
         </div>
       )}
     </DrawerContent>

@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func (s *AlertService) attemptDelivery(delivery *db.AlertDelivery, deliver func() error) error {
+func (s *AlertService) attemptDelivery(delivery *db.AlertDelivery, deliver func(rec *SendRecord) error) error {
 	attemptNumber := delivery.AttemptCount + 1
 	maxAttempts := delivery.MaxAttempts
 	if maxAttempts <= 0 {
@@ -27,7 +27,8 @@ func (s *AlertService) attemptDelivery(delivery *db.AlertDelivery, deliver func(
 		return err
 	}
 
-	deliverErr := deliver()
+	rec := &SendRecord{}
+	deliverErr := deliver(rec)
 	completedAt := time.Now().UTC()
 	status := "sent"
 	message := ""
@@ -44,10 +45,12 @@ func (s *AlertService) attemptDelivery(delivery *db.AlertDelivery, deliver func(
 	}
 
 	if updateErr := s.db.Model(&db.AlertDeliveryAttempt{}).Where("id = ?", attempt.ID).Updates(map[string]any{
-		"status":       status,
-		"stage":        stage,
-		"error":        message,
-		"completed_at": completedAt,
+		"status":           status,
+		"stage":            stage,
+		"error":            message,
+		"http_status":      rec.StatusCode,
+		"response_snippet": rec.Snippet,
+		"completed_at":     completedAt,
 	}).Error; updateErr != nil {
 		return errors.Join(deliverErr, updateErr)
 	}

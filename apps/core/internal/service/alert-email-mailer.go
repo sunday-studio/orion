@@ -40,7 +40,7 @@ func AlertEmailConfigured(cfg *config.Config) error {
 	default:
 		return errors.New("ORION_ALERT_SMTP_TLS must be starttls, tls or none")
 	}
-	if alertEmailSecret(cfg) == "" || strings.TrimSpace(cfg.PublicURL) == "" {
+	if alertEmailSecret(cfg) == "" || strings.TrimSpace(cfg.PublicBaseURL()) == "" {
 		return errors.New("email alerts need ORION_PUBLIC_URL and ORION_ALERT_EMAIL_SECRET (or ORION_JWT_SECRET) for confirmation links")
 	}
 	return nil

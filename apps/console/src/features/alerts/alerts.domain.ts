@@ -1,7 +1,7 @@
 import type {
   ApiAlertChannelResponse,
-  ApiAlertRouteRequest,
-  ApiAlertRouteResponse,
+  ApiAlertRuleRequest,
+  ApiAlertRuleResponse,
 } from "@/orion-sdk";
 import { alertEventOptions } from "./components/alert-constants";
 
@@ -20,6 +20,7 @@ export const groupingOptions = [
 ] as const;
 
 export type RouteFormState = {
+  cooldownSeconds: string;
   agentIds: string;
   channelIds: string[];
   enabled: boolean;
@@ -45,6 +46,7 @@ export type DryRunFormState = {
 
 export const defaultRouteForm = (channels: ApiAlertChannelResponse[]): RouteFormState => ({
   agentIds: "",
+  cooldownSeconds: "0",
   channelIds: channels.find((channel) => channel.id)?.id ? [channels[0].id ?? ""] : [],
   enabled: true,
   eventTypes: alertEventOptions.map((option) => option.value),
@@ -76,10 +78,11 @@ const splitList = (value: string) =>
 const joinList = (value?: string[]) => (value ?? []).join("\n");
 
 export const routeToForm = (
-  route: ApiAlertRouteResponse,
+  route: ApiAlertRuleResponse,
   channels: ApiAlertChannelResponse[],
 ): RouteFormState => ({
   agentIds: joinList(route.agent_ids),
+  cooldownSeconds: String(route.cooldown_seconds ?? 0),
   channelIds: (route.channel_ids ?? []).filter((id) =>
     channels.some((channel) => channel.id === id),
   ),
@@ -97,8 +100,9 @@ export const routeToForm = (
   suppress: route.suppress ?? false,
 });
 
-export const routeToRequest = (route: ApiAlertRouteResponse): ApiAlertRouteRequest => ({
+export const routeToRequest = (route: ApiAlertRuleResponse): ApiAlertRuleRequest => ({
   agent_ids: route.agent_ids ?? [],
+  cooldown_seconds: route.cooldown_seconds ?? 0,
   channel_ids: route.suppress ? [] : (route.channel_ids ?? []),
   enabled: route.enabled ?? true,
   event_types: route.event_types ?? alertEventOptions.map((option) => option.value),
@@ -112,8 +116,9 @@ export const routeToRequest = (route: ApiAlertRouteResponse): ApiAlertRouteReque
   suppress: route.suppress ?? false,
 });
 
-export const formToRequest = (form: RouteFormState): ApiAlertRouteRequest => ({
+export const formToRequest = (form: RouteFormState): ApiAlertRuleRequest => ({
   agent_ids: splitList(form.agentIds),
+  cooldown_seconds: Number.parseInt(form.cooldownSeconds, 10) || 0,
   channel_ids: form.suppress ? [] : form.channelIds,
   enabled: form.enabled,
   event_types: form.eventTypes,

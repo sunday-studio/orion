@@ -3,6 +3,7 @@ package api
 import (
 	"crypto/subtle"
 	"net/http"
+	"strings"
 	"time"
 
 	"orion/core/internal/utils"
@@ -65,7 +66,7 @@ func (s *Server) login(c *gin.Context) {
 
 	claims := jwt.MapClaims{
 		"sub": req.Username,
-		"exp": time.Now().Add(24 * time.Hour).Unix(),
+		"exp": time.Now().Add(time.Duration(max(s.cfg.SessionHours, 1)) * time.Hour).Unix(),
 		"iat": time.Now().Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -98,6 +99,24 @@ func (s *Server) frontendAuthMiddleware() gin.HandlerFunc {
 			return
 		}
 		tokenStr := auth[7:]
+
+		if strings.HasPrefix(tokenStr, apiTokenPrefix) {
+			token, ok := s.authenticateAPIToken(tokenStr)
+			if !ok {
+				utils.Unauthorized(c, "Invalid or revoked API token")
+				c.Abort()
+				return
+			}
+			if token.Scope != "write" && c.Request.Method != http.MethodGet && c.Request.Method != http.MethodHead && c.Request.Method != http.MethodOptions {
+				utils.ErrorResponse(c, http.StatusForbidden, "This API token is read only", nil)
+				c.Abort()
+				return
+			}
+			c.Set("frontend_actor_id", token.Name)
+			c.Set(apiTokenKindKey, "api_token")
+			c.Next()
+			return
+		}
 
 		t, err := jwt.Parse(tokenStr, func(t *jwt.Token) (any, error) {
 			return secret, nil

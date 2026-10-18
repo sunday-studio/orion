@@ -80,7 +80,8 @@ func main() {
 		logger.Fatal("Failed to open the product logs database", "error", err)
 	}
 	server.EnableProductLogs(logStore)
-	go logstore.RunRetention(ctx, logStore, database, logger, time.Hour)
+	logger.AttachSink(logstore.NewCoreLogSink(logStore, "api")) // Internal logs
+	go logstore.RunRetention(ctx, logStore, database, logger, time.Hour, logstore.AppRetention{AppID: logstore.InternalAppID, RetentionDays: cfg.InternalLogRetentionDays, MaxStorageMB: cfg.InternalLogMaxStorageMB})
 
 	selfMonitor := service.NewSelfMonitorService(database, logger, cfg, server.RuntimeDiagnostics())
 	go selfMonitor.Run(ctx)

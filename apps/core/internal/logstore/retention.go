@@ -10,7 +10,7 @@ import (
 )
 
 // RunRetention prunes every app's logs by its retention policy until ctx ends.
-func RunRetention(ctx context.Context, store *Store, main *gorm.DB, logger *utils.Logger, every time.Duration) {
+func RunRetention(ctx context.Context, store *Store, main *gorm.DB, logger *utils.Logger, every time.Duration, extra ...AppRetention) {
 	if every <= 0 {
 		every = time.Hour
 	}
@@ -24,6 +24,7 @@ func RunRetention(ctx context.Context, store *Store, main *gorm.DB, logger *util
 		for _, app := range apps {
 			policies = append(policies, AppRetention{AppID: app.ID, RetentionDays: app.RetentionDays, MaxStorageMB: app.MaxStorageMB})
 		}
+		policies = append(policies, extra...)
 		result, err := store.Prune(policies, now)
 		if err != nil {
 			logger.Error("Log retention failed", "error", err)

@@ -4,7 +4,7 @@ import { controlBase } from "@/design-system/styles";
 import { cn } from "@/utils/cn";
 
 export const buttonStyles = cva(
-  `${controlBase} inline-flex shrink-0 cursor-pointer items-center justify-center whitespace-nowrap font-medium transition-[filter,background-color] [&_svg]:pointer-events-none [&_svg]:size-3.5 [&_svg]:shrink-0`,
+  `${controlBase} inline-flex shrink-0 cursor-pointer items-center justify-center whitespace-nowrap font-medium transition-[filter,background-color,scale] duration-200 ease-out active:scale-[0.98] [&_svg]:pointer-events-none [&_svg]:size-3.5 [&_svg]:shrink-0`,
   {
     variants: {
       variant: {

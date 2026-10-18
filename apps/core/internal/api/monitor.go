@@ -119,9 +119,10 @@ func (s *Server) unregisterMonitor(c *gin.Context) {
 // @Param        id         path      string  true   "Agent ID"
 // @Param        health     query     string  false  "Filter by health status (up|down|degraded|unknown)"
 // @Param        lifecycle  query     string  false  "Filter by lifecycle status (active|disabled|deleted)"
+// @Param        status     query     string  false  "Comma-separated computed statuses to show: up,down,degraded,stale,unknown. total and hidden_count report what the filter hides"
 // @Param        limit      query     int     false  "Maximum number of monitors to return" default(50)
 // @Param        offset     query     int     false  "Number of monitors to skip" default(0)
-// @Success      200        {object}  utils.APIResponse{data=object{monitors=[]MonitorResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta}}
+// @Success      200        {object}  utils.APIResponse{data=object{monitors=[]MonitorResponse,count=int64,total=int64,hidden_count=int64,limit=int,offset=int,pagination=utils.PaginationMeta}}
 // @Failure      400        {object}  utils.APIResponse
 // @Failure      404        {object}  utils.APIResponse
 // @Failure      500        {object}  utils.APIResponse
@@ -144,85 +145,53 @@ func (s *Server) listMonitors(c *gin.Context) {
 		return
 	}
 
-	monitors, err := s.monitorService.ListMonitors(agentID, healthFilter, lifecycleFilter, limit, offset)
-	if err != nil {
-		s.logger.Error("Failed to list monitors", "error", err, "agent_id", agentID)
-		utils.InternalError(c, "Failed to list monitors", err)
-		return
-	}
-
-	count, err := s.monitorService.GetMonitorCount(agentID, healthFilter, lifecycleFilter)
-	if err != nil {
-		s.logger.Error("Failed to get monitor count", "error", err, "agent_id", agentID)
-		// Don't fail the request if count fails
+	statusSet := parseStatusSet(c.Query("status"))
+	var monitors []db.Monitor
+	var count, total int64
+	var err error
+	if len(statusSet) > 0 {
+		// Multi-status filter (down,degraded,stale,up,unknown): filter on computed health, then page.
+		all, listErr := s.monitorService.ListMonitors(agentID, healthFilter, lifecycleFilter, 5000, 0)
+		if listErr != nil {
+			s.logger.Error("Failed to list monitors", "error", listErr, "agent_id", agentID)
+			utils.InternalError(c, "Failed to list monitors", listErr)
+			return
+		}
+		total = int64(len(all))
+		matched := all[:0:0]
+		for _, m := range all {
+			if statusSet[effectiveMonitorHealth(m)] {
+				matched = append(matched, m)
+			}
+		}
+		count = int64(len(matched))
+		monitors = matched[min(offset, len(matched)):min(offset+limit, len(matched))]
+	} else {
+		monitors, err = s.monitorService.ListMonitors(agentID, healthFilter, lifecycleFilter, limit, offset)
+		if err != nil {
+			s.logger.Error("Failed to list monitors", "error", err, "agent_id", agentID)
+			utils.InternalError(c, "Failed to list monitors", err)
+			return
+		}
+		count, err = s.monitorService.GetMonitorCount(agentID, healthFilter, lifecycleFilter)
+		if err != nil {
+			s.logger.Error("Failed to get monitor count", "error", err, "agent_id", agentID)
+		}
+		total = count
 	}
 
 	responses := monitorResponses(monitors)
-	utils.SuccessResponse(c, 200, "Monitors retrieved successfully", gin.H{
-		"monitors":   responses,
-		"count":      count,
-		"limit":      limit,
-		"offset":     offset,
-		"pagination": utils.NewPaginationMeta(count, limit, offset, len(responses)),
-	})
-}
-
-// listAllMonitors retrieves a paginated list of monitors across agents.
-// @Summary      List monitors
-// @Description  Get a paginated list of all monitors with optional filters
-// @Tags         monitors
-// @Accept       json
-// @Produce      json
-// @ID           getMonitors
-// @Param        limit          query     int     false  "Maximum number of monitors to return" default(50)
-// @Param        offset         query     int     false  "Number of monitors to skip" default(0)
-// @Param        search         query     string  false  "Search by monitor, agent, or type"
-// @Param        health         query     string  false  "Filter by health status (up|down|degraded|unknown)"
-// @Param        type           query     string  false  "Filter by monitor type"
-// @Param        owner_kind     query     string  false  "Filter by owner kind (agent|core)"
-// @Param        owner_name     query     string  false  "Filter by owner name, id, or machine id"
-// @Param        source         query     string  false  "Filter by monitor source (agent|core)"
-// @Param        lifecycle      query     string  false  "Filter by lifecycle status (active|disabled|deleted)"
-// @Param        stale_only     query     bool    false  "Only return stale monitors"
-// @Param        has_incidents  query     bool    false  "Only return monitors with active incidents"
-// @Param        sort           query     string  false  "Sort column" default(updated_at)
-// @Param        order          query     string  false  "Sort order (asc|desc)" default(desc)
-// @Success      200            {object}  utils.APIResponse{data=object{monitors=[]MonitorResponse,count=int64,limit=int,offset=int,pagination=utils.PaginationMeta}}
-// @Failure      500            {object}  utils.APIResponse
-// @Param        include_system query  bool    false  "Include Core self-monitors such as worker liveness (default false)"
-// @Router       /v1/monitors [get]
-func (s *Server) listAllMonitors(c *gin.Context) {
-	limit := utils.QueryInt(c, "limit", 50)
-	offset := utils.QueryInt(c, "offset", 0)
-
-	monitors, count, err := s.monitorService.ListAllMonitors(service.ListAllMonitorsOpts{IncludeSystem: c.Query("include_system") == "true",
-		Limit:        limit,
-		Offset:       offset,
-		Search:       c.Query("search"),
-		Health:       c.Query("health"),
-		Type:         c.Query("type"),
-		OwnerKind:    c.Query("owner_kind"),
-		OwnerName:    c.Query("owner_name"),
-		Source:       c.Query("source"),
-		Lifecycle:    c.Query("lifecycle"),
-		StaleOnly:    c.Query("stale_only") == "true",
-		HasIncidents: c.Query("has_incidents") == "true",
-		Sort:         c.DefaultQuery("sort", "updated_at"),
-		Order:        c.DefaultQuery("order", "desc"),
-	})
-	if err != nil {
-		s.logger.Error("Failed to list all monitors", "error", err)
-		utils.InternalError(c, "Failed to list monitors", err)
-		return
+	for i := range responses {
+		responses[i].StatusText, responses[i].StatusDetail = s.monitorStatusLine(monitors[i], effectiveMonitorHealth(monitors[i]))
 	}
-
-	responses := monitorResponsesWithAgents(monitors, s.monitorAgentsByID(monitors), s.coreMonitorIDsByID(monitors))
 	utils.SuccessResponse(c, 200, "Monitors retrieved successfully", gin.H{
-		"monitors":   responses,
-		"count":      count,
-		"limit":      limit,
-		"offset":     offset,
-		"pagination": utils.NewPaginationMeta(count, limit, offset, len(responses)),
+		"monitors":     responses,
+		"count":        count,
+		"total":        total,
+		"hidden_count": total - count,
+		"limit":        limit,
+		"offset":       offset,
+		"pagination":   utils.NewPaginationMeta(count, limit, offset, len(responses)),
 	})
 }
 
@@ -316,7 +285,7 @@ func (s *Server) coreMonitorIDsByID(monitors []db.Monitor) map[string]struct{} {
 // @Produce      json
 // @ID           getMonitor
 // @Param        id   path      string  true  "Monitor ID"
-// @Success      200  {object}  utils.APIResponse{data=object{monitor=MonitorResponse,recent_reports=[]MonitorReportResponse,computed_health=string}}
+// @Success      200  {object}  utils.APIResponse{data=object{monitor=MonitorResponse,summary=MonitorDetailSummary,recent_reports=[]MonitorReportResponse,computed_health=string}}
 // @Failure      400  {object}  utils.APIResponse
 // @Failure      404  {object}  utils.APIResponse
 // @Router       /v1/monitors/{id} [get]
@@ -367,7 +336,11 @@ func (s *Server) getMonitorDetail(c *gin.Context) {
 		response.Source = "core"
 	}
 
+	rowsForExtras := []MonitorResponse{response}
+	s.enrichMonitorRows(rowsForExtras, []db.Monitor{*monitor})
+	response = rowsForExtras[0]
 	utils.SuccessResponse(c, 200, "Monitor retrieved successfully", gin.H{
+		"summary":         s.monitorDetailSummary(c, *monitor, computedHealth),
 		"monitor":         response,
 		"recent_reports":  monitorReportResponses(reports),
 		"computed_health": computedHealth,
