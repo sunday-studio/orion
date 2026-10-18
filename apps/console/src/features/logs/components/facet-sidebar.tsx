@@ -29,8 +29,12 @@ const Row = ({
   checked: boolean;
   onToggle: () => void;
 }) => (
-  <label className="flex cursor-pointer items-center gap-2 py-[5px] text-[13px]">
-    <Checkbox checked={checked} onCheckedChange={onToggle} />
+  <label
+    className={`flex items-center gap-2 py-[5px] text-[13px] ${
+      item.disabled && !checked ? "cursor-not-allowed opacity-45" : "cursor-pointer"
+    }`}
+  >
+    <Checkbox checked={checked} disabled={item.disabled && !checked} onCheckedChange={onToggle} />
     <span className="min-w-0 flex-1 truncate">{item.label}</span>
     <span className="text-xs tabular-nums text-faint">{compact(item.count)}</span>
   </label>
