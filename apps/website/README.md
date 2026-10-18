@@ -19,7 +19,7 @@ The site is static. It deploys to Cloudflare Workers static assets, configured i
 2. In the GitHub repository, add secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` (Settings, Secrets and variables, Actions).
 3. Run the **Website deploy** workflow once from the Actions tab. The first run creates the `orion-website` Worker and publishes it at `orion-website.<your-subdomain>.workers.dev`.
 4. Attach the real domain in the dashboard (Workers & Pages, `orion-website`, Settings, Domains), or add the `routes` entry shown in `wrangler.jsonc`. The domain's zone must be on your Cloudflare account.
-5. Set the real address in `astro.config.mjs` (`site`), `public/robots.txt` and the fallback in `src/layouts/base.astro`, then redeploy.
+5. The site address, `https://orion.thesunday.studio`, is set in `astro.config.mjs` (`site`), `public/robots.txt` and the fallback in `src/layouts/base.astro`. Share-image, canonical and sitemap URLs are built from it, so change all three together if the domain moves.
 
 **Or let Cloudflare build from Git (no GitHub secrets needed)**
 
