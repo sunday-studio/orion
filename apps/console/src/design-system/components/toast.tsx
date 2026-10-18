@@ -14,6 +14,9 @@ const ToastList = () => {
       <ToastPrimitive.Content>
         <ToastPrimitive.Title className="font-medium" />
         <ToastPrimitive.Description className="text-quiet" />
+        {toast.actionProps && (
+          <ToastPrimitive.Action className="mt-2 rounded-md border border-input-border bg-chip px-2 py-1 text-[12.5px] font-medium hover:bg-tray" />
+        )}
         <ToastPrimitive.Close
           aria-label="Dismiss"
           className="absolute right-2 top-2 rounded p-1 text-quiet hover:text-ink"
