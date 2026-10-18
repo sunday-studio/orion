@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { useState } from "react";
 import {
+  Badge,
   Button,
   Dialog,
   DialogContent,
@@ -48,27 +49,28 @@ export const SavedViewsBar = ({
       {list.map((view) => {
         const active = same(view.filters ?? {}, current);
         return (
-          <span
-            key={view.id}
-            className={cn(
-              "group inline-flex h-7 items-center overflow-hidden rounded-full border text-[12.5px] transition-colors",
-              active
-                ? "border-brand bg-brand/10 text-ink"
-                : "border-input-border bg-card text-mid hover:bg-sub",
-            )}
-          >
+          <span key={view.id} className="group inline-flex items-center">
             <button
               type="button"
               aria-pressed={active}
-              className="h-full pl-3 pr-2.5 outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              className="rounded-md outline-none focus-visible:ring-2 focus-visible:ring-focus"
               onClick={() => onApply(view.filters ?? {})}
             >
-              {view.name}
+              <Badge
+                tone={active ? "up" : "unknown"}
+                shape={active ? "dot" : "none"}
+                className={cn(
+                  "h-6 px-2.5 text-[12.5px] normal-case transition-colors",
+                  !active && "hover:bg-[var(--tone-stale-bg)]",
+                )}
+              >
+                {view.name}
+              </Badge>
             </button>
             <button
               type="button"
               aria-label={`Delete ${view.name}`}
-              className="flex h-full w-0 items-center justify-center overflow-hidden text-faint outline-none transition-[width] hover:text-ink focus-visible:w-6 group-hover:w-6"
+              className="flex size-0 items-center justify-center overflow-hidden text-faint outline-none transition-[width,height] hover:text-ink focus-visible:size-5 group-hover:h-5 group-hover:w-5"
               onClick={() => remove.mutate({ id: view.id ?? "" })}
             >
               <X className="size-3" />
