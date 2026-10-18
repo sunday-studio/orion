@@ -147,6 +147,7 @@ export const PublicUpdateDialog = ({
           <div className={labelClass}>
             Public status
             <Segmented
+              surface="card"
               aria-label="Public status"
               options={statuses}
               value={status}

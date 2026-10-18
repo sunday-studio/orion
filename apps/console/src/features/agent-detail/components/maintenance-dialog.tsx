@@ -67,6 +67,7 @@ export const MaintenanceDialog = ({
             Checks keep running, but alerts and incidents are held. Status pages show Maintenance.
           </p>
           <Segmented
+            surface="card"
             aria-label="When"
             options={[
               { value: "now", label: "Start now" },
