@@ -19,7 +19,7 @@ import (
 const serviceLogBatchLimit = 100
 
 func (a *Agent) shipServiceLogs(ctx context.Context) error {
-	if strings.TrimSpace(a.userConfig.Logging.Path) == "" {
+	if strings.TrimSpace(a.userConfig.Logging.Path) == "" || config.IsConsoleLogPath(a.userConfig.Logging.Path) {
 		return nil
 	}
 	entries, err := collectServiceLogEntries(a.userConfig.Logging.Path, a.monitorsSnapshot(), serviceLogBatchLimit)

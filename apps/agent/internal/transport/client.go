@@ -2,6 +2,7 @@ package transport
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
@@ -41,6 +42,7 @@ type Client struct {
 	auth       *authState
 	ctx        context.Context
 	enrollment string
+	gzipBodies bool
 	retry      RetryConfig
 	sleep      func(time.Duration)
 }
@@ -104,6 +106,15 @@ func (c *Client) makeRequest(method, endpoint string, body interface{}, headers 
 		}
 	}
 
+	if c.gzipBodies && len(payload) > 1024 {
+		var buf bytes.Buffer
+		zw := gzip.NewWriter(&buf)
+		if _, err := zw.Write(payload); err == nil && zw.Close() == nil {
+			payload = buf.Bytes()
+			headers = copyHeaders(headers)
+			headers["Content-Encoding"] = "gzip"
+		}
+	}
 	logging.Debugf("core request prepared: method=%s endpoint=%s body_bytes=%d", method, endpoint, len(payload))
 	return c.sendWithRetry(method, fmt.Sprintf("%s%s", c.coreURL, endpoint), payload, headers)
 }
@@ -181,7 +192,7 @@ func (e *StatusError) Error() string {
 // timeouts, 429, 5xx and 403-from-a-proxy. Credential rejections and other 4xx
 // responses will not fix themselves.
 func IsTransientError(err error) bool {
-	if err == nil || IsAuthError(err) {
+	if err == nil || IsAuthError(err) || errors.Is(err, ErrEnrollmentRejected) {
 		return false
 	}
 	var statusErr *StatusError
@@ -362,6 +373,12 @@ func (c *Client) SendServiceLogs(batch ServiceLogBatch, agentID string) error {
 	return nil
 }
 
+// ErrEnrollmentRejected means Core refused the enrollment token; retrying cannot help.
+var ErrEnrollmentRejected = errors.New("enrollment token was rejected")
+
+// SetCompression enables gzip for request bodies over 1 KiB ("gzip").
+func (c *Client) SetCompression(mode string) { c.gzipBodies = strings.EqualFold(mode, "gzip") }
+
 func (c *Client) RegisterAgent(req AgentRegistrationRequest) (*AgentRegistrationResponse, error) {
 	var headers map[string]string
 	if c.enrollment != "" {
@@ -378,6 +395,9 @@ func (c *Client) RegisterAgent(req AgentRegistrationRequest) (*AgentRegistration
 		return nil, fmt.Errorf("failed to read registration response: %w", err)
 	}
 
+	if resp.StatusCode == http.StatusUnauthorized {
+		return nil, fmt.Errorf("%w (HTTP %d): create a new one in Console under Add server", ErrEnrollmentRejected, resp.StatusCode)
+	}
 	if resp.StatusCode != http.StatusOK {
 		logging.Warnf("unexpected status from core during registration: %d — %s", resp.StatusCode, string(body))
 		return nil, &StatusError{StatusCode: resp.StatusCode, Operation: "registration"}
@@ -425,4 +445,12 @@ func (c *Client) SetMaintenanceMode(agentID string, maintenanceMode bool, durati
 
 	logging.Infof("Maintenance mode updated successfully")
 	return nil
+}
+
+func copyHeaders(h map[string]string) map[string]string {
+	out := make(map[string]string, len(h)+1)
+	for k, v := range h {
+		out[k] = v
+	}
+	return out
 }

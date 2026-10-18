@@ -28,6 +28,7 @@ func (a *Agent) runSystemMetrics(ctx context.Context) error {
 	logging.Debugf("system metrics collected: uptime_seconds=%d cpu_percent=%.2f memory_percent=%.2f disk_percent=%.2f", metrics.UptimeSeconds, metrics.CPU.UsagePercent, metrics.Memory.UsedPercent, metrics.Disk.UsedPercent)
 
 	report := &transport.SystemReport{
+		ReportID:      utils.NewReportID(),
 		KernelVersion: metrics.Kernel,
 		AgentVersion:  Version,
 		ConfigSummary: a.configSummary(),
@@ -37,6 +38,11 @@ func (a *Agent) runSystemMetrics(ctx context.Context) error {
 		Memory:        &metrics.Memory,
 		Disk:          &metrics.Disk,
 		Location:      metrics.Location,
+	}
+
+	if a.sampler != nil {
+		appReport := a.sampler.Sample()
+		report.AppResources = &appReport
 	}
 
 	agentID := a.agentID()

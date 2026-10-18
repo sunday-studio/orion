@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"strconv"
@@ -48,10 +49,13 @@ func readJSONLLogFile(path string, filters logFilters) ([]logEntry, int, error) 
 		return nil, 0, fmt.Errorf("read Orion log file %s: %w", path, err)
 	}
 	defer file.Close()
+	return readJSONLLog(file, path, filters)
+}
 
+func readJSONLLog(r io.Reader, path string, filters logFilters) ([]logEntry, int, error) {
 	var entries []logEntry
 	skipped := 0
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {

@@ -12,7 +12,7 @@ import (
 	"orion/agent/internal/config"
 	"orion/agent/internal/logging"
 
-	"gorm.io/driver/sqlite"
+	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -89,7 +89,7 @@ func Open(path string) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open state database: %w", err)
 	}
-	if err := database.AutoMigrate(&agentStateRecord{}, &monitorStateRecord{}, &reportSpoolRecord{}); err != nil {
+	if err := database.AutoMigrate(&agentStateRecord{}, &monitorStateRecord{}, &reportSpoolRecord{}, &logOffsetRecord{}); err != nil {
 		return nil, fmt.Errorf("migrate state database: %w", err)
 	}
 	if err := os.Chmod(path, stateFileMode); err != nil {

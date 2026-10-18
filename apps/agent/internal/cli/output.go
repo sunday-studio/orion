@@ -4,33 +4,37 @@ import (
 	"fmt"
 	"io"
 	"os"
-)
 
-const (
-	colorReset  = "\033[0m"
-	colorBold   = "\033[1m"
-	colorDim    = "\033[2m"
-	colorCyan   = "\033[36m"
-	colorGreen  = "\033[32m"
-	colorRed    = "\033[31m"
-	colorYellow = "\033[33m"
+	"orion/agent/internal/ui"
 )
 
 var (
 	outputWriter io.Writer = os.Stdout
 	colorEnabled           = true
+	theme                  = ui.Detect(os.Stdout)
 )
 
 func SetOutput(w io.Writer) {
 	if w == nil {
-		outputWriter = os.Stdout
-		return
+		w = os.Stdout
 	}
 	outputWriter = w
+	refreshTheme()
 }
 
 func SetColorEnabled(enabled bool) {
 	colorEnabled = enabled
+	refreshTheme()
+}
+
+// refreshTheme picks plain output for --no-color / NO_COLOR / non-terminals and
+// the design-token theme otherwise.
+func refreshTheme() {
+	if !colorEnabled {
+		theme = ui.Plain()
+		return
+	}
+	theme = ui.Detect(outputWriter)
 }
 
 func writerSupportsColor(w io.Writer) bool {
@@ -45,36 +49,23 @@ func writerSupportsColor(w io.Writer) bool {
 	return info.Mode()&os.ModeCharDevice != 0
 }
 
-func color(code string) string {
-	if !colorEnabled {
-		return ""
-	}
-	return code
-}
-
 func PrintHeader(title string) {
-	fmt.Fprintf(outputWriter, "%sOrion Agent:%s %s%s%s\n", color(colorBold), color(colorReset), color(colorCyan), title, color(colorReset))
+	fmt.Fprintln(outputWriter, theme.Header(title))
 }
 
 func PrintOrionBanner(subtitle string) {
-	fmt.Fprintf(outputWriter, "%s", color(colorBold)+color(colorCyan))
-	fmt.Fprintln(outputWriter, "   ____       _             ")
-	fmt.Fprintln(outputWriter, "  / __ \\_____(_)___  ____   ")
-	fmt.Fprintln(outputWriter, " / / / / ___/ / __ \\/ __ \\  ")
-	fmt.Fprintln(outputWriter, "/ /_/ / /  / / /_/ / / / /  ")
-	fmt.Fprintln(outputWriter, "\\____/_/  /_/\\____/_/ /_/   ")
-	fmt.Fprintf(outputWriter, "%s", color(colorReset))
+	fmt.Fprintln(outputWriter, theme.Accent(theme.Bold("   ____       _             \n  / __ \\_____(_)___  ____   \n / / / / ___/ / __ \\/ __ \\  \n/ /_/ / /  / / /_/ / / / /  \n\\____/_/  /_/\\____/_/ /_/   ")))
 	if subtitle != "" {
-		fmt.Fprintf(outputWriter, "%s%s%s\n", color(colorDim), subtitle, color(colorReset))
+		fmt.Fprintln(outputWriter, theme.Muted(subtitle))
 	}
 }
 
 func PrintInfo(label string, value interface{}) {
-	fmt.Fprintf(outputWriter, "  %s%s:%s %v\n", color(colorDim), label, color(colorReset), value)
+	fmt.Fprintf(outputWriter, "  %s %v\n", theme.Muted(label+":"), value)
 }
 
 func PrintCommandHint(command string, description string) {
-	fmt.Fprintf(outputWriter, "  %s%-36s%s %s\n", color(colorCyan), command, color(colorReset), description)
+	fmt.Fprintf(outputWriter, "  %s %s\n", theme.Accent(fmt.Sprintf("%-36s", command)), description)
 }
 
 func PrintPostUpdateGuide() {
@@ -85,17 +76,17 @@ func PrintPostUpdateGuide() {
 }
 
 func PrintStep(message string) {
-	fmt.Fprintf(outputWriter, "  %s->%s %s\n", color(colorCyan), color(colorReset), message)
+	fmt.Fprintf(outputWriter, "  %s %s\n", theme.Accent("->"), message)
 }
 
 func PrintOK(message string) {
-	fmt.Fprintf(outputWriter, "  %sok:%s %s\n", color(colorGreen), color(colorReset), message)
+	fmt.Fprintf(outputWriter, "  %s %s\n", theme.Tone("up", "ok:"), message)
 }
 
 func PrintSkip(message string) {
-	fmt.Fprintf(outputWriter, "  %sskip:%s %s\n", color(colorYellow), color(colorReset), message)
+	fmt.Fprintf(outputWriter, "  %s %s\n", theme.Tone("degraded", "skip:"), message)
 }
 
 func PrintError(message string) {
-	fmt.Fprintf(outputWriter, "  %serror:%s %s\n", color(colorRed), color(colorReset), message)
+	fmt.Fprintf(outputWriter, "  %s %s\n", theme.Tone("down", "error:"), message)
 }

@@ -1,0 +1,15 @@
+{
+  "checks": [
+    {
+      "detail": "string",
+      "id": "string",
+      "status": "string",
+      "title": "string"
+    }
+  ],
+  "config_path": "string",
+  "ok": "bool",
+  "schema_version": "number",
+  "state_path": "string",
+  "version": "string"
+}

@@ -9,6 +9,9 @@ import (
 const (
 	reportSpoolBaseBackoff = 30 * time.Second
 	reportSpoolMaxBackoff  = 15 * time.Minute
+	// ReportSpoolMaxRows bounds disk use while Core is unreachable; the oldest
+	// reports are dropped first (they are the stalest data).
+	ReportSpoolMaxRows = 5000
 )
 
 const (
@@ -69,8 +72,19 @@ func (s *Store) EnqueueReport(kind string, agentID string, monitorID string, mon
 	if err := s.db.Create(&record).Error; err != nil {
 		return nil, fmt.Errorf("enqueue report spool item: %w", err)
 	}
+	s.pruneReportSpool(ReportSpoolMaxRows)
 	item := spooledReportFromRecord(record)
 	return &item, nil
+}
+
+// pruneReportSpool deletes the oldest rows beyond max.
+func (s *Store) pruneReportSpool(max int) {
+	var cutoff reportSpoolRecord
+	err := s.db.Model(&reportSpoolRecord{}).Order("id desc").Offset(max).Limit(1).Take(&cutoff).Error
+	if err != nil {
+		return // fewer than max rows
+	}
+	s.db.Where("id <= ?", cutoff.ID).Delete(&reportSpoolRecord{})
 }
 
 func (s *Store) ListDueReports(now time.Time, limit int) ([]SpooledReport, error) {

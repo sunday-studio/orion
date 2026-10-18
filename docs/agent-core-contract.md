@@ -306,6 +306,43 @@ Core behavior:
 - Return `500` for unexpected server errors.
 - Include request IDs in errors and logs.
 
+## Enrollment
+
+Implemented on both sides: Core enforces the token (`apps/core/internal/api/agent_enrollment.go`) and the agent sends it.
+
+- `POST /v1/register` carries header `X-Orion-Enrollment-Token: <one-time token>` when the agent has one (`orion-agent enroll --token-file`, or `ORION_ENROLLMENT_TOKEN` / `ORION_ENROLLMENT_TOKEN_FILE`). Agents without a token send no header, which keeps current Core working.
+- `401`/`403` means the token is invalid, expired or already used; the agent tells the operator to create a new one in Console under Add server. `429` is retried with backoff.
+- On success the response is unchanged (`agent_id`, per-agent `token`). The enrollment token is single use and is never stored by the agent after registration.
+- Core's "agent connected" signal is the successful registration, followed by the first accepted report.
+
+## Report idempotency
+
+`POST /v1/agents/{id}/report` and `POST /v1/agents/{id}/{monitor_id}/report` bodies carry `report_id` (32 hex chars, generated once per collected report). Spooled replays reuse the same `report_id`. Core stores a report once per `(agent_id, report_id)` and answers `200` for duplicates (backend ORB-019). Verify that system reports, not only monitor reports, are deduplicated. Agents ignore unknown response fields, so Core may adopt this at any time.
+
+## Passive app resources (agent side, pending Core)
+
+`POST /v1/agents/{id}/report` bodies may carry an `app_resources` object (see `docs/architecture/passive-metrics-support-matrix.md`). Apps need no integration; the agent measures from the OS.
+
+```json
+"app_resources": {
+  "interval_seconds": 60.1,
+  "series": [
+    {"kind": "unit", "key": "unit:nginx.service", "name": "nginx.service",
+     "cpu_percent": 3.2, "memory_bytes": 52428800, "io_read_bytes_per_sec": 0, "io_write_bytes_per_sec": 1024, "pids": 5},
+    {"kind": "container", "key": "container:6eac09fd51a6", "name": "6eac09fd51a6", "cpu_percent": 99.7, "memory_bytes": 24444928},
+    {"kind": "process", "key": "process:postgres", "name": "postgres", "cpu_percent": 0.7, "memory_bytes": 830000000, "pids": 9},
+    {"kind": "path", "key": "path:/var/lib/postgresql", "name": "/var/lib/postgresql", "storage_bytes": 1073741824, "storage_capped": false}
+  ],
+  "notes": ["cgroup v2 not found at /sys/fs/cgroup"]
+}
+```
+
+Rules Core can rely on: `kind` is one of `process`, `unit`, `container`, `path`; `key` is stable across reports; rate fields are omitted (not zero) when not measurable, and the first report after agent start has no rates; at most 200 series per report; no command lines or environment values are ever sent; `net_*` fields are present only for macOS processes and opt-in container collectors; `notes` explain skipped sources and never mean the report failed. Unknown fields are ignored by agents, and Core ignores sections it does not know, so either side can ship first.
+
+## Request compression (agent side, opt-in)
+
+With `transport.compression: gzip` the agent sends request bodies over 1 KiB with `Content-Encoding: gzip`. Default is off because only the log-ingest endpoint decodes gzip request bodies today; Core should add a decoding middleware (with a size limit applied after decompression) before this is enabled in the field.
+
 ## Security
 
 - Agent token lifecycle semantics live in `docs/architecture/agent-token-lifecycle.md`.

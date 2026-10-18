@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/charmbracelet/fang"
 	"io"
 	"os"
+	"runtime"
+	"strconv"
 	"strings"
 
 	agent "orion/agent/internal"
-	"orion/agent/internal/config"
-	agentstate "orion/agent/internal/state"
 
 	"github.com/spf13/cobra"
 )
@@ -19,6 +20,7 @@ import (
 type Options struct {
 	ConfigPath string
 	StatePath  string
+	SocketPath string
 	Verbose    bool
 	NoColor    bool
 	JSON       bool
@@ -27,8 +29,15 @@ type Options struct {
 	SetupCoreURL   string
 	SetupForce     bool
 	SetupInitState bool
+	SetupYes       bool
+	SetupDryRun    bool
+	SetupTokenFile string
+	SetupMonitors  []string
 	UpdateVersion  string
 	UpdateRepo     string
+	UpdateBaseURL  string
+	UpdateRollback bool
+	UpdateForce    bool
 	LogLines       int
 	TokenApply     string
 	TokenFile      string
@@ -71,8 +80,8 @@ func NewCommandError(summary string, cause error, nextSteps ...string) *CommandE
 
 func Execute(ctx context.Context, args []string, out, errOut io.Writer) int {
 	opts := &Options{
-		ConfigPath:    config.DefaultPath(),
-		StatePath:     agentstate.DefaultPath(),
+		ConfigPath:    defaultConfigPath(),
+		StatePath:     defaultStatePath(),
 		UpdateVersion: "latest",
 		UpdateRepo:    "sunday-studio/orion",
 		LogLines:      80,
@@ -89,9 +98,19 @@ func Execute(ctx context.Context, args []string, out, errOut io.Writer) int {
 		return 1
 	}
 
-	if err := cmd.Execute(); err != nil {
-		renderCommandError(errOut, err)
-		return commandExitCode(err)
+	// fang styles --help from the design tokens; errors keep our own renderer.
+	var runErr error
+	_ = fang.Execute(ctx, cmd,
+		fang.WithColorSchemeFunc(fangScheme),
+		fang.WithErrorHandler(func(w io.Writer, styles fang.Styles, err error) {
+			runErr = err
+			fangErrorHandler(errOut)(w, styles, err)
+		}),
+		fang.WithoutVersion(),
+		fang.WithoutManpage(),
+	)
+	if runErr != nil {
+		return commandExitCode(runErr)
 	}
 	return 0
 }
@@ -104,6 +123,12 @@ func NewRootCommand(ctx context.Context, opts *Options, out, errOut io.Writer) *
 		SilenceErrors: true,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			SetOutput(out)
+			jsonOut = nil
+			if opts.JSON {
+				// stdout belongs to the JSON document; human step output is dropped.
+				jsonOut = out
+				SetOutput(io.Discard)
+			}
 			SetColorEnabled(!opts.NoColor && writerSupportsColor(out))
 			configureLogging(opts)
 		},
@@ -111,41 +136,68 @@ func NewRootCommand(ctx context.Context, opts *Options, out, errOut io.Writer) *
 	root.SetOut(out)
 	root.SetErr(errOut)
 
-	root.PersistentFlags().StringVar(&opts.ConfigPath, "config", config.DefaultPath(), "Path to config file")
-	root.PersistentFlags().StringVar(&opts.StatePath, "state", agentstate.DefaultPath(), "Path to SQLite state database")
+	root.PersistentFlags().StringVar(&opts.ConfigPath, "config", defaultConfigPath(), "Path to config file")
+	root.PersistentFlags().StringVar(&opts.StatePath, "state", defaultStatePath(), "Path to SQLite state database")
+	root.PersistentFlags().StringVar(&opts.SocketPath, "socket", defaultSocketPath(), "Path to the agent control socket")
 	root.PersistentFlags().BoolVar(&opts.Verbose, "verbose", false, "Enable debug logging")
 	root.PersistentFlags().BoolVar(&opts.NoColor, "no-color", false, "Disable ANSI color output")
 	root.PersistentFlags().BoolVar(&opts.JSON, "json", false, "Use machine-readable output where supported")
 
 	root.AddCommand(
 		newVersionCommand(),
-		newStartCommand(ctx, opts),
-		newStopCommand(ctx, opts),
+		newServiceCommand(ctx, opts),
+		hidden(newStartCommand(ctx, opts)),
+		hidden(newStopCommand(ctx, opts)),
 		newStatusCommand(ctx, opts),
-		newRestartCommand(ctx, opts),
+		hidden(newRestartCommand(ctx, opts)),
 		newLogsCommand(ctx, opts),
 		newUpdateCommand(ctx, opts),
 		newRunCommand(ctx, opts),
 		newDoctorCommand(ctx, opts),
 		newSetupCommand(ctx, opts),
+		newDiscoverCommand(ctx, opts),
+		newUsageCommand(ctx, opts),
+		newEnrollCommand(ctx, opts),
 		newMaintenanceCommand(ctx, opts),
 		newConfigCommand(ctx, opts),
-		newStateCommand(ctx, opts),
+		hidden(newStateCommand(ctx, opts)),
 		newTokenCommand(ctx, opts),
-		newReconfigureCommand(ctx, opts),
+		hidden(newReconfigureCommand(ctx, opts)),
 	)
 
 	return root
 }
 
+// jsonOut is where --json documents go while human output is discarded.
+var jsonOut io.Writer
+
 func renderJSON(w io.Writer, value any) error {
+	if jsonOut != nil {
+		w = jsonOut
+	}
 	if w == nil {
 		w = os.Stdout
+	}
+	// Every --json document carries a schema_version so consumers can pin to it.
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	var obj map[string]json.RawMessage
+	if json.Unmarshal(raw, &obj) == nil && obj != nil {
+		if _, ok := obj["schema_version"]; !ok {
+			obj["schema_version"] = json.RawMessage(strconv.Itoa(JSONSchemaVersion))
+			value = obj
+		}
 	}
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(value)
 }
+
+// JSONSchemaVersion is the version of the --json output of commands that do
+// not define their own.
+const JSONSchemaVersion = 1
 
 func newVersionCommand() *cobra.Command {
 	return &cobra.Command{
@@ -153,6 +205,10 @@ func newVersionCommand() *cobra.Command {
 		Short: "Print agent version",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
+			if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
+				_ = renderJSON(cmd.OutOrStdout(), map[string]string{"version": agent.Version, "os": runtime.GOOS, "arch": runtime.GOARCH})
+				return
+			}
 			fmt.Fprintf(cmd.OutOrStdout(), "orion-agent %s\n", agent.Version)
 		},
 	}

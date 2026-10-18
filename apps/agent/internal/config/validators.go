@@ -158,7 +158,7 @@ func (l LoggingConfig) Validate() error {
 	if strings.TrimSpace(normalized.Path) == "" {
 		return errors.New("logging.path is required")
 	}
-	if (runtime.GOOS == "linux" || runtime.GOOS == "darwin") && !filepath.IsAbs(normalized.Path) {
+	if (runtime.GOOS == "linux" || runtime.GOOS == "darwin") && !IsConsoleLogPath(normalized.Path) && !filepath.IsAbs(normalized.Path) {
 		return errors.New("logging.path must be absolute")
 	}
 
@@ -265,6 +265,19 @@ func (c *UserConfig) Validate() error {
 	if err := c.Logging.Validate(); err != nil {
 		return err
 	}
+	if c.AppResources.TopN < 0 || c.AppResources.TopN > 100 {
+		return errors.New("app_resources.top_n must be between 0 and 100")
+	}
+	for _, p := range c.AppResources.Paths {
+		if !filepath.IsAbs(p) {
+			return fmt.Errorf("app_resources.paths entry %q must be an absolute path", p)
+		}
+	}
+	switch strings.ToLower(c.Transport.Compression) {
+	case "", "none", "gzip":
+	default:
+		return errors.New("transport.compression must be none or gzip")
+	}
 
 	if c.Interval == "" {
 		return errors.New("interval is required")
@@ -340,4 +353,13 @@ func validatePercentThreshold(value float64, field string) error {
 		return fmt.Errorf("%s must be between 0 and 100", field)
 	}
 	return nil
+}
+
+// IsConsoleLogPath reports whether a logging.path value means "console only".
+func IsConsoleLogPath(p string) bool {
+	switch strings.ToLower(strings.TrimSpace(p)) {
+	case "stdout", "stderr", "-", "none":
+		return true
+	}
+	return false
 }

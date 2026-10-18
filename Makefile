@@ -1,4 +1,4 @@
-.PHONY: core-soak core-soak-30m core-soak-72h generate-openapi generate-sdk console-sdk build-static docker-build docker-up docker-down docker-dev-up docker-dev-down console-dev docker-dev-seed agent-test core-test core-coverage core-race core-modernize-check core-vulncheck core-contract-check core-backend-verify console-build repository-smoke generated-contracts-check release-core-build release-readiness core-build core-worker-build agent-build seed-demo-data code-line-limit
+.PHONY: core-soak core-soak-30m core-soak-72h generate-openapi generate-sdk console-sdk build-static docker-build docker-up docker-down docker-dev-up docker-dev-down console-dev docker-dev-seed agent-test core-test core-coverage core-race core-modernize-check core-vulncheck core-contract-check core-backend-verify console-build repository-smoke generated-contracts-check release-core-build release-readiness core-build core-worker-build agent-build seed-demo-data code-line-limit agent-build-all agent-installer-test agent-perf agent-theme agent-theme-check
 
 VERSION ?= latest
 CORE_IMAGE ?= ghcr.io/sunday-studio/orion-core
@@ -10,7 +10,7 @@ CORE_WORKER_OUTPUT ?= orion-core-worker
 CORE_COVERAGE_PROFILE ?= /tmp/orion-core-coverage.out
 CORE_COVERAGE_SUMMARY ?= /tmp/orion-core-coverage.txt
 APP_CODE_LINE_LIMIT ?= 500
-AGENT_CGO_ENABLED ?= 1
+AGENT_CGO_ENABLED ?= 0
 
 generate-openapi:
 	cd apps/core && ./scripts/generate-openapi.sh
@@ -152,3 +152,25 @@ code-line-limit:
 		exit 1; \
 	fi; \
 	printf 'code-line-limit: all app source files are at or below %s lines\n' "$(APP_CODE_LINE_LIMIT)"
+
+# Static agent builds for every supported target (Linux and macOS only, D-014).
+agent-build-all:
+	@for t in linux/amd64 linux/arm64 linux/arm/7 darwin/amd64 darwin/arm64; do \
+	  os=$${t%%/*}; r=$${t#*/}; arch=$${r%%/*}; arm=; [ "$$arch" != "$$r" ] && arm=$${r#*/}; \
+	  out=tmp/agent-dist/orion-agent-$$os-$$arch$${arm:+v$$arm}; mkdir -p tmp/agent-dist; \
+	  (cd apps/agent && CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch GOARM=$$arm go build -trimpath -ldflags "-s -w -X orion/agent/internal.Version=$(VERSION)" -o ../../$$out .) || exit 1; \
+	  echo "built $$out"; done
+
+agent-installer-test:
+	deploy/scripts/agent-bootstrap-test.sh
+
+agent-perf:
+	cd apps/agent && CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o ../../tmp/orion-agent-perf .
+	python3 deploy/scripts/agent-perf-budget.py tmp/orion-agent-perf
+
+# CLI theme is generated from docs/design/tokens.json.
+agent-theme:
+	cd apps/agent && go generate ./internal/ui/
+
+agent-theme-check: agent-theme
+	git diff --exit-code apps/agent/internal/ui/theme_gen.go
