@@ -366,8 +366,6 @@
 .chips2 .dl .m { margin-left: 2px; }
 .vis4 .team.d1 { animation-name: v4a; animation-duration: 12s; animation-iteration-count: infinite; }
 .vis4 .chips2.d2 { animation-name: v4b; animation-duration: 12s; animation-iteration-count: infinite; }
-/* Tour screens: no app header; the active screen scrolls down slowly like using the app, crossfading between screens. */
+/* Tour screens: no app header; plain crossfade between screens. */
 .fi { position: absolute; left: 0; top: 0; width: 100%; height: auto; opacity: 0; transition: opacity 0.5s ease; }
-.fi.is-active { opacity: 1; animation: tourpan 4.5s ease-in-out both; }
-@keyframes tourpan { 0%, 10% { transform: translateY(0); } 100% { transform: translateY(-36%); } }
-@media (prefers-reduced-motion: reduce) { .fi.is-active { animation: none; } }
+.fi.is-active { opacity: 1; }
