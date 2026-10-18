@@ -37,7 +37,9 @@ export const ServerEditDialog = ({ open, agent, onOpenChange, onRemove }: Props)
     setNotes(agent.notes ?? "");
     setDraft("");
     setUnavailable(false);
-  }, [open, agent]);
+    // Seed once per open: a background refetch must not overwrite what is being typed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const addLabel = () => {
     const value = draft.trim();

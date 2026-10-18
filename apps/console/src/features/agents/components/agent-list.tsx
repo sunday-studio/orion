@@ -1,6 +1,6 @@
 import { Search } from "lucide-react";
 import { parseAsString, useQueryStates } from "nuqs";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Button,
@@ -17,7 +17,7 @@ import {
   StatusBadge,
   useClientPagination,
 } from "@/design-system";
-import { formatWhen } from "@/features/overview/overview-time";
+import { formatWhen, useNow } from "@/features/overview/overview-time";
 import { useGetAgents } from "@/orion-sdk";
 import {
   type ServerRow,
@@ -44,7 +44,7 @@ export const AgentList = () => {
     view: parseAsString.withDefault("all"),
     platform: parseAsString.withDefault(""),
   });
-  const [now] = useState(() => Date.now());
+  const now = useNow(60_000);
   const agentsQuery = useGetAgents({ limit: 200, include_system: false });
   const all = useMemo(
     () => [...((agentsQuery.data?.agents ?? []) as ServerRow[])].sort(byAttention),
@@ -165,7 +165,13 @@ export const AgentList = () => {
                 onClick={() => navigate(`/servers/${agent.id}`)}
               >
                 <Dot color={stateDot[serverState(agent)]} />
-                <b className="font-medium">{agent.name ?? agent.id}</b>
+                <Link
+                  to={`/servers/${agent.id}`}
+                  className="truncate font-medium outline-none hover:underline focus-visible:underline"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  {agent.name ?? agent.id}
+                </Link>
                 <span className="font-mono text-xs text-faint">{platformLabel(agent)}</span>
                 <span>
                   <StatusBadge status={badgeStatus(agent)}>{statusText(agent, now)}</StatusBadge>

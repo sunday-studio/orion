@@ -63,14 +63,18 @@ export const ServerTokenTab = ({ agentId, name }: { agentId: string; name: strin
     ]);
   };
   const issue = async (action: Issued["action"]) => {
-    const response =
-      action === "rotate"
-        ? await rotate.mutateAsync({ agentId })
-        : await reissue.mutateAsync({ agentId });
-    setStored(false);
-    setCopied(false);
-    setIssued({ action, response });
-    await refresh();
+    try {
+      const response =
+        action === "rotate"
+          ? await rotate.mutateAsync({ agentId })
+          : await reissue.mutateAsync({ agentId });
+      setStored(false);
+      setCopied(false);
+      setIssued({ action, response });
+      await refresh();
+    } catch {
+      // The failed state of the mutation drives the error callout.
+    }
   };
   const copy = async () => {
     if (!issued?.response.token) return;
@@ -152,10 +156,14 @@ export const ServerTokenTab = ({ agentId, name }: { agentId: string; name: strin
               variant="destructive"
               disabled={!reason.trim() || revoke.isPending}
               onClick={async () => {
-                await revoke.mutateAsync({ agentId, data: { reason: reason.trim() } });
-                setRevoking(false);
-                setReason("");
-                await refresh();
+                try {
+                  await revoke.mutateAsync({ agentId, data: { reason: reason.trim() } });
+                  setRevoking(false);
+                  setReason("");
+                  await refresh();
+                } catch {
+                  // The failed state of the mutation drives the error callout.
+                }
               }}
             >
               Revoke token
