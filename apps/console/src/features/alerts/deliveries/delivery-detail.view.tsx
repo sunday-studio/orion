@@ -2,11 +2,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import {
   Button,
-  CodeBlock,
   EmptyState,
   FieldPanel,
   GridRow,
   GridTable,
+  JsonBlock,
   Skeleton,
   StatusBadge,
   useToast,
@@ -38,7 +38,7 @@ export const DeliveryDetailPage = () => {
     },
   });
 
-  if (query.isPending) return <Skeleton className="mx-auto mt-10 h-40 w-full max-w-[712px]" />;
+  if (query.isPending) return <Skeleton className="mt-10 h-40 w-full" />;
   if (query.isError || !delivery)
     return <EmptyState tone="error" title="Unable to load the delivery" />;
 
@@ -46,10 +46,10 @@ export const DeliveryDetailPage = () => {
     (a, b) => (b.attempt_number ?? 0) - (a.attempt_number ?? 0),
   );
   const failed = delivery.status === "failed";
-  const payload = detail?.payload ? JSON.stringify(detail.payload) : "";
+  const payload = detail?.payload ?? null;
 
   return (
-    <div className="mx-auto w-full max-w-[712px] pb-8">
+    <div className="w-full pb-8">
       <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2.5 pb-2 pt-7">
         <div className="min-w-0">
           <h1 className="text-[28px] font-medium leading-10 tracking-[-0.025em]">
@@ -115,7 +115,7 @@ export const DeliveryDetailPage = () => {
         </div>
         <FieldPanel title="Payload" aside="JSON">
           {payload ? (
-            <CodeBlock className="whitespace-pre-wrap break-all">{payload}</CodeBlock>
+            <JsonBlock value={payload} />
           ) : (
             <p className="text-[13px] text-quiet">No payload was stored for this delivery.</p>
           )}

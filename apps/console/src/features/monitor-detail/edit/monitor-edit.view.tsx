@@ -76,7 +76,7 @@ export const MonitorEditPage = () => {
   }, [monitor?.id, configQuery.data?.config?.monitor_id]);
 
   if (monitorQuery.isPending || (core && configQuery.isPending)) {
-    return <Skeleton className="mx-auto mt-10 h-60 w-full max-w-[712px]" />;
+    return <Skeleton className="mt-10 h-60 w-full" />;
   }
   if (monitorQuery.isError || !monitor) {
     return <EmptyState tone="error" title="Unable to load monitor" />;
@@ -84,7 +84,7 @@ export const MonitorEditPage = () => {
 
   if (!core) {
     return (
-      <div className="mx-auto w-full max-w-[712px] pb-8">
+      <div className="w-full pb-8">
         <div className="flex items-start justify-between gap-3 pb-4 pt-7">
           <h1 className="text-[28px] font-medium leading-10 tracking-[-0.025em]">
             Configure {monitor.name}
@@ -146,7 +146,7 @@ export const MonitorEditPage = () => {
   };
 
   return (
-    <div className="mx-auto w-full max-w-[712px] pb-8">
+    <div className="w-full pb-8">
       <div className="flex items-start justify-between gap-3 pb-4 pt-7">
         <div>
           <h1 className="text-[28px] font-medium leading-10 tracking-[-0.025em]">

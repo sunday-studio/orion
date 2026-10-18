@@ -57,7 +57,7 @@ export const ResolvedIncident = ({
     .sort((a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime());
   const duration = summary?.duration_seconds ?? summary?.time_to_resolve_seconds;
   return (
-    <div className="mx-auto w-full max-w-[712px] pb-8">
+    <div className="w-full pb-8">
       <div className="flex items-start justify-between gap-3 pb-4 pt-7">
         <div className="min-w-0">
           <h1 className="text-[28px] font-medium leading-10 tracking-[-0.025em]">

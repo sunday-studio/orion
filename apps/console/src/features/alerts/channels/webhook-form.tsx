@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Button, Callout, CodeBlock, ConfirmDialog, Input, useToast } from "@/design-system";
+import { Button, Callout, ConfirmDialog, Input, JsonBlock, useToast } from "@/design-system";
 import {
   type ApiAlertChannelResponse,
   getGetAlertChannelsQueryKey,
@@ -71,7 +71,7 @@ export const WebhookForm = ({
   });
   const secretText = newSecret ?? channel?.signing_secret_mask ?? "Generated when you save";
   const setRows = (headers: HeaderRow[]) => onChange({ ...draft, headers, headersTouched: true });
-  const payload = preview.data?.payload ? JSON.stringify(preview.data.payload) : "";
+  const payload = preview.data?.payload ?? null;
 
   return (
     <>
@@ -181,7 +181,7 @@ export const WebhookForm = ({
       <div className={label}>
         Payload
         {payload ? (
-          <CodeBlock className="whitespace-pre-wrap break-all">{payload}</CodeBlock>
+          <JsonBlock value={payload} />
         ) : (
           <Callout tone="warn">Payload preview is unavailable.</Callout>
         )}

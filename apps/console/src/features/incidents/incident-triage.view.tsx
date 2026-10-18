@@ -67,7 +67,7 @@ export const IncidentTriagePage = () => {
   });
 
   return (
-    <div className="mx-auto w-full max-w-[1000px] pb-8">
+    <div className="w-full pb-8">
       <PageHeader
         title="Triage"
         description="Signals Orion has not opened an incident for. Severity comes from recent failures."

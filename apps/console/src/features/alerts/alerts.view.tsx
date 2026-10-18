@@ -30,7 +30,7 @@ export const AlertsPage = () => {
   const channels = useGetAlertChannels();
 
   return (
-    <div className="mx-auto w-full max-w-[712px] pb-8">
+    <div className="w-full pb-8">
       <PageHeader
         title="Alerts"
         description="Who gets told, and whether it worked."

@@ -25,6 +25,7 @@ export * from "@/design-system/components/dot-matrix-text";
 export * from "@/design-system/components/drawer";
 export * from "@/design-system/components/empty-state";
 export * from "@/design-system/components/input";
+export * from "@/design-system/components/json-block";
 export * from "@/design-system/components/menu";
 export * from "@/design-system/components/popover";
 export * from "@/design-system/components/segmented";

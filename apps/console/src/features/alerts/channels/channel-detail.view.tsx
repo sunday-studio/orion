@@ -115,7 +115,7 @@ export const ChannelDetailPage = () => {
     },
   });
 
-  if (query.isPending) return <Skeleton className="mx-auto mt-10 h-40 w-full max-w-[712px]" />;
+  if (query.isPending) return <Skeleton className="mt-10 h-40 w-full" />;
   if (query.isError || !channel) {
     return <EmptyState tone="error" title="Unable to load the channel" />;
   }
@@ -124,10 +124,10 @@ export const ChannelDetailPage = () => {
   const deliveries = detail?.recent_deliveries ?? [];
   const total = detail?.recent_total ?? deliveries.length;
   const rules = detail?.rules_using ?? [];
-  const COLS = "12px 90px minmax(0,1fr) 90px 64px";
+  const COLS = "12px 64px minmax(0,1fr) minmax(0,1fr) 64px";
 
   return (
-    <div className="mx-auto w-full max-w-[712px] pb-8">
+    <div className="w-full pb-8">
       <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2.5 pb-2 pt-7">
         <div className="min-w-0">
           <div className="text-[13.5px] text-quiet">

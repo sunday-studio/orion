@@ -9,7 +9,7 @@ export const AgentsPage = () => {
   const summary = useGetAgentSummary();
   const total = summary.data?.total;
   return (
-    <div className="mx-auto w-full max-w-[1000px] pb-8">
+    <div className="w-full pb-8">
       <PageHeader
         title="Servers"
         description={!total ? undefined : `${pluralize(total, "agent")} connected to Core.`}
