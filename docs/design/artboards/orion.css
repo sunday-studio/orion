@@ -785,7 +785,7 @@ pre.code{padding:10px 12px;font-size:12px;line-height:1.55}
 .side{display:flex;flex-direction:column;gap:0;border-left:1px solid #ececee}
 .side .sec{padding:14px 18px;border-bottom:1px solid #ececee}.side .sec:last-child{border-bottom:0}
 .side h4{margin:0 0 8px;font-size:12px;font-weight:600;color:#3f3f46}
-.side .kv2{display:grid;grid-template-columns:110px 1fr;gap:6px 8px;font-size:12.5px}.side .kv2 span:nth-child(odd){color:#71717a}
+.side .kv2{display:grid;grid-template-columns:110px 1fr;gap:6px 8px;font-size:12.5px}.side .kv2>span:nth-child(odd){color:#71717a}
 .ttl{display:flex;gap:2px;border-bottom:1px solid #ececee}.ttl a{padding:8px 10px;font-size:13px;color:#71717a;border-bottom:2px solid transparent;margin-bottom:-1px}.ttl a.on{color:#18181b;font-weight:500;border-bottom-color:#18181b}
 .phd .phs{font-size:12.5px;color:#71717a;line-height:1.4}.phd>div:nth-child(2){min-width:0}
 
@@ -1060,7 +1060,7 @@ pre.code,pre.code *,.code-t span,.cmdk kbd,.hdr .cmdk kbd,.kbd{font-family:"IBM 
 .dkm [style*="background:#fff"]:not(.btn):not(.hb2):not(.inp){background:#1a201e!important}
 .dkm [style*="background:#f7f7f6"],.dkm [style*="background:#fafaf9"],.dkm [style*="background:#f4f4f2"]{background:#161b19!important}
 .dkm .side,.dkm .doc,.dkm .sec{background:#1a201e!important;border-color:#252c29!important;color:#e9efec!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)!important}
-.dkm .sec h4,.dkm .kv2 span:nth-child(odd){color:#8b9892!important}.dkm .kv2 span:nth-child(even),.dkm .kv2 a{color:#e9efec!important}
+.dkm .sec h4,.dkm .kv2>span:nth-child(odd){color:#8b9892!important}.dkm .kv2>span:nth-child(even),.dkm .kv2 a{color:#e9efec!important}
 .dkm .ea2 .y{background:#1a201e!important;border-color:#252c29!important}.dkm .ea2 .y b{color:#fda4af!important}.dkm .ea2 .x{background:#0f2e22!important}
 .dkm .tlx .e .note,.dkm .e .note{background:#161b19!important;color:#a8b4ad!important;border-color:#232a27!important}
 .dkm .dotc,.dkm .tlx .dotc{background:#1a201e!important;border-color:#3a4540!important}.dkm .tlx:before,.dkm .tlx .ln{background:#2a312e!important}

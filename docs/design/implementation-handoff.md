@@ -113,3 +113,30 @@ Checked against `apps/core/openapi.yaml` on 2026-10-18 after the F1 APIs landed.
 **Connect an app** (`app-connect-create`, `-snippet`, `-waiting`, `-received`): create `POST /v1/apps`; key `POST /v1/apps/{id}/keys` returns the secret once; snippets are client-side; waiting polls the app or the logs list for the first line; "Send a test log" is `POST /v1/apps/{id}/test-log`.
 
 **Command palette**: `GET /v1/search?q=` (at most 5 hits per type, grouped monitor, incident, server, app) plus static actions. **Account menu**: theme and timezone stored in the browser until a settings endpoint exists; sign out clears the token. **Shortcuts**: client side.
+
+## 8. Feature 2 (Incidents): data and API notes
+
+Checked against `apps/core/openapi.yaml` on 2026-10-18. Artboards: `incidents-list`, `incidents-bulk`, `incidents-empty`, `incident-detail`, `incident-resolved`, `incident-actions`, `incident-declare`, `incident-public-update`, `incident-candidates`, `health-issues` (each with a `-dark` version).
+
+**Incidents list** (`GET /v1/incidents`)
+- Row fields: `title`, `severity` (low, medium, high, critical), `status` (open, acknowledged, covered, resolved), `monitor_name`, `agent_name`, `notification_status`, `opened_at`. The ID column shows the display number `INC-####` (backend pending: ids are opaque strings today).
+- Default filter is active statuses (`open,acknowledged,covered`). Filter tokens map to query params: Status (`status`), Server (`agent_id`), Monitor (`monitor_id`), Resolved by (`actor`: manual or system), Covered (`covered`), Notification (`notification_status`). The quick view "Needs review" is `needs_review=true`; "Resolved" switches `status=resolved`. The artboard has no "Opened in last 7 days" token because there is no date param.
+- Notified column is `notification_status` (Sent, Not delivered).
+- Bulk actions (Acknowledge, Cover, Resolve on selected rows) are proposed; until then run the single-incident calls per row.
+
+**Incident detail** (`GET /v1/incidents/{id}`, `/timeline`, `/logs`)
+- Header actions come from `allowed_actions` (hide an action that is not allowed). Tracker: Detected = `opened_at`, Notified = `notification_status`, Acknowledged and Resolved from `status` and the timeline. Summary line is `latest_event`.
+- Source panel: monitor, monitor type, server. Notifications panel: per-channel delivery results (from the notifications tab data). Impacted: `impacted_components`. Duration: time to acknowledge and resolve from timeline and `resolved_at`.
+- Tabs: Timeline (`/timeline`, events have `type`, `message`, `note`, `actor_type`), Checks (monitor history), Notifications (alert deliveries for this incident), Logs (`/incidents/{id}/logs`).
+- There is no responder or assignee and no free-form comment endpoint, so neither appears. Notes are entered only in the Acknowledge, Cover and Resolve dialogs.
+- Draft update opens the public update dialog.
+
+**Actions** (`POST .../acknowledge`, `/cover`, `/resolve`, `/reopen`): acknowledge and resolve take an optional note; cover takes an optional `covered_until` timestamp and note (the dialog offers 1 hour, 4 hours, tomorrow, custom). Resolved incidents show `resolution_kind` (automatic or manual) and `reopen_count`.
+
+**Declare incident** (proposed `POST /v1/incidents`): title, severity, monitor, optional note. It needs a monitor because incidents hang off monitors today.
+
+**Public update** (`POST /v1/status-pages/{id}/incidents/{incident_id}/updates`, create the public incident from `.../incidents/draft` first): public status (investigating, identified, monitoring, resolved) and message. If no public incident exists for this internal incident, posting creates a draft one first (shown as a callout).
+
+**Triage** (`GET /v1/incidents/candidates`, `POST .../{id}/dismiss`): row fields are `monitor_name`, `agent_name`, `monitor_type`, `health` (down, degraded, stale), `severity`, `down_count` ("N of 5 reports down"). Open incident creates the incident from the candidate. There is no seen-at time or description text.
+
+**Health issues** (`GET /v1/health/issues`): `monitor_name`, `agent_name`, `monitor_type`, `health`, `issue_type` (stale_data shows "No recent data"). Monitors only, no servers; no "since" field.
