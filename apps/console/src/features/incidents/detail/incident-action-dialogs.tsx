@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useState } from "react";
 import {
   Button,
+  Combobox,
   Dialog,
   DialogContent,
   DialogFooter,
@@ -32,7 +33,7 @@ const copy: Record<LifecycleAction, { title: string; body: string; placeholder: 
 };
 
 const dialogClass = "max-w-[340px] gap-3 rounded-2xl p-5";
-const labelClass = "flex flex-col gap-1.5 text-[13px] font-medium";
+const labelClass = "flex min-w-0 flex-col gap-1.5 text-[13px] font-medium";
 
 export const ActionNoteDialog = ({
   action,
@@ -57,7 +58,7 @@ export const ActionNoteDialog = ({
   return (
     <Dialog open={action !== null} onOpenChange={onOpenChange}>
       <DialogContent className={dialogClass}>
-        <form onSubmit={submit} className="flex flex-col gap-3">
+        <form onSubmit={submit} className="flex min-w-0 flex-col gap-3">
           <DialogHeader>
             <DialogTitle className="text-[15px] font-medium">{text.title}</DialogTitle>
           </DialogHeader>
@@ -112,13 +113,10 @@ export const CoverIncidentDialog = ({
     { query: { enabled: open } },
   );
   const others = (active.data?.incidents ?? []).filter((incident) => incident.id !== incidentId);
-  const options = [
-    { value: "", label: "None" },
-    ...others.map((incident) => ({
-      value: incident.id ?? "",
-      label: `${incidentLabel(incident)} ${incident.title ?? ""}`.trim(),
-    })),
-  ];
+  const options = others.map((incident) => ({
+    value: incident.id ?? "",
+    label: `${incidentLabel(incident)} ${incident.title ?? ""}`.trim(),
+  }));
   const submit = (event: FormEvent) => {
     event.preventDefault();
     onSubmit({
@@ -130,7 +128,7 @@ export const CoverIncidentDialog = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={dialogClass}>
-        <form onSubmit={submit} className="flex flex-col gap-3">
+        <form onSubmit={submit} className="flex min-w-0 flex-col gap-3">
           <DialogHeader>
             <DialogTitle className="text-[15px] font-medium">Cover incident</DialogTitle>
           </DialogHeader>
@@ -149,12 +147,12 @@ export const CoverIncidentDialog = ({
           </div>
           <div className={labelClass}>
             Covered by, optional
-            <Select
+            <Combobox
               aria-label="Covered by"
-              className="w-full font-normal"
+              placeholder="Search incidents"
               options={options}
-              value={coveredBy}
-              onValueChange={setCoveredBy}
+              value={coveredBy || null}
+              onValueChange={(next) => setCoveredBy(next ?? "")}
             />
           </div>
           <label className={labelClass}>
