@@ -127,7 +127,7 @@ test("exercises incident detail tabs and lifecycle actions", async ({ page }) =>
   await page.keyboard.press("Escape");
 
   await page.getByRole("tab", { name: /Notifications/ }).click();
-  await expect(page.getByText("delivery failed; check Core logs")).toBeVisible();
+  await expect(page.getByText("delivery failed; check Core logs").first()).toBeVisible();
   await page.getByRole("tab", { name: /Monitor reports/ }).click();
   await expect(page.getByText("down").first()).toBeVisible();
 

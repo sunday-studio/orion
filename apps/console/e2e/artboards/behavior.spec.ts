@@ -87,3 +87,63 @@ test("the first-run footer stays on one line", async ({ page }) => {
   const box = (await footer.boundingBox())!;
   expect(box.height).toBeLessThan(24);
 });
+
+const userCounts = (monitors: number, servers: number) => [
+  {
+    pattern: /\/v1\/overview$/,
+    body: {
+      state: monitors + servers === 0 ? "empty" : "ok",
+      ongoing_incident_count: 0,
+      health_issue_count: 0,
+      ongoing_incidents: [],
+      recent_incidents: [],
+      stats: {
+        monitors_total: monitors,
+        monitors_up: monitors,
+        servers_total: servers,
+        servers_reporting: servers,
+      },
+    },
+  },
+  { pattern: /\/v1\/auth\/me$/, body: { username: "admin" } },
+  { pattern: /\/v1\/health\/issues$/, body: { count: 0, issues: [] } },
+];
+
+test("a fresh database shows first run, even if a system item exists", async ({ page }) => {
+  // Overview says "ok" but there are zero user monitors and servers (only Core's own worker).
+  await mockApi(page, [
+    {
+      pattern: /\/v1\/overview$/,
+      body: {
+        state: "ok",
+        stats: { monitors_total: 0, monitors_up: 1, servers_total: 0, servers_reporting: 1 },
+      },
+    },
+    { pattern: /\/v1\/auth\/me$/, body: { username: "admin" } },
+    { pattern: /\/v1\/health\/issues$/, body: { count: 0, issues: [] } },
+  ]);
+  await page.goto("/");
+  await expect(page.getByText("Nothing is monitored yet")).toBeVisible();
+});
+
+test("counts are pluralised correctly", async ({ page }) => {
+  await mockApi(page, userCounts(1, 1));
+  await page.goto("/");
+  await expect(page.getByText("1 monitor passing, 1 server reporting")).toBeVisible();
+  await mockApi(page, userCounts(2, 0));
+  await page.reload();
+  await expect(page.getByText("2 monitors passing, 0 servers reporting")).toBeVisible();
+});
+
+test("the first-run footer wraps instead of overflowing on small screens", async ({ page }) => {
+  await mockApi(page, userCounts(0, 0));
+  for (const width of [1024, 375]) {
+    await page.setViewportSize({ width, height: 700 });
+    await page.goto("/");
+    await page.getByText("Nothing is monitored yet").waitFor();
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+  }
+});

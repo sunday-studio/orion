@@ -91,7 +91,9 @@ function toNetworkApiError(err: unknown): ApiError {
   // Browsers report an unreachable server as a bare TypeError ("Failed to fetch").
   if (err instanceof TypeError) {
     const target = getApiBase() || window.location.origin;
-    const error = new Error(`Can't reach Core at ${target}. Is it running?`) as ApiError;
+    const error = new Error(`Can't reach Core at ${target}. Is it running?`, {
+      cause: err,
+    }) as ApiError;
     error.status = 0;
     return error;
   }
