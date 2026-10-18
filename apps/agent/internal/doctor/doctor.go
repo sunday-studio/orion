@@ -21,14 +21,15 @@ const (
 )
 
 // SchemaVersion is the version of the --json output.
-const SchemaVersion = 2
+const SchemaVersion = 3
 
 // Result is the outcome of one check.
 type Result struct {
 	ID     string `json:"id"`
-	Title  string `json:"title"`
+	Label  string `json:"label"`
 	Status Status `json:"status"`
-	Detail string `json:"detail,omitempty"`
+	// Message is the one-line result shown after the label, e.g. "142 ms".
+	Message string `json:"message,omitempty"`
 	// Fix is the exact command or step that resolves a warn/fail.
 	Fix string `json:"fix,omitempty"`
 }
@@ -47,6 +48,7 @@ type Env struct {
 	SocketPath string
 	Version    string
 	GOOS       string
+	Hostname   string
 
 	Config     *config.UserConfig
 	ConfigErr  error
@@ -64,6 +66,8 @@ type Env struct {
 	DiskFreeMB func(path string) (uint64, error)
 	CanRead    func(path string) error
 	Daemon     DaemonInfo
+	// Queue returns the number of items waiting to be sent, and false when unknown.
+	Queue func() (int, bool)
 }
 
 // DaemonInfo is what the control socket reports, or why it could not.
@@ -72,21 +76,31 @@ type DaemonInfo struct {
 	Err       error
 	Version   string
 	LastSync  time.Time
+	Uptime    time.Duration
 }
 
 // Check is a single diagnostic.
 type Check struct {
 	ID    string
-	Title string
+	Label string // short row label, e.g. "Core reachable"
 	Run   func(ctx context.Context, e *Env) Result
 }
 
 // Run executes the checks in order, streaming each result to emit.
 func Run(ctx context.Context, e *Env, checks []Check, emit func(Result)) Report {
+	return RunWithStart(ctx, e, checks, nil, emit)
+}
+
+// RunWithStart is Run plus a hook called before each check starts, so a TTY
+// can show a spinner on the one that is running.
+func RunWithStart(ctx context.Context, e *Env, checks []Check, start func(Check), emit func(Result)) Report {
 	rep := Report{SchemaVersion: SchemaVersion, OK: true}
 	for _, c := range checks {
+		if start != nil {
+			start(c)
+		}
 		r := c.Run(ctx, e)
-		r.ID, r.Title = c.ID, c.Title
+		r.ID, r.Label = c.ID, c.Label
 		if r.Status == Fail {
 			rep.OK = false
 		}
@@ -98,10 +112,10 @@ func Run(ctx context.Context, e *Env, checks []Check, emit func(Result)) Report 
 	return rep
 }
 
-func ok(detail string) Result        { return Result{Status: OK, Detail: detail} }
-func skip(detail string) Result      { return Result{Status: Skip, Detail: detail} }
-func warn(detail, fix string) Result { return Result{Status: Warn, Detail: detail, Fix: fix} }
-func fail(detail, fix string) Result { return Result{Status: Fail, Detail: detail, Fix: fix} }
+func ok(msg string) Result        { return Result{Status: OK, Message: msg} }
+func skip(msg string) Result      { return Result{Status: Skip, Message: msg} }
+func warn(msg, fix string) Result { return Result{Status: Warn, Message: msg, Fix: fix} }
+func fail(msg, fix string) Result { return Result{Status: Fail, Message: msg, Fix: fix} }
 func (e *Env) now() time.Time {
 	if e.Now != nil {
 		return e.Now()

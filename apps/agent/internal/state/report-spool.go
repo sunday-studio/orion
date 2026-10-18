@@ -87,6 +87,13 @@ func (s *Store) pruneReportSpool(max int) {
 	s.db.Where("id <= ?", cutoff.ID).Delete(&reportSpoolRecord{})
 }
 
+// PendingReports counts reports waiting to be sent to Core.
+func (s *Store) PendingReports() int {
+	var n int64
+	s.db.Model(&reportSpoolRecord{}).Count(&n)
+	return int(n)
+}
+
 func (s *Store) ListDueReports(now time.Time, limit int) ([]SpooledReport, error) {
 	if limit <= 0 {
 		limit = 100

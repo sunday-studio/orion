@@ -44,6 +44,7 @@ type Status struct {
 	MaintenanceMode   bool      `json:"maintenance_mode"`
 	MaintenanceReason string    `json:"maintenance_reason,omitempty"`
 	Monitors          int       `json:"monitors"`
+	QueuePending      int       `json:"queue_pending"`
 	ConfigPath        string    `json:"config_path,omitempty"`
 }
 
