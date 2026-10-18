@@ -40,6 +40,7 @@ import {
   reportSortTime,
 } from "./components/incident-detail-utils";
 import { ActionNoteDialog, CoverIncidentDialog } from "./detail/incident-action-dialogs";
+import { ResolvedIncident } from "./detail/resolved-incident";
 import { PublicUpdateDialog } from "./detail/public-update-dialog";
 import { incidentLabel } from "./incident-format";
 import { ExpectedActual } from "./detail/expected-actual";
@@ -151,113 +152,132 @@ export const IncidentDetailPage = () => {
   const moments = incidentMoments(incident, alertDeliveries, timeline, summary);
   const monitorName = incident.monitor_name ?? "the monitor";
 
-  return (
-    <div className="mx-auto w-full max-w-[1040px]">
-      <IncidentDetailHeader
+  const main =
+    incident.status === "resolved" ? (
+      <ResolvedIncident
         incident={incident}
+        summary={summary}
+        moments={moments}
+        timeline={timeline}
         now={now}
-        actionPending={actionPending}
-        canAcknowledge={canAcknowledge}
-        canCover={canCover}
         canReopen={canReopen}
-        canResolve={canResolve}
-        onAcknowledge={() => setActionDialog("acknowledge")}
-        onCover={() => setCoverDialogOpen(true)}
+        pending={actionPending}
         onReopen={() => setActionDialog("reopen")}
-        onResolve={() => setActionDialog("resolve")}
+        onPublicUpdate={() => setPublicUpdateOpen(true)}
       />
-      {(acknowledgeIncident.error ||
-        resolveIncident.error ||
-        coverIncident.error ||
-        reopenIncident.error) && (
-        <div className="text-sm text-rose-700">Unable to update incident.</div>
-      )}
-
-      <div className="mt-3 grid gap-5 pb-6 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="flex min-w-0 flex-col gap-4">
-          <p className="text-sm leading-[1.6] text-mid">
-            {incident.latest_event ?? `No events recorded for ${monitorName} yet.`}
-          </p>
-          <div className="rounded-xl border border-line-soft bg-field px-4 py-3.5">
-            <LifecycleTrack steps={lifecycleSteps(incident, moments, now)} />
-          </div>
-          <ExpectedActual
-            expected={summary?.expected}
-            actual={summary?.actual}
-            report={latestReport}
-            now={now}
-          />
-          <Tabs value={activeTab} onValueChange={handleTabChange} className="gap-3.5">
-            <TabsList className="w-full gap-2 self-stretch">
-              <TabsTab value="timeline" className="px-2.5">
-                Timeline
-              </TabsTab>
-              <TabsTab value="monitor-reports" className="px-2.5">
-                Checks <TabCount className="ml-1">{monitorReports.length}</TabCount>
-              </TabsTab>
-              <TabsTab value="notifications" className="px-2.5">
-                Notifications <TabCount className="ml-1">{alertDeliveries.length}</TabCount>
-              </TabsTab>
-              <TabsTab value="logs" className="px-2.5">
-                Logs <TabCount className="ml-1">{logEntries.length}</TabCount>
-              </TabsTab>
-            </TabsList>
-            <TabsPanel value="timeline" className="flex flex-col gap-3.5">
-              <NoteComposer
-                pending={addNote.isPending}
-                failed={addNote.isError}
-                onPost={(text, done) =>
-                  addNote.mutate({ id: incidentId, data: { text } }, { onSuccess: done })
-                }
-              />
-              <IncidentTimeline
-                items={timeline}
-                retrying={retryDelivery.isPending}
-                onRetry={(id) => retryDelivery.mutate({ id })}
-                onOpen={(item) => {
-                  if (item.monitor_report_id) {
-                    setSelectedMonitorReport(reportsByID.get(item.monitor_report_id));
-                  } else if (item.alert_delivery_id) {
-                    handleTabChange("notifications");
-                  }
-                }}
-              />
-            </TabsPanel>
-            <TabsPanel value="monitor-reports">
-              <DataTable
-                columns={monitorReportColumns}
-                data={monitorReports}
-                emptyMessage="No monitor reports linked."
-                getRowId={(report, index) => report.id ?? `monitor-report-${index}`}
-                onRowClick={setSelectedMonitorReport}
-              />
-            </TabsPanel>
-            <TabsPanel value="logs">
-              <IncidentLogs entries={logEntries} />
-            </TabsPanel>
-            <TabsPanel value="notifications">
-              <DataTable
-                columns={notificationColumns}
-                data={alertDeliveries}
-                emptyMessage="No notification deliveries recorded."
-                getRowId={(delivery, index) => delivery.id ?? `notification-${index}`}
-              />
-            </TabsPanel>
-          </Tabs>
-        </div>
-        <IncidentSidePanel
+    ) : (
+      <div className="mx-auto w-full max-w-[1040px]">
+        <IncidentDetailHeader
           incident={incident}
-          summary={summary}
           now={now}
-          notifiedAt={moments.notifiedAt}
-          acknowledgedAt={moments.acknowledgedAt}
-          related={relatedIncidents}
-          deliveries={alertDeliveries}
-          subscriberCount={publicTargets.data?.targets?.[0]?.subscriber_count}
-          onDraftUpdate={() => setPublicUpdateOpen(true)}
-          onSetResponder={(name) => setResponder.mutate({ id: incidentId, data: { name } })}
+          actionPending={actionPending}
+          canAcknowledge={canAcknowledge}
+          canCover={canCover}
+          canReopen={canReopen}
+          canResolve={canResolve}
+          onAcknowledge={() => setActionDialog("acknowledge")}
+          onCover={() => setCoverDialogOpen(true)}
+          onReopen={() => setActionDialog("reopen")}
+          onResolve={() => setActionDialog("resolve")}
         />
+        {(acknowledgeIncident.error ||
+          resolveIncident.error ||
+          coverIncident.error ||
+          reopenIncident.error) && (
+          <div className="text-sm text-rose-700">Unable to update incident.</div>
+        )}
+
+        <div className="mt-3 grid gap-5 pb-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+          <div className="flex min-w-0 flex-col gap-4">
+            <p className="text-sm leading-[1.6] text-mid">
+              {incident.latest_event ?? `No events recorded for ${monitorName} yet.`}
+            </p>
+            <div className="rounded-xl border border-line-soft bg-field px-4 py-3.5">
+              <LifecycleTrack steps={lifecycleSteps(incident, moments, now)} />
+            </div>
+            <ExpectedActual
+              expected={summary?.expected}
+              actual={summary?.actual}
+              report={latestReport}
+              now={now}
+            />
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="gap-3.5">
+              <TabsList className="w-full gap-2 self-stretch">
+                <TabsTab value="timeline" className="px-2.5">
+                  Timeline
+                </TabsTab>
+                <TabsTab value="monitor-reports" className="px-2.5">
+                  Checks <TabCount className="ml-1">{monitorReports.length}</TabCount>
+                </TabsTab>
+                <TabsTab value="notifications" className="px-2.5">
+                  Notifications <TabCount className="ml-1">{alertDeliveries.length}</TabCount>
+                </TabsTab>
+                <TabsTab value="logs" className="px-2.5">
+                  Logs <TabCount className="ml-1">{logEntries.length}</TabCount>
+                </TabsTab>
+              </TabsList>
+              <TabsPanel value="timeline" className="flex flex-col gap-3.5">
+                <NoteComposer
+                  pending={addNote.isPending}
+                  failed={addNote.isError}
+                  onPost={(text, done) =>
+                    addNote.mutate({ id: incidentId, data: { text } }, { onSuccess: done })
+                  }
+                />
+                <IncidentTimeline
+                  items={timeline}
+                  retrying={retryDelivery.isPending}
+                  onRetry={(id) => retryDelivery.mutate({ id })}
+                  onOpen={(item) => {
+                    if (item.monitor_report_id) {
+                      setSelectedMonitorReport(reportsByID.get(item.monitor_report_id));
+                    } else if (item.alert_delivery_id) {
+                      handleTabChange("notifications");
+                    }
+                  }}
+                />
+              </TabsPanel>
+              <TabsPanel value="monitor-reports">
+                <DataTable
+                  columns={monitorReportColumns}
+                  data={monitorReports}
+                  emptyMessage="No monitor reports linked."
+                  getRowId={(report, index) => report.id ?? `monitor-report-${index}`}
+                  onRowClick={setSelectedMonitorReport}
+                />
+              </TabsPanel>
+              <TabsPanel value="logs">
+                <IncidentLogs entries={logEntries} />
+              </TabsPanel>
+              <TabsPanel value="notifications">
+                <DataTable
+                  columns={notificationColumns}
+                  data={alertDeliveries}
+                  emptyMessage="No notification deliveries recorded."
+                  getRowId={(delivery, index) => delivery.id ?? `notification-${index}`}
+                />
+              </TabsPanel>
+            </Tabs>
+          </div>
+          <IncidentSidePanel
+            incident={incident}
+            summary={summary}
+            now={now}
+            notifiedAt={moments.notifiedAt}
+            acknowledgedAt={moments.acknowledgedAt}
+            related={relatedIncidents}
+            deliveries={alertDeliveries}
+            subscriberCount={publicTargets.data?.targets?.[0]?.subscriber_count}
+            onDraftUpdate={() => setPublicUpdateOpen(true)}
+            onSetResponder={(name) => setResponder.mutate({ id: incidentId, data: { name } })}
+          />
+        </div>
       </div>
+    );
+
+  return (
+    <>
+      {main}
       <ReportInspectionDrawer
         kind="monitor"
         report={selectedMonitorReport}
@@ -291,6 +311,6 @@ export const IncidentDetailPage = () => {
         incidentLabel={incidentLabel(incident)}
         onOpenChange={setPublicUpdateOpen}
       />
-    </div>
+    </>
   );
 };

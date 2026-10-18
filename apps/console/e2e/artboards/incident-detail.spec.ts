@@ -202,3 +202,52 @@ test("Incident dialogs send acknowledge, cover and public update payloads", asyn
       status: "identified",
     });
 });
+
+test("Resolved incident matches the artboard", async ({ page }) => {
+  await freezeClock(page, "2025-10-16T14:50:00Z");
+  const resolved = {
+    status: "resolved",
+    resolved_at: "2025-10-16T14:40:00Z",
+    allowed_actions: { reopen: { allowed: true } },
+  };
+  await mockApi(page, [
+    ...mocks(resolved).filter((mock) => !String(mock.pattern).includes("inc-231$")),
+    {
+      pattern: /\/v1\/incidents\/inc-231$/,
+      body: {
+        ...detail(resolved),
+        summary: {
+          time_to_acknowledge_seconds: 240,
+          time_to_resolve_seconds: 2280,
+          duration_seconds: 2280,
+          failed_checks: 12,
+          acknowledged_at: "2025-10-16T14:06:00Z",
+          notified_at: "2025-10-16T14:02:11Z",
+        },
+        timeline: [
+          {
+            id: "a",
+            type: "incident_resolved",
+            message: "automatically, 2 passing checks",
+            created_at: "2025-10-16T14:40:00Z",
+          },
+          {
+            id: "b",
+            type: "incident_acknowledged",
+            message: 'by admin, "Checking the load balancer"',
+            created_at: "2025-10-16T14:06:00Z",
+          },
+          {
+            id: "c",
+            type: "incident_opened",
+            message: "3 failed checks in a row",
+            created_at: "2025-10-16T14:02:00Z",
+          },
+        ],
+      },
+    },
+  ]);
+  await page.goto("/incidents/inc-231");
+  await page.getByRole("button", { name: "Post public update" }).waitFor();
+  await expectMatchesArtboard(page, "incident-resolved", 698);
+});
