@@ -314,9 +314,6 @@
 .segi:hover, .segi[aria-pressed="true"] { color: var(--color-ink); }
 .frame { width: min(880px, 100%); margin: 26px auto 0; border: 1px solid var(--color-line-strong); border-radius: 14px; background: var(--color-card); overflow: hidden; box-shadow: 0 30px 60px -28px rgb(24 24 27 / 0.3); }
 .fbody { position: relative; aspect-ratio: 2 / 1; overflow: hidden; background: var(--color-card); }
-.fi { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; opacity: 0; transform: translateY(14px) scale(0.985); transition: opacity 0.45s ease, transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1); }
-.fi.is-active { opacity: 1; transform: none; animation: tourdrift 6s ease-out both; }
-@keyframes tourdrift { from { transform: scale(1.025); } to { transform: scale(1); } }
 .capw { position: relative; height: 30px; margin-top: 28px; }
 .cp { position: absolute; left: 0; right: 0; text-align: center; color: var(--color-muted); font-size: 16px; opacity: 0; transform: translateY(6px); transition: opacity 0.3s ease, transform 0.3s ease; }
 .cp b { font-weight: 400; color: var(--color-ink); }
@@ -353,3 +350,24 @@
 .segi .lbl { display: inline-flex; align-items: center; gap: 8px; }
 .segi .lbl.on { position: absolute; inset: 0; padding: 6px 14px; color: #fff; pointer-events: none; clip-path: inset(0 100% 0 0); }
 .segi[aria-pressed="true"] .lbl.on { clip-path: inset(0 calc(100% - var(--p)) 0 0); }
+
+/* Stage cards: inner tiles are filled, not outlined. */
+.vis3 { background: var(--color-field); border: 0; border-radius: 10px; box-shadow: none; }
+.vis4 .team { display: flex; align-items: center; gap: 8px; font-size: 13px; opacity: 0; }
+.vis4 .team b { font-weight: 400; }
+.vis4 .team .m { font-size: 11px; color: var(--color-muted); }
+.avs { display: flex; }
+.avs i { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--color-card); margin-left: -6px; background: #6ee7b7; }
+.avs i:first-child { margin-left: 0; }
+.avs i:nth-child(2) { background: #fde68a; }
+.avs i:nth-child(3) { background: #c4b5fd; }
+.chips2 { display: flex; gap: 6px; opacity: 0; }
+.chips2 .dl { opacity: 1; animation: none; padding: 5px 10px; background: var(--color-field); border: 0; border-radius: 8px; gap: 6px; font-size: 12px; box-shadow: none; }
+.chips2 .dl .m { margin-left: 2px; }
+.vis4 .team.d1 { animation-name: v4a; animation-duration: 12s; animation-iteration-count: infinite; }
+.vis4 .chips2.d2 { animation-name: v4b; animation-duration: 12s; animation-iteration-count: infinite; }
+/* Tour screens: no app header; the active screen scrolls down slowly like using the app, crossfading between screens. */
+.fi { position: absolute; left: 0; top: 0; width: 100%; height: auto; opacity: 0; transition: opacity 0.5s ease; }
+.fi.is-active { opacity: 1; animation: tourpan 4.5s ease-in-out both; }
+@keyframes tourpan { 0%, 10% { transform: translateY(0); } 100% { transform: translateY(-36%); } }
+@media (prefers-reduced-motion: reduce) { .fi.is-active { animation: none; } }
