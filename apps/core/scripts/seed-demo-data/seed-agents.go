@@ -158,6 +158,7 @@ func makeMonitors(agent db.Agent, sc scenario, now time.Time) []db.Monitor {
 func makeCoreOwner(now time.Time) db.Agent {
 	return db.Agent{
 		ID:                       "seed-agent-core",
+		System:                   true,
 		MachineId:                "seed-machine-core",
 		Name:                     "Orion Core",
 		OS:                       "linux",

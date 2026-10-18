@@ -108,6 +108,7 @@ func main() {
 	fmt.Printf("  agent reports: %d\n", stats.agentReports)
 	fmt.Printf("  monitor reports: %d\n", stats.monitorReports)
 	fmt.Printf("  incidents: %d\n", stats.incidents)
+	fmt.Printf("  incident candidates: %d (+%d dismissed), notes: %d, responders: %d, declared: %d\n", stats.incidentExtras.candidates, stats.incidentExtras.dismissed, stats.incidentExtras.notes, stats.incidentExtras.responders, stats.incidentExtras.declared)
 	fmt.Printf("  incident events: %d\n", stats.incidentEvents)
 	fmt.Printf("  alert deliveries: %d\n", stats.alertDeliveries)
 	fmt.Printf("  uptime rollups: %d\n", stats.rollups)
@@ -128,6 +129,7 @@ type seedStats struct {
 	agentReports             int
 	monitorReports           int
 	incidents                int
+	incidentExtras           incidentExtraStats
 	incidentEvents           int
 	alertDeliveries          int
 	rollups                  int
@@ -229,6 +231,9 @@ func resetSeedData(database *gorm.DB) error {
 		if query.Error != nil {
 			return query.Error
 		}
+	}
+	if err := database.Exec("DELETE FROM incident_candidate_dismissals WHERE monitor_id LIKE ?", "seed-%").Error; err != nil {
+		return err
 	}
 	if err := database.Exec("DELETE FROM core_monitor_configs WHERE monitor_id LIKE ?", "seed-%").Error; err != nil {
 		return err
@@ -344,6 +349,12 @@ func seed(database *gorm.DB, cfg seedConfig) (seedStats, error) {
 	if err != nil {
 		return stats, err
 	}
+	extraStats, err := seedIncidentExtras(database, allMonitors, monitorToAgent, monitorToScenario, now)
+	if err != nil {
+		return stats, err
+	}
+	stats.incidents += extraStats.declared
+	stats.incidentExtras = extraStats
 	stats.incidents += incidentStats.incidents
 	stats.incidentEvents += incidentStats.incidentEvents
 	stats.alertDeliveries += incidentStats.alertDeliveries
