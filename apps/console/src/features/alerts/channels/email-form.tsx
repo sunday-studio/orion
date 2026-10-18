@@ -134,7 +134,6 @@ export const EmailForm = ({
                 commit();
               }
             }}
-            onBlur={commit}
           />
         </div>
         <span className={hint}>

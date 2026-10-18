@@ -139,7 +139,7 @@ export const ChannelsTab = ({
                   }
                   shape={failing ? "square" : channel.health === "untested" ? "hollow" : undefined}
                 >
-                  {healthLabel(channel.health)}
+                  {channel.enabled === false ? "Disabled" : healthLabel(channel.health)}
                 </StatusBadge>
               </span>
               <span

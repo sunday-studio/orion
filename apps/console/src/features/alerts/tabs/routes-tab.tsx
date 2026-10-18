@@ -118,7 +118,7 @@ export const RoutesTab = ({
       {routes.length === 0 ? (
         <EmptyState
           title="No routes yet"
-          description="Without routes, events that no rule handles go to every enabled channel."
+          description="Add a route to pick channels by label. Rules still decide what is sent."
           action={
             <Button size="sm" onClick={() => onEditorChange({ open: true })}>
               New route
@@ -138,7 +138,10 @@ export const RoutesTab = ({
             {routes.map((route, index) => (
               <GridRow key={route.id} flipId={route.id} columns={COLUMNS}>
                 <span className="text-faint">{route.number ?? index + 1}</span>
-                <span className="text-faint">{route.when || "any"}</span>
+                <span className="text-faint">
+                  {route.when || "any"}
+                  {route.enabled === false && " (disabled)"}
+                </span>
                 <b className="font-medium">{(route.channel_names ?? []).join(", ")}</b>
                 <span>
                   <StatusBadge
