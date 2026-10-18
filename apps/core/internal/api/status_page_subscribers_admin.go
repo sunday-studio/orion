@@ -18,10 +18,16 @@ type StatusPageSubscriberAdminComponentResponse struct {
 }
 
 type StatusPageSubscriberAdminResponse struct {
-	ID                 string                                       `json:"id"`
-	StatusPageID       string                                       `json:"status_page_id"`
-	DestinationType    string                                       `json:"destination_type"`
-	MaskedDestination  string                                       `json:"masked_destination"`
+	ID                string `json:"id"`
+	StatusPageID      string `json:"status_page_id"`
+	DestinationType   string `json:"destination_type"`
+	MaskedDestination string `json:"masked_destination"`
+	// Email is the full address for operators; empty when the subscriber secret is not configured.
+	Email string `json:"email,omitempty"`
+	// Scope reads "All components", "API only" or "3 components".
+	Scope string `json:"scope"`
+	// Since is when the subscriber confirmed, else when they signed up.
+	Since              time.Time                                    `json:"since"`
 	State              string                                       `json:"state"`
 	Components         []StatusPageSubscriberAdminComponentResponse `json:"components"`
 	BounceCount        int                                          `json:"bounce_count"`
@@ -44,8 +50,9 @@ type StatusPageSubscriberAdminResponse struct {
 // @Security     BearerAuth
 // @ID           listStatusPageSubscribers
 // @Param        id     path   string  true   "Status page ID"
-// @Param        state  query  string  false  "Subscriber state filter"
-// @Success      200    {object}  utils.APIResponse{data=object{subscribers=[]StatusPageSubscriberAdminResponse,count=int}}
+// @Param        state  query  string  false  "Subscriber state filter (confirmed, pending, disabled, unsubscribed)"
+// @Param        q      query  string  false  "Search by email"
+// @Success      200    {object}  utils.APIResponse{data=object{subscribers=[]StatusPageSubscriberAdminResponse,count=int,counts=StatusPageSubscriberCounts}}
 // @Failure      404    {object}  utils.APIResponse
 // @Failure      500    {object}  utils.APIResponse
 // @Router       /v1/status-pages/{id}/subscribers [get]
@@ -73,10 +80,12 @@ func (s *Server) listStatusPageSubscribers(c *gin.Context) {
 		utils.InternalError(c, "Failed to list status page subscribers", err)
 		return
 	}
+	responses = filterSubscriberResponses(responses, c.Query("q"))
 
 	utils.SuccessResponse(c, http.StatusOK, "Status page subscribers retrieved successfully", gin.H{
 		"subscribers": responses,
 		"count":       len(responses),
+		"counts":      s.statusPageSubscriberCounts(pageID),
 	})
 }
 
@@ -281,7 +290,11 @@ func (s *Server) statusPageSubscriberAdminResponses(pageID string, subscribers [
 	}
 	responses := make([]StatusPageSubscriberAdminResponse, 0, len(subscribers))
 	for _, subscriber := range subscribers {
-		responses = append(responses, statusPageSubscriberAdminResponse(subscriber, componentNamesBySubscriberID[subscriber.ID]))
+		response := statusPageSubscriberAdminResponse(subscriber, componentNamesBySubscriberID[subscriber.ID])
+		if email, err := s.decryptStatusPageSubscriberDestination(subscriber); err == nil && subscriber.DestinationType == statusPageSubscriberDestinationEmail {
+			response.Email = email
+		}
+		responses = append(responses, response)
 	}
 	return responses, nil
 }
@@ -327,6 +340,8 @@ func statusPageSubscriberAdminResponse(subscriber db.StatusPageSubscriber, compo
 		StatusPageID:       subscriber.StatusPageID,
 		DestinationType:    subscriber.DestinationType,
 		MaskedDestination:  subscriber.MaskedDestination,
+		Scope:              subscriberScope(components),
+		Since:              firstTime(subscriber.ConfirmedAt, subscriber.CreatedAt),
 		State:              subscriber.State,
 		Components:         components,
 		BounceCount:        subscriber.BounceCount,

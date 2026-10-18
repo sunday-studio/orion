@@ -132,6 +132,7 @@ func (s *Server) setupRoutes() {
 	s.router.GET("/feed.atom", s.getCustomDomainStatusPageAtomFeed)
 	s.router.GET("/status/:slug/feed.atom", s.getStatusPageAtomFeed)
 	s.router.GET("/status/:slug/badge.svg", s.getPublicStatusPageBadge)
+	s.router.GET("/status/:slug/badge.json", s.getPublicStatusPageBadgeJSON)
 	s.router.GET("/status/:slug/history", s.getPublicStatusPageHistory)
 	s.router.GET("/status/:slug/components/:component_id/badge.svg", s.getPublicStatusPageComponentBadge)
 	s.router.GET("/status/:slug/components/:component_id/uptime", s.getPublicStatusPageComponentUptime)

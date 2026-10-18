@@ -118,6 +118,37 @@ const docTemplate = `{
                 }
             }
         },
+        "/status/{slug}/badge.json": {
+            "get": {
+                "description": "Shields.io endpoint format: schemaVersion, label, message, color.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public-status"
+                ],
+                "summary": "Get public status page badge as JSON",
+                "operationId": "getPublicStatusPageBadgeJSON",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/status/{slug}/badge.svg": {
             "get": {
                 "description": "Get an embeddable SVG badge for the current public-safe status page state",
@@ -10722,7 +10753,7 @@ const docTemplate = `{
                                                 "pages": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/internal_api.StatusPageResponse"
+                                                        "$ref": "#/definitions/internal_api.StatusPageListRow"
                                                     }
                                                 }
                                             }
@@ -10809,6 +10840,58 @@ const docTemplate = `{
                         "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/status-pages/slug-check": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Check status page slug",
+                "operationId": "checkStatusPageSlug",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Slug to check",
+                        "name": "slug",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Page being edited, ignored in the check",
+                        "name": "exclude_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.StatusPageSlugCheckResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -11020,6 +11103,58 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/status-pages/{id}/badges": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Status page badges",
+                "operationId": "getStatusPageBadges",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.StatusPageBadgesResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
@@ -12497,6 +12632,59 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/status-pages/{id}/readiness": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Structured publish checks: blocking ones stop publishing, others are advice.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Status page publish checklist",
+                "operationId": "getStatusPageReadiness",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.StatusPageReadinessResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/status-pages/{id}/sections": {
             "get": {
                 "security": [
@@ -12840,8 +13028,14 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Subscriber state filter",
+                        "description": "Subscriber state filter (confirmed, pending, disabled, unsubscribed)",
                         "name": "state",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by email",
+                        "name": "q",
                         "in": "query"
                     }
                 ],
@@ -12861,6 +13055,9 @@ const docTemplate = `{
                                             "properties": {
                                                 "count": {
                                                     "type": "integer"
+                                                },
+                                                "counts": {
+                                                    "$ref": "#/definitions/internal_api.StatusPageSubscriberCounts"
                                                 },
                                                 "subscribers": {
                                                     "type": "array",
@@ -12883,6 +13080,53 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/status-pages/{id}/subscribers/export.csv": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "CSV with email, scope, status and since. Honors the state filter. Emails need the subscriber secret to be configured.",
+                "produces": [
+                    "text/csv"
+                ],
+                "tags": [
+                    "status-pages"
+                ],
+                "summary": "Export status page subscribers",
+                "operationId": "exportStatusPageSubscribers",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Status page ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Subscriber state filter",
+                        "name": "state",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "CSV",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
@@ -16971,6 +17215,64 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.StatusPageBadgeLinks": {
+            "type": "object",
+            "properties": {
+                "html": {
+                    "type": "string"
+                },
+                "json_url": {
+                    "type": "string"
+                },
+                "markdown": {
+                    "type": "string"
+                },
+                "svg_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.StatusPageBadgesResponse": {
+            "type": "object",
+            "properties": {
+                "components": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.StatusPageComponentBadgeLinks"
+                    }
+                },
+                "note": {
+                    "description": "Note: unpublished pages serve an unknown badge.",
+                    "type": "string"
+                },
+                "page": {
+                    "$ref": "#/definitions/internal_api.StatusPageBadgeLinks"
+                }
+            }
+        },
+        "internal_api.StatusPageComponentBadgeLinks": {
+            "type": "object",
+            "properties": {
+                "html": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "json_url": {
+                    "type": "string"
+                },
+                "markdown": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "svg_url": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_api.StatusPageComponentMappingResponse": {
             "type": "object",
             "properties": {
@@ -17214,6 +17516,88 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.StatusPageListRow": {
+            "type": "object",
+            "properties": {
+                "canonical_url": {
+                    "type": "string"
+                },
+                "component_count": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "custom_domain": {
+                    "type": "string"
+                },
+                "default_incident_visibility": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "domain_status": {
+                    "description": "DomainStatus is pending, verified or failed; empty without a custom domain.",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_updated": {
+                    "type": "string"
+                },
+                "open_graph_image_url": {
+                    "type": "string"
+                },
+                "overall_status": {
+                    "type": "string",
+                    "example": "operational"
+                },
+                "public_url": {
+                    "description": "PublicURL is the custom domain when set, else the /status/\u003cslug\u003e path.",
+                    "type": "string",
+                    "example": "status.example.com"
+                },
+                "published_at": {
+                    "type": "string"
+                },
+                "seo_description": {
+                    "type": "string"
+                },
+                "seo_title": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "state": {
+                    "description": "State is published, draft or maintenance.",
+                    "type": "string",
+                    "enum": [
+                        "published",
+                        "draft",
+                        "maintenance"
+                    ]
+                },
+                "subscriber_count": {
+                    "type": "integer"
+                },
+                "theme_settings": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "visibility": {
                     "type": "string"
                 }
             }
@@ -17512,6 +17896,73 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.StatusPagePublishValidationResponse": {
+            "type": "object",
+            "properties": {
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "warnings": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "internal_api.StatusPageReadinessCheck": {
+            "type": "object",
+            "properties": {
+                "blocking": {
+                    "type": "boolean"
+                },
+                "detail": {
+                    "type": "string"
+                },
+                "key": {
+                    "type": "string",
+                    "example": "components_mapped"
+                },
+                "label": {
+                    "type": "string",
+                    "example": "Every component is mapped to a resource"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_api.StatusPageReadinessResponse": {
+            "type": "object",
+            "properties": {
+                "checks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.StatusPageReadinessCheck"
+                    }
+                },
+                "passed": {
+                    "type": "integer"
+                },
+                "ready": {
+                    "type": "boolean"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "validation": {
+                    "description": "Errors and Warnings repeat what publishing would report.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/internal_api.StatusPagePublishValidationResponse"
+                        }
+                    ]
+                }
+            }
+        },
         "internal_api.StatusPageResponse": {
             "type": "object",
             "properties": {
@@ -17528,6 +17979,10 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "description": {
+                    "type": "string"
+                },
+                "domain_status": {
+                    "description": "DomainStatus is pending, verified or failed; empty without a custom domain.",
                     "type": "string"
                 },
                 "id": {
@@ -17589,6 +18044,20 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.StatusPageSlugCheckResponse": {
+            "type": "object",
+            "properties": {
+                "available": {
+                    "type": "boolean"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_api.StatusPageSubscriberAdminComponentResponse": {
             "type": "object",
             "properties": {
@@ -17624,6 +18093,10 @@ const docTemplate = `{
                 "disabled_at": {
                     "type": "string"
                 },
+                "email": {
+                    "description": "Email is the full address for operators; empty when the subscriber secret is not configured.",
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -17634,6 +18107,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "masked_destination": {
+                    "type": "string"
+                },
+                "scope": {
+                    "description": "Scope reads \"All components\", \"API only\" or \"3 components\".",
+                    "type": "string"
+                },
+                "since": {
+                    "description": "Since is when the subscriber confirmed, else when they signed up.",
                     "type": "string"
                 },
                 "source": {
@@ -17661,6 +18142,26 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_api.StatusPageSubscriberCounts": {
+            "type": "object",
+            "properties": {
+                "confirmed": {
+                    "type": "integer"
+                },
+                "disabled": {
+                    "type": "integer"
+                },
+                "pending": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "unsubscribed": {
+                    "type": "integer"
                 }
             }
         },
@@ -18179,6 +18680,10 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "slug": {
+                    "type": "string"
+                },
+                "start_from": {
+                    "description": "StartFrom is \"blank\" (default) or \"monitors\" to add a component per monitor; create only.",
                     "type": "string"
                 },
                 "theme_settings": {

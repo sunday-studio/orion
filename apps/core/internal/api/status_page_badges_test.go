@@ -66,13 +66,14 @@ func TestPublicStatusPageBadgesRequirePublicOrUnlistedPage(t *testing.T) {
 	}
 
 	pageResp := performJSONRequest(t, server, http.MethodGet, "/status/customer-status/badge.svg", nil, "")
-	if pageResp.Code != http.StatusNotFound {
-		t.Fatalf("draft page badge status = %d, body = %s, want 404", pageResp.Code, pageResp.Body.String())
+	if pageResp.Code != http.StatusOK || !strings.Contains(pageResp.Body.String(), "unknown") {
+		t.Fatalf("draft page badge status = %d, body = %s, want the unknown badge", pageResp.Code, pageResp.Body.String())
 	}
+	assertNotContains(t, pageResp.Body.String(), "Customer")
 
 	componentResp := performJSONRequest(t, server, http.MethodGet, "/status/customer-status/components/"+visibleComponent.ID+"/badge.svg", nil, "")
-	if componentResp.Code != http.StatusNotFound {
-		t.Fatalf("draft component badge status = %d, body = %s, want 404", componentResp.Code, componentResp.Body.String())
+	if componentResp.Code != http.StatusOK || !strings.Contains(componentResp.Body.String(), "unknown") || strings.Contains(componentResp.Body.String(), "Public API") {
+		t.Fatalf("draft component badge status = %d, body = %s, want the unknown badge", componentResp.Code, componentResp.Body.String())
 	}
 }
 

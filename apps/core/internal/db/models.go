@@ -340,8 +340,13 @@ type StatusPage struct {
 	ThemeSettings             string     `json:"theme_settings" gorm:"type:text;not null;default:'{}'"`
 	DefaultIncidentVisibility string     `json:"default_incident_visibility" gorm:"not null;default:draft"`
 	PublishedAt               *time.Time `json:"published_at" gorm:"index:idx_status_pages_published_at"`
-	CreatedAt                 time.Time  `json:"created_at"`
-	UpdatedAt                 time.Time  `json:"updated_at"`
+	// Custom domain DNS verification: pending, verified or failed.
+	DomainStatus     string     `json:"domain_status" gorm:"not null;default:pending"`
+	DomainCheckedAt  *time.Time `json:"domain_checked_at"`
+	DomainVerifiedAt *time.Time `json:"domain_verified_at"`
+	DomainError      string     `json:"domain_error" gorm:"not null;default:''"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
 }
 
 type StatusPageSection struct {
