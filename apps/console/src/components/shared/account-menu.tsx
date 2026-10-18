@@ -5,6 +5,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  Segmented,
   Select,
   type ThemePreference,
   applyTheme,
@@ -79,32 +80,17 @@ export const AccountMenu = () => {
         </button>
         <div className="my-1.5 h-px bg-hairline" />
         <div className="px-1.5 pb-1 text-xs text-quiet">Theme</div>
-        <div
-          role="radiogroup"
+        <Segmented
           aria-label="Theme"
-          className="mx-1.5 mb-2 flex w-fit gap-0.5 rounded-lg bg-tray p-[3px]"
-        >
-          {themes.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              role="radio"
-              aria-checked={theme === option.value}
-              onClick={() => {
-                setTheme(option.value);
-                applyTheme(option.value);
-              }}
-              className={cn(
-                "rounded-md px-3 py-1 text-xs outline-none focus-visible:ring-2 focus-visible:ring-focus",
-                theme === option.value
-                  ? "bg-chip font-medium shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
-                  : "text-mid",
-              )}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+          size="sm"
+          className="mx-1.5 mb-2"
+          options={themes}
+          value={theme}
+          onValueChange={(next) => {
+            setTheme(next as ThemePreference);
+            applyTheme(next as ThemePreference);
+          }}
+        />
         <div className="px-1.5 pb-1 text-xs text-quiet">Timezone</div>
         <div className="mx-1.5 mb-1.5">
           <Select

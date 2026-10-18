@@ -1,5 +1,5 @@
+import { Segmented } from "@/design-system";
 import { useGetIncidents } from "@/orion-sdk";
-import { cn } from "@/utils/cn";
 import type { IncidentFilters } from "./incident-filters";
 
 type View = "active" | "review" | "resolved";
@@ -24,23 +24,19 @@ export const IncidentQuickViews = ({
     { view: "resolved", label: "Resolved", count: countOf(resolved.data) },
   ];
   return (
-    <div role="group" aria-label="Quick views" className="flex gap-0.5 rounded-lg bg-tray p-[3px]">
-      {items.map((item) => (
-        <button
-          key={item.view}
-          type="button"
-          aria-pressed={current === item.view}
-          onClick={() => filters.setView(item.view)}
-          className={cn(
-            "whitespace-nowrap rounded-md px-3 py-1 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-focus",
-            current === item.view
-              ? "bg-chip font-medium shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
-              : "text-mid",
-          )}
-        >
-          {item.label} <span className="font-normal text-faint">{item.count}</span>
-        </button>
-      ))}
-    </div>
+    <Segmented
+      role="group"
+      aria-label="Quick views"
+      options={items.map((item) => ({
+        value: item.view,
+        label: (
+          <>
+            {item.label} <span className="text-faint">{item.count}</span>
+          </>
+        ),
+      }))}
+      value={current}
+      onValueChange={(next) => filters.setView(next as View)}
+    />
   );
 };
