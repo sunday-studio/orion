@@ -26,22 +26,24 @@ type Options struct {
 	NoColor    bool
 	JSON       bool
 
-	Once           bool
-	SetupCoreURL   string
-	SetupForce     bool
-	SetupInitState bool
-	SetupYes       bool
-	SetupDryRun    bool
-	SetupTokenFile string
-	SetupMonitors  []string
-	UpdateVersion  string
-	UpdateRepo     string
-	UpdateBaseURL  string
-	UpdateRollback bool
-	UpdateForce    bool
-	LogLines       int
-	TokenApply     string
-	TokenFile      string
+	Once                  bool
+	SetupCoreURL          string
+	SetupForce            bool
+	SetupInitState        bool
+	SetupYes              bool
+	SetupDryRun           bool
+	SetupToken            string
+	SetupTokenFile        string
+	SetupAcceptDiscovered bool
+	SetupMonitors         []string
+	UpdateVersion         string
+	UpdateRepo            string
+	UpdateBaseURL         string
+	UpdateRollback        bool
+	UpdateForce           bool
+	LogLines              int
+	TokenApply            string
+	TokenFile             string
 
 	normalizedArgs []string
 }

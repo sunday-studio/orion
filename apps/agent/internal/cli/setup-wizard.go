@@ -29,10 +29,11 @@ func runWizard(ctx context.Context, opts *Options) (setupPlan, error) {
 		}
 	}
 	token := ""
+	setSetupTerminalTitle(1)
 	form := huh.NewForm(huh.NewGroup(
-		huh.NewInput().Title("Orion Core URL").Description("Where this host reports to, for example https://orion.example.com").
+		huh.NewInput().Title("Core URL").Description("Where is your Orion Core?").Prompt(" ").
 			Value(&coreURL).Validate(validateCoreURL),
-		huh.NewInput().Title("Enrollment token (optional)").Description("From Console > Add server. Leave empty to enroll later.").
+		huh.NewInput().Title("Enrollment token").Description("From Console, Servers, Add server").Prompt(" ").
 			EchoMode(huh.EchoModePassword).Value(&token),
 	)).WithTheme(wizardTheme()).WithAccessible(accessible)
 	if err := form.RunWithContext(ctx); err != nil {
@@ -40,14 +41,11 @@ func runWizard(ctx context.Context, opts *Options) (setupPlan, error) {
 	}
 	plan.CoreURL = strings.TrimSpace(coreURL)
 	if token = strings.TrimSpace(token); token != "" {
-		f, err := os.CreateTemp("", "orion-enroll-*")
+		path, err := stageEnrollmentToken(token)
 		if err != nil {
-			return plan, NewCommandError("could not stage the token", err)
+			return plan, err
 		}
-		f.Chmod(0o600)
-		f.WriteString(token)
-		f.Close()
-		plan.TokenFile = f.Name() // removed by applySetup once enrollment has run
+		plan.TokenFile, plan.RemoveTokenFile = path, true
 	}
 
 	var found discover.Result
@@ -64,11 +62,15 @@ func runWizard(ctx context.Context, opts *Options) (setupPlan, error) {
 	var chosen []string
 	opts2 := make([]huh.Option[string], 0, len(picks))
 	for _, c := range picks {
-		label := fmt.Sprintf("%-9s %-28s %s (%s)", c.Kind, c.Name, c.Detail, c.Confidence)
+		label := fmt.Sprintf("%-18s %-16s %s", c.Name, c.Kind, c.Confidence)
+		if c.Detail != "" {
+			label = fmt.Sprintf("%-18s %-16s %s  %s", c.Name, c.Detail, c.Kind, c.Confidence)
+		}
 		opts2 = append(opts2, huh.NewOption(label, c.ID).Selected(c.Confidence == discover.High))
 	}
+	setSetupTerminalTitle(2)
 	if err := huh.NewForm(huh.NewGroup(
-		huh.NewMultiSelect[string]().Title("What should Orion monitor?").Description("space selects, enter confirms; high-confidence items are preselected").
+		huh.NewMultiSelect[string]().Title("What should Orion watch?").Description("Found by discovery. Space to toggle, a for all.").
 			Options(opts2...).Value(&chosen),
 	)).WithTheme(wizardTheme()).WithAccessible(accessible).RunWithContext(ctx); err != nil {
 		return plan, wizardErr(err)
@@ -86,7 +88,9 @@ func runWizard(ctx context.Context, opts *Options) (setupPlan, error) {
 	data, _ := yaml.Marshal(next)
 	diff := lineDiff(splitLines(string(before)), splitLines(string(data)))
 	fmt.Fprintln(outputWriter)
-	PrintHeader("config changes")
+	setSetupTerminalTitle(3)
+	PrintHeader("Review changes")
+	PrintInfo("config", opts.ConfigPath)
 	if len(diff) == 0 {
 		PrintOK("no changes to the config")
 	}
@@ -94,7 +98,7 @@ func runWizard(ctx context.Context, opts *Options) (setupPlan, error) {
 		fmt.Fprintln(outputWriter, "  "+l)
 	}
 	ok := true
-	if err := huh.NewForm(huh.NewGroup(huh.NewConfirm().Title("Apply these changes?").Description("Applied without restarting the agent.").Affirmative("Apply").Negative("Cancel").Value(&ok))).
+	if err := huh.NewForm(huh.NewGroup(huh.NewConfirm().Title("Apply these changes?").Description("Applies without restarting the agent.").Affirmative("Yes").Negative("No").Value(&ok))).
 		WithTheme(wizardTheme()).WithAccessible(accessible).RunWithContext(ctx); err != nil {
 		return plan, wizardErr(err)
 	}
@@ -103,6 +107,34 @@ func runWizard(ctx context.Context, opts *Options) (setupPlan, error) {
 	}
 	plan.Confirmed = true
 	return plan, nil
+}
+
+// setSetupTerminalTitle supplies the three-step counter in terminals that
+// support OSC titles. It is only called in the interactive path.
+func setSetupTerminalTitle(step int) {
+	fmt.Fprintf(outputWriter, "\x1b]0;orion-agent setup, %d of 3\a", step)
+}
+
+func stageEnrollmentToken(token string) (string, error) {
+	f, err := os.CreateTemp("", "orion-enroll-*")
+	if err != nil {
+		return "", NewCommandError("could not stage the token", err)
+	}
+	if err := f.Chmod(0o600); err != nil {
+		f.Close()
+		os.Remove(f.Name())
+		return "", NewCommandError("could not protect the staged token", err)
+	}
+	if _, err := f.WriteString(strings.TrimSpace(token)); err != nil {
+		f.Close()
+		os.Remove(f.Name())
+		return "", NewCommandError("could not stage the token", err)
+	}
+	if err := f.Close(); err != nil {
+		os.Remove(f.Name())
+		return "", NewCommandError("could not stage the token", err)
+	}
+	return f.Name(), nil
 }
 
 // pickableCandidates drops items that cannot become monitors and low-confidence noise.
