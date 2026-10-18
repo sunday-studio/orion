@@ -5,8 +5,16 @@ import { monitorHealth } from "../agent-detail.domain";
 
 type MonitorWithDetail = ApiMonitorResponse;
 
-export const monitorTypeLabel = (type?: string) =>
-  !type ? "-" : type === "http" ? "HTTP" : type.charAt(0).toUpperCase() + type.slice(1);
+const ACRONYMS = new Set(["http", "https", "tcp", "udp", "dns", "tls", "icmp", "ssl"]);
+
+/** "http-healthcheck" -> "HTTP", "docker-container" -> "Docker": the short family name. */
+export const monitorTypeLabel = (type?: string) => {
+  if (!type) return "-";
+  const family = type.toLowerCase().split(/[-_ ]/)[0] ?? type;
+  return ACRONYMS.has(family)
+    ? family.toUpperCase()
+    : family.charAt(0).toUpperCase() + family.slice(1);
+};
 
 export const monitorStatusText = (monitor: MonitorWithDetail) => {
   if (monitor.status_text) return monitor.status_text;
@@ -16,7 +24,7 @@ export const monitorStatusText = (monitor: MonitorWithDetail) => {
 
 export const monitorDetail = (monitor: MonitorWithDetail) => monitor.status_detail ?? "-";
 
-export const MONITOR_COLUMNS = "12px minmax(0,1.2fr) 100px 120px minmax(0,1.6fr)";
+export const MONITOR_COLUMNS = "12px minmax(0,1.6fr) 76px 112px minmax(0,1.2fr)";
 
 export const MonitorCells = ({ monitor }: { monitor: MonitorWithDetail }) => {
   const health = monitorHealth(monitor);
