@@ -124,7 +124,9 @@ docker-dev-down:
 
 docker-dev-seed:
 	docker compose -f docker-compose.dev.yml build orion-core-seed
-	docker compose -f docker-compose.dev.yml run --rm orion-core-seed
+	docker compose -f docker-compose.dev.yml stop orion-core-worker
+	docker compose -f docker-compose.dev.yml run --rm orion-core-seed; status=$$?; \
+		docker compose -f docker-compose.dev.yml start orion-core-worker; exit $$status
 
 # Seed Core SQLite with 90 days of demo data for local UI/API testing
 seed-demo-data:
