@@ -7,6 +7,8 @@ This file defines the working boundaries for humans and coding agents in this re
 Commit finished product changes in this repository before ending the task unless the user explicitly
 asks not to commit or committing would capture unrelated or unsafe changes.
 
+Multi-agent work follows COORDINATION.md.
+
 ## Repository Map
 
 - `apps/agent/`: Orion Agent. Go daemon, CLI, config/state handling, collectors, registration, and transport to Core.
