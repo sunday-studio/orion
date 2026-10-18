@@ -67,6 +67,8 @@
   --tone-critical-fg: #ffffff;
   --tone-medium-bg: #fef9c3;
   --tone-medium-fg: #854d0e;
+  --control-from: #ffffff;
+  --control-to: #f7f7f8;
   --button-from: #2c9f6a;
   --button-to: #1f7a50;
   --button-border: #14573a;
@@ -117,6 +119,8 @@
   --tone-critical-fg: #ffffff;
   --tone-medium-bg: #422006;
   --tone-medium-fg: #fde047;
+  --control-from: #2a2a2e;
+  --control-to: #212125;
   --button-from: #207f53;
   --button-to: #1a6a45;
   --button-border: #3ecf8e;

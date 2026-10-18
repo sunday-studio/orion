@@ -1,5 +1,5 @@
 import { Select as SelectPrimitive } from "@base-ui/react/select";
-import { CheckIcon, ChevronDownIcon } from "lucide-react";
+import { CheckIcon } from "lucide-react";
 import { controlBase } from "@/design-system/styles";
 import { cn } from "@/utils/cn";
 
@@ -41,7 +41,7 @@ export const Select = ({
         data-slot="ds-select"
         className={cn(
           controlBase,
-          "flex h-[30px] min-w-40 items-center justify-between gap-2 rounded-lg border border-input-border bg-card px-3 text-[13px] text-ink",
+          "flex h-[30px] min-w-[120px] items-center justify-between gap-2 rounded-md border border-input-border bg-gradient-to-b from-(--control-from) to-(--control-to) px-2.5 text-[13px] font-medium text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_1px_2px_rgba(24,24,27,0.06)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_1px_2px_rgba(0,0,0,0.5)]",
           className,
         )}
       >
@@ -50,7 +50,10 @@ export const Select = ({
           {selected?.label ?? value}
         </span>
         <SelectPrimitive.Icon>
-          <ChevronDownIcon className="size-4 text-quiet" />
+          <span
+            aria-hidden
+            className="block size-1.5 -translate-y-px rotate-45 border-b-[1.5px] border-r-[1.5px] border-faint"
+          />
         </SelectPrimitive.Icon>
       </SelectPrimitive.Trigger>
       <SelectPrimitive.Portal>
