@@ -259,24 +259,71 @@ definitions:
       token_version:
         type: integer
     type: object
+  internal_api.AlertChannelDetailResponse:
+    properties:
+      alert:
+        description: 'Alert is set while the channel is failing: the banner text.'
+        type: string
+      channel:
+        $ref: '#/definitions/internal_api.AlertChannelResponse'
+      consecutive_failures:
+        type: integer
+      payload_preview:
+        allOf:
+        - $ref: '#/definitions/orion_core_internal_service.AlertPayload'
+        description: PayloadPreview is a sample of what a webhook receives.
+      recent_deliveries:
+        items:
+          $ref: '#/definitions/internal_api.AlertDeliveryResponse'
+        type: array
+      recent_total:
+        type: integer
+      rules_using:
+        items:
+          $ref: '#/definitions/internal_api.AlertRuleRef'
+        type: array
+    type: object
   internal_api.AlertChannelResponse:
     properties:
       confirmed_recipient_count:
         type: integer
+      consecutive_failures:
+        type: integer
       created_at:
+        type: string
+      email_delivery_mode:
+        type: string
+      email_subject_prefix:
         type: string
       enabled:
         type: boolean
+      header_names:
+        items:
+          type: string
+        type: array
+      health:
+        description: 'Health: failing (the newest delivery failed), healthy (it succeeded)
+          or untested (never delivered).'
+        enum:
+        - failing
+        - healthy
+        - untested
+        type: string
       id:
         type: string
       last_delivery_at:
         type: string
       last_delivery_status:
         type: string
+      last_delivery_text:
+        description: LastDeliveryText reads "3 failed, 502", "Sent" or "Never".
+        type: string
       name:
         type: string
       recipient_count:
         type: integer
+      signing_secret_mask:
+        type: string
       subscribed_events:
         items:
           type: string
@@ -292,6 +339,17 @@ definitions:
       webhook_url:
         type: string
     type: object
+  internal_api.AlertChannelSummary:
+    properties:
+      enabled:
+        type: boolean
+      id:
+        type: string
+      name:
+        type: string
+      type:
+        type: string
+    type: object
   internal_api.AlertDeliveryAttemptResponse:
     properties:
       alert_delivery_id:
@@ -302,9 +360,17 @@ definitions:
         type: string
       created_at:
         type: string
+      duration_ms:
+        type: integer
       error:
         type: string
+      http_status:
+        type: integer
       id:
+        type: string
+      result_text:
+        description: ResultText reads "502 Bad Gateway" or "Timeout"; HTTPStatus is
+          0 when no response arrived.
         type: string
       stage:
         type: string
@@ -315,9 +381,29 @@ definitions:
       updated_at:
         type: string
     type: object
+  internal_api.AlertDeliveryDetailResponse:
+    properties:
+      channel:
+        $ref: '#/definitions/internal_api.AlertChannelSummary'
+      delivery:
+        $ref: '#/definitions/internal_api.AlertDeliveryResponse'
+      payload:
+        $ref: '#/definitions/orion_core_internal_service.AlertPayload'
+      retry_note:
+        description: 'RetryNote repeats the screen''s promise: a retry resends the
+          same payload and creates no new record.'
+        type: string
+      retryable:
+        type: boolean
+    type: object
   internal_api.AlertDeliveryResponse:
     properties:
       alert_group_id:
+        type: string
+      alert_title:
+        description: |-
+          Filled on list and detail: the alert's title ("Critical down", the rule name), the incident's INC id,
+          the channel id, and the newest result ("502", "Timeout", "Sent") with how long the last attempt took.
         type: string
       attempt_count:
         type: integer
@@ -327,13 +413,19 @@ definitions:
         type: array
       channel:
         type: string
+      channel_id:
+        type: string
       created_at:
         type: string
+      duration_ms:
+        type: integer
       error:
         type: string
       event_type:
         type: string
       id:
+        type: string
+      incident_display_id:
         type: string
       incident_id:
         type: string
@@ -342,6 +434,8 @@ definitions:
       max_attempts:
         type: integer
       next_attempt_at:
+        type: string
+      result_text:
         type: string
       route_id:
         type: string
@@ -505,6 +599,15 @@ definitions:
       suppressed:
         type: boolean
     type: object
+  internal_api.AlertRuleRef:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      summary:
+        type: string
+    type: object
   internal_api.AlertRuleResponse:
     properties:
       agent_ids:
@@ -549,6 +652,37 @@ definitions:
         type: boolean
       updated_at:
         type: string
+    type: object
+  internal_api.AlertTestResult:
+    properties:
+      actual:
+        $ref: '#/definitions/internal_api.IncidentExpectation'
+      body:
+        type: string
+      duration_ms:
+        type: integer
+      expected:
+        $ref: '#/definitions/internal_api.IncidentExpectation'
+      hint:
+        type: string
+      passed:
+        type: boolean
+      recipients:
+        description: 'Recipients is set for email channels: confirmed addresses mailed
+          vs addresses skipped as unconfirmed.'
+        properties:
+          delivered:
+            type: integer
+          skipped:
+            type: integer
+        type: object
+      status:
+        enum:
+        - passed
+        - failed
+        type: string
+      status_code:
+        type: integer
     type: object
   internal_api.App:
     properties:
@@ -2774,6 +2908,24 @@ definitions:
       state:
         type: string
     type: object
+  internal_api.TestAlertChannelRequest:
+    properties:
+      headers:
+        additionalProperties:
+          type: string
+        type: object
+      signing_secret:
+        type: string
+      type:
+        enum:
+        - webhook
+        type: string
+      webhook_url:
+        type: string
+    required:
+    - type
+    - webhook_url
+    type: object
   internal_api.TestLogResponse:
     properties:
       accepted:
@@ -2823,8 +2975,19 @@ definitions:
     type: object
   internal_api.alertChannelRequest:
     properties:
+      email_delivery_mode:
+        description: EmailDeliveryMode is instant or digest_15m (email channels).
+        type: string
+      email_subject_prefix:
+        type: string
       enabled:
         type: boolean
+      headers:
+        additionalProperties:
+          type: string
+        description: Headers are custom webhook request headers; sending the field
+          replaces all of them. Values are never returned.
+        type: object
       name:
         type: string
       subscribed_events:
@@ -3235,6 +3398,75 @@ definitions:
       route_name:
         type: string
       status:
+        type: string
+    type: object
+  orion_core_internal_service.AlertPayload:
+    properties:
+      agent:
+        $ref: '#/definitions/orion_core_internal_service.AlertPayloadAgent'
+      delivered_at:
+        type: string
+      event_type:
+        type: string
+      incident:
+        $ref: '#/definitions/orion_core_internal_service.AlertPayloadIncident'
+      monitor:
+        $ref: '#/definitions/orion_core_internal_service.AlertPayloadMonitor'
+      summary:
+        $ref: '#/definitions/orion_core_internal_service.AlertPayloadSummary'
+      test:
+        type: boolean
+      version:
+        type: string
+    type: object
+  orion_core_internal_service.AlertPayloadAgent:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  orion_core_internal_service.AlertPayloadIncident:
+    properties:
+      agent_id:
+        type: string
+      id:
+        type: string
+      last_event_at:
+        type: string
+      latest_event:
+        type: string
+      monitor_id:
+        type: string
+      opened_at:
+        type: string
+      resolved_at:
+        type: string
+      severity:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+    type: object
+  orion_core_internal_service.AlertPayloadMonitor:
+    properties:
+      computed_health:
+        type: string
+      health:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      type:
+        type: string
+    type: object
+  orion_core_internal_service.AlertPayloadSummary:
+    properties:
+      text:
+        type: string
+      title:
         type: string
     type: object
   orion_core_internal_service.AlertRouteContext:
@@ -5625,6 +5857,45 @@ paths:
       summary: Delete alert channel
       tags:
       - alerts
+    get:
+      description: Channel configuration with masked secrets, header names, recent
+        deliveries (paged with limit and offset), and the rules that notify it.
+      operationId: getAlertChannel
+      parameters:
+      - description: Channel ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 10
+        description: Recent deliveries to return
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Recent deliveries to skip
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.AlertChannelDetailResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Get alert channel
+      tags:
+      - alerts
     patch:
       consumes:
       - application/json
@@ -5819,6 +6090,45 @@ paths:
       summary: Resend recipient confirmation
       tags:
       - alerts
+  /v1/alerts/channels/{id}/secret/regenerate:
+    post:
+      description: Replaces the signing secret and returns the new one once. Receivers
+        must be updated before the next delivery verifies.
+      operationId: regenerateAlertChannelSecret
+      parameters:
+      - description: Channel ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    channel:
+                      $ref: '#/definitions/internal_api.AlertChannelResponse'
+                    secret:
+                      type: string
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Regenerate a webhook signing secret
+      tags:
+      - alerts
   /v1/alerts/channels/{id}/test:
     post:
       consumes:
@@ -5858,6 +6168,43 @@ paths:
       summary: Test alert channel
       tags:
       - alerts
+  /v1/alerts/channels/test-run:
+    post:
+      consumes:
+      - application/json
+      description: Posts a sample payload to the URL (same URL policy as saving) and
+        returns the result. Nothing is stored. Limited to 20 runs per minute.
+      operationId: testRunAlertChannel
+      parameters:
+      - description: Webhook to test
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.TestAlertChannelRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.AlertTestResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Test an unsaved webhook
+      tags:
+      - alerts
   /v1/alerts/deliveries:
     get:
       consumes:
@@ -5869,7 +6216,7 @@ paths:
         in: query
         name: incident_id
         type: string
-      - description: Filter by delivery status
+      - description: Comma-separated delivery statuses (sent,failed,cooldown,suppressed,pending)
         in: query
         name: status
         type: string
@@ -5880,6 +6227,18 @@ paths:
       - description: Filter by delivery channel name
         in: query
         name: channel
+        type: string
+      - description: Filter by channel id
+        in: query
+        name: channel_id
+        type: string
+      - description: 'Only deliveries since: 1h, 24h, 7d style duration or RFC3339'
+        in: query
+        name: since
+        type: string
+      - description: Text search over channel, rule name and incident title
+        in: query
+        name: q
         type: string
       - description: Filter by alert event type
         in: query
@@ -5926,6 +6285,36 @@ paths:
           schema:
             $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: List alert deliveries
+      tags:
+      - alerts
+  /v1/alerts/deliveries/{id}:
+    get:
+      description: One delivery with its attempts (result, duration), the payload
+        that is or was sent, the channel and the incident's INC id.
+      operationId: getAlertDelivery
+      parameters:
+      - description: Delivery ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.AlertDeliveryDetailResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Get alert delivery
       tags:
       - alerts
   /v1/alerts/deliveries/{id}/retry:
@@ -5975,6 +6364,29 @@ paths:
       security:
       - BearerAuth: []
       summary: Retry an alert delivery
+      tags:
+      - alerts
+  /v1/alerts/payload-preview:
+    get:
+      operationId: getAlertPayloadPreview
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    payload:
+                      $ref: '#/definitions/orion_core_internal_service.AlertPayload'
+                    signature_header:
+                      type: string
+                  type: object
+              type: object
+      summary: Webhook payload preview
       tags:
       - alerts
   /v1/alerts/routes:

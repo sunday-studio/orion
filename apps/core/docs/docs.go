@@ -2975,7 +2975,126 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/alerts/channels/test-run": {
+            "post": {
+                "description": "Posts a sample payload to the URL (same URL policy as saving) and returns the result. Nothing is stored. Limited to 20 runs per minute.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Test an unsaved webhook",
+                "operationId": "testRunAlertChannel",
+                "parameters": [
+                    {
+                        "description": "Webhook to test",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.TestAlertChannelRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.AlertTestResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/alerts/channels/{id}": {
+            "get": {
+                "description": "Channel configuration with masked secrets, header names, recent deliveries (paged with limit and offset), and the rules that notify it.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Get alert channel",
+                "operationId": "getAlertChannel",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Channel ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Recent deliveries to return",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Recent deliveries to skip",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.AlertChannelDetailResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            },
             "delete": {
                 "description": "Delete an alert channel. Existing delivery history is preserved.",
                 "consumes": [
@@ -3324,6 +3443,68 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/alerts/channels/{id}/secret/regenerate": {
+            "post": {
+                "description": "Replaces the signing secret and returns the new one once. Receivers must be updated before the next delivery verifies.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Regenerate a webhook signing secret",
+                "operationId": "regenerateAlertChannelSecret",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Channel ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "channel": {
+                                                    "$ref": "#/definitions/internal_api.AlertChannelResponse"
+                                                },
+                                                "secret": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/alerts/channels/{id}/test": {
             "post": {
                 "description": "Send a manual test notification through a configured generic webhook alert channel.",
@@ -3409,7 +3590,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter by delivery status",
+                        "description": "Comma-separated delivery statuses (sent,failed,cooldown,suppressed,pending)",
                         "name": "status",
                         "in": "query"
                     },
@@ -3423,6 +3604,24 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Filter by delivery channel name",
                         "name": "channel",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by channel id",
+                        "name": "channel_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only deliveries since: 1h, 24h, 7d style duration or RFC3339",
+                        "name": "since",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Text search over channel, rule name and incident title",
+                        "name": "q",
                         "in": "query"
                     },
                     {
@@ -3488,6 +3687,54 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/alerts/deliveries/{id}": {
+            "get": {
+                "description": "One delivery with its attempts (result, duration), the payload that is or was sent, the channel and the incident's INC id.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Get alert delivery",
+                "operationId": "getAlertDelivery",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Delivery ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.AlertDeliveryDetailResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
@@ -3569,6 +3816,46 @@ const docTemplate = `{
                         "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/alerts/payload-preview": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Webhook payload preview",
+                "operationId": "getAlertPayloadPreview",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "payload": {
+                                                    "$ref": "#/definitions/orion_core_internal_service.AlertPayload"
+                                                },
+                                                "signature_header": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -12919,17 +13206,79 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.AlertChannelDetailResponse": {
+            "type": "object",
+            "properties": {
+                "alert": {
+                    "description": "Alert is set while the channel is failing: the banner text.",
+                    "type": "string"
+                },
+                "channel": {
+                    "$ref": "#/definitions/internal_api.AlertChannelResponse"
+                },
+                "consecutive_failures": {
+                    "type": "integer"
+                },
+                "payload_preview": {
+                    "description": "PayloadPreview is a sample of what a webhook receives.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/orion_core_internal_service.AlertPayload"
+                        }
+                    ]
+                },
+                "recent_deliveries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.AlertDeliveryResponse"
+                    }
+                },
+                "recent_total": {
+                    "type": "integer"
+                },
+                "rules_using": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.AlertRuleRef"
+                    }
+                }
+            }
+        },
         "internal_api.AlertChannelResponse": {
             "type": "object",
             "properties": {
                 "confirmed_recipient_count": {
                     "type": "integer"
                 },
+                "consecutive_failures": {
+                    "type": "integer"
+                },
                 "created_at": {
+                    "type": "string"
+                },
+                "email_delivery_mode": {
+                    "type": "string"
+                },
+                "email_subject_prefix": {
                     "type": "string"
                 },
                 "enabled": {
                     "type": "boolean"
+                },
+                "header_names": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "health": {
+                    "description": "Health: failing (the newest delivery failed), healthy (it succeeded) or untested (never delivered).",
+                    "type": "string",
+                    "enum": [
+                        "failing",
+                        "healthy",
+                        "untested"
+                    ]
                 },
                 "id": {
                     "type": "string"
@@ -12940,11 +13289,18 @@ const docTemplate = `{
                 "last_delivery_status": {
                     "type": "string"
                 },
+                "last_delivery_text": {
+                    "description": "LastDeliveryText reads \"3 failed, 502\", \"Sent\" or \"Never\".",
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
                 "recipient_count": {
                     "type": "integer"
+                },
+                "signing_secret_mask": {
+                    "type": "string"
                 },
                 "subscribed_events": {
                     "type": "array",
@@ -12969,6 +13325,23 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.AlertChannelSummary": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_api.AlertDeliveryAttemptResponse": {
             "type": "object",
             "properties": {
@@ -12984,10 +13357,20 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "duration_ms": {
+                    "type": "integer"
+                },
                 "error": {
                     "type": "string"
                 },
+                "http_status": {
+                    "type": "integer"
+                },
                 "id": {
+                    "type": "string"
+                },
+                "result_text": {
+                    "description": "ResultText reads \"502 Bad Gateway\" or \"Timeout\"; HTTPStatus is 0 when no response arrived.",
                     "type": "string"
                 },
                 "stage": {
@@ -13004,10 +13387,35 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.AlertDeliveryDetailResponse": {
+            "type": "object",
+            "properties": {
+                "channel": {
+                    "$ref": "#/definitions/internal_api.AlertChannelSummary"
+                },
+                "delivery": {
+                    "$ref": "#/definitions/internal_api.AlertDeliveryResponse"
+                },
+                "payload": {
+                    "$ref": "#/definitions/orion_core_internal_service.AlertPayload"
+                },
+                "retry_note": {
+                    "description": "RetryNote repeats the screen's promise: a retry resends the same payload and creates no new record.",
+                    "type": "string"
+                },
+                "retryable": {
+                    "type": "boolean"
+                }
+            }
+        },
         "internal_api.AlertDeliveryResponse": {
             "type": "object",
             "properties": {
                 "alert_group_id": {
+                    "type": "string"
+                },
+                "alert_title": {
+                    "description": "Filled on list and detail: the alert's title (\"Critical down\", the rule name), the incident's INC id,\nthe channel id, and the newest result (\"502\", \"Timeout\", \"Sent\") with how long the last attempt took.",
                     "type": "string"
                 },
                 "attempt_count": {
@@ -13022,8 +13430,14 @@ const docTemplate = `{
                 "channel": {
                     "type": "string"
                 },
+                "channel_id": {
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
+                },
+                "duration_ms": {
+                    "type": "integer"
                 },
                 "error": {
                     "type": "string"
@@ -13032,6 +13446,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "id": {
+                    "type": "string"
+                },
+                "incident_display_id": {
                     "type": "string"
                 },
                 "incident_id": {
@@ -13044,6 +13461,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "next_attempt_at": {
+                    "type": "string"
+                },
+                "result_text": {
                     "type": "string"
                 },
                 "route_id": {
@@ -13293,6 +13713,20 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.AlertRuleRef": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "summary": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_api.AlertRuleResponse": {
             "type": "object",
             "properties": {
@@ -13358,6 +13792,51 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_api.AlertTestResult": {
+            "type": "object",
+            "properties": {
+                "actual": {
+                    "$ref": "#/definitions/internal_api.IncidentExpectation"
+                },
+                "body": {
+                    "type": "string"
+                },
+                "duration_ms": {
+                    "type": "integer"
+                },
+                "expected": {
+                    "$ref": "#/definitions/internal_api.IncidentExpectation"
+                },
+                "hint": {
+                    "type": "string"
+                },
+                "passed": {
+                    "type": "boolean"
+                },
+                "recipients": {
+                    "description": "Recipients is set for email channels: confirmed addresses mailed vs addresses skipped as unconfirmed.",
+                    "type": "object",
+                    "properties": {
+                        "delivered": {
+                            "type": "integer"
+                        },
+                        "skipped": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "passed",
+                        "failed"
+                    ]
+                },
+                "status_code": {
+                    "type": "integer"
                 }
             }
         },
@@ -16594,6 +17073,33 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.TestAlertChannelRequest": {
+            "type": "object",
+            "required": [
+                "type",
+                "webhook_url"
+            ],
+            "properties": {
+                "headers": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "signing_secret": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "webhook"
+                    ]
+                },
+                "webhook_url": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_api.TestLogResponse": {
             "type": "object",
             "properties": {
@@ -16668,8 +17174,22 @@ const docTemplate = `{
         "internal_api.alertChannelRequest": {
             "type": "object",
             "properties": {
+                "email_delivery_mode": {
+                    "description": "EmailDeliveryMode is instant or digest_15m (email channels).",
+                    "type": "string"
+                },
+                "email_subject_prefix": {
+                    "type": "string"
+                },
                 "enabled": {
                     "type": "boolean"
+                },
+                "headers": {
+                    "description": "Headers are custom webhook request headers; sending the field replaces all of them. Values are never returned.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "name": {
                     "type": "string"
@@ -17292,6 +17812,112 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "orion_core_internal_service.AlertPayload": {
+            "type": "object",
+            "properties": {
+                "agent": {
+                    "$ref": "#/definitions/orion_core_internal_service.AlertPayloadAgent"
+                },
+                "delivered_at": {
+                    "type": "string"
+                },
+                "event_type": {
+                    "type": "string"
+                },
+                "incident": {
+                    "$ref": "#/definitions/orion_core_internal_service.AlertPayloadIncident"
+                },
+                "monitor": {
+                    "$ref": "#/definitions/orion_core_internal_service.AlertPayloadMonitor"
+                },
+                "summary": {
+                    "$ref": "#/definitions/orion_core_internal_service.AlertPayloadSummary"
+                },
+                "test": {
+                    "type": "boolean"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "orion_core_internal_service.AlertPayloadAgent": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "orion_core_internal_service.AlertPayloadIncident": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_event_at": {
+                    "type": "string"
+                },
+                "latest_event": {
+                    "type": "string"
+                },
+                "monitor_id": {
+                    "type": "string"
+                },
+                "opened_at": {
+                    "type": "string"
+                },
+                "resolved_at": {
+                    "type": "string"
+                },
+                "severity": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "orion_core_internal_service.AlertPayloadMonitor": {
+            "type": "object",
+            "properties": {
+                "computed_health": {
+                    "type": "string"
+                },
+                "health": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "orion_core_internal_service.AlertPayloadSummary": {
+            "type": "object",
+            "properties": {
+                "text": {
+                    "type": "string"
+                },
+                "title": {
                     "type": "string"
                 }
             }

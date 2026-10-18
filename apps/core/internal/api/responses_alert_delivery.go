@@ -42,7 +42,7 @@ func alertDeliveryResponses(deliveries []db.AlertDelivery) []AlertDeliveryRespon
 	return responses
 }
 func alertDeliveryAttemptResponse(attempt db.AlertDeliveryAttempt) AlertDeliveryAttemptResponse {
-	return AlertDeliveryAttemptResponse{ID: attempt.ID, AlertDeliveryID: attempt.AlertDeliveryID, AttemptNumber: attempt.AttemptNumber, Status: attempt.Status, Stage: attempt.Stage, Error: safeAlertDeliveryError(attempt.Error), StartedAt: attempt.StartedAt, CompletedAt: attempt.CompletedAt, CreatedAt: attempt.CreatedAt, UpdatedAt: attempt.UpdatedAt}
+	return enrichAttemptResponse(attempt, AlertDeliveryAttemptResponse{ID: attempt.ID, AlertDeliveryID: attempt.AlertDeliveryID, AttemptNumber: attempt.AttemptNumber, Status: attempt.Status, Stage: attempt.Stage, Error: safeAlertDeliveryError(attempt.Error), StartedAt: attempt.StartedAt, CompletedAt: attempt.CompletedAt, CreatedAt: attempt.CreatedAt, UpdatedAt: attempt.UpdatedAt})
 }
 func alertDeliveryAttemptResponses(attempts []db.AlertDeliveryAttempt) []AlertDeliveryAttemptResponse {
 	responses := make([]AlertDeliveryAttemptResponse, 0, len(attempts))

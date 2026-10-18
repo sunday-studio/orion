@@ -26,12 +26,15 @@ type AlertDelivery struct {
 }
 
 type AlertDeliveryAttempt struct {
-	ID              string     `json:"id" gorm:"primaryKey;type:varchar(255)"`
-	AlertDeliveryID string     `json:"alert_delivery_id" gorm:"index:idx_alert_delivery_attempts_delivery_id;not null"`
-	AttemptNumber   int        `json:"attempt_number" gorm:"not null;index:idx_alert_delivery_attempts_delivery_number"`
-	Status          string     `json:"status" gorm:"not null"` // pending | sent | failed
-	Stage           string     `json:"stage" gorm:"not null"`  // load_incident | serialize | http_request | http_response | channel_lookup | transport
-	Error           string     `json:"error" gorm:"type:text"`
+	ID              string `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	AlertDeliveryID string `json:"alert_delivery_id" gorm:"index:idx_alert_delivery_attempts_delivery_id;not null"`
+	AttemptNumber   int    `json:"attempt_number" gorm:"not null;index:idx_alert_delivery_attempts_delivery_number"`
+	Status          string `json:"status" gorm:"not null"` // pending | sent | failed
+	Stage           string `json:"stage" gorm:"not null"`  // load_incident | serialize | http_request | http_response | channel_lookup | transport
+	Error           string `json:"error" gorm:"type:text"`
+	// HTTPStatus is the webhook response code (0 when none was received); ResponseSnippet its first bytes.
+	HTTPStatus      int        `json:"http_status" gorm:"not null;default:0"`
+	ResponseSnippet string     `json:"-" gorm:"type:text;not null;default:''"`
 	StartedAt       time.Time  `json:"started_at" gorm:"not null;index:idx_alert_delivery_attempts_started_at"`
 	CompletedAt     *time.Time `json:"completed_at"`
 	CreatedAt       time.Time  `json:"created_at"`
@@ -81,15 +84,20 @@ type AlertRoute struct {
 }
 
 type AlertChannel struct {
-	ID                   string    `json:"id" gorm:"primaryKey;type:varchar(255)"`
-	Name                 string    `json:"name" gorm:"uniqueIndex;not null"`
-	Type                 string    `json:"type" gorm:"not null"` // webhook
-	Enabled              bool      `json:"enabled" gorm:"not null"`
-	WebhookURL           string    `json:"webhook_url" gorm:"type:text"`
-	WebhookSigningSecret string    `json:"webhook_signing_secret" gorm:"type:text"`
-	SubscribedEvents     string    `json:"subscribed_events" gorm:"type:text"`
-	CreatedAt            time.Time `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
+	ID                   string `json:"id" gorm:"primaryKey;type:varchar(255)"`
+	Name                 string `json:"name" gorm:"uniqueIndex;not null"`
+	Type                 string `json:"type" gorm:"not null"` // webhook
+	Enabled              bool   `json:"enabled" gorm:"not null"`
+	WebhookURL           string `json:"webhook_url" gorm:"type:text"`
+	WebhookSigningSecret string `json:"webhook_signing_secret" gorm:"type:text"`
+	// HeadersJSON holds custom webhook request headers as a JSON object; values are never returned by the API.
+	HeadersJSON string `json:"-" gorm:"type:text;not null;default:'{}'"`
+	// EmailDeliveryMode is instant, or digest_15m (non-critical alerts wait for the next 15 minute mark).
+	EmailDeliveryMode  string    `json:"email_delivery_mode" gorm:"not null;default:instant"`
+	EmailSubjectPrefix string    `json:"email_subject_prefix" gorm:"not null;default:''"`
+	SubscribedEvents   string    `json:"subscribed_events" gorm:"type:text"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
 }
 
 // AlertChannelRecipient is one address on an email alert channel. Alerts go only to

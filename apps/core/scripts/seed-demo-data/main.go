@@ -108,6 +108,7 @@ func main() {
 	fmt.Printf("  agent reports: %d\n", stats.agentReports)
 	fmt.Printf("  monitor reports: %d\n", stats.monitorReports)
 	fmt.Printf("  incidents: %d\n", stats.incidents)
+	fmt.Printf("  alert channels: %d, recipients: %d, rules: %d, delivery attempts: %d\n", stats.alertDetails.channels, stats.alertDetails.recipients, stats.alertDetails.rules, stats.alertDetails.attempts)
 	fmt.Printf("  incident candidates: %d (+%d dismissed), notes: %d, responders: %d, declared: %d\n", stats.incidentExtras.candidates, stats.incidentExtras.dismissed, stats.incidentExtras.notes, stats.incidentExtras.responders, stats.incidentExtras.declared)
 	fmt.Printf("  incident events: %d\n", stats.incidentEvents)
 	fmt.Printf("  alert deliveries: %d\n", stats.alertDeliveries)
@@ -130,6 +131,7 @@ type seedStats struct {
 	monitorReports           int
 	incidents                int
 	incidentExtras           incidentExtraStats
+	alertDetails             alertDetailStats
 	incidentEvents           int
 	alertDeliveries          int
 	rollups                  int
@@ -203,6 +205,18 @@ func resetSeedData(database *gorm.DB) error {
 		query := database.Exec(fmt.Sprintf("DELETE FROM %s WHERE id LIKE ?", table), "seed-%")
 		if query.Error != nil {
 			return query.Error
+		}
+	}
+
+	for _, statement := range []string{
+		"DELETE FROM alert_delivery_attempts WHERE alert_delivery_id LIKE 'seed-%'",
+		"DELETE FROM alert_delivery_recipients WHERE delivery_id LIKE 'seed-%'",
+		"DELETE FROM alert_channel_recipients WHERE id LIKE 'seed-%'",
+		"DELETE FROM alert_routes WHERE id LIKE 'seed-%'",
+		"DELETE FROM alert_channels WHERE id LIKE 'seed-%'",
+	} {
+		if err := database.Exec(statement).Error; err != nil {
+			return err
 		}
 	}
 
@@ -349,6 +363,11 @@ func seed(database *gorm.DB, cfg seedConfig) (seedStats, error) {
 	if err != nil {
 		return stats, err
 	}
+	alertStats, err := seedAlertDetails(database, now)
+	if err != nil {
+		return stats, err
+	}
+	stats.alertDetails = alertStats
 	extraStats, err := seedIncidentExtras(database, allMonitors, monitorToAgent, monitorToScenario, now)
 	if err != nil {
 		return stats, err

@@ -309,21 +309,32 @@ type AlertDeliveryResponse struct {
 	NextAttemptAt *time.Time                     `json:"next_attempt_at,omitempty"`
 	LastAttemptAt *time.Time                     `json:"last_attempt_at,omitempty"`
 	Attempts      []AlertDeliveryAttemptResponse `json:"attempts"`
-	CreatedAt     time.Time                      `json:"created_at"`
-	UpdatedAt     time.Time                      `json:"updated_at"`
+	// Filled on list and detail: the alert's title ("Critical down", the rule name), the incident's INC id,
+	// the channel id, and the newest result ("502", "Timeout", "Sent") with how long the last attempt took.
+	AlertTitle        string    `json:"alert_title,omitempty"`
+	IncidentDisplayID string    `json:"incident_display_id,omitempty"`
+	ChannelID         string    `json:"channel_id,omitempty"`
+	ResultText        string    `json:"result_text,omitempty"`
+	DurationMs        *int64    `json:"duration_ms,omitempty"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
 }
 
 type AlertDeliveryAttemptResponse struct {
-	ID              string     `json:"id"`
-	AlertDeliveryID string     `json:"alert_delivery_id"`
-	AttemptNumber   int        `json:"attempt_number"`
-	Status          string     `json:"status"`
-	Stage           string     `json:"stage"`
-	Error           string     `json:"error,omitempty"`
-	StartedAt       time.Time  `json:"started_at"`
-	CompletedAt     *time.Time `json:"completed_at,omitempty"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	ID              string `json:"id"`
+	AlertDeliveryID string `json:"alert_delivery_id"`
+	AttemptNumber   int    `json:"attempt_number"`
+	Status          string `json:"status"`
+	Stage           string `json:"stage"`
+	Error           string `json:"error,omitempty"`
+	// ResultText reads "502 Bad Gateway" or "Timeout"; HTTPStatus is 0 when no response arrived.
+	ResultText  string     `json:"result_text,omitempty"`
+	HTTPStatus  int        `json:"http_status,omitempty"`
+	DurationMs  *int64     `json:"duration_ms,omitempty"`
+	StartedAt   time.Time  `json:"started_at"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 type AlertRouteResponse struct {
@@ -345,20 +356,29 @@ type AlertRouteResponse struct {
 }
 
 type AlertChannelResponse struct {
-	ID                         string     `json:"id"`
-	Name                       string     `json:"name"`
-	Type                       string     `json:"type"`
-	Enabled                    bool       `json:"enabled"`
-	WebhookURL                 string     `json:"webhook_url,omitempty"`
-	WebhookConfigured          bool       `json:"webhook_configured,omitempty"`
-	WebhookSignatureConfigured bool       `json:"webhook_signature_configured,omitempty"`
-	RecipientCount             int64      `json:"recipient_count,omitempty"`
-	ConfirmedRecipientCount    int64      `json:"confirmed_recipient_count,omitempty"`
-	SubscribedEvents           []string   `json:"subscribed_events"`
-	LastDeliveryStatus         string     `json:"last_delivery_status,omitempty"`
-	LastDeliveryAt             *time.Time `json:"last_delivery_at,omitempty"`
-	CreatedAt                  time.Time  `json:"created_at"`
-	UpdatedAt                  time.Time  `json:"updated_at"`
+	ID                         string   `json:"id"`
+	Name                       string   `json:"name"`
+	Type                       string   `json:"type"`
+	Enabled                    bool     `json:"enabled"`
+	WebhookURL                 string   `json:"webhook_url,omitempty"`
+	WebhookConfigured          bool     `json:"webhook_configured,omitempty"`
+	WebhookSignatureConfigured bool     `json:"webhook_signature_configured,omitempty"`
+	RecipientCount             int64    `json:"recipient_count,omitempty"`
+	ConfirmedRecipientCount    int64    `json:"confirmed_recipient_count,omitempty"`
+	SubscribedEvents           []string `json:"subscribed_events"`
+	// Health: failing (the newest delivery failed), healthy (it succeeded) or untested (never delivered).
+	Health              string `json:"health" enums:"failing,healthy,untested"`
+	ConsecutiveFailures int    `json:"consecutive_failures"`
+	// LastDeliveryText reads "3 failed, 502", "Sent" or "Never".
+	LastDeliveryText   string     `json:"last_delivery_text"`
+	HeaderNames        []string   `json:"header_names"`
+	SigningSecretMask  string     `json:"signing_secret_mask,omitempty"`
+	EmailDeliveryMode  string     `json:"email_delivery_mode,omitempty"`
+	EmailSubjectPrefix string     `json:"email_subject_prefix,omitempty"`
+	LastDeliveryStatus string     `json:"last_delivery_status,omitempty"`
+	LastDeliveryAt     *time.Time `json:"last_delivery_at,omitempty"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
 }
 
 type AlertRuleResponse struct {
