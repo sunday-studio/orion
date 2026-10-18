@@ -82,7 +82,7 @@ const detail = (overrides: Record<string, unknown> = {}) => ({
   ],
 });
 
-const mocks = (overrides: Record<string, unknown> = {}) => [
+const mocks = (overrides: Record<string, unknown> = {}, titleRequired = false) => [
   {
     pattern: /\/v1\/overview$/,
     body: { state: "issues", ongoing_incident_count: 2, health_issue_count: 0, stats: {} },
@@ -95,8 +95,17 @@ const mocks = (overrides: Record<string, unknown> = {}) => [
     body: { entries: Array.from({ length: 14 }, (_, i) => ({ id: `l${i}`, body: "log" })) },
   },
   {
-    pattern: /\/v1\/incidents\/inc-231\/public/,
-    body: { targets: [{ status_page_id: "p1", title: "Example Status", subscriber_count: 128 }] },
+    pattern: /\/v1\/incidents\/inc-231\/public-update$/,
+    body: {
+      targets: [
+        {
+          status_page_id: "p1",
+          title: "Example Status",
+          subscriber_count: 128,
+          title_required: titleRequired,
+        },
+      ],
+    },
   },
 ];
 
@@ -134,4 +143,62 @@ test("Incident detail posts a note and assigns a responder", async ({ page }) =>
   await page.getByLabel("Responder").fill("sam");
   await page.getByRole("button", { name: "Save" }).click();
   await expect.poll(() => bodies.responder).toEqual({ name: "sam" });
+});
+
+const okRoute = (body: unknown = {}) => ({
+  contentType: "application/json",
+  body: JSON.stringify({ success: true, data: body }),
+});
+
+test("Incident dialogs send acknowledge, cover and public update payloads", async ({ page }) => {
+  await freezeClock(page, "2025-10-16T14:32:20Z");
+  await mockApi(page, [
+    ...mocks({}, true),
+    {
+      pattern: /\/v1\/incidents$/,
+      body: {
+        count: 2,
+        incidents: [
+          incident,
+          { id: "inc-229", display_id: "INC-0229", title: "Load balancer degraded" },
+        ],
+      },
+    },
+  ]);
+  const bodies: Record<
+    string,
+    { note?: string; covered_by?: string; title?: string; status?: string }
+  > = {};
+  for (const name of ["acknowledge", "cover", "public-updates"]) {
+    await page.route(new RegExp(`/v1/incidents/inc-231/${name}$`), async (route) => {
+      bodies[name] = route.request().postDataJSON();
+      await route.fulfill(okRoute({}));
+    });
+  }
+  await page.goto("/incidents/inc-231");
+
+  await page.getByRole("button", { name: "Acknowledge" }).click();
+  await expect(page.getByText("Tell the team you are on it.")).toBeVisible();
+  await page.getByLabel("Note, optional").fill("Checking the load balancer.");
+  await page.getByRole("dialog").getByRole("button", { name: "Acknowledge" }).click();
+  await expect.poll(() => bodies.acknowledge?.note).toBe("Checking the load balancer.");
+
+  await page.getByRole("button", { name: "Cover" }).click();
+  await page.getByRole("combobox", { name: "Covered by" }).click();
+  await page.getByRole("option", { name: /INC-0229/ }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Cover" }).click();
+  await expect.poll(() => bodies.cover?.covered_by).toBe("inc-229");
+
+  await page.getByRole("button", { name: "Draft update" }).click();
+  await expect(page.getByText("No public incident exists for INC-0231 yet.")).toBeVisible();
+  await page.getByLabel("Public title").fill("Elevated API errors");
+  await page.getByRole("radio", { name: "Identified" }).click();
+  await page.getByLabel("Message").fill("We found the cause.");
+  await page.getByRole("button", { name: "Post update" }).click();
+  await expect
+    .poll(() => bodies["public-updates"])
+    .toMatchObject({
+      title: "Elevated API errors",
+      status: "identified",
+    });
 });
