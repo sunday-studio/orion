@@ -9,6 +9,10 @@ import {
 } from "@tanstack/react-table";
 import { useMemo } from "react";
 import { Button } from "@/design-system/components/button";
+import {
+  ListPagination,
+  type ListPaginationProps,
+} from "@/design-system/components/list-pagination";
 import { EmptyState } from "@/design-system/components/empty-state";
 import { Skeleton } from "@/design-system/components/skeleton";
 import {
@@ -36,9 +40,9 @@ export type DataTableProps<TData> = {
   sort?: string;
   onSortChange?: (sort: string) => void;
   dense?: boolean;
-  /** Vertical rules between columns. On by default; pass false for a plain table. */
-  columnDividers?: boolean;
   rowClassName?: (row: Row<TData>) => string | undefined;
+  /** Pagination footer, drawn inside the table container. */
+  pagination?: ListPaginationProps;
 };
 
 const parseSort = (sort: string): SortingState => {
@@ -64,8 +68,8 @@ export function DataTable<TData>({
   sort = "",
   onSortChange,
   dense = false,
-  columnDividers = true,
   rowClassName,
+  pagination,
 }: DataTableProps<TData>) {
   const sorting = useMemo(() => parseSort(sort), [sort]);
   const table = useReactTable({
@@ -113,8 +117,8 @@ export function DataTable<TData>({
 
   const cellHeight = dense ? "h-[30px]" : undefined;
 
-  return (
-    <Table aria-busy={isLoading} dividers={columnDividers}>
+  const tableEl = (
+    <Table aria-busy={isLoading}>
       <TableHeader>
         {table.getHeaderGroups().map((group) => (
           <TableRow key={group.id} className="hover:bg-transparent">
@@ -189,5 +193,13 @@ export function DataTable<TData>({
             ))}
       </TableBody>
     </Table>
+  );
+
+  if (!pagination) return tableEl;
+  return (
+    <div className="overflow-hidden rounded-xl border border-hairline bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+      {tableEl}
+      {!isLoading && <ListPagination {...pagination} />}
+    </div>
   );
 }

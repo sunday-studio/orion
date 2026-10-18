@@ -1,12 +1,4 @@
-import {
-  DataTable,
-  ListPagination,
-  TabCount,
-  Tabs,
-  TabsList,
-  TabsPanel,
-  TabsTab,
-} from "@/design-system";
+import { DataTable, TabCount, Tabs, TabsList, TabsPanel, TabsTab } from "@/design-system";
 import { HeartbeatSetupPanel } from "@/features/monitors/components/heartbeat-setup-panel";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { cn } from "@/utils/cn";
@@ -88,6 +80,13 @@ export const MonitorDetailOperationalData = ({
           {Boolean(historyError) && <div className="text-sm">Unable to load check history.</div>}
           {!historyError && (
             <DataTable
+              pagination={{
+                count: reportCount,
+                limit: historyLimit,
+                offset: historyOffset,
+                onLimitChange: onHistoryLimitChange,
+                onOffsetChange: onHistoryOffsetChange,
+              }}
               columns={historyColumns}
               data={reports}
               emptyMessage="No check history recorded."
@@ -96,15 +95,6 @@ export const MonitorDetailOperationalData = ({
               }
               isLoading={historyLoading}
               onRowClick={onReportClick}
-            />
-          )}
-          {reportCount > 0 && (
-            <ListPagination
-              count={reportCount}
-              limit={historyLimit}
-              offset={historyOffset}
-              onLimitChange={onHistoryLimitChange}
-              onOffsetChange={onHistoryOffsetChange}
             />
           )}
         </div>

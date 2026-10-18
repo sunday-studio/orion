@@ -1,14 +1,6 @@
 import { Download, Plus, Search } from "lucide-react";
 import { useState } from "react";
-import {
-  Button,
-  EmptyState,
-  Input,
-  ListPagination,
-  PageHeader,
-  Skeleton,
-  usePageSize,
-} from "@/design-system";
+import { Button, EmptyState, Input, PageHeader, Skeleton, usePageSize } from "@/design-system";
 import { exportIncidentsCSV, useGetIncidents } from "@/orion-sdk";
 import type { NumberedIncident } from "./incident-format";
 import { DeclareIncidentDialog } from "./list/declare-incident-dialog";
@@ -171,19 +163,16 @@ export const IncidentsPage = () => {
             now={now}
             hiddenResolved={hiddenResolved}
             onShowResolved={() => filters.setStatuses([...statuses, "resolved"])}
+            pagination={{
+              count: total,
+              limit,
+              offset,
+              onOffsetChange: (next) => filters.setPage(Math.floor(next / limit) + 1),
+              onLimitChange: setLimit,
+            }}
           />
         )}
       </div>
-      {!isEmptyHistory && total > 0 && (
-        <ListPagination
-          count={total}
-          limit={limit}
-          offset={offset}
-          onOffsetChange={(next) => filters.setPage(Math.floor(next / limit) + 1)}
-          onLimitChange={setLimit}
-          className="mt-2"
-        />
-      )}
       {selected.size > 0 && (
         <IncidentBulkBar ids={Array.from(selected)} onClear={() => setSelected(new Set())} />
       )}

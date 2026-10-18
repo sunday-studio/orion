@@ -2,7 +2,7 @@ import { Button } from "@/design-system/components/button";
 import { Select } from "@/design-system/components/select";
 import { cn } from "@/utils/cn";
 
-type ListPaginationProps = {
+export type ListPaginationProps = {
   /** Total number of rows matching the query (from Core's `count` or `pagination.total_items`). */
   count: number;
   limit: number;
@@ -36,29 +36,28 @@ export const ListPagination = ({
   return (
     <div
       className={cn(
-        "sticky bottom-0 z-10 flex min-h-9 flex-wrap items-center justify-between gap-3 bg-page/95 px-3 text-sm backdrop-blur",
+        "flex flex-wrap items-center justify-between gap-3 border-t border-line-soft px-3.5 py-2 text-[12.5px] text-quiet",
         className,
       )}
     >
-      <span className="text-quiet tabular-nums">
-        {pageStart} - {pageEnd} of {count}
+      <span className="tabular-nums">
+        Showing {pageStart} to {pageEnd} of {count}
       </span>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1.5">
         {onLimitChange && (
-          <div className="flex items-center gap-2 text-quiet">
-            <span className="hidden sm:inline">Rows per page</span>
+          <>
             <Select
               aria-label="Rows per page"
-              className="w-[72px]"
-              options={sizes.map((size) => ({ value: String(size), label: String(size) }))}
+              className="h-6 min-w-20 rounded-md px-2 text-xs"
+              options={sizes.map((size) => ({ value: String(size), label: `${size} rows` }))}
               value={String(limit)}
               onValueChange={(value) => onLimitChange(Number(value))}
             />
-          </div>
+          </>
         )}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <Button
-            variant="ghost"
+            variant="secondary"
             size="sm"
             disabled={!canGoBack}
             onClick={() => onOffsetChange(Math.max(0, offset - limit))}
@@ -66,7 +65,7 @@ export const ListPagination = ({
             Previous
           </Button>
           <Button
-            variant="ghost"
+            variant="secondary"
             size="sm"
             disabled={!canGoForward}
             onClick={() => onOffsetChange(offset + limit)}

@@ -1,4 +1,4 @@
-import { DataTable, ListPagination, usePageSize } from "@/design-system";
+import { DataTable, usePageSize } from "@/design-system";
 import { ReportInspectionDrawer } from "@/features/report-inspection/components/report-inspection-drawer";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { type ApiAgentReportResponse, useGetAgentReports } from "@/orion-sdk";
@@ -62,6 +62,13 @@ export const AgentLogsTab = ({ agentId }: AgentLogsTabProps) => {
       {reportsQuery.error && <div className="text-sm">Unable to load reports.</div>}
       {!reportsQuery.error && (
         <DataTable
+          pagination={{
+            onLimitChange: setPageSize,
+            count: count,
+            limit: pageSize,
+            offset: offset,
+            onOffsetChange: setOffset,
+          }}
           columns={agentLogColumns}
           data={reports}
           emptyMessage="No reports recorded"
@@ -70,15 +77,7 @@ export const AgentLogsTab = ({ agentId }: AgentLogsTabProps) => {
           onRowClick={setSelectedReport}
         />
       )}
-      {count > 0 && (
-        <ListPagination
-          onLimitChange={setPageSize}
-          count={count}
-          limit={pageSize}
-          offset={offset}
-          onOffsetChange={setOffset}
-        />
-      )}
+
       <ReportInspectionDrawer
         kind="agent"
         report={selectedReport}

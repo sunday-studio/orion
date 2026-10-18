@@ -3,7 +3,6 @@ import {
   type DataTableFilterField,
   DataTableLink,
   FilterBar,
-  ListPagination,
   StatusBadge,
   usePageSize,
 } from "@/design-system";
@@ -341,6 +340,13 @@ export const MonitorList = ({ workerDiagnostics }: MonitorListProps) => {
       </div>
       <div className="mt-2">
         <DataTable
+          pagination={{
+            onLimitChange: setPageSize,
+            count: count,
+            limit: pageSize,
+            offset: offset,
+            onOffsetChange: setOffset,
+          }}
           columns={monitorColumns(workerDiagnostics)}
           data={monitors}
           emptyMessage={
@@ -359,15 +365,6 @@ export const MonitorList = ({ workerDiagnostics }: MonitorListProps) => {
           onResetFilters={hasFilters ? clearFilters : undefined}
         />
       </div>
-      {count > 0 && (
-        <ListPagination
-          onLimitChange={setPageSize}
-          count={count}
-          limit={pageSize}
-          offset={offset}
-          onOffsetChange={setOffset}
-        />
-      )}
     </div>
   );
 };
