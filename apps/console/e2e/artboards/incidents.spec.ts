@@ -4,6 +4,7 @@ import { expectMatchesArtboard, freezeClock, mockApi } from "./support";
 test.use({ timezoneId: "UTC", viewport: { width: 1280, height: 508 } });
 
 const shell = [
+  { pattern: /\/v1\/agents/, body: { count: 0, agents: [] } },
   {
     pattern: /\/v1\/overview$/,
     body: { state: "issues", ongoing_incident_count: 2, health_issue_count: 0, stats: {} },
@@ -91,9 +92,9 @@ test("Declare incident dialog matches the artboard", async ({ page }) => {
   await page.getByText("INC-0231").waitFor();
   await page.getByRole("button", { name: "Declare incident" }).click();
   await page.getByLabel("Title").fill("Checkout is slow for EU customers");
-  await page.getByRole("combobox", { name: "Affected monitor or server" }).click();
+  await page.getByRole("combobox", { name: "Monitor or server" }).click();
   await page.getByRole("option", { name: "checkout-https" }).click();
-  await expectMatchesArtboard(page, "incident-declare", 640);
+  await expectMatchesArtboard(page, "incident-declare", 655);
 });
 
 test("Incidents empty state matches the artboard", async ({ page }) => {
@@ -127,7 +128,7 @@ test("Bulk action and declare send the Core payloads", async ({ page }) => {
   await page.goto("/incidents?status=open,acknowledged&since=&severity=");
   await page.getByText("INC-0231").waitFor();
   await page.getByRole("checkbox", { name: "Select all incidents" }).click();
-  await page.getByRole("button", { name: "Resolve" }).click();
+  await page.getByRole("button", { name: "Resolve", exact: true }).click();
   await expect
     .poll(() => bodies.bulk)
     .toMatchObject({
@@ -137,11 +138,14 @@ test("Bulk action and declare send the Core payloads", async ({ page }) => {
 
   await page.getByRole("button", { name: "Declare incident" }).click();
   await page.getByLabel("Title").fill("Checkout is slow");
+  await page.getByRole("combobox", { name: "Monitor or server" }).click();
+  await page.getByRole("option", { name: "checkout-https" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Declare incident" }).click();
   await expect(page.getByText("already has an active incident")).toBeVisible();
   expect(bodies.declare).toMatchObject({
     title: "Checkout is slow",
     severity: "high",
+    monitor_id: "m1",
     notify: true,
   });
 });

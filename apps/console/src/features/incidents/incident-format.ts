@@ -32,6 +32,13 @@ export const sinceOptions = [
   { value: "30d", label: "last 30 days", ms: 30 * 86_400_000 },
 ] as const;
 
+export const notificationOptions = [
+  { value: "sent", label: "Sent" },
+  { value: "failed", label: "Not delivered" },
+  { value: "pending", label: "Pending" },
+  { value: "suppressed", label: "Suppressed" },
+] as const;
+
 export const DEFAULT_STATUSES = ["open", "acknowledged"] as const;
 export const DEFAULT_SINCE = "7d";
 
