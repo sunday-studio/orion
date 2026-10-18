@@ -8,4 +8,4 @@ Published on the design canvas (https://claude.ai/artifact/L7gFM2gipuTveU5hkGqMR
 python3 docs/design/mobile/build/build.py <canvas.json> <out-dir>
 ```
 
-Tokens match the live canvas (white page, 10px cards, 5-6px buttons, 4px badges, one green `#1f7a50`, TWK Lausanne with system fallback), not `design-language.md` v2.
+Built from the real Orion components: pale field holding white cards, lifecycle tracker, expected vs actual cards, pale-header boxes with uptime bars, segmented-tray nav, one green `#1f7a50`. Values come from the canvas artboards, not `design-language.md` v2.
