@@ -4,9 +4,6 @@ import type { ApiIncidentTimelineItemResponse } from "@/orion-sdk";
 import { TIME_FORMAT, formatDate } from "@/utils/date";
 import type { IncidentTimelineItemWithMeta } from "../components/incident-detail-utils";
 
-/** Core will accept notes on incidents; until it does the composer says so instead of posting. */
-export const INCIDENT_NOTES_API_AVAILABLE = false;
-
 const Avatar = () => (
   <span className="inline-block size-5 flex-none rounded-full bg-[conic-gradient(from_40deg,#6366f1,#14b8a6,#f59e0b,#6366f1)]" />
 );
@@ -18,36 +15,44 @@ const dotColor = (item: IncidentTimelineItemWithMeta) => {
   return "#a1a1aa";
 };
 
-const isNote = (item: IncidentTimelineItemWithMeta) => Boolean(item.note);
+const isNote = (item: IncidentTimelineItemWithMeta) =>
+  item.type === "incident_note" || Boolean(item.note);
+const noteText = (item: IncidentTimelineItemWithMeta) => item.note ?? item.message;
 
-export const NoteComposer = () => {
+export const NoteComposer = ({
+  pending,
+  failed,
+  onPost,
+}: {
+  pending: boolean;
+  failed: boolean;
+  onPost: (text: string, done: () => void) => void;
+}) => {
   const [draft, setDraft] = useState("");
-  const [unavailable, setUnavailable] = useState(false);
+  const submit = () => draft.trim() && onPost(draft.trim(), () => setDraft(""));
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-center gap-2.5">
+      <form
+        className="flex items-center gap-2.5"
+        onSubmit={(event) => {
+          event.preventDefault();
+          submit();
+        }}
+      >
         <Avatar />
         <Input
           aria-label="Note"
           placeholder="Leave a note or a link"
           value={draft}
-          onChange={(event) => {
-            setDraft(event.target.value);
-            setUnavailable(false);
-          }}
+          onChange={(event) => setDraft(event.target.value)}
         />
-        <Button
-          size="sm"
-          variant="secondary"
-          disabled={draft.trim() === ""}
-          onClick={() => !INCIDENT_NOTES_API_AVAILABLE && setUnavailable(true)}
-        >
+        <Button type="submit" size="sm" variant="secondary" disabled={!draft.trim() || pending}>
           Post
         </Button>
-      </div>
-      {unavailable && (
-        <p role="status" className="pl-[30px] text-xs text-quiet">
-          Notes need a Core update and are not available yet.
+      </form>
+      {failed && (
+        <p role="alert" className="pl-[30px] text-xs text-[#be123c]">
+          Unable to post the note. Try again.
         </p>
       )}
     </div>
@@ -98,7 +103,7 @@ export const IncidentTimeline = ({ items, retrying, onRetry, onOpen }: Props) =>
                   <b className="font-semibold">{item.actor_id ?? item.actor_type ?? "Someone"}</b>{" "}
                   added a note
                   <div className="mt-1 rounded-lg border border-line-soft bg-sub px-2.5 py-2 text-[12.5px] text-mid">
-                    {item.note}
+                    {noteText(item)}
                   </div>
                 </>
               ) : (

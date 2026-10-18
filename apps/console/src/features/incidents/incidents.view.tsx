@@ -1,8 +1,8 @@
 import { Download, Plus, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Button, EmptyState, Input, PageHeader, Skeleton } from "@/design-system";
-import { type ApiIncidentResponse, useGetIncidents } from "@/orion-sdk";
-import { type NumberedIncident, sinceOptions } from "./incident-format";
+import { exportIncidentsCSV, useGetIncidents } from "@/orion-sdk";
+import type { NumberedIncident } from "./incident-format";
 import { DeclareIncidentDialog } from "./list/declare-incident-dialog";
 import { IncidentBulkBar } from "./list/incident-bulk-bar";
 import { IncidentFilterRow, useIncidentFilters } from "./list/incident-filters";
@@ -10,25 +10,8 @@ import { IncidentTable } from "./list/incident-table";
 
 const PAGE_SIZE = 50;
 
-const csvEscape = (value: string) => `"${value.replace(/"/g, '""')}"`;
-
-const exportCsv = (rows: ApiIncidentResponse[]) => {
-  const lines = [
-    ["id", "title", "status", "severity", "monitor", "opened_at"].join(","),
-    ...rows.map((incident) =>
-      [
-        incident.id,
-        incident.title,
-        incident.status,
-        incident.severity,
-        incident.monitor_name,
-        incident.opened_at,
-      ]
-        .map((cell) => csvEscape(String(cell ?? "")))
-        .join(","),
-    ),
-  ];
-  const url = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
+const downloadBlob = (blob: Blob) => {
+  const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
   link.download = "incidents.csv";
@@ -43,29 +26,25 @@ export const IncidentsPage = () => {
   const [now] = useState(() => Date.now());
 
   const statuses = filters.statuses.filter((status) => status !== "none");
-  const query = useGetIncidents({
+  const params = {
     status: statuses.length > 0 ? statuses.join(",") : "open,acknowledged,covered,resolved",
-    limit: PAGE_SIZE,
-  });
-  const resolvedHidden = useGetIncidents(
-    { status: "resolved", limit: 1 },
-    { query: { enabled: !statuses.includes("resolved") } },
-  );
-
-  const sinceMs = sinceOptions.find((option) => option.value === filters.since)?.ms;
-  const text = filters.q.trim().toLowerCase();
-  const incidents = useMemo<NumberedIncident[]>(
-    () =>
-      (query.data?.incidents ?? []).filter((incident) => {
-        if (sinceMs && incident.opened_at && now - new Date(incident.opened_at).getTime() > sinceMs)
-          return false;
-        if (filters.severities.length > 0 && !filters.severities.includes(incident.severity ?? ""))
-          return false;
-        if (text && !(incident.title ?? "").toLowerCase().includes(text)) return false;
-        return true;
-      }),
-    [query.data, sinceMs, filters.severities, text, now],
-  );
+    severity: filters.severities.length > 0 ? filters.severities.join(",") : undefined,
+    opened_since: filters.since || undefined,
+    q: filters.q.trim() || undefined,
+  };
+  const query = useGetIncidents({ ...params, limit: PAGE_SIZE });
+  const incidents: NumberedIncident[] = query.data?.incidents ?? [];
+  const hiddenResolved =
+    (query.data as { hidden_resolved_count?: number } | undefined)?.hidden_resolved_count ?? 0;
+  const [exporting, setExporting] = useState(false);
+  const exportCsv = async () => {
+    setExporting(true);
+    try {
+      downloadBlob(await exportIncidentsCSV(params));
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const isEmptyHistory = query.isSuccess && incidents.length === 0 && filters.isDefault;
 
@@ -84,7 +63,12 @@ export const IncidentsPage = () => {
         description={isEmptyHistory ? undefined : "Everything Orion has opened, newest first."}
         actions={
           <>
-            <Button size="sm" variant="secondary" onClick={() => exportCsv(incidents)}>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={exporting}
+              onClick={() => void exportCsv()}
+            >
               <Download /> Export CSV
             </Button>
             <Button size="sm" onClick={() => setDeclaring(true)}>
@@ -156,7 +140,7 @@ export const IncidentsPage = () => {
               setSelected(checked ? new Set(incidents.map((i) => i.id ?? "")) : new Set())
             }
             now={now}
-            hiddenResolved={resolvedHidden.data?.count ?? 0}
+            hiddenResolved={hiddenResolved}
             onShowResolved={() => filters.setStatuses([...statuses, "resolved"])}
           />
         )}

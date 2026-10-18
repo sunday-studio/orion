@@ -1,6 +1,7 @@
 import type { LifecycleStep } from "@/design-system";
 import type {
   ApiAlertDeliveryResponse,
+  ApiIncidentDetailSummary,
   ApiIncidentResponse,
   ApiIncidentTimelineItemResponse,
 } from "@/orion-sdk";
@@ -21,9 +22,11 @@ export const incidentMoments = (
   incident: ApiIncidentResponse,
   deliveries: ApiAlertDeliveryResponse[],
   timeline: ApiIncidentTimelineItemResponse[],
+  summary?: ApiIncidentDetailSummary,
 ): IncidentMoments => ({
-  notifiedAt: earliest(deliveries.map((delivery) => delivery.created_at)),
+  notifiedAt: summary?.notified_at ?? earliest(deliveries.map((delivery) => delivery.created_at)),
   acknowledgedAt:
+    summary?.acknowledged_at ??
     (incident as { acknowledged_at?: string }).acknowledged_at ??
     earliest(
       timeline

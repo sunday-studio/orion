@@ -56,10 +56,11 @@ const incidentMocks = (incidents = active, resolvedCount = 21) => [
   ...shell.slice(1),
   {
     pattern: /\/v1\/incidents$/,
-    body: (url: URL) =>
-      url.searchParams.get("status") === "resolved"
-        ? { count: resolvedCount, incidents: [] }
-        : { count: incidents.length, incidents },
+    body: {
+      count: incidents.length,
+      incidents,
+      hidden_resolved_count: resolvedCount,
+    },
   },
 ];
 
@@ -101,4 +102,46 @@ test("Incidents empty state matches the artboard", async ({ page }) => {
   await page.goto("/incidents");
   await page.getByText("No open incidents").waitFor();
   await expectMatchesArtboard(page, "incidents-empty", 460);
+});
+
+test("Bulk action and declare send the Core payloads", async ({ page }) => {
+  await freezeClock(page, "2025-10-16T14:32:12Z");
+  await mockApi(page, incidentMocks());
+  const bodies: Record<string, unknown> = {};
+  await page.route(/\/v1\/incidents\/bulk$/, async (route) => {
+    bodies.bulk = route.request().postDataJSON();
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: { results: [], succeeded: 2, failed: 0 } }),
+    });
+  });
+  await page.route(/\/v1\/incidents$/, async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    bodies.declare = route.request().postDataJSON();
+    return route.fulfill({
+      contentType: "application/json",
+      status: 409,
+      body: JSON.stringify({ success: false, error: "active incident exists" }),
+    });
+  });
+  await page.goto("/incidents?status=open,acknowledged&since=&severity=");
+  await page.getByText("INC-0231").waitFor();
+  await page.getByRole("checkbox", { name: "Select all incidents" }).click();
+  await page.getByRole("button", { name: "Resolve" }).click();
+  await expect
+    .poll(() => bodies.bulk)
+    .toMatchObject({
+      action: "resolve",
+      ids: ["inc-231", "inc-230"],
+    });
+
+  await page.getByRole("button", { name: "Declare incident" }).click();
+  await page.getByLabel("Title").fill("Checkout is slow");
+  await page.getByRole("dialog").getByRole("button", { name: "Declare incident" }).click();
+  await expect(page.getByText("already has an active incident")).toBeVisible();
+  expect(bodies.declare).toMatchObject({
+    title: "Checkout is slow",
+    severity: "high",
+    notify: true,
+  });
 });
