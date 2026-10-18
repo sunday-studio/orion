@@ -44,6 +44,8 @@ type Server struct {
 	lookupCNAME                  func(ctx context.Context, host string) (string, error)
 	router                       *gin.Engine
 	logs                         *productLogs
+	// auditRouteProbe lets tests ask which routes pass through the admin middleware.
+	auditRouteProbe bool
 }
 
 func NewServer(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *Server {
@@ -109,6 +111,7 @@ func NewServer(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *Ser
 
 	server.setupRoutes()
 
+	server.applyInstanceSettings()
 	return server
 }
 
@@ -168,7 +171,8 @@ func (s *Server) setupRoutes() {
 
 		// Frontend routes (JWT when ORION_ADMIN_* and ORION_JWT_SECRET are set)
 		frontend := v1.Group("/")
-		frontend.Use(s.frontendAuthMiddleware())
+		frontend.Use(s.frontendAuthMiddleware(), s.auditMiddleware())
+		s.registerSettingsRoutes(frontend)
 		{
 			frontend.GET("/agents", s.listAgents)
 			frontend.GET("/agents/summary", s.getAgentSummary)

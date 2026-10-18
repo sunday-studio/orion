@@ -11601,6 +11601,272 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/settings/api-tokens": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Name, prefix, scope and last use. Secrets are never returned. Not available to API tokens.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "List API tokens",
+                "operationId": "listAPITokens",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "tokens": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/internal_api.APIToken"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the token once. scope read allows GET requests only; write allows everything except managing tokens and the registration token. Send it as Authorization: Bearer orn_api_...",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Create an API token",
+                "operationId": "createAPIToken",
+                "parameters": [
+                    {
+                        "description": "Token",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.APITokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "token": {
+                                                    "$ref": "#/definitions/internal_api.APITokenCreated"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/settings/api-tokens/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Revoke an API token",
+                "operationId": "revokeAPIToken",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Token id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/settings/audit": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin actions (resolved an incident, paused a monitor, rotated a token, changed settings...), newest first, with the people and tokens that appear for the Actor filter. Page with cursor. Export with POST /v1/logs/export {kind: \"audit\"}.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "List the audit log",
+                "operationId": "listAuditLog",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Only this actor (username or API token name)",
+                        "name": "actor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search actor, action and target",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact action key, for example incident_resolved",
+                        "name": "action",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only this kind of object",
+                        "name": "object_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start (RFC 3339, or relative like -7d)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Rows per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cursor from a previous page",
+                        "name": "cursor",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.AuditListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/settings/data-lifecycle": {
             "get": {
                 "description": "Get persisted raw report archive and uptime rollup settings",
@@ -11813,6 +12079,182 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/settings/general": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Instance name, Public Core URL (with whether it comes from settings or the environment), time zone and time format.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Get general settings",
+                "operationId": "getGeneralSettings",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.GeneralSettings"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Send only the fields to change. The Public Core URL applies to emails, install commands and status page links at once.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Update general settings",
+                "operationId": "updateGeneralSettings",
+                "parameters": [
+                    {
+                        "description": "Fields to change",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.GeneralSettingsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.GeneralSettings"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/settings/system": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Core version, the Console sign-in username and session length, the token agents register with (empty when registration is open), the worker's last heartbeat, and the database size.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Get system settings",
+                "operationId": "getSystemSettings",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.SystemSettings"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/settings/system/registration-token/rotate": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Replaces the secret new agents register with. Connected servers are not affected. Not available to API tokens.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Rotate the registration token",
+                "operationId": "rotateRegistrationToken",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.RegistrationTokenResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
                         }
@@ -15480,6 +15922,93 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "internal_api.APIToken": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_used_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "ci-deploys"
+                },
+                "prefix": {
+                    "type": "string",
+                    "example": "orn_api_3Fk9"
+                },
+                "scope": {
+                    "type": "string",
+                    "enum": [
+                        "read",
+                        "write"
+                    ]
+                }
+            }
+        },
+        "internal_api.APITokenCreated": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_used_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "ci-deploys"
+                },
+                "prefix": {
+                    "type": "string",
+                    "example": "orn_api_3Fk9"
+                },
+                "scope": {
+                    "type": "string",
+                    "enum": [
+                        "read",
+                        "write"
+                    ]
+                },
+                "token": {
+                    "type": "string",
+                    "example": "orn_api_3Fk9d2a7c1e5b8046a9d3f2e1c7b5a40"
+                }
+            }
+        },
+        "internal_api.APITokenRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "scope": {
+                    "description": "Scope is read (GET requests only) or write (everything except token management).",
+                    "type": "string",
+                    "enum": [
+                        "read",
+                        "write"
+                    ]
+                }
+            }
+        },
         "internal_api.AgentConfigSummaryResponse": {
             "type": "object",
             "properties": {
@@ -16654,6 +17183,80 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.AuditActor": {
+            "type": "object",
+            "properties": {
+                "actor": {
+                    "type": "string"
+                },
+                "count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_api.AuditEntry": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "description": "Action is the phrase shown in the log, for example \"Resolved incident\".",
+                    "type": "string"
+                },
+                "action_key": {
+                    "type": "string",
+                    "example": "incident_resolved"
+                },
+                "actor": {
+                    "type": "string",
+                    "example": "admin"
+                },
+                "actor_type": {
+                    "description": "ActorType is user, api_token or system.",
+                    "type": "string",
+                    "enum": [
+                        "user",
+                        "api_token",
+                        "system"
+                    ]
+                },
+                "at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "object_id": {
+                    "type": "string"
+                },
+                "object_type": {
+                    "type": "string"
+                },
+                "target": {
+                    "description": "Target names what was changed, for example \"INC-0231\" or \"api-https\".",
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.AuditListResponse": {
+            "type": "object",
+            "properties": {
+                "actors": {
+                    "description": "Actors lists who appears in the log, for the Actor filter.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.AuditActor"
+                    }
+                },
+                "entries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_api.AuditEntry"
+                    }
+                },
+                "next_cursor": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_api.AvailabilityPeriod": {
             "type": "object",
             "properties": {
@@ -17079,12 +17682,13 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "kind": {
-                    "description": "Kind is logs (default), status or internal.",
+                    "description": "Kind is logs (default), status, internal or audit.",
                     "type": "string",
                     "enum": [
                         "logs",
                         "status",
-                        "internal"
+                        "internal",
+                        "audit"
                     ]
                 },
                 "query": {
@@ -17139,6 +17743,58 @@ const docTemplate = `{
                 },
                 "truncated": {
                     "type": "boolean"
+                }
+            }
+        },
+        "internal_api.GeneralSettings": {
+            "type": "object",
+            "properties": {
+                "instance_name": {
+                    "type": "string",
+                    "example": "Acme Orion"
+                },
+                "public_url": {
+                    "type": "string",
+                    "example": "https://orion.acme.test"
+                },
+                "public_url_source": {
+                    "description": "PublicURLSource is settings, environment or empty.",
+                    "type": "string",
+                    "enum": [
+                        "settings",
+                        "environment"
+                    ]
+                },
+                "time_format": {
+                    "type": "string",
+                    "enum": [
+                        "12",
+                        "24"
+                    ]
+                },
+                "timezone": {
+                    "type": "string",
+                    "example": "UTC"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.GeneralSettingsRequest": {
+            "type": "object",
+            "properties": {
+                "instance_name": {
+                    "type": "string"
+                },
+                "public_url": {
+                    "type": "string"
+                },
+                "time_format": {
+                    "type": "string"
+                },
+                "timezone": {
+                    "type": "string"
                 }
             }
         },
@@ -19404,6 +20060,18 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.RegistrationTokenResponse": {
+            "type": "object",
+            "properties": {
+                "rotated_at": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string",
+                    "example": "orn_reg_3Fk9d2a7c1e5b8046a9d3f2e"
+                }
+            }
+        },
         "internal_api.ReorderLabelRoutesRequest": {
             "type": "object",
             "required": [
@@ -20998,6 +21666,110 @@ const docTemplate = `{
                 },
                 "state": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_api.SystemSettings": {
+            "type": "object",
+            "properties": {
+                "backups": {
+                    "type": "object",
+                    "properties": {
+                        "guide_url": {
+                            "type": "string"
+                        },
+                        "note": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "database": {
+                    "type": "object",
+                    "properties": {
+                        "engine": {
+                            "type": "string",
+                            "example": "SQLite"
+                        },
+                        "size_bytes": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "registration": {
+                    "type": "object",
+                    "properties": {
+                        "configured": {
+                            "description": "Configured is false when agents can register without a token.",
+                            "type": "boolean"
+                        },
+                        "rotated_at": {
+                            "type": "string"
+                        },
+                        "source": {
+                            "type": "string",
+                            "enum": [
+                                "settings",
+                                "environment",
+                                "none"
+                            ]
+                        },
+                        "token": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "sign_in": {
+                    "type": "object",
+                    "properties": {
+                        "auth_enabled": {
+                            "type": "boolean"
+                        },
+                        "session_hours": {
+                            "type": "integer"
+                        },
+                        "username": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "uptime_seconds": {
+                    "type": "integer"
+                },
+                "version": {
+                    "type": "string",
+                    "example": "0.9.2"
+                },
+                "worker": {
+                    "type": "object",
+                    "properties": {
+                        "healthy": {
+                            "type": "boolean"
+                        },
+                        "last_error": {
+                            "type": "string"
+                        },
+                        "last_tick_at": {
+                            "type": "string"
+                        },
+                        "status": {
+                            "description": "Status is running, stale or missing.",
+                            "type": "string",
+                            "enum": [
+                                "running",
+                                "stale",
+                                "missing"
+                            ]
+                        },
+                        "version": {
+                            "type": "string"
+                        },
+                        "worker_count": {
+                            "type": "integer"
+                        }
+                    }
                 }
             }
         },

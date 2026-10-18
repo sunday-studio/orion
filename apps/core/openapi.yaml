@@ -1,5 +1,66 @@
 basePath: /
 definitions:
+  internal_api.APIToken:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      id:
+        type: string
+      last_used_at:
+        type: string
+      name:
+        example: ci-deploys
+        type: string
+      prefix:
+        example: orn_api_3Fk9
+        type: string
+      scope:
+        enum:
+        - read
+        - write
+        type: string
+    type: object
+  internal_api.APITokenCreated:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      id:
+        type: string
+      last_used_at:
+        type: string
+      name:
+        example: ci-deploys
+        type: string
+      prefix:
+        example: orn_api_3Fk9
+        type: string
+      scope:
+        enum:
+        - read
+        - write
+        type: string
+      token:
+        example: orn_api_3Fk9d2a7c1e5b8046a9d3f2e1c7b5a40
+        type: string
+    type: object
+  internal_api.APITokenRequest:
+    properties:
+      name:
+        type: string
+      scope:
+        description: Scope is read (GET requests only) or write (everything except
+          token management).
+        enum:
+        - read
+        - write
+        type: string
+    required:
+    - name
+    type: object
   internal_api.AgentConfigSummaryResponse:
     properties:
       monitor_count:
@@ -801,6 +862,58 @@ definitions:
       retention_days:
         type: integer
     type: object
+  internal_api.AuditActor:
+    properties:
+      actor:
+        type: string
+      count:
+        type: integer
+    type: object
+  internal_api.AuditEntry:
+    properties:
+      action:
+        description: Action is the phrase shown in the log, for example "Resolved
+          incident".
+        type: string
+      action_key:
+        example: incident_resolved
+        type: string
+      actor:
+        example: admin
+        type: string
+      actor_type:
+        description: ActorType is user, api_token or system.
+        enum:
+        - user
+        - api_token
+        - system
+        type: string
+      at:
+        type: string
+      id:
+        type: string
+      object_id:
+        type: string
+      object_type:
+        type: string
+      target:
+        description: Target names what was changed, for example "INC-0231" or "api-https".
+        type: string
+    type: object
+  internal_api.AuditListResponse:
+    properties:
+      actors:
+        description: Actors lists who appears in the log, for the Actor filter.
+        items:
+          $ref: '#/definitions/internal_api.AuditActor'
+        type: array
+      entries:
+        items:
+          $ref: '#/definitions/internal_api.AuditEntry'
+        type: array
+      next_cursor:
+        type: string
+    type: object
   internal_api.AvailabilityPeriod:
     properties:
       availability_percent:
@@ -1101,11 +1214,12 @@ definitions:
           contain the full event.
         type: boolean
       kind:
-        description: Kind is logs (default), status or internal.
+        description: Kind is logs (default), status, internal or audit.
         enum:
         - logs
         - status
         - internal
+        - audit
         type: string
       query:
         description: Query is the screen's filter as a URL query string, for example
@@ -1145,6 +1259,42 @@ definitions:
         type: string
       truncated:
         type: boolean
+    type: object
+  internal_api.GeneralSettings:
+    properties:
+      instance_name:
+        example: Acme Orion
+        type: string
+      public_url:
+        example: https://orion.acme.test
+        type: string
+      public_url_source:
+        description: PublicURLSource is settings, environment or empty.
+        enum:
+        - settings
+        - environment
+        type: string
+      time_format:
+        enum:
+        - "12"
+        - "24"
+        type: string
+      timezone:
+        example: UTC
+        type: string
+      updated_at:
+        type: string
+    type: object
+  internal_api.GeneralSettingsRequest:
+    properties:
+      instance_name:
+        type: string
+      public_url:
+        type: string
+      time_format:
+        type: string
+      timezone:
+        type: string
     type: object
   internal_api.HealthIssue:
     properties:
@@ -2724,6 +2874,14 @@ definitions:
       redacted:
         type: object
     type: object
+  internal_api.RegistrationTokenResponse:
+    properties:
+      rotated_at:
+        type: string
+      token:
+        example: orn_reg_3Fk9d2a7c1e5b8046a9d3f2e
+        type: string
+    type: object
   internal_api.ReorderLabelRoutesRequest:
     properties:
       ids:
@@ -3797,6 +3955,76 @@ definitions:
         type: string
       state:
         type: string
+    type: object
+  internal_api.SystemSettings:
+    properties:
+      backups:
+        properties:
+          guide_url:
+            type: string
+          note:
+            type: string
+        type: object
+      database:
+        properties:
+          engine:
+            example: SQLite
+            type: string
+          size_bytes:
+            type: integer
+        type: object
+      registration:
+        properties:
+          configured:
+            description: Configured is false when agents can register without a token.
+            type: boolean
+          rotated_at:
+            type: string
+          source:
+            enum:
+            - settings
+            - environment
+            - none
+            type: string
+          token:
+            type: string
+        type: object
+      sign_in:
+        properties:
+          auth_enabled:
+            type: boolean
+          session_hours:
+            type: integer
+          username:
+            type: string
+        type: object
+      started_at:
+        type: string
+      uptime_seconds:
+        type: integer
+      version:
+        example: 0.9.2
+        type: string
+      worker:
+        properties:
+          healthy:
+            type: boolean
+          last_error:
+            type: string
+          last_tick_at:
+            type: string
+          status:
+            description: Status is running, stale or missing.
+            enum:
+            - running
+            - stale
+            - missing
+            type: string
+          version:
+            type: string
+          worker_count:
+            type: integer
+        type: object
     type: object
   internal_api.TestAlertChannelRequest:
     properties:
@@ -12184,6 +12412,174 @@ paths:
       summary: Search monitors, incidents, servers and apps
       tags:
       - search
+  /v1/settings/api-tokens:
+    get:
+      description: Name, prefix, scope and last use. Secrets are never returned. Not
+        available to API tokens.
+      operationId: listAPITokens
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    tokens:
+                      items:
+                        $ref: '#/definitions/internal_api.APIToken'
+                      type: array
+                  type: object
+              type: object
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List API tokens
+      tags:
+      - settings
+    post:
+      consumes:
+      - application/json
+      description: 'Returns the token once. scope read allows GET requests only; write
+        allows everything except managing tokens and the registration token. Send
+        it as Authorization: Bearer orn_api_...'
+      operationId: createAPIToken
+      parameters:
+      - description: Token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.APITokenRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    token:
+                      $ref: '#/definitions/internal_api.APITokenCreated'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create an API token
+      tags:
+      - settings
+  /v1/settings/api-tokens/{id}:
+    delete:
+      operationId: revokeAPIToken
+      parameters:
+      - description: Token id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Revoke an API token
+      tags:
+      - settings
+  /v1/settings/audit:
+    get:
+      description: 'Admin actions (resolved an incident, paused a monitor, rotated
+        a token, changed settings...), newest first, with the people and tokens that
+        appear for the Actor filter. Page with cursor. Export with POST /v1/logs/export
+        {kind: "audit"}.'
+      operationId: listAuditLog
+      parameters:
+      - description: Only this actor (username or API token name)
+        in: query
+        name: actor
+        type: string
+      - description: Search actor, action and target
+        in: query
+        name: q
+        type: string
+      - description: Exact action key, for example incident_resolved
+        in: query
+        name: action
+        type: string
+      - description: Only this kind of object
+        in: query
+        name: object_type
+        type: string
+      - description: Start (RFC 3339, or relative like -7d)
+        in: query
+        name: from
+        type: string
+      - description: End
+        in: query
+        name: to
+        type: string
+      - default: 50
+        description: Rows per page
+        in: query
+        name: limit
+        type: integer
+      - description: Cursor from a previous page
+        in: query
+        name: cursor
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.AuditListResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List the audit log
+      tags:
+      - settings
   /v1/settings/data-lifecycle:
     get:
       consumes:
@@ -12316,6 +12712,111 @@ paths:
           schema:
             $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Run data lifecycle rollup
+      tags:
+      - settings
+  /v1/settings/general:
+    get:
+      description: Instance name, Public Core URL (with whether it comes from settings
+        or the environment), time zone and time format.
+      operationId: getGeneralSettings
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.GeneralSettings'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Get general settings
+      tags:
+      - settings
+    put:
+      consumes:
+      - application/json
+      description: Send only the fields to change. The Public Core URL applies to
+        emails, install commands and status page links at once.
+      operationId: updateGeneralSettings
+      parameters:
+      - description: Fields to change
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.GeneralSettingsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.GeneralSettings'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update general settings
+      tags:
+      - settings
+  /v1/settings/system:
+    get:
+      description: Core version, the Console sign-in username and session length,
+        the token agents register with (empty when registration is open), the worker's
+        last heartbeat, and the database size.
+      operationId: getSystemSettings
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.SystemSettings'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Get system settings
+      tags:
+      - settings
+  /v1/settings/system/registration-token/rotate:
+    post:
+      description: Replaces the secret new agents register with. Connected servers
+        are not affected. Not available to API tokens.
+      operationId: rotateRegistrationToken
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.RegistrationTokenResponse'
+              type: object
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Rotate the registration token
       tags:
       - settings
   /v1/status-logs:

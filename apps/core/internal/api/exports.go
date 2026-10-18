@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 const (
@@ -33,8 +34,8 @@ type exportSource struct {
 
 // ExportRequest asks for a background export of what the log screens show.
 type ExportRequest struct {
-	// Kind is logs (default), status or internal.
-	Kind string `json:"kind,omitempty" enums:"logs,status,internal"`
+	// Kind is logs (default), status, internal or audit.
+	Kind string `json:"kind,omitempty" enums:"logs,status,internal,audit"`
 	// Format is csv (default) or jsonl.
 	Format string `json:"format,omitempty" enums:"csv,jsonl"`
 	// Query is the screen's filter as a URL query string, for example "severity=error&from=-24h".
@@ -63,7 +64,7 @@ type ExportResponse struct {
 var exportSlots = make(chan struct{}, exportWorkers)
 
 func (s *Server) exportSources() map[string]exportSource {
-	return map[string]exportSource{"logs": s.logsExportSource(false), "internal": s.logsExportSource(true), "status": s.statusExportSource()}
+	return map[string]exportSource{"logs": s.logsExportSource(false), "internal": s.logsExportSource(true), "status": s.statusExportSource(), "audit": s.auditExportSource()}
 }
 
 func exportResponse(row db.LogExport) ExportResponse {
@@ -97,7 +98,7 @@ func (s *Server) createExportImpl(c *gin.Context) {
 		req.Format = "csv"
 	}
 	if _, ok := s.exportSources()[req.Kind]; !ok || (req.Format != "csv" && req.Format != "jsonl") {
-		utils.BadRequest(c, "kind must be logs, status or internal and format csv or jsonl")
+		utils.BadRequest(c, "kind must be logs, status, internal or audit and format csv or jsonl")
 		return
 	}
 	if (req.Kind == "logs" || req.Kind == "internal") && !s.requireLogs(c) {
@@ -217,7 +218,11 @@ func (c *countingWriter) Write(p []byte) (int, error) {
 func (s *Server) getExportImpl(c *gin.Context) {
 	var row db.LogExport
 	if err := s.db.Where("id = ?", c.Param("id")).First(&row).Error; err != nil {
-		utils.NotFound(c, "Export not found")
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			utils.NotFound(c, "Export not found")
+		} else {
+			utils.InternalError(c, "Failed to load the export", err)
+		}
 		return
 	}
 	utils.SuccessResponse(c, http.StatusOK, "Export retrieved", gin.H{"export": exportResponse(row)})

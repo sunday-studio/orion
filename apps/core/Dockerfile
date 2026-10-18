@@ -19,8 +19,9 @@ COPY apps/core/go.mod apps/core/go.sum apps/core/
 RUN cd apps/core && go mod download
 COPY apps/core/ apps/core/
 COPY --from=frontend /app/apps/console/dist apps/core/web
-RUN cd apps/core && go build -o orion-core ./cmd/api
-RUN cd apps/core && go build -o orion-core-worker ./cmd/worker
+ARG VERSION=dev
+RUN cd apps/core && go build -ldflags "-X orion/core/internal/buildinfo.Version=${VERSION}" -o orion-core ./cmd/api
+RUN cd apps/core && go build -ldflags "-X orion/core/internal/buildinfo.Version=${VERSION} -X main.version=${VERSION}" -o orion-core-worker ./cmd/worker
 
 # Minimal runtime. Starts as root only long enough to fix ownership of an existing
 # /data volume (see docker-entrypoint.sh), then drops to the unprivileged orion user.

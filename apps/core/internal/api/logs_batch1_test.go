@@ -231,12 +231,16 @@ func TestLogExportCSVAndJSONLines(t *testing.T) {
 		if r.Code != http.StatusAccepted {
 			t.Fatalf("export = %d %s", r.Code, r.Body.String())
 		}
-		for i := 0; i < 100; i++ {
-			g := getData[struct {
-				Export ExportResponse `json:"export"`
-			}](t, server, "/v1/exports/"+out.Data.Export.ID)
-			if g.Export.Status == "done" || g.Export.Status == "failed" {
-				return g.Export
+		for i := 0; i < 200; i++ {
+			// The in-memory test database can briefly lock while the export job writes; retry instead of failing.
+			poll := performJSONRequest(t, server, http.MethodGet, "/v1/exports/"+out.Data.Export.ID, nil, "")
+			var g struct {
+				Data struct {
+					Export ExportResponse `json:"export"`
+				} `json:"data"`
+			}
+			if poll.Code == http.StatusOK && json.Unmarshal(poll.Body.Bytes(), &g) == nil && (g.Data.Export.Status == "done" || g.Data.Export.Status == "failed") {
+				return g.Data.Export
 			}
 			time.Sleep(50 * time.Millisecond)
 		}

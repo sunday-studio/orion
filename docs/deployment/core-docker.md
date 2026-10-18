@@ -76,6 +76,8 @@ ORION_PUBLIC_STATUS_URL_ORIGIN=https://status.example.com
 ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET=replace-with-a-long-random-secret
 ```
 
+Console sessions last `ORION_SESSION_HOURS` hours (default 12). The Public Core URL, time zone and registration token can also be changed in Settings; a value saved there wins over `ORION_PUBLIC_URL` and `ORION_ENROLLMENT_TOKEN`. Internal log retention is `ORION_INTERNAL_LOG_RETENTION_DAYS` (7) and `ORION_INTERNAL_LOG_MAX_STORAGE_MB` (200).
+
 Custom status page domains: operators point a CNAME at `ORION_STATUS_PAGES_CNAME_TARGET` (defaults
 to the host of `ORION_PUBLIC_STATUS_URL_ORIGIN`, then `ORION_PUBLIC_URL`). Verification checks a CNAME only, so apex domains that use ALIAS/ANAME/flattened records
 cannot be verified yet; use a subdomain such as status.example.com. Core checks the record when

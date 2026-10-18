@@ -188,7 +188,7 @@ func (s *Server) statusBadgeOrigin() string {
 	if o := strings.TrimRight(strings.TrimSpace(s.cfg.PublicStatusURLOrigin), "/"); o != "" {
 		return o
 	}
-	return strings.TrimRight(strings.TrimSpace(s.cfg.PublicURL), "/")
+	return strings.TrimRight(strings.TrimSpace(s.cfg.PublicBaseURL()), "/")
 }
 
 func badgeLinks(label, svg, jsonURL string) StatusPageBadgeLinks {
