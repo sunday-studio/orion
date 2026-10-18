@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { EmptyState, Segmented, Skeleton, StatusBadge } from "@/design-system";
+import { EmptyState, Segmented, Skeleton, StatusBadge, Tooltip } from "@/design-system";
 import { usePreviewStatusPage } from "@/orion-sdk";
 import { cn } from "@/utils/cn";
+import { formatDate } from "@/utils/date";
 import { publicStatusLabel, publicStatusTone, statusDot } from "../status-format";
 
 const headline = (status?: string) =>
@@ -13,18 +14,32 @@ const headline = (status?: string) =>
         ? "Some systems are experiencing issues"
         : "Status unavailable";
 
-/** Day ticks for one component, falling back to an all-green strip when there is no history. */
-const UptimeBar = ({ history }: { history?: { status?: string }[] }) => {
-  const ticks: { status?: string }[] =
+type Tick = { date?: string; status?: string; uptime_display?: string };
+
+/** Day ticks for one component; hovering a day shows its date, status and uptime. */
+const UptimeBar = ({ history }: { history?: Tick[] }) => {
+  const ticks: Tick[] =
     history && history.length > 0 ? history : Array.from({ length: 90 }, () => ({}));
   return (
-    <div aria-hidden className="flex h-[18px] gap-[2px]">
+    <div className="flex h-[18px] gap-[2px]">
       {ticks.map((tick, index) => (
-        <i
-          key={index}
-          className="min-w-[2px] flex-1 rounded-[2px]"
-          style={{ background: tick.status ? statusDot(tick.status) : "#2a9f69", opacity: 0.85 }}
-        />
+        <Tooltip
+          key={tick.date ?? index}
+          content={
+            <span className="grid gap-0.5">
+              {tick.date && <b className="font-medium">{formatDate(tick.date, "MMM d, yyyy")}</b>}
+              <span>
+                {tick.status ? publicStatusLabel(tick.status) : "No data"}
+                {tick.uptime_display ? ` · ${tick.uptime_display}` : ""}
+              </span>
+            </span>
+          }
+        >
+          <i
+            className="min-w-[2px] flex-1 rounded-[2px] opacity-85 transition-[opacity,transform] duration-150 hover:scale-y-110 hover:opacity-100"
+            style={{ background: tick.status ? statusDot(tick.status) : "#2a9f69" }}
+          />
+        </Tooltip>
       ))}
     </div>
   );
