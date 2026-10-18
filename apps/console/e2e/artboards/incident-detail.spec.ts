@@ -1,0 +1,74 @@
+import { expect, test } from "@playwright/test";
+import { expectMatchesArtboard, freezeClock, mockApi } from "./support";
+
+test.use({ timezoneId: "UTC", viewport: { width: 1280, height: 848 } });
+
+const incident = {
+  id: "inc-231",
+  number: 231,
+  title: "api.example.com unreachable",
+  severity: "critical",
+  status: "open",
+  monitor_name: "api-https",
+  monitor_type: "http",
+  agent_name: "edge-01",
+  opened_at: "2025-10-16T14:02:08Z",
+  latest_event:
+    "The health check on api-https has timed out since 14:02. ops-team was notified; the on-call webhook returned 502, so nobody was paged.",
+  allowed_actions: {
+    acknowledge: { allowed: true },
+    cover: { allowed: true },
+    resolve: { allowed: true },
+  },
+};
+
+const detail = (overrides: Record<string, unknown> = {}) => ({
+  incident: { ...incident, ...overrides },
+  evidence: {
+    latest_report: {
+      id: "r1",
+      health: "down",
+      collected_at: "2025-10-16T14:32:00Z",
+      payload: JSON.stringify({ failure_reason: "timeout" }),
+    },
+  },
+  alert_deliveries: [
+    { id: "d1", channel: "ops-team", status: "sent", created_at: "2025-10-16T14:02:11Z" },
+    { id: "d2", channel: "oncall webhook", status: "failed", created_at: "2025-10-16T14:02:12Z" },
+  ],
+  monitor_reports: Array.from({ length: 12 }, (_, i) => ({ id: `r${i}`, health: "down" })),
+  related_incidents: [{ id: "inc-229", number: 229, title: "Load balancer degraded" }],
+  timeline: [
+    { id: "t1", type: "note", note: "Upstream pool drained, restarting the load balancer.", actor_id: "admin", created_at: "2025-10-16T14:21:00Z" },
+    { id: "t2", type: "alert", status: "failed", alert_delivery_id: "d2", message: "Alert to oncall webhook failed after 3 attempts", created_at: "2025-10-16T14:02:12Z" },
+    { id: "t3", type: "alert", status: "sent", message: "Alert sent to ops-team (email, 1.1s)", created_at: "2025-10-16T14:02:11Z" },
+    { id: "t4", type: "incident_opened", message: "Incident opened: api-https failed 3 checks in a row", created_at: "2025-10-16T14:02:08Z" },
+  ],
+});
+
+const mocks = (overrides: Record<string, unknown> = {}) => [
+  {
+    pattern: /\/v1\/overview$/,
+    body: { state: "issues", ongoing_incident_count: 2, health_issue_count: 0, stats: {} },
+  },
+  { pattern: /\/v1\/auth\/me$/, body: { username: "admin" } },
+  { pattern: /\/v1\/health\/issues$/, body: { count: 0, issues: [] } },
+  { pattern: /\/v1\/incidents\/inc-231$/, body: detail(overrides) },
+];
+
+test("Incident detail matches the artboard", async ({ page }) => {
+  await freezeClock(page, "2025-10-16T14:32:20Z");
+  await mockApi(page, mocks());
+  await page.goto("/incidents/inc-231");
+  await page.getByRole("heading", { name: "api.example.com unreachable" }).waitFor();
+  await expectMatchesArtboard(page, "incident-detail", 848);
+});
+
+test("Incident detail posts a note only when Core supports it", async ({ page }) => {
+  await freezeClock(page, "2025-10-16T14:32:20Z");
+  await mockApi(page, mocks());
+  await page.goto("/incidents/inc-231");
+  await page.getByLabel("Note").fill("Looking now");
+  await page.getByRole("button", { name: "Post" }).click();
+  await expect(page.getByText("Notes need a Core update")).toBeVisible();
+});
