@@ -30,6 +30,7 @@ func DefaultChecks() []Check {
 		{"token", "Token", checkToken},
 		{"clock", "Clock skew", checkClock},
 		{"log-access", "Log access", checkLogAccess},
+		{"log-sources", "Log sources", checkLogSources},
 		{"disk", "Disk space", checkDisk},
 		{"service", "Service", checkService},
 		{"version", "Version", checkVersion},
@@ -291,6 +292,62 @@ func checkLogAccess(_ context.Context, e *Env) Result {
 		return fail("cannot read "+path, "sudo usermod -aG orion $USER && sudo systemctl restart orion-agent   (or read through the daemon: orion-agent logs)")
 	}
 	return warn(firstLine(err.Error()), "")
+}
+
+// checkLogSources verifies that enabled product-log sources can obtain their
+// credentials and reach the configured ingest endpoint. It deliberately does
+// not send an entry: Doctor must not create product data as a side effect.
+func checkLogSources(ctx context.Context, e *Env) Result {
+	if e.Config == nil || len(e.Config.Logs.Sources) == 0 {
+		return ok("no product log sources configured")
+	}
+	can := e.CanRead
+	if can == nil {
+		can = func(p string) error {
+			f, err := os.Open(p)
+			if err == nil {
+				f.Close()
+			}
+			return err
+		}
+	}
+	for _, source := range e.Config.Logs.Sources {
+		if source.Type == "file" {
+			if err := can(source.Path); err != nil && !os.IsNotExist(err) {
+				return fail("source "+source.Name+": cannot read "+source.Path, "grant the orion user read access to "+source.Path)
+			}
+		}
+		if source.IngestKeyFile != "" {
+			if err := can(source.IngestKeyFile); err != nil {
+				return fail("source "+source.Name+": cannot read ingest key", "sudo chgrp orion "+source.IngestKeyFile+" && sudo chmod 0640 "+source.IngestKeyFile)
+			}
+		}
+		if source.IngestKeyEnv != "" && strings.TrimSpace(os.Getenv(source.IngestKeyEnv)) == "" {
+			return fail("source "+source.Name+": "+source.IngestKeyEnv+" is not set", "set "+source.IngestKeyEnv+" for the orion-agent service and restart it")
+		}
+	}
+
+	endpoint := e.Config.Logs.Endpoint
+	if endpoint == "" {
+		endpoint = strings.TrimRight(e.Config.CoreURL, "/") + "/v1/ingest/logs"
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return fail("invalid ingest endpoint", "set logs.endpoint to the Core /v1/ingest/logs URL")
+	}
+	client := e.HTTP
+	if client == nil {
+		client = &http.Client{Timeout: 6 * time.Second}
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fail("cannot reach log ingest endpoint", "check logs.endpoint, DNS and firewall access to Core")
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= http.StatusInternalServerError || resp.StatusCode == http.StatusNotFound {
+		return fail(fmt.Sprintf("log ingest endpoint answered HTTP %d", resp.StatusCode), "check logs.endpoint and Core log ingest")
+	}
+	return ok(fmt.Sprintf("%d source%s, endpoint reachable", len(e.Config.Logs.Sources), plural(len(e.Config.Logs.Sources), "", "s")))
 }
 
 func checkDisk(_ context.Context, e *Env) Result {

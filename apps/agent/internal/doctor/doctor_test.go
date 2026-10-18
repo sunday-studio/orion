@@ -86,6 +86,15 @@ func TestEveryFailureHasFix(t *testing.T) {
 		"disk":       func(e *Env) { e.DiskFreeMB = func(string) (uint64, error) { return 10, nil } },
 		"version":    func(e *Env) { e.Daemon.Version = "0.9.0" },
 		"log-access": func(e *Env) { e.CanRead = func(string) error { return errors.New("x") } },
+		"log-sources": func(e *Env) {
+			e.Config.Logs.Sources = []config.LogSource{{Name: "api", Type: "file", Path: "/var/log/api.log", IngestKeyFile: "/run/orion/api.key"}}
+			e.CanRead = func(path string) error {
+				if path == "/run/orion/api.key" {
+					return errors.New("permission denied")
+				}
+				return nil
+			}
+		},
 	}
 	for id, mutate := range cases {
 		e := baseEnv()
@@ -101,6 +110,16 @@ func TestEveryFailureHasFix(t *testing.T) {
 		if r.Fix == "" && id != "log-access" {
 			t.Errorf("%s: no fix message", id)
 		}
+	}
+}
+
+func TestLogSourcesRejectMissingEndpoint(t *testing.T) {
+	e := baseEnv()
+	e.Config.Logs.Sources = []config.LogSource{{Name: "api", Type: "file", Path: "/var/log/api.log", IngestKeyFile: "/run/orion/api.key"}}
+	e.HTTP = fakeHTTP{status: http.StatusNotFound}
+	r := run(e)["log-sources"]
+	if r.Status != Fail || !strings.Contains(r.Message, "HTTP 404") {
+		t.Fatalf("result = %#v", r)
 	}
 }
 
