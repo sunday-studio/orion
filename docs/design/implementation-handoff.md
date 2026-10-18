@@ -105,7 +105,7 @@ Checked against `apps/core/openapi.yaml` on 2026-10-18 after the F1 APIs landed.
 **Sign in** (`login`): `POST /v1/auth/login`. Error callout text is the API message. No sign-up.
 
 **Add server** (`add-server`, `add-server-waiting`, `add-server-connected`, `add-server-failed`; D-028)
-- Platform tiles: Linux, macOS, Docker (Windows is out of scope, D-014). `POST /v1/enrollments` with the tile as `platform` returns a one-time `token`, `install_command` and `expires_at` (15 minutes). The token is shown only in the command.
+- Platform tiles: Linux and macOS only (Windows is out of scope, D-014; running the agent as a container is out until the last item before go-live, D-031). `POST /v1/enrollments` with the tile as `platform` returns a one-time `token`, `install_command` and `expires_at` (15 minutes). The token is shown only in the command.
 - The waiting screen has a static list labelled "The command will:" (download and verify, create user and directories, install and start the service, register, run doctor). It never ticks, because Core cannot observe those steps.
 - Live states are only three, from polling `GET /v1/enrollments/{id}`: waiting (`waiting`, `claimed`, `registered`), connected (`reporting`, with `agent_name`, `agent_os`, `agent_arch`, `agent_version`, `first_report_at`), not connected (`expired`, or no report 5 minutes after the command was shown).
 - The agent token goes to the agent, not the Console. There is no shown-once token panel on any add-server artboard.

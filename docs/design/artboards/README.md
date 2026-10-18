@@ -70,6 +70,9 @@ Screen-map ref is the row number in `../screen-map.md` (`9.x` is section 9, prod
 | [incidents-empty](incidents-empty.html) ([light](png/incidents-empty-light.png), [dark](png/incidents-empty-dark.png)) | 460 | 7 | /incidents | apps/console/src/features/incidents/ |
 | [incidents-list](incidents-list.html) ([light](png/incidents-list-light.png), [dark](png/incidents-list-dark.png)) | 508 | 2 | /incidents | apps/console/src/features/incidents/incidents.view.tsx |
 | [login](login.html) ([light](png/login-light.png), [dark](png/login-dark.png)) | 720 | 1 | /login | apps/console/src/features/auth/login.view.tsx |
+| [login-1440](login-1440.html) ([light](png/login-1440-light.png), [dark](png/login-1440-dark.png)) | 810 |  |  |  |
+| [login-1920](login-1920.html) ([light](png/login-1920-light.png), [dark](png/login-1920-dark.png)) | 1080 |  |  |  |
+| [login-2560](login-2560.html) ([light](png/login-2560-light.png), [dark](png/login-2560-dark.png)) | 1440 |  |  |  |
 | [logs](logs.html) ([light](png/logs-light.png), [dark](png/logs-dark.png)) | 1285 | 10 | /logs (Service logs) | apps/console/src/features/event-log/logs.view.tsx |
 | [logs-detail](logs-detail.html) ([light](png/logs-detail-light.png), [dark](png/logs-detail-dark.png)) | 814 | 48 | drawer | apps/console/src/features/event-log/ |
 | [logs-detail-plain](logs-detail-plain.html) ([light](png/logs-detail-plain-light.png), [dark](png/logs-detail-plain-dark.png)) | 556 | 48 | drawer | apps/console/src/features/event-log/ |

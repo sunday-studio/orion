@@ -78,7 +78,7 @@ Dark mode (Overview is the reference artboard): the sunken look comes from layer
 
 Radii: fields 14px, cards and tables 10px, buttons and inputs 8px, tray and chips 6 to 9px, badges 4px. No pills, no fully rounded controls except avatars and dots. Empty states use a single solid hairline container (white, 10px radius). No dashed borders and no border inside a border; inside an existing card the empty state has no border of its own.
 
-Buttons are layered: a 1px border, an inset top highlight and a soft drop shadow. Primary is a green gradient with white text; secondary is white; destructive is rose; ghost is text only. Heights: 30px default (12.5px text, 14px icons), 24px small (`sm`, used in page headers, table rows and bulk bars), 36px large only for single full-width CTAs on auth and first-run screens.
+Buttons are layered: a 1px border, an inset top highlight and a soft drop shadow. Primary is a green gradient with white text; secondary is white; destructive is rose; ghost is text only. Heights: 30px default (12.5px text, 14px icons) for form and dialog footers and inline actions; 24px small (`sm`) for page-header actions, table rows and bulk bars; 36px large (`lg`) only for single CTAs on auth and first-run screens (Sign in, first-run Overview). Every page-header action, including Overview's New monitor, is `sm` (24px). Do not mix sizes within one row.
 
 ## 7. Component inventory
 
@@ -329,7 +329,7 @@ The agent CLI (`orion-agent`) uses Charm (`lipgloss`, `bubbletea`, `huh`, `fang`
 
 **Screens.** Install script output (plan, step lines, Doctor summary, link to the server). Setup wizard in three steps (connect, choose what to watch with confidence labels, review a diff, apply without restart). Doctor streaming checklist with a fix command under every warning and failure and a stable `--json` schema. Status box plus a table of what is watched and a short "using now" line from passive metrics. Log viewer with a status line (follow, level, source, search), level as a colored word padded to five characters, and a key footer. Help grouped by intent (fang) and errors with file, line and fix. Exit codes: 0 ok, 1 failed checks, 2 usage, 3 needs elevation.
 
-**Console Add server flow (plan A1).** The Console shows one copy-paste command with a one-time enrollment token baked in (expires in 15 minutes). While waiting, a static list labelled "The command will:" describes what the installer does (never live, Core cannot observe it) and a single live row says "Waiting for the server". The only live states are waiting, connected and not connected. Connected shows the server facts; there is no token panel. Platform tiles are Linux, macOS and Docker. Artboards: add-server, add-server-waiting, add-server-connected, add-server-failed.
+**Console Add server flow (plan A1).** The Console shows one copy-paste command with a one-time enrollment token baked in (expires in 15 minutes). While waiting, a static list labelled "The command will:" describes what the installer does (never live, Core cannot observe it) and a single live row says "Waiting for the server". The only live states are waiting, connected and not connected. Connected shows the server facts; there is no token panel. Platform tiles are Linux and macOS only (agent as a container is out of the current designs, D-031). Artboards: add-server, add-server-waiting, add-server-connected, add-server-failed.
 
 ## 16. Sign in
 
@@ -356,3 +356,11 @@ Every screen has a dark artboard (`<name>-dark`) next to its light one on the ca
 6. Inputs `#0f1311` with `#2a312e` border; checkboxes unchecked `#0f1311` with `#3a4540`, checked `#2a9f69`.
 7. Sign in: the brand panel fades into the page color (not white). Public status pages use the same dark tokens with the hero unchanged. CLI screens are terminals and keep their own dark palette in both themes.
 8. Theme switch lives in the account menu (Light, Dark, System). Default System.
+
+## 19. Sign in at every width, theme default
+
+- Layout is proportional, not fixed: 50/50 split at every width. The brand panel gradient covers the left 64 percent and fades into the page color. The right half centers a 340px form that never scales (max width 340).
+- Artboards at 1280, 1440, 1920 and 2560 (`login`, `login-1440`, `login-1920`, `login-2560`, each with a dark version) show the scaling: left padding 56, 64, 80, 96px; headline dot-matrix width 474, 520, 640, 760px; left content max width 560, 600, 680, 760px; capability text 14, 14, 16, 17px. Above 2560 center a max-width stage.
+- Left column content: eyebrow, dot-matrix headline, one sentence, three capability lines (Monitor your servers, sites and jobs; Collect product logs from your apps; Publish a status page for your users), footer. No statistics (there is no data source on an unauthenticated screen).
+- The Sign in button is the `lg` (36px) size.
+- **Theme follows the device by default.** The Console reads `prefers-color-scheme` and applies light or dark; the account menu offers Light, Dark and System, with System as the default and selected state. The user's explicit choice is stored in the browser. The sign-in screen follows the same rule.

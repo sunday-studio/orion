@@ -140,3 +140,5 @@ Terminal screens: cli-install, cli-setup, cli-doctor, cli-status, cli-logs, cli-
 ## 11. Exports
 
 Static exports and PNGs of every artboard are in `artboards/` with an index in `artboards/README.md`.
+
+Sign in is drawn at 1280, 1440, 1920 and 2560 widths (`login`, `login-1440`, `login-1920`, `login-2560`).
