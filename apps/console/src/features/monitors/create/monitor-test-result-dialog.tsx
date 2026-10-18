@@ -7,16 +7,7 @@ import {
   DialogTitle,
   StatusBadge,
 } from "@/design-system";
-
-/** Shape of Core's dry-run test result (POST /v1/monitors/test-run, F4 batch B). */
-export type MonitorTestResult = {
-  passed: boolean;
-  expected?: { title?: string; detail?: string };
-  actual?: { title?: string; detail?: string };
-  duration_ms?: number;
-  error?: string;
-  notes?: string[];
-};
+import type { ApiMonitorTestRunResponse } from "@/orion-sdk";
 
 const caption = "font-mono text-[10.5px] font-medium uppercase tracking-[0.1em]";
 
@@ -26,7 +17,7 @@ export const MonitorTestResultDialog = ({
   onRunAgain,
   onClose,
 }: {
-  result?: MonitorTestResult;
+  result?: ApiMonitorTestRunResponse;
   running?: boolean;
   onRunAgain: () => void;
   onClose: () => void;
@@ -71,7 +62,7 @@ export const MonitorTestResultDialog = ({
         </pre>
       )}
       <p className="text-[13px] leading-[1.5] text-quiet">
-        {(result?.notes ?? []).join(" ")} Test runs do not create check history or alerts.
+        {(result?.notes ?? ["Test runs do not create check history or alerts."]).join(" ")}
       </p>
       <DialogFooter>
         <Button variant="secondary" onClick={onClose}>

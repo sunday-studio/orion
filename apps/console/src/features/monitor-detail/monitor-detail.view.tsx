@@ -2,6 +2,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { EmptyState, Skeleton, Tabs, TabsList, TabsPanel, TabsTab } from "@/design-system";
 import { useNow } from "@/features/overview/overview-time";
 import { useGetMonitor } from "@/orion-sdk";
+import { MonitorTestResultDialog } from "@/features/monitors/create/monitor-test-result-dialog";
 import { MonitorHeader } from "./detail/monitor-header";
 import { MonitorHeartbeat } from "./detail/monitor-heartbeat";
 import { MonitorHistory } from "./detail/monitor-history";
@@ -62,6 +63,12 @@ export const MonitorDetailPage = () => {
         onTest={actions.test}
         onPause={actions.pause}
         onResume={actions.resume}
+      />
+      <MonitorTestResultDialog
+        result={actions.testResult}
+        running={actions.testing}
+        onRunAgain={actions.test}
+        onClose={actions.clearTestResult}
       />
       <Tabs value={tab} onValueChange={setTab} className="mt-3 gap-3">
         <TabsList>

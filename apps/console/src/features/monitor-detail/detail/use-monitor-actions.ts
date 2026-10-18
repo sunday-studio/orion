@@ -11,7 +11,7 @@ import {
   useDeleteCoreMonitor,
   usePauseCoreMonitor,
   useResumeCoreMonitor,
-  useTestCoreMonitor,
+  useTestRunMonitor,
 } from "@/orion-sdk";
 
 /** Pause, resume, test, clone and delete for one monitor, with cache refresh and toasts. */
@@ -50,19 +50,8 @@ export const useMonitorActions = (monitorId: string, name: string) => {
       onError: failed("Unable to resume the monitor"),
     },
   });
-  const test = useTestCoreMonitor({
-    mutation: {
-      onSuccess: (result) => {
-        const health =
-          result.monitor?.computed_health ?? result.monitor?.health ?? result.result?.status;
-        toast.add({
-          title: health === "up" ? "Test passed" : `Test reported ${health ?? "unknown"}`,
-          description: "The check ran and was added to the history.",
-        });
-        refresh();
-      },
-      onError: failed("Unable to run the test"),
-    },
+  const test = useTestRunMonitor({
+    mutation: { onError: failed("Unable to run the test") },
   });
   const clone = useCloneCoreMonitor({
     mutation: {
@@ -95,5 +84,7 @@ export const useMonitorActions = (monitorId: string, name: string) => {
     pending:
       pause.isPending || resume.isPending || test.isPending || clone.isPending || remove.isPending,
     testing: test.isPending,
+    testResult: test.data,
+    clearTestResult: () => test.reset(),
   };
 };
