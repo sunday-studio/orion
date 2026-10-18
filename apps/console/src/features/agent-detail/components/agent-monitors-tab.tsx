@@ -54,7 +54,7 @@ export const AgentMonitorsTab = ({ agentId }: { agentId: string }) => {
   );
   const shown = query.data?.monitors ?? [];
   const total = query.data?.count ?? shown.length;
-  const hidden = (query.data as { hidden_count?: number } | undefined)?.hidden_count ?? 0;
+  const hidden = query.data?.hidden_count ?? 0;
   const pagination = {
     count: total,
     limit,
