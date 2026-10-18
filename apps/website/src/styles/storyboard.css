@@ -5,14 +5,14 @@
 .sec:has(.stgrid) .lead { font-size: 15px; margin-top: 8px; }
 
 .stgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 28px; }
-.stga { display: none; place-items: center; color: var(--color-accent); }
+.stga { display: none; place-items: center; color: var(--color-accent-text); }
 @media (min-width: 901px) {
   .stgrid { grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr; gap: 6px; align-items: stretch; }
   .stga { display: grid; }
 }
 .stg { position: relative; display: flex; flex-direction: column; gap: 2px; height: 172px; padding: 14px 16px; border: 1px solid var(--color-accent); border-radius: 14px; background: var(--color-card); box-shadow: 0 0 0 3px rgb(31 122 80 / 0.12); }
 .stg b { font-weight: 400; font-size: 16px; letter-spacing: -0.015em; }
-.sn { font-size: 11px; color: var(--color-accent); }
+.sn { font-size: 11px; color: var(--color-accent-text); }
 .sv { margin-top: auto; display: flex; flex-direction: column; justify-content: flex-end; gap: 8px; }
 
 /* Finished-state visuals. */
@@ -64,9 +64,9 @@
 @keyframes sb-s2 { 0%, 22% { opacity: 0.4; border-color: var(--color-line); box-shadow: none; } 27%, 100% { opacity: 1; border-color: var(--color-accent); box-shadow: 0 0 0 3px rgb(31 122 80 / 0.12); } }
 @keyframes sb-s3 { 0%, 47% { opacity: 0.4; border-color: var(--color-line); box-shadow: none; } 52%, 100% { opacity: 1; border-color: var(--color-accent); box-shadow: 0 0 0 3px rgb(31 122 80 / 0.12); } }
 @keyframes sb-s4 { 0%, 67% { opacity: 0.4; border-color: var(--color-line); box-shadow: none; } 72%, 100% { opacity: 1; border-color: var(--color-accent); box-shadow: 0 0 0 3px rgb(31 122 80 / 0.12); } }
-@keyframes sb-a1 { 0%, 22% { color: var(--color-line-hover); } 27%, 100% { color: var(--color-accent); } }
-@keyframes sb-a2 { 0%, 47% { color: var(--color-line-hover); } 52%, 100% { color: var(--color-accent); } }
-@keyframes sb-a3 { 0%, 67% { color: var(--color-line-hover); } 72%, 100% { color: var(--color-accent); } }
+@keyframes sb-a1 { 0%, 22% { color: var(--color-line-hover); } 27%, 100% { color: var(--color-accent-text); } }
+@keyframes sb-a2 { 0%, 47% { color: var(--color-line-hover); } 52%, 100% { color: var(--color-accent-text); } }
+@keyframes sb-a3 { 0%, 67% { color: var(--color-line-hover); } 72%, 100% { color: var(--color-accent-text); } }
 @keyframes sb-led { 0%, 8% { fill: #2a9f69; } 11%, 100% { fill: #e5484d; } }
 @keyframes sb-pc { 0%, 8% { opacity: 1; transform: none; } 9% { transform: translateX(-3px); } 10% { transform: translateX(3px); } 11%, 100% { opacity: 0.45; transform: none; } }
 @keyframes sb-vu { 0%, 9% { opacity: 1; } 11%, 100% { opacity: 0; } }

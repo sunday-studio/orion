@@ -103,11 +103,29 @@ function storyboard() {
   io.observe(grid);
 }
 
+function sideDrawer() {
+  const side = document.getElementById("docs-side");
+  const btn = document.querySelector<HTMLButtonElement>("[data-side-toggle]");
+  const overlay = document.querySelector<HTMLElement>("[data-side-overlay]");
+  if (!side || !btn || !overlay) return;
+  const set = (open: boolean) => {
+    side.classList.toggle("open", open);
+    overlay.hidden = !open;
+    btn.setAttribute("aria-expanded", String(open));
+    document.body.style.overflow = open ? "hidden" : "";
+  };
+  btn.addEventListener("click", () => set(!side.classList.contains("open")));
+  overlay.addEventListener("click", () => set(false));
+  side.addEventListener("click", (e) => { if ((e.target as HTMLElement).closest("a")) set(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") set(false); });
+}
+
 enhanceCodeBlocks();
 enhanceTabCopy();
 enhanceGateCopy();
 tocSpy();
 savedProgress();
 initSearch();
+sideDrawer();
 initTour();
 storyboard();

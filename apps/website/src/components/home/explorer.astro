@@ -26,7 +26,12 @@ const tabs = [
     </div>
     <div class="frame">
       <div class="fbody">
-        {tabs.map((t, i) => <img class={i === 0 ? "fi is-active" : "fi"} src={`/shots/${t.img}.png`} alt={t.alt} width="1920" height="1500" loading={i === 0 ? "eager" : "lazy"} />)}
+        {tabs.map((t, i) => (
+          <picture>
+            <source media="(prefers-color-scheme: dark)" srcset={`/shots/${t.img}-dark.png`} />
+            <img class={i === 0 ? "fi is-active" : "fi"} src={`/shots/${t.img}.png`} alt={t.alt} width="1920" height="1500" loading={i === 0 ? "eager" : "lazy"} />
+          </picture>
+        ))}
       </div>
     </div>
     <div class="capw" aria-live="polite">

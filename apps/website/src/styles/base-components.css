@@ -5,21 +5,21 @@ h1,h2,h3,p{margin:0}
 .m{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace}
 .nv{position:relative;z-index:5;height:60px;display:flex;align-items:center;justify-content:space-between;padding:0 48px}
 .lg{display:flex;align-items:center;gap:8px;font-weight:500;font-size:16px;letter-spacing:-.01em}
-.mk{width:24px;height:24px;border-radius:7px;background:#18181b;color:#fff;display:grid;place-items:center}
+.mk{width:24px;height:24px;border-radius:7px;background:var(--color-ink);color:var(--color-page);display:grid;place-items:center}
 .nl{display:flex;gap:4px;padding:3px;border-radius:10px;background:var(--color-tray);font-size:13px;font-weight:400}
 .nl a{padding:5px 12px;border-radius:7px;color:var(--color-muted)}
 .nl a.on{background:var(--color-card);color:var(--color-ink);box-shadow:0 1px 2px rgba(24,24,27,.08)}
 .nr{display:flex;gap:8px}
 .b{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:30px;padding:0 12px;border-radius:8px;border:1px solid var(--color-line-strong);background:var(--color-card);font-weight:400;font-size:13px;box-shadow:0 1px 2px rgba(24,24,27,.05);white-space:nowrap}
-.b.p{color:#fff;border-color:#14573a;background:linear-gradient(#2c9f6a,#1f7a50);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 -1px 0 rgba(0,0,0,.14),0 1px 2px rgba(20,87,58,.35)}
+.b.p{color:#fff;border-color:#14573a;background:linear-gradient(#2c9f6a,var(--color-accent));box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 -1px 0 rgba(0,0,0,.14),0 1px 2px rgba(20,87,58,.35)}
 .b.lg2{height:40px;padding:0 18px;font-size:15px;border-radius:10px}
 .dt{display:inline-block;width:7px;height:7px;border-radius:50%;flex:none}
 .g{background:#2a9f69}
 .r{background:#e5484d}
 .a{background:#f59e0b}
-.z{background:#a1a1aa}
+.z{background:var(--color-faint)}
 .bd{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:400}
-.k{font:500 11px "IBM Plex Mono",monospace;letter-spacing:.07em;text-transform:uppercase;color:#1f7a50}
+.k{font:500 11px "IBM Plex Mono",monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--color-accent-text)}
 .card{border:1px solid var(--color-line);border-radius:10px;background:var(--color-card);box-shadow:0 1px 2px rgba(24,24,27,.05)}
 .sec{padding:96px 48px 0}
 .ctr{text-align:center;margin:0 auto}
