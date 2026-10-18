@@ -94,7 +94,7 @@ export const LogsPage = () => {
     ["service", "status", "internal"].includes(state.tab) ? state.tab : "service"
   ) as LogKind;
   const view = state.view === "live" || state.view === "patterns" ? state.view : "list";
-  const limit = Number(state.limit) || 100;
+  const limit = Number(state.limit) || 50;
   const [exporting, setExporting] = useState(false);
   const [paused, setPaused] = useState(false);
   const [fieldKey, setFieldKey] = useState<string>();
@@ -313,7 +313,7 @@ export const LogsPage = () => {
           )
         }
       />
-      <div className="flex justify-center pb-4 pt-3">
+      <div className="pb-4 pt-3">
         <Tabs value={kind} onValueChange={switchTab}>
           <TabsList>
             <TabsTab value="service">Service logs</TabsTab>
