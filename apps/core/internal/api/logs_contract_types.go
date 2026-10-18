@@ -62,22 +62,24 @@ type IngestResponse struct {
 type LogEntry struct {
 	ID string `json:"id"`
 	// Source is "app" for ingested product logs and "agent" for agent service logs.
-	Source        string                 `json:"source" enums:"app,agent"`
-	AppID         string                 `json:"app_id,omitempty"`
-	AppName       string                 `json:"app_name,omitempty"`
-	AgentID       string                 `json:"agent_id,omitempty"`
-	Timestamp     time.Time              `json:"timestamp"`
-	IngestedAt    time.Time              `json:"ingested_at"`
-	Severity      LogSeverity            `json:"severity"`
-	SeverityValue int                    `json:"severity_number" example:"17"`
-	Event         string                 `json:"event,omitempty"`
-	Body          string                 `json:"body"`
-	BodyJSON      interface{}            `json:"body_json,omitempty" swaggertype:"object"`
-	Attributes    map[string]interface{} `json:"attributes,omitempty"`
-	Resource      map[string]interface{} `json:"resource,omitempty"`
-	TraceID       string                 `json:"trace_id,omitempty"`
-	SpanID        string                 `json:"span_id,omitempty"`
-	RequestID     string                 `json:"request_id,omitempty"`
+	Source        string      `json:"source" enums:"app,agent"`
+	AppID         string      `json:"app_id,omitempty"`
+	AppName       string      `json:"app_name,omitempty"`
+	AgentID       string      `json:"agent_id,omitempty"`
+	Timestamp     time.Time   `json:"timestamp"`
+	IngestedAt    time.Time   `json:"ingested_at"`
+	Severity      LogSeverity `json:"severity"`
+	SeverityValue int         `json:"severity_number" example:"17"`
+	// SeverityInferred is true when the sender gave no severity and it was read from the text.
+	SeverityInferred bool                   `json:"severity_inferred,omitempty"`
+	Event            string                 `json:"event,omitempty"`
+	Body             string                 `json:"body"`
+	BodyJSON         interface{}            `json:"body_json,omitempty" swaggertype:"object"`
+	Attributes       map[string]interface{} `json:"attributes,omitempty"`
+	Resource         map[string]interface{} `json:"resource,omitempty"`
+	TraceID          string                 `json:"trace_id,omitempty"`
+	SpanID           string                 `json:"span_id,omitempty"`
+	RequestID        string                 `json:"request_id,omitempty"`
 }
 
 // LogListResponse is one page of results; pass NextCursor back as `cursor` for the next page.
@@ -144,6 +146,10 @@ type RedactionSettings struct {
 	ExtraKeys []string `json:"extra_keys,omitempty"`
 	// DisableDefaults turns off the built-in key list. Not recommended.
 	DisableDefaults bool `json:"disable_defaults,omitempty"`
+	// Rules are custom rules applied after the defaults.
+	Rules []RedactionRule `json:"rules,omitempty"`
+	// DefaultKeys is read-only: the key names redacted unless defaults are disabled.
+	DefaultKeys []string `json:"default_keys,omitempty"`
 }
 
 // App is a product that sends logs to Orion.
@@ -158,35 +164,48 @@ type App struct {
 	// MaxStorageMB caps stored log size for this app; the oldest entries are pruned first. 0 means the server default.
 	MaxStorageMB int `json:"max_storage_mb"`
 	// DebugSampleRate keeps this fraction (0-1) of trace and debug entries. Default 1.
-	DebugSampleRate float64           `json:"debug_sample_rate" example:"1"`
-	Display         DisplayProfile    `json:"display_profile"`
-	Redaction       RedactionSettings `json:"redaction"`
-	CreatedAt       time.Time         `json:"created_at"`
-	LastIngestAt    *time.Time        `json:"last_ingest_at"`
-	KeyCount        int               `json:"key_count"`
+	DebugSampleRate float64 `json:"debug_sample_rate" example:"1"`
+	// RateLimitPerSecond is this app's ingest limit in lines per second; 0 uses the server default.
+	RateLimitPerSecond int               `json:"rate_limit_per_second"`
+	Display            DisplayProfile    `json:"display_profile"`
+	Redaction          RedactionSettings `json:"redaction"`
+	CreatedAt          time.Time         `json:"created_at"`
+	LastIngestAt       *time.Time        `json:"last_ingest_at"`
+	KeyCount           int               `json:"key_count"`
+	// Status is receiving (a log in the last 5 minutes), quiet or never.
+	Status string `json:"status" enums:"receiving,quiet,never"`
+	// RatePerSecond is the average over the last minute.
+	RatePerSecond float64 `json:"rate_per_second"`
+	// StorageBytes is what the app currently uses; StorageCapBytes its size cap (0 = no cap).
+	StorageBytes    int64 `json:"storage_bytes"`
+	StorageCapBytes int64 `json:"storage_cap_bytes"`
+	StoragePercent  int   `json:"storage_percent"`
+	Lines           int64 `json:"lines"`
 }
 
 type AppRequest struct {
-	Name            string             `json:"name" binding:"required"`
-	Environment     string             `json:"environment,omitempty"`
-	Description     string             `json:"description,omitempty"`
-	RetentionDays   *int               `json:"retention_days,omitempty"`
-	MaxStorageMB    *int               `json:"max_storage_mb,omitempty"`
-	DebugSampleRate *float64           `json:"debug_sample_rate,omitempty"`
-	Display         *DisplayProfile    `json:"display_profile,omitempty"`
-	Redaction       *RedactionSettings `json:"redaction,omitempty"`
+	Name               string             `json:"name" binding:"required"`
+	Environment        string             `json:"environment,omitempty"`
+	Description        string             `json:"description,omitempty"`
+	RetentionDays      *int               `json:"retention_days,omitempty"`
+	MaxStorageMB       *int               `json:"max_storage_mb,omitempty"`
+	DebugSampleRate    *float64           `json:"debug_sample_rate,omitempty"`
+	RateLimitPerSecond *int               `json:"rate_limit_per_second,omitempty"`
+	Display            *DisplayProfile    `json:"display_profile,omitempty"`
+	Redaction          *RedactionSettings `json:"redaction,omitempty"`
 }
 
 // AppUpdateRequest changes an app; every field is optional and omitted fields are unchanged.
 type AppUpdateRequest struct {
-	Name            string             `json:"name,omitempty"`
-	Environment     string             `json:"environment,omitempty"`
-	Description     string             `json:"description,omitempty"`
-	RetentionDays   *int               `json:"retention_days,omitempty"`
-	MaxStorageMB    *int               `json:"max_storage_mb,omitempty"`
-	DebugSampleRate *float64           `json:"debug_sample_rate,omitempty"`
-	Display         *DisplayProfile    `json:"display_profile,omitempty"`
-	Redaction       *RedactionSettings `json:"redaction,omitempty"`
+	Name               string             `json:"name,omitempty"`
+	Environment        string             `json:"environment,omitempty"`
+	Description        string             `json:"description,omitempty"`
+	RetentionDays      *int               `json:"retention_days,omitempty"`
+	MaxStorageMB       *int               `json:"max_storage_mb,omitempty"`
+	DebugSampleRate    *float64           `json:"debug_sample_rate,omitempty"`
+	RateLimitPerSecond *int               `json:"rate_limit_per_second,omitempty"`
+	Display            *DisplayProfile    `json:"display_profile,omitempty"`
+	Redaction          *RedactionSettings `json:"redaction,omitempty"`
 }
 
 // IngestKey is a write-only credential for one app. Only a hash is stored.

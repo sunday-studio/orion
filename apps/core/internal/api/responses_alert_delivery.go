@@ -53,7 +53,7 @@ func alertDeliveryAttemptResponses(attempts []db.AlertDeliveryAttempt) []AlertDe
 }
 func safeAlertDeliveryError(value string) string {
 	switch value {
-	case "", "alert channel disabled", "alert cooldown active", "no alert channels configured", "no alert routes matched", "alert route destination missing", "alert grouped into active alert group", "alert grouped; sibling incidents still active", "alert grouped summary pending", "no confirmed email recipients", "server removed":
+	case "", "alert channel disabled", "alert cooldown active", "no alert channels configured", "no alert routes matched", "alert route destination missing", "alert grouped into active alert group", "alert grouped; sibling incidents still active", "alert grouped summary pending", "no confirmed email recipients", "server removed", "monitor removed":
 		return value
 	default:
 		if strings.HasPrefix(value, "alert route suppressed event") {
