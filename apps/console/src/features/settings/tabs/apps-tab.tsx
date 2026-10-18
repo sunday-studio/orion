@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Button,
   Callout,
@@ -26,11 +26,12 @@ import {
 } from "@/features/apps/app-format";
 import { useGetLogIngestStatus, useListApps } from "@/orion-sdk";
 
-const COLUMNS = "14px minmax(0,1.2fr) 120px 110px 110px 80px 70px";
+const COLUMNS = "14px minmax(0,1.2fr) 120px 110px 110px 80px";
 const dotColor = (status?: string) =>
   status === "receiving" ? "#2a9f69" : status === "quiet" ? "#f59e0b" : "#a1a1aa";
 
 export const AppsTab = () => {
+  const navigate = useNavigate();
   const apps = useListApps();
   const ingest = useGetLogIngestStatus();
   const [creating, setCreating] = useState(false);
@@ -81,12 +82,22 @@ export const AppsTab = () => {
                 <span>Status</span>
                 <span>Last log</span>
                 <span>Rate</span>
-                <span />
               </GridRow>
               {list.map((app) => (
-                <GridRow key={app.id} columns={COLUMNS}>
+                <GridRow
+                  key={app.id}
+                  columns={COLUMNS}
+                  className="cursor-pointer"
+                  onClick={() => navigate(`/settings/apps/${app.id}`)}
+                >
                   <Dot color={dotColor(app.status)} />
-                  <b className="font-medium">{app.name}</b>
+                  <Link
+                    to={`/settings/apps/${app.id}`}
+                    className="truncate font-medium outline-none hover:underline focus-visible:underline"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    {app.name}
+                  </Link>
                   <span className="text-faint">{app.environment || "-"}</span>
                   <span>
                     <StatusBadge status={appStatusTone(app.status)}>
@@ -97,11 +108,6 @@ export const AppsTab = () => {
                   <span className="text-faint">
                     {app.status === "never" ? "-" : ratePerSecond(app.rate_per_second)}
                   </span>
-                  <Link to={`/settings/apps/${app.id}`}>
-                    <Button size="sm" variant="secondary">
-                      Open
-                    </Button>
-                  </Link>
                 </GridRow>
               ))}
             </GridTable>
