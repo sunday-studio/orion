@@ -312,25 +312,29 @@ func commandExitCode(err error) int {
 // isUsageError recognises cobra's own argument and flag errors.
 func isUsageError(err error) bool {
 	m := err.Error()
-	for _, p := range []string{"unknown command", "unknown flag", "unknown shorthand flag", "required flag", "invalid argument", "accepts ", "flag needs an argument"} {
-		if strings.Contains(m, p) {
+	for _, p := range []string{"unknown command", "unknown flag", "unknown shorthand flag", "required flag", "invalid argument \"", "accepts ", "flag needs an argument"} {
+		if strings.HasPrefix(m, p) {
 			return true
 		}
 	}
 	return false
 }
 
+// isRootHelp is true for `--help`, `-h` and `help` with nothing after them, so
+// `orion-agent help doctor` still reaches the command's own help.
 func isRootHelp(args []string) bool {
+	var rest []string
 	for _, a := range args {
 		switch a {
 		case "--no-color", "--json", "--verbose":
 			continue
-		case "-h", "--help", "help":
-			return true
 		}
+		rest = append(rest, a)
+	}
+	if len(rest) != 1 {
 		return false
 	}
-	return false
+	return rest[0] == "-h" || rest[0] == "--help" || rest[0] == "help"
 }
 
 func hasFlag(args []string, name string) bool {
