@@ -52,7 +52,7 @@ export const SavedViewsBar = ({
           <Badge
             key={view.id}
             tone={active ? "up" : "unknown"}
-            shape={active ? "dot" : "none"}
+            shape="square"
             className={cn(
               "h-6 gap-1 pl-2.5 pr-1 text-[12.5px] normal-case transition-colors",
               !active && "hover:bg-[var(--tone-stale-bg)]",
