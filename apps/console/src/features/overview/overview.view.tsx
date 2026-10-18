@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Button, EmptyState, FieldPanel, PageHeader, RaisedCard, Skeleton } from "@/design-system";
 import { useGetHealthIssues, useGetMe, useGetOverview } from "@/orion-sdk";
 import { AttentionBox, OngoingBox, RecentIncidentsBox, StatColumn } from "./overview-boxes";
+import { pluralize } from "@/utils/plural";
 import { OverviewFirstRun, isFirstRunDismissed } from "./overview-first-run";
 import { NeedsYouNow } from "./needs-you-now";
 import { formatHeaderDate, useNow } from "./overview-time";
@@ -24,7 +25,10 @@ export const OverviewPage = () => {
   const stats = data?.stats;
   const username = me.data?.username || "admin";
 
-  if (data?.state === "empty" && !dismissed) {
+  const nothingMonitored =
+    data?.state === "empty" ||
+    (overview.isSuccess && (stats?.monitors_total ?? 0) === 0 && (stats?.servers_total ?? 0) === 0);
+  if (nothingMonitored && !dismissed) {
     return <OverviewFirstRun onDismiss={() => setDismissed(true)} />;
   }
 
@@ -77,8 +81,8 @@ export const OverviewPage = () => {
                 >
                   <RaisedCard className="flex items-center gap-2.5 px-4 py-3.5 text-sm font-medium">
                     <span aria-hidden className="size-2 rounded-full bg-[#2a9f69]" />
-                    {stats?.monitors_up ?? 0} monitors passing, {stats?.servers_reporting ?? 0}{" "}
-                    servers reporting
+                    {pluralize(stats?.monitors_up ?? 0, "monitor")} passing,{" "}
+                    {pluralize(stats?.servers_reporting ?? 0, "server")} reporting
                   </RaisedCard>
                 </FieldPanel>
               )
