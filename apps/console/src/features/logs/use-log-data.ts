@@ -88,18 +88,21 @@ export const useLogList = (kind: LogKind, state: LogQueryState, limit: number, e
   };
 };
 
-const useRawFacets = (kind: LogKind, state: LogQueryState, field?: string) => {
+const useRawFacets = (kind: LogKind, state: LogQueryState, field?: string, top?: number) => {
   const params = filterParams(state, kind);
   const service = useGetLogFacets(
-    { ...params, field },
+    { ...params, field, events: top },
     { query: { ...keep.query, enabled: kind === "service" } },
   );
   const internal = useGetInternalLogFacets(params, {
     query: { ...keep.query, enabled: kind === "internal" },
   });
-  const status = useGetStatusLogFacets(params, {
-    query: { ...keep.query, enabled: kind === "status" },
-  });
+  const status = useGetStatusLogFacets(
+    { ...params, top },
+    {
+      query: { ...keep.query, enabled: kind === "status" },
+    },
+  );
   const toItems = (items?: { value?: string; label?: string; count?: number }[]): FacetItem[] =>
     (items ?? []).map((item) => ({
       value: item.value ?? "",
@@ -229,8 +232,8 @@ const GROUP_STATE: Record<string, keyof LogQueryState> = {
  * options that no result matches under the other selected filters are disabled instead of
  * disappearing, so picking one never removes its siblings.
  */
-export const useLogFacets = (kind: LogKind, state: LogQueryState, field?: string) => {
-  const filtered = useRawFacets(kind, state, field);
+export const useLogFacets = (kind: LogKind, state: LogQueryState, field?: string, top?: number) => {
+  const filtered = useRawFacets(kind, state, field, top);
   const baseState = {
     ...state,
     source: "",
@@ -242,7 +245,7 @@ export const useLogFacets = (kind: LogKind, state: LogQueryState, field?: string
     component: "",
     attr: "",
   };
-  const base = useRawFacets(kind, baseState);
+  const base = useRawFacets(kind, baseState, undefined, top);
   const groups = base.groups.map((group) => {
     const own = String(state[GROUP_STATE[group.key]] ?? "");
     const live = new Map(
