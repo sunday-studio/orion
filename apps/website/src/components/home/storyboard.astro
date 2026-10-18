@@ -1,1 +1,31 @@
-<div class="sec"><div style="text-align:center;max-width:780px;margin:0 auto"><span class="k">Watch it work</span><h2 class="h2" style="margin-top:12px">Pull the plug. Watch it notice.</h2><p class=lead style=margin-top:12px>This is the sequence your own Orion runs, in about ten seconds.</p></div><div class="stgrid"><div class="stg stg1"><span class="sn m">1</span><b>You pull the plug</b><div class="sv"><div class="vis1"><svg width="84" height="56" viewBox="0 0 96 64" fill="none"><g class="pcg"><rect x="20" y="14" width="56" height="36" rx="9" fill="#f4f4f2" stroke="#e4e4e7"/><circle cx="32" cy="26" r="3.2" class="led2"/><rect x="42" y="23" width="26" height="6" rx="2" fill="#fff" stroke="#e4e4e7"/><rect x="30" y="50" width="36" height="4" rx="2" fill="#e4e4e7"/></g></svg><div class="m vt"><span class="vu">mini-pc · up</span><span class="vd">mini-pc · off</span></div></div></div></div><span class="stga stga1" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span><div class="stg stg2"><span class="sn m">2</span><b>Orion notices</b><div class="sv"><div class="vis2"><span class="ck ck1"></span><span class="ck ck2"></span><span class="ck ck3"></span><span class="ck ck4"></span><span class="ck ck5"></span></div><div class="m vt2">3 checks fail in a row</div></div></div><span class="stga stga2" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span><div class="stg stg3"><span class="sn m">3</span><b>An incident opens</b><div class="sv"><div class="vis3"><span class="bd"><span class="dt r bk"></span>Open</span><b>INC-0231</b><span class="m">api.example.com · 3 monitors grouped</span></div></div></div><span class="stga stga3" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span><div class="stg stg4"><span class="sn m">4</span><b>Your team is told</b><div class="sv"><div class="vis4"><div class="team d1"><span class="avs" aria-hidden="true"><i></i><i></i><i></i></span><b>ops-team</b><span class="m">notified</span></div><div class="chips2 d2"><span class="dl"><span class="dt g"></span>Webhook <span class="m">312 ms</span></span><span class="dl"><span class="dt g"></span>Email <span class="m">1.8 s</span></span></div></div></div></div></div></div></div>
+---
+import "../../styles/storyboard.css";
+const arrow = '<path d="M5 12h14M13 6l6 6-6 6"/>';
+---
+<div class="sec">
+  <div class="sechead">
+    <span class="k">Watch it work</span>
+    <h2 class="h2">Pull the plug. Watch it notice.</h2>
+    <p class="lead">This is what your own Orion does, in seconds.</p>
+  </div>
+  <div class="stgrid" data-storyboard>
+    <div class="stg stg1"><span class="sn m">1</span><b>You pull the plug</b>
+      <div class="sv"><div class="vis1">
+        <svg viewBox="0 0 96 64" fill="none" aria-hidden="true"><g class="pcg"><rect x="20" y="14" width="56" height="36" rx="9" fill="#f4f4f2" stroke="#e4e4e7"/><circle cx="32" cy="26" r="3.2" class="led2"/><rect x="42" y="23" width="26" height="6" rx="2" fill="#fff" stroke="#e4e4e7"/><rect x="30" y="50" width="36" height="4" rx="2" fill="#e4e4e7"/></g></svg>
+        <div class="m vt"><span class="vu">mini-pc · up</span><span class="vd">mini-pc · off</span></div>
+      </div></div>
+    </div>
+    <span class="stga stga1" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" set:html={arrow} /></span>
+    <div class="stg stg2"><span class="sn m">2</span><b>Orion notices</b>
+      <div class="sv"><div class="vis2"><span class="ck ck1"></span><span class="ck ck2"></span><span class="ck ck3"></span><span class="ck ck4"></span><span class="ck ck5"></span></div><div class="m vt2">3 checks fail in a row</div></div>
+    </div>
+    <span class="stga stga2" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" set:html={arrow} /></span>
+    <div class="stg stg3"><span class="sn m">3</span><b>An incident opens</b>
+      <div class="sv"><div class="vis3"><span class="dt r"></span><span>Open</span><span class="m">INC-0231</span></div></div>
+    </div>
+    <span class="stga stga3" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" set:html={arrow} /></span>
+    <div class="stg stg4"><span class="sn m">4</span><b>You get notified</b>
+      <div class="sv"><div class="chips2"><span class="dl"><span class="dt g"></span>Email</span><span class="dl"><span class="dt g"></span>Webhook</span></div><div class="m vt2">by email or webhook</div></div>
+    </div>
+  </div>
+</div>
