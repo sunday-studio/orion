@@ -123,7 +123,7 @@ export const LogTable = ({
   );
 };
 
-const ROWS = ["20", "50", "100", "200"];
+const ROWS = ["25", "50", "100", "200"];
 
 export const LogPager = ({
   from,
