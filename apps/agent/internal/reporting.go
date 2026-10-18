@@ -61,6 +61,9 @@ func (a *Agent) runSystemMetrics(ctx context.Context) error {
 		}
 		return err
 	}
+	if a.hooks.SystemReport != nil {
+		a.hooks.SystemReport(time.Now(), report.AppResources)
+	}
 	logging.Debugf("system report sent: agent_id=%s", agentID)
 
 	if err := a.shipServiceLogs(ctx); err != nil {
@@ -101,6 +104,9 @@ func (a *Agent) runMonitorMetrics(ctx context.Context, monitor config.InternalSt
 	}
 	logging.Debugf("monitor metrics collected: name=%s type=%s health=%s metrics=%d has_error=%t", monitor.Name, userMonitor.Type, result.Status, metricCount(result.Metrics), result.Error != nil)
 
+	if a.hooks.MonitorResult != nil {
+		a.hooks.MonitorResult(monitor.Name, string(userMonitor.Type), result.Status, result.Timestamp)
+	}
 	logging.Infof("Monitor result -> %v", monitor.Name)
 	report := &transport.MonitorReport{
 		ReportID:  utils.NewReportID(),
