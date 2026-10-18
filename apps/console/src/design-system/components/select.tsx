@@ -3,6 +3,17 @@ import { CheckIcon } from "lucide-react";
 import { controlBase } from "@/design-system/styles";
 import { cn } from "@/utils/cn";
 
+/** Trigger look shared by every select-like control (popover pickers included). */
+export const selectTriggerClass = `${controlBase} flex h-[30px] min-w-[120px] items-center justify-between gap-2 rounded-md border border-input-border bg-gradient-to-b from-(--control-from) to-(--control-to) px-2.5 text-[13px] font-medium text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_1px_2px_rgba(24,24,27,0.06)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_1px_2px_rgba(0,0,0,0.5)]`;
+
+/** The small chevron at the end of a select trigger. */
+export const SelectChevron = () => (
+  <span
+    aria-hidden
+    className="block size-1.5 -translate-y-px rotate-45 border-b-[1.5px] border-r-[1.5px] border-faint"
+  />
+);
+
 export type SelectOption = { value: string; label: string };
 
 export type SelectProps = {
@@ -39,11 +50,7 @@ export const Select = ({
       <SelectPrimitive.Trigger
         aria-label={ariaLabel ?? label}
         data-slot="ds-select"
-        className={cn(
-          controlBase,
-          "flex h-[30px] min-w-[120px] items-center justify-between gap-2 rounded-md border border-input-border bg-gradient-to-b from-(--control-from) to-(--control-to) px-2.5 text-[13px] font-medium text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_1px_2px_rgba(24,24,27,0.06)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_1px_2px_rgba(0,0,0,0.5)]",
-          className,
-        )}
+        className={cn(selectTriggerClass, className)}
       >
         <span className="min-w-0 flex-1 truncate text-left">
           {label ? `${label}: ` : ""}
