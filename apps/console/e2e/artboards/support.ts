@@ -1,3 +1,5 @@
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { type Page, expect } from "@playwright/test";
 
 type Json = Record<string, unknown>;
@@ -50,9 +52,40 @@ export const expectMatchesArtboard = async (
   if (process.env.ARTBOARD_SHOTS) {
     await page.screenshot({ path: `${process.env.ARTBOARD_SHOTS}/${name}-${theme}.png` });
   }
+  if (process.env.REVIEW_OUT) {
+    // Let open/close transitions finish so the review image is not captured mid-fade.
+    await page.waitForTimeout(350);
+    await writeReviewImage(page, name, theme, await page.screenshot());
+  }
   await expect(page).toHaveScreenshot(`${name}-${theme}.png`, {
     maxDiffPixelRatio: 0.06,
     animations: "disabled",
     fullPage: false,
   });
+};
+
+/**
+ * Writes artboard-vs-app side-by-side images for human review when REVIEW_OUT is set,
+ * for example REVIEW_OUT=docs/design/review/f2 (relative to the repository root).
+ */
+const writeReviewImage = async (page: Page, name: string, theme: string, actual: Buffer) => {
+  const out = process.env.REVIEW_OUT;
+  if (!out) return;
+  const repoRoot = resolve(process.cwd(), "../..");
+  const artboard = readFileSync(
+    resolve(repoRoot, `docs/design/artboards/png/${name}-${theme}.png`),
+  ).toString("base64");
+  const browser = page.context().browser();
+  if (!browser) return;
+  const compare = await browser.newPage({ viewport: { width: 2580, height: 400 } });
+  await compare.setContent(
+    `<body style="margin:0;background:#777;display:flex;gap:20px;align-items:flex-start"><img src="data:image/png;base64,${artboard}"><img src="data:image/png;base64,${actual.toString("base64")}"></body>`,
+  );
+  await compare.waitForLoadState("load");
+  const height = await compare.evaluate(() => document.body.scrollHeight);
+  await compare.setViewportSize({ width: 2580, height });
+  const target = resolve(repoRoot, out, `${name}-${theme}.png`);
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, await compare.screenshot());
+  await compare.close();
 };
