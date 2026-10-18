@@ -1,0 +1,17 @@
+---
+import Base from "../layouts/base.astro";
+---
+<Base title="Page not found · Orion" description="That page is not here." noindex>
+  <main id="main" class="nf">
+    <span class="k">404</span>
+    <h1 class="h2">That page is not here.</h1>
+    <p class="lead">It may have moved, or the link may be wrong. Try the docs, or head back home.</p>
+    <div class="nfb"><a class="b p lg2" href="/docs/">Read the docs</a><a class="b lg2" href="/">Back home</a></div>
+  </main>
+</Base>
+<style>
+  .nf { text-align: center; padding: 120px 20px 80px; }
+  .nf .h2 { margin-top: 12px; }
+  .nf .lead { margin: 14px auto 0; max-width: 460px; }
+  .nfb { display: flex; gap: 10px; justify-content: center; margin-top: 28px; flex-wrap: wrap; }
+</style>

@@ -6,8 +6,8 @@ import "../styles/responsive.css";
 import Header from "../components/header.astro";
 import Footer from "../components/footer.astro";
 import SearchDialog from "../components/search-dialog.astro";
-interface Props { title: string; description?: string; active?: "docs" | ""; docs?: boolean; footer?: boolean; ogImage?: string; imageAlt?: string }
-const { ogImage = "/og/home", imageAlt = "Orion: run monitoring and incident response on a machine you own", title, description = "Self-hosted uptime monitoring, incident response and logs for personal projects and small teams, on a machine you own.", active = "", docs = false, footer = true } = Astro.props;
+interface Props { title: string; description?: string; active?: "docs" | ""; docs?: boolean; footer?: boolean; noindex?: boolean; ogImage?: string; imageAlt?: string }
+const { ogImage = "/og/home", imageAlt = "Orion: run monitoring and incident response on a machine you own", title, description = "Self-hosted uptime monitoring, incident response and logs for personal projects and small teams, on a machine you own.", active = "", docs = false, footer = true, noindex = false } = Astro.props;
 const siteUrl = Astro.site ?? new URL("https://orion.sunday.studio");
 const canonical = new URL(Astro.url.pathname, siteUrl).href;
 const shareImage = (size: string) => new URL(`${ogImage}-${size}.png`, siteUrl).href;
@@ -22,7 +22,7 @@ const shareImage = (size: string) => new URL(`${ogImage}-${size}.png`, siteUrl).
     <meta name="theme-color" content="#111513" media="(prefers-color-scheme: dark)" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <link rel="canonical" href={canonical} />
+    {noindex ? <meta name="robots" content="noindex" /> : <link rel="canonical" href={canonical} />}
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Orion" />
     <meta property="og:locale" content="en_US" />

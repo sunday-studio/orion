@@ -5,7 +5,7 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
   site: "https://orion.sunday.studio",
-  integrations: [mdx(), sitemap()],
+  integrations: [mdx(), sitemap({ filter: (page) => !page.endsWith("/404/") })],
   vite: { plugins: [tailwindcss()] },
   markdown: { shikiConfig: { theme: "github-dark", wrap: false } },
 });
