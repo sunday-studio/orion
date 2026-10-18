@@ -24,6 +24,7 @@ export function LoginPage() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const sessionExpired = searchParams.get("session") === "expired";
+  const returnPath = safeReturnPath(searchParams.get("from"));
 
   const submitLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -110,7 +111,10 @@ export function LoginPage() {
             Use the admin credentials set on your Core host.
           </p>
           {sessionExpired && !error && (
-            <Callout tone="warn">Your session expired. Sign in again.</Callout>
+            <Callout tone="warn">
+              Your session expired after 12 hours. Sign in again
+              {returnPath !== "/" ? ` to return to ${returnPath}` : ""}.
+            </Callout>
           )}
           <label className="flex flex-col gap-1.5 text-[13px] font-medium">
             Username

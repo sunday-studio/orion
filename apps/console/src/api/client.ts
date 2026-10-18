@@ -132,7 +132,8 @@ export const orvalFetchClient = async <T>(endpoint: string, options?: RequestIni
 
     if (res.status === 401 && !endpoint.includes("/v1/auth/login")) {
       clearToken();
-      window.location.href = "/login?session=expired";
+      const from = `${window.location.pathname}${window.location.search}`;
+      window.location.href = `/login?session=expired&from=${encodeURIComponent(from)}`;
     }
 
     if (!res.ok) {

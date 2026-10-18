@@ -25,8 +25,10 @@ const DesignSystemPage = lazy(() =>
     default: module.DesignSystemPage,
   })),
 );
-const AppsPage = lazy(() =>
-  import("@/features/apps/apps.view").then((module) => ({ default: module.AppsPage })),
+const AppDetailPage = lazy(() =>
+  import("@/features/apps/app-detail.view").then((module) => ({
+    default: module.AppDetailPage,
+  })),
 );
 const HealthIssuesPage = lazy(() =>
   import("@/features/health/health-issues.view").then((module) => ({
@@ -136,7 +138,8 @@ function AppRouter() {
           <Route path="alerts/deliveries/:deliveryId" element={<DeliveryDetailPage />} />
           <Route path="design-system" element={<DesignSystemPage />} />
           <Route path="apps/new" element={<ConnectAppPage />} />
-          <Route path="settings/apps" element={<AppsPage />} />
+          <Route path="settings/apps" element={<Navigate to="/settings?tab=apps" replace />} />
+          <Route path="settings/apps/:appId" element={<AppDetailPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
