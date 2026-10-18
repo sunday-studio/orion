@@ -2,7 +2,7 @@
 
 Read `design-language.md` (rules and tokens) first, then this file. The canvas is https://claude.ai/artifact/L7gFM2gipuTveU5hkGqMRY; artboard names below match its file names (`<name>.dc.html`). `screen-map.md` numbers screens; this file maps them to code and API. API items marked "approved" are covered by D-004; items marked "proposed" need a Core route, OpenAPI annotations and `docs/agent-core-contract.md` review before the UI can ship, so build the screen against a typed stub and a feature flag.
 
-**Artboard exports (build 1:1 from these).** Every canvas artboard is exported to `docs/design/artboards/`: `<name>.html` (self-contained, shared `orion.css`), `png/<name>-light.png` and `-dark.png` at 1280px, and `README.md` with the artboard to screen-map to route to Console file index. Artboard names in the table below match those files. Compare each screen to its PNG during review.
+**Artboard exports (build 1:1 from these).** Every screen now has a light and a dark artboard (`<name>.html` and `<name>-dark.html`), grouped by flow on the canvas. Every canvas artboard is exported to `docs/design/artboards/`: `<name>.html` (self-contained, shared `orion.css`), `png/<name>-light.png` and `-dark.png` at 1280px, and `README.md` with the artboard to screen-map to route to Console file index. Artboard names in the table below match those files. Compare each screen to its PNG during review.
 
 ## 1. Build order
 
@@ -17,7 +17,7 @@ Read `design-language.md` (rules and tokens) first, then this file. The canvas i
 | Artboard(s) | Route | Console file | API |
 |---|---|---|---|
 | login, session-expired | `/login` | `features/auth/login.view.tsx` | existing |
-| Main (Overview), overview-all-good, onboarding, dashboard-dark | `/` (D-003) | new `features/overview/` | `/v1/health/summary`, `/v1/health/issues`, `/v1/incidents` |
+| Main (Overview), overview-all-good, onboarding | `/` (D-003) | new `features/overview/` | `/v1/health/summary`, `/v1/health/issues`, `/v1/incidents` |
 | health-issues | `/health` or panel | new | `/v1/health/issues` |
 | incidents-list, incidents-bulk, incidents-empty | `/incidents` | `features/incidents/` | existing; bulk proposed |
 | incident-detail, incident-resolved, incident-actions, incident-public-update | `/incidents/:id` | `features/incidents/incident-detail.view.tsx` | existing |
@@ -94,7 +94,7 @@ Compare each screen to its artboard at 1280px width. Check: one-line rows, cente
 
 Checked against `apps/core/openapi.yaml` on 2026-10-18 after the F1 APIs landed.
 
-**Overview** (`Main`, `overview-all-good`, `dashboard-dark`, `onboarding`): one call, `GET /v1/overview`.
+**Overview** (`Main`, `overview-all-good`, `Main-dark`, `onboarding`): one call, `GET /v1/overview`.
 - Greeting uses `GET /v1/auth/me`. Header health chip: `health_issue_count` and `state` (empty, ok, issues).
 - Stat cards: Monitors up = `stats.monitors_up` of `monitors_total`; Servers reporting = `servers_reporting` of `servers_total`; Uptime, 30 days = `uptime_30d_percent`, which is null until a daily rollup exists, so show "No data yet" in that card until then.
 - Needs you now: `needs_you` (`title`, `severity`, `status`, `summary`, `opened_at`, `notified_at`, `acknowledged_at`, `duration_seconds`). Tracker: Detected = `opened_at`, Notified = `notified_at`, Acknowledged = `acknowledged_at`, Resolved = `resolved_at`. The summary line is the incident `summary`. Acknowledge calls `POST /v1/incidents/{id}/acknowledge`.
