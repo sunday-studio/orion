@@ -123,7 +123,6 @@ export const AgentMonitorsTab = ({ agentId }: { agentId: string }) => {
         >
           <GridTable>
             <GridRow columns={MONITOR_COLUMNS} header>
-              <span />
               <span>Monitor</span>
               <span>Type</span>
               <span>Status</span>

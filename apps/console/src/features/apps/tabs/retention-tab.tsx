@@ -42,6 +42,14 @@ export const RetentionTab = ({ app, onSaved }: { app: ApiApp; onSaved: () => voi
       onError: () => toast.add({ title: "Unable to delete logs" }),
     },
   });
+  const initialCap = app.max_storage_mb
+    ? String(Math.round((app.max_storage_mb / 1024) * 10) / 10)
+    : "";
+  const dirty =
+    keep !== String(app.retention_days ?? 14) ||
+    cap !== initialCap ||
+    rate !== String(app.rate_limit_per_second ?? 0) ||
+    debug !== String(normalizeRate(app.debug_sample_rate));
   const percent = Math.min(Math.round(app.storage_percent ?? 0), 100);
   const capNumber = Number(cap);
 
@@ -111,7 +119,7 @@ export const RetentionTab = ({ app, onSaved }: { app: ApiApp; onSaved: () => voi
       </FieldPanel>
       <div className="flex justify-end gap-2">
         <Button
-          disabled={save.isPending}
+          disabled={save.isPending || !dirty}
           onClick={() =>
             save.mutate({
               id,

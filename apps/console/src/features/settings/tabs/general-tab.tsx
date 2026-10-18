@@ -60,6 +60,12 @@ export const GeneralTab = () => {
     },
   });
 
+  const dirty =
+    name !== (data?.instance_name ?? "") ||
+    url !== (data?.public_url ?? "") ||
+    zone !== (data?.timezone || "UTC") ||
+    format !== (data?.time_format ?? "24");
+
   if (query.isPending) return <Skeleton className="h-64 w-full rounded-xl" />;
   if (query.isError) return <Callout tone="down">Unable to load general settings.</Callout>;
   const fromEnvironment = data?.public_url_source === "environment";
@@ -109,7 +115,7 @@ export const GeneralTab = () => {
       </FieldPanel>
       <div className="flex justify-end">
         <Button
-          disabled={save.isPending || !name.trim()}
+          disabled={save.isPending || !name.trim() || !dirty}
           onClick={() =>
             save.mutate({
               data: {

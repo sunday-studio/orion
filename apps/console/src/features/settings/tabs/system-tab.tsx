@@ -21,26 +21,23 @@ export const SystemTab = () => {
   if (query.isPending) return <Skeleton className="h-48 w-full rounded-xl" />;
   if (query.isError || !data) return <Callout tone="down">Unable to load system status.</Callout>;
   const worker = data.worker;
-  const dot = worker?.healthy ? "#2a9f69" : worker?.status === "stale" ? "#f59e0b" : "#e5484d";
   return (
     <FieldPanel title="System" aside={`Core ${data.version ?? ""}`}>
       <RaisedCard>
-        <div className="grid min-h-[38px] grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto] items-center gap-3 px-3.5 py-2 text-[13px]">
-          <b className="flex items-center gap-2.5 font-medium">
-            <i className="size-2 rounded-full" style={{ background: dot }} />
-            Core worker
-          </b>
-          <span className="truncate text-quiet">
-            {worker?.status === "running"
+        <SettingRow
+          label="Core worker"
+          detail={
+            worker?.status === "running"
               ? `Running, last tick ${formatDate(worker.last_tick_at, "HH:mm:ss")}`
-              : worker?.last_error || (worker?.status ?? "Unknown")}
-          </span>
+              : worker?.last_error || (worker?.status ?? "Unknown")
+          }
+        >
           <StatusBadge
             status={worker?.healthy ? "up" : worker?.status === "stale" ? "degraded" : "down"}
           >
             {worker?.healthy ? "Healthy" : worker?.status === "stale" ? "Stale" : "Missing"}
           </StatusBadge>
-        </div>
+        </SettingRow>
         <SettingRow
           label="Uptime"
           detail={`Up ${uptime(data.uptime_seconds)}, started ${formatDate(data.started_at, "MMM d, HH:mm")}`}

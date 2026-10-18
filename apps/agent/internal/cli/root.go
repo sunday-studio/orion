@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/charmbracelet/fang"
 	"io"
+	"orion/agent/internal/ui"
 	"os"
 	"runtime"
 	"strconv"
@@ -25,22 +26,24 @@ type Options struct {
 	NoColor    bool
 	JSON       bool
 
-	Once           bool
-	SetupCoreURL   string
-	SetupForce     bool
-	SetupInitState bool
-	SetupYes       bool
-	SetupDryRun    bool
-	SetupTokenFile string
-	SetupMonitors  []string
-	UpdateVersion  string
-	UpdateRepo     string
-	UpdateBaseURL  string
-	UpdateRollback bool
-	UpdateForce    bool
-	LogLines       int
-	TokenApply     string
-	TokenFile      string
+	Once                  bool
+	SetupCoreURL          string
+	SetupForce            bool
+	SetupInitState        bool
+	SetupYes              bool
+	SetupDryRun           bool
+	SetupToken            string
+	SetupTokenFile        string
+	SetupAcceptDiscovered bool
+	SetupMonitors         []string
+	UpdateVersion         string
+	UpdateRepo            string
+	UpdateBaseURL         string
+	UpdateRollback        bool
+	UpdateForce           bool
+	LogLines              int
+	TokenApply            string
+	TokenFile             string
 
 	normalizedArgs []string
 }
@@ -50,6 +53,9 @@ type CommandError struct {
 	Cause     error
 	NextSteps []string
 	ExitCode  int
+	// Silent means the command already printed its own result (for example the
+	// doctor summary line); only the exit code is used.
+	Silent bool
 }
 
 func (e *CommandError) Error() string {
@@ -93,9 +99,10 @@ func Execute(ctx context.Context, args []string, out, errOut io.Writer) int {
 	cmd.SetArgs(normalizedArgs)
 	SetOutput(out)
 
-	if len(normalizedArgs) == 0 {
-		_ = cmd.Help()
-		return 1
+	if len(normalizedArgs) == 0 || isRootHelp(normalizedArgs) {
+		SetColorEnabled(!hasFlag(normalizedArgs, "--no-color") && writerSupportsColor(out))
+		fmt.Fprint(out, rootHelp(theme, ui.Width(os.Stdout)))
+		return 0
 	}
 
 	// fang styles --help from the design tokens; errors keep our own renderer.
@@ -157,6 +164,8 @@ func NewRootCommand(ctx context.Context, opts *Options, out, errOut io.Writer) *
 		newSetupCommand(ctx, opts),
 		newDiscoverCommand(ctx, opts),
 		newUsageCommand(ctx, opts),
+		newEmitCommand(ctx, opts),
+		newRunJobCommand(ctx, opts),
 		newEnrollCommand(ctx, opts),
 		newMaintenanceCommand(ctx, opts),
 		newConfigCommand(ctx, opts),
@@ -272,29 +281,71 @@ func renderCommandError(w io.Writer, err error) {
 	if w == nil {
 		w = os.Stderr
 	}
-
 	var commandErr *CommandError
-	if errors.As(err, &commandErr) {
-		fmt.Fprintf(w, "error: %s\n", commandErr.Summary)
-		if commandErr.Cause != nil {
-			fmt.Fprintf(w, "\ncause:\n  %v\n", commandErr.Cause)
-		}
-		if len(commandErr.NextSteps) > 0 {
-			fmt.Fprintln(w, "\nnext steps:")
-			for _, step := range commandErr.NextSteps {
-				fmt.Fprintf(w, "  %s\n", step)
-			}
-		}
+	if errors.As(err, &commandErr) && commandErr.Silent {
 		return
 	}
+	if commandErr == nil && isUsageError(err) {
+		err = &CommandError{Summary: err.Error(), NextSteps: []string{"orion-agent --help"}, ExitCode: ExitUsage}
+	}
+	fmt.Fprint(w, renderErrorScreen(errorTheme(w), err, ui.Width(os.Stderr)))
+}
 
-	fmt.Fprintf(w, "error: %v\n", err)
+// errorTheme styles errors for w: colour only on a terminal that wants it.
+func errorTheme(w io.Writer) *ui.Theme {
+	if !colorEnabled {
+		return ui.Plain()
+	}
+	return ui.Detect(w)
 }
 
 func commandExitCode(err error) int {
 	var commandErr *CommandError
 	if errors.As(err, &commandErr) {
+		if strings.Contains(commandErr.Summary, "could not elevate privileges") {
+			return ExitElevate
+		}
 		return commandErr.code()
 	}
-	return 1
+	if isUsageError(err) {
+		return ExitUsage
+	}
+	return ExitFailed
+}
+
+// isUsageError recognises cobra's own argument and flag errors.
+func isUsageError(err error) bool {
+	m := err.Error()
+	for _, p := range []string{"unknown command", "unknown flag", "unknown shorthand flag", "required flag", "invalid argument \"", "accepts ", "flag needs an argument"} {
+		if strings.HasPrefix(m, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// isRootHelp is true for `--help`, `-h` and `help` with nothing after them, so
+// `orion-agent help doctor` still reaches the command's own help.
+func isRootHelp(args []string) bool {
+	var rest []string
+	for _, a := range args {
+		switch a {
+		case "--no-color", "--json", "--verbose":
+			continue
+		}
+		rest = append(rest, a)
+	}
+	if len(rest) != 1 {
+		return false
+	}
+	return rest[0] == "-h" || rest[0] == "--help" || rest[0] == "help"
+}
+
+func hasFlag(args []string, name string) bool {
+	for _, a := range args {
+		if a == name {
+			return true
+		}
+	}
+	return false
 }

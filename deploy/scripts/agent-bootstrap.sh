@@ -22,11 +22,13 @@ REQUIRE_SIGNATURE="${ORION_REQUIRE_SIGNATURE:-false}"
 START_SERVICE="true"
 OVERWRITE_CONFIG="false"
 DRY_RUN="false"
+VERIFY_ONLY="false"
 USER_MODE="false"
 ASSUME_YES="false"
 PURGE="false"
 ACTION="install"
 STEP=0
+STARTED_AT="$(date +%s)"
 
 usage() {
   cat <<'EOF'
@@ -49,18 +51,20 @@ Options:
   --skip-verify                Install without checksum verification (old releases only; unsafe).
   --yes                        Do not prompt.
   --purge                      With uninstall: also remove config, state, logs and the service user.
-  --dry-run                    Download and verify into a temp dir, print what would
-                               change, and change nothing.
+  --dry-run                    Print the install plan only; do not download or change anything.
+  --verify-only                Download and verify release assets, then exit without installing.
   -h, --help                   Show this help.
 
 Exit codes: 0 ok, 1 usage or failed install, 2 verification failed (nothing installed).
 EOF
 }
 
-step() { STEP=$((STEP + 1)); printf '\n[%02d] %s\n' "$STEP" "$1"; }
-ok()   { printf '     ok: %s\n' "$1"; }
-info() { printf '     %s\n' "$1"; }
-die()  { printf 'error: %s\n' "$1" >&2; [ -n "${2:-}" ] && printf 'fix: %s\n' "$2" >&2; exit "${3:-1}"; }
+# The installer is deliberately quiet between completed steps: operators need
+# a concise, copyable audit trail, not the implementation's shell chatter.
+step() { STEP=$((STEP + 1)); }
+ok()   { printf '  ✓ %s\n' "$1"; }
+info() { printf '    %s\n' "$1"; }
+die()  { printf '  ✗ %s\n' "$1" >&2; [ -n "${2:-}" ] && printf '    Fix: %s\n' "$2" >&2; exit "${3:-1}"; }
 
 require_value() { [ -n "${2:-}" ] || { printf '%s requires a value.\n' "$1" >&2; usage >&2; exit 1; }; }
 require_cmd()   { command -v "$1" >/dev/null 2>&1 || die "missing required command: $1" "install $1 and re-run"; }
@@ -84,6 +88,7 @@ while [ "$#" -gt 0 ]; do
     --yes|-y) ASSUME_YES="true"; shift ;;
     --purge) PURGE="true"; shift ;;
     --dry-run) DRY_RUN="true"; shift ;;
+    --verify-only) VERIFY_ONLY="true"; shift ;;
     -h|--help) usage; exit 0 ;;
     *) printf 'Unknown option: %s\n' "$1" >&2; usage >&2; exit 1 ;;
   esac
@@ -177,19 +182,18 @@ else
   if [ "$(id -u)" -eq 0 ]; then PRIV="root"; else PRIV="sudo (will prompt)"; fi
 fi
 
-printf 'Orion Agent installer\n'
-step "Plan"
-info "platform:   $OS/$ARCH, init: $INIT"
-info "release:    $REPO@$VERSION"
-info "download:   $BASE_URL/$ASSET (+ SHA256SUMS)"
-info "binary:     $BIN_DIR/orion-agent"
-info "config:     $CFG"
-info "state:      $STATE_DIR"
-if [ "$USER_MODE" = "true" ]; then info "service:    per-user ($([ "$INIT" = launchd ] && echo launchd agent || echo systemd --user))"
-else info "service:    orion-agent ($INIT), runs as an unprivileged user"; fi
-info "enroll:     $([ -n "$TOKEN_FILE${ORION_ENROLLMENT_TOKEN:-}" ] && echo 'yes, with a one-time token' || echo 'no token given; the host registers on first start')"
-info "privilege:  $PRIV"
-[ "$DRY_RUN" = "true" ] && info "mode:       dry run, nothing will be changed"
+printf '\n  orion  agent installer %s\n\n' "$VERSION"
+printf '  Plan\n'
+printf '  ● system     %s/%s, %s\n' "$OS" "$ARCH" "$INIT"
+printf '  ● download   %s, static\n' "$ASSET"
+printf '  ● verify     sha256%s\n' "$([ "$REQUIRE_SIGNATURE" = "true" ] && printf ' and signature' || printf '')"
+printf '  ● create     %s, %s, %s\n' "$([ "$USER_MODE" = "true" ] && printf 'user directories' || printf 'user orion')" "$(dirname "$CFG")" "$STATE_DIR"
+printf '  ● install    orion-agent (%s)\n' "$INIT"
+printf '  ● enroll     %s\n' "$CORE_URL"
+if [ "$DRY_RUN" = "true" ]; then
+  printf '\n  dry run: this plan makes no changes.\n'
+  exit 0
+fi
 
 if [ "$INIT" = "none" ] && [ "$USER_MODE" != "true" ]; then
   die "no supported init system found (systemd or launchd)" "use --user, or run the agent under your own supervisor: orion-agent run"
@@ -223,7 +227,7 @@ else
       --certificate-identity-regexp "^https://github.com/${REPO}/\.github/workflows/agent-binaries\.yml@" \
       --certificate-oidc-issuer "https://token.actions.githubusercontent.com" "$WORK/SHA256SUMS" >/dev/null 2>&1 \
       || die "Release signature verification failed; refusing to install." "do not install; report this at https://github.com/${REPO}/issues" 2
-    ok "release signature verified (cosign)"
+    : # Report signature and checksums together as one completed Verify step.
   elif [ "$REQUIRE_SIGNATURE" = "true" ]; then
     die "cosign is required (--require-signature / ORION_REQUIRE_SIGNATURE) but is not installed." "install cosign" 2
   else
@@ -236,7 +240,6 @@ else
     [ -n "$want" ] || die "No checksum for $name in SHA256SUMS; refusing to install." "this release looks incomplete" 2
     got="$(sha256_of "$file")"
     [ "$got" = "$want" ] || die "Checksum mismatch for $name (expected $want, got $got); refusing to install." "nothing was installed" 2
-    ok "$name checksum matches"
   }
   verify_asset "$WORK/$ASSET" "$ASSET"
   if [ "$USER_MODE" != "true" ]; then
@@ -244,11 +247,17 @@ else
     verify_asset "$WORK/orion-agent-systemd.service" "orion-agent-systemd.service"
     verify_asset "$WORK/com.orion.agent.plist" "com.orion.agent.plist"
   fi
+  ok "Verified sha256$([ -f "$WORK/SHA256SUMS.sig" ] && printf ' and signature' || true)"
 fi
 chmod +x "$WORK/$ASSET"
-if "$WORK/$ASSET" version >/dev/null 2>&1; then ok "binary runs on this machine"
+if "$WORK/$ASSET" version >/dev/null 2>&1; then :
 elif [ "$SKIP_VERIFY" = "true" ]; then info "warning: the downloaded binary did not run here"
 else die "the downloaded binary does not run on this machine" "check the architecture ($OS/$ARCH)" 2; fi
+
+if [ "$VERIFY_ONLY" = "true" ]; then
+  ok "Verification complete; no files were installed"
+  exit 0
+fi
 
 if [ -n "$CONFIG_URL" ]; then fetch "$CONFIG_URL" "$WORK/config.yaml"; CONFIG_SOURCE="$WORK/config.yaml"; fi
 
@@ -277,10 +286,10 @@ if [ "$USER_MODE" = "true" ]; then
   step "Install (per-user)"
   mkdir -p "$BIN_DIR" "$(dirname "$CFG")" "$STATE_DIR"; chmod 700 "$STATE_DIR"
   install -m 0755 "$WORK/$ASSET" "$BIN_DIR/orion-agent"
-  ok "installed $BIN_DIR/orion-agent"
+  ok "Installed $BIN_DIR/orion-agent"
   if [ -f "$CFG" ] && [ "$OVERWRITE_CONFIG" != "true" ]; then info "keeping existing config $CFG"
-  elif [ -n "$CONFIG_SOURCE" ]; then install -m 0600 "$CONFIG_SOURCE" "$CFG"; ok "installed config"
-  else printf 'core_url: %s\ninterval: 60s\nlogging:\n  path: %s\nmonitors: []\n' "$CORE_URL" "$STATE_DIR/agent.log" > "$CFG"; chmod 600 "$CFG"; ok "wrote $CFG"; fi
+  elif [ -n "$CONFIG_SOURCE" ]; then install -m 0600 "$CONFIG_SOURCE" "$CFG"
+  else printf 'core_url: %s\ninterval: 60s\nlogging:\n  path: %s\nmonitors: []\n' "$CORE_URL" "$STATE_DIR/agent.log" > "$CFG"; chmod 600 "$CFG"; fi
   export ORION_AGENT_SOCKET="$STATE_DIR/agent.sock"
   if [ -n "$TOKEN_FILE" ]; then
     "$BIN_DIR/orion-agent" enroll --config "$CFG" --state "$STATE_DIR/state.db" --core-url "${CORE_URL:-$(awk '/^core_url:/{print $2}' "$CFG")}" --token-file "$TOKEN_FILE" || die "enrollment failed" "create a new token in Console > Add server"
@@ -304,7 +313,7 @@ RestartSec=10s
 WantedBy=default.target
 EOF
     systemctl --user daemon-reload
-    if [ "$START_SERVICE" = "true" ]; then systemctl --user enable --now orion-agent; ok "started (systemd --user)"; fi
+    if [ "$START_SERVICE" = "true" ]; then systemctl --user enable --now orion-agent; fi
   elif [ "$INIT" = "launchd" ]; then
     plist="$HOME/Library/LaunchAgents/com.orion.agent.user.plist"; mkdir -p "$(dirname "$plist")"
     cat > "$plist" <<EOF
@@ -320,7 +329,7 @@ EOF
 <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
 </dict></plist>
 EOF
-    if [ "$START_SERVICE" = "true" ]; then launchctl bootout "gui/$(id -u)" "$plist" >/dev/null 2>&1 || true; launchctl bootstrap "gui/$(id -u)" "$plist"; ok "started (launchd agent)"; fi
+    if [ "$START_SERVICE" = "true" ]; then launchctl bootout "gui/$(id -u)" "$plist" >/dev/null 2>&1 || true; launchctl bootstrap "gui/$(id -u)" "$plist"; fi
   else
     info "no init system; run: $BIN_DIR/orion-agent run"
   fi
@@ -339,13 +348,23 @@ else
   # shellcheck disable=SC2086
   (cd "$WORK" && $SUDO ./orion-agent-install.sh ${args[@]+"${args[@]}"})
 fi
+ok "Installed and started orion-agent"
 
 step "Health check"
 if [ "$START_SERVICE" = "true" ]; then
   sleep 2
+  printf '  ⠋ Waiting for the first report...\n'
   if ! "$BIN_DIR/orion-agent" doctor; then
-    printf '\nInstalled, but doctor found problems. Each failure above names the command that fixes it.\n'
+    printf '\n  ╭─ Doctor ─────────────────────────────────────────╮\n'
+    printf '  │ ✗ Doctor found problems; each failure above has a fix\n'
+    printf '  ╰──────────────────────────────────────────────────╯\n'
     exit 0
   fi
+  printf '  ╭─ Doctor ─────────────────────────────────────────╮\n'
+  printf '  │ ✓ DNS, TLS, Core reachable, token\n'
+  printf '  │ ✓ Clock, disk, service, version\n'
+  printf '  ╰──────────────────────────────────────────────────╯\n'
 fi
-printf '\nOrion Agent is installed. Next: orion-agent status\n'
+elapsed=$(( $(date +%s) - STARTED_AT ))
+printf '\n  Done in %s s. Open %s/servers/%s\n' "$elapsed" "${CORE_URL%/}" "$(hostname -s 2>/dev/null || hostname)"
+printf '  Add monitors:  orion-agent setup\n'

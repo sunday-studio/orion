@@ -299,6 +299,9 @@ func (c *UserConfig) Validate() error {
 			return fmt.Errorf("app_resources.paths entry %q must be an absolute path", p)
 		}
 	}
+	if err := c.Logs.Validate(); err != nil {
+		return err
+	}
 	switch strings.ToLower(c.Transport.Compression) {
 	case "", "none", "gzip":
 	default:
@@ -388,4 +391,50 @@ func IsConsoleLogPath(p string) bool {
 		return true
 	}
 	return false
+}
+
+// Validate checks the log sources.
+func (l LogsConfig) Validate() error {
+	if l.SpoolMB < 0 || l.SpoolMB > 4096 {
+		return errors.New("logs.spool_mb must be between 0 and 4096")
+	}
+	seen := map[string]bool{}
+	for i, s := range l.Sources {
+		at := fmt.Sprintf("logs.sources[%d]", i)
+		if strings.TrimSpace(s.Name) == "" {
+			return fmt.Errorf("%s: name is required", at)
+		}
+		if seen[s.Name] {
+			return fmt.Errorf("%s: duplicate source name %q", at, s.Name)
+		}
+		seen[s.Name] = true
+		switch s.Type {
+		case "file":
+			if !filepath.IsAbs(s.Path) {
+				return fmt.Errorf("%s (%s): path must be an absolute path or glob", at, s.Name)
+			}
+		case "journald":
+			if strings.TrimSpace(s.Unit) == "" {
+				return fmt.Errorf("%s (%s): unit is required for journald", at, s.Name)
+			}
+		case "docker":
+			if strings.TrimSpace(s.Container) == "" {
+				return fmt.Errorf("%s (%s): container is required for docker", at, s.Name)
+			}
+		default:
+			return fmt.Errorf("%s (%s): type must be file, journald or docker", at, s.Name)
+		}
+		if s.From != "" && s.From != "end" && s.From != "beginning" {
+			return fmt.Errorf("%s (%s): from must be end or beginning", at, s.Name)
+		}
+		if s.MultilineStart != "" {
+			if _, err := regexp.Compile(s.MultilineStart); err != nil {
+				return fmt.Errorf("%s (%s): invalid multiline_start: %w", at, s.Name, err)
+			}
+		}
+		if s.IngestKeyFile == "" && s.IngestKeyEnv == "" {
+			return fmt.Errorf("%s (%s): set ingest_key_file or ingest_key_env (Console, Settings, Apps, create a key)", at, s.Name)
+		}
+	}
+	return nil
 }

@@ -1,5 +1,15 @@
 import { useState } from "react";
-import { Button, Dot, FieldPanel, Input, RaisedCard, Textarea, useToast } from "@/design-system";
+import {
+  Button,
+  ColorField,
+  Dot,
+  FieldPanel,
+  Input,
+  RaisedCard,
+  Segmented,
+  Textarea,
+  useToast,
+} from "@/design-system";
 import {
   type ApiStatusPageReadinessResponse,
   type ApiStatusPageResponse,
@@ -23,12 +33,18 @@ export const SetupTab = ({
   onSaved: () => void;
 }) => {
   const toast = useToast();
-  const theme = page.theme_settings as { accent_color?: string } | undefined;
+  const theme = page.theme_settings as { accent_color?: string; density?: string } | undefined;
   const [title, setTitle] = useState(page.title ?? "");
   const [description, setDescription] = useState(page.description ?? "");
   const [slug, setSlug] = useState(page.slug ?? "");
   const [accent, setAccent] = useState(theme?.accent_color ?? "");
-  const [domain, setDomain] = useState(page.custom_domain ?? "");
+  const [density, setDensity] = useState(theme?.density === "compact" ? "compact" : "standard");
+  const dirty =
+    title !== (page.title ?? "") ||
+    description !== (page.description ?? "") ||
+    slug !== (page.slug ?? "") ||
+    accent !== (theme?.accent_color ?? "") ||
+    density !== (theme?.density === "compact" ? "compact" : "standard");
   const badges = useGetStatusPageBadges(pageId);
   const save = useUpdateStatusPage({
     mutation: {
@@ -91,33 +107,35 @@ export const SetupTab = ({
           </label>
         </RaisedCard>
       </FieldPanel>
-      <FieldPanel title="Branding and domain">
+      <FieldPanel title="Branding">
         <RaisedCard className="grid gap-3.5 p-4">
-          <label>
+          <div className="grid gap-1.5">
             <span className={label}>Accent color</span>
-            <Input
-              placeholder="#2a9f69"
-              value={accent}
-              onChange={(event) => setAccent(event.target.value)}
+            <ColorField aria-label="Accent color" value={accent} onChange={setAccent} />
+          </div>
+          <div className="grid gap-1.5">
+            <span className={label}>Layout</span>
+            <Segmented
+              aria-label="Layout"
+              surface="card"
+              options={[
+                { value: "standard", label: "Standard" },
+                { value: "compact", label: "Compact" },
+              ]}
+              value={density}
+              onValueChange={setDensity}
             />
-          </label>
-          <label>
-            <span className={label}>Custom domain</span>
-            <Input
-              placeholder="status.example.com"
-              value={domain}
-              onChange={(event) => setDomain(event.target.value)}
-            />
-            {page.domain_status && (
-              <small className="mt-1 block text-xs text-faint">Domain {page.domain_status}</small>
-            )}
-          </label>
+            <small className="text-xs text-quiet">
+              Compact drops the summary cards and tightens spacing on the public page. Add
+              ?compact=1 to any public page URL to preview it.
+            </small>
+          </div>
         </RaisedCard>
       </FieldPanel>
-      {page.custom_domain && <DomainPanel pageId={pageId} onChanged={onSaved} />}
+      <DomainPanel pageId={pageId} domain={page.custom_domain} onChanged={onSaved} />
       <div className="flex justify-end">
         <Button
-          disabled={save.isPending || !title.trim()}
+          disabled={save.isPending || !title.trim() || !dirty}
           onClick={() =>
             save.mutate({
               id: pageId,
@@ -125,8 +143,7 @@ export const SetupTab = ({
                 title: title.trim(),
                 description,
                 slug: slug.trim(),
-                custom_domain: domain.trim(),
-                theme_settings: { ...page.theme_settings, accent_color: accent.trim() },
+                theme_settings: { ...page.theme_settings, accent_color: accent.trim(), density },
               },
             })
           }

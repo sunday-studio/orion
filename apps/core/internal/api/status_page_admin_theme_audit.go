@@ -63,6 +63,15 @@ func sanitizeStatusPageThemeSettings(settings map[string]interface{}) (map[strin
 				return nil, &requestValidationError{message: "theme_settings.component_density is unsupported"}
 			}
 			sanitized[key] = text
+		case "density":
+			text, err := statusPageThemeString(value, "theme_settings.density", 64)
+			if err != nil {
+				return nil, err
+			}
+			if text != "standard" && text != "compact" {
+				return nil, &requestValidationError{message: "theme_settings.density is unsupported"}
+			}
+			sanitized[key] = text
 		case "theme_mode":
 			text, err := statusPageThemeString(value, "theme_settings.theme_mode", 64)
 			if err != nil {

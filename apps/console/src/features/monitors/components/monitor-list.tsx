@@ -6,7 +6,6 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   Button,
   Checkbox,
-  Dot,
   EmptyState,
   GridRow,
   GridTable,
@@ -32,7 +31,6 @@ import {
 } from "@/orion-sdk";
 import {
   type MonitorRow,
-  rowDot,
   rowEvery,
   rowHealth,
   statusLabel,
@@ -42,7 +40,7 @@ import {
 import { CheckStrip } from "./check-strip";
 import { MonitorBulkBar } from "./monitor-bulk-bar";
 
-const COLUMNS = "18px 12px minmax(0,1.1fr) minmax(0,1.5fr) 124px 44px 100px";
+const COLUMNS = "18px minmax(0,1.1fr) minmax(0,1.5fr) 124px 44px 100px";
 
 const HEALTH_SEGMENTS = ["all", "down", "degraded", "up"] as const;
 
@@ -209,7 +207,6 @@ export const MonitorList = ({
                   }
                 />
               </span>
-              <span />
               <span>Name</span>
               <span>Target</span>
               <span>Status</span>
@@ -234,7 +231,6 @@ export const MonitorList = ({
                       onCheckedChange={() => toggle(id)}
                     />
                   </span>
-                  <Dot color={rowDot(monitor)} />
                   <Link
                     to={`/monitors/${id}`}
                     className="truncate font-medium outline-none hover:underline focus-visible:underline"

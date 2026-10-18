@@ -319,3 +319,33 @@ func TestPublicBarTipNamesDayStatusAndUptime(t *testing.T) {
 		t.Fatalf("no-data tip = %q", got)
 	}
 }
+
+func TestPublicPagesRenderCompactFromThemeOrQuery(t *testing.T) {
+	server := setupTestServer(t)
+	page, _, _ := createPublishedStatusPageForSubscriberTest(t, server, "compact-status")
+	standard := htmlGet(server, "/status/"+page.Slug).Body.String()
+	assertContains(t, standard, `class="stats"`)
+	assertNotContains(t, standard, `hero slim`)
+	forced := htmlGet(server, "/status/"+page.Slug+"?compact=1").Body.String()
+	assertContains(t, forced, `hero slim`)
+	assertContains(t, forced, ` compact">`)
+	assertNotContains(t, forced, `class="stats"`)
+	assertNotContains(t, forced, `class="tkr"`)
+	if err := server.db.Model(&db.StatusPage{}).Where("id = ?", page.ID).Update("theme_settings", `{"density":"compact"}`).Error; err != nil {
+		t.Fatalf("set density: %v", err)
+	}
+	assertContains(t, htmlGet(server, "/status/"+page.Slug).Body.String(), `hero slim`)
+	assertContains(t, htmlGet(server, "/status/"+page.Slug+"/history").Body.String(), `hero slim`)
+	assertNotContains(t, htmlGet(server, "/status/"+page.Slug+"?compact=0").Body.String(), `hero slim`)
+}
+
+func TestThemeSettingsAcceptDensityStandardAndCompactOnly(t *testing.T) {
+	for _, ok := range []string{"standard", "compact"} {
+		if got, err := sanitizeStatusPageThemeSettings(map[string]interface{}{"density": ok}); err != nil || got["density"] != ok {
+			t.Fatalf("density %q: %v %v", ok, got, err)
+		}
+	}
+	if _, err := sanitizeStatusPageThemeSettings(map[string]interface{}{"density": "tiny"}); err == nil {
+		t.Fatalf("unknown density must be rejected")
+	}
+}

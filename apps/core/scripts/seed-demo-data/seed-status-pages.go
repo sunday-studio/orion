@@ -41,7 +41,7 @@ func seedStatusPages(database *gorm.DB, monitors []db.Monitor, now time.Time) (s
 		OpenGraphImageURL:         "https://status.example.test/og/seed-orion-status.png",
 		CanonicalURL:              "https://status.example.test/status/seed-orion-status",
 		Visibility:                "public",
-		ThemeSettings:             mustJSON(map[string]any{"accent_color": "#2563eb", "mode": "system"}),
+		ThemeSettings:             mustJSON(map[string]any{"accent_color": "#1f7a50", "theme_mode": "system"}),
 		DefaultIncidentVisibility: "published",
 		PublishedAt:               &publishedAt,
 		CreatedAt:                 publishedAt,

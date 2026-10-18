@@ -33,18 +33,39 @@ func DefaultSocketPath() string {
 
 // Status is the daemon's own view of itself.
 type Status struct {
-	Version           string    `json:"version"`
-	PID               int       `json:"pid"`
-	StartedAt         time.Time `json:"started_at"`
-	UptimeSeconds     int64     `json:"uptime_seconds"`
-	Registered        bool      `json:"registered"`
-	AgentID           string    `json:"agent_id,omitempty"`
-	CoreURL           string    `json:"core_url,omitempty"`
-	LastSync          time.Time `json:"last_sync"`
-	MaintenanceMode   bool      `json:"maintenance_mode"`
-	MaintenanceReason string    `json:"maintenance_reason,omitempty"`
-	Monitors          int       `json:"monitors"`
-	ConfigPath        string    `json:"config_path,omitempty"`
+	Version           string         `json:"version"`
+	PID               int            `json:"pid"`
+	StartedAt         time.Time      `json:"started_at"`
+	UptimeSeconds     int64          `json:"uptime_seconds"`
+	Registered        bool           `json:"registered"`
+	AgentID           string         `json:"agent_id,omitempty"`
+	CoreURL           string         `json:"core_url,omitempty"`
+	LastSync          time.Time      `json:"last_sync"`
+	MaintenanceMode   bool           `json:"maintenance_mode"`
+	MaintenanceReason string         `json:"maintenance_reason,omitempty"`
+	Monitors          int            `json:"monitors"`
+	QueuePending      int            `json:"queue_pending"`
+	Name              string         `json:"name,omitempty"`
+	Mode              string         `json:"mode,omitempty"`
+	LogSources        int            `json:"log_sources"`
+	LastReportAt      time.Time      `json:"last_report_at"`
+	MonitorStates     []MonitorState `json:"monitor_states,omitempty"`
+	TopApps           []AppUsage     `json:"top_apps,omitempty"`
+	ConfigPath        string         `json:"config_path,omitempty"`
+}
+
+// MonitorState is the latest result of one monitor.
+type MonitorState struct {
+	Name   string    `json:"name"`
+	Kind   string    `json:"kind"`
+	Health string    `json:"health"` // up | down | unknown
+	At     time.Time `json:"at"`
+}
+
+// AppUsage is one of the busiest apps from the last passive sample.
+type AppUsage struct {
+	Name       string  `json:"name"`
+	CPUPercent float64 `json:"cpu_percent"`
 }
 
 // MaintenanceRequest toggles maintenance mode.
@@ -76,6 +97,8 @@ type Handler interface {
 	// TokenStatus asks Core, with the agent token, for a cheap authenticated
 	// resource and returns the HTTP status (the token itself never leaves the daemon).
 	TokenStatus() (int, error)
+	// SpoolRecent returns the newest n shipped-log entries as NDJSON.
+	SpoolRecent(n int) ([]byte, error)
 }
 
 // TokenCheck is the result of a daemon-side token probe.

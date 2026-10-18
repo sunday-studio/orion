@@ -53,6 +53,12 @@ func DefaultAgentLogPath() string {
 	return config.DefaultLogPath()
 }
 
+// shippedAvailable is true when a running daemon has log shipping configured.
+func shippedAvailable(opts *Options) bool {
+	_, err := controlClient(opts).Spool(1)
+	return err == nil
+}
+
 func newLogsCommand(ctx context.Context, opts *Options) *cobra.Command {
 	var logFile string
 	var source string
@@ -60,13 +66,20 @@ func newLogsCommand(ctx context.Context, opts *Options) *cobra.Command {
 	var level string
 	var component string
 	var monitor string
+	var follow bool
+	var name, search string
 
 	command := &cobra.Command{
 		Use:   "logs",
 		Short: "Show Orion Agent logs",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			_ = ctx
+			if source == "shipped" || (source == "auto" && shippedAvailable(opts)) {
+				return runShippedLogs(ctx, opts, shippedOpts{Follow: follow, Level: level, Name: name, Search: search, Lines: opts.LogLines})
+			}
+			if follow {
+				return NewCommandError("--follow needs shipped logs", fmt.Errorf("log shipping is not running"), "add logs.sources to the config (orion-agent config edit)")
+			}
 			return ViewLogs(LogViewOptions{
 				File:      logFile,
 				Socket:    opts.SocketPath,
@@ -90,7 +103,10 @@ func newLogsCommand(ctx context.Context, opts *Options) *cobra.Command {
 	command.Flags().StringVar(&component, "component", "", "Only show logs for a component")
 	command.Flags().StringVar(&monitor, "monitor", "", "Only show logs for a monitor")
 	command.Flags().StringVar(&logFile, "file", DefaultAgentLogPath(), "Path to Orion JSONL log file")
-	command.Flags().StringVar(&source, "source", "auto", "Log source: auto, file, or system")
+	command.Flags().StringVar(&source, "source", "auto", "Log source: auto, shipped (logs shipped from this host), file (agent log), or system")
+	command.Flags().BoolVarP(&follow, "follow", "f", false, "Follow shipped logs live (interactive on a terminal)")
+	command.Flags().StringVar(&name, "name", "", "Only shipped logs from this configured source")
+	command.Flags().StringVar(&search, "search", "", "Only shipped logs containing this text")
 
 	return command
 }

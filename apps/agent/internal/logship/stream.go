@@ -100,6 +100,7 @@ func (s *Shipper) runStream(ctx context.Context, sp SourceSpec, first streamCmd)
 	cmdSpec := first
 	for {
 		cmd := commandFactory(ctx, cmdSpec.name, cmdSpec.args...)
+		cmd.WaitDelay = 2 * time.Second // do not hang on shutdown if a child keeps the pipe open
 		out, err := cmd.StdoutPipe()
 		if err == nil {
 			err = cmd.Start()
@@ -108,6 +109,14 @@ func (s *Shipper) runStream(ctx context.Context, sp SourceSpec, first streamCmd)
 			logging.Errorf("log source %s: cannot start %s: %v", sp.Name, cmdSpec.name, err)
 			s.stats.LastError.Store(fmt.Sprintf("%s: %v", sp.Name, err))
 		} else {
+			stopWatch := make(chan struct{})
+			go func() { // unblock the scanner if ctx ends while a child still holds the pipe
+				select {
+				case <-ctx.Done():
+					out.Close()
+				case <-stopWatch:
+				}
+			}()
 			sc := bufio.NewScanner(out)
 			sc.Buffer(make([]byte, 64*1024), MaxLineBytes*2)
 			var seq int64
@@ -140,6 +149,7 @@ func (s *Shipper) runStream(ctx context.Context, sp SourceSpec, first streamCmd)
 					return
 				}
 			}
+			close(stopWatch)
 			_ = cmd.Wait()
 		}
 		if !sleep(ctx, 5*time.Second) {

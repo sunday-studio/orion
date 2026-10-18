@@ -1,0 +1,9 @@
+
+  [fail] Config           config file /etc/orion/config.yaml not found; run `orion-agent setup`, or set ORION_CORE_URL
+                          to run without a file
+      fix: orion-agent setup (or fix the file: orion-agent config edit)
+  [skip] DNS              no core_url yet
+  [fail] Service          not installed
+      fix: orion-agent service install (prints the one-line installer)
+
+  0 passed   0 warnings   2 failed   exit 1

@@ -98,6 +98,12 @@ export const LifecycleTab = () => {
     save.mutate({ data: payload });
   };
 
+  const dirty =
+    raw !== String(settings?.raw_report_hot_days ?? "") ||
+    rollup !== String(settings?.rollup_retention_days ?? "") ||
+    dir !== (settings?.archive_dir ?? "") ||
+    schedule !== (settings?.archive_schedule === "manual" ? "manual" : "daily");
+
   if (query.isPending) return <Skeleton className="h-64 w-full rounded-xl" />;
   if (query.isError || !settings)
     return <Callout tone="down">Unable to load data lifecycle settings.</Callout>;
@@ -157,7 +163,10 @@ export const LifecycleTab = () => {
         </p>
       </FieldPanel>
       <div className="flex justify-end">
-        <Button disabled={save.isPending || Boolean(errors.raw || errors.rollup)} onClick={submit}>
+        <Button
+          disabled={save.isPending || !dirty || Boolean(errors.raw || errors.rollup)}
+          onClick={submit}
+        >
           Save settings
         </Button>
       </div>

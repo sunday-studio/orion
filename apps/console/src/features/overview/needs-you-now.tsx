@@ -2,7 +2,6 @@ import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Button,
-  Dot,
   FieldPanel,
   type LifecycleStep,
   LifecycleTrack,
@@ -15,13 +14,6 @@ import {
   useAcknowledgeIncident,
 } from "@/orion-sdk";
 import { formatSpan, formatWhen } from "./overview-time";
-
-const severityDot = (severity?: string) =>
-  severity === "critical" || severity === "high"
-    ? "#e5484d"
-    : severity === "medium"
-      ? "#f59e0b"
-      : "#a1a1aa";
 
 /** Detected, Notified, Acknowledge, Resolved; times come from the overview record. */
 export const lifecycleSteps = (
@@ -76,7 +68,6 @@ export const NeedsYouNow = ({
         <div className="flex flex-col gap-3.5 px-4 py-3.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <Dot color={severityDot(incident.severity)} />
               <b className="text-[15px] font-medium">{incident.title ?? "Incident"}</b>
             </div>
             <StatusBadge status={incident.severity}>{incident.severity}</StatusBadge>
