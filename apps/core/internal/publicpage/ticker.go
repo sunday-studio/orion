@@ -92,13 +92,13 @@ func Ticker(text string, tone Tone) template.HTML {
 		for row, line := range glyph {
 			for col, ch := range line {
 				if ch == '#' {
-					lit[[2]int{2 + i*6 + col, row}] = true
+					lit[[2]int{i*6 + col, row}] = true
 				}
 			}
 		}
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, `<svg class="tkr" viewBox="0 0 %d %d" width="%d" height="%d" role="img" aria-label="%s" xmlns="http://www.w3.org/2000/svg">`, tickerCols*10, tickerRows*10, tickerCols*10, tickerRows*10, template.HTMLEscapeString(string(runes)))
+	fmt.Fprintf(&b, `<svg class="tkr" viewBox="0 0 %d %d" width="%d" height="%d" preserveAspectRatio="xMinYMid meet" role="img" aria-label="%s" xmlns="http://www.w3.org/2000/svg">`, tickerCols*10, tickerRows*10, tickerCols*10, tickerRows*10, template.HTMLEscapeString(string(runes)))
 	// The dim grid is one tiled pattern; only lit dots are drawn one by one, so the markup stays small.
 	fmt.Fprintf(&b, `<defs><pattern id="dots" width="10" height="10" patternUnits="userSpaceOnUse"><circle cx="5" cy="5" r="3.3" fill="%s"/></pattern></defs><rect width="%d" height="%d" fill="url(#dots)"/>`, off, tickerCols*10, tickerRows*10)
 	fmt.Fprintf(&b, `<g fill="%s">`, on)

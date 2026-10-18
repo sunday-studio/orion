@@ -24,7 +24,7 @@ main{display:flex;flex-direction:column;gap:32px}
 .btn.block{width:100%}.btn.ghost-dark{background:transparent;color:#fff;border-color:rgba(255,255,255,.35);box-shadow:none}
 .btn:focus-visible,input:focus-visible{outline:0;box-shadow:0 0 0 3px rgba(42,157,107,.28)}
 .hero{border-radius:14px;padding:16px 20px 22px;display:flex;flex-direction:column;gap:12px;color:#fff;background:radial-gradient(120% 140% at 85% 0%,rgba(128,255,170,.10),transparent 55%),linear-gradient(180deg,var(--deep-2) 0%,var(--deep) 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 0 0 1px rgba(20,42,35,.6),0 24px 40px -24px rgba(20,42,35,.6);overflow:hidden}
-.hero .tkr{display:block;height:34px;width:auto;max-width:100%}
+.hero .tkr{display:block;align-self:flex-start;height:34px;width:auto;max-width:100%}
 .hero .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mint)}
 .hero h1{margin:0;font-size:28px;line-height:1.15;font-weight:600;letter-spacing:-.03em}
 .hero p{margin:0;color:rgba(255,255,255,.72);max-width:560px}
