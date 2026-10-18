@@ -29,7 +29,7 @@ export const DeleteMonitorDialog = ({
         <DialogTitle className="text-[15px] font-medium">Delete monitor</DialogTitle>
       </DialogHeader>
       <p className="text-[13px] leading-[1.5] text-mid">
-        {name} and its 90 days of check history will be deleted. Open incidents stay.
+        {name} and its check history will be deleted now. Open incidents stay.
       </p>
       {error && <Callout tone="warn">Unable to delete the monitor. Try again.</Callout>}
       <DialogFooter>

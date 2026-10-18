@@ -5,10 +5,12 @@ import { TIME_FORMAT, formatDate } from "@/utils/date";
 export const MonitorPaused = ({
   summary,
   pending,
+  core = true,
   onResume,
 }: {
   summary?: ApiMonitorDetailSummary;
   pending: boolean;
+  core?: boolean;
   onResume: () => void;
 }) => {
   const at = formatDate(summary?.paused_at, TIME_FORMAT);
@@ -22,9 +24,11 @@ export const MonitorPaused = ({
           <Dot color="#a1a1aa" />
           This monitor is paused. It sends no checks and opens no incidents.
         </span>
-        <Button size="sm" disabled={pending} onClick={onResume}>
-          Resume now
-        </Button>
+        {core && (
+          <Button size="sm" disabled={pending} onClick={onResume}>
+            Resume now
+          </Button>
+        )}
       </Callout>
       <div className="grid grid-cols-3 gap-3">
         <StatBox

@@ -80,7 +80,8 @@ export const MonitorList = ({
     () => (monitorsQuery.data?.monitors ?? []) as MonitorRow[],
     [monitorsQuery.data],
   );
-  const total = monitorsQuery.data?.total ?? monitorsQuery.data?.count ?? monitors.length;
+  // `count` is the filtered total; `total` ignores the status filter.
+  const total = monitorsQuery.data?.count ?? monitors.length;
   const filtersActive = Boolean(q.trim() || health !== "all" || type || server);
 
   const typeOptions = useMemo(() => {

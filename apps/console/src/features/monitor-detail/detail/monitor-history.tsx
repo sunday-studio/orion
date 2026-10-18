@@ -12,7 +12,7 @@ import { type ApiMonitorReportResponse, useGetMonitorHistory } from "@/orion-sdk
 import { formatDate } from "@/utils/date";
 import { MonitorCheckDrawer } from "./monitor-check-drawer";
 
-const COLUMNS = "12px 110px minmax(0,1fr)";
+const COLUMNS = "12px 150px minmax(0,1fr)";
 
 export const MonitorHistory = ({
   monitorId,
@@ -51,7 +51,7 @@ export const MonitorHistory = ({
               >
                 <Dot color={passed ? "#2a9f69" : "#e5484d"} />
                 <b className="font-mono text-[13px] font-medium">
-                  {formatDate(item.collected_at ?? item.created_at, "HH:mm:ss")}
+                  {formatDate(item.collected_at ?? item.created_at, "MMM d, HH:mm:ss")}
                 </b>
                 <span className="text-faint">{item.summary ?? "-"}</span>
               </GridRow>

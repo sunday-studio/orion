@@ -57,6 +57,8 @@ export const MonitorDetailPage = () => {
         pending={actions.pending}
         testing={actions.testing}
         breadcrumb={!narrow}
+        core={monitor.owner_kind === "core" || monitor.source === "core"}
+        heartbeat={heartbeat}
         onTest={actions.test}
         onPause={actions.pause}
         onResume={actions.resume}
@@ -68,7 +70,12 @@ export const MonitorDetailPage = () => {
         </TabsList>
         <TabsPanel value="overview">
           {paused ? (
-            <MonitorPaused summary={summary} pending={actions.pending} onResume={actions.resume} />
+            <MonitorPaused
+              summary={summary}
+              pending={actions.pending}
+              core={monitor.owner_kind === "core" || monitor.source === "core"}
+              onResume={actions.resume}
+            />
           ) : heartbeat ? (
             <MonitorHeartbeat monitorId={monitorId} summary={summary} now={now} />
           ) : (

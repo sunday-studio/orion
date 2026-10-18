@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Button, CodeTabs, FieldPanel, Input, Select, useToast } from "@/design-system";
+import { Button, Callout, CodeTabs, FieldPanel, Input, Select, useToast } from "@/design-system";
 import {
   type ApiMonitorDetailSummary,
   getGetMonitorQueryKey,
@@ -52,11 +52,13 @@ export const MonitorHeartbeat = ({
     },
   });
   const url = heartbeat?.ping_url_success ?? "";
+  // Core returns the full ping URL only once, when the monitor is created.
+  const masked = url.includes("...");
   const snippets = [
     {
       id: "cron",
       label: "Cron",
-      code: `0 2 * * * /usr/local/bin/backup.sh && curl -fsS -m 10 ${url}`,
+      code: `0 2 * * * /path/to/your-job.sh && curl -fsS -m 10 ${url}`,
     },
     { id: "curl", label: "curl", code: `curl -fsS -m 10 --retry 3 ${url}` },
     {
@@ -79,8 +81,8 @@ export const MonitorHeartbeat = ({
         <div className="flex flex-col gap-3">
           {(
             [
-              ["On success", heartbeat?.ping_url_success],
-              ["On failure", heartbeat?.ping_url_failure],
+              ["On success (masked)", heartbeat?.ping_url_success],
+              ["On failure (masked)", heartbeat?.ping_url_failure],
             ] as const
           ).map(([label, value]) => (
             <label key={label} className="flex flex-col gap-1.5 text-[13px] font-medium">
@@ -90,20 +92,27 @@ export const MonitorHeartbeat = ({
           ))}
         </div>
       </FieldPanel>
-      <FieldPanel title="Add to your job" aside="Pick how it runs">
-        <CodeTabs aria-label="Job snippet" tabs={snippets} />
-        <Button
-          size="sm"
-          variant="secondary"
-          className="mt-3"
-          onClick={async () => {
-            await navigator.clipboard.writeText(snippets[0]?.code ?? "");
-            setCopied(true);
-          }}
-        >
-          {copied ? "Copied" : "Copy snippet"}
-        </Button>
-      </FieldPanel>
+      {masked ? (
+        <Callout tone="warn" className="leading-[1.5]">
+          The full ping URL was shown once, when this monitor was created, so snippets are not
+          available here. If it is lost, delete this monitor and create it again.
+        </Callout>
+      ) : (
+        <FieldPanel title="Add to your job" aside="Pick how it runs">
+          <CodeTabs aria-label="Job snippet" tabs={snippets} />
+          <Button
+            size="sm"
+            variant="secondary"
+            className="mt-3"
+            onClick={async () => {
+              await navigator.clipboard.writeText(snippets[0]?.code ?? "");
+              setCopied(true);
+            }}
+          >
+            {copied ? "Copied" : "Copy snippet"}
+          </Button>
+        </FieldPanel>
+      )}
       <FieldPanel title="Schedule" aside={`Last ping ${lastPing}`}>
         <div className="grid grid-cols-2 gap-4">
           <div className="flex flex-col gap-1.5 text-[13px] font-medium">
