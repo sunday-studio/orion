@@ -1,7 +1,6 @@
 import { Search, Settings } from "lucide-react";
-import { useRef } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
-import { SegmentThumb, useSlidingThumb } from "@/design-system";
+import { SegmentThumb } from "@/design-system";
 import { getToken } from "@/api/client";
 import { AccountMenu } from "@/components/shared/account-menu";
 import { OPEN_PALETTE_EVENT } from "@/components/shared/global-shortcut-events";
@@ -66,8 +65,6 @@ export const AppHeader = () => {
     to === "/"
       ? pathname === "/" || overviewOwns
       : pathname === to || pathname.startsWith(`${to}/`);
-  const navRef = useRef<HTMLElement>(null);
-  const { thumb, ready } = useSlidingThumb(navRef, pathname);
 
   return (
     <header className="z-50 grid h-[52px] shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-4 border-b border-hairline bg-page px-5">
@@ -79,27 +76,26 @@ export const AppHeader = () => {
         Orion
       </NavLink>
       <nav
-        ref={navRef}
         aria-label="Primary navigation"
         className="relative flex gap-0.5 rounded-[9px] bg-tray p-[3px] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.03)]"
       >
-        <SegmentThumb
-          thumb={thumb}
-          ready={ready}
-          className="rounded-md shadow-[0_1px_2px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.04)]"
-        />
         {navItems.map((item) => (
           <Link
             key={item.to}
             to={item.to}
             aria-current={isActive(item.to) ? "page" : undefined}
-            data-segment-active={isActive(item.to) ? "" : undefined}
             className={cn(
               "relative z-[1] whitespace-nowrap rounded-md px-[11px] py-[5px] text-[13px] leading-[18px] transition-colors",
               isActive(item.to) ? "text-ink" : "text-quiet hover:text-ink",
             )}
           >
-            {item.label}
+            {isActive(item.to) && (
+              <SegmentThumb
+                layoutId="primary-nav-thumb"
+                className="shadow-[0_1px_2px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.04)]"
+              />
+            )}
+            <span className="relative">{item.label}</span>
           </Link>
         ))}
       </nav>
