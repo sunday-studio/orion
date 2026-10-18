@@ -35,23 +35,26 @@ type Config struct {
 	MetricsToken                   string
 	LogsQueueMax                   int
 	LogsAppRatePerSecond           int
-	DeadManURL                     string
-	RegisterRateLimitPerMinute     int
-	LoginRateLimitAttempts         int
-	LoginRateLimitWindowSecs       int
-	AlertCooldownSeconds           int
-	AlertRecoveryNotifications     bool
-	AlertTLSExpiryDays             int
-	PublicStatusMailEnabled        bool
-	PublicStatusMailHost           string
-	PublicStatusMailPort           int
-	PublicStatusMailUsername       string
-	PublicStatusMailPassword       string
-	PublicStatusMailFromEmail      string
-	PublicStatusMailFromName       string
-	PublicStatusMailReplyTo        string
-	PublicStatusURLOrigin          string
-	PublicStatusSubscriberSecret   string
+	// InternalLogRetentionDays and InternalLogMaxStorageMB bound Core's own recorded log lines.
+	InternalLogRetentionDays     int
+	InternalLogMaxStorageMB      int
+	DeadManURL                   string
+	RegisterRateLimitPerMinute   int
+	LoginRateLimitAttempts       int
+	LoginRateLimitWindowSecs     int
+	AlertCooldownSeconds         int
+	AlertRecoveryNotifications   bool
+	AlertTLSExpiryDays           int
+	PublicStatusMailEnabled      bool
+	PublicStatusMailHost         string
+	PublicStatusMailPort         int
+	PublicStatusMailUsername     string
+	PublicStatusMailPassword     string
+	PublicStatusMailFromEmail    string
+	PublicStatusMailFromName     string
+	PublicStatusMailReplyTo      string
+	PublicStatusURLOrigin        string
+	PublicStatusSubscriberSecret string
 	// StatusPagesCNAMETarget is the host custom domains must point a CNAME at.
 	StatusPagesCNAMETarget string
 	PublicURL              string
@@ -99,6 +102,8 @@ func Load() *Config {
 		MetricsToken:                   os.Getenv("ORION_METRICS_TOKEN"),
 		LogsQueueMax:                   getEnvInt("ORION_LOGS_QUEUE_MAX", 50000),
 		LogsAppRatePerSecond:           getEnvInt("ORION_LOGS_APP_RATE_PER_SECOND", 1000),
+		InternalLogRetentionDays:       getEnvInt("ORION_INTERNAL_LOG_RETENTION_DAYS", 7),
+		InternalLogMaxStorageMB:        getEnvInt("ORION_INTERNAL_LOG_MAX_STORAGE_MB", 200),
 		DeadManURL:                     strings.TrimSpace(os.Getenv("ORION_DEADMAN_URL")),
 		RegisterRateLimitPerMinute:     getEnvInt("ORION_REGISTER_RATE_LIMIT_PER_MINUTE", 30),
 		LoginRateLimitAttempts:         getEnvInt("ORION_LOGIN_RATE_LIMIT_ATTEMPTS", 5),

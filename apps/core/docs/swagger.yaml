@@ -1101,10 +1101,10 @@ definitions:
           contain the full event.
         type: boolean
       kind:
-        description: Kind is logs (default), events or internal.
+        description: Kind is logs (default), status or internal.
         enum:
         - logs
-        - events
+        - status
         - internal
         type: string
       query:
@@ -2888,6 +2888,107 @@ definitions:
         type: string
       stream:
         type: string
+    type: object
+  internal_api.StatusLogEntry:
+    properties:
+      at:
+        type: string
+      detail:
+        example: oncall webhook returned 502, attempt 3 of 3
+        type: string
+      id:
+        type: string
+      incident_display_id:
+        type: string
+      incident_id:
+        type: string
+      kind:
+        description: Kind is the specific event (check, transition, report, registered,
+          created, delivery, audit, or an incident event type).
+        type: string
+      level:
+        description: Level is info, warn or error.
+        enum:
+        - info
+        - warn
+        - error
+        type: string
+      monitor_id:
+        type: string
+      monitor_name:
+        type: string
+      server_id:
+        type: string
+      server_name:
+        type: string
+      title:
+        example: Delivery failed
+        type: string
+      type:
+        description: Type is monitor, alert, server, incident or system.
+        enum:
+        - monitor
+        - alert
+        - server
+        - incident
+        - system
+        type: string
+    type: object
+  internal_api.StatusLogFacet:
+    properties:
+      count:
+        type: integer
+      label:
+        type: string
+      value:
+        type: string
+    type: object
+  internal_api.StatusLogFacetsResponse:
+    properties:
+      levels:
+        additionalProperties:
+          format: int64
+          type: integer
+        type: object
+      monitors:
+        items:
+          $ref: '#/definitions/internal_api.StatusLogFacet'
+        type: array
+      monitors_distinct:
+        type: integer
+      servers:
+        items:
+          $ref: '#/definitions/internal_api.StatusLogFacet'
+        type: array
+      servers_distinct:
+        description: ServersDistinct is how many different servers appear, for "Show
+          3 more".
+        type: integer
+      total:
+        type: integer
+      types:
+        additionalProperties:
+          format: int64
+          type: integer
+        type: object
+    type: object
+  internal_api.StatusLogListResponse:
+    properties:
+      count:
+        type: integer
+      entries:
+        items:
+          $ref: '#/definitions/internal_api.StatusLogEntry'
+        type: array
+      next_cursor:
+        description: NextCursor pages to older events, PrevCursor to newer ones; empty
+          at the ends.
+        type: string
+      prev_cursor:
+        type: string
+      total:
+        description: Total is how many events match the filter in the window.
+        type: integer
     type: object
   internal_api.StatusPageBadgeLinks:
     properties:
@@ -9953,6 +10054,233 @@ paths:
       summary: Ingest logs over OTLP/HTTP
       tags:
       - ingest
+  /v1/internal-logs:
+    get:
+      description: Core's own log lines (API, worker, scheduler, agent gateway), newest
+        first with a cursor. Same filters and shape as GET /v1/logs; the component
+        of each line is attributes.component. Routine successful HTTP requests are
+        not recorded; failed and slow ones are.
+      operationId: searchInternalLogs
+      parameters:
+      - description: Comma-separated severities, or a minimum with >=warn
+        in: query
+        name: severity
+        type: string
+      - description: Full-text search
+        in: query
+        name: q
+        type: string
+      - description: Start (RFC 3339, or relative like -1h)
+        in: query
+        name: from
+        type: string
+      - description: End (RFC 3339); default now
+        in: query
+        name: to
+        type: string
+      - description: Attribute filter key:value, repeatable (attr=component:worker)
+        in: query
+        name: attr
+        type: string
+      - default: 50
+        description: Page size, max 200
+        in: query
+        name: limit
+        type: integer
+      - description: Cursor from a previous page
+        in: query
+        name: cursor
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.LogListResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "504":
+          description: Gateway Timeout
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.SearchTimeoutBody'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Search internal logs
+      tags:
+      - internal-logs
+  /v1/internal-logs/facets:
+    get:
+      description: Severity counts and, in values, the components (core api, worker,
+        scheduler, agent gateway) with counts; pass field=<key> to list another attribute.
+      operationId: getInternalLogFacets
+      parameters:
+      - description: Comma-separated severities, or a minimum with >=warn
+        in: query
+        name: severity
+        type: string
+      - description: Full-text search
+        in: query
+        name: q
+        type: string
+      - description: Start
+        in: query
+        name: from
+        type: string
+      - description: End
+        in: query
+        name: to
+        type: string
+      - description: Attribute filter key:value, repeatable
+        in: query
+        name: attr
+        type: string
+      - default: component
+        description: Attribute to list values for
+        in: query
+        name: field
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.LogFacetsResponse'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Internal log facets
+      tags:
+      - internal-logs
+  /v1/internal-logs/histogram:
+    get:
+      operationId: getInternalLogHistogram
+      parameters:
+      - description: Comma-separated severities, or a minimum with >=warn
+        in: query
+        name: severity
+        type: string
+      - description: Full-text search
+        in: query
+        name: q
+        type: string
+      - description: Start
+        in: query
+        name: from
+        type: string
+      - description: End
+        in: query
+        name: to
+        type: string
+      - description: Attribute filter key:value, repeatable
+        in: query
+        name: attr
+        type: string
+      - default: 60
+        description: Number of buckets
+        in: query
+        name: buckets
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.LogHistogramResponse'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Internal log histogram
+      tags:
+      - internal-logs
+  /v1/internal-logs/patterns:
+    get:
+      operationId: getInternalLogPatterns
+      parameters:
+      - description: Comma-separated severities, or a minimum with >=warn
+        in: query
+        name: severity
+        type: string
+      - description: Attribute filter key:value, repeatable
+        in: query
+        name: attr
+        type: string
+      - description: Start; default 24 hours ago
+        in: query
+        name: from
+        type: string
+      - description: End; default now
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.LogPatternsResponse'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Internal log patterns
+      tags:
+      - internal-logs
+  /v1/internal-logs/stream:
+    get:
+      description: Server-sent events; each event is one log entry. Resume with Last-Event-ID.
+      operationId: streamInternalLogs
+      parameters:
+      - description: Comma-separated severities, or a minimum with >=warn
+        in: query
+        name: severity
+        type: string
+      - description: Full-text search
+        in: query
+        name: q
+        type: string
+      - description: Attribute filter key:value, repeatable
+        in: query
+        name: attr
+        type: string
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: event stream
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Stream internal logs live
+      tags:
+      - internal-logs
   /v1/logs:
     get:
       consumes:
@@ -11990,6 +12318,299 @@ paths:
       summary: Run data lifecycle rollup
       tags:
       - settings
+  /v1/status-logs:
+    get:
+      description: Checks, state changes, server reports, incident steps, alert deliveries
+        and admin actions, newest first, with the total for the filter. Page with
+        cursor (older) or cursor plus direction=newer. The default window is the last
+        24 hours.
+      operationId: listStatusLogs
+      parameters:
+      - description: 'Comma-separated: info, warn, error'
+        in: query
+        name: level
+        type: string
+      - description: 'Comma-separated: monitor, alert, server, incident, system'
+        in: query
+        name: type
+        type: string
+      - description: Only this server
+        in: query
+        name: server_id
+        type: string
+      - description: Only this monitor
+        in: query
+        name: monitor_id
+        type: string
+      - description: Only this incident
+        in: query
+        name: incident_id
+        type: string
+      - description: Search servers, monitors, titles and details
+        in: query
+        name: q
+        type: string
+      - description: Start (RFC 3339, or relative like -1h); default 24 hours ago
+        in: query
+        name: from
+        type: string
+      - description: End (RFC 3339); default now
+        in: query
+        name: to
+        type: string
+      - default: 100
+        description: Rows per page, max 200
+        in: query
+        name: limit
+        type: integer
+      - description: Cursor from a previous page
+        in: query
+        name: cursor
+        type: string
+      - description: older (default) or newer
+        enum:
+        - older
+        - newer
+        in: query
+        name: direction
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.StatusLogListResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List status logs
+      tags:
+      - status-logs
+  /v1/status-logs/facets:
+    get:
+      description: Counts per level and type, and the busiest servers and monitors
+        (top=3 by default, with the distinct totals for "Show N more"), for the same
+        filters as the list.
+      operationId: getStatusLogFacets
+      parameters:
+      - description: 'Comma-separated: info, warn, error'
+        in: query
+        name: level
+        type: string
+      - description: 'Comma-separated: monitor, alert, server, incident, system'
+        in: query
+        name: type
+        type: string
+      - description: Only this server
+        in: query
+        name: server_id
+        type: string
+      - description: Only this monitor
+        in: query
+        name: monitor_id
+        type: string
+      - description: Search
+        in: query
+        name: q
+        type: string
+      - description: Start; default 24 hours ago
+        in: query
+        name: from
+        type: string
+      - description: End
+        in: query
+        name: to
+        type: string
+      - default: 3
+        description: How many servers and monitors to list
+        in: query
+        name: top
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.StatusLogFacetsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Status log facets
+      tags:
+      - status-logs
+  /v1/status-logs/histogram:
+    get:
+      description: Events per bucket split by level (info, warn, error), for "Events
+        per 15 minutes". Empty buckets are included.
+      operationId: getStatusLogHistogram
+      parameters:
+      - description: 'Comma-separated: info, warn, error'
+        in: query
+        name: level
+        type: string
+      - description: 'Comma-separated: monitor, alert, server, incident, system'
+        in: query
+        name: type
+        type: string
+      - description: Only this server
+        in: query
+        name: server_id
+        type: string
+      - description: Only this monitor
+        in: query
+        name: monitor_id
+        type: string
+      - description: Search
+        in: query
+        name: q
+        type: string
+      - description: Start; default 24 hours ago
+        in: query
+        name: from
+        type: string
+      - description: End
+        in: query
+        name: to
+        type: string
+      - default: 60
+        description: Target number of buckets
+        in: query
+        name: buckets
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.LogHistogramResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Status log histogram
+      tags:
+      - status-logs
+  /v1/status-logs/patterns:
+    get:
+      description: Groups similar events (numbers and ids become placeholders) so
+        a flood of one failure is one row; is_new marks patterns absent from the previous
+        window.
+      operationId: getStatusLogPatterns
+      parameters:
+      - description: 'Comma-separated: info, warn, error'
+        in: query
+        name: level
+        type: string
+      - description: 'Comma-separated: monitor, alert, server, incident, system'
+        in: query
+        name: type
+        type: string
+      - description: Only this server
+        in: query
+        name: server_id
+        type: string
+      - description: Only this monitor
+        in: query
+        name: monitor_id
+        type: string
+      - description: Start; default 24 hours ago
+        in: query
+        name: from
+        type: string
+      - description: End
+        in: query
+        name: to
+        type: string
+      - default: 50
+        description: Maximum patterns
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.LogPatternsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Status log patterns
+      tags:
+      - status-logs
+  /v1/status-logs/stream:
+    get:
+      description: Server-sent events, one StatusLogEntry per event; new events appear
+        within about two seconds. Resume with Last-Event-ID.
+      operationId: streamStatusLogs
+      parameters:
+      - description: 'Comma-separated: info, warn, error'
+        in: query
+        name: level
+        type: string
+      - description: 'Comma-separated: monitor, alert, server, incident, system'
+        in: query
+        name: type
+        type: string
+      - description: Only this server
+        in: query
+        name: server_id
+        type: string
+      - description: Only this monitor
+        in: query
+        name: monitor_id
+        type: string
+      - description: Search
+        in: query
+        name: q
+        type: string
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: event stream
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Stream status logs live
+      tags:
+      - status-logs
   /v1/status-pages:
     get:
       consumes:

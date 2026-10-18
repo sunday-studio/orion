@@ -9,12 +9,15 @@ import (
 )
 
 // logsExportSource streams product logs for the Service logs tab.
-func (s *Server) logsExportSource() exportSource {
+func (s *Server) logsExportSource(internal bool) exportSource {
 	return exportSource{
 		header: []string{"timestamp", "severity", "source", "event", "message", "request_id", "trace_id", "attributes"},
 		run: func(ctx context.Context, values url.Values, limit int, emit func([]string, map[string]any) error) error {
 			q := logstore.Query{AppIDs: splitList(values.Get("app_id")), Severity: values.Get("severity"), Event: values.Get("event"), Text: values.Get("q"),
 				TraceID: values.Get("trace_id"), RequestID: values.Get("request_id"), Attrs: values["attr"], Limit: logstore.MaxPageSize, Ctx: ctx}
+			if internal {
+				q.AppIDs = []string{logstore.InternalAppID}
+			}
 			now := time.Now().UTC()
 			q.From, _ = parseLogTime(values.Get("from"), now)
 			q.To, _ = parseLogTime(values.Get("to"), now)

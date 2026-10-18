@@ -33,8 +33,8 @@ type exportSource struct {
 
 // ExportRequest asks for a background export of what the log screens show.
 type ExportRequest struct {
-	// Kind is logs (default), events or internal.
-	Kind string `json:"kind,omitempty" enums:"logs,events,internal"`
+	// Kind is logs (default), status or internal.
+	Kind string `json:"kind,omitempty" enums:"logs,status,internal"`
 	// Format is csv (default) or jsonl.
 	Format string `json:"format,omitempty" enums:"csv,jsonl"`
 	// Query is the screen's filter as a URL query string, for example "severity=error&from=-24h".
@@ -63,7 +63,7 @@ type ExportResponse struct {
 var exportSlots = make(chan struct{}, exportWorkers)
 
 func (s *Server) exportSources() map[string]exportSource {
-	return map[string]exportSource{"logs": s.logsExportSource()}
+	return map[string]exportSource{"logs": s.logsExportSource(false), "internal": s.logsExportSource(true), "status": s.statusExportSource()}
 }
 
 func exportResponse(row db.LogExport) ExportResponse {
@@ -97,10 +97,10 @@ func (s *Server) createExportImpl(c *gin.Context) {
 		req.Format = "csv"
 	}
 	if _, ok := s.exportSources()[req.Kind]; !ok || (req.Format != "csv" && req.Format != "jsonl") {
-		utils.BadRequest(c, "kind must be logs and format csv or jsonl")
+		utils.BadRequest(c, "kind must be logs, status or internal and format csv or jsonl")
 		return
 	}
-	if req.Kind == "logs" && !s.requireLogs(c) {
+	if (req.Kind == "logs" || req.Kind == "internal") && !s.requireLogs(c) {
 		return
 	}
 	query, err := url.ParseQuery(strings.TrimPrefix(req.Query, "?"))
