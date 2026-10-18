@@ -105,7 +105,7 @@ func (s *Server) updateCoreMonitor(c *gin.Context) {
 
 // deleteCoreMonitor deletes a Core-managed monitor.
 // @Summary      Delete a Core monitor
-// @Description  Delete a Core-managed monitor. By default its check history is deleted too; keep_history=false deletes it immediately; the default keeps it for 90 days. Incidents are never deleted.
+// @Description  Delete a Core-managed monitor. Its active incident is resolved. The default keeps check history for 90 days; keep_history=false deletes it immediately. Incidents are never deleted.
 // @Tags         monitors
 // @Produce      json
 // @ID           deleteCoreMonitor
