@@ -23,7 +23,8 @@ var sharedDryRun dryRunRunner
 // dryRunRunner executes a check against a throwaway in-memory database, so the real runners and
 // their report logic run unchanged but nothing reaches real history, incidents or alerts.
 type dryRunRunner struct {
-	mu   sync.Mutex
+	sem  chan struct{}
+	init sync.Once
 	once sync.Once
 	db   *gorm.DB
 	err  error
@@ -41,18 +42,29 @@ func (d *dryRunRunner) database() (*gorm.DB, error) {
 }
 
 func (d *dryRunRunner) run(ctx context.Context, s *Server, cfg db.CoreMonitorConfig) (*db.MonitorReport, error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	d.init.Do(func() { d.sem = make(chan struct{}, 1) })
+	select {
+	case d.sem <- struct{}{}:
+		defer func() { <-d.sem }()
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 	tmp, err := d.database()
 	if err != nil {
 		return nil, err
 	}
 	for _, table := range []string{"monitor_reports", "core_monitor_configs", "incident_events", "alert_deliveries", "incidents", "monitors", "agents"} {
-		tmp.Exec("DELETE FROM " + table)
+		if err := tmp.Exec("DELETE FROM " + table).Error; err != nil {
+			return nil, err
+		}
 	}
 	now := time.Now().UTC()
-	tmp.Create(&db.Agent{ID: "dry-run-agent", MachineId: "dry-run", Name: "dry run", OS: "core", Arch: "internal", Token: "x", System: true, CreatedAt: now, LastSeen: now})
-	tmp.Create(&db.Monitor{ID: "dry-run", AgentID: "dry-run-agent", Name: "dry run", Type: cfg.Kind, Lifecycle: "active", Health: "unknown", ComputedHealth: "unknown", System: true, CreatedAt: now, UpdatedAt: now})
+	if err := tmp.Create(&db.Agent{ID: "dry-run-agent", MachineId: "dry-run", Name: "dry run", OS: "core", Arch: "internal", Token: "x", System: true, CreatedAt: now, LastSeen: now}).Error; err != nil {
+		return nil, err
+	}
+	if err := tmp.Create(&db.Monitor{ID: "dry-run", AgentID: "dry-run-agent", Name: "dry run", Type: cfg.Kind, Lifecycle: "active", Health: "unknown", ComputedHealth: "unknown", System: true, CreatedAt: now, UpdatedAt: now}).Error; err != nil {
+		return nil, err
+	}
 	cfg.MonitorID, cfg.NextRunAt, cfg.Paused = "dry-run", now, false
 	if err := tmp.Create(&cfg).Error; err != nil {
 		return nil, err
