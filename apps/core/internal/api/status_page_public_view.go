@@ -30,6 +30,7 @@ func publicPageBase(slug string) string { return "/status/" + url.PathEscape(slu
 type publicPageTheme struct {
 	accent, logoURL, logoAlt, class string
 	showUptime, showHistory         bool
+	compact                         bool
 }
 
 func publicPageThemeFrom(settings map[string]any) publicPageTheme {
@@ -47,6 +48,7 @@ func publicPageThemeFrom(settings map[string]any) publicPageTheme {
 	if theme.logoURL != "" && theme.logoAlt == "" {
 		theme.logoAlt = "Status page logo"
 	}
+	theme.compact = settings["density"] == "compact"
 	switch settings["theme_mode"] {
 	case "dark":
 		theme.class = "theme-dark"
@@ -66,6 +68,12 @@ func publicPageThemeFrom(settings map[string]any) publicPageTheme {
 // Pages other than the status page set their own title and are not given the canonical address.
 func publicPageShell(c *gin.Context, preview StatusPagePreviewResponse, title string, main bool) (publicpage.Shell, publicPageTheme) {
 	theme := publicPageThemeFrom(preview.Page.ThemeSettings)
+	switch c.Query("compact") { // the URL overrides the page setting, for embeds and previews
+	case "1":
+		theme.compact = true
+	case "0":
+		theme.compact = false
+	}
 	base := publicPageBase(preview.Page.Slug)
 	meta := preview.Metadata
 	shell := publicpage.Shell{
@@ -73,7 +81,7 @@ func publicPageShell(c *gin.Context, preview StatusPagePreviewResponse, title st
 		Title: firstNonEmpty(title, meta.Title, preview.Page.Title), Description: firstNonEmpty(meta.Description, preview.Page.Description),
 		OGType: firstNonEmpty(meta.OpenGraph.Type, "website"), OGImage: meta.OpenGraph.ImageURL,
 		BasePath: base, HomeURL: base, HistoryURL: base + "/history", SubscribeURL: base + "/subscribe", FeedURL: base + "/feed.atom", RSSURL: base + "/feed.rss",
-		ShowHistory: theme.showHistory,
+		ShowHistory: theme.showHistory, Compact: theme.compact,
 	}
 	if main {
 		shell.Canonical = firstNonEmpty(meta.CanonicalURL, publicStatusPageHTMLURL(c, preview.Page.Slug))

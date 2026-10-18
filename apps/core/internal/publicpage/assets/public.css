@@ -76,4 +76,9 @@ input[type=email],input[type=text]{font:inherit;height:36px;padding:0 10px;borde
 .plain-page{min-height:100vh;background:var(--panel)}.plain-wrap{max-width:420px;margin:0 auto;padding:72px 20px;display:flex;flex-direction:column;gap:16px}
 .plain-wrap .card h1{margin:0;font-size:18px;font-weight:600}.plain-wrap .card{border-radius:12px;padding:24px}.plain-wrap .card .b{font-weight:600;color:var(--tx)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.compact .wrap{padding:18px 20px 32px;gap:16px}.compact main{gap:14px}
+.compact .hero.slim{padding:10px 16px;flex-direction:row;align-items:baseline;gap:12px;border-radius:10px}.compact .hero.slim h1{font-size:17px;letter-spacing:-.02em}
+.compact .panel{padding:14px;gap:10px;border-radius:12px}.compact .svc{padding:9px 12px;gap:8px}.compact .bars{height:22px}
+.compact .hist{padding:8px 12px}.compact .update{padding:8px 12px}.compact .card{padding:14px;gap:10px}.compact .card h2{font-size:22px}
+.compact .row{padding:8px 12px}.compact .top .btn{height:32px}
 @media (max-width:720px){.wrap{padding:20px 16px 40px;gap:24px}main{gap:24px}.stats{grid-template-columns:1fr}.row{flex-wrap:wrap}.hist{grid-template-columns:1fr auto}.hist .d,.hist .dur{display:none}.update{grid-template-columns:48px 1fr}.update .msg{grid-column:1/-1}.hero h1{font-size:22px}}
