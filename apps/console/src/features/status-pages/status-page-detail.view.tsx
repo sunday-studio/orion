@@ -13,9 +13,11 @@ import {
   useToast,
 } from "@/design-system";
 import {
+  getGetStatusPageBadgesQueryKey,
   getGetStatusPageQueryKey,
   getGetStatusPageReadinessQueryKey,
   getListStatusPagesQueryKey,
+  getPreviewStatusPageQueryKey,
   useGetStatusPage,
   useGetStatusPageReadiness,
   useListStatusPages,
@@ -50,6 +52,8 @@ export const StatusPageDetailPage = () => {
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: getGetStatusPageQueryKey(pageId) });
     void queryClient.invalidateQueries({ queryKey: getGetStatusPageReadinessQueryKey(pageId) });
+    void queryClient.invalidateQueries({ queryKey: getPreviewStatusPageQueryKey(pageId) });
+    void queryClient.invalidateQueries({ queryKey: getGetStatusPageBadgesQueryKey(pageId) });
     void queryClient.invalidateQueries({ queryKey: getListStatusPagesQueryKey() });
   };
   const publish = usePublishStatusPage({
@@ -139,7 +143,13 @@ export const StatusPageDetailPage = () => {
           <TabsTab value="preview">Preview</TabsTab>
         </TabsList>
         <TabsPanel value="setup">
-          <SetupTab pageId={pageId} page={page} readiness={readiness.data} onSaved={refresh} />
+          <SetupTab
+            key={page.updated_at ?? pageId}
+            pageId={pageId}
+            page={page}
+            readiness={readiness.data}
+            onSaved={refresh}
+          />
         </TabsPanel>
         <TabsPanel value="components">
           <ComponentsTab pageId={pageId} detail={detail.data} onChanged={refresh} />

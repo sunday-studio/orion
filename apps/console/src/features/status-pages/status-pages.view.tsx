@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Button,
   EmptyState,
@@ -75,7 +75,13 @@ export const StatusPagesPage = () => {
                   className="cursor-pointer"
                   onClick={() => navigate(`/status-pages/${page.id}`)}
                 >
-                  <b className="font-medium">{page.title}</b>
+                  <Link
+                    to={`/status-pages/${page.id}`}
+                    className="font-medium outline-none hover:underline focus-visible:underline"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    {page.title}
+                  </Link>
                   <span className="text-faint">{page.public_url}</span>
                   <span>
                     <StatusBadge

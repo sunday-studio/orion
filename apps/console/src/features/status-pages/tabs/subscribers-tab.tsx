@@ -12,6 +12,8 @@ import {
 } from "@/design-system";
 import {
   exportStatusPageSubscribers,
+  getListStatusPageSubscribersQueryKey,
+  getListStatusPagesQueryKey,
   useDisableStatusPageSubscriber,
   useListStatusPageSubscribers,
 } from "@/orion-sdk";
@@ -36,9 +38,9 @@ export const SubscribersTab = ({ pageId }: { pageId: string }) => {
     mutation: {
       onSuccess: () => {
         void queryClient.invalidateQueries({
-          queryKey: [`/api/v1/status-pages/${pageId}/subscribers`],
+          queryKey: getListStatusPageSubscribersQueryKey(pageId),
         });
-        void list.refetch();
+        void queryClient.invalidateQueries({ queryKey: getListStatusPagesQueryKey() });
         toast.add({ title: "Subscriber disabled" });
       },
       onError: () => toast.add({ title: "Unable to disable the subscriber" }),
@@ -76,7 +78,13 @@ export const SubscribersTab = ({ pageId }: { pageId: string }) => {
           onValueChange={(next) => void setQuery({ state: next })}
         />
         <span className="flex-1" />
-        <Button size="sm" variant="secondary" onClick={() => void exportCsv()}>
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() =>
+            exportCsv().catch(() => toast.add({ title: "Unable to export subscribers" }))
+          }
+        >
           Export CSV
         </Button>
       </div>

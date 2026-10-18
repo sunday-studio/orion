@@ -50,14 +50,19 @@ export const CreateStatusPageDialog = ({
       setSlugState(null);
       return;
     }
+    let cancelled = false;
     const timer = window.setTimeout(() => {
       checkStatusPageSlug({ slug })
-        .then((result) =>
-          setSlugState({ available: Boolean(result.available), reason: result.reason }),
-        )
-        .catch(() => setSlugState(null));
+        .then((result) => {
+          if (!cancelled)
+            setSlugState({ available: Boolean(result.available), reason: result.reason });
+        })
+        .catch(() => !cancelled && setSlugState(null));
     }, 300);
-    return () => window.clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [slug]);
 
   const valid = name.trim() !== "" && slug !== "" && slugState?.available !== false;
