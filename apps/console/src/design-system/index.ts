@@ -38,5 +38,6 @@ export * from "@/design-system/data-table/data-table";
 export * from "@/design-system/data-table/filter-bar";
 export * from "@/design-system/data-table/schema";
 export * from "@/design-system/data-table/table";
+export * from "@/design-system/data-table/use-page-size";
 export * from "@/design-system/data-table/use-url-state";
 export * from "@/design-system/theme";

@@ -1,4 +1,10 @@
-import { DataTable, DataTableLink, ListPagination, StatusBadge } from "@/design-system";
+import {
+  DataTable,
+  DataTableLink,
+  ListPagination,
+  StatusBadge,
+  usePageSize,
+} from "@/design-system";
 import {
   type ApiIncidentResponse,
   type ApiMonitorResponse,
@@ -9,8 +15,6 @@ import { cn } from "@/utils/cn";
 import type { ColumnDef } from "@tanstack/react-table";
 import { parseAsInteger, useQueryStates } from "nuqs";
 import { monitorHealth, monitorPriority } from "../agent-detail.domain";
-
-const AGENT_MONITOR_LIMIT = 20;
 
 type AgentMonitorsTabProps = {
   agentId: string;
@@ -60,14 +64,18 @@ export const AgentMonitorsTab = ({ agentId, highlightedIncident }: AgentMonitors
   const [{ monitorsPage }, setMonitorsQuery] = useQueryStates({
     monitorsPage: parseAsInteger.withDefault(1),
   });
-  const offset = (Math.max(monitorsPage, 1) - 1) * AGENT_MONITOR_LIMIT;
-  const monitorsResponse = useGetAgentMonitors(agentId, { limit: AGENT_MONITOR_LIMIT, offset });
+  const { limit: pageSize, setLimit: setPageSize } = usePageSize(20, {
+    key: "monitorsSize",
+    pageKey: "monitorsPage",
+  });
+  const offset = (Math.max(monitorsPage, 1) - 1) * pageSize;
+  const monitorsResponse = useGetAgentMonitors(agentId, { limit: pageSize, offset });
   const monitors = [...(monitorsResponse.data?.monitors ?? [])].sort(
     (left, right) => monitorPriority(left) - monitorPriority(right),
   );
   const count = monitorsResponse.data?.count ?? monitors.length;
   const setOffset = (nextOffset: number) => {
-    void setMonitorsQuery({ monitorsPage: Math.floor(nextOffset / AGENT_MONITOR_LIMIT) + 1 });
+    void setMonitorsQuery({ monitorsPage: Math.floor(nextOffset / pageSize) + 1 });
   };
 
   return (
@@ -87,8 +95,9 @@ export const AgentMonitorsTab = ({ agentId, highlightedIncident }: AgentMonitors
       )}
       {count > 0 && (
         <ListPagination
+          onLimitChange={setPageSize}
           count={count}
-          limit={AGENT_MONITOR_LIMIT}
+          limit={pageSize}
           offset={offset}
           onOffsetChange={setOffset}
         />

@@ -1,11 +1,9 @@
-import { Button, DataTable, Input, ListPagination, Select } from "@/design-system";
+import { Button, DataTable, Input, ListPagination, Select, usePageSize } from "@/design-system";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import { type ApiServiceLogEntryResponse, useGetAgentServiceLogs } from "@/orion-sdk";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Search } from "lucide-react";
 import { parseAsInteger, parseAsString, useQueryStates } from "nuqs";
-
-const AGENT_SERVICE_LOG_LIMIT = 20;
 
 const levelOptions = [
   { value: "all", label: "All levels" },
@@ -55,9 +53,13 @@ export const AgentServiceLogsTab = ({ agentId }: AgentServiceLogsTabProps) => {
     serviceLogsPage: parseAsInteger.withDefault(1),
     serviceLogsQ: parseAsString.withDefault(""),
   });
-  const offset = (Math.max(serviceLogsPage, 1) - 1) * AGENT_SERVICE_LOG_LIMIT;
+  const { limit: pageSize, setLimit: setPageSize } = usePageSize(20, {
+    key: "serviceLogsSize",
+    pageKey: "serviceLogsPage",
+  });
+  const offset = (Math.max(serviceLogsPage, 1) - 1) * pageSize;
   const logsQuery = useGetAgentServiceLogs(agentId, {
-    limit: AGENT_SERVICE_LOG_LIMIT,
+    limit: pageSize,
     offset,
     level: serviceLogsLevel === "all" ? undefined : serviceLogsLevel,
     q: serviceLogsQ.trim() || undefined,
@@ -68,7 +70,7 @@ export const AgentServiceLogsTab = ({ agentId }: AgentServiceLogsTabProps) => {
 
   const setOffset = (nextOffset: number) => {
     void setServiceLogQuery({
-      serviceLogsPage: Math.floor(nextOffset / AGENT_SERVICE_LOG_LIMIT) + 1,
+      serviceLogsPage: Math.floor(nextOffset / pageSize) + 1,
     });
   };
 
@@ -122,8 +124,9 @@ export const AgentServiceLogsTab = ({ agentId }: AgentServiceLogsTabProps) => {
       )}
       {count > 0 && (
         <ListPagination
+          onLimitChange={setPageSize}
           count={count}
-          limit={AGENT_SERVICE_LOG_LIMIT}
+          limit={pageSize}
           offset={offset}
           onOffsetChange={setOffset}
         />

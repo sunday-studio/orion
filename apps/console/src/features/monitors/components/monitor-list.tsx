@@ -5,6 +5,7 @@ import {
   FilterBar,
   ListPagination,
   StatusBadge,
+  usePageSize,
 } from "@/design-system";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
 import {
@@ -31,7 +32,6 @@ import {
 } from "nuqs";
 import { MonitorSummary, type MonitorSummaryFilter } from "./monitor-summary";
 
-const MONITOR_LIMIT = 20;
 const monitorStatusFilters = ["all", "up", "down", "degraded", "unknown", "stale"] as const;
 const monitorTypeFilters = [
   "all",
@@ -216,11 +216,15 @@ export const MonitorList = ({ workerDiagnostics }: MonitorListProps) => {
     page: parseAsInteger.withDefault(1),
   });
   const currentPage = Math.max(page, 1);
-  const offset = (currentPage - 1) * MONITOR_LIMIT;
+  const { limit: pageSize, setLimit: setPageSize } = usePageSize(20, {
+    key: "pageSize",
+    pageKey: "page",
+  });
+  const offset = (currentPage - 1) * pageSize;
   const selectedServerID = target.startsWith("server:") ? target.slice("server:".length) : "";
 
   const params: GetMonitorsParams = {
-    limit: MONITOR_LIMIT,
+    limit: pageSize,
     offset,
     search: search.trim() || undefined,
     health: status === "all" ? undefined : status,
@@ -272,7 +276,7 @@ export const MonitorList = ({ workerDiagnostics }: MonitorListProps) => {
   };
 
   const setOffset = (nextOffset: number) => {
-    void setMonitorQuery({ page: Math.floor(nextOffset / MONITOR_LIMIT) + 1 });
+    void setMonitorQuery({ page: Math.floor(nextOffset / pageSize) + 1 });
   };
 
   const setSummaryFilter = (filter: MonitorSummaryFilter) => {
@@ -357,8 +361,9 @@ export const MonitorList = ({ workerDiagnostics }: MonitorListProps) => {
       </div>
       {count > 0 && (
         <ListPagination
+          onLimitChange={setPageSize}
           count={count}
-          limit={MONITOR_LIMIT}
+          limit={pageSize}
           offset={offset}
           onOffsetChange={setOffset}
         />

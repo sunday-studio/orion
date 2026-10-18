@@ -8,6 +8,7 @@ import {
   DialogTitle,
   PageHeader,
   StatusBadge,
+  usePageSize,
 } from "@/design-system";
 import { PageBreadcrumbs } from "@/components/shared/page-breadcrumbs";
 import {
@@ -73,7 +74,11 @@ export const MonitorDetailPage = () => {
   const [{ historyPage }, setHistoryQuery] = useQueryStates({
     historyPage: parseAsInteger.withDefault(1),
   });
-  const historyOffset = (Math.max(historyPage, 1) - 1) * HISTORY_LIMIT;
+  const { limit: historyLimit, setLimit: setHistoryLimit } = usePageSize(HISTORY_LIMIT, {
+    key: "historySize",
+    pageKey: "historyPage",
+  });
+  const historyOffset = (Math.max(historyPage, 1) - 1) * historyLimit;
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedTab = searchParams.get("tab");
   const activeTab: MonitorDetailTab = isMonitorDetailTab(selectedTab) ? selectedTab : "history";
@@ -81,7 +86,7 @@ export const MonitorDetailPage = () => {
   const monitorResponse = useGetMonitor(monitorId);
   const uptimeResponse = useGetMonitorUptime(monitorId, { period: "90d" });
   const historyQuery = useGetMonitorHistory(monitorId, {
-    limit: HISTORY_LIMIT,
+    limit: historyLimit,
     offset: historyOffset,
   });
   const incidentsResponse = useGetIncidents({
@@ -214,7 +219,7 @@ export const MonitorDetailPage = () => {
     },
   });
   const setHistoryOffset = (nextOffset: number) => {
-    void setHistoryQuery({ historyPage: Math.floor(nextOffset / HISTORY_LIMIT) + 1 });
+    void setHistoryQuery({ historyPage: Math.floor(nextOffset / historyLimit) + 1 });
   };
   const handleTabChange = (tab: string) => {
     if (!isMonitorDetailTab(tab)) return;
@@ -364,6 +369,8 @@ export const MonitorDetailPage = () => {
         historyError={historyQuery.error}
         historyLoading={historyQuery.isLoading}
         historyOffset={historyOffset}
+        historyLimit={historyLimit}
+        onHistoryLimitChange={setHistoryLimit}
         incidentsError={incidentsResponse.error}
         incidentsLoading={incidentsResponse.isLoading}
         isCoreMonitor={isCoreMonitor}

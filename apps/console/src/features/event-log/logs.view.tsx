@@ -202,7 +202,7 @@ export const LogsPage = () => {
     filterParam(f, eventTable.values[f.key]),
   );
   const eventsQuery = useGetOrionEvents({
-    limit: EVENT_LIMIT,
+    limit: eventTable.limit,
     offset: eventTable.offset,
     q: eventQ,
     source: eventSource,
@@ -214,7 +214,7 @@ export const LogsPage = () => {
     filterParam(f, serviceTable.values[f.key]),
   );
   const serviceLogsQuery = useGetServiceLogs({
-    limit: SERVICE_LOG_LIMIT,
+    limit: serviceTable.limit,
     offset: serviceTable.offset,
     q: serviceQ,
     level: serviceLevel,
@@ -299,8 +299,9 @@ export const LogsPage = () => {
             {count > 0 && (
               <ListPagination
                 count={count}
-                limit={EVENT_LIMIT}
+                limit={eventTable.limit}
                 offset={eventTable.offset}
+                onLimitChange={eventTable.setLimit}
                 onOffsetChange={eventTable.setOffset}
               />
             )}
@@ -355,7 +356,8 @@ export const LogsPage = () => {
             {serviceLogCount > 0 && (
               <ListPagination
                 count={serviceLogCount}
-                limit={SERVICE_LOG_LIMIT}
+                limit={serviceTable.limit}
+                onLimitChange={serviceTable.setLimit}
                 offset={serviceTable.offset}
                 onOffsetChange={serviceTable.setOffset}
               />
