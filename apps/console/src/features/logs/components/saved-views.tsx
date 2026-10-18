@@ -45,18 +45,27 @@ export const SavedViewsMenu = ({
     },
   });
   const list: ApiLogSavedView[] = views.data?.views ?? [];
-  if (list.length === 0) return null;
   const activeView = list.find((view) => same(view.filters ?? {}, current));
   return (
     <Popover>
       <PopoverTrigger className="inline-flex h-9 min-w-[130px] items-center justify-between gap-2 rounded-lg border border-input-border bg-card px-3 text-[13px] hover:bg-sub">
-        <span className="truncate">{activeView?.name ?? `Views (${list.length})`}</span>
+        <span className="truncate">
+          {activeView?.name ?? (views.isPending ? "Views" : `Views (${list.length})`)}
+        </span>
         <span aria-hidden className="text-faint">
           ⌄
         </span>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[240px] p-1.5">
         <p className="px-2.5 py-1.5 text-xs text-quiet">Saved views</p>
+        {views.isError && (
+          <p className="px-2.5 pb-2 text-[13px] text-quiet">Unable to load saved views.</p>
+        )}
+        {!views.isError && !views.isPending && list.length === 0 && (
+          <p className="px-2.5 pb-2 text-[13px] text-quiet">
+            No saved views yet. Set filters, then use Save view.
+          </p>
+        )}
         <div className="grid gap-1">
           {list.map((view) => {
             const active = view.id === activeView?.id;
