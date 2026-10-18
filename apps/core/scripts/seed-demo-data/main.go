@@ -204,6 +204,17 @@ func resetSeedData(database *gorm.DB) error {
 		}
 	}
 
+	// Core may have opened real incidents on seeded monitors between runs.
+	const seedIncidents = "SELECT id FROM incidents WHERE monitor_id LIKE 'seed-%' OR agent_id LIKE 'seed-%'"
+	for _, table := range []string{"alert_deliveries", "incident_events"} {
+		if err := database.Exec(fmt.Sprintf("DELETE FROM %s WHERE incident_id IN (%s)", table, seedIncidents)).Error; err != nil {
+			return err
+		}
+	}
+	if err := database.Exec("DELETE FROM incidents WHERE monitor_id LIKE 'seed-%' OR agent_id LIKE 'seed-%'").Error; err != nil {
+		return err
+	}
+
 	tables := []string{
 		"alert_deliveries",
 		"incident_events",
