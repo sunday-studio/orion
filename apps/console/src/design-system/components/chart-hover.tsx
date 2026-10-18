@@ -60,7 +60,7 @@ export const ChartTooltip = ({
   <div
     role="tooltip"
     className={cn(
-      "pointer-events-none absolute top-0 z-10 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-xs leading-[1.5] text-page shadow-overlay",
+      "pointer-events-none absolute top-0 z-10 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-xs leading-[1.5] text-page shadow-overlay dark:bg-chip dark:text-ink dark:ring-1 dark:ring-white/10",
       className,
     )}
     style={

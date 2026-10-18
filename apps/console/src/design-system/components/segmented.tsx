@@ -17,7 +17,7 @@ export const SegmentThumb = ({ layoutId, className }: { layoutId: string; classN
       layoutId={layoutId}
       transition={reduce ? { duration: 0 } : layoutSpring}
       className={cn(
-        "pointer-events-none absolute inset-0 rounded-md bg-chip shadow-[0_1px_2px_rgba(0,0,0,0.08)]",
+        "pointer-events-none absolute inset-0 rounded-md bg-chip shadow-[0_1px_2px_rgba(0,0,0,0.08)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.07)]",
         className,
       )}
     />
@@ -55,7 +55,7 @@ export const Segmented = ({
       aria-label={ariaLabel}
       className={cn(
         "relative flex w-fit gap-0.5 rounded-lg p-[3px]",
-        onField ? "bg-hairline" : "bg-tray",
+        onField ? "bg-hairline dark:bg-page" : "bg-tray",
         className,
       )}
     >
@@ -68,6 +68,8 @@ export const Segmented = ({
             role={role === "radiogroup" ? "radio" : undefined}
             aria-checked={role === "radiogroup" ? active : undefined}
             aria-pressed={role === "group" ? active : undefined}
+            // Mouse clicks should not leave a focus ring; keyboard focus still shows it.
+            onMouseDown={(event) => event.preventDefault()}
             onClick={() => onValueChange(option.value)}
             className={cn(
               "relative whitespace-nowrap rounded-md px-3 py-1 outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus/60",
