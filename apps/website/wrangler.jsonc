@@ -9,6 +9,6 @@
     "not_found_handling": "404-page"
   }
   // Custom domain: add it in the Cloudflare dashboard (Workers & Pages > orion-website > Settings > Domains),
-  // or add: "routes": [{ "pattern": "orion.sunday.studio", "custom_domain": true }]
+  // or add: "routes": [{ "pattern": "orion.thesunday.studio", "custom_domain": true }]
   // The zone must already be on your Cloudflare account.
 }
