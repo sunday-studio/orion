@@ -6,6 +6,12 @@ import "./login.css";
 
 const HEADLINE = ["Know before", "your users do"] as const;
 
+const CAPABILITIES = [
+  "Know the moment a server, site or job stops responding",
+  "Get told by webhook or email, and see every delivery",
+  "Publish a status page and ship logs from your apps",
+] as const;
+
 const safeReturnPath = (from: string | null) =>
   from && /^\/(?![/\\])/.test(from) && !from.startsWith("/login") ? from : "/";
 
@@ -47,7 +53,10 @@ export function LoginPage() {
         <div className="lg-dots" />
         <div className="lg-sweep" />
       </div>
-      <div className="absolute inset-y-0 left-0 hidden w-[560px] flex-col justify-between p-12 pl-14 text-white lg:flex">
+      <div
+        className="absolute inset-y-0 left-0 hidden w-1/2 flex-col justify-between text-white lg:flex"
+        style={{ padding: "clamp(32px, 3.75vw, 72px) clamp(40px, 4.4vw, 88px)" }}
+      >
         <div className="flex items-center gap-2.5">
           <span className="flex size-[22px] items-center justify-center rounded-[7px] bg-[#80ffaa] text-[#142a23]">
             <svg
@@ -67,18 +76,34 @@ export function LoginPage() {
           </span>
           <b className="text-base font-semibold">Orion</b>
         </div>
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col" style={{ gap: "clamp(16px, 1.25vw, 24px)" }}>
           <div className="text-xs font-medium text-[#80ffaa]">Self-hosted monitoring</div>
-          <DotMatrixText lines={HEADLINE} columns={79} />
-          <p className="max-w-[380px] text-sm opacity-75">
+          <div style={{ width: "clamp(474px, 37vw, 760px)", maxWidth: "100%" }}>
+            <DotMatrixText lines={HEADLINE} columns={79} fluid />
+          </div>
+          <p
+            className="max-w-[420px] text-sm opacity-75"
+            style={{ fontSize: "clamp(14px, 1.1vw, 18px)" }}
+          >
             Servers, monitors, incidents and status pages in one self-hosted console.
           </p>
-          {/* The canvas shows live uptime stats here; Core exposes none before sign-in. */}
-          <div aria-hidden className="h-[64px]" />
+          <ul
+            className="m-0 flex list-none flex-col gap-2.5 p-0 text-[#d7efe3]"
+            style={{ fontSize: "clamp(13px, 1vw, 17px)" }}
+          >
+            {CAPABILITIES.map((line) => (
+              <li key={line} className="flex items-center gap-2.5">
+                <span aria-hidden className="shrink-0 text-[#80ffaa]">
+                  ✓
+                </span>
+                {line}
+              </li>
+            ))}
+          </ul>
         </div>
         <span className="text-xs opacity-60">Self-hosted</span>
       </div>
-      <div className="relative flex min-h-screen items-center justify-center lg:absolute lg:inset-y-0 lg:right-0 lg:w-[560px]">
+      <div className="relative flex min-h-screen items-center justify-center lg:absolute lg:inset-y-0 lg:right-0 lg:w-1/2">
         <form className="flex w-[340px] max-w-full flex-col gap-3.5" onSubmit={submitLogin}>
           <h1 className="text-2xl font-medium tracking-[-0.025em]">Sign in</h1>
           <p className="-mt-1.5 text-sm text-mid">

@@ -41,12 +41,15 @@ export const DotMatrixText = ({
   columns,
   lit = "#80ffaa",
   dim = "rgba(128,255,170,.10)",
+  fluid = false,
 }: {
   lines: readonly string[];
   /** Grid width in dots; defaults to the longest line. */
   columns?: number;
   lit?: string;
   dim?: string;
+  /** Fill the parent width instead of using the grid's pixel size. */
+  fluid?: boolean;
 }) => {
   const label = lines.join(" ");
   const grid = useMemo(() => {
@@ -74,8 +77,8 @@ export const DotMatrixText = ({
     <svg
       role="img"
       aria-label={label}
-      width={grid.width}
-      height={grid.height}
+      width={fluid ? "100%" : grid.width}
+      height={fluid ? undefined : grid.height}
       viewBox={`0 0 ${grid.width} ${grid.height}`}
       className="block max-w-full"
     >

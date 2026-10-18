@@ -1,3 +1,4 @@
+import { pluralize } from "@/utils/plural";
 import { StatusBadge } from "@/design-system";
 import type { ApiAgentResponse } from "@/orion-sdk";
 import { DATE_TIME_FORMAT, formatDate } from "@/utils/date";
@@ -60,7 +61,7 @@ export const AgentRow = ({ agent }: { agent: ApiAgentResponse; index: number }) 
         </span>
         <span className="hidden min-w-0 truncate text-neutral-600 sm:inline">{platform}</span>
         <span className="whitespace-nowrap text-right text-neutral-600 sm:text-left">
-          {monitorCount} monitors
+          {pluralize(monitorCount, "monitor")}
         </span>
         <span className="hidden min-w-0 truncate text-neutral-600 sm:inline">
           last seen {formatDate(agent.last_seen, DATE_TIME_FORMAT)}
