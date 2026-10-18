@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"runtime/debug"
 	"sync"
@@ -75,14 +76,36 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 		}
 	}()
 
+	fileConfig := userConfig // from disk; Console checks are layered on top each cycle
+	remote := &remoteMonitors{store: store, path: filepath.Join(filepath.Dir(opts.StatePath), "remote-monitors.json")}
+	remote.load()
+	// An enrolled agent can sync before registering, so the first registration
+	// already includes Console checks and never unregisters them. If Core is
+	// unreachable the persisted set from the last run stands in.
+	if _, err := remote.sync(); err != nil {
+		logging.Warnf("Monitor definition sync failed, using the last known set: %v", err)
+	}
+	go remote.poll(ctx, remoteMonitorPollInterval, func() { _ = requestReloadNoValidate(reloadCh) })
+
 	for {
 		PrintStep("registering agent and monitors")
+		userConfig = effective(fileConfig, remote.current())
 		if err := registerWithRetry(ctx, registration.New(userConfig, opts.ConfigPath, store)); err != nil {
 			if ctx.Err() != nil {
 				return nil
 			}
 			PrintError("registration failed; agent cannot continue")
 			return NewCommandError("could not register agent and monitors", err)
+		}
+		// Now that the agent has an identity, pick up checks configured in the Console.
+		if changed, err := remote.sync(); err != nil {
+			logging.Warnf("Monitor definition sync failed: %v", err)
+		} else if changed {
+			userConfig = effective(fileConfig, remote.current())
+			if err := registerWithRetry(ctx, registration.New(userConfig, opts.ConfigPath, store)); err != nil && ctx.Err() == nil {
+				// Not fatal: the poller retries and the next reload registers them.
+				logging.Warnf("Could not register Console monitors yet: %v", err)
+			}
 		}
 		PrintOK("registration complete")
 		ctrl.update(userConfig)
@@ -117,7 +140,7 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 			if err != nil {
 				logging.Errorf("Reload failed, continuing with the previous config: %v", err)
 			} else {
-				userConfig = next
+				fileConfig = next
 				PrintOK("configuration reloaded")
 			}
 			continue
@@ -140,4 +163,13 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 // enrollment tokens are permanent and returned at once.
 func registerWithRetry(ctx context.Context, reg *registration.RegistrationService) error {
 	return reg.RegisterWithRetry(ctx, registration.DefaultRegistrationBackoff)
+}
+
+// requestReloadNoValidate signals the loop to rebuild (used when Console checks change).
+func requestReloadNoValidate(ch chan struct{}) error {
+	select {
+	case ch <- struct{}{}:
+	default:
+	}
+	return nil
 }
