@@ -38,6 +38,8 @@ const (
 	UserMonitorTypeResource        UserMonitorType = "resource-threshold"
 	UserMonitorTypeDocker          UserMonitorType = "docker-container"
 	UserMonitorTypeSystemd         UserMonitorType = "systemd-service"
+	UserMonitorTypeDiskUsage       UserMonitorType = "disk-usage"
+	UserMonitorTypeProcess         UserMonitorType = "process-running"
 )
 
 var UserMonitorTypes = []UserMonitorType{
@@ -50,6 +52,8 @@ var UserMonitorTypes = []UserMonitorType{
 	UserMonitorTypeResource,
 	UserMonitorTypeDocker,
 	UserMonitorTypeSystemd,
+	UserMonitorTypeDiskUsage,
+	UserMonitorTypeProcess,
 }
 
 type HTTPHealthcheckConfig struct {
@@ -107,6 +111,17 @@ type DockerContainerConfig struct {
 	Name string `yaml:"name"`
 }
 
+// DiskUsageConfig checks the used percent of the filesystem holding Path.
+type DiskUsageConfig struct {
+	Path       string  `yaml:"path"`
+	MaxPercent float64 `yaml:"max_percent"`
+}
+
+// ProcessRunningConfig checks that a process with this executable name exists.
+type ProcessRunningConfig struct {
+	Name string `yaml:"name"`
+}
+
 type SystemdServiceConfig struct {
 	Name string `yaml:"name"`
 }
@@ -127,6 +142,8 @@ type UserMonitor struct {
 	Resource        *ResourceThresholdConfig `yaml:"resource,omitempty"`
 	Docker          *DockerContainerConfig   `yaml:"docker,omitempty"`
 	Systemd         *SystemdServiceConfig    `yaml:"systemd,omitempty"`
+	DiskUsage       *DiskUsageConfig         `yaml:"disk_usage,omitempty"`
+	ProcessRunning  *ProcessRunningConfig    `yaml:"process_running,omitempty"`
 }
 
 type UserConfig struct {
