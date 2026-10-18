@@ -1,6 +1,6 @@
 """Mobile screens, part A: connect, notifications, incidents."""
 from common import ic
-from parts import hd, tabs, sc, sheet, title, tracker, expected_actual, box, bars, stats, tl2, logo
+from parts import hd, dhd, tabs, sc, sheet, title, tracker, expected_actual, box, bars, stats, tl2, logo, si, rw, gh, pill
 
 
 
@@ -129,12 +129,6 @@ def incident_review(d):
 
 
 
-def incident_ack(d):
-    return incident_body(d) + sheet("Acknowledge INC-0231",
-        '<p class="mu sm" style="margin:-6px 0 0">Tells everyone you are on it. The incident stays open until it recovers or you resolve it.</p>'
-        '<div><label class="lbl">Note (optional)</label><div class="fld f" style="align-items:flex-start;min-height:80px;padding-top:12px"><span class="v mu">Looking at edge-01 now</span></div></div>'
-        '<div class="row sp"><span class="med">Take responder role</span><span class="tg on"></span></div>'
-        '<div class="row g8"><a href="#" class="btn f">Cancel</a><a href="#" class="btn p f">Acknowledge</a></div>')
 
 
 def incident_resolve(d):
@@ -144,13 +138,6 @@ def incident_resolve(d):
         '<div class="row g8"><a href="#" class="btn f">Cancel</a><a href="#" class="btn p f">Resolve incident</a></div>')
 
 
-def incident_handoff(d):
-    opt = lambda on, t, s: ('<div class="row g12" style="padding:12px;border:1px solid %s;border-radius:8px;background:var(--sf)"><span class="s %s" style="width:16px;height:16px"></span><div class="col g4" style="flex:1"><b class="med">%s</b><span class="xs mu">%s</span></div></div>') % ("var(--ac)" if on else "var(--bd)", "up" if on else "un", t, s)
-    return incident_body(d) + sheet("Who is on this?",
-        '<div class="col g8">%s%s%s</div><div class="row g8"><a href="#" class="btn f">Cancel</a><a href="#" class="btn p f">Confirm</a></div>' % (
-            opt(True, "I&rsquo;ll take it", "You become the responder. Others see your name."),
-            opt(False, "Cover for Ama", "Ama is off shift. You act on her behalf until she is back."),
-            opt(False, "Hand to someone else", "Pick a teammate. They get a push.")))
 
 
 def incident_public(d):
@@ -171,58 +158,75 @@ def welcome(d):
         logo(52), ic("qr", 20))
 
 
-def feed(d, offline=False):
+def _inbox(offline=False, swipe=False):
+    first = rw("dn", "api.example.com is down", "Critical &middot; No one has acknowledged yet", "30m", True)
+    if swipe:
+        first = ('<div class="swp">%s<div class="acts"><span style="background:var(--ac)">%s Acknowledge</span><span style="background:#71717a">%s Snooze</span></div></div>') % (
+            first, ic("check", 20, 2.2), ic("clock", 20))
+    rows = (gh(None, "Today", "3") + first +
+            rw("un", "edge-01 stopped reporting", "No report for 31 min &middot; 2 monitors Unknown", "31m", True) +
+            rw("dn", "Delivery to oncall webhook failed", "502 &middot; 3 attempts &middot; INC-0231", "14:04") +
+            gh(None, "Earlier", "3") +
+            rw("dg", "db-02 disk above 90%", "You acknowledged this &middot; INC-0230", "16h") +
+            rw("up", "edge-02 is reporting again", "Stopped reporting for 8 min", "Sun") +
+            rw("up", "nightly-backup heartbeat resumed", "INC-0227 resolved after 1h 12m", "Sat"))
+    return '<div style="opacity:.55">%s</div>' % rows if offline else rows
+
+
+def feed(d, offline=False, swipe=False):
     ban = ('<div class="ban un">%s<span>Can&rsquo;t reach Production. Showing data from 4 min ago.</span><a href="#" class="med" style="margin-left:auto;color:var(--tx)">Retry</a></div>' % ic("off", 18)) if offline else ""
-    dim = ' style="opacity:.55"' if offline else ""
-    need = ('<div class="fieldbox"%s><div class="fh"><b>Needs you now</b><span>Open for 30m 12s</span></div>'
-            '<div class="card cp col g12"><div class="row sp"><div class="row g8"><span class="s dn"></span><b class="med" style="font-size:15.5px">api.example.com is down</b></div><span class="b cr">Critical</span></div>'
-            '%s<div class="xs mu" style="line-height:1.5">Latest: check failed, timeout after 10s.<br>Sent to this iPhone and ops-team. oncall webhook failed.</div>'
-            '<div class="row g8" style="justify-content:flex-end"><a href="#" class="btn sm">Details</a>%s</div></div></div>') % (
-        dim, tracker([("Detected", "14:02", "done"), ("Notified", "14:02", "done"), ("Acknowledge", "waiting", "now"), ("Resolved", "-", "todo")]),
-        '' if offline else '<a href="#" class="btn sm p">Acknowledge</a>')
-    st = stats([("Monitors up", "21", "of 24"), ("Servers", "5", "of 6"), ("Uptime, 30d", "99.94%", "")])
-    row = lambda sh, t, sub, when, bold=False: ('<a href="#" class="br"><span class="s %s"></span><div class="t"><b style="font-weight:%d">%s</b><small>%s</small></div><span class="xs fa">%s</span>%s</a>' % (sh, 500, t, sub, when, '<span class="unr"></span>' if bold else ''))
-    earlier = box("Earlier", "4 notifications",
-                  row("dg", "db-02 disk above 90%", "INC-0230 &middot; acknowledged by you", "16h", True) +
-                  row("up", "edge-02 is reporting again", "Stopped reporting for 8 min", "Sun", True) +
-                  row("up", "nightly-backup heartbeat resumed", "INC-0227 resolved after 1h 12m", "Sat"))
-    return (hd() + ban + '<h1 class="ttl" style="padding-bottom:12px">How is it going, Ama?</h1><div class="sub">Thursday, Oct 16 &middot; 14:32 UTC</div>' +
-            sc(need + st + earlier) + tabs("Notifications"))
+    fl = '<div class="chips" style="padding-bottom:10px"><span class="fp on">All</span><span class="fp">Unread 2</span><span class="fp">Incidents</span><span class="fp">Servers</span><span class="fp">Monitors</span></div>'
+    return hd() + ban + '<h1 class="ttl2">Notifications</h1>' + fl + sc(_inbox(offline, swipe), 0) + tabs("Notifications")
 
 
 def feed_empty(d):
     st = stats([("Monitors up", "24", "of 24"), ("Servers", "6", "of 6"), ("Uptime, 30d", "99.98%", "")])
-    return (hd(dot="up", issues="All good") + '<h1 class="ttl" style="padding-bottom:12px">All quiet, Ama.</h1><div class="sub">Thursday, Oct 16 &middot; 14:32 UTC</div>' +
-            sc('<div class="fieldbox"><div class="fh"><b>Needs you now</b><span>Nothing</span></div><div class="card cp ctr g8" style="padding:26px 20px"><span class="td up" style="width:36px;height:36px">%s</span>'
-               '<b style="font-size:16px;font-weight:500">Nothing needs you</b><span class="sm mu" style="max-width:260px">When an alert fires it lands here, on your lock screen and in the Console inbox.</span>'
-               '<a href="#" class="btn sm" style="margin-top:6px">Send a test notification</a></div></div>%s' % (ic("check", 20, 2.4), st)) + tabs("Notifications", 0))
+    return (hd(dot="up") + '<h1 class="ttl2">Notifications</h1>' +
+            sc('<div class="ctr" style="padding:56px 32px 28px;gap:10px"><span class="td up" style="width:44px;height:44px">%s</span><b style="font-size:17px;font-weight:600">All quiet, Ama</b>'
+               '<span class="sm mu" style="max-width:270px">When an alert fires it lands here and on your lock screen. Nothing needs you right now.</span>'
+               '<a href="#" class="btn sm" style="margin-top:8px">Send a test notification</a></div>%s' % (ic("check", 24, 2.4), st)) + tabs("Notifications", 0))
 
 
 def incidents_list(d):
-    def r(sh, t, idn, mon, badges, when):
-        return ('<a href="#" class="br" style="align-items:flex-start;padding:14px"><span class="s %s" style="margin-top:6px"></span><div class="t"><b style="white-space:normal">%s</b>'
-                '<small style="margin-top:2px">%s &middot; %s</small><div class="row g8" style="margin-top:8px">%s</div></div><span class="xs fa">%s</span></a>') % (sh, t, idn, mon, badges, when)
-    rows = (r("dn", "api.example.com unreachable", "INC-0231", "api-https", '<span class="b cr">Critical</span><span class="b dn">Open</span>', "30m") +
-            r("dg", "db-02 disk above 90%", "INC-0230", "disk-usage", '<span class="b dn">High</span><span class="b dg">Acknowledged</span>', "16h") +
-            r("dg", "Load balancer degraded", "INC-0229", "lb-https", '<span class="b dg">Medium</span><span class="b cv">Covered</span>', "2d"))
-    return (hd(right=("search", "filter")) + title("Incidents", "Everything Orion has opened, newest first.") +
-            '<div class="seg"><a href="#" class="on">Active 3</a><a href="#">Needs review 1</a><a href="#">Resolved 21</a></div>' +
-            sc(box("Active", "Severity High and Critical shown first", rows)) + tabs("Incidents"))
+    rows = (gh("dn", "Open", "1") + rw("dn", "api.example.com unreachable", "INC-0231 &middot; Critical &middot; api-https", "30m", True) +
+            gh("dg", "Acknowledged", "1") + rw("dg", "db-02 disk above 90%", "INC-0230 &middot; High &middot; disk-usage", "16h") +
+            gh("cv", "Covered", "1") + rw("cv", "Load balancer degraded", "INC-0229 &middot; Medium &middot; lb-https", "2d"))
+    fl = '<div class="chips" style="padding-bottom:10px"><span class="fp on">Active 3</span><span class="fp">Needs review 1</span><span class="fp">Resolved 21</span></div>'
+    return (hd() + '<h1 class="ttl2">Incidents</h1>' + fl + sc(rows, 0) +
+            '<a href="#" class="fab" aria-label="Declare incident">%s</a>' % ic("plus", 26, 2.2) + tabs("Incidents"))
 
 
 def incident_body(d):
-    prose = ('<p class="prose">The health check on <b>api-https</b> has timed out since 14:02. ops-team was notified; the on-call webhook returned 502, so nobody was paged.</p>')
-    trk = '<div class="fieldbox"><div class="card cp" style="padding:14px 8px">%s</div></div>' % tracker([("Detected", "14:02", "done"), ("Notified", "14:02", "done"), ("Acknowledged", "waiting", "now"), ("Resolved", "-", "todo")])
+    pills = '<div class="pls">%s</div>' % (pill(si("dn", 16), "Open") + pill(ic("sev", 16, 2, 'style="color:var(--crit)"'), "Critical") +
+                                          pill(ic("user", 16), "Unassigned", True) + pill(ic("pulse", 16), "api-https") + pill(ic("server", 16), "edge-01"))
+    prose = '<p class="prose">The health check on <b>api-https</b> has timed out since 14:02. ops-team was notified; the on-call webhook returned 502, so nobody was paged.</p>'
+    trk = '<div class="card" style="margin:0 16px;padding:14px 8px">%s</div>' % tracker([("Detected", "14:02", "done"), ("Notified", "14:02", "done"), ("Acknowledged", "waiting", "now"), ("Resolved", "-", "todo")])
     tl = tl2([("dg", "Delivery to <b>oncall webhook</b> failed after 3 attempts &middot; <u>Retry</u>", "14:04"),
               ("up", "Notified <b>this iPhone</b> and <b>ops-team</b> (email)", "14:02"),
               ("dn", "Incident opened: <b>api-https</b> failed 3 checks in a row", "14:02")])
-    return ('<div class="hd" style="padding-bottom:4px"><a href="#" class="core" aria-label="Back">%s<span class="crumb">Incidents <span>/</span> <span style="color:var(--tx)">INC-0231</span></span></a><a href="#" class="ibtn" aria-label="More">%s</a></div>'
-            '<div class="sc" style="gap:12px"><div class="pad col g8"><h1 class="h2t">api.example.com unreachable</h1>'
-            '<div class="row g8"><span class="b dn">Open</span><span class="b cr">Critical</span><span class="xs fa">Open for 30m 12s</span></div></div>'
-            '<div class="pad">%s</div>%s%s'
-            '<div class="ut" style="margin:0 16px"><a href="#" class="on">Timeline</a><a href="#">Details</a><a href="#">Notifications 3</a><a href="#">Logs 14</a></div>'
-            '<div class="pad">%s</div></div>') % (ic("back", 22), ic("more", 22), prose, trk, expected_actual("200 OK", "under 1.5s, valid TLS", "Timeout", "no response in 10s, 3 failures in a row"), tl)
+    return (dhd("INC-0231") + '<div class="sc" style="gap:14px"><div class="pad col g12"><h1 class="h2t">api.example.com unreachable</h1>%s%s</div>%s%s'
+            '<div class="pad"><div class="hl">Activity</div>%s</div></div>') % (prose, pills, trk, expected_actual("200 OK", "under 1.5s, valid TLS", "Timeout", "no response in 10s, 3 failures in a row"), tl)
 
 
 def incident_detail(d):
-    return incident_body(d) + '<div class="bar"><a href="#" class="btn">Cover</a><a href="#" class="btn f">Resolve</a><a href="#" class="btn p f">Acknowledge</a></div>'
+    return incident_body(d) + '<div class="cmp"><span class="in">Leave a note&hellip;</span><a href="#" class="btn p">Acknowledge</a></div>'
+
+
+def _opt(kind, t, sub="", check=False, hot=False):
+    return ('<div class="opt"%s>%s<div class="col"><b style="font-weight:500">%s</b>%s</div>%s</div>') % (
+        ' style="background:var(--seg);margin:0 -16px;padding:0 16px"' if hot else "", si(kind), t,
+        ('<span class="xs fa">%s</span>' % sub) if sub else "", ('<span class="ck">%s</span>' % ic("check", 20, 2.2)) if check else "")
+
+
+def incident_ack(d):
+    return incident_body(d) + sheet("Status", '<div class="col" style="margin-top:-6px">%s%s%s%s</div><p class="xs fa" style="margin:0">Acknowledging also makes you the responder. Others get a push.</p>' % (
+        _opt("dn", "Open", "", True), _opt("dg", "Acknowledged", "You are on it", False, True), _opt("cv", "Covered", "Someone is covering for you"), _opt("up", "Resolved", "Closes the timeline")))
+
+
+def incident_handoff(d):
+    av = lambda t, bg: '<span style="width:28px;height:28px;border-radius:50%%;background:%s;color:#fff;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none">%s</span>' % (bg, t)
+    pr = lambda a, n, s, ck=False: '<div class="opt">%s<div class="col"><b style="font-weight:500">%s</b><span class="xs fa">%s</span></div>%s</div>' % (a, n, s, ('<span class="ck">%s</span>' % ic("check", 20, 2.2)) if ck else "")
+    return incident_body(d) + sheet("Responder",
+        '<div class="fld"><span class="fa">%s</span><span class="v fa">Assign to&hellip;</span></div><div class="col" style="margin-top:-6px">%s%s%s%s</div>' % (
+            ic("search", 18), pr('<span class="avt"></span>', "Take it", "Ama Mensah (you)"), pr(av("KB", "#3b82f6"), "Kofi Boateng", "On call this week"),
+            pr(av("EO", "#8b5cf6"), "Esi Owusu", "Off shift &middot; cover for her"), pr(ic("user", 24), "Unassigned", "", True)))

@@ -1,6 +1,6 @@
 """Mobile screens, part B: servers, monitors, logs, deliveries, more, states."""
 from common import ic
-from parts import hd, tabs, sc, sheet, title, tracker, expected_actual, box, bars, stats, tl2, logo
+from parts import hd, dhd, tabs, sc, sheet, title, tracker, expected_actual, box, bars, stats, tl2, logo, si, rw, gh, pill
 
 
 
@@ -180,49 +180,12 @@ def session_expired(d):
                   '<a href="#" class="btn p">Sign in</a>' % ic("shield", 16)))
 
 
-def servers_list(d):
-    def r(sh, n, sub, bad, warn, pct):
-        return ('<a href="#" class="br"><span class="s %s"></span><div class="t"><b>%s</b>%s</div>%s<span class="pc">%s</span></a>') % (
-            sh, n, ('<small>%s</small>' % sub) if sub else "", bars(30, bad, warn), pct)
-    rows = (r("dn", "edge-01", "Not reporting for 31m", (27, 28, 29), (), "99.2%") + r("dg", "db-02", "Disk at 91%", (), (27, 28), "99.8%") +
-            r("up", "edge-02", "", (), (), "100%") + r("up", "edge-04", "", (), (), "100%") + r("up", "cache-01", "", (), (14,), "99.9%") +
-            r("mt", "build-01", "In maintenance", (), (), "n/a"))
-    return (hd(right=("search",)) + title("Servers", "Machines running an Orion Server. 5 of 6 reporting.") +
-            sc(box("Server health", "30 days", rows)) + tabs("Servers"))
 
 
-def server_detail(d):
-    mon = lambda sh, n, sub: '<a href="#" class="br"><span class="s %s"></span><div class="t"><b>%s</b><small>%s</small></div>%s</a>' % (sh, n, sub, ic("chev", 18))
-    return ('<div class="hd" style="padding-bottom:4px"><a href="#" class="core" aria-label="Back">%s<span class="crumb">Servers <span>/</span> <span style="color:var(--tx)">edge-01</span></span></a><a href="#" class="ibtn" aria-label="More">%s</a></div>'
-            '<div class="sc" style="gap:12px"><div class="pad col g8"><h1 class="h2t">edge-01</h1><div class="row g8"><span class="b dn">Not reporting</span><span class="xs fa">Last report 31m ago</span></div></div>'
-            '<div class="pad"><p class="prose">edge-01 stopped reporting at 14:01. Its 2 monitors show Unknown. Check the host or put it in maintenance.</p></div>'
-            '<div class="ut" style="margin:0 16px"><a href="#" class="on">Overview</a><a href="#">Monitors 2</a><a href="#">Reports</a><a href="#">Logs</a></div>'
-            '%s%s</div>') % (
-        ic("back", 22), ic("more", 22),
-        stats([("CPU, last seen", "41%", ""), ("Memory", "62%", ""), ("Disk", "58%", "")]),
-        box("Monitors on this server", "2", mon("un", "api-https", "HTTP &middot; no data since 14:01") + mon("un", "edge-01-disk", "Agent &middot; no data")))
 
 
-def monitors_list(d):
-    def r(sh, n, sub, bad, warn, pct):
-        return '<a href="#" class="br"><span class="s %s"></span><div class="t"><b>%s</b><small>%s</small></div>%s<span class="pc">%s</span></a>' % (sh, n, sub, bars(30, bad, warn), pct)
-    rows = (r("dn", "api-https", "HTTP &middot; every 30s", (27, 28, 29), (), "99.2%") + r("dg", "disk-usage", "Agent &middot; db-02", (), (27, 28), "99.8%") +
-            r("up", "web-https", "HTTP &middot; every 30s", (), (), "100%") + r("up", "lb-https", "HTTP &middot; every 30s", (), (9,), "99.97%") +
-            r("up", "nightly-backup", "Heartbeat &middot; daily", (), (), "100%") + r("un", "legacy-tcp", "TCP &middot; paused", (), (), "n/a"))
-    return (hd(right=("search", "filter")) + title("Monitors", "24 checks across 6 servers and Core.") +
-            '<div class="seg"><a href="#" class="on">All 24</a><a href="#">Down 1</a><a href="#">Degraded 1</a><a href="#">Up 21</a></div>' +
-            sc(box("Checks", "30 days", rows)) + tabs("Monitors"))
 
 
-def monitor_body(d):
-    return ('<div class="hd" style="padding-bottom:4px"><a href="#" class="core" aria-label="Back">%s<span class="crumb">Monitors <span>/</span> <span style="color:var(--tx)">api-https</span></span></a><a href="#" class="ibtn" aria-label="More">%s</a></div>'
-            '<div class="sc" style="gap:12px"><div class="pad col g8"><h1 class="h2t">api-https</h1><div class="row g8"><span class="b dn">Down</span><span class="xs fa">GET api.example.com/health</span></div></div>'
-            '%s%s%s%s</div>') % (
-        ic("back", 22), ic("more", 22),
-        expected_actual("200 OK", "under 1.5s", "Timeout", "no response in 10s"),
-        box("Response time", "24 hours", '<div style="padding:10px 14px 8px">%s</div>' % chart(110, True)),
-        box("Uptime", "30 days &middot; 99.20%", '<div style="padding:12px 14px">%s</div>' % uptime()),
-        stats([("Avg", "184ms", ""), ("Checks", "43k", ""), ("Last", "Fail", "")]))
 
 
 def monitor_test(d):
@@ -231,3 +194,44 @@ def monitor_test(d):
         '<div class="card cp col g8 sm"><div class="row sp"><span class="mu">DNS</span><span>12 ms</span></div><div class="row sp"><span class="mu">Connect</span><span style="color:var(--dnt)">timeout</span></div><div class="row sp"><span class="mu">TLS</span><span class="fa">-</span></div></div>'
         '<p class="xs mu" style="margin:0">A test run does not change the monitor or open an incident.</p>'
         '<div class="row g8"><a href="#" class="btn f">Close</a><a href="#" class="btn p f">Run again</a></div>')
+
+
+def _lrow(kind, name, sub, bad, warn, pct):
+    return ('<a href="#" class="rw">%s<div class="t"><b>%s</b><small>%s</small></div>%s<span class="xs mu" style="width:44px;text-align:right">%s</span></a>') % (
+        si(kind), name, sub, bars(22, bad, warn), pct)
+
+
+def servers_list(d):
+    rows = (gh("dn", "Needs attention", "2") + _lrow("dn", "edge-01", "Not reporting for 31m", (19, 20, 21), (), "99.2%") + _lrow("dg", "db-02", "Disk at 91%", (), (20, 21), "99.8%") +
+            gh("up", "Healthy", "3") + _lrow("up", "edge-02", "Ubuntu 24.04", (), (), "100%") + _lrow("up", "edge-04", "Ubuntu 24.04", (), (), "100%") + _lrow("up", "cache-01", "Debian 12", (), (9,), "99.9%") +
+            gh("mt", "Maintenance", "1") + _lrow("mt", "build-01", "macOS 15", (), (), "n/a"))
+    return (hd() + '<h1 class="ttl2">Servers</h1><div class="chips" style="padding-bottom:10px"><span class="fp on">All 6</span><span class="fp">Needs attention 2</span><span class="fp">Maintenance 1</span></div>' +
+            sc(rows, 0) + tabs("Servers"))
+
+
+def monitors_list(d):
+    rows = (gh("dn", "Down", "1") + _lrow("dn", "api-https", "HTTP &middot; every 30s", (19, 20, 21), (), "99.2%") +
+            gh("dg", "Degraded", "1") + _lrow("dg", "disk-usage", "Agent &middot; db-02", (), (20, 21), "99.8%") +
+            gh("up", "Up", "21") + _lrow("up", "web-https", "HTTP &middot; every 30s", (), (), "100%") + _lrow("up", "lb-https", "HTTP &middot; every 30s", (), (9,), "99.97%") +
+            _lrow("up", "nightly-backup", "Heartbeat &middot; daily", (), (), "100%") +
+            gh("un", "Paused", "1") + _lrow("un", "legacy-tcp", "TCP", (), (), "n/a"))
+    return (hd() + '<h1 class="ttl2">Monitors</h1><div class="chips" style="padding-bottom:10px"><span class="fp on">All 24</span><span class="fp">Down 1</span><span class="fp">Degraded 1</span><span class="fp">Paused 1</span></div>' +
+            sc(rows, 0) + tabs("Monitors"))
+
+
+def server_detail(d):
+    pills = '<div class="pls">%s</div>' % (pill(si("un", 16), "Not reporting") + pill(ic("clock", 16), "Last report 31m ago", True) + pill(ic("server", 16), "Ubuntu 24.04", True))
+    return (dhd("edge-01", ("more",)) + '<div class="sc" style="gap:14px"><div class="pad col g12"><h1 class="h2t">edge-01</h1>%s'
+            '<p class="prose">edge-01 stopped reporting at 14:01. Its 2 monitors show Unknown. Check the host or put it in maintenance.</p></div>%s'
+            '<div class="ut" style="margin:0 16px"><a href="#" class="on">Overview</a><a href="#">Monitors 2</a><a href="#">Reports</a><a href="#">Logs</a></div>'
+            '<div>%s%s</div></div>') % (pills, stats([("CPU, last seen", "41%", ""), ("Memory", "62%", ""), ("Disk", "58%", "")]),
+                                        rw("un", "api-https", "HTTP &middot; no data since 14:01", ""), rw("un", "edge-01-disk", "Agent &middot; no data", ""))
+
+
+def monitor_body(d):
+    pills = '<div class="pls">%s</div>' % (pill(si("dn", 16), "Down") + pill(ic("globe", 16), "HTTP", True) + pill(ic("clock", 16), "Every 30s", True) + pill(ic("server", 16), "edge-01", True))
+    return (dhd("api-https", ("more",)) + '<div class="sc" style="gap:12px"><div class="pad col g12"><h1 class="h2t">api-https</h1>%s<span class="mono">GET api.example.com/health</span></div>%s%s%s%s</div>') % (
+        pills, expected_actual("200 OK", "under 1.5s", "Timeout", "no response in 10s"),
+        box("Response time", "24 hours", '<div style="padding:10px 14px 8px">%s</div>' % chart(100, True)),
+        box("Uptime", "30 days &middot; 99.20%", '<div style="padding:12px 14px">%s</div>' % uptime()),
+        stats([("Avg", "184ms", ""), ("Checks", "43k", ""), ("Last", "Fail", "")]))
