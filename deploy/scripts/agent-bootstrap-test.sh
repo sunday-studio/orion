@@ -35,16 +35,17 @@ check() { # name expected_exit expected_text -- args
 }
 
 BASE="file://$REL"
-check "dry run passes and changes nothing" 0 "Nothing was changed" -- --dry-run --yes --core-url http://core.example.com --base-url "$BASE"
+check "dry run prints only the plan"       0 "dry run: this plan makes no changes" -- --dry-run --yes --core-url http://core.example.com --base-url "$BASE"
 check "plan is printed"                   0 "Plan"                -- --dry-run --yes --core-url http://core.example.com --base-url "$BASE"
+check "dry run never fetches release assets" 0 "Plan"              -- --dry-run --yes --core-url http://core.example.com --base-url file:///not-a-release
 check "missing core url is a clear error" 1 "Core URL is required" -- --dry-run --yes --base-url "$BASE"
 
 echo "x" >> "$REL/$ASSET"            # tamper with the binary
-check "tampered binary aborts"            2 "Checksum mismatch"   -- --dry-run --yes --core-url http://core.example.com --base-url "$BASE"
+check "tampered binary aborts"            2 "Checksum mismatch"   -- --verify-only --yes --core-url http://core.example.com --base-url "$BASE"
 cp "$BIN" "$REL/$ASSET"
 grep -v "$ASSET" "$REL/SHA256SUMS" > "$REL/SUMS.new" && mv "$REL/SUMS.new" "$REL/SHA256SUMS"
-check "unlisted binary aborts"            2 "No checksum for"          -- --dry-run --yes --core-url http://core.example.com --base-url "$BASE"
-check "signature required but cosign absent" 2 "cosign is required"  -- --dry-run --yes --require-signature --core-url http://core.example.com --base-url "$BASE"
+check "unlisted binary aborts"            2 "No checksum for"          -- --verify-only --yes --core-url http://core.example.com --base-url "$BASE"
+check "signature required but cosign absent" 2 "cosign is required"  -- --verify-only --yes --require-signature --core-url http://core.example.com --base-url "$BASE"
 
 [ "$fail" -eq 0 ] && echo "installer tests passed"
 exit "$fail"
