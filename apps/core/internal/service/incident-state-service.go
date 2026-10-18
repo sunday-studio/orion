@@ -80,6 +80,7 @@ func (s *IncidentService) openOrUpdateIncidentTx(agent db.Agent, monitor db.Moni
 		ID:                 utils.GenerateID("incident"),
 		Status:             "open",
 		Severity:           severity,
+		Number:             s.nextIncidentNumber(),
 		Title:              incidentTitle(agent, monitor, health),
 		AgentID:            agent.ID,
 		MonitorID:          monitor.ID,

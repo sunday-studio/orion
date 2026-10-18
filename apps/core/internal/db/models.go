@@ -267,15 +267,22 @@ type Incident struct {
 	CoveredUntil       *time.Time `json:"covered_until" gorm:"index:idx_incidents_covered_until"`
 	CoverageNote       string     `json:"coverage_note" gorm:"type:text"`
 	ResolutionKind     string     `json:"resolution_kind" gorm:"not null;default:''"`
-	ReopenedAt         *time.Time `json:"reopened_at"`
-	ReopenCount        int        `json:"reopen_count" gorm:"not null;default:0"`
-	OpenedAt           time.Time  `json:"opened_at" gorm:"not null;index:idx_incidents_opened_at"`
-	ResolvedAt         *time.Time `json:"resolved_at"`
-	LastEventAt        time.Time  `json:"last_event_at" gorm:"not null"`
-	LatestEvent        string     `json:"latest_event" gorm:"type:text"`
-	NotificationStatus string     `json:"notification_status" gorm:"not null;default:pending"` // pending | sent | failed | suppressed | cooldown
-	CreatedAt          time.Time  `json:"created_at"`
-	UpdatedAt          time.Time  `json:"updated_at"`
+	// Number is the human id shown as INC-0231; assigned on creation, never reused.
+	Number              int        `json:"number" gorm:"not null;default:0"`
+	Responder           string     `json:"responder" gorm:"not null;default:''"`
+	ResponderAt         *time.Time `json:"responder_at"`
+	Summary             string     `json:"summary" gorm:"type:text;not null;default:''"`
+	Source              string     `json:"source" gorm:"not null;default:monitor"` // monitor | manual
+	CoveredByIncidentID string     `json:"covered_by_incident_id" gorm:"not null;default:''"`
+	ReopenedAt          *time.Time `json:"reopened_at"`
+	ReopenCount         int        `json:"reopen_count" gorm:"not null;default:0"`
+	OpenedAt            time.Time  `json:"opened_at" gorm:"not null;index:idx_incidents_opened_at"`
+	ResolvedAt          *time.Time `json:"resolved_at"`
+	LastEventAt         time.Time  `json:"last_event_at" gorm:"not null"`
+	LatestEvent         string     `json:"latest_event" gorm:"type:text"`
+	NotificationStatus  string     `json:"notification_status" gorm:"not null;default:pending"` // pending | sent | failed | suppressed | cooldown
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
 }
 
 type IncidentEvent struct {

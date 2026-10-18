@@ -524,6 +524,38 @@ definitions:
       retention_days:
         type: integer
     type: object
+  internal_api.BulkIncidentRequest:
+    properties:
+      action:
+        enum:
+        - acknowledge
+        - cover
+        - resolve
+        type: string
+      covered_by:
+        description: CoveredBy applies to the cover action.
+        type: string
+      ids:
+        items:
+          type: string
+        type: array
+      note:
+        type: string
+    required:
+    - action
+    - ids
+    type: object
+  internal_api.BulkIncidentResult:
+    properties:
+      error:
+        type: string
+      id:
+        type: string
+      incident:
+        $ref: '#/definitions/internal_api.IncidentResponse'
+      ok:
+        type: boolean
+    type: object
   internal_api.CoreMonitorConfigResponse:
     properties:
       config:
@@ -586,6 +618,31 @@ definitions:
       date:
         example: "2026-05-12"
         type: string
+    type: object
+  internal_api.DeclareIncidentRequest:
+    properties:
+      agent_id:
+        type: string
+      monitor_id:
+        type: string
+      notify:
+        description: Notify queues alerts through the channels the matching rules
+          select.
+        type: boolean
+      severity:
+        enum:
+        - low
+        - medium
+        - high
+        - critical
+        type: string
+      summary:
+        type: string
+      title:
+        type: string
+    required:
+    - severity
+    - title
     type: object
   internal_api.DisplayProfile:
     properties:
@@ -815,6 +872,55 @@ definitions:
       status:
         type: string
     type: object
+  internal_api.IncidentDetailSource:
+    properties:
+      monitor_id:
+        type: string
+      monitor_name:
+        type: string
+      monitor_type:
+        type: string
+      server_id:
+        type: string
+      server_name:
+        type: string
+      target:
+        description: Target is what the check hits, for example "GET /health" or "db.internal:5432".
+        type: string
+    type: object
+  internal_api.IncidentDetailSummary:
+    properties:
+      acknowledged_at:
+        type: string
+      actual:
+        $ref: '#/definitions/internal_api.IncidentExpectation'
+      covered_by_display_id:
+        type: string
+      detected_at:
+        type: string
+      duration_seconds:
+        type: integer
+      expected:
+        $ref: '#/definitions/internal_api.IncidentExpectation'
+      failed_checks:
+        type: integer
+      notified_at:
+        type: string
+      notified_channels:
+        items:
+          type: string
+        type: array
+      resolved_at:
+        type: string
+      source:
+        $ref: '#/definitions/internal_api.IncidentDetailSource'
+      status_page:
+        $ref: '#/definitions/internal_api.IncidentStatusPageState'
+      time_to_acknowledge_seconds:
+        type: integer
+      time_to_resolve_seconds:
+        type: integer
+    type: object
   internal_api.IncidentEventResponse:
     properties:
       actor_id:
@@ -842,6 +948,17 @@ definitions:
         $ref: '#/definitions/internal_api.MonitorReportResponse'
       triggering_report:
         $ref: '#/definitions/internal_api.MonitorReportResponse'
+    type: object
+  internal_api.IncidentExpectation:
+    properties:
+      at:
+        type: string
+      detail:
+        example: under 10s
+        type: string
+      title:
+        example: 200 OK
+        type: string
     type: object
   internal_api.IncidentInsightsResponse:
     properties:
@@ -886,6 +1003,13 @@ definitions:
       target_tab:
         type: string
     type: object
+  internal_api.IncidentNoteRequest:
+    properties:
+      text:
+        type: string
+    required:
+    - text
+    type: object
   internal_api.IncidentNotificationReliabilityStats:
     properties:
       failed_deliveries:
@@ -912,6 +1036,8 @@ definitions:
     type: object
   internal_api.IncidentRelatedIncidentResponse:
     properties:
+      display_id:
+        type: string
       id:
         type: string
       last_event_at:
@@ -920,6 +1046,8 @@ definitions:
         type: string
       notification_status:
         type: string
+      number:
+        type: integer
       opened_at:
         type: string
       resolution_kind:
@@ -931,6 +1059,12 @@ definitions:
       status:
         type: string
       title:
+        type: string
+    type: object
+  internal_api.IncidentResponderRequest:
+    properties:
+      name:
+        description: Name of the person on point; empty clears it.
         type: string
     type: object
   internal_api.IncidentResponse:
@@ -945,9 +1079,14 @@ definitions:
         type: string
       covered_at:
         type: string
+      covered_by_incident_id:
+        type: string
       covered_until:
         type: string
       created_at:
+        type: string
+      display_id:
+        example: INC-0231
         type: string
       id:
         type: string
@@ -967,6 +1106,8 @@ definitions:
         type: string
       notification_status:
         type: string
+      number:
+        type: integer
       opened_at:
         type: string
       reopen_count:
@@ -977,14 +1118,34 @@ definitions:
         type: string
       resolved_at:
         type: string
+      responder:
+        type: string
+      responder_at:
+        type: string
       severity:
         type: string
+      source:
+        enum:
+        - monitor
+        - manual
+        type: string
       status:
+        type: string
+      summary:
         type: string
       title:
         type: string
       updated_at:
         type: string
+    type: object
+  internal_api.IncidentStatusPageState:
+    properties:
+      draft_exists:
+        description: DraftExists is true when a status page incident is linked to
+          this one.
+        type: boolean
+      published_updates:
+        type: integer
     type: object
   internal_api.IncidentTimelineItemResponse:
     properties:
@@ -1527,6 +1688,8 @@ definitions:
     properties:
       acknowledged_at:
         type: string
+      display_id:
+        type: string
       duration_seconds:
         type: integer
       id:
@@ -1534,6 +1697,8 @@ definitions:
       notified_at:
         description: NotifiedAt and AcknowledgedAt are only filled for needs_you.
         type: string
+      number:
+        type: integer
       opened_at:
         type: string
       resolved_at:
@@ -1647,10 +1812,15 @@ definitions:
     type: object
   internal_api.SearchHitResponse:
     properties:
+      display_id:
+        type: string
       id:
         type: string
       name:
         type: string
+      number:
+        description: Number and DisplayID are set for incidents.
+        type: integer
       status:
         type: string
       type:
@@ -2325,6 +2495,11 @@ definitions:
     type: object
   internal_api.incidentCoverageRequest:
     properties:
+      covered_by:
+        description: 'CoveredBy is the incident that already explains this one: its
+          id or INC number.'
+        example: INC-0229
+        type: string
       covered_until:
         type: string
       note:
@@ -6477,6 +6652,23 @@ paths:
         in: query
         name: needs_review
         type: boolean
+      - description: Comma-separated severities (low,medium,high,critical)
+        in: query
+        name: severity
+        type: string
+      - description: Text search over title, INC number, monitor and server name
+        in: query
+        name: q
+        type: string
+      - description: 'Only incidents opened since: 24h, 7d, 30d style duration or
+          an RFC3339 time'
+        in: query
+        name: opened_since
+        type: string
+      - description: Only incidents opened before this RFC3339 time
+        in: query
+        name: opened_until
+        type: string
       - default: 50
         description: Maximum number of incidents to return
         in: query
@@ -6524,6 +6716,53 @@ paths:
           schema:
             $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: List incidents
+      tags:
+      - incidents
+    post:
+      consumes:
+      - application/json
+      description: Open an incident manually for something Orion has not noticed.
+        Give a monitor or a server. A monitor can have only one active incident.
+      operationId: declareIncident
+      parameters:
+      - description: Incident
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.DeclareIncidentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    incident:
+                      $ref: '#/definitions/internal_api.IncidentResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Declare incident
       tags:
       - incidents
   /v1/incidents/{id}:
@@ -6574,6 +6813,8 @@ paths:
                       items:
                         $ref: '#/definitions/internal_api.IncidentRelatedIncidentResponse'
                       type: array
+                    summary:
+                      $ref: '#/definitions/internal_api.IncidentDetailSummary'
                     timeline:
                       items:
                         $ref: '#/definitions/internal_api.IncidentTimelineItemResponse'
@@ -6652,7 +6893,8 @@ paths:
         name: id
         required: true
         type: string
-      - description: Coverage payload
+      - description: Coverage payload; covered_by names the incident that explains
+          this one
         in: body
         name: request
         schema:
@@ -6731,6 +6973,41 @@ paths:
       security:
       - BearerAuth: []
       summary: Logs around an incident
+      tags:
+      - incidents
+  /v1/incidents/{id}/notes:
+    post:
+      consumes:
+      - application/json
+      operationId: addIncidentNote
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Note
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.IncidentNoteRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Add incident note
       tags:
       - incidents
   /v1/incidents/{id}/reopen:
@@ -6829,6 +7106,49 @@ paths:
       summary: Resolve incident
       tags:
       - incidents
+  /v1/incidents/{id}/responder:
+    put:
+      consumes:
+      - application/json
+      operationId: setIncidentResponder
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Responder
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.IncidentResponderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    incident:
+                      $ref: '#/definitions/internal_api.IncidentResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Assign incident responder
+      tags:
+      - incidents
   /v1/incidents/{id}/timeline:
     get:
       consumes:
@@ -6870,6 +7190,48 @@ paths:
           schema:
             $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get incident timeline
+      tags:
+      - incidents
+  /v1/incidents/bulk:
+    post:
+      consumes:
+      - application/json
+      description: Acknowledge, cover or resolve up to 100 incidents. Each id succeeds
+        or fails on its own; the response lists every result.
+      operationId: bulkIncidentAction
+      parameters:
+      - description: Bulk action
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.BulkIncidentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    failed:
+                      type: integer
+                    results:
+                      items:
+                        $ref: '#/definitions/internal_api.BulkIncidentResult'
+                      type: array
+                    succeeded:
+                      type: integer
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Bulk incident action
       tags:
       - incidents
   /v1/incidents/candidates:
@@ -6948,6 +7310,43 @@ paths:
       security:
       - BearerAuth: []
       summary: Dismiss an incident candidate
+      tags:
+      - incidents
+  /v1/incidents/export:
+    get:
+      description: Same filters as GET /v1/incidents (status, severity, q, opened_since,
+        ...), no paging, at most 10,000 rows, newest first.
+      operationId: exportIncidentsCSV
+      parameters:
+      - default: open,acknowledged,covered
+        description: Comma-separated statuses
+        in: query
+        name: status
+        type: string
+      - description: Comma-separated severities
+        in: query
+        name: severity
+        type: string
+      - description: Text search
+        in: query
+        name: q
+        type: string
+      - description: 24h, 7d, 30d or RFC3339
+        in: query
+        name: opened_since
+        type: string
+      produces:
+      - text/csv
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Export incidents as CSV
       tags:
       - incidents
   /v1/ingest/logs:

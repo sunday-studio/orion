@@ -107,6 +107,8 @@ type IncidentNextActionResponse struct {
 
 type IncidentRelatedIncidentResponse struct {
 	ID                 string     `json:"id"`
+	Number             int        `json:"number"`
+	DisplayID          string     `json:"display_id"`
 	Status             string     `json:"status"`
 	Severity           string     `json:"severity"`
 	Title              string     `json:"title"`
@@ -155,30 +157,37 @@ type AgentConfigSummaryResponse struct {
 }
 
 type IncidentResponse struct {
-	ID                 string                            `json:"id"`
-	Status             string                            `json:"status"`
-	Severity           string                            `json:"severity"`
-	Title              string                            `json:"title"`
-	AgentID            string                            `json:"agent_id"`
-	AgentName          string                            `json:"agent_name"`
-	MonitorID          string                            `json:"monitor_id"`
-	MonitorName        string                            `json:"monitor_name"`
-	MonitorType        string                            `json:"monitor_type"`
-	ImpactedComponents []IncidentComponentImpactResponse `json:"impacted_components"`
-	CoveredAt          *time.Time                        `json:"covered_at,omitempty"`
-	CoveredUntil       *time.Time                        `json:"covered_until,omitempty"`
-	CoverageNote       string                            `json:"coverage_note,omitempty"`
-	ResolutionKind     string                            `json:"resolution_kind,omitempty"`
-	ReopenedAt         *time.Time                        `json:"reopened_at,omitempty"`
-	ReopenCount        int                               `json:"reopen_count"`
-	OpenedAt           time.Time                         `json:"opened_at"`
-	ResolvedAt         *time.Time                        `json:"resolved_at"`
-	LastEventAt        time.Time                         `json:"last_event_at"`
-	LatestEvent        string                            `json:"latest_event"`
-	NotificationStatus string                            `json:"notification_status"`
-	AllowedActions     IncidentAllowedActionsResponse    `json:"allowed_actions"`
-	CreatedAt          time.Time                         `json:"created_at"`
-	UpdatedAt          time.Time                         `json:"updated_at"`
+	ID                  string                            `json:"id"`
+	Number              int                               `json:"number"`
+	DisplayID           string                            `json:"display_id" example:"INC-0231"`
+	Summary             string                            `json:"summary,omitempty"`
+	Source              string                            `json:"source" enums:"monitor,manual"`
+	Responder           string                            `json:"responder,omitempty"`
+	ResponderAt         *time.Time                        `json:"responder_at,omitempty"`
+	CoveredByIncidentID string                            `json:"covered_by_incident_id,omitempty"`
+	Status              string                            `json:"status"`
+	Severity            string                            `json:"severity"`
+	Title               string                            `json:"title"`
+	AgentID             string                            `json:"agent_id"`
+	AgentName           string                            `json:"agent_name"`
+	MonitorID           string                            `json:"monitor_id"`
+	MonitorName         string                            `json:"monitor_name"`
+	MonitorType         string                            `json:"monitor_type"`
+	ImpactedComponents  []IncidentComponentImpactResponse `json:"impacted_components"`
+	CoveredAt           *time.Time                        `json:"covered_at,omitempty"`
+	CoveredUntil        *time.Time                        `json:"covered_until,omitempty"`
+	CoverageNote        string                            `json:"coverage_note,omitempty"`
+	ResolutionKind      string                            `json:"resolution_kind,omitempty"`
+	ReopenedAt          *time.Time                        `json:"reopened_at,omitempty"`
+	ReopenCount         int                               `json:"reopen_count"`
+	OpenedAt            time.Time                         `json:"opened_at"`
+	ResolvedAt          *time.Time                        `json:"resolved_at"`
+	LastEventAt         time.Time                         `json:"last_event_at"`
+	LatestEvent         string                            `json:"latest_event"`
+	NotificationStatus  string                            `json:"notification_status"`
+	AllowedActions      IncidentAllowedActionsResponse    `json:"allowed_actions"`
+	CreatedAt           time.Time                         `json:"created_at"`
+	UpdatedAt           time.Time                         `json:"updated_at"`
 }
 
 type IncidentAllowedActionsResponse struct {
