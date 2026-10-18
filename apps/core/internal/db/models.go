@@ -187,8 +187,12 @@ type Monitor struct {
 	Lifecycle string `json:"lifecycle" gorm:"not null;index:idx_monitors_lifecycle"` // active | disabled | deleted
 	// RunbookURL is shown on incidents for this monitor.
 	RunbookURL string `json:"runbook_url" gorm:"not null;default:''"`
-	Health     string `json:"health" gorm:"not null;index:idx_monitors_health"` // up | down | degraded | unknown
-	Meta       string `json:"meta" gorm:"type:text"`
+	// Maintenance window: checks keep running but incidents and alerts are held between the two times.
+	MaintenanceStartsAt *time.Time `json:"maintenance_starts_at"`
+	MaintenanceEndsAt   *time.Time `json:"maintenance_ends_at"`
+	MaintenanceReason   string     `json:"maintenance_reason" gorm:"not null;default:''"`
+	Health              string     `json:"health" gorm:"not null;index:idx_monitors_health"` // up | down | degraded | unknown
+	Meta                string     `json:"meta" gorm:"type:text"`
 
 	CreatedAt time.Time `json:"created_at" gorm:"index:idx_monitors_created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -486,13 +490,4 @@ type IncidentCandidateDismissal struct {
 	DismissedBy string    `json:"dismissed_by"`
 	Reason      string    `json:"reason"`
 	DismissedAt time.Time `json:"dismissed_at"`
-}
-
-// InMaintenance reports whether the agent is in an unexpired maintenance window.
-// A flag without an end time (legacy data) counts as active until it is migrated.
-func (a Agent) InMaintenance(now time.Time) bool {
-	if !a.MaintenanceMode {
-		return false
-	}
-	return a.MaintenanceUntil == nil || now.Before(*a.MaintenanceUntil)
 }

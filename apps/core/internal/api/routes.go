@@ -38,6 +38,7 @@ type Server struct {
 	runtimeDiagnosticsService    *service.RuntimeDiagnosticsService
 	loginLimiter                 *RateLimiter
 	registerLimiter              *RateLimiter
+	testRunLimiter               *RateLimiter
 	publicSubscriberLimiter      *RateLimiter
 	publicStatusMailSend         func(publicStatusMailMessage) error
 	router                       *gin.Engine
@@ -99,6 +100,7 @@ func NewServer(database *gorm.DB, logger *utils.Logger, cfg *config.Config) *Ser
 		loginLimiter:                 NewRateLimiter(cfg.LoginRateLimitAttempts, time.Duration(cfg.LoginRateLimitWindowSecs)*time.Second),
 		registerLimiter:              NewRateLimiter(cfg.RegisterRateLimitPerMinute, time.Minute),
 		publicSubscriberLimiter:      NewRateLimiter(10, time.Minute),
+		testRunLimiter:               NewRateLimiter(20, time.Minute),
 		router:                       router,
 	}
 	server.publicStatusMailSend = server.deliverPublicStatusMail
@@ -175,12 +177,17 @@ func (s *Server) setupRoutes() {
 			frontend.GET("/agents/:id/service-logs", s.listAgentServiceLogs)
 			frontend.GET("/agents/:id/uptime", s.getAgentUptime)
 			frontend.GET("/agents/:id/monitors", s.listMonitors)
+			frontend.GET("/agents/:id/monitor-definitions", s.listAgentMonitorDefinitions)
+			frontend.POST("/agents/:agent_id/monitor-definitions", s.createAgentMonitorDefinition)
+			frontend.DELETE("/agents/:id/monitor-definitions/:definition_id", s.deleteAgentMonitorDefinition)
 			frontend.GET("/agents/:id/token/status", s.getAgentTokenStatus)
 			frontend.POST("/agents/:agent_id/token/rotate", s.rotateAgentToken)
 			frontend.POST("/agents/:agent_id/token/revoke", s.revokeAgentToken)
 			frontend.POST("/agents/:agent_id/token/reissue", s.reissueAgentToken)
 			frontend.GET("/monitors", s.listAllMonitors)
 			frontend.POST("/monitors", s.createCoreMonitor)
+			frontend.POST("/monitors/bulk", s.bulkMonitorAction)
+			frontend.POST("/monitors/test-run", s.testRunUnsavedMonitor)
 			frontend.GET("/monitors/summary", s.getMonitorSummary)
 			frontend.PATCH("/monitors/:id", s.updateCoreMonitor)
 			frontend.DELETE("/monitors/:id", s.deleteCoreMonitor)
@@ -193,6 +200,9 @@ func (s *Server) setupRoutes() {
 			frontend.GET("/monitors/:id/response-times", s.getMonitorResponseTimes)
 			frontend.GET("/monitors/:id/availability", s.getMonitorAvailability)
 			frontend.POST("/monitors/:id/clone", s.cloneCoreMonitor)
+			frontend.POST("/monitors/:id/test-run", s.testRunMonitor)
+			frontend.PUT("/monitors/:id/maintenance", s.setMonitorMaintenance)
+			frontend.DELETE("/monitors/:id/maintenance", s.clearMonitorMaintenance)
 			frontend.GET("/monitors/:id/history", s.getMonitorHistory)
 			frontend.GET("/health/summary", s.getSystemHealth)
 			frontend.GET("/health/issues", s.getHealthIssues)
@@ -263,6 +273,7 @@ func (s *Server) setupRoutes() {
 			protected.POST("/:agent_id/report", ValidateAgentToken(s.agentService, s.authService), s.receiveAgentReport)
 			protected.POST("/:agent_id/logs/batch", ValidateAgentToken(s.agentService, s.authService), s.receiveAgentLogBatch)
 			protected.POST("/:agent_id/:monitor_id/report", ValidateAgentToken(s.agentService, s.authService), s.receiveMonitorReport)
+			protected.POST("/:agent_id/monitor-definitions/sync", ValidateAgentToken(s.agentService, s.authService), s.pullAgentMonitorDefinitions)
 			protected.PUT("/:agent_id/maintenance", ValidateAgentToken(s.agentService, s.authService), s.setMaintenanceMode)
 		}
 	}

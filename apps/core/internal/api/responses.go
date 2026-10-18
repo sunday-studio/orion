@@ -100,9 +100,11 @@ type MonitorResponse struct {
 	PausedBy        string     `json:"paused_by,omitempty"`
 	RunbookURL      string     `json:"runbook_url,omitempty"`
 	RecentChecks    []string   `json:"recent_checks,omitempty"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
-	DeletedAt       time.Time  `json:"deleted_at"`
+	// Maintenance is set while a window is active or scheduled.
+	Maintenance *MonitorMaintenanceInfo `json:"maintenance,omitempty"`
+	CreatedAt   time.Time               `json:"created_at"`
+	UpdatedAt   time.Time               `json:"updated_at"`
+	DeletedAt   time.Time               `json:"deleted_at"`
 }
 
 type MonitorReportResponse struct {

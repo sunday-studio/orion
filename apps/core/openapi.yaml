@@ -36,6 +36,75 @@ definitions:
       up_count:
         type: integer
     type: object
+  internal_api.AgentMonitorDefinitionRequest:
+    properties:
+      check_type:
+        description: 'CheckType: disk (params path, threshold_percent), memory (threshold_percent),
+          process (process_name), port (port).'
+        enum:
+        - disk
+        - memory
+        - process
+        - port
+        type: string
+      fail_after:
+        type: integer
+      interval_seconds:
+        type: integer
+      name:
+        type: string
+      params:
+        additionalProperties: {}
+        type: object
+    required:
+    - check_type
+    - name
+    type: object
+  internal_api.AgentMonitorDefinitionResponse:
+    properties:
+      check_type:
+        type: string
+      created_at:
+        type: string
+      fail_after:
+        type: integer
+      first_report_at:
+        type: string
+      id:
+        type: string
+      interval_seconds:
+        type: integer
+      monitor_id:
+        type: string
+      name:
+        type: string
+      params:
+        additionalProperties: {}
+        type: object
+      state:
+        description: State is waiting until the agent has fetched the definition and
+          reported under this name, then reporting.
+        enum:
+        - waiting
+        - reporting
+        type: string
+    type: object
+  internal_api.AgentPulledDefinition:
+    properties:
+      check_type:
+        type: string
+      fail_after:
+        type: integer
+      id:
+        type: string
+      interval_seconds:
+        type: integer
+      name:
+        type: string
+      params:
+        additionalProperties: {}
+        type: object
+    type: object
   internal_api.AgentReportResponse:
     properties:
       agent_id:
@@ -610,6 +679,43 @@ definitions:
         type: string
       incident:
         $ref: '#/definitions/internal_api.IncidentResponse'
+      ok:
+        type: boolean
+    type: object
+  internal_api.BulkMonitorRequest:
+    properties:
+      action:
+        enum:
+        - pause
+        - resume
+        - maintenance
+        - delete
+        - clone
+        type: string
+      ids:
+        items:
+          type: string
+        type: array
+      keep_history:
+        description: KeepHistory applies to delete (default true).
+        type: boolean
+      maintenance:
+        allOf:
+        - $ref: '#/definitions/internal_api.MonitorMaintenanceRequest'
+        description: Maintenance applies to the maintenance action.
+    required:
+    - action
+    - ids
+    type: object
+  internal_api.BulkMonitorResult:
+    properties:
+      error:
+        type: string
+      id:
+        type: string
+      new_id:
+        description: NewID is the clone's id for the clone action.
+        type: string
       ok:
         type: boolean
     type: object
@@ -1784,6 +1890,29 @@ definitions:
           URL is returned once, when the monitor is created.
         type: string
     type: object
+  internal_api.MonitorMaintenanceInfo:
+    properties:
+      active:
+        type: boolean
+      ends_at:
+        type: string
+      reason:
+        type: string
+      starts_at:
+        type: string
+    type: object
+  internal_api.MonitorMaintenanceRequest:
+    properties:
+      duration_seconds:
+        type: integer
+      ends_at:
+        type: string
+      reason:
+        type: string
+      starts_at:
+        description: StartsAt defaults to now. Give EndsAt or DurationSeconds.
+        type: string
+    type: object
   internal_api.MonitorReportResponse:
     properties:
       collected_at:
@@ -1844,6 +1973,10 @@ definitions:
         type: string
       lifecycle:
         type: string
+      maintenance:
+        allOf:
+        - $ref: '#/definitions/internal_api.MonitorMaintenanceInfo'
+        description: Maintenance is set while a window is active or scheduled.
       name:
         type: string
       owner_id:
@@ -1882,6 +2015,36 @@ definitions:
         type: string
       updated_at:
         type: string
+    type: object
+  internal_api.MonitorTestRunResponse:
+    properties:
+      actual:
+        $ref: '#/definitions/internal_api.IncidentExpectation'
+      duration_ms:
+        type: integer
+      error:
+        type: string
+      expected:
+        $ref: '#/definitions/internal_api.IncidentExpectation'
+      failure_stage:
+        type: string
+      notes:
+        description: Notes always includes that a test run creates no history or alerts.
+        items:
+          type: string
+        type: array
+      passed:
+        type: boolean
+      ran_at:
+        type: string
+      status:
+        description: Status is passed or failed.
+        enum:
+        - passed
+        - failed
+        type: string
+      status_code:
+        type: integer
     type: object
   internal_api.OrionEventResponse:
     properties:
@@ -2617,6 +2780,22 @@ definitions:
         type: boolean
       entry_id:
         type: string
+    type: object
+  internal_api.TestRunMonitorRequest:
+    properties:
+      config:
+        additionalProperties: true
+        type: object
+      kind:
+        type: string
+      secret_refs:
+        additionalProperties: true
+        type: object
+      timeout_seconds:
+        type: integer
+    required:
+    - config
+    - kind
     type: object
   internal_api.UpdateAgentRequest:
     properties:
@@ -4409,6 +4588,92 @@ paths:
       summary: Set agent maintenance mode
       tags:
       - agents
+  /v1/agents/{agent_id}/monitor-definitions:
+    post:
+      consumes:
+      - application/json
+      description: Defines a disk, memory, process or port check. The agent fetches
+        its definitions with POST /v1/agents/{agent_id}/monitor-definitions/sync and
+        reports under the same name; state turns reporting after the first report.
+      operationId: createAgentMonitorDefinition
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agent_id
+        required: true
+        type: string
+      - description: Check
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.AgentMonitorDefinitionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    definition:
+                      $ref: '#/definitions/internal_api.AgentMonitorDefinitionResponse'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Create an agent monitor definition
+      tags:
+      - agents
+  /v1/agents/{agent_id}/monitor-definitions/sync:
+    post:
+      description: Agent-to-Core. Returns the checks configured for this agent in
+        the Console; the agent registers each as a monitor with the same name and
+        reports to it.
+      operationId: pullAgentMonitorDefinitions
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agent_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    definitions:
+                      items:
+                        $ref: '#/definitions/internal_api.AgentPulledDefinition'
+                      type: array
+                  type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: 'Agent: sync configured monitor definitions'
+      tags:
+      - agents
   /v1/agents/{agent_id}/register-monitor:
     post:
       consumes:
@@ -4887,6 +5152,67 @@ paths:
           schema:
             $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get agent health
+      tags:
+      - agents
+  /v1/agents/{id}/monitor-definitions:
+    get:
+      operationId: listAgentMonitorDefinitions
+      parameters:
+      - description: Agent ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    definitions:
+                      items:
+                        $ref: '#/definitions/internal_api.AgentMonitorDefinitionResponse'
+                      type: array
+                  type: object
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: List agent monitor definitions
+      tags:
+      - agents
+  /v1/agents/{id}/monitor-definitions/{definition_id}:
+    delete:
+      operationId: deleteAgentMonitorDefinition
+      parameters:
+      - description: Agent ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Definition ID
+        in: path
+        name: definition_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Delete an agent monitor definition
       tags:
       - agents
   /v1/agents/{id}/monitors:
@@ -9112,6 +9438,73 @@ paths:
       summary: Get monitor history
       tags:
       - monitors
+  /v1/monitors/{id}/maintenance:
+    delete:
+      operationId: clearMonitorMaintenance
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Clear a monitor maintenance window
+      tags:
+      - monitors
+    put:
+      consumes:
+      - application/json
+      description: Checks keep running but incidents and alerts are held between starts_at
+        (default now) and ends_at, at most 30 days. Replaces any existing window.
+      operationId: setMonitorMaintenance
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Window
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.MonitorMaintenanceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    maintenance:
+                      $ref: '#/definitions/internal_api.MonitorMaintenanceInfo'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Set a monitor maintenance window
+      tags:
+      - monitors
   /v1/monitors/{id}/pause:
     post:
       description: Pause a Core-managed monitor so the worker will not claim it.
@@ -9251,6 +9644,45 @@ paths:
       summary: Test a Core monitor
       tags:
       - monitors
+  /v1/monitors/{id}/test-run:
+    post:
+      description: Runs the check once and returns the result. Unlike POST /v1/monitors/{id}/test
+        it stores no report, changes no health and opens no incident or alert. Limited
+        to 20 runs per minute.
+      operationId: testRunMonitor
+      parameters:
+      - description: Monitor ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.MonitorTestRunResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Test-run a saved monitor
+      tags:
+      - monitors
   /v1/monitors/{id}/uptime:
     get:
       description: Returns daily uptime buckets and overall uptime percentage for
@@ -9295,6 +9727,49 @@ paths:
       summary: Get monitor uptime
       tags:
       - monitors
+  /v1/monitors/bulk:
+    post:
+      consumes:
+      - application/json
+      description: Pause, resume, set maintenance, delete or clone up to 100 monitors.
+        Each id succeeds or fails on its own. Pause, resume, delete and clone apply
+        to Core-managed monitors only.
+      operationId: bulkMonitorAction
+      parameters:
+      - description: Bulk action
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.BulkMonitorRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  properties:
+                    failed:
+                      type: integer
+                    results:
+                      items:
+                        $ref: '#/definitions/internal_api.BulkMonitorResult'
+                      type: array
+                    succeeded:
+                      type: integer
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Bulk monitor action
+      tags:
+      - monitors
   /v1/monitors/summary:
     get:
       consumes:
@@ -9319,6 +9794,43 @@ paths:
           schema:
             $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Get monitor summary
+      tags:
+      - monitors
+  /v1/monitors/test-run:
+    post:
+      consumes:
+      - application/json
+      description: Validates the config with the same rules and target policy as creating
+        a monitor, runs it once and returns the result. Nothing is stored.
+      operationId: testRunUnsavedMonitor
+      parameters:
+      - description: Check to run
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.TestRunMonitorRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.MonitorTestRunResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Test-run a monitor that is not saved yet
       tags:
       - monitors
   /v1/overview:

@@ -43,6 +43,7 @@ func (s *Server) enrichMonitorRows(rows []MonitorResponse, monitors []db.Monitor
 		r.Target = monitorTargetLabel(m, cfg, isCore, agents[m.AgentID].Name)
 		checks := recent[m.ID]
 		r.RecentChecks = checkStates(checks)
+		r.Maintenance = maintenanceInfo(m, time.Now().UTC())
 		since, detail := failureFromChecks(checks)
 		r.StatusText, r.StatusDetail = monitorStatusFor(m, cfg, isCore, health, since, detail, s.upSince(m, checks))
 	}
@@ -137,6 +138,9 @@ func monitorStatusFor(m db.Monitor, cfg db.CoreMonitorConfig, isCore bool, healt
 	if isCore && cfg.Paused {
 		return "Paused", ""
 	}
+	if m.InMaintenance(now) {
+		return "Maintenance", m.MaintenanceReason
+	}
 	switch health {
 	case "up":
 		return "Up " + service.CompactDuration(now.Sub(upSince)), ""
@@ -173,4 +177,23 @@ func (s *Server) upSince(m db.Monitor, recent []recentCheck) time.Time {
 		return t.AddDate(0, 0, 1)
 	}
 	return m.CreatedAt
+}
+
+// MonitorMaintenanceInfo describes an active or scheduled maintenance window.
+type MonitorMaintenanceInfo struct {
+	Active   bool      `json:"active"`
+	StartsAt time.Time `json:"starts_at"`
+	EndsAt   time.Time `json:"ends_at"`
+	Reason   string    `json:"reason,omitempty"`
+}
+
+func maintenanceInfo(m db.Monitor, now time.Time) *MonitorMaintenanceInfo {
+	if m.MaintenanceEndsAt == nil || !now.Before(*m.MaintenanceEndsAt) {
+		return nil
+	}
+	start := *m.MaintenanceEndsAt
+	if m.MaintenanceStartsAt != nil {
+		start = *m.MaintenanceStartsAt
+	}
+	return &MonitorMaintenanceInfo{Active: m.InMaintenance(now), StartsAt: start, EndsAt: *m.MaintenanceEndsAt, Reason: m.MaintenanceReason}
 }
