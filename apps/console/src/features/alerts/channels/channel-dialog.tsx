@@ -99,7 +99,7 @@ export const ChannelDialog = ({ open, channel, onOpenChange }: Props) => {
   });
   const testSaved = useTestAlertChannel({
     mutation: {
-      onSuccess: (data) => setResult((data as { result?: ApiAlertTestResult }).result),
+      onSuccess: (data) => setResult(data.result),
       onError: failure("Unable to send the test email."),
     },
   });

@@ -73,7 +73,7 @@ export const ChannelDetailPage = () => {
   const test = useTestAlertChannel({
     mutation: {
       onSuccess: (data) => {
-        setResult((data as { result?: ApiAlertTestResult }).result);
+        setResult(data.result);
         refresh();
       },
       onError: () => toast.add({ title: "Unable to send the test" }),
