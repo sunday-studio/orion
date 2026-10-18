@@ -201,7 +201,9 @@ export const MonitorCreateDialog = ({
                 </div>
               )}
               <div
-                className={kind === "http" ? "grid grid-cols-3 gap-3" : "grid grid-cols-2 gap-3"}
+                className={
+                  kind === "heartbeat" ? "grid grid-cols-2 gap-3" : "grid grid-cols-3 gap-3"
+                }
               >
                 <div className={label}>
                   {kind === "heartbeat" ? "Expected every" : "Check every"}
