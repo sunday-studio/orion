@@ -91,6 +91,9 @@ ORION_CORE_IMAGE=ghcr.io/sunday-studio/orion-core:<version>
 ORION_HTTP_PORT=8999
 ORION_REQUIRE_FRONTEND_AUTH=true
 ORION_ADMIN_USERNAME=admin
+# The address people reach Orion on. Used in emails, install commands and status page
+# links, and as the DNS target for custom status page domains.
+ORION_PUBLIC_URL=https://orion.example.com
 EOF
 printf 'ORION_ADMIN_PASSWORD=%s\nORION_JWT_SECRET=%s\n' "$ADMIN_PASSWORD" "$JWT_SECRET" >> .env
 
@@ -98,6 +101,10 @@ docker compose -f orion-compose.yml up -d
 ```
 
 Open `http://localhost:8999` and sign in with `admin` and the password in `.env`.
+
+`ORION_PUBLIC_URL` is the public address of Core. Set it at setup, or later under Settings, General
+(the saved value wins). Custom status page domains point a CNAME record at its host; set
+`ORION_STATUS_PAGES_CNAME_TARGET` when the DNS target differs from that host.
 
 **2. Connect a server.** Run this on any Linux or macOS host you want to watch, using a Core URL that host
 can reach:
