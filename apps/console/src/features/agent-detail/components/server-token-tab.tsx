@@ -92,12 +92,7 @@ export const ServerTokenTab = ({ agentId, name }: { agentId: string; name: strin
             </StatusBadge>
           </Row>
           <Row label="Rotated">{formatDate(data?.token_rotated_at, DATE_TIME_FORMAT)}</Row>
-          <Row label="Last used">
-            {formatDate(
-              (data as { last_used_at?: string } | undefined)?.last_used_at,
-              DATE_TIME_FORMAT,
-            )}
-          </Row>
+          <Row label="Last used">{formatDate(data?.last_used_at, DATE_TIME_FORMAT)}</Row>
           <Row label="Server id">
             <span className="font-mono text-xs">{data?.agent_id ?? agentId}</span>
           </Row>

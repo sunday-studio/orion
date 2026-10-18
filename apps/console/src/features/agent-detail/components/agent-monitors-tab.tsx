@@ -1,4 +1,4 @@
-import { parseAsString, useQueryState } from "nuqs";
+import { parseAsInteger, parseAsString, useQueryState } from "nuqs";
 import { Link } from "react-router-dom";
 import {
   AddFilterButton,
@@ -13,10 +13,9 @@ import {
   PopoverClose,
   PopoverContent,
   Skeleton,
-  useClientPagination,
+  usePageSize,
 } from "@/design-system";
 import { useGetAgentMonitors } from "@/orion-sdk";
-import { monitorHealth, monitorPriority } from "../agent-detail.domain";
 import { MONITOR_COLUMNS, MonitorCells } from "./monitor-rows";
 
 const STATUS_OPTIONS = [
@@ -39,13 +38,29 @@ export const AgentMonitorsTab = ({ agentId }: { agentId: string }) => {
     parseAsString.withDefault(DEFAULT),
   );
   const selected = statusParam.split(",").filter(Boolean);
-  const query = useGetAgentMonitors(agentId, { limit: 200 });
-  const all = [...(query.data?.monitors ?? [])].sort(
-    (a, b) => monitorPriority(a) - monitorPriority(b),
-  );
-  const shown = all.filter((monitor) => selected.includes(monitorHealth(monitor)));
-  const hidden = all.length - shown.length;
-  const { pageItems, pagination } = useClientPagination(shown);
+  const { limit, setLimit } = usePageSize(20, { key: "monitorsSize", pageKey: "monitorsPage" });
+  const [page, setPage] = useQueryState("monitorsPage", parseAsInteger.withDefault(1));
+  const setStatus = (value: string) => {
+    void setStatusParam(value);
+    void setPage(1);
+  };
+  const offset = (Math.max(page, 1) - 1) * limit;
+  const query = useGetAgentMonitors(agentId, {
+    status: selected.length > 0 ? selected.join(",") : undefined,
+    limit,
+    offset,
+  });
+  const shown = query.data?.monitors ?? [];
+  const total = query.data?.count ?? shown.length;
+  const hidden = (query.data as { hidden_count?: number } | undefined)?.hidden_count ?? 0;
+  const pagination = {
+    count: total,
+    limit,
+    offset,
+    onOffsetChange: (next: number) => void setPage(Math.floor(next / limit) + 1),
+    onLimitChange: setLimit,
+  };
+  const pageItems = shown;
   const isDefault = statusParam === DEFAULT;
 
   if (query.isLoading) return <Skeleton className="h-40 w-full rounded-xl" />;
@@ -53,19 +68,19 @@ export const AgentMonitorsTab = ({ agentId }: { agentId: string }) => {
 
   return (
     <div className="flex flex-col gap-3">
-      <FilterTokenRow onClearAll={() => void setStatusParam(DEFAULT)}>
+      <FilterTokenRow onClearAll={() => void setStatus(DEFAULT)}>
         {selected.length > 0 && (
           <FilterToken
             field="Status"
             operator="is one of"
             value={labelFor(selected)}
-            onRemove={() => void setStatusParam(STATUS_OPTIONS.map((o) => o.value).join(","))}
+            onRemove={() => void setStatus(STATUS_OPTIONS.map((o) => o.value).join(","))}
           >
             <CheckFilterPanel
               title="Status"
               options={STATUS_OPTIONS}
               selected={selected}
-              onChange={(next) => void setStatusParam(next.join(","))}
+              onChange={(next) => void setStatus(next.join(","))}
               onDone={() => undefined}
             />
           </FilterToken>
@@ -73,7 +88,7 @@ export const AgentMonitorsTab = ({ agentId }: { agentId: string }) => {
         <AddFilterButton>
           <PopoverContent className="w-[200px] p-1.5">
             <PopoverClose
-              onClick={() => void setStatusParam(selected.length ? statusParam : DEFAULT)}
+              onClick={() => void setStatus(selected.length ? statusParam : DEFAULT)}
               className="block w-full rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-tray"
             >
               Status
@@ -111,7 +126,7 @@ export const AgentMonitorsTab = ({ agentId }: { agentId: string }) => {
                 <button
                   type="button"
                   className="underline"
-                  onClick={() => void setStatusParam(STATUS_OPTIONS.map((o) => o.value).join(","))}
+                  onClick={() => void setStatus(STATUS_OPTIONS.map((o) => o.value).join(","))}
                 >
                   Show them
                 </button>{" "}

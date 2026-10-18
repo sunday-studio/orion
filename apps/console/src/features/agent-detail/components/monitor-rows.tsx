@@ -3,12 +3,13 @@ import { Dot, StatusBadge } from "@/design-system";
 import { healthDot } from "@/features/incidents/incident-format";
 import { monitorHealth } from "../agent-detail.domain";
 
-type MonitorWithDetail = ApiMonitorResponse & { status_detail?: string | null };
+type MonitorWithDetail = ApiMonitorResponse;
 
 export const monitorTypeLabel = (type?: string) =>
   !type ? "-" : type === "http" ? "HTTP" : type.charAt(0).toUpperCase() + type.slice(1);
 
 export const monitorStatusText = (monitor: MonitorWithDetail) => {
+  if (monitor.status_text) return monitor.status_text;
   const health = monitorHealth(monitor);
   return health.charAt(0).toUpperCase() + health.slice(1);
 };

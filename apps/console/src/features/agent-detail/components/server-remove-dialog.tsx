@@ -1,4 +1,6 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Button,
   Callout,
@@ -10,11 +12,16 @@ import {
   Dot,
   Input,
   RaisedCard,
+  useToast,
 } from "@/design-system";
 import type { ServerRow } from "@/features/agents/server-format";
-import { useGetAgentMonitors } from "@/orion-sdk";
+import {
+  getGetAgentsQueryKey,
+  getGetOverviewQueryKey,
+  useDecommissionAgent,
+  useGetAgentMonitors,
+} from "@/orion-sdk";
 import { cn } from "@/utils/cn";
-import { SERVER_REMOVE_API_AVAILABLE } from "../server-api-flags";
 import { monitorTypeLabel } from "./monitor-rows";
 
 const Radio = ({
@@ -63,13 +70,17 @@ export const ServerRemoveDialog = ({
   const total = monitors.data?.count ?? list.length;
   const [keepHistory, setKeepHistory] = useState(true);
   const [typed, setTyped] = useState("");
-  const [unavailable, setUnavailable] = useState(false);
+  const [error, setError] = useState(false);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const decommission = useDecommissionAgent();
 
   useEffect(() => {
     if (!open) return;
     setKeepHistory(true);
     setTyped("");
-    setUnavailable(false);
+    setError(false);
   }, [open]);
 
   return (
@@ -79,7 +90,20 @@ export const ServerRemoveDialog = ({
           className="flex min-w-0 flex-col gap-3.5"
           onSubmit={(event) => {
             event.preventDefault();
-            if (!SERVER_REMOVE_API_AVAILABLE) setUnavailable(true);
+            setError(false);
+            decommission.mutate(
+              { id: agent.id ?? "", params: { keep_history: keepHistory } },
+              {
+                onSuccess: () => {
+                  void queryClient.invalidateQueries({ queryKey: getGetAgentsQueryKey() });
+                  void queryClient.invalidateQueries({ queryKey: getGetOverviewQueryKey() });
+                  toast.add({ title: `${agent.name} removed` });
+                  onOpenChange(false);
+                  navigate("/servers", { replace: true });
+                },
+                onError: () => setError(true),
+              },
+            );
           }}
         >
           <DialogHeader>
@@ -124,16 +148,16 @@ export const ServerRemoveDialog = ({
               placeholder={agent.name}
             />
           </label>
-          {unavailable && (
-            <Callout tone="warn">
-              Removing a server needs a Core update that is not available yet.
-            </Callout>
-          )}
+          {error && <Callout tone="warn">Unable to remove the server. Try again.</Callout>}
           <DialogFooter>
             <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" variant="destructive" disabled={typed !== agent.name}>
+            <Button
+              type="submit"
+              variant="destructive"
+              disabled={typed !== agent.name || decommission.isPending}
+            >
               Remove server
             </Button>
           </DialogFooter>
