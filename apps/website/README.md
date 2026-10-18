@@ -21,6 +21,21 @@ The site is static. It deploys to Cloudflare Workers static assets, configured i
 4. Attach the real domain in the dashboard (Workers & Pages, `orion-website`, Settings, Domains), or add the `routes` entry shown in `wrangler.jsonc`. The domain's zone must be on your Cloudflare account.
 5. Set the real address in `astro.config.mjs` (`site`), `public/robots.txt` and the fallback in `src/layouts/base.astro`, then redeploy.
 
+**Or let Cloudflare build from Git (no GitHub secrets needed)**
+
+Cloudflare can watch the repository and build on every push. In the dashboard: Workers & Pages, Create, Import a repository, choose `sunday-studio/orion`, then set:
+
+| Setting | Value |
+|---|---|
+| Worker name | `orion-website` (must match `name` in `wrangler.jsonc`) |
+| Production branch | `main` |
+| Root directory | `apps/website` |
+| Build command | `npm run build` |
+| Deploy command | `npx wrangler deploy` |
+| Variable | `NODE_VERSION` = `22` |
+
+Pushes to `main` deploy to production. Other branches build a preview version with its own URL if you leave non-production branch builds on (their command is `npx wrangler versions upload`). If you use this, you do not need the GitHub workflow below; leave `WEBSITE_DEPLOY_ENABLED` unset or delete `.github/workflows/website-deploy.yml`.
+
 **Deploying**
 
 - By hand from your machine: `npx wrangler login`, then `npm run cf:deploy`.
