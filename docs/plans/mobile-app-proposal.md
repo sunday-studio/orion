@@ -4,61 +4,50 @@ Status: proposal, input for design. Nothing here is built.
 
 ## Goal
 
-A free app on the App Store and Google Play that any Orion operator installs, points at their own
-Core, and uses to **know when something breaks and act on it from their pocket**. It is not a
-second Console. Console stays the place for configuration; mobile is for awareness and response.
+Mobile is a **third notification channel** in Orion, next to the Console **inbox** (incident triage) and
+**webhooks**. It plugs into the same alert rules, routes and label routes, shows up in the same
+delivery log, and exists so an operator is reached wherever they are and can respond from the
+notification. It is not a second Console. Console stays the place for configuration.
 
 Principles:
 
-1. **Self-hosted first.** The app talks only to the user's Core. No Orion account, no Sunday Studio
-   cloud holding their data.
-2. **Alert → look → act in under 30 seconds.** Everything else is secondary.
-3. **Read-heavy, few safe writes.** Heavy configuration (monitor editing, status page building,
-   alert routing, data lifecycle) stays on web.
-4. **One app, many Cores.** Home lab and work Core side by side.
+1. **Notification first.** Every screen exists to explain, or act on, a notification that arrived.
+2. **Same pipeline as everything else.** No mobile-only alerting logic: rules, routes, quiet hours and
+   delivery logs are shared with inbox and webhook.
+3. **Self-hosted first.** The app talks only to the user's Core. No Orion account.
+4. **Read-heavy, few safe writes.** Configuration stays on web.
+5. **One app, many Cores.**
 
 ## Who uses it
 
 - Solo operator / home lab owner: wants a push when the box dies and a glance at what is red.
 - Small-team on-call: wants to acknowledge, hand off, and leave a note without opening a laptop.
 
-## Feature scope
+## Feature scope (v1, includes what was v1.1)
 
-### v1 (must ship)
-
-| Area | What the app does | Core API it uses today |
+| Area | What the app does | Core API |
 |---|---|---|
-| Connect | Add a Core by scanning a QR code from Console or typing a URL; sign in; store credentials in Keychain/Keystore; multiple Cores with a switcher | `/health`, `/v1/auth/login`, `/v1/auth/me` |
-| Overview | One screen: overall health, open incidents count, servers up/down, monitors failing, last-updated. Pull to refresh | `/v1/overview`, `/v1/health/summary`, `/v1/health/issues` |
-| Incidents | List (open first, filter by status/severity), detail with timeline, notes, linked logs. **Actions: acknowledge, resolve, reopen, add note, set responder** | `/v1/incidents*` |
-| Push notifications | Incident opened / escalated / resolved, server went silent, per-Core mute and quiet hours. Tap opens the incident | **New**, see "Push" |
-| Servers | List with status, CPU/mem/disk summary, last report age; detail with current metrics, monitors on it, recent reports | `/v1/agents*` |
-| Monitors | List with status and uptime; detail with response-time chart, history, uptime. **Actions: pause, resume, run test now** | `/v1/monitors*` |
-| Search | Global search across servers, monitors, incidents | `/v1/search` |
-| Settings | Manage Cores, notification prefs, biometric lock, theme, sign out, "forget this Core" | local |
+| Connect | Pair a Core by QR from Console or URL; sign in; credentials in Keychain/Keystore; multi-Core switcher | `/health`, `/v1/auth/*`, new `/v1/devices/*` |
+| Push notifications | Incident opened / escalated / resolved, server silent, monitor failing; per-Core mute, quiet hours, optional Critical Alerts. Tap opens the incident | new `mobile_push` channel |
+| Notification feed (mobile inbox) | Chronological list of what this device was notified about, with read state and the incident status now. The in-app home screen | `/v1/alerts/deliveries`, `/v1/incidents` |
+| Incident detail | Timeline, notes, linked logs. Actions: acknowledge, resolve, reopen, add note, set responder, take/cover handoff, post public status update (confirm step) | `/v1/incidents/*` |
+| Overview | Health summary, open incidents, servers down, monitors failing | `/v1/overview`, `/v1/health/*` |
+| Servers | List and detail with current metrics and recent reports | `/v1/agents*` |
+| Monitors | List, detail, response-time chart, history. Actions: pause, resume, test now | `/v1/monitors*` |
+| Logs | Live tail (SSE), search, facets, histogram, related lines | `/v1/logs*` |
+| Alert deliveries | See what was sent where, including this device; retry a failed delivery | `/v1/alerts/deliveries*` |
+| Search | Global search | `/v1/search` |
+| Widgets | Home-screen widget and iOS Live Activity for an open incident; Android widget | local + push |
+| Settings | Cores, notification prefs, biometric lock, theme, forget Core | local |
 
-### v1.1
-
-- **Logs:** live tail (SSE), search, facets, histogram, open a log's related lines. Mobile-adapted:
-  big text, filter chips, tap a line for fields. Uses `/v1/logs*`, `/v1/logs/stream`.
-- **Alert deliveries:** see what was sent to where, retry a failed one (`/v1/alerts/deliveries*`).
-- **Incident cover / handoff:** "I'm taking this" and "cover for me" (`/v1/incidents/{id}/cover`).
-- **Public status update:** post an update to the status page from an incident
-  (`/v1/incidents/{id}/public-update`). Needs a confirm step; this is outward-facing.
-- **Home-screen widgets and lock-screen Live Activity** for an open incident (iOS), Android widget.
-
-### Later / out of scope for mobile
-
-- Creating or editing monitors, alert rules/routes/channels, status pages, data lifecycle, API
-  tokens, registration tokens. These stay in Console.
-- Installing the Orion Server on a host.
-- Multi-user admin and audit log browsing (read-only audit could come later).
+Out of scope: creating/editing monitors, alert rules/routes/channels, status pages, data lifecycle,
+API/registration tokens, installing the Orion Server, user admin.
 
 ## Navigation (for design)
 
-Bottom tabs: **Home · Incidents · Servers · Monitors · More**.
+Bottom tabs: **Notifications · Incidents · Servers · Monitors · More**.
 
-- Home = Overview. Header shows the active Core name with a switcher.
+- Notifications (the feed) is the home screen; Overview is a summary card at its top. Header shows the active Core name with a switcher.
 - Logs, Search, Alert deliveries, Settings live under **More** (Search also as a header icon).
 - Deep links from push notifications go straight to incident detail.
 - Incident detail has a sticky action bar: Acknowledge / Resolve / Add note.
@@ -118,8 +107,9 @@ send to phones directly. Alert channels today are webhook-only. Proposal:
    `{core_id, incident_id}`. Payload text is a generic "Orion: incident opened". The app wakes,
    fetches the real details from the user's own Core, then shows a local notification (the Matrix
    and Bitwarden pattern). Incident names, hostnames, and log lines never touch Sunday Studio.
-3. **Core side:** add a `mobile_push` alert channel type alongside `webhook`, reusing the existing
-   rules, routes, label routes, quiet-hours and delivery log. Delivery failures show up in
+3. **Core side:** add a `mobile_push` alert channel type alongside `webhook` (and the Console inbox),
+   reusing the existing rules, routes, label routes, quiet-hours and delivery log. A channel
+   targets paired devices (all, or chosen ones), so routes can say "page the on-call phone". Delivery failures show up in
    `/v1/alerts/deliveries` like any other channel. Relay URL is configurable, default to the hosted
    one, with an off switch for people who want zero third-party calls.
 4. **Device registration:** the app registers its push token with Core on pair
@@ -148,12 +138,13 @@ send to phones directly. Alert channels today are webhook-only. Proposal:
 ### Phasing
 
 1. **Foundation:** `apps/mobile` skeleton, shared SDK, connect/auth with login fallback, Overview.
-2. **Read surfaces:** incidents, servers, monitors, search. No push yet; usable by pull.
-3. **Pairing and push:** device API in Core, Console pairing UI, push relay, `mobile_push` channel.
+2. **Read surfaces:** notification feed, incidents, servers, monitors, logs, deliveries, search.
+3. **Pairing and push (the core of the product, build early):** device API in Core, Console pairing UI, push relay, `mobile_push` channel.
 4. **Actions:** acknowledge/resolve/note, pause/resume monitor, test run.
 5. **Polish and release:** biometric lock, offline cache, multi-Core, App Store / Play review,
    Critical Alerts entitlement.
-6. **v1.1:** logs live tail, alert deliveries, widgets, Live Activity.
+6. Widgets and Live Activity land last inside v1 but gate the release only if time allows; they
+   are the first cut if scope must shrink.
 
 ### Risks and open questions
 
