@@ -28,7 +28,6 @@ export const SetupTab = ({
   const [description, setDescription] = useState(page.description ?? "");
   const [slug, setSlug] = useState(page.slug ?? "");
   const [accent, setAccent] = useState(theme?.accent_color ?? "");
-  const [domain, setDomain] = useState(page.custom_domain ?? "");
   const badges = useGetStatusPageBadges(pageId);
   const save = useUpdateStatusPage({
     mutation: {
@@ -91,7 +90,7 @@ export const SetupTab = ({
           </label>
         </RaisedCard>
       </FieldPanel>
-      <FieldPanel title="Branding and domain">
+      <FieldPanel title="Branding">
         <RaisedCard className="grid gap-3.5 p-4">
           <label>
             <span className={label}>Accent color</span>
@@ -101,20 +100,9 @@ export const SetupTab = ({
               onChange={(event) => setAccent(event.target.value)}
             />
           </label>
-          <label>
-            <span className={label}>Custom domain</span>
-            <Input
-              placeholder="status.example.com"
-              value={domain}
-              onChange={(event) => setDomain(event.target.value)}
-            />
-            {page.domain_status && (
-              <small className="mt-1 block text-xs text-faint">Domain {page.domain_status}</small>
-            )}
-          </label>
         </RaisedCard>
       </FieldPanel>
-      {page.custom_domain && <DomainPanel pageId={pageId} onChanged={onSaved} />}
+      <DomainPanel pageId={pageId} domain={page.custom_domain} onChanged={onSaved} />
       <div className="flex justify-end">
         <Button
           disabled={save.isPending || !title.trim()}
@@ -125,7 +113,6 @@ export const SetupTab = ({
                 title: title.trim(),
                 description,
                 slug: slug.trim(),
-                custom_domain: domain.trim(),
                 theme_settings: { ...page.theme_settings, accent_color: accent.trim() },
               },
             })
