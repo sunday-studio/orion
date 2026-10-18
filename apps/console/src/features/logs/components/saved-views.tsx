@@ -49,33 +49,32 @@ export const SavedViewsBar = ({
       {list.map((view) => {
         const active = same(view.filters ?? {}, current);
         return (
-          <span key={view.id} className="group inline-flex items-center">
+          <Badge
+            key={view.id}
+            tone={active ? "up" : "unknown"}
+            shape={active ? "dot" : "none"}
+            className={cn(
+              "h-6 gap-1 pl-2.5 pr-1 text-[12.5px] normal-case transition-colors",
+              !active && "hover:bg-[var(--tone-stale-bg)]",
+            )}
+          >
             <button
               type="button"
               aria-pressed={active}
-              className="rounded-md outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              className="rounded outline-none focus-visible:ring-2 focus-visible:ring-focus"
               onClick={() => onApply(view.filters ?? {})}
             >
-              <Badge
-                tone={active ? "up" : "unknown"}
-                shape={active ? "dot" : "none"}
-                className={cn(
-                  "h-6 px-2.5 text-[12.5px] normal-case transition-colors",
-                  !active && "hover:bg-[var(--tone-stale-bg)]",
-                )}
-              >
-                {view.name}
-              </Badge>
+              {view.name}
             </button>
             <button
               type="button"
               aria-label={`Delete ${view.name}`}
-              className="flex size-0 items-center justify-center overflow-hidden text-faint outline-none transition-[width,height] hover:text-ink focus-visible:size-5 group-hover:h-5 group-hover:w-5"
+              className="flex size-4 items-center justify-center rounded opacity-60 outline-none transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-focus"
               onClick={() => remove.mutate({ id: view.id ?? "" })}
             >
               <X className="size-3" />
             </button>
-          </span>
+          </Badge>
         );
       })}
     </div>
