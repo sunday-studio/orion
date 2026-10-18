@@ -43,6 +43,8 @@ Every screen imports from `@/design-system`; keep token names descriptive (`bran
 Follows the OpenStatus rules in AGENTS.md: TanStack Table with schema-driven columns, `nuqs` URL
 state, server-side pagination and filtering when the API supports it.
 
+See [motion.md](motion.md) for animation rules.
+
 Pagination: `ListPagination` shows the range, a "Rows per page" select (`onLimitChange`) and Previous/Next.
 `usePageSize(default, { key, pageKey })` keeps the size in the URL and returns to page 1 when it changes;
 `useDataTableUrlState` exposes `limit` and `setLimit` the same way. Sizes are sent to Core as `limit`/`offset`

@@ -82,6 +82,7 @@ export const IncidentTable = ({
           return (
             <GridRow
               key={id}
+              flipId={id}
               columns={INCIDENT_COLUMNS}
               className={isSelected ? "bg-[var(--color-selected-row)]" : "cursor-pointer"}
               onClick={() => navigate(`/incidents/${id}`)}

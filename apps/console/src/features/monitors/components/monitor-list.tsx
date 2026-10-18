@@ -222,6 +222,7 @@ export const MonitorList = ({
               return (
                 <GridRow
                   key={id}
+                  flipId={id}
                   columns={COLUMNS}
                   className={isSelected ? "bg-[var(--color-selected-row)]" : "cursor-pointer"}
                   onClick={() => navigate(`/monitors/${id}`)}

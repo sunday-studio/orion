@@ -45,7 +45,8 @@ export const SegmentThumb = ({
       aria-hidden
       className={cn(
         "pointer-events-none absolute bottom-[3px] top-[3px] rounded-md bg-chip shadow-[0_1px_2px_rgba(0,0,0,0.08)]",
-        ready && "transition-[left,width] duration-200 ease-out motion-reduce:transition-none",
+        ready &&
+          "transition-[left,width] duration-[380ms] ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
         className,
       )}
       style={{ left: thumb.left, width: thumb.width }}

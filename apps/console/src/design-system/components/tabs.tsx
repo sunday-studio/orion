@@ -22,7 +22,7 @@ export const TabsList = ({
     {...props}
   >
     {children}
-    <TabsPrimitive.Indicator className="absolute bottom-[-1px] left-0 h-0.5 w-[var(--active-tab-width)] translate-x-[var(--active-tab-left)] bg-brand transition-[translate,width] duration-200 ease-out motion-reduce:transition-none" />
+    <TabsPrimitive.Indicator className="absolute bottom-[-1px] left-0 h-0.5 w-[var(--active-tab-width)] translate-x-[var(--active-tab-left)] bg-brand transition-[translate,width] duration-[380ms] ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none" />
   </TabsPrimitive.List>
 );
 
@@ -44,7 +44,7 @@ export const TabsPanel = ({
   className,
   ...props
 }: React.ComponentProps<typeof TabsPrimitive.Panel>) => (
-  <TabsPrimitive.Panel className={cn("ds-fade-in outline-none", className)} {...props} />
+  <TabsPrimitive.Panel className={cn("outline-none", className)} {...props} />
 );
 
 export const TabCount = ({ className, children, ...props }: React.ComponentProps<"span">) => (

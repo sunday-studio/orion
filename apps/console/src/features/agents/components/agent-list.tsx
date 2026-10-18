@@ -160,6 +160,7 @@ export const AgentList = () => {
             {pageItems.map((agent) => (
               <GridRow
                 key={agent.id}
+                flipId={agent.id}
                 columns={COLUMNS}
                 className="cursor-pointer"
                 onClick={() => navigate(`/servers/${agent.id}`)}
