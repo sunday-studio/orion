@@ -95,6 +95,9 @@ func main() {
 		if err := resetSeedData(database); err != nil {
 			log.Fatalf("reset seeded data: %v", err)
 		}
+		if err := resetSeedLogs(cfg.dbPath); err != nil {
+			log.Fatalf("reset seeded logs: %v", err)
+		}
 	}
 
 	stats, err := seed(database, cfg)
@@ -252,6 +255,12 @@ func resetSeedData(database *gorm.DB) error {
 	for _, statement := range []string{
 		"DELETE FROM agent_monitor_definitions WHERE id LIKE 'seed-%'",
 		"DELETE FROM enrollment_sessions WHERE id LIKE 'seed-%'",
+		"DELETE FROM app_ingest_keys WHERE id LIKE 'seed-%'",
+		"DELETE FROM apps WHERE id LIKE 'seed-%'",
+		"DELETE FROM log_saved_views WHERE id LIKE 'seed-%'",
+		"DELETE FROM log_alert_rules WHERE id LIKE 'seed-%'",
+		"DELETE FROM api_tokens WHERE id LIKE 'seed-%'",
+		"DELETE FROM service_log_entries WHERE id LIKE 'seed-%'",
 	} {
 		if err := database.Exec(statement).Error; err != nil {
 			return err
@@ -413,7 +422,7 @@ func seed(database *gorm.DB, cfg seedConfig) (seedStats, error) {
 	stats.statusPageDeliveries += statusPageStats.deliveries
 	stats.statusPageSubscriberMaps += statusPageStats.subscriberComponents
 
-	if err := seedShowcase(database, now); err != nil {
+	if err := seedShowcase(database, cfg.dbPath, now); err != nil {
 		return stats, err
 	}
 	return stats, nil
