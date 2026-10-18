@@ -63,3 +63,30 @@ func TestEffectiveLayersConsoleChecksOverFileConfig(t *testing.T) {
 		t.Fatalf("effective=%d file=%d (file config must not be mutated)", len(out.Monitors), len(file.Monitors))
 	}
 }
+
+func TestRemoteMonitorsSurviveRestartWhenCoreIsDown(t *testing.T) {
+	dir := t.TempDir()
+	store, err := agentstate.Open(filepath.Join(dir, "s.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"success":true,"data":{"definitions":[{"id":"1","name":"web-port","check_type":"port","params":{"port":8080}}]}}`))
+	}))
+	store.UpdateRegistration("ag-1", "tok", core.URL)
+	first := &remoteMonitors{store: store, path: filepath.Join(dir, "remote-monitors.json")}
+	if changed, err := first.sync(); err != nil || !changed {
+		t.Fatalf("sync: %v %v", changed, err)
+	}
+	core.Close() // Core is down when the agent restarts
+
+	second := &remoteMonitors{store: store, path: first.path}
+	second.load()
+	if _, err := second.sync(); err == nil {
+		t.Fatal("expected a sync error with Core down")
+	}
+	if got := second.current(); len(got) != 1 || got[0].Name != "web-port" {
+		t.Fatalf("after restart with Core down, monitors = %+v; they must stay so registration does not unregister them", got)
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"runtime/debug"
 	"sync"
@@ -76,7 +77,14 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 	}()
 
 	fileConfig := userConfig // from disk; Console checks are layered on top each cycle
-	remote := &remoteMonitors{store: store}
+	remote := &remoteMonitors{store: store, path: filepath.Join(filepath.Dir(opts.StatePath), "remote-monitors.json")}
+	remote.load()
+	// An enrolled agent can sync before registering, so the first registration
+	// already includes Console checks and never unregisters them. If Core is
+	// unreachable the persisted set from the last run stands in.
+	if _, err := remote.sync(); err != nil {
+		logging.Warnf("Monitor definition sync failed, using the last known set: %v", err)
+	}
 	go remote.poll(ctx, remoteMonitorPollInterval, func() { _ = requestReloadNoValidate(reloadCh) })
 
 	for {
@@ -95,7 +103,8 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 		} else if changed {
 			userConfig = effective(fileConfig, remote.current())
 			if err := registerWithRetry(ctx, registration.New(userConfig, opts.ConfigPath, store)); err != nil && ctx.Err() == nil {
-				return NewCommandError("could not register Console monitors", err)
+				// Not fatal: the poller retries and the next reload registers them.
+				logging.Warnf("Could not register Console monitors yet: %v", err)
 			}
 		}
 		PrintOK("registration complete")
