@@ -32,7 +32,7 @@ export const useLogQuery = () => {
     monitor: parseAsString.withDefault(""),
     component: parseAsString.withDefault(""),
     attr: parseAsString.withDefault(""),
-    limit: parseAsString.withDefault("100"),
+    limit: parseAsString.withDefault("50"),
     log: parseAsString.withDefault(""),
   });
   return { state, set };
