@@ -6,7 +6,7 @@ import "../../styles/docs.css";
 const all = (await getCollection("docs")).sort((a, b) => a.data.order - b.data.order);
 const groups = (["Start", "Guides", "Reference"] as const).map((g) => [g, all.filter((d) => d.data.group === g)] as const);
 ---
-<Base title="Orion documentation" description="Install Orion, connect servers and apps, and keep it running." active="docs" docs>
+<Base title="Orion documentation" description="Install Orion, connect servers and apps, and keep it running." active="docs" docs image="/og-docs.png" imageAlt="Orion documentation: run Orion yourself">
   <main id="main">
     <div class="dh">
       <span class="k">Documentation</span>

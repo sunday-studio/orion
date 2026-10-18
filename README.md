@@ -2,26 +2,10 @@
 
 [![CI](https://github.com/sunday-studio/orion/actions/workflows/ci.yml/badge.svg)](https://github.com/sunday-studio/orion/actions/workflows/ci.yml)
 
-Orion is a self-hosted monitoring app for small server setups.
+**Self-hosted monitoring, incident response and logs for personal projects and small teams.**
 
-An Orion Server runs on each machine, collects system metrics and monitor results, and sends them to Core.
-Core stores the data in SQLite, computes health, opens incidents, sends alerts, and serves the
-Console UI. Core-managed monitors run in a separate Core monitor worker process so API health stays
-separate from monitor execution health.
-
-## Why Orion?
-
-Orion is for people who want useful server monitoring without handing their home lab, small fleet, or
-side-project infrastructure to an external SaaS. Most uptime tools run checks from outside your
-network. That is useful, but it cannot see local service state, Docker containers, systemd units, PM2
-processes, command checks, or the machine's own resource pressure.
-
-Orion keeps that local context on the monitored host. Each Server runs near the services it watches
-and pushes reports to a Core instance you control. Core is intentionally small: one API process,
-SQLite storage, and the bundled Console. You can back it up as ordinary files and run it from Docker
-Compose without adopting Prometheus, Postgres, Kubernetes, or a hosted observability stack first.
-
-## Preview
+Run Orion on a machine you own. When something breaks you hear it first, and every byte stays on your
+server. There is no hosted version and no account to create.
 
 | Incidents | Servers |
 |---|---|
@@ -31,21 +15,73 @@ Compose without adopting Prometheus, Postgres, Kubernetes, or a hosted observabi
 |---|---|
 | ![Monitors list](assets/monitors-list.png) | ![Monitor detail](assets/monitor-detail.png) |
 
-## Try It First
+## What you get
 
-The quickest useful demo is the Python sleep Compose example. It builds a local Core image when
-needed, starts Orion Core and Console, monitors a real Python `/health` endpoint, flips that endpoint
-into failure, and verifies recovery:
+- **Monitors** for HTTP endpoints, websites, TCP ports, Docker containers, systemd services, PM2
+  processes, commands and resource thresholds.
+- **Incidents** opened automatically when a monitor fails, with a timeline of what failed, who was told
+  and who acknowledged.
+- **Alerts** routed by rule to webhook or email, with every delivery recorded and failed ones retried.
+- **Logs** from your own apps over JSON or OpenTelemetry, searchable next to the incident.
+- **Status pages** you can publish for the people who depend on you.
+- **One small footprint:** one API process, a monitor worker, SQLite, and the bundled Console. Back it up
+  as ordinary files.
+
+## Why Orion?
+
+Most uptime tools run checks from outside your network. That is useful, but it cannot see local service
+state, Docker containers, systemd units, PM2 processes, command checks, or the machine's own resource
+pressure.
+
+Orion keeps that local context on the monitored host. Each Server runs next to the services it watches
+and reports to a Core you control, so you can run it from Docker Compose without adopting Prometheus,
+Postgres, Kubernetes or a hosted observability stack first.
+
+## Quickstart
+
+About ten minutes, on a Linux or macOS machine with Docker.
+
+**1. Start Core.**
+
+```sh
+curl -fsSL -o orion-compose.yml \
+  https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/docker-compose.yml
+
+ADMIN_PASSWORD="$(openssl rand -base64 24)"
+JWT_SECRET="$(openssl rand -base64 32)"
+
+cat > .env <<'EOF'
+ORION_CORE_IMAGE=ghcr.io/sunday-studio/orion-core:<version>
+ORION_HTTP_PORT=8999
+ORION_REQUIRE_FRONTEND_AUTH=true
+ORION_ADMIN_USERNAME=admin
+EOF
+printf 'ORION_ADMIN_PASSWORD=%s\nORION_JWT_SECRET=%s\n' "$ADMIN_PASSWORD" "$JWT_SECRET" >> .env
+
+docker compose -f orion-compose.yml up -d
+```
+
+Open `http://localhost:8999` and sign in with `admin` and the password in `.env`.
+
+**2. Connect a server.** Run this on any Linux or macOS host you want to watch, using a Core URL that host
+can reach:
+
+```sh
+curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash -s -- \
+  --core-url https://core.your-domain.tld
+```
+
+**3. Add a monitor and an alert channel** in the Console, then send a test message.
+
+Want to see it work before installing anything? Run the demo:
+[examples/python-sleep-compose](examples/python-sleep-compose/) starts Core, monitors a tiny Python
+service, breaks it, and checks recovery.
 
 ```sh
 examples/python-sleep-compose/smoke.sh
 ```
 
-Open `http://127.0.0.1:18999` with `admin` / `change-me` while the smoke is running to see the
-Server, `python-health` monitor, failing report, incident, and recovery in Console. See
-[examples/python-sleep-compose](examples/python-sleep-compose/) for manual steps and reset commands.
-
-## How It Works
+## How it works
 
 ```mermaid
 flowchart LR
@@ -66,130 +102,45 @@ flowchart LR
     UI --> C
 ```
 
-- **Server** runs on Linux/macOS hosts and reports system metrics plus monitor checks.
-- **Core** receives reports, stores data, derives health, manages incidents, and serves the API.
-- **Core monitor worker** executes Core-managed checks and records worker heartbeat diagnostics.
-- **Console** is the web UI for incidents, servers, monitors, alerts, logs, and settings.
+- **Server** runs on Linux and macOS hosts and reports system metrics and monitor results.
+- **Core** receives reports, stores data, derives health, opens incidents, sends alerts and serves the API.
+- **Core monitor worker** runs Core-managed checks in its own process, so API health stays separate from
+  monitor execution health.
+- **Console** is the web UI for incidents, servers, monitors, alerts, logs and settings.
 
-## Terminology
-
-Orion uses **Server** for product-facing copy: a monitored Linux or macOS machine with an Orion
-process installed on it. The historical `agent` name remains in compatibility surfaces, including
-the `orion-agent` binary, install assets, API routes such as `/v1/agents`, generated SDK symbols,
-SQLite tables, and existing config/state fields. See
-[Server terminology decision](docs/architecture/server-terminology.md) for the compatibility
-boundary.
-
-Core's HTTP API is the boundary between the backend and user interfaces. The bundled Console is the
-supported UI today. A TUI, automation script, or alternative UI can be built against the API later,
-but Orion does not yet ship a supported headless or alternate-UI distribution.
+> **Terminology.** Product copy says *Server*. The historical `agent` name remains in compatibility
+> surfaces: the `orion-agent` binary, install assets, `/v1/agents` routes, SDK symbols and SQLite
+> tables. See the [Server terminology decision](docs/architecture/server-terminology.md).
 
 ## Deploy
 
 ### Core
 
-Deploy Core API, Core monitor worker, and Console from the published Docker image. Core stores data
-in `/data`, so mount that path to persistent storage. The Compose file starts the API and worker as
-separate services that share the same SQLite volume.
+Core ships as one Docker image that runs as two services sharing a `/data` volume: the API with the
+Console, and the monitor worker. Put it somewhere your Servers can always reach, such as a small VPS, a
+Tailscale-reachable host, or a home server that is more reliable than the things it watches.
 
-Docker Compose is the default deployment path because it keeps Core, Console, and the SQLite volume
-easy to run on a reliable self-hosted machine. Put Core somewhere the monitored Servers can always
-reach. For home networks, that can be a small VPS, a Tailscale-reachable host, or a home server that
-is more reliable than the services being monitored.
+Good to know:
 
-With Docker Compose:
+- `ORION_REQUIRE_FRONTEND_AUTH=true` makes Core refuse to start unless login is configured with an admin
+  password of at least 12 characters and a JWT secret of at least 32. Keep both out of source control.
+- Behind a reverse proxy, set `ORION_TRUSTED_PROXIES` to the proxy address so rate limits see real client
+  IPs. Without it Core ignores `X-Forwarded-For`.
+- Core refuses to start with no admin credentials. For local experiments only, set
+  `ORION_ALLOW_INSECURE_NO_AUTH=true`; every admin route is then open to anyone who can reach the port.
+- Swagger UI is off unless `ORION_ENABLE_SWAGGER=true`.
+- Request bodies are limited (1 MiB, 5 MiB for log batches), and URL paths with embedded tokens are not
+  logged.
+- Public status page subscriber email uses its own sender (`ORION_PUBLIC_STATUS_MAIL_*`). Internal alerts
+  are delivered through alert rules, not that SMTP setup.
 
-```sh
-curl -fsSL -o orion-compose.yml \
-  https://raw.githubusercontent.com/sunday-studio/orion/main/deploy/docker-compose.yml
-```
-
-Create a `.env` file next to `orion-compose.yml`:
-
-```sh
-ADMIN_PASSWORD="$(openssl rand -base64 24)"
-JWT_SECRET="$(openssl rand -base64 32)"
-
-cat > .env <<'EOF'
-ORION_CORE_IMAGE=ghcr.io/sunday-studio/orion-core:<version>
-ORION_HTTP_PORT=8999
-ORION_REQUIRE_FRONTEND_AUTH=true
-ORION_ADMIN_USERNAME=admin
-EOF
-
-printf 'ORION_ADMIN_PASSWORD=%s\nORION_JWT_SECRET=%s\n' "$ADMIN_PASSWORD" "$JWT_SECRET" >> .env
-```
-
-`ORION_REQUIRE_FRONTEND_AUTH=true` makes Core refuse startup unless Console login is configured
-with a non-placeholder admin password of at least 12 characters and a non-placeholder JWT secret of
-at least 32 characters. Keep these values out of source control.
-
-Core limits request bodies (1 MiB, 5 MiB for log batches), sets server timeouts and browser
-security headers, and does not log URL paths with embedded tokens. Behind a reverse proxy set
-`ORION_TRUSTED_PROXIES` to the proxy address so rate limits see real client IPs; without it Core
-ignores `X-Forwarded-For`. Swagger UI is off unless `ORION_ENABLE_SWAGGER=true`.
-
-Independently of that flag, the Core API now refuses to start when no admin credentials are set.
-To run without authentication (local experiments only) set `ORION_ALLOW_INSECURE_NO_AUTH=true`;
-Core then logs a warning at startup and every admin route is open to anyone who can reach the port.
-
-Optional public status page subscriber email uses a dedicated public sender. Set
-`ORION_PUBLIC_STATUS_MAIL_ENABLED=true` plus the `ORION_PUBLIC_STATUS_MAIL_*`,
-`ORION_PUBLIC_STATUS_URL_ORIGIN`, and `ORION_PUBLIC_STATUS_SUBSCRIBER_SECRET` variables documented in
-[docs/deployment/core-docker.md](docs/deployment/core-docker.md). These SMTP settings are not used for
-internal alerts; internal alert delivery is configured through webhook alert rules.
-
-Start it:
-
-```sh
-docker compose -f orion-compose.yml up -d
-```
-
-With plain Docker, run one API container and one worker container against the same `/data` volume:
-
-```sh
-docker run -d \
-  --name orion-core \
-  --restart unless-stopped \
-  -p 8999:8999 \
-  -v orion-data:/data \
-  -e ORION_DATA_DIR=/data \
-  -e ORION_PORT=8999 \
-  -e ORION_DATA_LIFECYCLE_SCHEDULER_SECONDS=3600 \
-  -e ORION_REQUIRE_FRONTEND_AUTH=true \
-  -e ORION_ADMIN_USERNAME=admin \
-  -e ORION_ADMIN_PASSWORD='replace-with-a-strong-password' \
-  -e ORION_JWT_SECRET='replace-with-at-least-32-random-characters' \
-  ghcr.io/sunday-studio/orion-core:<version>
-
-docker run -d \
-  --name orion-core-worker \
-  --restart unless-stopped \
-  -v orion-data:/data \
-  -e ORION_DATA_DIR=/data \
-  -e ORION_WORKER_ID=core-monitor-worker \
-  -e ORION_REQUIRE_FRONTEND_AUTH=true \
-  -e ORION_ADMIN_USERNAME=admin \
-  -e ORION_ADMIN_PASSWORD='replace-with-a-strong-password' \
-  -e ORION_JWT_SECRET='replace-with-at-least-32-random-characters' \
-  ghcr.io/sunday-studio/orion-core:<version> \
-  ./orion-core-worker
-```
-
-Expose Core through a stable URL that Servers can reach, then open that URL in the browser. See
-[Core Docker deployment](docs/deployment/core-docker.md) for backup, CORS, and upgrade details.
+Plain `docker run` commands, backup, CORS and upgrades are in
+[Core Docker deployment](docs/deployment/core-docker.md).
 
 ### Server
 
-Install the Server process on each Linux or macOS host you want to monitor. The installed CLI and
-service binary are still named `orion-agent` for compatibility. Use the Core URL that host can reach:
-
-```sh
-curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash -s -- \
-  --core-url https://core.your-domain.tld
-```
-
-Pin a release when you want reproducible installs:
+The installer creates an editable config and starts the service. Pin a release for reproducible
+installs:
 
 ```sh
 curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash -s -- \
@@ -197,124 +148,41 @@ curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion
   --core-url https://core.your-domain.tld
 ```
 
-The installer creates an editable config with the Core URL, a default reporting interval, location
-collection disabled, and no monitor checks:
+| | Linux | macOS |
+|---|---|---|
+| Config | `/etc/orion/config.yaml` | `/usr/local/etc/orion/config.yaml` |
+| State | `/var/lib/orion/state.db` | `/usr/local/var/lib/orion/state.db` |
+| Log | `/var/log/orion/agent.log` | `/usr/local/var/log/orion/agent.log` |
 
-```yaml
-core_url: https://core.your-domain.tld
-interval: 60s
-geo_location: false
-monitors: []
-```
+The default config has the Core URL, a 60 s reporting interval, location collection off and no
+monitors. Add checks to it when you are ready. Do not delete `state.db` during an upgrade: it holds the
+Server identity, token, maintenance state and monitor mapping.
 
-Add monitor checks to the installed config when you are ready to track services.
-
-The Server keeps local runtime state in SQLite:
-
-- Linux config: `/etc/orion/config.yaml`
-- Linux state: `/var/lib/orion/state.db`
-- Linux log: `/var/log/orion/agent.log`
-- macOS config: `/usr/local/etc/orion/config.yaml`
-- macOS state: `/usr/local/var/lib/orion/state.db`
-- macOS log: `/usr/local/var/log/orion/agent.log`
-
-Do not delete `state.db` during a normal upgrade. It contains the Server identity, token,
-maintenance state, and monitor mapping.
+Service logs, rollback, Docker monitor permissions and local-network notes are in
+[Server install and upgrade](docs/deployment/agent-install-upgrade.md).
 
 ## Operate
 
-Check the installed Server with the `orion-agent` CLI:
+| Command | What it does |
+|---|---|
+| `orion-agent status` | Show whether the service is running and connected to Core. |
+| `orion-agent doctor` | Check config, connectivity and the service, and suggest fixes. |
+| `orion-agent logs` | Show recent entries. Add `--level error` or `--since 1h`. |
+| `orion-agent restart` | Restart the service after editing the config. |
+| `orion-agent update` | Update the binary, keeping config and state. `-version 0.1.2` pins a version. |
+| `orion-agent reconfigure` | Create a new registration. Use it only if you change `core_url` or need a new identity. |
 
-```sh
-orion-agent version
-orion-agent status
-orion-agent doctor
-orion-agent logs
-orion-agent logs --level error
-```
+Add `--json` to `status`, `doctor` and `config show` for automation. To try a single collection cycle,
+run `orion-agent run -once` (add `-verbose` when debugging registration or transport). Editing monitors
+in the config does not need a reinstall: restart the service and it reconciles monitors by name.
 
-Create a starter config without the release installer:
+## Monitor types
 
-```sh
-orion-agent setup --core-url https://core.your-domain.tld --init-state
-```
+HTTP health checks, websites, TCP ports, resource thresholds, Docker containers, systemd services, PM2
+processes, commands and internal services. See [Server monitors](docs/architecture/agent-monitors.md) for
+config details.
 
-Run one collection cycle with the installed config and state:
-
-```sh
-orion-agent run -once
-```
-
-Use verbose output when diagnosing registration, monitor collection, transport, or retry behavior:
-
-```sh
-orion-agent run -once -verbose
-```
-
-Use JSON output for command surfaces that support automation:
-
-```sh
-orion-agent status --json
-orion-agent config show --json
-orion-agent doctor --json
-```
-
-Normal monitor config changes do not need a new install. Edit the installed config, then restart the
-service so the Server reconciles monitors by name.
-
-Linux:
-
-```sh
-orion-agent restart
-```
-
-macOS:
-
-```sh
-orion-agent restart
-```
-
-If you change `core_url`, point the Server at a fresh Core database, or otherwise need a new Server
-identity, use reconfigure:
-
-```sh
-orion-agent reconfigure
-```
-
-Update the installed Server binary while preserving config and state. The update command also resets
-service failure throttles, starts the service again, prints service status, and shows recent service
-logs:
-
-```sh
-orion-agent update
-orion-agent update -version 0.1.2
-```
-
-See [Server install and upgrade](docs/deployment/agent-install-upgrade.md) for service logs,
-rollback, Docker monitor permissions, and local network notes.
-
-## Monitor Types
-
-Supported checks:
-
-- HTTP health checks
-- Websites
-- TCP ports
-- Resource thresholds
-- Docker containers
-- systemd services
-- PM2 processes
-- Commands
-- Internal services
-
-See [Server monitors](docs/architecture/agent-monitors.md) for config details.
-
-## Running Locally
-
-Runtime examples live under `deploy/examples/` and `examples/`. Use them for local smoke tests or
-as a starting point for your own Compose file. Start with
-[examples/python-sleep-compose](examples/python-sleep-compose/) when you want to see Orion report
-healthy, failing, and recovered states against a tiny monitored Python app.
+## Develop
 
 Run the bundled Core and Console example from this repository:
 
@@ -330,36 +198,19 @@ ORION_JWT_SECRET=$JWT_SECRET
 EOF
 docker compose -f ./core-console-compose.yaml up -d
 curl http://localhost:8999/health
-TOKEN="$(
-  curl -fsS http://localhost:8999/v1/auth/login \
-    -H 'Content-Type: application/json' \
-    -d "{\"username\":\"admin\",\"password\":\"$ADMIN_PASSWORD\"}" |
-    jq -r '.data.token'
-)"
-curl -H "Authorization: Bearer $TOKEN" http://localhost:8999/v1/diagnostics/core-worker
 ```
 
-Run the Console dev server against local Core:
+Work on the Console against a local Core:
 
 ```sh
 cd apps/console
 npm install
-npm run dev
+npm run dev        # set VITE_API_BASE_URL=http://localhost:8999/v1 in apps/console/.env
 ```
 
-Set `VITE_API_BASE_URL=http://localhost:8999/v1` in `apps/console/.env`.
+Seed demo data into `apps/core/data/orion.db` with `make seed-demo-data`.
 
-Seed local demo data:
-
-```sh
-make seed-demo-data
-```
-
-This writes to `apps/core/data/orion.db`.
-
-## Development
-
-Run tests and builds:
+Tests and builds:
 
 ```sh
 cd apps/core && go test ./...
@@ -368,42 +219,39 @@ cd apps/agent && go test ./...
 cd apps/console && npm run build
 ```
 
-Common maintainer commands:
+OpenAPI is generated from Core route annotations. Regenerate with `make generate-openapi` and
+`make generate-sdk`; do not edit `apps/core/openapi.yaml` or the generated Console SDK by hand. Build a
+Server binary with `make agent-build VERSION=0.1.2`.
 
-```sh
-make generate-openapi
-make generate-sdk
-make agent-build VERSION=0.1.2
-```
-
-OpenAPI is generated from Core route annotations. Do not edit `apps/core/openapi.yaml` or the
-generated Console SDK by hand.
+The public site and documentation live in [apps/website](apps/website/).
 
 ## Documentation
 
-- [System design](docs/system-design.md)
-- [Architecture overview](docs/architecture/system-overview.md)
-- [Core features](docs/architecture/core-features.md)
-- [Data ingestion](docs/architecture/data-ingestion.md)
-- [Persistence and lifecycle](docs/architecture/persistence-and-lifecycle.md)
-- [Incident reconciliation](docs/architecture/incident-reconciliation-flow.md)
-- [Deployment guide](docs/deployment/README.md)
-- [Core Docker deployment](docs/deployment/core-docker.md)
-- [Kubernetes position](docs/deployment/kubernetes-position.md)
-- [Server install and upgrade](docs/deployment/agent-install-upgrade.md)
-- [Release readiness gate](docs/deployment/release-readiness.md)
-- [Incident readiness PR checklist](docs/development/incident-readiness-pr-checklist.md)
-- [Seed demo data](docs/development/seed-demo-data.md)
-- [Milestones](docs/milestones/README.md)
+**Run it:** [Deployment guide](docs/deployment/README.md) ·
+[Core Docker deployment](docs/deployment/core-docker.md) ·
+[Server install and upgrade](docs/deployment/agent-install-upgrade.md) ·
+[Kubernetes position](docs/deployment/kubernetes-position.md) ·
+[Release readiness gate](docs/deployment/release-readiness.md)
 
-## Project Layout
+**How it works:** [System design](docs/system-design.md) ·
+[Architecture overview](docs/architecture/system-overview.md) ·
+[Core features](docs/architecture/core-features.md) ·
+[Data ingestion](docs/architecture/data-ingestion.md) ·
+[Persistence and lifecycle](docs/architecture/persistence-and-lifecycle.md) ·
+[Incident reconciliation](docs/architecture/incident-reconciliation-flow.md)
+
+**Contribute:** [Incident readiness PR checklist](docs/development/incident-readiness-pr-checklist.md) ·
+[Seed demo data](docs/development/seed-demo-data.md) · [Milestones](docs/milestones/README.md)
+
+## Project layout
 
 ```txt
 orion/
 ├── apps/
 │   ├── agent/    # Go Server daemon and orion-agent compatibility CLI
 │   ├── core/     # Go API server, SQLite, OpenAPI, embedded Console
-│   └── console/  # React/Vite UI source
+│   ├── console/  # React/Vite UI source
+│   └── website/  # Astro site and documentation
 ├── deploy/       # Docker Compose, systemd, launchd, install scripts
 ├── docs/         # architecture, deployment, development, milestones
 ├── packages/     # shared/generated package space
