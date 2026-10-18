@@ -1,5 +1,6 @@
 // Small enhancements. Everything works without JavaScript except search, copy and saved progress.
 import { initSearch } from "./search";
+import { initTour } from "./tour";
 
 function copyText(text: string, done: () => void) {
   navigator.clipboard?.writeText(text).then(done, done);
@@ -98,3 +99,4 @@ enhanceGateCopy();
 tocSpy();
 savedProgress();
 initSearch();
+initTour();
