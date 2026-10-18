@@ -10,6 +10,7 @@ import {
   StatusBadge,
 } from "@/design-system";
 import type { ApiHealthIssue, ApiOverviewIncidentResponse } from "@/orion-sdk";
+import { pluralize } from "@/utils/plural";
 import { formatSpan, formatWhen } from "./overview-time";
 
 const healthDot = (health?: string) =>
@@ -29,7 +30,7 @@ export const AttentionBox = ({ issues, total }: { issues: ApiHealthIssue[]; tota
     <Box aria-label="Needs attention">
       <BoxHeader
         title="Needs attention"
-        aside={`from health issues, ${total || monitorCount} monitors`}
+        aside={`from health issues, ${pluralize(total || monitorCount, "monitor")}`}
       />
       <GridTable>
         {issues.slice(0, 3).map((issue, index) => (
