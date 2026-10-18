@@ -13243,6 +13243,10 @@ const docTemplate = `{
                 "title": {
                     "type": "string"
                 },
+                "title_required": {
+                    "description": "TitleRequired is true when the first post must carry a public title.",
+                    "type": "boolean"
+                },
                 "visibility": {
                     "type": "string"
                 }
@@ -13274,6 +13278,11 @@ const docTemplate = `{
                 },
                 "status_page_id": {
                     "type": "string"
+                },
+                "title": {
+                    "description": "Title is the public headline, used when the first update creates the status page incident.\nRequired for incidents Orion opened itself, because their titles name internal monitors and hosts.",
+                    "type": "string",
+                    "example": "Elevated API errors"
                 }
             }
         },

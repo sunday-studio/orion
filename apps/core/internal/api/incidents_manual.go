@@ -148,12 +148,7 @@ func (s *Server) coverIncidentWith(id string, request incidentCoverageRequest, m
 			meta.Note = request.Note
 		}
 	}
-	incident, err := service.NewIncidentService(s.db, s.logger, s.cfg).CoverIncident(id, request.CoveredUntil, request.Note, meta)
-	if err == nil && covering.ID != "" {
-		s.db.Model(&incident).Update("covered_by_incident_id", covering.ID)
-		incident.CoveredByIncidentID = covering.ID
-	}
-	return incident, err
+	return service.NewIncidentService(s.db, s.logger, s.cfg).CoverIncidentBy(id, request.CoveredUntil, request.Note, covering.ID, meta)
 }
 
 type BulkIncidentRequest struct {

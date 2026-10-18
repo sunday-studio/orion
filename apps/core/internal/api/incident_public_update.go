@@ -14,6 +14,8 @@ import (
 	"gorm.io/gorm"
 )
 
+var errPublicTitleRequired = errors.New("public title required")
+
 // IncidentPublicTarget is one status page an incident can be posted to.
 type IncidentPublicTarget struct {
 	StatusPageID    string `json:"status_page_id"`
@@ -25,6 +27,8 @@ type IncidentPublicTarget struct {
 	LinkedIncidentID string `json:"linked_incident_id,omitempty"`
 	PublishedUpdates int64  `json:"published_updates"`
 	LatestStatus     string `json:"latest_status,omitempty"`
+	// TitleRequired is true when the first post must carry a public title.
+	TitleRequired bool `json:"title_required"`
 }
 
 // getIncidentPublicTargets lists the status pages for the "Post public update" dialog.
@@ -56,6 +60,7 @@ func (s *Server) getIncidentPublicTargets(c *gin.Context) {
 			t.LinkedIncidentID, t.LatestStatus = linked.ID, linked.PublicStatus
 			s.db.Model(&db.StatusPageIncidentUpdate{}).Where("incident_id = ? AND published_at IS NOT NULL", linked.ID).Count(&t.PublishedUpdates)
 		}
+		t.TitleRequired = t.LinkedIncidentID == "" && incident.Source != "manual"
 		targets = append(targets, t)
 	}
 	utils.SuccessResponse(c, http.StatusOK, "Status pages retrieved", gin.H{"targets": targets})
@@ -65,6 +70,9 @@ type IncidentPublicUpdateRequest struct {
 	StatusPageID string `json:"status_page_id" binding:"required"`
 	Status       string `json:"status" binding:"required" enums:"investigating,identified,monitoring,resolved"`
 	Message      string `json:"message" binding:"required"`
+	// Title is the public headline, used when the first update creates the status page incident.
+	// Required for incidents Orion opened itself, because their titles name internal monitors and hosts.
+	Title string `json:"title,omitempty" example:"Elevated API errors"`
 	// NotifySubscribers emails confirmed subscribers whose component preferences match.
 	NotifySubscribers bool `json:"notify_subscribers"`
 }
@@ -98,6 +106,11 @@ func (s *Server) postIncidentPublicUpdate(c *gin.Context) {
 		utils.BadRequest(c, "status must be investigating, identified, monitoring or resolved and message is required")
 		return
 	}
+	publicTitle := strings.TrimSpace(request.Title)
+	if len(publicTitle) > 200 {
+		utils.BadRequest(c, "title is too long")
+		return
+	}
 	var page db.StatusPage
 	if err := s.db.Where("id = ?", request.StatusPageID).First(&page).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -114,11 +127,17 @@ func (s *Server) postIncidentPublicUpdate(c *gin.Context) {
 	var notified int64
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		if tx.Where("status_page_id = ? AND internal_incident_id = ?", page.ID, incident.ID).Limit(1).Find(&public).RowsAffected == 0 {
+			if publicTitle == "" && incident.Source != "manual" {
+				return errPublicTitleRequired
+			}
+			if publicTitle == "" {
+				publicTitle = incident.Title
+			}
 			severity := incident.Severity
 			if !validStatusPageSeverity(severity) {
 				severity = "medium"
 			}
-			public = db.StatusPageIncident{ID: utils.GenerateID("status_page_incident"), StatusPageID: page.ID, InternalIncidentID: incident.ID, Title: incident.Title,
+			public = db.StatusPageIncident{ID: utils.GenerateID("status_page_incident"), StatusPageID: page.ID, InternalIncidentID: incident.ID, Title: publicTitle,
 				PublicStatus: status, Severity: severity, ImpactSummary: message, Visibility: statusPageIncidentVisibilityDraft, AffectedComponentIDs: s.pageComponentIDsFor(tx, page.ID, incident)}
 			if err := tx.Create(&public).Error; err != nil {
 				return err
@@ -134,6 +153,8 @@ func (s *Server) postIncidentPublicUpdate(c *gin.Context) {
 		}
 		if status == "resolved" && public.ResolvedAt == nil {
 			public.ResolvedAt = &now
+		} else if status != "resolved" {
+			public.ResolvedAt = nil
 		}
 		if err := tx.Save(&public).Error; err != nil {
 			return err
@@ -149,6 +170,10 @@ func (s *Server) postIncidentPublicUpdate(c *gin.Context) {
 		}
 		return service.NewIncidentService(tx, s.logger, s.cfg).RecordPublicUpdate(incident.ID, page.Title, status, s.incidentLifecycleActionMetadata(c, message))
 	})
+	if errors.Is(err, errPublicTitleRequired) {
+		utils.BadRequest(c, "title is required for the first public update of an incident Orion opened itself, because its title can name internal systems")
+		return
+	}
 	if err != nil {
 		s.logger.Error("Failed to post incident public update", "incident_id", incident.ID, "error", err)
 		utils.InternalError(c, "Failed to post the public update", err)

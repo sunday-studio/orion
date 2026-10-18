@@ -83,7 +83,7 @@ func (s *Server) applyIncidentTextAndTimeFilters(query *gorm.DB, filters inciden
 		pattern := "%" + incidentLikeEscaper.Replace(strings.ToLower(filters.q)) + "%"
 		number := -1 // matches nothing unless q looks like INC-0231
 		digits := strings.TrimLeft(strings.ToUpper(filters.q), "INC-# ")
-		if n, err := strconv.Atoi(digits); err == nil {
+		if n, err := strconv.Atoi(digits); err == nil && n > 0 {
 			number = n
 		}
 		query = query.Where(`LOWER(title) LIKE ? ESCAPE '\' OR number = ? OR monitor_id IN (SELECT id FROM monitors WHERE LOWER(name) LIKE ? ESCAPE '\') OR agent_id IN (SELECT id FROM agents WHERE LOWER(name) LIKE ? ESCAPE '\')`, pattern, number, pattern, pattern)

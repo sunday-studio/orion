@@ -27,10 +27,12 @@ const (
 // nextIncidentNumber returns the next human incident number. Creation always runs inside a
 // transaction (BEGIN IMMEDIATE profile), so numbers are handed out one at a time; the unique
 // index on number is the backstop.
-func (s *IncidentService) nextIncidentNumber() int {
+func (s *IncidentService) nextIncidentNumber() (int, error) {
 	var next int
-	s.db.Raw("SELECT COALESCE(MAX(number), 0) + 1 FROM incidents").Scan(&next)
-	return next
+	if err := s.db.Raw("SELECT COALESCE(MAX(number), 0) + 1 FROM incidents").Scan(&next).Error; err != nil {
+		return 0, err
+	}
+	return next, nil
 }
 
 // DeclareIncidentInput is what an operator types in the Declare incident dialog.
@@ -87,8 +89,12 @@ func (s *IncidentService) DeclareIncident(in DeclareIncidentInput, actor Inciden
 			return err
 		}
 		now := time.Now().UTC()
+		number, err := tx.nextIncidentNumber()
+		if err != nil {
+			return err
+		}
 		created = db.Incident{
-			ID: utils.GenerateID("incident"), Number: tx.nextIncidentNumber(), Status: "open", Severity: severity, Title: title,
+			ID: utils.GenerateID("incident"), Number: number, Status: "open", Severity: severity, Title: title,
 			AgentID: agentID, MonitorID: monitorID, ImpactedComponents: "[]", Summary: summary, Source: "manual",
 			OpenedAt: now, LastEventAt: now, LatestEvent: firstNonEmpty(summary, "Incident declared by "+actor.ActorID), NotificationStatus: "pending",
 		}
