@@ -1,0 +1,78 @@
+/* Watch it work: four steps joined by arrows. Plays once when scrolled into view, then stays active.
+   Without JavaScript the finished state is shown. */
+.sec:has(.stgrid) { padding-top: 64px; }
+.sec:has(.stgrid) .h2 { font-size: 30px; }
+.sec:has(.stgrid) .lead { font-size: 15px; margin-top: 8px; }
+
+.stgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 28px; }
+.stga { display: none; place-items: center; color: var(--color-accent); }
+@media (min-width: 901px) {
+  .stgrid { grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr; gap: 6px; align-items: stretch; }
+  .stga { display: grid; }
+}
+.stg { position: relative; display: flex; flex-direction: column; gap: 2px; height: 172px; padding: 14px 16px; border: 1px solid var(--color-accent); border-radius: 14px; background: var(--color-card); box-shadow: 0 0 0 3px rgb(31 122 80 / 0.12); }
+.stg b { font-weight: 400; font-size: 16px; letter-spacing: -0.015em; }
+.sn { font-size: 11px; color: var(--color-accent); }
+.sv { margin-top: auto; display: flex; flex-direction: column; justify-content: flex-end; gap: 8px; }
+
+/* Finished-state visuals. */
+.vis1 { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.vis1 svg { width: 60px; height: 40px; }
+.led2 { fill: #e5484d; }
+.pcg { opacity: 0.45; }
+.vt { position: relative; height: 16px; width: 150px; font-size: 12px; }
+.vt span { position: absolute; left: 0; }
+.vu { opacity: 0; }
+.vd { color: #9f1239; opacity: 1; }
+.vis2 { display: flex; gap: 6px; }
+.ck { width: 18px; height: 18px; border-radius: 50%; background: #2a9f69; }
+.ck3, .ck4, .ck5 { background: #e5484d; }
+.vt2 { font-size: 12px; color: var(--color-muted); }
+.vis3 { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 10px; background: var(--color-field); font-size: 13px; }
+.vis3 .m { margin-left: auto; font-size: 11px; color: var(--color-muted); }
+.chips2 { display: flex; gap: 6px; flex-wrap: wrap; }
+.dl { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 8px; background: var(--color-field); font-size: 12.5px; }
+
+/* Start state, once JavaScript is running and before the section is seen. */
+.js .stgrid:not(.go) .stg { opacity: 0.4; border-color: var(--color-line); box-shadow: none; }
+.js .stgrid:not(.go) .stga { color: var(--color-line-hover); }
+.js .stgrid:not(.go) .led2 { fill: #2a9f69; }
+.js .stgrid:not(.go) .pcg { opacity: 1; }
+.js .stgrid:not(.go) .vu { opacity: 1; }
+.js .stgrid:not(.go) .vd { opacity: 0; }
+.js .stgrid:not(.go) .ck3, .js .stgrid:not(.go) .ck4, .js .stgrid:not(.go) .ck5 { background: var(--color-line-strong); }
+.js .stgrid:not(.go) .vis3, .js .stgrid:not(.go) .chips2 { opacity: 0; transform: translateY(8px); }
+
+/* One run, 7 s, holding the last frame. */
+.stgrid.go .stg1 { animation: sb-s1 7s both; }
+.stgrid.go .stg2 { animation: sb-s2 7s both; }
+.stgrid.go .stg3 { animation: sb-s3 7s both; }
+.stgrid.go .stg4 { animation: sb-s4 7s both; }
+.stgrid.go .stga1 { animation: sb-a1 7s both; }
+.stgrid.go .stga2 { animation: sb-a2 7s both; }
+.stgrid.go .stga3 { animation: sb-a3 7s both; }
+.stgrid.go .led2 { animation: sb-led 7s both; }
+.stgrid.go .pcg { animation: sb-pc 7s both; transform-box: fill-box; }
+.stgrid.go .vu { animation: sb-vu 7s both; }
+.stgrid.go .vd { animation: sb-vd 7s both; }
+.stgrid.go .ck3 { animation: sb-k3 7s both; }
+.stgrid.go .ck4 { animation: sb-k4 7s both; }
+.stgrid.go .ck5 { animation: sb-k5 7s both; }
+.stgrid.go .vis3 { animation: sb-v3 7s both; }
+.stgrid.go .chips2 { animation: sb-v4 7s both; }
+@keyframes sb-s1 { 0% { opacity: 0.4; border-color: var(--color-line); box-shadow: none; } 5%, 100% { opacity: 1; border-color: var(--color-accent); box-shadow: 0 0 0 3px rgb(31 122 80 / 0.12); } }
+@keyframes sb-s2 { 0%, 22% { opacity: 0.4; border-color: var(--color-line); box-shadow: none; } 27%, 100% { opacity: 1; border-color: var(--color-accent); box-shadow: 0 0 0 3px rgb(31 122 80 / 0.12); } }
+@keyframes sb-s3 { 0%, 47% { opacity: 0.4; border-color: var(--color-line); box-shadow: none; } 52%, 100% { opacity: 1; border-color: var(--color-accent); box-shadow: 0 0 0 3px rgb(31 122 80 / 0.12); } }
+@keyframes sb-s4 { 0%, 67% { opacity: 0.4; border-color: var(--color-line); box-shadow: none; } 72%, 100% { opacity: 1; border-color: var(--color-accent); box-shadow: 0 0 0 3px rgb(31 122 80 / 0.12); } }
+@keyframes sb-a1 { 0%, 22% { color: var(--color-line-hover); } 27%, 100% { color: var(--color-accent); } }
+@keyframes sb-a2 { 0%, 47% { color: var(--color-line-hover); } 52%, 100% { color: var(--color-accent); } }
+@keyframes sb-a3 { 0%, 67% { color: var(--color-line-hover); } 72%, 100% { color: var(--color-accent); } }
+@keyframes sb-led { 0%, 8% { fill: #2a9f69; } 11%, 100% { fill: #e5484d; } }
+@keyframes sb-pc { 0%, 8% { opacity: 1; transform: none; } 9% { transform: translateX(-3px); } 10% { transform: translateX(3px); } 11%, 100% { opacity: 0.45; transform: none; } }
+@keyframes sb-vu { 0%, 9% { opacity: 1; } 11%, 100% { opacity: 0; } }
+@keyframes sb-vd { 0%, 9% { opacity: 0; } 11%, 100% { opacity: 1; } }
+@keyframes sb-k3 { 0%, 27% { background: var(--color-line-strong); } 30%, 100% { background: #e5484d; } }
+@keyframes sb-k4 { 0%, 32% { background: var(--color-line-strong); } 35%, 100% { background: #e5484d; } }
+@keyframes sb-k5 { 0%, 37% { background: var(--color-line-strong); } 40%, 100% { background: #e5484d; } }
+@keyframes sb-v3 { 0%, 53% { opacity: 0; transform: translateY(8px); } 58%, 100% { opacity: 1; transform: none; } }
+@keyframes sb-v4 { 0%, 73% { opacity: 0; transform: translateY(8px); } 78%, 100% { opacity: 1; transform: none; } }

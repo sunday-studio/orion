@@ -93,6 +93,16 @@ function savedProgress() {
   });
 }
 
+function storyboard() {
+  const grid = document.querySelector<HTMLElement>("[data-storyboard]");
+  if (!grid) return;
+  if (!("IntersectionObserver" in window)) { grid.classList.add("go"); return; }
+  const io = new IntersectionObserver((entries) => {
+    if (entries.some((e) => e.isIntersecting)) { grid.classList.add("go"); io.disconnect(); }
+  }, { threshold: 0.4 });
+  io.observe(grid);
+}
+
 enhanceCodeBlocks();
 enhanceTabCopy();
 enhanceGateCopy();
@@ -100,3 +110,4 @@ tocSpy();
 savedProgress();
 initSearch();
 initTour();
+storyboard();
