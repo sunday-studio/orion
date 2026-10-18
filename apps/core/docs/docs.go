@@ -8452,7 +8452,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Delete a Core-managed monitor. By default its check history is deleted too; keep_history=false deletes it immediately; the default keeps it for 90 days. Incidents are never deleted.",
+                "description": "Delete a Core-managed monitor. Its active incident is resolved. The default keeps check history for 90 days; keep_history=false deletes it immediately. Incidents are never deleted.",
                 "produces": [
                     "application/json"
                 ],
