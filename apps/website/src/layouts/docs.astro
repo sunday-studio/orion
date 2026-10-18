@@ -16,7 +16,8 @@ const check = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" strok
 ---
 <Base title={`${entry.data.title} · Orion docs`} description={entry.data.description} active="docs" docs footer>
   <div class="dg">
-    <aside class="side" aria-label="Documentation">
+    <div class="sideov" data-side-overlay hidden></div>
+    <aside class="side" id="docs-side" aria-label="Documentation">
       {groups.map(([g, items]) => (
         <div class="grp"><div class="gt">{g}</div>
           {items.map((d) => <a href={`/docs/${d.id}/`} class={d.id === entry.id ? "on" : ""} aria-current={d.id === entry.id ? "page" : undefined}>{d.data.title}</a>)}
@@ -24,6 +25,7 @@ const check = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" strok
       ))}
     </aside>
     <main id="main" class="art">
+      <button type="button" class="sidebtn" data-side-toggle aria-controls="docs-side" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Docs menu</button>
       <div class="crumb"><a href="/docs/">Docs</a><span class="sep">›</span><span>{entry.data.group}</span><span class="sep">›</span><span class="cur">{entry.data.title}</span></div>
       <h1>{entry.data.title}</h1>
       <p class="lead">{entry.data.description}</p>
@@ -39,7 +41,7 @@ const check = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" strok
         {next ? <a class="rt" href={`/docs/${next.id}/`}><small>Next</small><b>{next.data.title}</b></a> : <span />}
       </nav>
     </main>
-    <aside class="toc" aria-label="On this page">
+    <aside class={progress ? "toc toc-progress" : "toc"} aria-label="On this page">
       {progress
         ? <>
             <div class="th">Your progress</div>

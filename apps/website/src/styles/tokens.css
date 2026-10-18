@@ -10,6 +10,7 @@
   --color-line: #ececea;
   --color-line-strong: #e4e4e7;
   --color-line-hover: #d4d4d8;
+  --color-accent-text: #1f7a50;
   --color-ink: #18181b;
   --color-muted: #71717a;
   --color-faint: #a1a1aa;
@@ -49,6 +50,7 @@
     --color-line: #252c29;
     --color-line-strong: #2a312e;
     --color-line-hover: #3a4540;
+    --color-accent-text: #4cc38a;
     --color-ink: #e9efec;
     --color-muted: #8b9892;
     --color-faint: #6a7570;
@@ -59,3 +61,5 @@
     --hl: inset 0 1px 0 rgb(255 255 255 / 0.05);
   }
 }
+
+:root { color-scheme: light dark; }
