@@ -3,8 +3,10 @@ package api
 import (
 	"errors"
 	"html"
+	"html/template"
 	"net/http"
 	"orion/core/internal/db"
+	"orion/core/internal/publicpage"
 	"orion/core/internal/service"
 	"orion/core/internal/utils"
 	"strings"
@@ -143,17 +145,19 @@ func (s *Server) resendAlertChannelRecipient(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Confirmation email sent", gin.H{})
 }
 
-const alertEmailPageStyle = `<style>body{font:16px system-ui;max-width:32rem;margin:4rem auto;padding:0 1rem}button{font:inherit;padding:.5rem 1rem}</style>`
-
 func writeAlertEmailPage(c *gin.Context, status int, title, message, button string) {
-	body := "<!doctype html><meta charset=utf-8><meta name=robots content=noindex><title>" + html.EscapeString(title) + "</title>" + alertEmailPageStyle +
-		"<h1>" + html.EscapeString(title) + "</h1><p>" + html.EscapeString(message) + "</p>"
+	data := publicpage.AlertEmailData{Title: title + " - Orion", Heading: title, Body: template.HTML(html.EscapeString(message)), Button: button}
 	if button != "" {
-		body += `<form method="post"><button type="submit">` + html.EscapeString(button) + `</button></form>`
+		data.Action = c.Request.URL.Path
+	}
+	payload, err := publicpage.Render("alert-email.html", data)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Failed to render page")
+		return
 	}
 	c.Header("Cache-Control", "no-store")
 	c.Header("Referrer-Policy", "no-referrer")
-	c.Data(status, "text/html; charset=utf-8", []byte(body))
+	c.Data(status, "text/html; charset=utf-8", payload)
 }
 
 // alertEmailPage renders the confirm/unsubscribe page. GET never changes state, so
@@ -161,11 +165,11 @@ func writeAlertEmailPage(c *gin.Context, status int, title, message, button stri
 func (s *Server) alertEmailPage(purpose string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if _, err := service.VerifyAlertEmailToken(s.cfg, purpose, c.Param("token"), time.Now().UTC()); err != nil {
-			writeAlertEmailPage(c, http.StatusBadRequest, "Link invalid or expired", "Ask the Orion administrator to resend the confirmation email.", "")
+			writeAlertEmailPage(c, http.StatusBadRequest, "Link expired", "Ask the Orion administrator to resend the confirmation email.", "")
 			return
 		}
 		if purpose == service.AlertEmailPurposeConfirm {
-			writeAlertEmailPage(c, http.StatusOK, "Confirm alert emails", "Press the button to start receiving Orion alert emails at this address.", "Confirm")
+			writeAlertEmailPage(c, http.StatusOK, "Confirm alert emails", "Press the button to start receiving Orion alert emails at this address.", "Confirm this address")
 			return
 		}
 		writeAlertEmailPage(c, http.StatusOK, "Unsubscribe", "Press the button to stop receiving Orion alert emails at this address.", "Unsubscribe")
@@ -182,11 +186,11 @@ func (s *Server) alertEmailAction(purpose string) gin.HandlerFunc {
 			err = alerts.UnsubscribeRecipient(c.Param("token"))
 		}
 		if err != nil {
-			writeAlertEmailPage(c, http.StatusBadRequest, "Link invalid or expired", "Ask the Orion administrator to resend the confirmation email.", "")
+			writeAlertEmailPage(c, http.StatusBadRequest, "Link expired", "Ask the Orion administrator to resend the confirmation email.", "")
 			return
 		}
 		if purpose == service.AlertEmailPurposeConfirm {
-			writeAlertEmailPage(c, http.StatusOK, "Confirmed", "You will now receive Orion alert emails. Every email has an unsubscribe link.", "")
+			writeAlertEmailPage(c, http.StatusOK, "Address confirmed", "You will now receive Orion alert emails. Every email has an unsubscribe link.", "")
 			return
 		}
 		writeAlertEmailPage(c, http.StatusOK, "Unsubscribed", "You will no longer receive Orion alert emails.", "")

@@ -211,3 +211,37 @@ func TestSeedCoversLogsAndSettings(t *testing.T) {
 	atLeast("api token scopes", one("SELECT COUNT(DISTINCT scope) FROM api_tokens WHERE id LIKE 'seed-%'"), 2)
 	atLeast("revoked and unused tokens", one("SELECT COUNT(*) FROM api_tokens WHERE id LIKE 'seed-%' AND (revoked_at IS NOT NULL OR last_used_at IS NULL)"), 2)
 }
+
+func TestSeedPublicPagesCoverEveryStateAndTokens(t *testing.T) {
+	database, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Migrate(database); err != nil {
+		t.Fatal(err)
+	}
+	seedForTest(t, database, t.TempDir())
+	one := func(query string, args ...any) int { return count(t, database, query, args...) }
+	for status, slug := range map[string]string{"operational": "seed-public-operational", "degraded": "seed-public-degraded", "major_outage": "seed-public-outage"} {
+		if n := one("SELECT COUNT(*) FROM status_page_components c JOIN status_pages p ON p.id = c.status_page_id WHERE p.slug = ? AND c.manual_status = ?", slug, status); n < 1 {
+			t.Errorf("%s has no %s component", slug, status)
+		}
+	}
+	if n := one("SELECT COUNT(*) FROM status_page_maintenance WHERE status_page_id = 'seed-public-page-maintenance' AND starts_at < ? AND ends_at > ?", time.Now().UTC(), time.Now().UTC()); n != 1 {
+		t.Errorf("maintenance page has %d active windows, want 1", n)
+	}
+	for _, slug := range []string{"operational", "degraded", "outage", "maintenance"} {
+		months := one("SELECT COUNT(DISTINCT strftime('%Y-%m', published_at)) FROM status_page_incidents WHERE status_page_id = ? AND visibility = 'published'", "seed-public-page-"+slug)
+		if months < 3 {
+			t.Errorf("seed-public-%s history spans %d months, want at least 3", slug, months)
+		}
+	}
+	for token, column := range map[string]string{"confirm-pending": "confirmation_token_hash", "manage-ada": "manage_token_hash", "unsub-ada": "unsubscribe_token_hash", "unsub-unsub": "unsubscribe_token_hash", "confirm-expired": "confirmation_token_hash"} {
+		if n := one("SELECT COUNT(*) FROM status_page_subscribers WHERE "+column+" = ?", sha256Hex(token)); n != 1 {
+			t.Errorf("token %q matches %d subscribers, want 1", token, n)
+		}
+	}
+	if len(publicPageLinks()) < 10 {
+		t.Errorf("seed prints too few public links")
+	}
+}

@@ -1,0 +1,13 @@
+{{define "status.html"}}{{template "open" .}}
+<main>
+{{if .ShowStats}}<section class="stats" aria-label="Summary">
+<div class="stat"><span class="l">Affected</span><span class="v">{{.Affected}} <small>of {{.Total}}</small></span></div>
+<div class="stat"><span class="l">30 day uptime</span><span class="v">{{.Uptime30}}</span></div>
+<div class="stat"><span class="l">Open incidents</span><span class="v">{{.OpenCount}}</span></div>
+</section>{{end}}
+{{range .Sections}}<section class="panel"><header>{{if .Name}}{{.Name}}{{else}}Services{{end}}</header><div class="rows">{{range .Components}}{{template "component" .}}{{end}}</div></section>
+{{end}}
+{{if .Maintenance}}<section class="panel"><header>Scheduled maintenance</header><div class="rows">{{range .Maintenance}}<a class="hist" href="{{.URL}}"><span class="t">{{.Title}}</span><span class="d">{{dt .Started}}</span><span class="d dur">{{.Duration}}</span><span class="pill {{.Class}}">{{.Display}}</span></a>{{end}}</div></section>{{end}}
+{{if .Active}}<section class="panel"><header>Active incidents</header><div class="rows">{{range .Active}}<a class="hist" href="{{.URL}}" style="grid-template-columns:1fr auto"><span><span class="t">{{.Title}}</span>{{if .Latest}}<br><span class="d">{{utc .Latest.At}} UTC · {{.Latest.Message}}</span>{{end}}</span><span class="pill {{.Class}}">{{.Display}}</span></a>{{end}}</div></section>{{end}}
+</main>
+{{template "close" .}}{{end}}

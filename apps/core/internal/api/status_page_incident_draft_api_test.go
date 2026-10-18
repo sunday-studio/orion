@@ -178,7 +178,7 @@ func TestPublicStatusPageProjectionSanitizesLegacyThemeSettings(t *testing.T) {
 		t.Fatalf("HTML status = %d, body = %s", htmlResp.Code, htmlResp.Body.String())
 	}
 	assertContains(t, htmlResp.Body.String(), `<meta property="og:title" content="Legacy Public Title">`)
-	assertContains(t, htmlResp.Body.String(), `--accent: #ffaa00`)
+	assertContains(t, htmlResp.Body.String(), `--accent:#ffaa00`)
 	assertPublicStatusPageBodyDoesNotContainLegacyThemeLeaks(t, htmlResp.Body.String())
 	feedResp := performJSONRequest(t, server, http.MethodGet, "/status/legacy-theme-status/feed.atom", nil, "")
 	if feedResp.Code != http.StatusOK {

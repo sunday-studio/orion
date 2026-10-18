@@ -51,23 +51,3 @@ func (s *Server) publicMaintenance(detail StatusPageDetailResponse, now time.Tim
 	}
 	return out, active
 }
-
-func statusPageHTMLMaintenanceList(windows []StatusPagePublicMaintenanceResponse, sections []statusPageHTMLSection) []statusPageHTMLMaintenance {
-	names := map[string]string{}
-	for _, section := range sections {
-		for _, component := range section.Components {
-			names[component.ID] = component.Name
-		}
-	}
-	out := make([]statusPageHTMLMaintenance, 0, len(windows))
-	for _, w := range windows {
-		item := statusPageHTMLMaintenance{Title: w.Title, Description: w.Description, InProgress: w.Status == "in_progress", Window: publicStatusPageHTMLTime(w.StartsAt) + " to " + publicStatusPageHTMLTime(w.EndsAt)}
-		for _, id := range w.ComponentIDs {
-			if n := names[id]; n != "" {
-				item.Components = append(item.Components, n)
-			}
-		}
-		out = append(out, item)
-	}
-	return out
-}

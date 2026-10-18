@@ -71,29 +71,52 @@ func (s *Server) createPublicStatusPageSubscriber(c *gin.Context) {
 		utils.BadRequest(c, "Invalid status page subscription payload")
 		return
 	}
-	destinationType, normalizedDestination, maskedDestination, err := normalizeStatusPageSubscriberDestination(request.DestinationType, request.Destination)
+	result, err := s.subscribeToStatusPage(page, request.DestinationType, request.Destination, request.ComponentIDs)
 	if err != nil {
-		utils.BadRequest(c, err.Error())
+		var invalid *requestValidationError
+		if errors.As(err, &invalid) {
+			utils.BadRequest(c, err.Error())
+			return
+		}
+		s.logger.Error("Failed to create status page subscriber", "status_page_id", page.ID, "error", err)
+		utils.InternalError(c, "Failed to create status page subscription", err)
 		return
 	}
-	componentIDs, err := s.validatePublicSubscriberComponentIDs(page.ID, request.ComponentIDs)
+	response, err := s.statusPageSubscriberPublicResponse(page.ID, result.subscriber)
 	if err != nil {
-		utils.BadRequest(c, err.Error())
+		s.logger.Error("Failed to load status page subscriber response", "status_page_id", page.ID, "subscriber_id", result.subscriber.ID, "error", err)
+		utils.InternalError(c, "Failed to create status page subscription", err)
 		return
+	}
+	utils.SuccessResponse(c, http.StatusAccepted, "Status page subscription requested successfully", gin.H{"subscriber": response, "confirmation_required": result.confirmationRequired, "confirmation_delivery": result.confirmationDelivery, "production_fanout_live": s.ensurePublicStatusMailConfigured() == nil})
+}
+
+type subscribeResult struct {
+	subscriber           db.StatusPageSubscriber
+	confirmationRequired bool
+	confirmationDelivery string
+}
+
+// subscribeToStatusPage records (or refreshes) a pending subscriber and mails the confirmation link. It is
+// shared by the JSON endpoint and the subscribe form; a *requestValidationError means the input was bad.
+func (s *Server) subscribeToStatusPage(page db.StatusPage, destinationTypeInput *string, destinationInput *string, componentInput []string) (subscribeResult, error) {
+	destinationType, normalizedDestination, maskedDestination, err := normalizeStatusPageSubscriberDestination(destinationTypeInput, destinationInput)
+	if err != nil {
+		return subscribeResult{}, err
+	}
+	componentIDs, err := s.validatePublicSubscriberComponentIDs(page.ID, componentInput)
+	if err != nil {
+		return subscribeResult{}, err
 	}
 	confirmationToken, manageToken, unsubscribeToken, err := generateStatusPageSubscriberTokens()
 	if err != nil {
-		s.logger.Error("Failed to generate status page subscriber tokens", "error", err)
-		utils.InternalError(c, "Failed to create status page subscription", err)
-		return
+		return subscribeResult{}, err
 	}
 	expiresAt := time.Now().UTC().Add(24 * time.Hour)
 	destinationHash := hashStatusPageSubscriberValue(destinationType + ":" + normalizedDestination)
 	destinationCiphertext, err := s.encryptStatusPageSubscriberDestination(normalizedDestination)
 	if err != nil {
-		s.logger.Error("Failed to encrypt status page subscriber destination", "status_page_id", page.ID, "error", err)
-		utils.InternalError(c, "Failed to create status page subscription", err)
-		return
+		return subscribeResult{}, err
 	}
 	var subscriber db.StatusPageSubscriber
 	confirmationRequired := true
@@ -138,9 +161,7 @@ func (s *Server) createPublicStatusPageSubscriber(c *gin.Context) {
 		}
 		return replaceStatusPageSubscriberComponents(tx, subscriber.ID, componentIDs)
 	}); err != nil {
-		s.logger.Error("Failed to create status page subscriber", "status_page_id", page.ID, "error", err)
-		utils.InternalError(c, "Failed to create status page subscription", err)
-		return
+		return subscribeResult{}, err
 	}
 	confirmationDelivery := "not_required"
 	if confirmationRequired {
@@ -157,13 +178,7 @@ func (s *Server) createPublicStatusPageSubscriber(c *gin.Context) {
 			confirmationDelivery = "sent"
 		}
 	}
-	response, err := s.statusPageSubscriberPublicResponse(page.ID, subscriber)
-	if err != nil {
-		s.logger.Error("Failed to load status page subscriber response", "status_page_id", page.ID, "subscriber_id", subscriber.ID, "error", err)
-		utils.InternalError(c, "Failed to create status page subscription", err)
-		return
-	}
-	utils.SuccessResponse(c, http.StatusAccepted, "Status page subscription requested successfully", gin.H{"subscriber": response, "confirmation_required": confirmationRequired, "confirmation_delivery": confirmationDelivery, "production_fanout_live": s.ensurePublicStatusMailConfigured() == nil})
+	return subscribeResult{subscriber: subscriber, confirmationRequired: confirmationRequired, confirmationDelivery: confirmationDelivery}, nil
 }
 
 // confirmPublicStatusPageSubscriber confirms a pending public subscriber.
@@ -192,22 +207,17 @@ func (s *Server) confirmPublicStatusPageSubscriber(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var subscriber db.StatusPageSubscriber
-	if err := s.db.Where("status_page_id = ? AND confirmation_token_hash = ?", page.ID, tokenHash).First(&subscriber).Error; err != nil {
-		writeStatusPageLoadError(c, err, "Status page subscriber confirmation not found")
+	if publicStatusPageRequestWantsHTML(c) {
+		s.confirmSubscriberHTML(c, page, c.Param("token"))
 		return
 	}
-	if subscriber.State != statusPageSubscriberStatePending || subscriber.ConfirmationTokenExpiresAt == nil || subscriber.ConfirmationTokenExpiresAt.Before(time.Now().UTC()) {
-		utils.NotFound(c, "Status page subscriber confirmation not found")
-		return
-	}
-	now := time.Now().UTC()
-	subscriber.State = statusPageSubscriberStateConfirmed
-	subscriber.ConfirmedAt = &now
-	subscriber.ConfirmationTokenHash = ""
-	subscriber.ConfirmationTokenExpiresAt = nil
-	if err := s.db.Save(&subscriber).Error; err != nil {
-		s.logger.Error("Failed to confirm status page subscriber", "status_page_id", page.ID, "subscriber_id", subscriber.ID, "error", err)
+	subscriber, err := s.confirmPendingSubscriber(page.ID, tokenHash)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			utils.NotFound(c, "Status page subscriber confirmation not found")
+			return
+		}
+		s.logger.Error("Failed to confirm status page subscriber", "status_page_id", page.ID, "error", err)
 		utils.InternalError(c, "Failed to confirm status page subscription", err)
 		return
 	}
@@ -240,6 +250,10 @@ func (s *Server) getPublicStatusPageSubscriberPreferences(c *gin.Context) {
 	}
 	page, subscriber, ok := s.loadPublicSubscriberByManageToken(c)
 	if !ok {
+		return
+	}
+	if publicStatusPageRequestWantsHTML(c) {
+		s.manageSubscriberHTML(c, page, subscriber, "")
 		return
 	}
 	response, err := s.statusPageSubscriberPublicResponse(page.ID, subscriber)
@@ -339,37 +353,19 @@ func (s *Server) unsubscribePublicStatusPageSubscriber(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if publicStatusPageRequestWantsHTML(c) {
+		s.unsubscribeSubscriberHTML(c, page)
+		return
+	}
 	token := strings.TrimSpace(c.Param("token"))
 	if token == "" {
 		writeGenericUnsubscribeSuccess(c)
 		return
 	}
-	var subscriber db.StatusPageSubscriber
-	err := s.db.Where("status_page_id = ? AND unsubscribe_token_hash = ?", page.ID, hashStatusPageSubscriberToken(token)).First(&subscriber).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		writeGenericUnsubscribeSuccess(c)
-		return
-	}
-	if err != nil {
-		s.logger.Error("Failed to load subscriber for unsubscribe", "status_page_id", page.ID, "error", err)
+	if _, err := s.unsubscribeByToken(page.ID, token); err != nil {
+		s.logger.Error("Failed to unsubscribe status page subscriber", "status_page_id", page.ID, "error", err)
 		utils.InternalError(c, "Failed to unsubscribe status page subscriber", err)
 		return
-	}
-	if subscriber.State != statusPageSubscriberStateUnsubscribed {
-		now := time.Now().UTC()
-		previousSubscriber := subscriber
-		subscriber.State = statusPageSubscriberStateUnsubscribed
-		subscriber.UnsubscribedAt = &now
-		if err := s.db.Transaction(func(tx *gorm.DB) error {
-			if err := service.NewStatusPageSubscriberLifecycleService(tx, s.logger).RecordUnsubscribe(previousSubscriber, "public", "subscriber"); err != nil {
-				return err
-			}
-			return tx.Save(&subscriber).Error
-		}); err != nil {
-			s.logger.Error("Failed to unsubscribe status page subscriber", "status_page_id", page.ID, "subscriber_id", subscriber.ID, "error", err)
-			utils.InternalError(c, "Failed to unsubscribe status page subscriber", err)
-			return
-		}
 	}
 	writeGenericUnsubscribeSuccess(c)
 }
@@ -416,4 +412,47 @@ func (s *Server) statusPageSubscriberPublicResponse(pageID string, subscriber db
 		return StatusPageSubscriberPublicResponse{}, err
 	}
 	return StatusPageSubscriberPublicResponse{State: subscriber.State, DestinationType: subscriber.DestinationType, MaskedDestination: subscriber.MaskedDestination, ComponentIDs: selected, AvailableComponents: available}, nil
+}
+
+// confirmPendingSubscriber turns a pending subscriber confirmed by its one-time token. A missing, used or
+// expired token is gorm.ErrRecordNotFound.
+func (s *Server) confirmPendingSubscriber(pageID string, tokenHash string) (db.StatusPageSubscriber, error) {
+	var subscriber db.StatusPageSubscriber
+	if err := s.db.Where("status_page_id = ? AND confirmation_token_hash = ?", pageID, tokenHash).First(&subscriber).Error; err != nil {
+		return subscriber, err
+	}
+	now := time.Now().UTC()
+	if subscriber.State != statusPageSubscriberStatePending || subscriber.ConfirmationTokenExpiresAt == nil || subscriber.ConfirmationTokenExpiresAt.Before(now) {
+		return subscriber, gorm.ErrRecordNotFound
+	}
+	subscriber.State = statusPageSubscriberStateConfirmed
+	subscriber.ConfirmedAt = &now
+	subscriber.ConfirmationTokenHash = ""
+	subscriber.ConfirmationTokenExpiresAt = nil
+	return subscriber, s.db.Save(&subscriber).Error
+}
+
+// unsubscribeByToken unsubscribes whoever holds the token; found is false for an unknown token.
+func (s *Server) unsubscribeByToken(pageID string, token string) (bool, error) {
+	var subscriber db.StatusPageSubscriber
+	err := s.db.Where("status_page_id = ? AND unsubscribe_token_hash = ?", pageID, hashStatusPageSubscriberToken(token)).First(&subscriber).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if subscriber.State == statusPageSubscriberStateUnsubscribed {
+		return true, nil
+	}
+	now := time.Now().UTC()
+	previous := subscriber
+	subscriber.State = statusPageSubscriberStateUnsubscribed
+	subscriber.UnsubscribedAt = &now
+	return true, s.db.Transaction(func(tx *gorm.DB) error {
+		if err := service.NewStatusPageSubscriberLifecycleService(tx, s.logger).RecordUnsubscribe(previous, "public", "subscriber"); err != nil {
+			return err
+		}
+		return tx.Save(&subscriber).Error
+	})
 }

@@ -89,6 +89,10 @@ func (s *Server) getPublicStatusPageIncident(c *gin.Context) {
 	}
 	for _, incident := range preview.Incidents {
 		if incident.ID == c.Param("incident_id") {
+			if publicStatusPageRequestWantsHTML(c) {
+				s.writePublicStatusPageIncidentHTML(c, preview, incident)
+				return
+			}
 			s.writePublicStatusPageJSON(c, http.StatusOK, "Status page incident retrieved successfully", gin.H{
 				"incident": incident,
 			})
