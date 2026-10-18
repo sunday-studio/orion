@@ -8,6 +8,7 @@ export * from "@/design-system/components/card";
 export * from "@/design-system/components/choice-tiles";
 export * from "@/design-system/components/code-block";
 export * from "@/design-system/components/code-tabs";
+export * from "@/design-system/components/chart-hover";
 export * from "@/design-system/components/checkbox";
 export * from "@/design-system/components/combobox";
 export * from "@/design-system/components/confirm-dialog";

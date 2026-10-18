@@ -1,3 +1,4 @@
+import { ChartMarker, ChartTooltip, usePlotHover } from "@/design-system";
 import type { ApiAgentReportResponse } from "@/orion-sdk";
 import { TIME_FORMAT, formatDate } from "@/utils/date";
 
@@ -13,6 +14,7 @@ export const CpuChart = ({ reports }: { reports: ApiAgentReportResponse[] }) => 
         Boolean(point.at) && typeof point.value === "number",
     )
     .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+  const hover = usePlotHover(points.length);
   if (points.length < 2) {
     return (
       <p className="px-4 py-8 text-center text-[13px] text-quiet">No CPU reports in this window.</p>
@@ -28,9 +30,13 @@ export const CpuChart = ({ reports }: { reports: ApiAgentReportResponse[] }) => 
   const area = `${line} L${w} ${h} L0 ${h} Z`;
   const last = points[points.length - 1];
   const mid = points[Math.floor(points.length / 2)];
+  const active = hover.index === null ? undefined : points[hover.index];
+  const activeX = hover.index === null ? 0 : (hover.index / (points.length - 1)) * 100;
+  const activeY = active ? (y(active.value) / h) * 100 : 0;
   return (
     <div className="relative px-4 pb-3 pt-3">
       <div className="relative ml-9">
+        <div className="absolute inset-0 z-[1]" {...hover.bind} />
         <svg
           viewBox={`0 0 ${w} ${h}`}
           preserveAspectRatio="none"
@@ -60,6 +66,15 @@ export const CpuChart = ({ reports }: { reports: ApiAgentReportResponse[] }) => 
             vectorEffect="non-scaling-stroke"
           />
         </svg>
+        {active && (
+          <>
+            <ChartMarker x={activeX} y={activeY} />
+            <ChartTooltip x={activeX}>
+              <div className="text-[11px] opacity-70">{formatDate(active.at, "HH:mm:ss")}</div>
+              <div className="font-medium">CPU {Math.round(active.value)}%</div>
+            </ChartTooltip>
+          </>
+        )}
         {[100, 50, 0].map((tick) => (
           <span
             key={tick}
