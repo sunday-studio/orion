@@ -359,3 +359,23 @@ func openTestStore(t *testing.T) *Store {
 	})
 	return store
 }
+
+func TestReportSpoolIsBounded(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "s.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	for i := 0; i < ReportSpoolMaxRows+25; i++ {
+		if _, err := store.EnqueueReport(ReportSpoolKindSystem, "a", "", "", map[string]int{"i": i}, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	items, err := store.ListDueReports(time.Now().Add(time.Hour), ReportSpoolMaxRows*2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != ReportSpoolMaxRows {
+		t.Fatalf("spool holds %d rows, want cap %d", len(items), ReportSpoolMaxRows)
+	}
+}

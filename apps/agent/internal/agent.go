@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"orion/agent/internal/appres"
 	"orion/agent/internal/config"
 	"orion/agent/internal/logging"
 	"orion/agent/internal/state"
@@ -18,15 +19,19 @@ type Agent struct {
 	stateMu       sync.Mutex
 	transport     *transport.Client
 	retryQueue    *RetryQueue
+	sampler       *appres.Sampler
 }
 
 func New(userConfig *config.UserConfig, stateStore *state.Store, internalState *config.InternalState) *Agent {
+	client := transport.NewClient(userConfig.CoreURL, internalState.Token)
+	client.SetCompression(userConfig.Transport.Compression)
 	return &Agent{
 		userConfig:    userConfig,
-		transport:     transport.NewClient(userConfig.CoreURL, internalState.Token),
+		transport:     client,
 		internalState: internalState,
 		stateStore:    stateStore,
 		retryQueue:    NewRetryQueue(100),
+		sampler:       newSampler(userConfig),
 	}
 }
 
@@ -93,10 +98,13 @@ func (a *Agent) Run(ctx context.Context) error {
 	if transport.IsAuthError(runErr) {
 		logging.Errorf("Core rejected Agent credentials; stopping reporting until a replacement token is applied")
 	} else {
-		if err := a.flushDurableSpool(context.Background()); err != nil {
+		// Bounded final flush: shutdown must not block on a slow Core.
+		flushCtx, flushCancel := context.WithTimeout(context.Background(), shutdownFlushTimeout)
+		defer flushCancel()
+		if err := a.flushDurableSpool(flushCtx); err != nil {
 			logging.Warnf("Durable report spool flush during shutdown failed: %v", err)
 		}
-		if err := a.retryQueue.Flush(context.Background()); err != nil {
+		if err := a.retryQueue.Flush(flushCtx); err != nil {
 			logging.Warnf("Retry queue flush during shutdown failed: %v", err)
 		}
 	}
@@ -300,6 +308,28 @@ func reportFatalError(fatalErrs chan<- error, err error) {
 	}
 }
 
+// agentID returns the current agent identity under the state lock.
+func (a *Agent) agentID() string {
+	a.stateMu.Lock()
+	defer a.stateMu.Unlock()
+	return a.internalState.AgentID
+}
+
+func (a *Agent) monitorsSnapshot() []config.InternalStateMonitor {
+	a.stateMu.Lock()
+	defer a.stateMu.Unlock()
+	return append([]config.InternalStateMonitor(nil), a.internalState.Monitors...)
+}
+
+func (a *Agent) maintenanceReason() string {
+	a.stateMu.Lock()
+	defer a.stateMu.Unlock()
+	if a.internalState.MaintenanceReason != nil {
+		return *a.internalState.MaintenanceReason
+	}
+	return "No reason provided"
+}
+
 func (a *Agent) isInMaintenanceMode() bool {
 	inMaintenance, _ := a.maintenanceStatus()
 	return inMaintenance
@@ -317,20 +347,6 @@ func (a *Agent) maintenanceStatus() (bool, string) {
 	return a.internalState.MaintenanceMode, reason
 }
 
-// agentID, monitorsSnapshot read shared state under stateMu: refreshInternalState
-// replaces a.internalState from other goroutines.
-func (a *Agent) agentID() string {
-	a.stateMu.Lock()
-	defer a.stateMu.Unlock()
-	return a.internalState.AgentID
-}
-
-func (a *Agent) monitorsSnapshot() []config.InternalStateMonitor {
-	a.stateMu.Lock()
-	defer a.stateMu.Unlock()
-	return append([]config.InternalStateMonitor(nil), a.internalState.Monitors...)
-}
-
 func (a *Agent) refreshInternalState() {
 	latestState, err := a.stateStore.Get()
 	if err != nil {
@@ -343,4 +359,13 @@ func (a *Agent) refreshInternalState() {
 	a.internalState = latestState
 	a.transport.SetAuthToken(latestState.Token)
 	logging.Debugf("internal state refreshed: registered=%t agent_id=%s monitors=%d maintenance=%t", latestState.IsRegistered(), latestState.AgentID, len(latestState.Monitors), latestState.MaintenanceMode)
+}
+
+const shutdownFlushTimeout = 2 * time.Second
+
+func newSampler(cfg *config.UserConfig) *appres.Sampler {
+	if !cfg.AppResources.IsEnabled() {
+		return nil
+	}
+	return appres.NewSampler(appres.Options{TopN: cfg.AppResources.TopN, Paths: cfg.AppResources.Paths})
 }

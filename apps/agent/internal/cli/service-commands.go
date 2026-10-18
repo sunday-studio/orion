@@ -3,15 +3,8 @@ package cli
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 
 	agent "orion/agent/internal"
-	"orion/agent/internal/config"
-	agentstate "orion/agent/internal/state"
-
-	"gopkg.in/yaml.v3"
 )
 
 func runStart(_ context.Context, opts *Options) error {
@@ -53,140 +46,62 @@ func runStop(_ context.Context, _ *Options) error {
 
 func runStatus(_ context.Context, opts *Options) error {
 	report := InspectAgentStatus(opts.StatePath)
+	if report.InternalState == nil {
+		// The state file is owned by the orion user; ask the daemon instead.
+		if st, err := controlClient(opts).Status(); err == nil {
+			report.InternalState = statusFromSocket(st)
+			report.StateCheck = DiagnosticCheck{Name: "state", Status: CheckOK, Detail: "via control socket"}
+		}
+	}
 	if opts.JSON {
 		return renderJSON(outputWriter, statusJSON(report))
 	}
 
 	PrintHeader("status")
-
-	fmt.Fprintf(outputWriter, "  service_manager: %s\n", report.Service.Manager)
-	fmt.Fprintf(outputWriter, "  agent_service: %s\n", report.Service.State)
+	rows := [][2]string{
+		{"service", theme.Status(serviceStatusName(report.Service))},
+		{"manager", string(report.Service.Manager)},
+	}
 	if report.Service.ServiceFile != "" {
-		fmt.Fprintf(outputWriter, "  service_file: %s\n", report.Service.ServiceFile)
+		rows = append(rows, [2]string{"service file", report.Service.ServiceFile})
 	}
 	if report.Service.Error != nil {
-		fmt.Fprintf(outputWriter, "  service_error: %v\n", report.Service.Error)
+		rows = append(rows, [2]string{"service error", report.Service.Error.Error()})
 	}
-
-	if report.StateCheck.Status != CheckOK {
-		fmt.Fprintf(outputWriter, "  state_database: %s\n", opts.StatePath)
+	rows = append(rows, [2]string{"state database", opts.StatePath})
+	switch {
+	case report.StateCheck.Status != CheckOK:
+		detail := report.StateCheck.Detail
 		if report.StateCheck.Error != nil {
-			fmt.Fprintf(outputWriter, "  state: unavailable (%v)\n", report.StateCheck.Error)
-		} else if report.StateCheck.Status == CheckWarn {
-			fmt.Fprintf(outputWriter, "  state: %s\n", report.StateCheck.Detail)
-		} else {
-			fmt.Fprintf(outputWriter, "  state: unavailable (%s)\n", report.StateCheck.Detail)
+			detail = report.StateCheck.Error.Error()
 		}
-	} else if report.InternalState != nil {
-		fmt.Fprintf(outputWriter, "  state_database: %s\n", opts.StatePath)
-		fmt.Fprintf(outputWriter, "  state: %s\n", report.StateCheck.Detail)
-		fmt.Fprintf(outputWriter, "  registered: %t\n", report.InternalState.IsRegistered())
-		if report.InternalState.AgentID != "" {
-			fmt.Fprintf(outputWriter, "  agent_id: %s\n", report.InternalState.AgentID)
+		rows = append(rows, [2]string{"state", theme.Status("unknown") + " " + detail})
+	case report.InternalState != nil:
+		st := report.InternalState
+		rows = append(rows, [2]string{"state", report.StateCheck.Detail})
+		rows = append(rows, [2]string{"enrolled", fmt.Sprint(st.IsRegistered() || st.Registered)})
+		if st.AgentID != "" {
+			rows = append(rows, [2]string{"agent id", st.AgentID})
 		}
-		if report.InternalState.CoreURL != "" {
-			fmt.Fprintf(outputWriter, "  core_url: %s\n", report.InternalState.CoreURL)
+		if st.CoreURL != "" {
+			rows = append(rows, [2]string{"core", st.CoreURL})
 		}
-		fmt.Fprintf(outputWriter, "  maintenance: %t\n", report.InternalState.MaintenanceMode)
-		if report.InternalState.MaintenanceReason != nil {
-			fmt.Fprintf(outputWriter, "  maintenance_reason: %s\n", *report.InternalState.MaintenanceReason)
+		maint := theme.Status("up")
+		if st.MaintenanceMode {
+			maint = theme.Status("maintenance")
+			if st.MaintenanceReason != nil {
+				maint += " " + *st.MaintenanceReason
+			}
 		}
+		rows = append(rows, [2]string{"reporting", maint})
 	}
+	fmt.Fprintln(outputWriter, theme.KV(rows))
 
 	if !report.Service.Running {
 		PrintSkip("service is not running")
 		return &CommandError{Summary: "service is not running", ExitCode: 1}
 	}
 	PrintOK("service is running")
-	return nil
-}
-
-func runDoctor(ctx context.Context, opts *Options) error {
-	report := BuildDoctorReport(ctx, opts.ConfigPath, opts.StatePath)
-	if opts.JSON {
-		return renderJSON(outputWriter, doctorJSON(report))
-	}
-
-	PrintHeader("doctor")
-	PrintInfo("config", opts.ConfigPath)
-	PrintInfo("state", opts.StatePath)
-	PrintStep("running diagnostics")
-	PrintInfo("service_manager", report.Service.Manager)
-	PrintInfo("service_state", report.Service.State)
-	for _, check := range report.Checks {
-		printDiagnosticCheck(check)
-	}
-	PrintRecentLogDiagnostics(JSONLRecentLogReader{Path: report.LogPath}, opts.LogLines)
-
-	if report.HasErrors() {
-		return &CommandError{Summary: "doctor found errors", ExitCode: 1}
-	}
-	PrintOK("doctor checks passed")
-	return nil
-}
-
-func runSetup(_ context.Context, opts *Options) error {
-	PrintHeader("setup")
-	PrintInfo("config", opts.ConfigPath)
-	PrintInfo("state", opts.StatePath)
-
-	coreURL := strings.TrimSpace(opts.SetupCoreURL)
-	if coreURL == "" {
-		return NewCommandError("could not create config", fmt.Errorf("--core-url is required"))
-	}
-
-	if _, err := os.Stat(opts.ConfigPath); err == nil && !opts.SetupForce {
-		return NewCommandError("config already exists", fmt.Errorf("%s exists", opts.ConfigPath), "rerun with --force to replace it", "run: orion-agent config show")
-	} else if err != nil && !os.IsNotExist(err) {
-		return NewCommandError("could not inspect config path", err)
-	}
-
-	userConfig := config.UserConfig{
-		CoreURL:     coreURL,
-		Interval:    "60s",
-		GeoLocation: false,
-		Monitors:    []config.UserMonitor{},
-	}
-	userConfig.ApplyDefaults()
-	if err := userConfig.Validate(); err != nil {
-		return NewCommandError("config validation failed", err)
-	}
-
-	PrintStep("writing config")
-	if err := os.MkdirAll(filepath.Dir(opts.ConfigPath), 0o750); err != nil {
-		return NewCommandError("could not create config directory", err)
-	}
-	data, err := yaml.Marshal(userConfig)
-	if err != nil {
-		return NewCommandError("could not render config", err)
-	}
-	if err := os.WriteFile(opts.ConfigPath, data, 0o640); err != nil {
-		return NewCommandError("could not write config", err)
-	}
-	PrintOK("config written")
-	PrintInfo("core_url", coreURL)
-
-	if opts.SetupInitState {
-		PrintStep("initializing state database")
-		stateStore, err := agentstate.Open(opts.StatePath)
-		if err != nil {
-			return NewCommandError("could not initialize state database", err)
-		}
-		if _, err := stateStore.Get(); err != nil {
-			_ = stateStore.Close()
-			return NewCommandError("could not initialize state database", err)
-		}
-		if err := stateStore.Close(); err != nil {
-			return NewCommandError("could not close state database", err)
-		}
-		PrintOK("state database initialized")
-	} else {
-		PrintSkip("state database not initialized; run orion-agent state init when ready")
-	}
-
-	PrintOK("setup complete")
-	PrintInfo("next", "orion-agent config show")
-	PrintInfo("next", "orion-agent run --once")
 	return nil
 }
 
@@ -321,6 +236,10 @@ func runUpdate(_ context.Context, opts *Options) error {
 		Version:        opts.UpdateVersion,
 		CurrentVersion: agent.Version,
 		LogLines:       opts.LogLines,
+		BaseURL:        opts.UpdateBaseURL,
+		Rollback:       opts.UpdateRollback,
+		Force:          opts.UpdateForce,
+		SocketPath:     opts.SocketPath,
 	}); err != nil {
 		return NewCommandError("could not update Orion Agent", err)
 	}
@@ -338,4 +257,14 @@ func printServiceStatus() {
 	} else {
 		PrintSkip("service is not running")
 	}
+}
+
+func serviceStatusName(s ServiceStatus) string {
+	switch {
+	case s.Running:
+		return "up"
+	case !s.Installed:
+		return "unknown"
+	}
+	return "down"
 }

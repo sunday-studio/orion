@@ -3,11 +3,15 @@ package transport
 import (
 	"time"
 
+	"orion/agent/internal/appres"
 	"orion/agent/internal/collector"
 	"orion/agent/internal/services"
 )
 
 type SystemReport struct {
+	// ReportID is an idempotency key: replays of the same report reuse it so
+	// Core can store it once.
+	ReportID      string                 `json:"report_id,omitempty"`
 	KernelVersion string                 `json:"kernel_version"`
 	AgentVersion  string                 `json:"agent_version,omitempty"`
 	ConfigSummary map[string]interface{} `json:"config_summary,omitempty"`
@@ -17,6 +21,8 @@ type SystemReport struct {
 	Memory        *collector.MemoryStats `json:"memory"`
 	Disk          *collector.DiskStats   `json:"disk"`
 	Location      *services.GeoLocation  `json:"location,omitempty"`
+	// AppResources is passive per-process, per-unit and per-container usage.
+	AppResources *appres.Report `json:"app_resources,omitempty"`
 }
 
 type MonitorReport struct {

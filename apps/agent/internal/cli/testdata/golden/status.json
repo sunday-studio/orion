@@ -1,0 +1,12 @@
+{
+  "maintenance": "bool",
+  "registered": "bool",
+  "schema_version": "number",
+  "service_file": "string",
+  "service_manager": "string",
+  "service_running": "bool",
+  "service_state": "string",
+  "state_detail": "string",
+  "state_path": "string",
+  "state_status": "string"
+}

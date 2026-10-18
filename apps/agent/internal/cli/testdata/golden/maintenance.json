@@ -1,0 +1,7 @@
+{
+  "enabled": "bool",
+  "ok": "bool",
+  "reason": "string",
+  "schema_version": "number",
+  "via": "string"
+}

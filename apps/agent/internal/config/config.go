@@ -1,12 +1,8 @@
 package config
 
 import (
-	"fmt"
-	"os"
 	"runtime"
 	"time"
-
-	"gopkg.in/yaml.v3"
 )
 
 type InternalState struct {
@@ -138,11 +134,31 @@ type UserConfig struct {
 	CoreURL string                 `yaml:"core_url"`
 	// EnrollmentToken is the shared secret for first registration when Core sets
 	// ORION_ENROLLMENT_TOKEN. The ORION_ENROLLMENT_TOKEN env var overrides it.
-	EnrollmentToken string        `yaml:"enrollment_token,omitempty"`
-	Interval        string        `yaml:"interval"`
-	GeoLocation     bool          `yaml:"geo_location,omitempty"`
-	Logging         LoggingConfig `yaml:"logging,omitempty"`
-	Monitors        []UserMonitor `yaml:"monitors"`
+	EnrollmentToken string             `yaml:"enrollment_token,omitempty"`
+	Interval        string             `yaml:"interval"`
+	GeoLocation     bool               `yaml:"geo_location,omitempty"`
+	Logging         LoggingConfig      `yaml:"logging,omitempty"`
+	Transport       TransportConfig    `yaml:"transport,omitempty"`
+	AppResources    AppResourcesConfig `yaml:"app_resources,omitempty"`
+	Monitors        []UserMonitor      `yaml:"monitors"`
+}
+
+// AppResourcesConfig controls passive per-app resource metrics. They need no
+// app integration and are on by default; caps keep cardinality bounded.
+type AppResourcesConfig struct {
+	Enabled *bool    `yaml:"enabled,omitempty"` // default true
+	TopN    int      `yaml:"top_n,omitempty"`   // processes per ranking, default 10
+	Paths   []string `yaml:"paths,omitempty"`   // storage paths to size
+}
+
+// IsEnabled reports whether passive app metrics are on (default on).
+func (a AppResourcesConfig) IsEnabled() bool { return a.Enabled == nil || *a.Enabled }
+
+// TransportConfig tunes how the agent talks to Core.
+type TransportConfig struct {
+	// Compression is "" or "none" (default) or "gzip". gzip sends request
+	// bodies over 1 KiB with Content-Encoding: gzip, which Core must accept.
+	Compression string `yaml:"compression,omitempty"`
 }
 
 type LoggingConfig struct {
@@ -155,24 +171,10 @@ type LoggingConfig struct {
 	Compress   *bool  `yaml:"compress,omitempty"`
 }
 
+// LoadUserConfig loads the effective config (file, config.d drop-ins, env).
 func LoadUserConfig(path string) (*UserConfig, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read config file: %w", err)
-	}
-
-	var cfg UserConfig
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("failed to parse config: %w", err)
-	}
-
-	cfg.ApplyDefaults()
-
-	if err := cfg.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid config: %w", err)
-	}
-
-	return &cfg, nil
+	cfg, _, err := Load(path)
+	return cfg, err
 }
 
 func (c *UserConfig) ApplyDefaults() {

@@ -53,65 +53,32 @@ func runAgent(ctx context.Context, opts *Options) error {
 	defer stateStore.Close()
 	PrintOK("state database ready")
 
-	PrintStep("registering agent and monitors")
-	registrationService := registration.New(userConfig, opts.ConfigPath, stateStore)
-	registerErr := error(nil)
-	if opts.Once {
-		registerErr = registrationService.RegisterAgentIfNeeded()
-	} else {
-		// Long-running agents wait for Core instead of exiting and tripping the service start limit.
-		registerCtx, stopRegister := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
-		registerErr = registrationService.RegisterWithRetry(registerCtx, registration.DefaultRegistrationBackoff)
-		stopRegister()
+	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
+	if !opts.Once {
+		return runDaemon(ctx, opts, userConfig, stateStore)
 	}
-	if err := registerErr; err != nil {
-		PrintError("registration failed after retry attempts; agent cannot continue")
+
+	PrintStep("registering agent and monitors")
+	if err := registration.New(userConfig, opts.ConfigPath, stateStore).RegisterAgentIfNeeded(); err != nil {
 		return NewCommandError("could not register agent and monitors", err)
 	}
 	PrintOK("registration complete")
-	if internalState, err := stateStore.Get(); err == nil {
-		PrintInfo("registered", internalState.IsRegistered())
-		if internalState.AgentID != "" {
-			PrintInfo("agent_id", internalState.AgentID)
-		}
-		PrintInfo("monitor_mappings", len(internalState.Monitors))
-	}
-
-	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
-	defer cancel()
-	ignoreHangup()
-
 	agentInstance, err := agent.NewWithStateStore(userConfig, stateStore)
 	if err != nil {
 		return NewCommandError("could not initialize agent", err)
 	}
-	PrintOK("agent initialized")
-
-	if opts.Once {
-		PrintStep("running one collection cycle")
-		if err := agentInstance.RunOnce(ctx); err != nil {
-			logging.Errorf("Agent run failed: %v", err)
-			if transport.IsAuthError(err) {
-				PrintError("Core rejected Agent credentials; reporting stopped")
-				PrintInfo("recovery", "apply an admin-issued replacement token with orion-agent token apply")
-			}
-			return NewCommandError("agent run failed", err)
-		}
-		PrintOK("one collection cycle complete")
-		return nil
-	}
-
-	PrintStep("starting continuous collection loop")
-	if err := agentInstance.Run(ctx); err != nil {
-		logging.Errorf("Agent stopped with error: %v", err)
+	PrintStep("running one collection cycle")
+	if err := agentInstance.RunOnce(ctx); err != nil {
+		logging.Errorf("Agent run failed: %v", err)
 		if transport.IsAuthError(err) {
 			PrintError("Core rejected Agent credentials; reporting stopped")
 			PrintInfo("recovery", "apply an admin-issued replacement token with orion-agent token apply")
 		}
-		return NewCommandError("agent stopped with an error", err)
+		return NewCommandError("agent run failed", err)
 	}
-
-	PrintOK("agent exited cleanly")
+	PrintOK("one collection cycle complete")
 	return nil
 }
 
@@ -148,6 +115,9 @@ func runMaintenance(_ context.Context, opts *Options, action string, reason stri
 			return NewCommandError("could not save state", err)
 		}
 		PrintOK("maintenance mode disabled")
+		if opts.JSON {
+			return renderJSON(outputWriter, maintenanceResult{OK: true, Enabled: false, Via: "state"})
+		}
 	case "-down":
 		var reasonPtr *string
 		if reason != "" {
@@ -168,6 +138,9 @@ func runMaintenance(_ context.Context, opts *Options, action string, reason stri
 		PrintInfo("maintenance ends", until.Format(time.RFC3339))
 		if reason != "" {
 			PrintInfo("maintenance reason", reason)
+		}
+		if opts.JSON {
+			return renderJSON(outputWriter, maintenanceResult{OK: true, Enabled: true, Reason: reason, Via: "state"})
 		}
 	}
 	return nil
@@ -191,37 +164,6 @@ func runConfigValidate(_ context.Context, opts *Options) error {
 	PrintInfo("monitors", len(userConfig.Monitors))
 	if len(userConfig.Monitors) == 0 {
 		PrintSkip("no monitor checks configured; host metrics will still report")
-	}
-	return nil
-}
-
-func runConfigDiff(_ context.Context, opts *Options, calledAs string) error {
-	if calledAs == "" {
-		calledAs = "diff"
-	}
-	currentConfig, err := config.LoadUserConfig(opts.ConfigPath)
-	if err != nil {
-		return NewCommandError("could not load current config", err)
-	}
-	if opts.JSON {
-		return renderJSON(outputWriter, configSummaryJSON(opts.ConfigPath, currentConfig))
-	}
-
-	PrintHeader("config " + calledAs)
-	PrintInfo("config", opts.ConfigPath)
-	PrintStep("loading config")
-	PrintOK("config loaded")
-
-	fmt.Fprintln(outputWriter, "Current configuration:")
-	fmt.Fprintf(outputWriter, "  Core URL: %s\n", currentConfig.CoreURL)
-	fmt.Fprintf(outputWriter, "  Interval: %s\n", currentConfig.Interval)
-	fmt.Fprintf(outputWriter, "  Monitors: %d\n", len(currentConfig.Monitors))
-	if len(currentConfig.Monitors) == 0 {
-		fmt.Fprintln(outputWriter, "    - none configured")
-	} else {
-		for _, m := range currentConfig.Monitors {
-			fmt.Fprintf(outputWriter, "    - %s (%s every %s)\n", m.Name, m.Type, m.Interval)
-		}
 	}
 	return nil
 }
@@ -317,6 +259,9 @@ func runTokenApply(_ context.Context, opts *Options) error {
 	PrintOK("replacement token applied")
 	PrintInfo("identity", "preserved")
 	PrintInfo("next", "orion-agent restart")
+	if opts.JSON {
+		return renderJSON(outputWriter, map[string]any{"ok": true, "identity": "preserved", "restart_required": true})
+	}
 	return nil
 }
 
@@ -403,16 +348,4 @@ func runReconfigure(_ context.Context, opts *Options) error {
 		PrintSkip("service was not running before reconfigure")
 	}
 	return nil
-}
-
-// ignoreHangup keeps SIGHUP from killing the agent (Go's default). The agent has
-// no live configuration reload: restart the service to apply config changes.
-func ignoreHangup() {
-	hup := make(chan os.Signal, 1)
-	signal.Notify(hup, syscall.SIGHUP)
-	go func() {
-		for range hup {
-			logging.Warnf("SIGHUP received and ignored: configuration reload is not supported, restart the service to apply changes")
-		}
-	}()
 }

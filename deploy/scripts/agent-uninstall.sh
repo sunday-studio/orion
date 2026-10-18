@@ -10,6 +10,7 @@ INSTALL_DIR="/usr/local/bin"
 SERVICE_NAME="orion-agent"
 
 DRY_RUN="false"
+USER_MODE="false"
 REMOVE_CONFIG="prompt"
 REMOVE_STATE="prompt"
 REMOVE_USER="prompt"
@@ -31,6 +32,8 @@ usage() {
   printf '%s\n' "  --keep-user         Keep the service user and group without prompting."
   printf '%s\n' "  --remove-user       Remove the service user and group when unused."
   printf '%s\n' "  --purge             Remove config, state, and unused service user/group."
+  printf '%s\n' "  --yes               Never prompt; keep config, state and user unless --purge/--remove-* is given."
+  printf '%s\n' "  --user              Remove a per-user install (no root needed)."
   printf '%s\n' "  --dry-run           Print uninstall actions without changing the system."
   printf '%s\n' "  -h, --help          Show this help."
 }
@@ -166,6 +169,16 @@ while [ "$#" -gt 0 ]; do
       DRY_RUN="true"
       shift
       ;;
+    --yes|-y)
+      [ "$REMOVE_CONFIG" = "prompt" ] && REMOVE_CONFIG="keep"
+      [ "$REMOVE_STATE" = "prompt" ] && REMOVE_STATE="keep"
+      [ "$REMOVE_USER" = "prompt" ] && REMOVE_USER="keep"
+      shift
+      ;;
+    --user)
+      USER_MODE="true"
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
@@ -177,6 +190,25 @@ while [ "$#" -gt 0 ]; do
       ;;
   esac
 done
+
+if [ "$USER_MODE" = "true" ]; then
+  print_orion_banner
+  step "Per-user install"
+  if command -v systemctl >/dev/null 2>&1; then
+    run_cmd systemctl --user disable --now "$SERVICE_NAME" 2>/dev/null || true
+    run_cmd rm -f "$HOME/.config/systemd/user/$SERVICE_NAME.service"
+  fi
+  if [ "$(uname -s)" = "Darwin" ]; then
+    run_cmd launchctl bootout "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.orion.agent.user.plist" 2>/dev/null || true
+    run_cmd rm -f "$HOME/Library/LaunchAgents/com.orion.agent.user.plist"
+  fi
+  run_cmd rm -f "$HOME/.local/bin/orion-agent"
+  ok "removed binary and service"
+  if [ "$REMOVE_CONFIG" = "remove" ]; then run_cmd rm -rf "$HOME/.config/orion"; ok "removed config"; fi
+  if [ "$REMOVE_STATE" = "remove" ]; then run_cmd rm -rf "$HOME/.local/state/orion"; ok "removed state"; fi
+  printf '\n%s\n' "Orion Agent (per-user) uninstalled."
+  exit 0
+fi
 
 OS="$(detect_os)"
 case "$OS" in
@@ -273,6 +305,15 @@ if [ -d "$STATE_DIR" ]; then
   fi
 else
   skip "state directory not found"
+fi
+
+step "Logs and runtime files"
+if [ "$REMOVE_STATE" = "remove" ]; then
+  for d in /var/log/orion /run/orion /usr/local/var/log/orion /usr/local/var/run/orion; do
+    if [ -d "$d" ]; then run_cmd rm -rf "$d"; ok "removed $d"; fi
+  done
+else
+  skip "keeping logs (removed together with state)"
 fi
 
 step "Service account"
