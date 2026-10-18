@@ -59,13 +59,14 @@ Wrangler usage metrics are disabled in the workflow (`WRANGLER_SEND_METRICS=fals
 
 ## Share images
 
-Every page has Open Graph and Twitter card images in three sizes, in `public/og/`:
+Every page has two Open Graph and Twitter card images in `public/og/`:
 
 | Size | Used by |
 |---|---|
-| `1200x630` | Facebook, LinkedIn, Slack, Discord and most link previews |
+| `1200x630` | the single `og:image`: Facebook, LinkedIn, Slack, Discord, iMessage, WhatsApp and most link previews |
 | `1200x600` | X / Twitter (`twitter:image`) |
-| `1200x1200` | square cards such as WhatsApp and Telegram (a second `og:image`) |
+
+Keep to one `og:image` per page: with several, iMessage draws them side by side. A square variant is not needed.
 
 There are three layouts: the home page, the docs home, and a title-led layout generated for every docs article from its frontmatter. `src/layouts/base.astro` writes the tags; pass `ogImage="/og/<name>"` to point a page at another set.
 

@@ -5,7 +5,7 @@
 // Env: CHROME            path to a Chrome or Chromium binary (defaults to the macOS install)
 //      ORION_OG_FONT_CSS path to a stylesheet that defines the licensed "TWK Lausanne" font (optional)
 //
-// Sizes: 1200x630 (Facebook, LinkedIn, Slack, Discord), 1200x600 (X / Twitter) and 1200x1200 (square cards).
+// Sizes: 1200x630 (og:image: Facebook, LinkedIn, Slack, Discord, iMessage, WhatsApp) and 1200x600 (twitter:image).
 // Layouts: home, docs home, and one per docs article (title-led).
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -16,7 +16,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const chrome = process.env.CHROME ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const fontCss = process.env.ORION_OG_FONT_CSS ? pathToFileURL(process.env.ORION_OG_FONT_CSS).href : "";
-const SIZES = [[1200, 630], [1200, 600], [1200, 1200]];
+// One og:image per page (1200x630) plus a 2:1 twitter:image. Several og:image tags make iMessage stitch them together.
+const SIZES = [[1200, 630], [1200, 600]];
 
 // ---- pages -------------------------------------------------------------------------------------
 const pages = [
