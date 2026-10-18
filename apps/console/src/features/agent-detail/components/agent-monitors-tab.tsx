@@ -130,7 +130,7 @@ export const AgentMonitorsTab = ({ agentId }: { agentId: string }) => {
               <span>Detail</span>
             </GridRow>
             {pageItems.map((monitor) => (
-              <GridRow key={monitor.id} columns={MONITOR_COLUMNS}>
+              <GridRow key={monitor.id} flipId={monitor.id} columns={MONITOR_COLUMNS}>
                 <MonitorCells monitor={monitor} />
               </GridRow>
             ))}

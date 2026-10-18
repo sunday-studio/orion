@@ -86,7 +86,11 @@ export const HealthIssuesPage = () => {
                 <span />
               </GridRow>
               {pageItems.map((issue, index) => (
-                <GridRow key={`${issue.kind}-${issue.target_id ?? index}`} columns={COLUMNS}>
+                <GridRow
+                  key={`${issue.kind}-${issue.target_id ?? index}`}
+                  flipId={`${issue.kind}-${issue.target_id ?? index}`}
+                  columns={COLUMNS}
+                >
                   <Dot color={healthDot(issue.health)} />
                   <b className="font-medium">
                     {issue.target_name ?? issue.monitor_name ?? issue.agent_name}

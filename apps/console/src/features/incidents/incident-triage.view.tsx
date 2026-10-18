@@ -114,7 +114,7 @@ export const IncidentTriagePage = () => {
                 const id = candidate.monitor_id ?? "";
                 const name = candidate.monitor_name ?? id;
                 return (
-                  <GridRow key={id} columns={COLUMNS}>
+                  <GridRow key={id} flipId={id} columns={COLUMNS}>
                     <Dot color={healthDot(candidate.health)} />
                     <b className="font-medium">
                       {candidate.agent_name && candidate.monitor_type === "agent"

@@ -20,7 +20,7 @@ export const DrawerContent = ({
       <DrawerPrimitive.Popup
         data-slot="ds-drawer"
         className={cn(
-          "fixed inset-y-0 right-0 z-50 flex w-[480px] max-w-full flex-col gap-4 overflow-y-auto border-l border-hairline bg-card p-6 shadow-overlay outline-none transition-transform duration-200 data-[ending-style]:translate-x-full data-[starting-style]:translate-x-full",
+          "fixed inset-y-0 right-0 z-50 flex w-[480px] max-w-full flex-col gap-4 overflow-y-auto border-l border-hairline bg-card p-6 shadow-overlay outline-none transition-transform duration-[320ms] ease-[cubic-bezier(0.32,0.72,0,1)] data-[ending-style]:translate-x-full data-[starting-style]:translate-x-full",
           className,
         )}
         {...props}

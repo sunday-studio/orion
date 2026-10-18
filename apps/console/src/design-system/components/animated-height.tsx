@@ -34,7 +34,8 @@ export const AnimatedHeight = ({
     <div
       className={cn(
         "overflow-hidden",
-        ready && "transition-[height] duration-250 ease-out motion-reduce:transition-none",
+        ready &&
+          "transition-[height] duration-[380ms] ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
         className,
       )}
       style={height === undefined ? undefined : { height }}

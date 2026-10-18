@@ -20,7 +20,7 @@ export const DialogContent = ({
     <DialogPrimitive.Popup
       data-slot="ds-dialog"
       className={cn(
-        "fixed left-1/2 top-1/2 z-50 grid w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-[10px] border border-hairline bg-card p-6 shadow-overlay outline-none transition-[opacity,transform] duration-200 data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0",
+        "fixed left-1/2 top-1/2 z-50 grid w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-[10px] border border-hairline bg-card p-6 shadow-overlay outline-none transition-[opacity,transform] duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] data-[ending-style]:scale-[0.98] data-[ending-style]:opacity-0 data-[starting-style]:scale-[0.96] data-[starting-style]:opacity-0",
         className,
       )}
       {...props}

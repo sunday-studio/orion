@@ -180,6 +180,7 @@ export function DataTable<TData>({
           : table.getRowModel().rows.map((row: Row<TData>) => (
               <TableRow
                 key={row.id}
+                data-flip-id={row.id}
                 className={cn(onRowClick && "cursor-pointer", rowClassName?.(row))}
                 tabIndex={onRowClick ? 0 : undefined}
                 onClick={onRowClick ? () => onRowClick(row.original) : undefined}
