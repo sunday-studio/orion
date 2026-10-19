@@ -94,9 +94,11 @@ availability only; Core worker state is exposed through `/v1/diagnostics/core-wo
 ## Endpoints
 
 - `POST /v1/register`
-  Registers or returns a server by `machine_id`. No bearer auth (see enrollment below).
+  Registers a new server by `machine_id`, or reconnects a known active machine when a fresh one-time Add server session authorizes it. No bearer auth (see enrollment below).
   - Rate limited per client IP (`ORION_REGISTER_RATE_LIMIT_PER_MINUTE`, default 30; `429` when exceeded, rejected attempts count).
   - When Core sets `ORION_ENROLLMENT_TOKEN`, the Agent must send the same value in the `X-Orion-Enrollment-Token` header or Core returns `401`. The Agent reads it from `enrollment_token` in its config, or the `ORION_ENROLLMENT_TOKEN` environment variable (which wins). Only first registration needs it; an Agent that already holds state does not re-register. Without the setting Core logs a warning and registration is rate limited only.
+- `POST /v1/register/preflight`
+  Validates an Add server or shared registration credential without consuming it. Setup uses this before discovery or config writes.
 - `POST /v1/agents/:agent_id/register-monitor`
   Registers, revives, or rejects duplicate monitors. Requires auth.
 - `POST /v1/agents/:agent_id/unregister-monitor`
@@ -147,7 +149,9 @@ Core monitor admin endpoints:
 ### Agent Registration
 
 - `machine_id` is the stable identity key.
-- Existing `machine_id` returns the existing `agent_id` and token.
+- Existing `machine_id` without a one-time Add server authorization returns `409 agent_token_reissue_required`; Core cannot recover a stored Agent token because only its hash is retained.
+- Existing active `machine_id` with a fresh one-time Add server authorization keeps the existing `agent_id` and monitor ownership, rotates the Agent token, and returns the replacement once.
+- Existing revoked `machine_id` remains revoked and requires the explicit admin reissue flow.
 - New `machine_id` creates a server and token.
 - Agent sends `reporting_interval_seconds` from its global config interval.
 - Core stores the reporting interval on create and updates it on re-registration.
@@ -375,9 +379,11 @@ Core behavior:
 
 Implemented on both sides: Core enforces the token (`apps/core/internal/api/agent_enrollment.go`) and the agent sends it.
 
-- `POST /v1/register` carries header `X-Orion-Enrollment-Token: <one-time token>` when the agent has one (`orion-agent enroll --token-file`, or `ORION_ENROLLMENT_TOKEN` / `ORION_ENROLLMENT_TOKEN_FILE`). Agents without a token send no header, which keeps current Core working.
+- `POST /v1/register/preflight` checks the credential before setup runs discovery or writes config; it does not claim the one-time token.
+- `POST /v1/register` carries header `X-Orion-Enrollment-Token: <one-time token>` when the agent has one (`orion-agent setup --token-file`, `orion-agent enroll --token-file`, or `ORION_ENROLLMENT_TOKEN` / `ORION_ENROLLMENT_TOKEN_FILE`). Agents without a token send no header, which keeps current Core working.
 - `401`/`403` means the token is invalid, expired or already used; the agent tells the operator to create a new one in Console under Add server. `429` is retried with backoff.
 - On success the response is unchanged (`agent_id`, per-agent `token`). The enrollment token is single use and is never stored by the agent after registration.
+- A fresh one-time Add server token can reconnect an active machine that lost its local state. Core preserves its Agent identity and monitor ownership while issuing a new Agent token; the shared registration credential cannot do this.
 - Core's "agent connected" signal is the successful registration, followed by the first accepted report.
 
 ## Report idempotency

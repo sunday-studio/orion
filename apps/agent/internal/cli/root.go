@@ -44,6 +44,7 @@ type Options struct {
 	LogLines              int
 	TokenApply            string
 	TokenFile             string
+	Quiet                 bool
 
 	normalizedArgs []string
 }

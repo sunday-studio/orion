@@ -122,6 +122,18 @@ func pathWritable(path string) bool {
 		return false
 	}
 	dir := filepath.Dir(path)
+	for {
+		if _, err := os.Stat(dir); err == nil {
+			break
+		} else if !os.IsNotExist(err) {
+			return false
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return false
+		}
+		dir = parent
+	}
 	tmp, err := os.CreateTemp(dir, ".orion-write-test-*")
 	if err != nil {
 		return false

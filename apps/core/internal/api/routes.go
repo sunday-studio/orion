@@ -164,6 +164,7 @@ func (s *Server) setupRoutes() {
 		public := v1.Group("/")
 		{
 			public.POST("/register", s.registerAgent)
+			public.POST("/register/preflight", s.preflightAgentRegistration)
 			public.POST("/auth/login", s.login)
 			public.POST("/ingest/logs", s.ingestLogs)
 			public.POST("/ingest/otlp/v1/logs", s.ingestOTLPLogs)

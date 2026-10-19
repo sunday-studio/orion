@@ -57,6 +57,17 @@ func IsEnrollmentToken(presented string) bool {
 	return strings.HasPrefix(presented, EnrollmentTokenPrefix)
 }
 
+// Validate reports whether token names a live Add server session without
+// claiming it. Setup uses this before discovery so a typo or expired token is
+// rejected before the user spends time choosing monitors.
+func (s *EnrollmentService) Validate(token string, now time.Time) bool {
+	var session db.EnrollmentSession
+	if err := s.db.Where("token_hash = ?", hashEnrollmentToken(token)).First(&session).Error; err != nil {
+		return false
+	}
+	return session.CancelledAt == nil && now.Before(session.ExpiresAt)
+}
+
 // Create makes a session and returns the plaintext token, which is never retrievable again.
 func (s *EnrollmentService) Create(platform string, now time.Time) (db.EnrollmentSession, string, error) {
 	var raw [24]byte
