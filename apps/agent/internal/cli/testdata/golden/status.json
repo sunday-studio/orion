@@ -1,5 +1,8 @@
 {
+  "log_sources": "number",
   "maintenance": "bool",
+  "monitors": "number",
+  "queue_pending": "number",
   "registered": "bool",
   "schema_version": "number",
   "service_file": "string",

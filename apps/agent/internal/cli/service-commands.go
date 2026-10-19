@@ -55,10 +55,7 @@ func runStatus(_ context.Context, opts *Options) error {
 		report.StateCheck = DiagnosticCheck{Name: "state", Status: CheckOK, Detail: "via control socket"}
 	}
 	if opts.JSON {
-		payload := statusJSON(report)
-		if derr == nil {
-			payload.Daemon = &daemon
-		}
+		payload := statusJSON(report, daemon, derr == nil)
 		return renderJSON(outputWriter, payload)
 	}
 
@@ -76,24 +73,35 @@ func runStatus(_ context.Context, opts *Options) error {
 }
 
 type statusJSONPayload struct {
-	ServiceManager string `json:"service_manager"`
-	ServiceState   string `json:"service_state"`
-	ServiceRunning bool   `json:"service_running"`
-	ServiceFile    string `json:"service_file,omitempty"`
-	ServiceError   string `json:"service_error,omitempty"`
-	StatePath      string `json:"state_path"`
-	StateStatus    string `json:"state_status"`
-	StateDetail    string `json:"state_detail,omitempty"`
-	StateError     string `json:"state_error,omitempty"`
-	Registered     bool   `json:"registered"`
-	AgentID        string `json:"agent_id,omitempty"`
-	CoreURL        string `json:"core_url,omitempty"`
-	Maintenance    bool   `json:"maintenance"`
-	// Daemon is the running daemon's own view, present when its socket answers.
-	Daemon *control.Status `json:"daemon,omitempty"`
+	ServiceManager    string     `json:"service_manager"`
+	ServiceState      string     `json:"service_state"`
+	ServiceRunning    bool       `json:"service_running"`
+	ServiceFile       string     `json:"service_file,omitempty"`
+	ServiceError      string     `json:"service_error,omitempty"`
+	StatePath         string     `json:"state_path"`
+	StateStatus       string     `json:"state_status"`
+	StateDetail       string     `json:"state_detail,omitempty"`
+	StateError        string     `json:"state_error,omitempty"`
+	Version           string     `json:"version,omitempty"`
+	PID               int        `json:"pid,omitempty"`
+	StartedAt         *time.Time `json:"started_at,omitempty"`
+	UptimeSeconds     int64      `json:"uptime_seconds,omitempty"`
+	Registered        bool       `json:"registered"`
+	AgentID           string     `json:"agent_id,omitempty"`
+	CoreURL           string     `json:"core_url,omitempty"`
+	Maintenance       bool       `json:"maintenance"`
+	MaintenanceReason string     `json:"maintenance_reason,omitempty"`
+	MaintenanceUntil  *time.Time `json:"maintenance_until,omitempty"`
+	LastSync          *time.Time `json:"last_sync,omitempty"`
+	LastReportAt      *time.Time `json:"last_report_at,omitempty"`
+	QueuePending      int        `json:"queue_pending"`
+	Monitors          int        `json:"monitors"`
+	LogSources        int        `json:"log_sources"`
+	Name              string     `json:"name,omitempty"`
+	Mode              string     `json:"mode,omitempty"`
 }
 
-func statusJSON(report AgentStatusReport) statusJSONPayload {
+func statusJSON(report AgentStatusReport, daemon control.Status, daemonOK bool) statusJSONPayload {
 	payload := statusJSONPayload{
 		ServiceManager: string(report.Service.Manager),
 		ServiceState:   report.Service.State,
@@ -114,8 +122,38 @@ func statusJSON(report AgentStatusReport) statusJSONPayload {
 		payload.AgentID = report.InternalState.AgentID
 		payload.CoreURL = report.InternalState.CoreURL
 		payload.Maintenance = report.InternalState.MaintenanceMode
+		if report.InternalState.MaintenanceReason != nil {
+			payload.MaintenanceReason = *report.InternalState.MaintenanceReason
+		}
+		payload.MaintenanceUntil = report.InternalState.MaintenanceUntil
+	}
+	if daemonOK {
+		payload.Version = daemon.Version
+		payload.PID = daemon.PID
+		payload.StartedAt = timePtrUnlessZero(daemon.StartedAt)
+		payload.UptimeSeconds = daemon.UptimeSeconds
+		payload.Registered = daemon.Registered
+		payload.AgentID = daemon.AgentID
+		payload.CoreURL = daemon.CoreURL
+		payload.Maintenance = daemon.MaintenanceMode
+		payload.MaintenanceReason = daemon.MaintenanceReason
+		payload.MaintenanceUntil = daemon.MaintenanceUntil
+		payload.LastSync = timePtrUnlessZero(daemon.LastSync)
+		payload.LastReportAt = timePtrUnlessZero(daemon.LastReportAt)
+		payload.QueuePending = daemon.QueuePending
+		payload.Monitors = daemon.Monitors
+		payload.LogSources = daemon.LogSources
+		payload.Name = daemon.Name
+		payload.Mode = daemon.Mode
 	}
 	return payload
+}
+
+func timePtrUnlessZero(value time.Time) *time.Time {
+	if value.IsZero() {
+		return nil
+	}
+	return &value
 }
 
 type doctorJSONPayload struct {

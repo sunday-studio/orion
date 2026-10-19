@@ -139,6 +139,7 @@ func (d *daemonControl) Status() (control.Status, error) {
 	if st.MaintenanceReason != nil {
 		out.MaintenanceReason = *st.MaintenanceReason
 	}
+	out.MaintenanceUntil = st.MaintenanceUntil
 	return out, nil
 }
 

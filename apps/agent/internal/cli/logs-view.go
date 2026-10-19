@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"orion/agent/internal/control"
 	"orion/agent/internal/logship"
 	"orion/agent/internal/ui"
 
@@ -22,6 +23,12 @@ type logsState struct {
 	Following bool
 	Arrived   int // lines that arrived while paused
 	Note      string
+	Runtime   runtimeState
+}
+
+type runtimeState struct {
+	Label string
+	Tone  string
 }
 
 var levelOrder = []string{"trace", "debug", "info", "warn", "error", "fatal"}
@@ -117,7 +124,32 @@ func logsHeader(th *ui.Theme, s logsState) string {
 	if s.Search != "" {
 		search = s.Search
 	}
-	return chipOut + "  level " + th.Bold(">= "+s.Level) + "   source " + th.Bold(src) + "   " + th.Muted("search: "+search)
+	header := chipOut + "  level " + th.Bold(">= "+s.Level) + "   source " + th.Bold(src) + "   " + th.Muted("search: "+search)
+	if s.Runtime.Label != "" {
+		if th.Plain() {
+			header += "   [" + s.Runtime.Label + "]"
+		} else {
+			header += "   " + th.Tone(s.Runtime.Tone, "● "+s.Runtime.Label)
+		}
+	}
+	return header
+}
+
+func logRuntimeState(st control.Status, err error, now time.Time) runtimeState {
+	if err != nil {
+		return runtimeState{Label: "not running · local spool", Tone: "unknown"}
+	}
+	if st.MaintenanceMode {
+		label := "maintenance"
+		if st.MaintenanceUntil != nil {
+			label += " until " + st.MaintenanceUntil.Local().Format("15:04")
+		}
+		return runtimeState{Label: label, Tone: "degraded"}
+	}
+	if !st.LastReportAt.IsZero() && now.Sub(st.LastReportAt) > 5*time.Minute {
+		return runtimeState{Label: fmt.Sprintf("stale · queue %d", st.QueuePending), Tone: "degraded"}
+	}
+	return runtimeState{Label: fmt.Sprintf("connected · queue %d", st.QueuePending), Tone: "up"}
 }
 
 // logsScreen renders the header, a rule and up to height rows (newest first),

@@ -74,15 +74,20 @@ func ago(now, at time.Time) string {
 func statusScreen(th *ui.Theme, st control.Status, now time.Time, width int) string {
 	boxW := min(width, 64)
 	conn, word := "connected", "up"
+	fix := ""
 	switch {
 	case !st.Registered:
 		conn, word = "not enrolled", "unknown"
+		fix = "orion-agent setup"
 	case st.MaintenanceMode:
 		conn, word = "maintenance", "maintenance"
+		fix = "orion-agent maintenance up"
 	case st.LastReportAt.IsZero():
 		conn, word = "waiting for first report", "unknown"
+		fix = "orion-agent logs"
 	case now.Sub(st.LastReportAt) > 5*time.Minute:
 		conn, word = "no recent report", "degraded"
+		fix = "orion-agent doctor"
 	}
 	head := th.StatusMark(word) + " " + th.Bold(conn)
 	if st.CoreURL != "" {
@@ -100,6 +105,14 @@ func statusScreen(th *ui.Theme, st control.Status, now time.Time, width int) str
 		kv("Last report", last),
 		kv("Queue", fmt.Sprintf("%d pending", st.QueuePending)),
 		kv("Mode", st.Mode),
+	}
+	if st.MaintenanceMode {
+		if st.MaintenanceReason != "" {
+			rows = append(rows, kv("Reason", st.MaintenanceReason))
+		}
+		if st.MaintenanceUntil != nil {
+			rows = append(rows, kv("Ends", st.MaintenanceUntil.Local().Format("2006-01-02 15:04:05")))
+		}
 	}
 	name := st.Name
 	if name == "" {
@@ -128,6 +141,9 @@ func statusScreen(th *ui.Theme, st control.Status, now time.Time, width int) str
 			parts = append(parts, fmt.Sprintf("%s %.1f%%", a.Name, a.CPUPercent))
 		}
 		b.WriteString(strings.Join(parts, "   ") + "\n")
+	}
+	if fix != "" {
+		b.WriteString("\n" + th.Muted("Fix  ") + fix + "\n")
 	}
 	return b.String()
 }

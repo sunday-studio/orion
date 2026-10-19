@@ -156,10 +156,7 @@ func newSetupCommand(ctx context.Context, opts *Options) *cobra.Command {
 }
 
 func newMaintenanceCommand(ctx context.Context, opts *Options) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "maintenance",
-		Short: "Manage maintenance mode",
-	}
+	cmd := newGroupCommand("maintenance", "Manage maintenance mode")
 
 	var maintenanceFor time.Duration
 	down := &cobra.Command{
@@ -209,10 +206,7 @@ func newMaintenanceCommand(ctx context.Context, opts *Options) *cobra.Command {
 }
 
 func newConfigCommand(ctx context.Context, opts *Options) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "config",
-		Short: "Manage configuration",
-	}
+	cmd := newGroupCommand("config", "Manage configuration")
 	validate := &cobra.Command{
 		Use:   "validate",
 		Short: "Validate config file",
@@ -246,10 +240,7 @@ func newConfigCommand(ctx context.Context, opts *Options) *cobra.Command {
 }
 
 func newStateCommand(ctx context.Context, opts *Options) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "state",
-		Short: "Manage local state",
-	}
+	cmd := newGroupCommand("state", "Manage local state")
 	init := &cobra.Command{
 		Use:   "init",
 		Short: "Initialize state database",
@@ -268,10 +259,7 @@ func newStateCommand(ctx context.Context, opts *Options) *cobra.Command {
 }
 
 func newTokenCommand(ctx context.Context, opts *Options) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "token",
-		Short: "Manage local Agent credentials",
-	}
+	cmd := newGroupCommand("token", "Manage local Agent credentials")
 	apply := &cobra.Command{
 		Use:   "apply [replacement-token]",
 		Short: "Apply a replacement token without changing Agent identity",
@@ -297,6 +285,17 @@ func newTokenCommand(ctx context.Context, opts *Options) *cobra.Command {
 	apply.Flags().StringVar(&opts.TokenFile, "token-file", "", "Path to a file containing the replacement token")
 	cmd.AddCommand(apply)
 	return cmd
+}
+
+func newGroupCommand(use, short string) *cobra.Command {
+	return &cobra.Command{
+		Use:   use,
+		Short: short,
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return cmd.Help()
+		},
+	}
 }
 
 func newReconfigureCommand(ctx context.Context, opts *Options) *cobra.Command {

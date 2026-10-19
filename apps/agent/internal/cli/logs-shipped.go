@@ -61,7 +61,9 @@ func runShippedLogs(ctx context.Context, opts *Options, o shippedOpts) error {
 	if err != nil {
 		return NewCommandError("could not read the log spool", err, "is log shipping configured? add logs.sources to the config (orion-agent config edit)", "or show the agent's own log: orion-agent logs --source file")
 	}
-	st := logsState{Entries: entries, Level: level, Source: o.Name, Search: o.Search}
+	runtime, runtimeErr := controlClient(opts).Status()
+	st := logsState{Entries: entries, Level: level, Source: o.Name, Search: o.Search,
+		Runtime: logRuntimeState(runtime, runtimeErr, time.Now())}
 	lines := o.Lines
 	if lines <= 0 {
 		lines = defaultLogLines
@@ -79,7 +81,11 @@ func runShippedLogs(ctx context.Context, opts *Options, o shippedOpts) error {
 		return nil
 	}
 	if !theme.Plain() && stdoutIsTerminal() {
-		return runLogsTUI(ctx, theme, fetch, level, o.Name)
+		status := func() runtimeState {
+			current, statusErr := controlClient(opts).Status()
+			return logRuntimeState(current, statusErr, time.Now())
+		}
+		return runLogsTUI(ctx, theme, fetch, status, level, o.Name)
 	}
 	return tailPlain(ctx, opts, st, lines)
 }

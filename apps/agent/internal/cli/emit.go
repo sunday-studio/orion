@@ -98,10 +98,6 @@ func newEmitCommand(ctx context.Context, opts *Options) *cobra.Command {
 			"  orion-agent emit --severity error --event backup.failed --attr host=db1 \"backup failed\"",
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			t, err := resolveIngestTarget(opts, source, keyFile, endpoint, app)
-			if err != nil {
-				return NewCommandError("cannot send the entry", err)
-			}
 			sev := normalizeSeverity(severity)
 			if sev == "" {
 				return NewCommandError("invalid --severity", fmt.Errorf("%q is not one of trace, debug, info, warn, error, fatal", severity))
@@ -113,6 +109,10 @@ func newEmitCommand(ctx context.Context, opts *Options) *cobra.Command {
 					return NewCommandError("invalid --attr", fmt.Errorf("%q must look like key=value", kv))
 				}
 				at[k] = v
+			}
+			t, err := resolveIngestTarget(opts, source, keyFile, endpoint, app)
+			if err != nil {
+				return NewCommandError("cannot send the entry", err)
 			}
 			e := logship.Entry{ID: utils.NewReportID(), Timestamp: time.Now().UTC().Format(time.RFC3339Nano), Severity: sev,
 				Body: strings.Join(args, " "), Event: event, Resource: t.resource()}

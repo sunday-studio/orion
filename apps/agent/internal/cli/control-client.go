@@ -23,11 +23,12 @@ func socketUsable(err error) bool {
 // is never available through the socket.
 func statusFromSocket(st control.Status) *config.InternalState {
 	state := &config.InternalState{
-		AgentID:         st.AgentID,
-		Registered:      st.Registered,
-		CoreURL:         st.CoreURL,
-		LastSync:        st.LastSync,
-		MaintenanceMode: st.MaintenanceMode,
+		AgentID:          st.AgentID,
+		Registered:       st.Registered,
+		CoreURL:          st.CoreURL,
+		LastSync:         st.LastSync,
+		MaintenanceMode:  st.MaintenanceMode,
+		MaintenanceUntil: st.MaintenanceUntil,
 	}
 	if st.MaintenanceReason != "" {
 		reason := st.MaintenanceReason
@@ -62,6 +63,13 @@ func tryControlToken(opts *Options, token string) (handled bool, err error) {
 }
 
 func maintenanceViaDaemon(opts *Options, enabled bool, reason string, d time.Duration) (bool, error) {
+	status, statusErr := controlClient(opts).Status()
+	if statusErr != nil {
+		if !socketUsable(statusErr) {
+			return false, nil
+		}
+		return true, NewCommandError("could not read daemon status", statusErr)
+	}
 	handled, err := tryControlMaintenance(opts, enabled, reason, d)
 	if !handled || err != nil {
 		return handled, err
@@ -70,13 +78,33 @@ func maintenanceViaDaemon(opts *Options, enabled bool, reason string, d time.Dur
 		return true, renderJSON(outputWriter, maintenanceResult{OK: true, Enabled: enabled, Reason: reason, Via: "daemon"})
 	}
 	PrintHeader("maintenance")
+	PrintInfo("state", opts.StatePath)
 	if enabled {
-		PrintOK("maintenance mode enabled (via daemon)")
+		PrintInfo("action", "-down")
+	} else {
+		PrintInfo("action", "-up")
+	}
+	if reason != "" {
+		PrintInfo("reason", reason)
+	}
+	PrintStep("updating maintenance mode")
+	if !status.Registered {
+		PrintSkip("agent is not registered; updating local maintenance state only")
+	}
+	if enabled {
+		if d <= 0 {
+			d = defaultMaintenanceDuration
+		}
+		PrintOK("maintenance mode enabled")
+		PrintInfo("maintenance ends", time.Now().Add(d).UTC().Format(time.RFC3339))
 		if reason != "" {
 			PrintInfo("maintenance reason", reason)
 		}
 	} else {
-		PrintOK("maintenance mode disabled (via daemon)")
+		PrintOK("maintenance mode disabled")
+	}
+	if status.Registered {
+		PrintOK("core maintenance mode updated")
 	}
 	return true, nil
 }

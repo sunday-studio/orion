@@ -43,6 +43,7 @@ type Status struct {
 	LastSync          time.Time      `json:"last_sync"`
 	MaintenanceMode   bool           `json:"maintenance_mode"`
 	MaintenanceReason string         `json:"maintenance_reason,omitempty"`
+	MaintenanceUntil  *time.Time     `json:"maintenance_until,omitempty"`
 	Monitors          int            `json:"monitors"`
 	QueuePending      int            `json:"queue_pending"`
 	Name              string         `json:"name,omitempty"`
