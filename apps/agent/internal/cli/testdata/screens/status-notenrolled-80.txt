@@ -10,3 +10,5 @@
 ╰──────────────────────────────────────────────────────────────╯
 
 Watching  5 monitors, 2 log sources
+
+Fix  orion-agent setup

@@ -107,7 +107,6 @@ func updateCoreMaintenanceMode(internalState *config.InternalState, enabled bool
 		return err
 	}
 
-	PrintOK("core maintenance mode updated")
 	return nil
 }
 

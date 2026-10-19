@@ -14,12 +14,14 @@ import (
 
 type tickMsg time.Time
 type entriesMsg []logship.Entry
+type runtimeMsg runtimeState
 
 // logsModel is the follow viewer (cli-logs artboard): status line, newest-first
 // rows, key footer. It reads the spool through fetch, so it works offline.
 type logsModel struct {
 	th      *ui.Theme
 	fetch   func() ([]logship.Entry, error)
+	status  func() runtimeState
 	state   logsState
 	seen    map[string]bool
 	sources []string
@@ -30,15 +32,15 @@ type logsModel struct {
 	err     error
 }
 
-func newLogsModel(th *ui.Theme, fetch func() ([]logship.Entry, error), level, source string) logsModel {
+func newLogsModel(th *ui.Theme, fetch func() ([]logship.Entry, error), status func() runtimeState, level, source string) logsModel {
 	in := textinput.New()
 	in.Prompt = "/ "
 	in.CharLimit = 80
-	return logsModel{th: th, fetch: fetch, seen: map[string]bool{}, input: in, width: 100, height: 24,
+	return logsModel{th: th, fetch: fetch, status: status, seen: map[string]bool{}, input: in, width: 100, height: 24,
 		state: logsState{Level: level, Source: source, Following: true}}
 }
 
-func (m logsModel) Init() tea.Cmd { return tea.Batch(m.poll(), tick()) }
+func (m logsModel) Init() tea.Cmd { return tea.Batch(m.poll(), m.pollStatus(), tick()) }
 
 func tick() tea.Cmd { return tea.Tick(time.Second, func(t time.Time) tea.Msg { return tickMsg(t) }) }
 
@@ -52,12 +54,18 @@ func (m logsModel) poll() tea.Cmd {
 	}
 }
 
+func (m logsModel) pollStatus() tea.Cmd {
+	return func() tea.Msg { return runtimeMsg(m.status()) }
+}
+
 func (m logsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch v := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = v.Width, v.Height
 	case tickMsg:
-		return m, tea.Batch(m.poll(), tick())
+		return m, tea.Batch(m.poll(), m.pollStatus(), tick())
+	case runtimeMsg:
+		m.state.Runtime = runtimeState(v)
 	case error:
 		m.err = v
 	case entriesMsg:
@@ -153,8 +161,8 @@ func contains(xs []string, s string) bool {
 }
 
 // runLogsTUI runs the interactive follower until the user quits.
-func runLogsTUI(ctx context.Context, th *ui.Theme, fetch func() ([]logship.Entry, error), level, source string) error {
-	p := tea.NewProgram(newLogsModel(th, fetch, level, source), tea.WithAltScreen(), tea.WithContext(ctx))
+func runLogsTUI(ctx context.Context, th *ui.Theme, fetch func() ([]logship.Entry, error), status func() runtimeState, level, source string) error {
+	p := tea.NewProgram(newLogsModel(th, fetch, status, level, source), tea.WithAltScreen(), tea.WithContext(ctx))
 	_, err := p.Run()
 	return err
 }

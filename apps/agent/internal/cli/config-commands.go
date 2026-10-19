@@ -87,7 +87,14 @@ func runConfigDiffAgainst(_ context.Context, opts *Options, other string) error 
 		return nil
 	}
 	for _, l := range diff {
-		fmt.Fprintln(outputWriter, l)
+		switch {
+		case strings.HasPrefix(l, "- "):
+			fmt.Fprintln(outputWriter, theme.Tone("down", l))
+		case strings.HasPrefix(l, "+ "):
+			fmt.Fprintln(outputWriter, theme.Tone("up", l))
+		default:
+			fmt.Fprintln(outputWriter, l)
+		}
 	}
 	return nil
 }

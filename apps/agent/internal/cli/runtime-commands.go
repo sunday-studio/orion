@@ -18,6 +18,10 @@ import (
 )
 
 func runAgent(ctx context.Context, opts *Options) error {
+	if opts.Once && !opts.Verbose {
+		logging.SetLevel(logging.LevelFatal)
+		defer logging.SetLevel(logging.LevelInfo)
+	}
 	PrintHeader("run")
 	PrintInfo("config", opts.ConfigPath)
 	PrintInfo("state", opts.StatePath)
@@ -83,47 +87,46 @@ func runAgent(ctx context.Context, opts *Options) error {
 }
 
 func runMaintenance(_ context.Context, opts *Options, action string, reason string, duration time.Duration) error {
-	PrintHeader("maintenance")
-	PrintInfo("state", opts.StatePath)
-	PrintInfo("action", action)
-	if reason != "" {
-		PrintInfo("reason", reason)
-	}
-
-	PrintStep("opening state database")
 	stateStore, err := agentstate.Open(opts.StatePath)
 	if err != nil {
 		return NewCommandError("could not open state database", err)
 	}
 	defer stateStore.Close()
-	PrintOK("state database ready")
-
-	PrintStep("loading local agent state")
 	internalState, err := stateStore.Get()
 	if err != nil {
 		return NewCommandError("could not load state", err)
 	}
-	PrintOK("local agent state loaded")
+	registered := internalState.IsRegistered()
+	if !opts.JSON {
+		PrintHeader("maintenance")
+		PrintInfo("state", opts.StatePath)
+		PrintInfo("action", action)
+		if reason != "" {
+			PrintInfo("reason", reason)
+		}
+		PrintStep("updating maintenance mode")
+	}
 
 	switch action {
 	case "-up":
-		PrintStep("updating maintenance mode")
 		if err := updateCoreMaintenanceMode(internalState, false, 0); err != nil {
 			return NewCommandError("could not update core maintenance mode", err)
 		}
 		if err := stateStore.SetMaintenanceMode(false, nil); err != nil {
 			return NewCommandError("could not save state", err)
 		}
-		PrintOK("maintenance mode disabled")
 		if opts.JSON {
 			return renderJSON(outputWriter, maintenanceResult{OK: true, Enabled: false, Via: "state"})
+		}
+		PrintOK("maintenance mode disabled")
+		if registered {
+			PrintOK("core maintenance mode updated")
 		}
 	case "-down":
 		var reasonPtr *string
 		if reason != "" {
 			reasonPtr = &reason
 		}
-		PrintStep("updating maintenance mode")
 		if duration <= 0 {
 			duration = defaultMaintenanceDuration
 		}
@@ -134,13 +137,16 @@ func runMaintenance(_ context.Context, opts *Options, action string, reason stri
 		if err := stateStore.SetMaintenanceWindow(true, reasonPtr, &until); err != nil {
 			return NewCommandError("could not save state", err)
 		}
+		if opts.JSON {
+			return renderJSON(outputWriter, maintenanceResult{OK: true, Enabled: true, Reason: reason, Via: "state"})
+		}
 		PrintOK("maintenance mode enabled")
-		PrintInfo("maintenance ends", until.Format(time.RFC3339))
+		PrintInfo("maintenance ends", until.UTC().Format(time.RFC3339))
 		if reason != "" {
 			PrintInfo("maintenance reason", reason)
 		}
-		if opts.JSON {
-			return renderJSON(outputWriter, maintenanceResult{OK: true, Enabled: true, Reason: reason, Via: "state"})
+		if registered {
+			PrintOK("core maintenance mode updated")
 		}
 	}
 	return nil

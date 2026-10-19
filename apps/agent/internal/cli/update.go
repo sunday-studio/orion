@@ -75,7 +75,6 @@ func UpdateAgent(opts UpdateOptions) error {
 		step:       PrintStep, ok: PrintOK, in: func(m string) { PrintInfo("note", m) },
 	}
 	env.healthy = func(want string) error { return daemonHealthy(opts, want) }
-	PrintOrionBanner("Agent update")
 	PrintHeader("update")
 	PrintInfo("current_version", opts.CurrentVersion)
 	PrintInfo("binary", exe)

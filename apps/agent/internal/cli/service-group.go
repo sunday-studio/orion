@@ -17,10 +17,7 @@ func hidden(c *cobra.Command) *cobra.Command {
 // newServiceCommand groups everything that manages the installed service.
 // Legacy top-level start/stop/restart still work as hidden aliases.
 func newServiceCommand(ctx context.Context, opts *Options) *cobra.Command {
-	svc := &cobra.Command{
-		Use:   "service",
-		Short: "Install, start, stop and inspect the Orion Agent service",
-	}
+	svc := newGroupCommand("service", "Install, start, stop and inspect the Orion Agent service")
 	install := &cobra.Command{
 		Use:   "install",
 		Short: "Show how to install the service on this host",
