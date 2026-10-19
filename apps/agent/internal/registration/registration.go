@@ -48,6 +48,17 @@ func (s *RegistrationService) RegisterAgentIfNeeded() error {
 		return nil
 	}
 
+	return s.registerAgent()
+}
+
+// ReconnectAgent performs an explicitly authorized registration even when
+// local state is present. Existing state remains intact until Core returns the
+// replacement credential, so a failed reconnect does not destroy a working identity.
+func (s *RegistrationService) ReconnectAgent() error {
+	return s.registerAgent()
+}
+
+func (s *RegistrationService) registerAgent() error {
 	uuid, err := utils.ResolveAgentIdentity(filepath.Join(filepath.Dir(s.stateStore.Path()), "machine-identity.json"))
 	if err != nil {
 		return fmt.Errorf("failed to generate agent UUID: %w", err)
@@ -72,11 +83,7 @@ func (s *RegistrationService) RegisterAgentIfNeeded() error {
 		}
 	}
 
-	enrollment, err := config.Env(config.EnvEnrollment)
-	if err != nil {
-		return err
-	}
-	s.client.SetEnrollmentToken(enrollment)
+	s.client.SetEnrollmentToken(enrollmentToken(s.userConfig))
 
 	resp, err := s.client.RegisterAgent(req)
 	if err != nil {

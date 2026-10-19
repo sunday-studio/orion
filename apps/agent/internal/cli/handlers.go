@@ -102,7 +102,6 @@ func updateCoreMaintenanceMode(internalState *config.InternalState, enabled bool
 	}
 
 	client := transport.NewClient(internalState.CoreURL, internalState.Token)
-	PrintInfo("core_url", internalState.CoreURL)
 	if err := client.SetMaintenanceMode(internalState.AgentID, enabled, duration); err != nil {
 		return err
 	}

@@ -154,10 +154,10 @@ func NewRootCommand(ctx context.Context, opts *Options, out, errOut io.Writer) *
 	root.AddCommand(
 		newVersionCommand(),
 		newServiceCommand(ctx, opts),
-		hidden(newStartCommand(ctx, opts)),
-		hidden(newStopCommand(ctx, opts)),
+		newStartCommand(ctx, opts),
+		newStopCommand(ctx, opts),
 		newStatusCommand(ctx, opts),
-		hidden(newRestartCommand(ctx, opts)),
+		newRestartCommand(ctx, opts),
 		newLogsCommand(ctx, opts),
 		newUpdateCommand(ctx, opts),
 		newRunCommand(ctx, opts),
@@ -170,9 +170,9 @@ func NewRootCommand(ctx context.Context, opts *Options, out, errOut io.Writer) *
 		newEnrollCommand(ctx, opts),
 		newMaintenanceCommand(ctx, opts),
 		newConfigCommand(ctx, opts),
-		hidden(newStateCommand(ctx, opts)),
+		newStateCommand(ctx, opts),
 		newTokenCommand(ctx, opts),
-		hidden(newReconfigureCommand(ctx, opts)),
+		newReconfigureCommand(ctx, opts),
 	)
 
 	return root

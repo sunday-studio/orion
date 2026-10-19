@@ -109,7 +109,16 @@ func runEnroll(_ context.Context, opts *Options, coreURL, token, tokenFile strin
 	}()
 	if err := registration.New(userConfig, opts.ConfigPath, store).RegisterAgentIfNeeded(); err != nil {
 		if errors.Is(err, transport.ErrEnrollmentRejected) {
-			return NewCommandError("Core rejected the enrollment token", err)
+			return NewCommandError("Core rejected the enrollment token", err, "create a new token in Console and run enroll again")
+		}
+		var statusErr *transport.StatusError
+		if errors.As(err, &statusErr) && statusErr.StatusCode == 409 {
+			return NewCommandError(
+				"Core already knows this host and requires a new credential",
+				err,
+				"for a rotated Server token, run: orion-agent token apply --token-file <file>",
+				"to reconnect, create a fresh token in Console under Servers, Add server",
+			)
 		}
 		return NewCommandError("could not register with Core", err, "check connectivity with: orion-agent doctor")
 	}
