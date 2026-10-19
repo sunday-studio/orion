@@ -178,6 +178,7 @@ func newRunJobCommand(ctx context.Context, opts *Options) *cobra.Command {
 				}
 			}
 			if res.ExitCode != 0 {
+				fmt.Fprintf(cmd.ErrOrStderr(), "%s job %s failed with exit code %d after %s\n", theme.Tone("down", "error:"), name, res.ExitCode, res.Duration.Round(time.Millisecond))
 				return &CommandError{Summary: fmt.Sprintf("job %s failed with exit code %d", name, res.ExitCode), ExitCode: res.ExitCode, Silent: true}
 			}
 			return nil

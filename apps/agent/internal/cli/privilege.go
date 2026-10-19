@@ -57,8 +57,10 @@ func EnsureCommandPrivilege(command string, args []string) error {
 
 func commandNeedsElevation(command string, args []string) bool {
 	switch command {
-	case "start", "stop", "restart", "update", "reconfigure":
+	case "start", "stop", "restart", "update":
 		return true
+	case "reconfigure":
+		return !argsSetPath(args, "state")
 	case "setup", "enroll":
 		return !pathWritable(argValue(args, "config", defaultConfigPath()))
 	case "maintenance", "state", "token":

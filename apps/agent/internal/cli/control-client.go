@@ -78,19 +78,20 @@ func maintenanceViaDaemon(opts *Options, enabled bool, reason string, d time.Dur
 		return true, renderJSON(outputWriter, maintenanceResult{OK: true, Enabled: enabled, Reason: reason, Via: "daemon"})
 	}
 	PrintHeader("maintenance")
+	if !status.Registered {
+		PrintSkip("agent is not registered; updating local maintenance state only")
+		return true, nil
+	}
 	PrintInfo("state", opts.StatePath)
 	if enabled {
-		PrintInfo("action", "-down")
+		PrintInfo("action", "down")
 	} else {
-		PrintInfo("action", "-up")
+		PrintInfo("action", "up")
 	}
 	if reason != "" {
 		PrintInfo("reason", reason)
 	}
 	PrintStep("updating maintenance mode")
-	if !status.Registered {
-		PrintSkip("agent is not registered; updating local maintenance state only")
-	}
 	if enabled {
 		if d <= 0 {
 			d = defaultMaintenanceDuration
@@ -103,9 +104,7 @@ func maintenanceViaDaemon(opts *Options, enabled bool, reason string, d time.Dur
 	} else {
 		PrintOK("maintenance mode disabled")
 	}
-	if status.Registered {
-		PrintOK("core maintenance mode updated")
-	}
+	PrintOK("core maintenance mode updated")
 	return true, nil
 }
 
@@ -113,6 +112,13 @@ func applyTokenViaDaemon(opts *Options) (bool, error) {
 	token, err := replacementTokenFromOptions(opts)
 	if err != nil || token == "" {
 		return false, nil // let the direct path report the problem
+	}
+	status, statusErr := controlClient(opts).Status()
+	if statusErr != nil {
+		if !socketUsable(statusErr) {
+			return false, nil
+		}
+		return true, NewCommandError("could not read daemon status", statusErr)
 	}
 	handled, err := tryControlToken(opts, token)
 	if !handled || err != nil {
@@ -122,7 +128,15 @@ func applyTokenViaDaemon(opts *Options) (bool, error) {
 		return true, renderJSON(outputWriter, map[string]any{"ok": true, "identity": "preserved", "restart_required": true, "via": "daemon"})
 	}
 	PrintHeader("token apply")
-	PrintOK("replacement token applied (via daemon)")
+	PrintInfo("state", opts.StatePath)
+	PrintStep("opening state database")
+	PrintOK("state database ready")
+	PrintStep("loading local agent state")
+	PrintInfo("agent_id", status.AgentID)
+	PrintInfo("core_url", status.CoreURL)
+	PrintInfo("monitor_mappings", status.Monitors)
+	PrintStep("saving replacement token")
+	PrintOK("replacement token applied")
 	PrintInfo("identity", "preserved")
 	PrintInfo("next", "orion-agent restart")
 	return true, nil

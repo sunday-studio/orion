@@ -179,7 +179,7 @@ func newMaintenanceCommand(ctx context.Context, opts *Options) *cobra.Command {
 					return NewCommandError("could not elevate privileges", err)
 				}
 			}
-			return runMaintenance(ctx, opts, "-down", reason, maintenanceFor)
+			return runMaintenance(ctx, opts, "down", reason, maintenanceFor)
 		},
 	}
 
@@ -196,7 +196,7 @@ func newMaintenanceCommand(ctx context.Context, opts *Options) *cobra.Command {
 					return NewCommandError("could not elevate privileges", err)
 				}
 			}
-			return runMaintenance(ctx, opts, "-up", "", 0)
+			return runMaintenance(ctx, opts, "up", "", 0)
 		},
 	}
 
@@ -299,17 +299,24 @@ func newGroupCommand(use, short string) *cobra.Command {
 }
 
 func newReconfigureCommand(ctx context.Context, opts *Options) *cobra.Command {
-	return &cobra.Command{
+	var token, tokenFile string
+	cmd := &cobra.Command{
 		Use:   "reconfigure",
 		Short: "Reset local registration and reconnect using installed config",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := ensurePrivilegeFor(opts, "reconfigure"); err != nil {
-				return NewCommandError("could not elevate privileges", err)
+			if commandNeedsElevation("reconfigure", commandArgs(opts, "reconfigure")) {
+				if err := ensurePrivilegeFor(opts, "reconfigure"); err != nil {
+					return NewCommandError("could not elevate privileges", err)
+				}
 			}
-			return runReconfigure(ctx, opts)
+			return runReconfigure(ctx, opts, token, tokenFile)
 		},
 	}
+	cmd.Flags().StringVar(&token, "token", "", "Fresh one-time Add server token (prefer --token-file)")
+	cmd.Flags().StringVar(&tokenFile, "token-file", "", "File containing a fresh one-time Add server token")
+	cmd.MarkFlagsMutuallyExclusive("token", "token-file")
+	return cmd
 }
 
 func configureLogging(opts *Options) {

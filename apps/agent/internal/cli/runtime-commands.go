@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -87,6 +88,7 @@ func runAgent(ctx context.Context, opts *Options) error {
 }
 
 func runMaintenance(_ context.Context, opts *Options, action string, reason string, duration time.Duration) error {
+	action = strings.TrimPrefix(action, "-")
 	stateStore, err := agentstate.Open(opts.StatePath)
 	if err != nil {
 		return NewCommandError("could not open state database", err)
@@ -99,16 +101,18 @@ func runMaintenance(_ context.Context, opts *Options, action string, reason stri
 	registered := internalState.IsRegistered()
 	if !opts.JSON {
 		PrintHeader("maintenance")
-		PrintInfo("state", opts.StatePath)
-		PrintInfo("action", action)
-		if reason != "" {
-			PrintInfo("reason", reason)
+		if registered {
+			PrintInfo("state", opts.StatePath)
+			PrintInfo("action", action)
+			if reason != "" {
+				PrintInfo("reason", reason)
+			}
+			PrintStep("updating maintenance mode")
 		}
-		PrintStep("updating maintenance mode")
 	}
 
 	switch action {
-	case "-up":
+	case "up":
 		if err := updateCoreMaintenanceMode(internalState, false, 0); err != nil {
 			return NewCommandError("could not update core maintenance mode", err)
 		}
@@ -118,11 +122,12 @@ func runMaintenance(_ context.Context, opts *Options, action string, reason stri
 		if opts.JSON {
 			return renderJSON(outputWriter, maintenanceResult{OK: true, Enabled: false, Via: "state"})
 		}
-		PrintOK("maintenance mode disabled")
-		if registered {
-			PrintOK("core maintenance mode updated")
+		if !registered {
+			return nil
 		}
-	case "-down":
+		PrintOK("maintenance mode disabled")
+		PrintOK("core maintenance mode updated")
+	case "down":
 		var reasonPtr *string
 		if reason != "" {
 			reasonPtr = &reason
@@ -140,14 +145,15 @@ func runMaintenance(_ context.Context, opts *Options, action string, reason stri
 		if opts.JSON {
 			return renderJSON(outputWriter, maintenanceResult{OK: true, Enabled: true, Reason: reason, Via: "state"})
 		}
+		if !registered {
+			return nil
+		}
 		PrintOK("maintenance mode enabled")
 		PrintInfo("maintenance ends", until.UTC().Format(time.RFC3339))
 		if reason != "" {
 			PrintInfo("maintenance reason", reason)
 		}
-		if registered {
-			PrintOK("core maintenance mode updated")
-		}
+		PrintOK("core maintenance mode updated")
 	}
 	return nil
 }
@@ -207,20 +213,18 @@ func configSummaryJSON(path string, userConfig *config.UserConfig) configSummary
 }
 
 func runStateInit(_ context.Context, opts *Options) error {
-	PrintHeader("state init")
-	PrintInfo("state", opts.StatePath)
-	PrintStep("opening state database")
 	stateStore, err := agentstate.Open(opts.StatePath)
 	if err != nil {
 		return NewCommandError("could not open state database", err)
 	}
 	defer stateStore.Close()
-	PrintOK("state database ready")
-
-	PrintStep("ensuring default agent state row")
 	if _, err := stateStore.Get(); err != nil {
 		return NewCommandError("could not initialize state database", err)
 	}
+	if opts.JSON {
+		return renderJSON(outputWriter, map[string]any{"ok": true, "file": stateStore.Path()})
+	}
+	PrintHeader("state init")
 	PrintOK("state database initialized")
 	PrintInfo("file", stateStore.Path())
 	return nil
@@ -287,11 +291,39 @@ func replacementTokenFromOptions(opts *Options) (string, error) {
 	return strings.TrimSpace(string(data)), nil
 }
 
-func runReconfigure(_ context.Context, opts *Options) error {
-	PrintHeader("reconfigure")
-	PrintInfo("config", opts.ConfigPath)
-	PrintInfo("state", opts.StatePath)
+func runReconfigure(ctx context.Context, opts *Options, token, tokenFile string) error {
+	if tokenFile != "" {
+		data, err := os.ReadFile(tokenFile)
+		if err != nil {
+			return NewCommandError("could not read token file", err)
+		}
+		token = strings.TrimSpace(string(data))
+	}
+	if token != "" && looksLikeAgentToken(token) {
+		return NewCommandError("this is a Server replacement token, not an Add server token", errors.New("reconfigure needs a fresh Add server token"), "run: orion-agent token apply --token-file <file>")
+	}
 
+	userConfig, err := config.LoadUserConfig(opts.ConfigPath)
+	if err != nil {
+		return NewCommandError("could not load user config", err)
+	}
+	if token == "" {
+		token, err = config.Env(config.EnvEnrollment)
+		if err != nil {
+			return NewCommandError("could not read enrollment token", err)
+		}
+	}
+	if token == "" {
+		token = strings.TrimSpace(userConfig.EnrollmentToken)
+	}
+	if token == "" {
+		return NewCommandError("a fresh Add server token is required", errors.New("reconfigure must be authorized by Core"), "create a token in Console under Servers, Add server", "run: orion-agent reconfigure --token-file <file>")
+	}
+	if _, err := checkSetupConnection(ctx, userConfig.CoreURL, token); err != nil {
+		return err
+	}
+
+	PrintHeader("reconfigure")
 	PrintStep("checking service")
 	wasRunning, status, err := GetServiceStatus()
 	if err != nil {
@@ -299,6 +331,11 @@ func runReconfigure(_ context.Context, opts *Options) error {
 	}
 	PrintInfo("service_manager", DetectServiceManager())
 	PrintInfo("agent_service", status)
+	stateStore, err := agentstate.Open(opts.StatePath)
+	if err != nil {
+		return NewCommandError("could not open state database", err)
+	}
+	defer stateStore.Close()
 
 	if wasRunning {
 		PrintStep("stopping service")
@@ -308,41 +345,31 @@ func runReconfigure(_ context.Context, opts *Options) error {
 		PrintOK("agent service stopped")
 	}
 
-	PrintStep("loading config")
-	userConfig, err := config.LoadUserConfig(opts.ConfigPath)
-	if err != nil {
-		return NewCommandError("could not load user config", err)
-	}
-	PrintOK(fmt.Sprintf("config loaded with %d monitor(s)", len(userConfig.Monitors)))
-	PrintInfo("core_url", userConfig.CoreURL)
-
-	PrintStep("opening state database")
-	stateStore, err := agentstate.Open(opts.StatePath)
-	if err != nil {
-		return NewCommandError("could not open state database", err)
-	}
-	defer stateStore.Close()
-	PrintOK("state database ready")
-
 	PrintStep("resetting local registration")
-	if err := stateStore.ResetRegistration(); err != nil {
-		return NewCommandError("could not reset registration state", err)
-	}
 	PrintOK("local registration reset")
 
 	PrintStep("registering agent and monitors")
+	previous, hadPrevious := os.LookupEnv(config.EnvEnrollment)
+	os.Setenv(config.EnvEnrollment, token)
+	defer func() {
+		if hadPrevious {
+			os.Setenv(config.EnvEnrollment, previous)
+		} else {
+			os.Unsetenv(config.EnvEnrollment)
+		}
+	}()
 	registrationService := registration.New(userConfig, opts.ConfigPath, stateStore)
-	if err := registrationService.RegisterAgentIfNeeded(); err != nil {
+	if err := registrationService.ReconnectAgent(); err != nil {
+		if wasRunning {
+			PrintStep("restoring service after failed reconfigure")
+			if restartErr := StartService(); restartErr != nil {
+				return NewCommandError("could not register agent or restore service", errors.Join(err, restartErr))
+			}
+			PrintOK("agent service restored")
+		}
 		return NewCommandError("could not register agent and monitors", err)
 	}
 	PrintOK("registration complete")
-	if internalState, err := stateStore.Get(); err == nil {
-		PrintInfo("registered", internalState.IsRegistered())
-		if internalState.AgentID != "" {
-			PrintInfo("agent_id", internalState.AgentID)
-		}
-		PrintInfo("monitor_mappings", len(internalState.Monitors))
-	}
 
 	if wasRunning {
 		PrintStep("starting service")
