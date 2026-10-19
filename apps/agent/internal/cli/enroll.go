@@ -62,6 +62,14 @@ func runEnroll(_ context.Context, opts *Options, coreURL, token, tokenFile strin
 		return NewCommandError("enrollment token is required", errors.New("none given"),
 			"copy the command from Console > Add server, or pass --token-file")
 	}
+	if looksLikeAgentToken(token) {
+		return NewCommandError(
+			"this is a Server replacement token, not an Add server token",
+			errors.New("replacement tokens update an existing local registration"),
+			"run: orion-agent token apply --token-file <file>",
+			"to connect a host, create a token in Console under Servers, Add server",
+		)
+	}
 	if coreURL == "" {
 		coreURL, _ = config.Env(config.EnvCoreURL)
 	}
@@ -69,7 +77,7 @@ func runEnroll(_ context.Context, opts *Options, coreURL, token, tokenFile strin
 		return NewCommandError("Core URL is required", errors.New("none given"), "pass --core-url https://your-core")
 	}
 
-	if !opts.JSON {
+	if !opts.JSON && !opts.Quiet {
 		PrintHeader("enroll")
 		PrintInfo("core_url", coreURL)
 	}
@@ -112,6 +120,9 @@ func runEnroll(_ context.Context, opts *Options, coreURL, token, tokenFile strin
 	handOverToServiceUser(opts.StatePath, opts.ConfigPath)
 
 	res := enrollResult{AgentID: st.AgentID, CoreURL: st.CoreURL, Config: opts.ConfigPath, State: opts.StatePath}
+	if opts.Quiet {
+		return nil
+	}
 	if opts.JSON {
 		return renderJSON(outputWriter, res)
 	}

@@ -11,6 +11,7 @@ import (
 
 	"orion/agent/internal/config"
 	"orion/agent/internal/discover"
+	"orion/agent/internal/logging"
 	agentstate "orion/agent/internal/state"
 
 	"github.com/charmbracelet/x/term"
@@ -32,6 +33,10 @@ type setupPlan struct {
 func stdinIsTerminal() bool { return term.IsTerminal(os.Stdin.Fd()) && term.IsTerminal(os.Stdout.Fd()) }
 
 func runSetup(ctx context.Context, opts *Options) error {
+	if !opts.Verbose {
+		logging.SetLevel(logging.LevelError)
+		defer logging.SetLevel(logging.LevelInfo)
+	}
 	interactive := !opts.SetupYes && !opts.JSON && stdinIsTerminal()
 	var plan setupPlan
 	var err error
@@ -41,6 +46,9 @@ func runSetup(ctx context.Context, opts *Options) error {
 		plan, err = planFromFlags(ctx, opts)
 	}
 	if err != nil {
+		if plan.RemoveTokenFile {
+			_ = os.Remove(plan.TokenFile)
+		}
 		return err
 	}
 	return applySetup(ctx, opts, plan)
@@ -74,6 +82,15 @@ func planFromFlags(ctx context.Context, opts *Options) (setupPlan, error) {
 	if plan.CoreURL == "" {
 		return plan, NewCommandError("could not create config", errors.New("--core-url is required"), "pass --core-url https://your-core, or set "+config.EnvCoreURL)
 	}
+	if !opts.SetupDryRun {
+		connection, err := preflightSetupPlan(ctx, opts, plan)
+		if err != nil {
+			return plan, err
+		}
+		if connection != nil {
+			PrintOK(setupConnectionSummary(*connection))
+		}
+	}
 	if len(opts.SetupMonitors) > 0 || opts.SetupAcceptDiscovered {
 		found := discoverHost(ctx)
 		selectors := opts.SetupMonitors
@@ -87,6 +104,22 @@ func planFromFlags(ctx context.Context, opts *Options) (setupPlan, error) {
 		plan.Selected = sel
 	}
 	return plan, nil
+}
+
+func preflightSetupPlan(ctx context.Context, opts *Options, plan setupPlan) (*setupConnection, error) {
+	if plan.TokenFile != "" {
+		data, err := os.ReadFile(plan.TokenFile)
+		if err != nil {
+			return nil, NewCommandError("could not read the Add server token", err)
+		}
+		result, err := checkSetupConnection(ctx, plan.CoreURL, strings.TrimSpace(string(data)))
+		return &result, err
+	}
+	if current := currentSetupState(opts.StatePath); current != nil {
+		result, err := checkCurrentSetupConnection(ctx, current, plan.CoreURL)
+		return &result, err
+	}
+	return nil, nil
 }
 
 // buildSetupConfig merges the plan into the existing config (or a blank one).
@@ -153,9 +186,10 @@ func applySetup(ctx context.Context, opts *Options, plan setupPlan) error {
 
 	switch {
 	case plan.TokenFile != "":
-		if err := runEnroll(ctx, &Options{ConfigPath: opts.ConfigPath, StatePath: opts.StatePath, SocketPath: opts.SocketPath, JSON: false}, plan.CoreURL, "", plan.TokenFile); err != nil {
+		if err := runEnroll(ctx, &Options{ConfigPath: opts.ConfigPath, StatePath: opts.StatePath, SocketPath: opts.SocketPath, Quiet: true}, plan.CoreURL, "", plan.TokenFile); err != nil {
 			return err
 		}
+		PrintOK("host enrolled")
 	case opts.SetupInitState:
 		store, err := agentstate.Open(opts.StatePath)
 		if err != nil {
@@ -170,7 +204,7 @@ func applySetup(ctx context.Context, opts *Options, plan setupPlan) error {
 	if err := controlClient(opts).Reload(); err == nil {
 		PrintOK("running daemon picked up the new config (no restart)")
 	} else {
-		PrintInfo("next", "orion-agent start   (or: orion-agent run --once to try it)")
+		PrintInfo("next", "orion-agent run --once")
 	}
 	return nil
 }

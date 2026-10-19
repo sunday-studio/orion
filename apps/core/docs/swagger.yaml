@@ -2874,6 +2874,11 @@ definitions:
       redacted:
         type: object
     type: object
+  internal_api.RegistrationPreflightResponse:
+    properties:
+      valid:
+        type: boolean
+    type: object
   internal_api.RegistrationTokenResponse:
     properties:
       rotated_at:
@@ -12543,6 +12548,38 @@ paths:
           schema:
             $ref: '#/definitions/orion_core_internal_utils.APIResponse'
       summary: Register an agent
+      tags:
+      - agents
+  /v1/register/preflight:
+    post:
+      description: Checks that the presented enrollment credential can register an
+        Agent. This does not claim or consume a one-time Add server token.
+      parameters:
+      - description: Enrollment credential
+        in: header
+        name: X-Orion-Enrollment-Token
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_api.RegistrationPreflightResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/orion_core_internal_utils.APIResponse'
+      summary: Validate an Agent enrollment token
       tags:
       - agents
   /v1/search:

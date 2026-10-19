@@ -21,6 +21,7 @@ import (
 func runWizard(ctx context.Context, opts *Options) (setupPlan, error) {
 	plan := setupPlan{Force: opts.SetupForce}
 	accessible := os.Getenv("ORION_ACCESSIBLE") != ""
+	current := currentSetupState(opts.StatePath)
 
 	coreURL := firstNonEmpty(opts.SetupCoreURL, envOrEmpty(config.EnvCoreURL))
 	if coreURL == "" {
@@ -30,16 +31,39 @@ func runWizard(ctx context.Context, opts *Options) (setupPlan, error) {
 	}
 	token := ""
 	setSetupTerminalTitle(1)
-	form := huh.NewForm(huh.NewGroup(
+	fields := []huh.Field{
 		huh.NewInput().Title("Core URL").Description("Where is your Orion Core?").Prompt(" ").
 			Value(&coreURL).Validate(validateCoreURL),
-		huh.NewInput().Title("Enrollment token").Description("From Console, Servers, Add server").Prompt(" ").
-			EchoMode(huh.EchoModePassword).Value(&token),
-	)).WithTheme(wizardTheme()).WithAccessible(accessible)
+	}
+	if current == nil {
+		fields = append(fields, huh.NewInput().Title("Add server token").
+			Description("Create one in Console, Servers, Add server").Prompt(" ").
+			EchoMode(huh.EchoModePassword).Value(&token))
+	}
+	connect := huh.NewGroup(fields...).Title("Connect this host").Description(strings.Repeat("─", 62))
+	form := huh.NewForm(connect).WithTheme(wizardTheme()).WithAccessible(accessible)
 	if err := form.RunWithContext(ctx); err != nil {
 		return plan, wizardErr(err)
 	}
 	plan.CoreURL = strings.TrimSpace(coreURL)
+	var connection setupConnection
+	var connectionErr error
+	checkTitle := "Checking Core and Add server token..."
+	if current != nil {
+		checkTitle = "Checking the existing Core connection..."
+	}
+	_ = spinner.New().Title(checkTitle).Context(ctx).Action(func() {
+		if current != nil {
+			connection, connectionErr = checkCurrentSetupConnection(ctx, current, plan.CoreURL)
+			return
+		}
+		connection, connectionErr = checkSetupConnection(ctx, plan.CoreURL, strings.TrimSpace(token))
+	}).Run()
+	if connectionErr != nil {
+		return plan, connectionErr
+	}
+	fmt.Fprintf(outputWriter, "%s Core reachable %s   %s %s\n",
+		theme.Pass(), setupConnectionLatency(connection), theme.Pass(), setupConnectionTokenLabel(connection))
 	if token = strings.TrimSpace(token); token != "" {
 		path, err := stageEnrollmentToken(token)
 		if err != nil {
@@ -54,32 +78,33 @@ func runWizard(ctx context.Context, opts *Options) (setupPlan, error) {
 	for _, n := range found.Notes {
 		PrintSkip(n)
 	}
-	picks := pickableCandidates(found.Candidates)
-	if len(picks) == 0 {
-		PrintSkip("nothing to suggest; host metrics will still report")
-		return plan, nil
-	}
-	var chosen []string
-	opts2 := make([]huh.Option[string], 0, len(picks))
-	for _, c := range picks {
-		label := fmt.Sprintf("%-18s %-16s %s", c.Name, c.Kind, c.Confidence)
-		if c.Detail != "" {
-			label = fmt.Sprintf("%-18s %-16s %s  %s", c.Name, c.Detail, c.Kind, c.Confidence)
-		}
-		opts2 = append(opts2, huh.NewOption(label, c.ID).Selected(c.Confidence == discover.High))
-	}
+	picks, omitted := pickableCandidates(found.Candidates)
 	setSetupTerminalTitle(2)
-	if err := huh.NewForm(huh.NewGroup(
-		huh.NewMultiSelect[string]().Title("What should Orion watch?").Description("Found by discovery. Space to toggle, a for all.").
-			Options(opts2...).Value(&chosen),
-	)).WithTheme(wizardTheme()).WithAccessible(accessible).RunWithContext(ctx); err != nil {
-		return plan, wizardErr(err)
+	if len(picks) == 0 {
+		PrintHeader("What should Orion watch?")
+		PrintSkip("nothing suggested; system metrics will still report")
+	} else {
+		var chosen []string
+		opts2 := make([]huh.Option[string], 0, len(picks))
+		for _, c := range picks {
+			opts2 = append(opts2, huh.NewOption(candidateOptionLabel(c), c.ID).Selected(c.Confidence == discover.High))
+		}
+		description := "Found by discovery. Space to toggle, a for all."
+		if omitted > 0 {
+			description = fmt.Sprintf("Top suggestions shown; %d more available with orion-agent discover.", omitted)
+		}
+		selectField := huh.NewMultiSelect[string]().Title("What should Orion watch?").Description(description).
+			Options(opts2...).Value(&chosen).Height(min(len(opts2), maxWizardCandidates) + 2).Filterable(true)
+		if err := huh.NewForm(huh.NewGroup(selectField).Description(strings.Repeat("─", 62))).
+			WithTheme(wizardTheme()).WithAccessible(accessible).RunWithContext(ctx); err != nil {
+			return plan, wizardErr(err)
+		}
+		sel, err := discover.Select(found.Candidates, chosen)
+		if err != nil {
+			return plan, NewCommandError("could not select monitors", err)
+		}
+		plan.Selected = sel
 	}
-	sel, err := discover.Select(found.Candidates, chosen)
-	if err != nil {
-		return plan, NewCommandError("could not select monitors", err)
-	}
-	plan.Selected = sel
 
 	next, before, err := buildSetupConfig(opts, plan)
 	if err != nil {
@@ -90,12 +115,20 @@ func runWizard(ctx context.Context, opts *Options) (setupPlan, error) {
 	fmt.Fprintln(outputWriter)
 	setSetupTerminalTitle(3)
 	PrintHeader("Review changes")
-	PrintInfo("config", opts.ConfigPath)
+	fmt.Fprintln(outputWriter, theme.Muted(opts.ConfigPath))
+	fmt.Fprintln(outputWriter)
 	if len(diff) == 0 {
 		PrintOK("no changes to the config")
 	}
 	for _, l := range diff {
-		fmt.Fprintln(outputWriter, "  "+l)
+		switch {
+		case strings.HasPrefix(l, "+ "):
+			fmt.Fprintln(outputWriter, theme.Tone("up", "+ "+strings.TrimPrefix(l, "+ ")))
+		case strings.HasPrefix(l, "- "):
+			fmt.Fprintln(outputWriter, theme.Tone("down", "- "+strings.TrimPrefix(l, "- ")))
+		default:
+			fmt.Fprintln(outputWriter, l)
+		}
 	}
 	ok := true
 	if err := huh.NewForm(huh.NewGroup(huh.NewConfirm().Title("Apply these changes?").Description("Applies without restarting the agent.").Affirmative("Yes").Negative("No").Value(&ok))).
@@ -138,14 +171,49 @@ func stageEnrollmentToken(token string) (string, error) {
 }
 
 // pickableCandidates drops items that cannot become monitors and low-confidence noise.
-func pickableCandidates(all []discover.Candidate) []discover.Candidate {
+const maxWizardCandidates = 6
+
+func pickableCandidates(all []discover.Candidate) ([]discover.Candidate, int) {
 	var out []discover.Candidate
 	for _, c := range all {
 		if c.Monitor != nil && c.Confidence != discover.Low {
 			out = append(out, c)
 		}
 	}
-	return out
+	if len(out) <= maxWizardCandidates {
+		return out, 0
+	}
+	return out[:maxWizardCandidates], len(out) - maxWizardCandidates
+}
+
+func candidateOptionLabel(candidate discover.Candidate) string {
+	return fmt.Sprintf("%-24s %-12s %s", truncateLabel(candidate.Name, 24), candidateKindLabel(candidate), candidate.Confidence)
+}
+
+func candidateKindLabel(candidate discover.Candidate) string {
+	switch candidate.Kind {
+	case discover.KindService:
+		return "system service"
+	case discover.KindContainer:
+		return "docker"
+	case discover.KindPM2:
+		return "pm2"
+	case discover.KindPort:
+		return "port"
+	default:
+		return string(candidate.Kind)
+	}
+}
+
+func truncateLabel(value string, width int) string {
+	runes := []rune(value)
+	if len(runes) <= width {
+		return value
+	}
+	if width <= 1 {
+		return string(runes[:width])
+	}
+	return string(runes[:width-1]) + "…"
 }
 
 func validateCoreURL(s string) error {

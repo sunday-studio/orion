@@ -53,12 +53,18 @@ func (s *Server) registerAgent(c *gin.Context) {
 	}
 	s.logger.Info("Agent registration request", "machine_id", req.MachineId, "name", req.Name, "os", req.OS, "arch", req.Arch)
 	response, err := s.agentService.RegisterAgent(&req)
+	if errors.Is(err, service.ErrAgentTokenReissueRequired) && enrollmentID != "" {
+		// A fresh one-time Add server session is explicit admin approval to
+		// reconnect this known machine. Shared registration credentials are
+		// not sufficient because they may be long-lived.
+		response, err = s.agentService.ReconnectAgent(&req, enrollmentID)
+	}
 	if err != nil {
-		if errors.Is(err, service.ErrAgentTokenRevoked) {
+		switch {
+		case errors.Is(err, service.ErrAgentTokenRevoked):
 			utils.ErrorResponse(c, http.StatusConflict, "agent_token_revoked", nil)
 			return
-		}
-		if errors.Is(err, service.ErrAgentTokenReissueRequired) {
+		case errors.Is(err, service.ErrAgentTokenReissueRequired):
 			utils.ErrorResponse(c, http.StatusConflict, "agent_token_reissue_required", nil)
 			return
 		}
@@ -66,6 +72,7 @@ func (s *Server) registerAgent(c *gin.Context) {
 		utils.InternalError(c, "Failed to register agent", err)
 		return
 	}
+
 	if enrollmentID != "" {
 		s.enrollments.LinkAgent(enrollmentID, response.AgentID)
 	}

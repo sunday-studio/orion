@@ -11776,6 +11776,58 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/register/preflight": {
+            "post": {
+                "description": "Checks that the presented enrollment credential can register an Agent. This does not claim or consume a one-time Add server token.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agents"
+                ],
+                "summary": "Validate an Agent enrollment token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Enrollment credential",
+                        "name": "X-Orion-Enrollment-Token",
+                        "in": "header"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_api.RegistrationPreflightResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/orion_core_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/search": {
             "get": {
                 "description": "Case-insensitive name search, at most 5 hits per type, grouped by type in this order: monitor, incident, server, app.",
@@ -20291,6 +20343,14 @@ const docTemplate = `{
                 },
                 "redacted": {
                     "type": "object"
+                }
+            }
+        },
+        "internal_api.RegistrationPreflightResponse": {
+            "type": "object",
+            "properties": {
+                "valid": {
+                    "type": "boolean"
                 }
             }
         },
