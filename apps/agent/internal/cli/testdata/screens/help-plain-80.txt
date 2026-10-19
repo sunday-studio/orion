@@ -20,5 +20,6 @@ FLAGS
   --no-color    Plain output
   -h, --help    Show help
 
-  More: enroll, discover, usage, token, maintenance, version, run (orion-agent
-        <command> --help)
+  More: start, stop, restart, run, enroll, discover, maintenance, usage,
+        version, token, reconfigure, state, emit, run-job (orion-agent <command>
+        --help)

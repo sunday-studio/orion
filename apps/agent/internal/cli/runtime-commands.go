@@ -27,7 +27,9 @@ func runAgent(ctx context.Context, opts *Options) error {
 	PrintInfo("config", opts.ConfigPath)
 	PrintInfo("state", opts.StatePath)
 	PrintInfo("once", opts.Once)
-	PrintInfo("verbose", opts.Verbose)
+	if opts.Verbose {
+		PrintInfo("verbose", true)
+	}
 
 	PrintStep("loading config")
 	userConfig, err := config.LoadUserConfig(opts.ConfigPath)
@@ -41,9 +43,9 @@ func runAgent(ctx context.Context, opts *Options) error {
 		defer logging.Close()
 	}
 	PrintOK(fmt.Sprintf("config loaded with %d monitor(s)", len(userConfig.Monitors)))
-	PrintInfo("core_url", userConfig.CoreURL)
-	PrintInfo("interval", userConfig.Interval)
 	if !opts.Once {
+		PrintInfo("core_url", userConfig.CoreURL)
+		PrintInfo("interval", userConfig.Interval)
 		PrintInfo("log_file", userConfig.Logging.Path)
 	}
 	if len(userConfig.Monitors) == 0 {
@@ -319,6 +321,22 @@ func runReconfigure(ctx context.Context, opts *Options, token, tokenFile string)
 	if token == "" {
 		return NewCommandError("a fresh Add server token is required", errors.New("reconfigure must be authorized by Core"), "create a token in Console under Servers, Add server", "run: orion-agent reconfigure --token-file <file>")
 	}
+	stateStore, err := agentstate.Open(opts.StatePath)
+	if err != nil {
+		return NewCommandError("could not open state database", err)
+	}
+	defer stateStore.Close()
+	currentState, err := stateStore.Get()
+	if err != nil {
+		return NewCommandError("could not read local registration", err)
+	}
+	if currentState.IsRegistered() && strings.TrimRight(currentState.CoreURL, "/") != strings.TrimRight(userConfig.CoreURL, "/") {
+		return NewCommandError(
+			"reconfigure cannot move an enrolled host to another Core",
+			fmt.Errorf("local state belongs to %s", currentState.CoreURL),
+			"restore that Core URL, or install as a new host with a separate state directory",
+		)
+	}
 	if _, err := checkSetupConnection(ctx, userConfig.CoreURL, token); err != nil {
 		return err
 	}
@@ -331,11 +349,6 @@ func runReconfigure(ctx context.Context, opts *Options, token, tokenFile string)
 	}
 	PrintInfo("service_manager", DetectServiceManager())
 	PrintInfo("agent_service", status)
-	stateStore, err := agentstate.Open(opts.StatePath)
-	if err != nil {
-		return NewCommandError("could not open state database", err)
-	}
-	defer stateStore.Close()
 
 	if wasRunning {
 		PrintStep("stopping service")

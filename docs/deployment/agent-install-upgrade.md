@@ -135,9 +135,11 @@ not print the replacement token.
 If Core rejects the stored token, the Server treats the authentication failure as terminal, stops
 reporting, exits with a non-zero status, and leaves local state intact for diagnostics.
 
-Use `orion-agent reconfigure` only when you intentionally need a new local registration, such as
-moving the Server to a different Core URL or fresh Core database. Reconfigure clears local
-registration, monitor mappings, and queued reports so the Server can register again.
+Use `orion-agent reconfigure --token-file /secure/path/add-server-token` when the local Server
+credential was lost but the existing Server identity should be reconnected. The token must be a
+fresh one-time token from Console > Servers > Add server, not a rotated Server token. Reconfigure
+validates that authorization before stopping the service and keeps the previous local identity if
+Core refuses the reconnect. It does not move an enrolled Server between Core instances.
 
 ## Service Commands
 

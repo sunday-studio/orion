@@ -33,7 +33,7 @@ Service logs, rollback, Docker monitor permissions and local-network notes are i
 | `orion-agent logs` | Show recent entries. Add `--level error` or `--since 1h`. |
 | `orion-agent restart` | Restart the service after editing the config. |
 | `orion-agent update` | Update the binary, keeping config and state. `-version 0.1.2` pins a version. |
-| `orion-agent reconfigure` | Create a new registration. Use it only if you change `core_url` or need a new identity. |
+| `orion-agent reconfigure --token-file <file>` | Reconnect a known host with a fresh Add server token when its local credential was lost. |
 
 Add `--json` to `status`, `doctor` and `config show` for automation. To try a single collection cycle,
 run `orion-agent run -once` (add `-verbose` when debugging registration or transport). Editing monitors

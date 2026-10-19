@@ -7,15 +7,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// hidden keeps a legacy top-level command working (for one release) without
-// listing it in --help.
-func hidden(c *cobra.Command) *cobra.Command {
-	c.Hidden = true
-	return c
-}
-
 // newServiceCommand groups everything that manages the installed service.
-// Legacy top-level start/stop/restart still work as hidden aliases.
+// Top-level start/stop/restart remain available for the direct workflow shown
+// on the command map; the grouped forms are convenient discoverable aliases.
 func newServiceCommand(ctx context.Context, opts *Options) *cobra.Command {
 	svc := newGroupCommand("service", "Install, start, stop and inspect the Orion Agent service")
 	install := &cobra.Command{
