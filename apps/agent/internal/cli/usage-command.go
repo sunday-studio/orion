@@ -22,6 +22,12 @@ func newUsageCommand(ctx context.Context, opts *Options) *cobra.Command {
 			"Takes two samples a few seconds apart to compute rates. This is what the agent reports to Core.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if window < 0 {
+				return NewCommandError("invalid --window", fmt.Errorf("duration cannot be negative"))
+			}
+			if top <= 0 {
+				return NewCommandError("invalid --top", fmt.Errorf("must be greater than zero"))
+			}
 			var paths []string
 			if cfg, _, err := config.Load(opts.ConfigPath); err == nil {
 				paths = cfg.AppResources.Paths
@@ -44,7 +50,7 @@ func newUsageCommand(ctx context.Context, opts *Options) *cobra.Command {
 			for _, s := range rep.Series {
 				rows = append(rows, []string{string(s.Kind), s.Name, pct(s.CPUPercent), bytesStr(s.MemoryBytes), rate(s.IOReadBps, s.IOWriteBps), rate(s.NetRxBps, s.NetTxBps), bytesStr(s.StorageBytes)})
 			}
-			fmt.Fprintln(outputWriter, theme.Table([]string{"Kind", "Name", "CPU", "Memory", "Disk r/w /s", "Net rx/tx /s", "Storage"}, rows, 110))
+			fmt.Fprintln(outputWriter, theme.Table([]string{"Kind", "Name", "CPU", "Memory", "Disk r/w /s", "Net rx/tx /s", "Storage"}, rows, min(terminalWidth(), 110)))
 			for _, n := range rep.Notes {
 				PrintSkip(n)
 			}

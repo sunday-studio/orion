@@ -39,6 +39,7 @@ type updateEnv struct {
 	healthPoll   time.Duration
 	healthy      func(wantVersion string) error // nil when the new daemon is serving
 	step, ok, in func(string)
+	updated      bool
 }
 
 type serviceOps struct {
@@ -72,14 +73,14 @@ func UpdateAgent(opts UpdateOptions) error {
 		},
 		healthWait: 45 * time.Second,
 		healthPoll: time.Second,
-		step:       PrintStep, ok: PrintOK, in: func(m string) { PrintInfo("note", m) },
+		step:       PrintStep, ok: PrintOK, in: func(m string) { fmt.Fprintln(outputWriter, "  "+m) },
 	}
 	env.healthy = func(want string) error { return daemonHealthy(opts, want) }
 	PrintHeader("update")
 	PrintInfo("current_version", opts.CurrentVersion)
 	PrintInfo("binary", exe)
 	err = runUpdate2(env, opts)
-	if err == nil {
+	if err == nil && env.updated {
 		PrintPostUpdateGuide()
 	}
 	return err
@@ -142,6 +143,7 @@ func runUpdate2(env *updateEnv, opts UpdateOptions) error {
 	}
 	if newVersion == opts.CurrentVersion && !opts.Force {
 		env.say(env.ok, "already up to date ("+newVersion+")")
+		env.say(env.in, "Use --force to reinstall.")
 		return nil
 	}
 
@@ -180,6 +182,7 @@ func runUpdate2(env *updateEnv, opts UpdateOptions) error {
 		}
 	}
 	env.say(env.ok, "updated to "+newVersion+"; previous binary kept for `update --rollback`")
+	env.updated = true
 	return nil
 }
 
@@ -217,6 +220,7 @@ func failAndRollback(env *updateEnv, wasRunning bool, cause error) error {
 		return fmt.Errorf("%w; ALSO could not restore the previous binary (%v): copy %s over %s manually", cause, err, prevPath(env.executable), env.executable)
 	}
 	restartIf(env, wasRunning)
+	env.say(env.ok, "rolled back to the previous binary")
 	return fmt.Errorf("%w; rolled back to the previous version", cause)
 }
 

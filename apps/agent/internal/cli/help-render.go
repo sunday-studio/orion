@@ -45,7 +45,7 @@ func rootHelp(th *ui.Theme, width int) string {
 	for _, f := range [][2]string{{"--json", "Machine-readable output"}, {"--no-color", "Plain output"}, {"-h, --help", "Show help"}} {
 		b.WriteString(fmt.Sprintf("  %-14s%s\n", f[0], f[1]))
 	}
-	more := "More: enroll, discover, usage, token, maintenance, version, run   (orion-agent <command> --help)"
+	more := "More: start, stop, restart, run, enroll, discover, maintenance, usage, version, token, reconfigure, state, emit, run-job   (orion-agent <command> --help)"
 	for _, l := range ui.Wrap(more, width-2, 6) {
 		b.WriteString("\n" + "  " + th.Muted(l))
 	}

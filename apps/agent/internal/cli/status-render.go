@@ -75,19 +75,24 @@ func statusScreen(th *ui.Theme, st control.Status, now time.Time, width int) str
 	boxW := min(width, 64)
 	conn, word := "connected", "up"
 	fix := ""
+	state := "connected"
 	switch {
 	case !st.Registered:
 		conn, word = "not enrolled", "unknown"
 		fix = "orion-agent setup"
+		state = "not-enrolled"
 	case st.MaintenanceMode:
 		conn, word = "maintenance", "maintenance"
 		fix = "orion-agent maintenance up"
+		state = "maintenance"
 	case st.LastReportAt.IsZero():
 		conn, word = "waiting for first report", "unknown"
 		fix = "orion-agent logs"
+		state = "waiting"
 	case now.Sub(st.LastReportAt) > 5*time.Minute:
 		conn, word = "no recent report", "degraded"
 		fix = "orion-agent doctor"
+		state = "stale"
 	}
 	head := th.StatusMark(word) + " " + th.Bold(conn)
 	if st.CoreURL != "" {
@@ -98,15 +103,24 @@ func statusScreen(th *ui.Theme, st control.Status, now time.Time, width int) str
 	if !st.LastReportAt.IsZero() {
 		last = st.LastReportAt.Local().Format("15:04:05") + th.Muted(" ("+ago(now, st.LastReportAt)+" ago)")
 	}
-	rows := []string{
-		head, "",
-		kv("Version", st.Version),
-		kv("Uptime", doctor.Duration(time.Duration(st.UptimeSeconds)*time.Second)),
-		kv("Last report", last),
-		kv("Queue", fmt.Sprintf("%d pending", st.QueuePending)),
-		kv("Mode", st.Mode),
+	rows := []string{head, ""}
+	switch state {
+	case "not-enrolled":
+		rows = append(rows, kv("Version", st.Version))
+	case "maintenance":
+		rows = append(rows, kv("Version", st.Version), kv("Queue", fmt.Sprintf("%d pending", st.QueuePending)))
+	case "waiting":
+		rows = append(rows, kv("Version", st.Version), kv("Uptime", doctor.Duration(time.Duration(st.UptimeSeconds)*time.Second)), kv("Queue", fmt.Sprintf("%d pending", st.QueuePending)))
+	default:
+		rows = append(rows,
+			kv("Version", st.Version),
+			kv("Uptime", doctor.Duration(time.Duration(st.UptimeSeconds)*time.Second)),
+			kv("Last report", last),
+			kv("Queue", fmt.Sprintf("%d pending", st.QueuePending)),
+			kv("Mode", st.Mode),
+		)
 	}
-	if st.MaintenanceMode {
+	if state == "maintenance" {
 		if st.MaintenanceReason != "" {
 			rows = append(rows, kv("Reason", st.MaintenanceReason))
 		}
@@ -120,6 +134,10 @@ func statusScreen(th *ui.Theme, st control.Status, now time.Time, width int) str
 	}
 	var b strings.Builder
 	b.WriteString("\n" + th.Box(name, rows, boxW) + "\n\n")
+	if state == "not-enrolled" {
+		b.WriteString(th.Muted("Fix  ") + fix + "\n")
+		return b.String()
+	}
 	b.WriteString(th.Bold("Watching") + th.Muted(fmt.Sprintf("  %d %s, %d log %s", st.Monitors, plural(st.Monitors, "monitor", "monitors"), st.LogSources, plural(st.LogSources, "source", "sources"))) + "\n")
 	if len(st.MonitorStates) > 0 {
 		b.WriteString("\n" + th.Muted(fmt.Sprintf("  %-15s %-11s %-10s %s", "NAME", "KIND", "STATUS", "LAST")) + "\n")

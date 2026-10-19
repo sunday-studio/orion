@@ -20,5 +20,6 @@
   --no-color    Plain output
   -h, --help    Show help
 
-  [38;2;113;113;121mMore: enroll, discover, usage, token, maintenance, version, run (orion-agent[0m
-  [38;2;113;113;121m      <command> --help)[0m
+  [38;2;113;113;121mMore: start, stop, restart, run, enroll, discover, maintenance, usage,[0m
+  [38;2;113;113;121m      version, token, reconfigure, state, emit, run-job (orion-agent <command>[0m
+  [38;2;113;113;121m      --help)[0m

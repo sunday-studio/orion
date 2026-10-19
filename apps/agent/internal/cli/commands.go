@@ -164,6 +164,9 @@ func newMaintenanceCommand(ctx context.Context, opts *Options) *cobra.Command {
 		Short: "Enter maintenance mode (ends automatically after --for, default 24h)",
 		Args:  cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if maintenanceFor <= 0 || maintenanceFor > maxMaintenanceDuration {
+				return NewCommandError("invalid --for duration", fmt.Errorf("must be greater than zero and at most 720h"))
+			}
 			reason := ""
 			if len(args) > 0 {
 				reason = fmt.Sprint(args[0])

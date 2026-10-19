@@ -323,3 +323,4 @@ func parseStateCommand(args []string, defaultStatePath string) (string, string, 
 // defaultMaintenanceDuration matches Core's default: maintenance always ends, so a
 // forgotten `maintenance down` cannot silence a host forever.
 const defaultMaintenanceDuration = 24 * time.Hour
+const maxMaintenanceDuration = 30 * 24 * time.Hour

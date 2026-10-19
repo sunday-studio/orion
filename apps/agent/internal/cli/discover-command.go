@@ -26,7 +26,7 @@ func newDiscoverCommand(ctx context.Context, opts *Options) *cobra.Command {
 			if len(rows) == 0 {
 				PrintSkip("nothing found; host metrics still report")
 			} else {
-				fmt.Fprintln(outputWriter, theme.Table([]string{"ID", "Confidence", "Detail"}, rows, 100))
+				fmt.Fprintln(outputWriter, theme.Table([]string{"ID", "Confidence", "Detail"}, rows, min(terminalWidth(), 100)))
 			}
 			for _, n := range res.Notes {
 				PrintSkip(n)

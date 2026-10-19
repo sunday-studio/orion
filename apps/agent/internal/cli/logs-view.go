@@ -96,7 +96,7 @@ func levelTone(sev string) string {
 }
 
 // logsHeader is the status line: follow state chip, level, source, search.
-func logsHeader(th *ui.Theme, s logsState) string {
+func logsHeader(th *ui.Theme, s logsState, width int) string {
 	chip := " snapshot "
 	switch {
 	case s.Paused:
@@ -124,30 +124,40 @@ func logsHeader(th *ui.Theme, s logsState) string {
 	if s.Search != "" {
 		search = s.Search
 	}
-	header := chipOut + "  level " + th.Bold(">= "+s.Level) + "   source " + th.Bold(src) + "   " + th.Muted("search: "+search)
+	stateHeader := chipOut
 	if s.Runtime.Label != "" {
 		if th.Plain() {
-			header += "   [" + s.Runtime.Label + "]"
+			stateHeader += "  [" + s.Runtime.Label + "]"
 		} else {
-			header += "   " + th.Tone(s.Runtime.Tone, "● "+s.Runtime.Label)
+			stateHeader += "  " + th.StatusGlyph(s.Runtime.Tone) + " " + th.Tone(s.Runtime.Tone, s.Runtime.Label)
 		}
 	}
-	return header
+	filters := "level " + th.Bold(">= "+s.Level) + "   source " + th.Bold(src) + "   " + th.Muted("search: "+search)
+	if s.Runtime.Label != "" && visibleWidth(stateHeader+"  "+filters) > width {
+		return stateHeader + "\n" + filters
+	}
+	return stateHeader + "  " + filters
 }
 
 func logRuntimeState(st control.Status, err error, now time.Time) runtimeState {
 	if err != nil {
-		return runtimeState{Label: "not running · local spool", Tone: "unknown"}
+		return runtimeState{Label: "not running · local spool only", Tone: "unknown"}
+	}
+	if !st.Registered {
+		return runtimeState{Label: "not enrolled", Tone: "unknown"}
 	}
 	if st.MaintenanceMode {
-		label := "maintenance"
+		label := "maintenance · alerts muted"
 		if st.MaintenanceUntil != nil {
 			label += " until " + st.MaintenanceUntil.Local().Format("15:04")
 		}
-		return runtimeState{Label: label, Tone: "degraded"}
+		return runtimeState{Label: label, Tone: "maintenance"}
+	}
+	if st.LastReportAt.IsZero() {
+		return runtimeState{Label: "waiting for first report", Tone: "unknown"}
 	}
 	if !st.LastReportAt.IsZero() && now.Sub(st.LastReportAt) > 5*time.Minute {
-		return runtimeState{Label: fmt.Sprintf("stale · queue %d", st.QueuePending), Tone: "degraded"}
+		return runtimeState{Label: fmt.Sprintf("no recent report · queue %d pending", st.QueuePending), Tone: "degraded"}
 	}
 	return runtimeState{Label: fmt.Sprintf("connected · queue %d", st.QueuePending), Tone: "up"}
 }
@@ -156,7 +166,7 @@ func logRuntimeState(st control.Status, err error, now time.Time) runtimeState {
 // each `HH:MM:SS level  source  body` with the body clipped to the width.
 func logsScreen(th *ui.Theme, s logsState, width, height int) string {
 	var b strings.Builder
-	b.WriteString("\n" + logsHeader(th, s) + "\n")
+	b.WriteString("\n" + logsHeader(th, s, width) + "\n")
 	b.WriteString(th.Rule(min(width, 70)) + "\n")
 	rows := s.visible(height)
 	if len(rows) == 0 {
@@ -168,7 +178,11 @@ func logsScreen(th *ui.Theme, s logsState, width, height int) string {
 			sev = "info"
 		}
 		src := clip(entrySource(e), 7)
-		prefix := th.Muted(clock(e.Timestamp)) + " " + th.Tone(levelTone(sev), fmt.Sprintf("%-5s", sev)) + " " + th.Muted(fmt.Sprintf("%-7s", src)) + " "
+		level := th.Tone(levelTone(sev), fmt.Sprintf("%-5s", sev))
+		if sev == "trace" || sev == "debug" {
+			level = th.Faint(fmt.Sprintf("%-5s", sev))
+		}
+		prefix := th.Muted(clock(e.Timestamp)) + " " + level + " " + th.Muted(fmt.Sprintf("%-7s", src)) + " "
 		room := width - (8 + 1 + 5 + 1 + 7 + 1)
 		body := strings.ReplaceAll(strings.TrimSpace(strings.SplitN(e.Body, "\n", 2)[0]), "\t", " ")
 		if lipgloss.Width(body) > room && room > 1 {

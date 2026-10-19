@@ -181,11 +181,13 @@ Operator recovery commands should support both common cases:
 
 - Apply a new token to existing local state when Core rotated or reissued the token for the same
   `agent_id`.
-- Reset and re-register only when the operator intentionally wants a new Server identity.
+- Reconnect with a fresh one-time Add server token when the local credential is lost and no
+  replacement Server token is available.
 
-The existing `reconfigure` flow resets local registration and can create a new identity. It should
-not be the only recovery path for rotation because rotation is supposed to preserve Server and
-monitor identity.
+`reconfigure` now validates a fresh Add server token before touching the service and asks Core to
+reconnect the known machine. Core rotates the credential while preserving the Server and monitor
+identity. It is separate from routine rotation recovery because a rotated or reissued Server token
+belongs in `token apply`.
 
 Server recovery command:
 
@@ -197,8 +199,8 @@ orion-agent restart
 `token apply` updates only the local token for the existing state row. It preserves `agent_id`,
 Core URL, monitor mappings, maintenance state, and durable report spool entries. Prefer
 `--token-file` so the one-time replacement token does not land in shell history; an inline token
-argument is acceptable for controlled automation. Use `reconfigure` only when the operator intends
-to discard the current local identity and register as a new Server.
+argument is acceptable for controlled automation. Use `reconfigure` only when a fresh Add server
+authorization is available and the known machine must reconnect without its prior credential.
 
 ## Operational Guidance
 
@@ -224,7 +226,7 @@ to discard the current local identity and register as a new Server.
 3. Console controls
    Show token lifecycle state on Server detail, add rotate/revoke/reissue controls behind admin auth,
    display one-time token responses, and warn operators that rotation preserves identity while
-   reconfigure can create a new one.
+   reconfigure requires a fresh Add server authorization.
 
 ## Open Follow-Ups
 

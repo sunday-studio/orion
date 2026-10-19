@@ -119,7 +119,9 @@ func baseFileOnly(path string) (*config.UserConfig, error) {
 	return cfg, err
 }
 
-// lineDiff returns "-"/"+" prefixed lines using a simple LCS.
+// lineDiff returns a compact unified diff using a simple LCS. Two unchanged
+// context lines surround each change so the output still answers where a
+// changed setting lives without dumping an unrelated long configuration.
 func lineDiff(a, b []string) []string {
 	n, m := len(a), len(b)
 	lcs := make([][]int, n+1)
@@ -135,26 +137,53 @@ func lineDiff(a, b []string) []string {
 			}
 		}
 	}
-	var out []string
+	var all []string
 	i, j := 0, 0
 	for i < n && j < m {
 		switch {
 		case a[i] == b[j]:
+			all = append(all, "  "+a[i])
 			i++
 			j++
 		case lcs[i+1][j] >= lcs[i][j+1]:
-			out = append(out, "- "+a[i])
+			all = append(all, "- "+a[i])
 			i++
 		default:
-			out = append(out, "+ "+b[j])
+			all = append(all, "+ "+b[j])
 			j++
 		}
 	}
 	for ; i < n; i++ {
-		out = append(out, "- "+a[i])
+		all = append(all, "- "+a[i])
 	}
 	for ; j < m; j++ {
-		out = append(out, "+ "+b[j])
+		all = append(all, "+ "+b[j])
+	}
+	changed := make([]bool, len(all))
+	hasChanges := false
+	for i, line := range all {
+		changed[i] = strings.HasPrefix(line, "+ ") || strings.HasPrefix(line, "- ")
+		hasChanges = hasChanges || changed[i]
+	}
+	if !hasChanges {
+		return nil
+	}
+	var out []string
+	skipped := false
+	for i, line := range all {
+		near := changed[i]
+		for j := max(0, i-2); !near && j <= min(len(all)-1, i+2); j++ {
+			near = changed[j]
+		}
+		if near {
+			if skipped {
+				out = append(out, "  …")
+				skipped = false
+			}
+			out = append(out, line)
+		} else {
+			skipped = true
+		}
 	}
 	return out
 }
