@@ -198,6 +198,7 @@ fi
 if [ "$INIT" = "none" ] && [ "$USER_MODE" != "true" ]; then
   die "no supported init system found (systemd or launchd)" "use --user, or run the agent under your own supervisor: orion-agent run"
 fi
+ok "Detected $OS/$ARCH with $INIT"
 
 # ---------------------------------------------------------------- download + verify
 WORK="$(mktemp -d)"
@@ -259,12 +260,47 @@ if [ "$VERIFY_ONLY" = "true" ]; then
   exit 0
 fi
 
+# A verified release identical to a complete existing install is a no-op. A
+# token, config replacement, or stopped/missing service still proceeds because
+# the operator explicitly asked to change or repair that part of the install.
+already_installed() {
+  [ -x "$BIN_DIR/orion-agent" ] || return 1
+  [ -f "$CFG" ] || return 1
+  [ -f "$STATE_DIR/state.db" ] || return 1
+  [ -z "$TOKEN_FILE" ] || return 1
+  [ -z "$CONFIG_SOURCE" ] || return 1
+  [ -z "$CONFIG_URL" ] || return 1
+  [ "$OVERWRITE_CONFIG" != "true" ] || return 1
+  local installed_version release_version
+  installed_version="$($BIN_DIR/orion-agent version 2>/dev/null || true)"
+  release_version="$($WORK/$ASSET version 2>/dev/null || true)"
+  [ -n "$installed_version" ] && [ "$installed_version" = "$release_version" ] || return 1
+  if [ "$START_SERVICE" = "true" ]; then
+    if [ "$USER_MODE" = "true" ] && [ "$INIT" = "systemd" ]; then
+      systemctl --user is-active --quiet orion-agent 2>/dev/null || return 1
+    elif [ "$USER_MODE" = "true" ] && [ "$INIT" = "launchd" ]; then
+      launchctl print "gui/$(id -u)/com.orion.agent.user" >/dev/null 2>&1 || return 1
+    elif [ "$OS" = "linux" ]; then
+      systemctl is-active --quiet orion-agent 2>/dev/null || return 1
+    else
+      launchctl print system/com.orion.agent >/dev/null 2>&1 || return 1
+    fi
+  fi
+  return 0
+}
+
 if [ -n "$CONFIG_URL" ]; then fetch "$CONFIG_URL" "$WORK/config.yaml"; CONFIG_SOURCE="$WORK/config.yaml"; fi
 
 # One-time token from the environment goes to a private file, never argv.
 if [ -z "$TOKEN_FILE" ] && [ -n "${ORION_ENROLLMENT_TOKEN:-}" ]; then
   ( umask 077; printf '%s' "$ORION_ENROLLMENT_TOKEN" > "$WORK/enroll-token" )
   TOKEN_FILE="$WORK/enroll-token"
+fi
+
+if already_installed; then
+  ok "Already installed; configuration, identity, and service are unchanged"
+  printf '\n  Nothing to do. Run orion-agent status to inspect this host.\n'
+  exit 0
 fi
 
 # ---------------------------------------------------------------- install
@@ -345,25 +381,35 @@ else
   [ -n "$TOKEN_FILE" ] && args+=(--enrollment-token-file "$TOKEN_FILE")
   [ "$START_SERVICE" = "false" ] && args+=(--no-start)
   [ "$OVERWRITE_CONFIG" = "true" ] && args+=(--overwrite-config)
-  # shellcheck disable=SC2086
-  (cd "$WORK" && $SUDO ./orion-agent-install.sh ${args[@]+"${args[@]}"})
+  # Keep the front-door installer concise. On failure, reveal the complete
+  # lower-level install transcript so no diagnostic information is lost.
+  if ! (cd "$WORK" && $SUDO ./orion-agent-install.sh ${args[@]+"${args[@]}"}) >"$WORK/install.log" 2>&1; then
+    cat "$WORK/install.log" >&2
+    die "installation failed" "fix the reported step and re-run the same command"
+  fi
+  ok "Created service account and directories"
 fi
-ok "Installed and started orion-agent"
+if [ -n "$TOKEN_FILE" ]; then ok "Enrolled this host"; fi
+if [ "$START_SERVICE" = "true" ]; then
+  ok "Installed and started orion-agent"
+else
+  ok "Installed orion-agent; service left stopped (--no-start)"
+fi
 
 step "Health check"
 if [ "$START_SERVICE" = "true" ]; then
   sleep 2
   printf '  ⠋ Waiting for the first report...\n'
-  if ! "$BIN_DIR/orion-agent" doctor; then
-    printf '\n  ╭─ Doctor ─────────────────────────────────────────╮\n'
-    printf '  │ ✗ Doctor found problems; each failure above has a fix\n'
-    printf '  ╰──────────────────────────────────────────────────╯\n'
-    exit 0
+  doctor_ok="true"
+  if ! "$BIN_DIR/orion-agent" doctor --no-color >"$WORK/doctor.log" 2>&1; then
+    doctor_ok="false"
   fi
-  printf '  ╭─ Doctor ─────────────────────────────────────────╮\n'
-  printf '  │ ✓ DNS, TLS, Core reachable, token\n'
-  printf '  │ ✓ Clock, disk, service, version\n'
+  printf '\n  ╭─ Doctor ─────────────────────────────────────────╮\n'
+  sed 's/^/  │ /' "$WORK/doctor.log"
   printf '  ╰──────────────────────────────────────────────────╯\n'
+  if [ "$doctor_ok" != "true" ]; then
+    die "Doctor found problems" "run orion-agent doctor after applying the fixes above"
+  fi
 fi
 elapsed=$(( $(date +%s) - STARTED_AT ))
 printf '\n  Done in %s s. Open %s/servers/%s\n' "$elapsed" "${CORE_URL%/}" "$(hostname -s 2>/dev/null || hostname)"
