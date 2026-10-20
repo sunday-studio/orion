@@ -23,7 +23,13 @@ const (
 var setupStepNames = [3]string{"Connect", "Choose", "Review"}
 
 // setupHeader is the title line with the three-step progress, right aligned.
-func setupHeader(th *ui.Theme, steps [3]string) string {
+func setupHeader(th *ui.Theme, steps [3]string, title string) string {
+	if title != "" { // another command reusing the flow: a title and no steps
+		if th.Plain() {
+			return title
+		}
+		return " " + th.Accent("◆") + " " + th.Bold(title) + th.Muted("  choose what to add")
+	}
 	if th.Plain() {
 		var parts []string
 		for i, s := range steps {
@@ -61,6 +67,7 @@ func setupKeys(th *ui.Theme, pairs ...string) string {
 
 // connectView is the state of step one.
 type connectView struct {
+	Title     string // set when another command (discover) reuses the flow
 	URL       string
 	Token     string
 	ShowToken bool
@@ -75,7 +82,7 @@ type connectView struct {
 func connectScreen(th *ui.Theme, v connectView) string {
 	steps := [3]string{stepNow, stepTodo, stepTodo}
 	if th.Plain() {
-		return strings.Join([]string{setupHeader(th, steps), "Core URL: " + v.URL, "Add server token: " + strings.Repeat("*", len([]rune(v.Token)))}, "\n") + "\n"
+		return strings.Join([]string{setupHeader(th, steps, v.Title), "Core URL: " + v.URL, "Add server token: " + strings.Repeat("*", len([]rune(v.Token)))}, "\n") + "\n"
 	}
 	bar := func(focused bool, rows ...string) []string {
 		out := make([]string, len(rows))
@@ -109,7 +116,7 @@ func connectScreen(th *ui.Theme, v connectView) string {
 	}
 	tokenRows := []string{prompt + " " + token, th.Muted("Servers › Add server in the Console creates one.")}
 	out := []string{
-		setupHeader(th, steps), "",
+		setupHeader(th, steps, v.Title), "",
 		th.Panel("Where is your Core?", "step 1 of 3", bar(v.Focus == 0, urlRows...), panelWidth),
 		th.Panel("One-time token", "", bar(v.Focus == 1, tokenRows...), panelWidth),
 		"", setupKeys(th, "enter", "next", "ctrl+r", "show token", "esc", "quit"),
@@ -119,6 +126,7 @@ func connectScreen(th *ui.Theme, v connectView) string {
 
 // chooseView is the checklist of step two.
 type chooseView struct {
+	Title    string // set when another command (discover) reuses the flow
 	Items    []control.DiscoveryItem
 	Ticked   map[string]bool
 	Cursor   int // index among the selectable items, -1 for none
@@ -134,7 +142,7 @@ func chooseScreen(th *ui.Theme, v chooseView) string {
 	if v.Enrolled {
 		connect = stepSkip
 	}
-	out := []string{setupHeader(th, [3]string{connect, stepNow, stepTodo}), ""}
+	out := []string{setupHeader(th, [3]string{connect, stepNow, stepTodo}, v.Title), ""}
 	sel, picked, monitored := 0, 0, 0
 	for _, kind := range discover.AllKinds {
 		var rows []string
@@ -197,6 +205,7 @@ func plainChoose(v chooseView, picked, total, monitored int) string {
 
 // scanSettingsView edits discovery.enabled, discovery.kinds and the ignore list.
 type scanSettingsView struct {
+	Title    string // set when another command (discover) reuses the flow
 	Enabled  bool
 	Kinds    map[string]bool // config kind -> scanned
 	Never    []neverItem
@@ -257,7 +266,7 @@ func scanSettingsScreen(th *ui.Theme, v scanSettingsView) string {
 		}
 	}
 	out := []string{
-		setupHeader(th, [3]string{connect, stepNow, stepTodo}), "",
+		setupHeader(th, [3]string{connect, stepNow, stepTodo}, v.Title), "",
 		th.Panel("Scanning", "discovery.enabled", []string{at(0, " ") + " " + on + "    " + off}, panelWidth),
 		th.Panel("Look at", "discovery.kinds", kindRows, panelWidth),
 		th.Panel("Never suggest", fmt.Sprint(len(v.Never)), never, panelWidth),
@@ -272,6 +281,7 @@ func scanSettingsScreen(th *ui.Theme, v scanSettingsView) string {
 
 // reviewView is step three: the exact change, what is left out, and the choice.
 type reviewView struct {
+	Title    string // set when another command (discover) reuses the flow
 	Path     string
 	Rows     []string // diff rows, "+ ..." / "- ..." / "  ..."
 	NotWrite []string
@@ -308,7 +318,7 @@ func reviewScreen(th *ui.Theme, v reviewView) string {
 	if v.Enrolled {
 		connect = stepSkip
 	}
-	out := []string{setupHeader(th, [3]string{connect, stepDone, stepNow}), "", th.Panel(v.Path, right, rows, panelWidth)}
+	out := []string{setupHeader(th, [3]string{connect, stepDone, stepNow}, v.Title), "", th.Panel(v.Path, right, rows, panelWidth)}
 	if len(v.NotWrite) > 0 {
 		var nw []string
 		for _, l := range v.NotWrite {
@@ -333,6 +343,7 @@ type appliedMonitor struct {
 }
 
 type appliedView struct {
+	Title    string // set when another command (discover) reuses the flow
 	Path     string
 	Reloaded bool
 	Monitors []appliedMonitor
@@ -351,7 +362,7 @@ func appliedScreen(th *ui.Theme, v appliedView) string {
 		" " + th.Pass() + " " + padRight("Config written", 31) + th.Muted(v.Path),
 		" " + th.Pass() + " " + padRight("Applied", 31) + th.Muted(apply),
 	}
-	out := []string{setupHeader(th, [3]string{stepDone, stepDone, stepDone}), "", th.Panel("Applied", "2 of 2", done, panelWidth)}
+	out := []string{setupHeader(th, [3]string{stepDone, stepDone, stepDone}, v.Title), "", th.Panel("Applied", "2 of 2", done, panelWidth)}
 	if len(v.Monitors) > 0 {
 		rows := []string{th.Muted("   NAME            STATE")}
 		for _, m := range v.Monitors {

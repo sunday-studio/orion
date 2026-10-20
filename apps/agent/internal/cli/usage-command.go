@@ -23,7 +23,7 @@ func newUsageCommand(ctx context.Context, opts *Options) *cobra.Command {
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if window < 0 || (watch && window == 0) {
-				return NewCommandError("invalid --window", fmt.Errorf("duration cannot be negative"))
+				return NewCommandError("invalid --window", fmt.Errorf("the window must be longer than zero"))
 			}
 			if top <= 0 {
 				return NewCommandError("invalid --top", fmt.Errorf("must be greater than zero"))

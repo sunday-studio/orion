@@ -41,6 +41,11 @@ func newDiscoverCommand(ctx context.Context, opts *Options) *cobra.Command {
 				fmt.Fprint(outputWriter, dismissedScreen(theme, d, terminalWidth()))
 				return nil
 			}
+			if canPromptSecret(opts) && !rescan && d.Enabled && hasSuggestions(d) {
+				if core := knownCoreURL(opts); core != "" {
+					return runDiscoverPicker(ctx, opts, core)
+				}
+			}
 			fmt.Fprint(outputWriter, discoverScreen(theme, d, host, terminalWidth()))
 			if !rescan {
 				_ = controlClient(opts).DiscoveryAction("review", "") // a person has now seen the list: it is no longer "new"
