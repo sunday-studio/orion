@@ -9,26 +9,35 @@ taken from `apps/agent/internal/cli/testdata/design/*.txt` (extracted earlier) a
 
 ## Done to the board
 
-| # | Functionality | Evidence |
-|---|---|---|
-| 1 | Discovery and `discover` | `discover-render_test.go`, `testdata/design/discover*.txt` |
-| 2 | `status` (six states, discovery states, `--short`, `--watch`) | `status-render_test.go` |
+Every board below has a literal-match test against its text in
+`apps/agent/internal/cli/testdata/boards/` (extracted from the design canvas) and was reviewed by an
+independent agent before it was pushed. Where the code deliberately differs from a board, the test says why.
 
-## Left, in order
-
-| # | Functionality | Left to do |
+| Board | Where | Deviations noted in tests |
 |---|---|---|
-| 3 | `doctor` | Add the missing log key check (sources without an ingest key), literal test against `cli-doctor.html` |
-| 4 | `setup` / `enroll` / credentials | Re-check against board; add the scan-and-pick step that uses discovery |
-| 5 | Install script output | Match board text for plan, steps, doctor box, failure |
-| 6 | `logs` viewer | Match board states (following, paused, snapshot, empty, error) |
-| 7 | Help and errors | Match board help grouping and error layout |
-| 8 | `service` / `start` / `stop` / `restart` / `run` | Preflight and recovery wording |
-| 9 | `maintenance` | Output wording |
-| 10 | `update` / `rollback` | Output states |
-| 11 | `config show/diff/validate/edit` | Output wording |
-| 12 | `emit` / `run-job` | Output wording |
-| 13 | `usage --watch` | Live view |
-| 14 | Discovery reporting to Core + Console "Detected" panel | Needs Core endpoint |
-| 15 | Release pipeline and signing; docs | Later |
-| 16 | F2 container image / DaemonSet | Deferred to the very end |
+| Auto-detect, Discover | `discover-render.go`, `discover-pick.go` | none |
+| Status, `--watch`, plain, JSON | `status-render.go`, `status-watch.go` | none |
+| Setup (connect, choose, scan settings, review, applied, non-interactive, accessible) | `setup-flow*.go`, `setup-accessible.go` | none |
+| Enroll and credentials | `credentials-render.go` | none |
+| Install script | `deploy/scripts/agent-bootstrap.sh` | exit code 2 for a failed verification (documented contract) instead of the board's 1 |
+| Doctor | `doctor-render.go`, `internal/doctor` | failing view lists every warning and no passes |
+| Log viewer | `logs-render.go`, `logs-tui.go` | the spool does not record a send time, so the drawer says "sent to Core" without one |
+| Help and errors | `help-render.go`, `errors-render.go` | the "More" line also lists the commands the board omits |
+| Start, stop, restart, run, service install | `service-flow.go`, `operate-render.go` | none |
+| Maintenance | `maintenance-*.go` | none |
+| Update and rollback | `update-render.go`, `update.go` | "the previous version is running again" instead of "kept reporting the whole time" |
+| Config show, diff, validate, edit | `config-*.go` | monitor count is the number listed |
+| Emit and run-job | `emit-render.go` | none |
+| Usage, `--watch` | `usage-render.go`, `usage-watch.go` | none |
+| Output modes, exit codes | `docs/deployment/server-cli-cheatsheet.md` | none |
+
+## Left
+
+| # | What | Why it is left |
+|---|---|---|
+| 1 | Release pipeline: signing, SBOM, publishing the installer asset | needs repository secrets and a release decision |
+| 2 | Discovery reporting to Core and the Console "Detected" panel | needs a Core endpoint (see `docs/design/agent-auto-config-flow.md`) |
+| 3 | VHS tapes that script the README and website visuals from the real binary | tooling, no behavior |
+| 4 | Glamour for release notes before `update` and `help <topic>` | the board marks it "maybe" |
+| 5 | F2 container image / DaemonSet | deferred to the very end by decision |
+| 6 | Visual acceptance in real terminals (TTY redraws, raw-mode prompts, Linux) | the user owns it; agents cannot drive a real terminal |
