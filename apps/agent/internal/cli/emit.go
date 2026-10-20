@@ -125,7 +125,7 @@ func newEmitCommand(ctx context.Context, opts *Options) *cobra.Command {
 			if opts.JSON {
 				return renderJSON(outputWriter, map[string]any{"sent": 1, "id": e.ID})
 			}
-			PrintOK("sent")
+			fmt.Fprint(outputWriter, credStep(theme, "Sent", "")+"\n")
 			return nil
 		},
 	}
@@ -167,18 +167,26 @@ func newRunJobCommand(ctx context.Context, opts *Options) *cobra.Command {
 			}
 			res := runCommand(ctx, name, args, maxLines, cmd.OutOrStdout(), cmd.ErrOrStderr(), t.resource())
 			warn := func(msg string, err error) { fmt.Fprintf(cmd.ErrOrStderr(), "orion-agent: %s: %v\n", msg, err) }
+			shipped := len(res.Lines)
 			if terr != nil {
 				warn("job output not shipped", terr)
+				shipped = -1
 			} else if err := t.send(ctx, res.Lines); err != nil {
 				warn("job output not shipped", err)
+				shipped = -1
 			}
+			heartbeat := ""
 			if hbToken != "" {
 				if err := pingHeartbeat(ctx, opts, hbToken, res.ExitCode == 0); err != nil {
 					warn("heartbeat not sent", err)
+				} else if res.ExitCode == 0 {
+					heartbeat = "ok"
+				} else {
+					heartbeat = "failed"
 				}
 			}
+			fmt.Fprint(cmd.ErrOrStderr(), jobSummary(errorTheme(cmd.ErrOrStderr()), name, res.ExitCode, res.Duration, shipped, heartbeat))
 			if res.ExitCode != 0 {
-				fmt.Fprintf(cmd.ErrOrStderr(), "%s job %s failed with exit code %d after %s\n", theme.Tone("down", "error:"), name, res.ExitCode, res.Duration.Round(time.Millisecond))
 				return &CommandError{Summary: fmt.Sprintf("job %s failed with exit code %d", name, res.ExitCode), ExitCode: res.ExitCode, Silent: true}
 			}
 			return nil

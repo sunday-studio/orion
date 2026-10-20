@@ -45,10 +45,16 @@ func runSetup(ctx context.Context, opts *Options) error {
 		defer logging.SetLevel(logging.LevelInfo)
 	}
 	interactive := !opts.SetupYes && !opts.JSON && stdinIsTerminal()
-	if interactive {
+	var plan setupPlan
+	var err error
+	switch {
+	case accessibleRequested() && !opts.SetupYes && !opts.JSON && opts.SetupCoreURL == "" && opts.SetupToken == "" && opts.SetupTokenFile == "":
+		plan, err = accessibleSetup(ctx, opts, os.Stdin, outputWriter)
+	case interactive:
 		return runFlow(ctx, opts)
+	default:
+		plan, err = planFromFlags(ctx, opts)
 	}
-	plan, err := planFromFlags(ctx, opts)
 	if err != nil {
 		if plan.RemoveTokenFile {
 			_ = os.Remove(plan.TokenFile)
