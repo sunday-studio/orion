@@ -6,10 +6,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"orion/agent/internal/config"
+	"orion/agent/internal/control"
+	"orion/agent/internal/discover"
 	"orion/agent/internal/ui"
 )
 
@@ -149,5 +152,92 @@ func TestFlowScanSettingsToggleKindWritesConfig(t *testing.T) {
 	_, cmd := f.Update(key("esc"))
 	if f.step != flowScanning || cmd == nil {
 		t.Fatalf("leaving changed settings must rescan, step=%v", f.step)
+	}
+}
+
+func TestFlowCtrlCDuringApplyIsIgnoredAndAfterApplyIsSuccess(t *testing.T) {
+	f, _ := newTestFlow(t)
+	f.step = flowApplying
+	if _, cmd := f.Update(tea.KeyMsg{Type: tea.KeyCtrlC}); cmd != nil || f.err != nil {
+		t.Fatal("ctrl+c while applying must be ignored")
+	}
+	f.step = flowApplied
+	if _, cmd := f.Update(tea.KeyMsg{Type: tea.KeyCtrlC}); cmd == nil || f.err != nil || !f.done {
+		t.Fatalf("ctrl+c after applying is a normal exit, err=%v", f.err)
+	}
+}
+
+func TestFlowCtrlCEarlierCancelsWithoutClaimingMoreThanItDid(t *testing.T) {
+	f, _ := newTestFlow(t)
+	f.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	if f.err == nil || !strings.Contains(f.err.Error(), "setup cancelled") {
+		t.Fatalf("err = %v", f.err)
+	}
+	g, _ := newTestFlow(t)
+	press(g, "s", " ", "esc") // save a scan setting, then cancel
+	g.step = flowChoose
+	g.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	if ce, ok := g.err.(*CommandError); !ok || !strings.Contains(ce.Cause.Error(), "scan settings you saved stay") {
+		t.Fatalf("err = %v", g.err)
+	}
+}
+
+func TestFlowPollingMarksMonitorsReadyThenFinishes(t *testing.T) {
+	f, _ := newTestFlow(t)
+	f.shown = []appliedMonitor{{Name: "svc-nginx"}, {Name: "disk"}}
+	f.step = flowApplied
+	f.onPolled(polledMsg{st: control.Status{MonitorStates: []control.MonitorState{{Name: "svc-nginx", Since: time.Now().Add(-4 * time.Second)}}}})
+	if !f.shown[0].Ready || f.shown[1].Ready || f.done {
+		t.Fatalf("shown = %+v done=%v", f.shown, f.done)
+	}
+	_, cmd := f.onPolled(polledMsg{st: control.Status{MonitorStates: []control.MonitorState{{Name: "svc-nginx"}, {Name: "disk"}}}})
+	if !f.done || cmd == nil {
+		t.Fatal("everything reporting ends the flow")
+	}
+	g, _ := newTestFlow(t)
+	g.shown, g.polls = []appliedMonitor{{Name: "x"}}, 11
+	g.onPolled(polledMsg{})
+	if !g.done {
+		t.Fatal("polling gives up after a bounded time")
+	}
+}
+
+func TestCommitWorksOnADiscoveryOnlyConfigAndKeepsComments(t *testing.T) {
+	f, cfg := newTestFlow(t)
+	os.WriteFile(cfg, []byte("# mine\ndiscovery:\n  enabled: true # keep\n"), 0o640)
+	if _, err := editDiscoveryKind(cfg, "ports", false, discover.AllKinds); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := editDiscoveryEnabled(cfg, false); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(cfg)
+	if !strings.Contains(string(data), "# mine") || !strings.Contains(string(data), "# keep") {
+		t.Fatalf("comments lost:\n%s", data)
+	}
+	f.plan.Selected = nil
+	if _, err := commitSetup(context.Background(), f.opts, f.plan); err != nil {
+		t.Fatalf("commit on a discovery-only file: %v", err)
+	}
+	if got := readDiscoveryConfig(cfg); got.IsEnabled() || got.KindEnabled("ports") {
+		t.Fatalf("settings lost after commit: %+v", got)
+	}
+}
+
+func TestRunFlowRemovesStagedTokenWhenTheProgramIsCancelled(t *testing.T) {
+	f, _ := newTestFlow(t)
+	tok, err := stageEnrollmentToken("orn_enr_x")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.plan.TokenFile, f.plan.RemoveTokenFile = tok, true
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	prev := outputWriter
+	outputWriter = &strings.Builder{}
+	defer func() { outputWriter = prev }()
+	_ = runFlowWith(ctx, f)
+	if _, err := os.Stat(tok); !os.IsNotExist(err) {
+		t.Fatalf("staged token still on disk: %v", err)
 	}
 }

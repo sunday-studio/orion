@@ -36,6 +36,7 @@ func (f *setupFlow) keySettings(m tea.KeyMsg) (tea.Model, tea.Cmd) {
 	rows := 1 + len(scanKindLabels) + len(f.settings.Never)
 	f.settings.Note = ""
 	fail := func(err error) { f.settings.Note = "could not save: " + errText(err) }
+	defer func() { f.savedSettings = f.savedSettings || f.dirty }()
 	switch m.String() {
 	case "esc", "q":
 		f.step = flowChoose

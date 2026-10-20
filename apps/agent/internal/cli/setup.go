@@ -144,7 +144,16 @@ func buildSetupConfig(opts *Options, plan setupPlan) (next config.UserConfig, be
 		if !plan.Force {
 			existing, _, lerr := config.LoadRaw(opts.ConfigPath)
 			if lerr != nil {
-				return next, before, fmt.Errorf("the existing config is invalid, fix it or use --force to start over: %w", lerr)
+				// A file that only holds discovery settings has no core_url yet;
+				// setup is what adds it, so read it without that rule.
+				var partial config.UserConfig
+				if yerr := yaml.Unmarshal(before, &partial); yerr != nil || partial.CoreURL != "" {
+					return next, before, fmt.Errorf("the existing config is invalid, fix it or use --force to start over: %w", lerr)
+				}
+				if partial.Interval == "" {
+					partial.Interval = config.DefaultInterval
+				}
+				existing = &partial
 			}
 			base = *existing
 		}
