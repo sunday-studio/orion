@@ -156,3 +156,75 @@ func TestBuildConfigKeepsExistingMonitors(t *testing.T) {
 		t.Fatalf("existing monitor was overwritten: %+v", out.Monitors)
 	}
 }
+
+func storageEnv() Env {
+	e := fixtureEnv()
+	base := e.Run
+	e.Run = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		if name == "systemctl" && len(args) > 0 && args[0] == "show" {
+			return []byte("Id=myapp.service\nWorkingDirectory=/srv/myapp\nStateDirectory=myapp\nLogsDirectory=\nCacheDirectory=\n\n" +
+				"Id=nginx.service\nWorkingDirectory=/\nStateDirectory=\nLogsDirectory=nginx\nCacheDirectory=\n\n" +
+				"Id=postgresql@16-main.service\nWorkingDirectory=/usr/lib/postgresql\nStateDirectory=\nLogsDirectory=\nCacheDirectory=\n"), nil
+		}
+		return base(ctx, name, args...)
+	}
+	have := map[string]bool{"/srv/myapp": true, "/var/lib/myapp": true, "/var/log/nginx": true, "/var/lib/postgresql": true, "/var/lib/redis": true}
+	e.Exists = func(d string) bool { return have[d] }
+	e.Readable = func(d string) bool { return d != "/var/lib/postgresql" }
+	return e
+}
+
+func TestStorageSuggestionsFromUnitsAndWellKnownPaths(t *testing.T) {
+	res := Run(context.Background(), storageEnv())
+	by := map[string]Candidate{}
+	for _, c := range res.Candidates {
+		by[c.ID] = c
+	}
+	for id, conf := range map[string]Confidence{
+		"storage:/srv/myapp": Medium, "storage:/var/lib/myapp": Medium, "storage:/var/log/nginx": High,
+	} {
+		if c, ok := by[id]; !ok || c.Confidence != conf || c.StoragePath == "" || c.Monitor != nil {
+			t.Errorf("%s = %+v (ok=%v)", id, c, ok)
+		}
+	}
+	if _, ok := by["storage:/usr/lib/postgresql"]; ok {
+		t.Error("/usr paths are not an app's data space")
+	}
+	if _, ok := by["storage:/"]; ok {
+		t.Error("a working directory of / must not be proposed")
+	}
+	if _, ok := by["storage:/var/lib/redis"]; ok {
+		t.Error("redis is not running in this fixture, so its path must not be proposed")
+	}
+	pg := by["storage:/var/lib/postgresql"]
+	if pg.Confidence != Low || !strings.Contains(pg.Detail, "cannot read") {
+		t.Errorf("unreadable data dir must be low confidence with a reason: %+v", pg)
+	}
+	found := false
+	for _, n := range res.Notes {
+		if strings.Contains(n, "no read access to /var/lib/postgresql") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("missing read-access note: %v", res.Notes)
+	}
+}
+
+func TestSelectedStorageBecomesTrackedPathsWithoutDuplicates(t *testing.T) {
+	res := Run(context.Background(), storageEnv())
+	sel, err := Select(res.Candidates, []string{"storage:/srv/myapp", "storage:/var/log/nginx"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := config.UserConfig{AppResources: config.AppResourcesConfig{Paths: []string{"/srv/myapp"}}}
+	out := BuildConfig(base, sel)
+	if strings.Join(out.AppResources.Paths, ",") != "/srv/myapp,/var/log/nginx" {
+		t.Fatalf("paths = %v", out.AppResources.Paths)
+	}
+	checked := out
+	checked.CoreURL, checked.Interval = "https://x", "60s"
+	if err := checked.Validate(); err != nil {
+		t.Fatalf("result must validate: %v", err)
+	}
+}

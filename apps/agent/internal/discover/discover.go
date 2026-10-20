@@ -42,6 +42,8 @@ type Candidate struct {
 	Confidence Confidence          `json:"confidence"`
 	Monitor    *config.UserMonitor `json:"monitor,omitempty"`
 	LogPath    string              `json:"log_path,omitempty"`
+	// StoragePath is a directory to size under app_resources.paths.
+	StoragePath string `json:"storage_path,omitempty"`
 }
 
 // Runner executes a command and returns stdout.
@@ -59,7 +61,9 @@ type Env struct {
 	Run       Runner
 	Ports     func(ctx context.Context) ([]ListeningPort, error)
 	Glob      func(pattern string) ([]string, error)
-	Interval  string // monitor interval written into proposals
+	Exists    func(dir string) bool // directory exists
+	Readable  func(dir string) bool // the agent user can list it
+	Interval  string                // monitor interval written into proposals
 	Timeout   time.Duration
 	LookupBin func(name string) bool
 }
@@ -73,6 +77,8 @@ func HostEnv(goos string) Env {
 		},
 		Ports:     hostPorts,
 		Glob:      globFiles,
+		Exists:    dirExists,
+		Readable:  dirReadable,
 		Interval:  "60s",
 		Timeout:   4 * time.Second,
 		LookupBin: func(n string) bool { _, err := exec.LookPath(n); return err == nil },
@@ -120,6 +126,11 @@ func Run(ctx context.Context, e Env) Result {
 	cs, err := listeningPorts(ctx, e)
 	add(cs, err, "ports")
 	add(logFiles(e), nil, "logs")
+	{
+		cs, notes := storagePaths(ctx, e, res.Candidates)
+		res.Candidates = append(res.Candidates, cs...)
+		res.Notes = append(res.Notes, notes...)
+	}
 
 	res.Candidates = dedupe(res.Candidates)
 	sort.SliceStable(res.Candidates, func(i, j int) bool {

@@ -378,5 +378,5 @@ func newSampler(cfg *config.UserConfig) *appres.Sampler {
 	if !cfg.AppResources.IsEnabled() {
 		return nil
 	}
-	return appres.NewSampler(appres.Options{TopN: cfg.AppResources.TopN, Paths: cfg.AppResources.Paths})
+	return appres.NewSampler(appres.Options{TopN: cfg.AppResources.TopN, Paths: cfg.AppResources.Paths, DockerSock: cfg.AppResources.DockerSocket, NoDocker: !cfg.AppResources.DockerEnabled()})
 }
