@@ -28,7 +28,6 @@ ASSUME_YES="false"
 PURGE="false"
 ACTION="install"
 STEP=0
-STARTED_AT="$(date +%s)"
 
 usage() {
   cat <<'EOF'
@@ -300,14 +299,13 @@ if [ "$USER_MODE" != "true" ]; then
 fi
 clear_working
 asset_bytes="$(wc -c < "$WORK/$ASSET" | tr -d ' ')"
-RELEASE_VERSION="$(printf '%s' "$VERSION" | sed 's/^v//')"
-[ "$RELEASE_VERSION" = "latest" ] && RELEASE_VERSION="$(chmod +x "$WORK/$ASSET" 2>/dev/null; "$WORK/$ASSET" version 2>/dev/null | awk '{print $NF}' || true)"
+RELEASE_VERSION="$(printf '%s' "$VERSION" | sed 's/^v//')"   # for "latest", read from the binary after it is verified
 record ok "Downloaded" "$(awk -v b="$asset_bytes" 'BEGIN{printf "%.1f MB", b/1048576}')" $(( $(now_ms) - T0 ))
 
 step "Verify"
 T0="$(now_ms)"
 if [ "$SKIP_VERIFY" = "true" ]; then
-  SIGNED=""; VERIFY_DETAIL="not verified (--skip-verify)"; VERIFY_MARK="warn"
+  SIGNED=""; VERIFY_DETAIL="WARNING: contents are NOT verified (--skip-verify)"; VERIFY_MARK="warn"
 else
   if command -v cosign >/dev/null 2>&1; then
     fetch "$BASE_URL/SHA256SUMS.sig" "$WORK/SHA256SUMS.sig"
@@ -346,7 +344,8 @@ else
 fi
 record "$VERIFY_MARK" "Verified" "$VERIFY_DETAIL" $(( $(now_ms) - T0 ))
 chmod +x "$WORK/$ASSET"
-if "$WORK/$ASSET" version >/dev/null 2>&1; then :
+if "$WORK/$ASSET" version >/dev/null 2>&1; then
+  [ "$RELEASE_VERSION" = "latest" ] && RELEASE_VERSION="$("$WORK/$ASSET" version 2>/dev/null | awk '{print $NF}')"
 elif [ "$SKIP_VERIFY" = "true" ]; then info "warning: the downloaded binary did not run here"
 else die "the downloaded binary does not run on this machine" "check the architecture ($OS/$ARCH)" 2; fi
 
@@ -521,8 +520,8 @@ if [ "$START_SERVICE" = "true" ]; then
     printf '\n' ; sed 's/^/  /' "$WORK/doctor.log"
     die "Doctor found problems" "run orion-agent doctor after applying the fixes above"
   fi
-  passed="$(sed -n 's/.*\b\([0-9][0-9]*\) \(passed\|checks passed\).*/\1/p' "$WORK/doctor.log" | tail -1)"
-  warned="$(sed -n 's/.*\b\([0-9][0-9]*\) warning.*/\1/p' "$WORK/doctor.log" | tail -1)"
+  passed="$(awk '{for(i=2;i<=NF;i++) if($i=="passed"){n=$(i-1); if(n=="checks") n=$(i-2); if(n ~ /^[0-9]+$/) v=n}} END{print v}' "$WORK/doctor.log")"
+  warned="$(awk '{for(i=2;i<=NF;i++) if($i ~ /^warnings?$/ && $(i-1) ~ /^[0-9]+$/) v=$(i-1)} END{print v}' "$WORK/doctor.log")"
   found="$("$BIN_DIR/orion-agent" discover --json 2>/dev/null | grep -c '"confidence"' || true)"
   doc_row="${C_OK}✓ ${passed:-all} passed${C_OFF}"
   [ -n "$warned" ] && [ "$warned" != "0" ] && doc_row="$doc_row   ${C_WARN}! $warned warning${C_OFF}"
