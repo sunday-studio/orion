@@ -155,8 +155,7 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 		if runErr != nil {
 			logging.Errorf("Agent stopped with error: %v", runErr)
 			if transport.IsAuthError(runErr) {
-				PrintError("Core rejected Agent credentials; reporting stopped")
-				PrintInfo("recovery", "apply an admin-issued replacement token with orion-agent token apply")
+				return credentialsRejected()
 			}
 			return NewCommandError("agent stopped with an error", runErr)
 		}

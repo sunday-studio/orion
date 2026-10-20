@@ -23,15 +23,11 @@ func runAgent(ctx context.Context, opts *Options) error {
 		logging.SetLevel(logging.LevelFatal)
 		defer logging.SetLevel(logging.LevelInfo)
 	}
-	PrintHeader("run")
-	PrintInfo("config", opts.ConfigPath)
-	PrintInfo("state", opts.StatePath)
-	PrintInfo("once", opts.Once)
-	if opts.Verbose {
-		PrintInfo("verbose", true)
+	what := "foreground"
+	if opts.Once {
+		what = "foreground, one cycle"
 	}
-
-	PrintStep("loading config")
+	fmt.Fprint(outputWriter, runHeader(theme, what))
 	userConfig, err := config.LoadUserConfig(opts.ConfigPath)
 	if err != nil {
 		return NewCommandError("could not load user config", err)
@@ -42,23 +38,18 @@ func runAgent(ctx context.Context, opts *Options) error {
 		}
 		defer logging.Close()
 	}
-	PrintOK(fmt.Sprintf("config loaded with %d monitor(s)", len(userConfig.Monitors)))
-	if !opts.Once {
-		PrintInfo("core_url", userConfig.CoreURL)
-		PrintInfo("interval", userConfig.Interval)
-		PrintInfo("log_file", userConfig.Logging.Path)
-	}
-	if len(userConfig.Monitors) == 0 {
-		PrintSkip("no monitor checks configured; host metrics will still report")
+	monitors := len(userConfig.Monitors)
+	fmt.Fprint(outputWriter, opLines(theme, []opStep{{Mark: "ok", Name: "Config loaded", Detail: fmt.Sprintf("%d %s", monitors, plural(monitors, "monitor", "monitors"))}}))
+	if monitors == 0 {
+		fmt.Fprint(outputWriter, opLines(theme, []opStep{{Mark: "warn", Name: "No monitors configured", Detail: "host metrics still report"}}))
 	}
 
-	PrintStep("opening state database")
 	stateStore, err := agentstate.Open(opts.StatePath)
 	if err != nil {
 		return NewCommandError("could not open state database", err)
 	}
 	defer stateStore.Close()
-	PrintOK("state database ready")
+	fmt.Fprint(outputWriter, opLines(theme, []opStep{{Mark: "ok", Name: "State database ready"}}))
 
 	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
@@ -67,25 +58,23 @@ func runAgent(ctx context.Context, opts *Options) error {
 		return runDaemon(ctx, opts, userConfig, stateStore)
 	}
 
-	PrintStep("registering agent and monitors")
 	if err := registration.New(userConfig, opts.ConfigPath, stateStore).RegisterAgentIfNeeded(); err != nil {
 		return NewCommandError("could not register agent and monitors", err)
 	}
-	PrintOK("registration complete")
+	fmt.Fprint(outputWriter, opLines(theme, []opStep{{Mark: "ok", Name: "Registered"}}))
 	agentInstance, err := agent.NewWithStateStore(userConfig, stateStore)
 	if err != nil {
 		return NewCommandError("could not initialize agent", err)
 	}
-	PrintStep("running one collection cycle")
+	cycleStart := time.Now()
 	if err := agentInstance.RunOnce(ctx); err != nil {
 		logging.Errorf("Agent run failed: %v", err)
 		if transport.IsAuthError(err) {
-			PrintError("Core rejected Agent credentials; reporting stopped")
-			PrintInfo("recovery", "apply an admin-issued replacement token with orion-agent token apply")
+			return credentialsRejected()
 		}
 		return NewCommandError("agent run failed", err)
 	}
-	PrintOK("one collection cycle complete")
+	fmt.Fprint(outputWriter, opLines(theme, []opStep{{Mark: "ok", Name: "One collection cycle complete", Took: fmt.Sprintf("%.1f s", time.Since(cycleStart).Seconds())}}))
 	return nil
 }
 
@@ -101,17 +90,6 @@ func runMaintenance(_ context.Context, opts *Options, action string, reason stri
 		return NewCommandError("could not load state", err)
 	}
 	registered := internalState.IsRegistered()
-	if !opts.JSON {
-		PrintHeader("maintenance")
-		if registered {
-			PrintInfo("state", opts.StatePath)
-			PrintInfo("action", action)
-			if reason != "" {
-				PrintInfo("reason", reason)
-			}
-			PrintStep("updating maintenance mode")
-		}
-	}
 
 	switch action {
 	case "up":
@@ -124,11 +102,7 @@ func runMaintenance(_ context.Context, opts *Options, action string, reason stri
 		if opts.JSON {
 			return renderJSON(outputWriter, maintenanceResult{OK: true, Enabled: false, Via: "state"})
 		}
-		if !registered {
-			return nil
-		}
-		PrintOK("maintenance mode disabled")
-		PrintOK("core maintenance mode updated")
+		fmt.Fprint(outputWriter, maintenanceOutcome(theme, false, time.Time{}, time.Now(), registered))
 	case "down":
 		var reasonPtr *string
 		if reason != "" {
@@ -147,15 +121,7 @@ func runMaintenance(_ context.Context, opts *Options, action string, reason stri
 		if opts.JSON {
 			return renderJSON(outputWriter, maintenanceResult{OK: true, Enabled: true, Reason: reason, Via: "state"})
 		}
-		if !registered {
-			return nil
-		}
-		PrintOK("maintenance mode enabled")
-		PrintInfo("maintenance ends", until.UTC().Format(time.RFC3339))
-		if reason != "" {
-			PrintInfo("maintenance reason", reason)
-		}
-		PrintOK("core maintenance mode updated")
+		printMaintenanceDown(opts, until, reason, duration, registered)
 	}
 	return nil
 }
@@ -402,4 +368,21 @@ func runReconfigure(ctx context.Context, opts *Options, token, tokenFile string)
 	}
 	fmt.Fprint(outputWriter, credBlock(steps))
 	return nil
+}
+
+// credentialsRejected is the run-time error for a token Core no longer accepts.
+func credentialsRejected() error {
+	return NewCommandError("Core rejected this server's credentials",
+		errors.New("Reporting stopped. Identity and monitors are kept."),
+		"orion-agent token apply  with a replacement token from the Console")
+}
+
+// printMaintenanceDown shows the result of `maintenance down`: the form's
+// panel when the form was used, otherwise the short step lines.
+func printMaintenanceDown(opts *Options, until time.Time, reason string, d time.Duration, coreTold bool) {
+	if opts.MaintenanceForm && coreTold {
+		fmt.Fprint(outputWriter, maintenanceResultPanel(theme, until, time.Now(), reason, d))
+		return
+	}
+	fmt.Fprint(outputWriter, maintenanceOutcome(theme, true, until, time.Now(), coreTold))
 }

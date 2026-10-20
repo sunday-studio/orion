@@ -78,34 +78,14 @@ func maintenanceViaDaemon(opts *Options, enabled bool, reason string, d time.Dur
 	if opts.JSON {
 		return true, renderJSON(outputWriter, maintenanceResult{OK: true, Enabled: enabled, Reason: reason, Via: "daemon"})
 	}
-	PrintHeader("maintenance")
-	if !status.Registered {
-		PrintSkip("agent is not registered; updating local maintenance state only")
-		return true, nil
-	}
-	PrintInfo("state", opts.StatePath)
-	if enabled {
-		PrintInfo("action", "down")
-	} else {
-		PrintInfo("action", "up")
-	}
-	if reason != "" {
-		PrintInfo("reason", reason)
-	}
-	PrintStep("updating maintenance mode")
 	if enabled {
 		if d <= 0 {
 			d = defaultMaintenanceDuration
 		}
-		PrintOK("maintenance mode enabled")
-		PrintInfo("maintenance ends", time.Now().Add(d).UTC().Format(time.RFC3339))
-		if reason != "" {
-			PrintInfo("maintenance reason", reason)
-		}
+		printMaintenanceDown(opts, time.Now().Add(d), reason, d, status.Registered)
 	} else {
-		PrintOK("maintenance mode disabled")
+		fmt.Fprint(outputWriter, maintenanceOutcome(theme, false, time.Time{}, time.Now(), status.Registered))
 	}
-	PrintOK("core maintenance mode updated")
 	return true, nil
 }
 

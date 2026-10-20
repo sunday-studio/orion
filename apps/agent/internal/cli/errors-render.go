@@ -105,7 +105,11 @@ func fixLineAlternatives(th *ui.Theme, fixes []string) string {
 	}
 	parts := make([]string, len(fixes))
 	for i, f := range fixes {
-		parts[i] = th.Bold(strings.TrimPrefix(f, "run: "))
+		cmd, note, _ := strings.Cut(strings.TrimPrefix(f, "run: "), "  ")
+		parts[i] = th.Bold(cmd)
+		if n := strings.TrimSpace(note); n != "" {
+			parts[i] += "   " + th.Muted(n)
+		}
 	}
 	return th.Muted("Fix") + "   " + strings.Join(parts, "   "+th.Muted("or")+"   ")
 }

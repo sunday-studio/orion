@@ -17,9 +17,7 @@ func newServiceCommand(ctx context.Context, opts *Options) *cobra.Command {
 		Short: "Show how to install the service on this host",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Fprintln(outputWriter, "The installer sets up the binary, the unprivileged orion user, the service and enrollment:")
-			fmt.Fprintln(outputWriter, "  curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash -s -- --core-url <url> --enrollment-token-file <file>")
-			fmt.Fprintln(outputWriter, "Add --user for a per-user install without root; add --dry-run to preview.")
+			fmt.Fprint(outputWriter, installHint(theme, false))
 			return nil
 		},
 	}
@@ -28,7 +26,7 @@ func newServiceCommand(ctx context.Context, opts *Options) *cobra.Command {
 		Short: "Show how to uninstall the service",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Fprintln(outputWriter, "  curl -fsSL https://github.com/sunday-studio/orion/releases/latest/download/orion-agent-installer.sh | bash -s -- uninstall   (add --purge to remove config, state and the service user)")
+			fmt.Fprint(outputWriter, installHint(theme, true))
 			return nil
 		},
 	}

@@ -31,6 +31,7 @@ type Options struct {
 	SetupForce            bool
 	SetupInitState        bool
 	SetupYes              bool
+	MaintenanceForm       bool // the maintenance form was used: finish with its result panel
 	SetupDryRun           bool
 	SetupToken            string
 	SetupTokenFile        string
