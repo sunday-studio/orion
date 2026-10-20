@@ -1,10 +1,12 @@
 {
   "checks": [
     {
+      "group": "string",
       "id": "string",
       "label": "string",
       "message": "string",
-      "status": "string"
+      "status": "string",
+      "title": "string"
     }
   ],
   "config_path": "string",

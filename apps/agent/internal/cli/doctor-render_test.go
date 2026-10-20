@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"orion/agent/internal/doctor"
 	"orion/agent/internal/ui"
@@ -35,119 +36,103 @@ func screenGolden(t *testing.T, name, got string) {
 	}
 }
 
-func res(id, label string, st doctor.Status, msg, fix string) doctor.Result {
-	return doctor.Result{ID: id, Label: label, Status: st, Message: msg, Fix: fix}
+func dr(group, id, title string, st doctor.Status, msg string, took int64, fix string, evidence ...string) doctor.Result {
+	return doctor.Result{ID: id, Group: group, Label: id, Title: title, Status: st, Message: msg, TookMS: took, Fix: fix, Evidence: evidence}
 }
 
-// artboardReport is the exact fixture drawn in docs/design/artboards/cli-doctor.html.
-func artboardReport() doctor.Report {
-	return doctor.Report{SchemaVersion: doctor.SchemaVersion, Checks: []doctor.Result{
-		res("dns", "DNS", doctor.OK, "core.example.com resolves to 203.0.113.10", ""),
-		res("tls", "TLS", doctor.OK, "valid until Jan 12, 2027", ""),
-		res("core", "Core reachable", doctor.OK, "142 ms", ""),
-		res("token", "Token", doctor.OK, "valid, agent edge-05", ""),
-		res("clock", "Clock skew", doctor.Warn, "+4.2 s (limit 5 s)", "sudo timedatectl set-ntp true"),
-		res("log-access", "Log access", doctor.Fail, "cannot read /var/log/nginx/error.log", "sudo usermod -aG adm orion && sudo systemctl restart orion-agentd"),
-		res("disk", "Disk space", doctor.OK, "41 GB free", ""),
-		res("service", "Service", doctor.OK, "active, running 3d 4h", ""),
-		res("version", "Version", doctor.OK, "0.9.2, latest", ""),
-		res("spool", "Spool", doctor.OK, "0 pending", ""),
-	}}
+func skipped(n int) []doctor.Result {
+	var out []doctor.Result
+	for i := 0; i < n; i++ {
+		out = append(out, doctor.Result{ID: "skipped", Status: doctor.Skip, Group: "System"})
+	}
+	return out
 }
 
-// The artboard's text, character for character (colors aside). The artboard
-// ends with a spinner on "Checking spool..." and counts 8 passed, so the
-// finished screen is that spool check passing.
-const artboardDoctorText = `
-  ✓ DNS              core.example.com resolves to 203.0.113.10
-  ✓ TLS              valid until Jan 12, 2027
-  ✓ Core reachable   142 ms
-  ✓ Token            valid, agent edge-05
-  ! Clock skew       +4.2 s (limit 5 s)
-      fix: sudo timedatectl set-ntp true
-  ✗ Log access       cannot read /var/log/nginx/error.log
-      fix: sudo usermod -aG adm orion && sudo systemctl restart orion-agentd
-  ✓ Disk space       41 GB free
-  ✓ Service          active, running 3d 4h
-  ✓ Version          0.9.2, latest
-  ✓ Spool            0 pending
+// runningReport is the "running" board: 16 of 18 checks done, one problem in
+// Discovery and one in Logs, the spool check still running.
+func runningReport() []doctor.Result {
+	rs := []doctor.Result{
+		dr("Agent", "config", "Config valid", doctor.OK, "/etc/orion/config.yaml", 4, ""),
+		dr("Agent", "service", "Service running", doctor.OK, "systemd · pid 2114", 0, ""),
+		dr("Agent", "state", "State database", doctor.OK, "", 0, ""),
+		dr("Core", "core", "Reachable", doctor.OK, "core.example.com", 38, ""),
+		dr("Core", "token", "Credentials accepted", doctor.OK, "", 0, ""),
+		dr("Core", "clock", "Clock within 1 s", doctor.OK, "", 0, ""),
+		dr("Discovery", "discovery", "Last scan", doctor.OK, "14:30 · found 7 things", 0, ""),
+		dr("Discovery", "discovery-access", "Docker is not readable by the agent", doctor.Warn, "", 0,
+			"sudo usermod -aG docker orion   (this access is powerful)", "Containers are not scanned, so none can be suggested."),
+		dr("Logs", "log-keys", "Log key for nginx is missing", doctor.Warn, "", 0, "orion-agent setup --logs nginx"),
+	}
+	return append(rs, skipped(7)...)
+}
 
-  8 passed   1 warning   1 failed   exit 1
-`
-
-func TestScreenDoctorMatchesArtboardLiterally(t *testing.T) {
+func TestScreenDoctorRunningMatchesBoard(t *testing.T) {
+	board := boardBlock(t, "cli-doctor.txt", "doctor  ·  running")
+	_, board, _ = strings.Cut(board, "\n")
+	spool := doctor.Check{ID: "spool", Group: "Logs", Label: "Spool writable"}
 	for _, dark := range []bool{false, true} {
-		out, exit := renderDoctor(ui.WithMode(dark), artboardReport(), 120)
-		if exit != 1 {
-			t.Fatalf("exit = %d, want 1 for a failed check", exit)
-		}
-		if got := stripANSI(out); got != artboardDoctorText {
-			t.Fatalf("doctor differs from the artboard (dark=%v).\n--- artboard\n%s\n--- got\n%s", dark, artboardDoctorText, got)
-		}
+		got := stripANSI(doctorGrouped(ui.WithMode(dark), "edge-05", runningReport(), 18, &spool, 2))
+		sameAsBoard(t, "doctor running", board, got)
 	}
 }
 
-func TestScreenDoctorColoursComeFromTokens(t *testing.T) {
-	light, _ := renderDoctor(ui.WithMode(false), artboardReport(), 120)
-	dark, _ := renderDoctor(ui.WithMode(true), artboardReport(), 120)
-	if light == dark || !strings.Contains(light, "\x1b[") {
-		t.Fatal("light and dark must differ and carry colour")
-	}
-	screenGolden(t, "doctor-light-120", light)
-	screenGolden(t, "doctor-dark-120", dark)
-}
-
-func TestScreenDoctorPlainAndNarrow(t *testing.T) {
-	plain, _ := renderDoctor(ui.Plain(), artboardReport(), 120)
-	if strings.Contains(plain, "\x1b") || strings.Contains(plain, "✓") || !strings.Contains(plain, "[ok]") || !strings.Contains(plain, "[warn]") || !strings.Contains(plain, "[fail]") {
-		t.Fatalf("plain mode must use [ok]/[warn]/[fail] and no escapes:\n%s", plain)
-	}
-	screenGolden(t, "doctor-plain-120", plain)
-
-	narrow, _ := renderDoctor(ui.Plain(), artboardReport(), 80)
-	for _, l := range strings.Split(narrow, "\n") {
-		if len([]rune(l)) > 80 {
-			t.Errorf("line wider than 80 columns (%d): %q", len([]rune(l)), l)
-		}
-	}
-	screenGolden(t, "doctor-plain-80", narrow)
-	nc, _ := renderDoctor(ui.WithMode(true), artboardReport(), 80)
-	for _, l := range strings.Split(stripANSI(nc), "\n") {
-		if len([]rune(l)) > 80 {
-			t.Errorf("coloured line wider than 80 columns (%d): %q", len([]rune(l)), l)
-		}
+func TestScreenDoctorAllClearMatchesBoard(t *testing.T) {
+	board := boardBlock(t, "cli-doctor.txt", "doctor  ·  all clear")
+	_, board, _ = strings.Cut(board, "\n")
+	board, _, _ = strings.Cut(board, "\n(when everything")
+	got := stripANSI(doctorCollapsed(ui.WithMode(false), "edge-05", doctorCounts{pass: 16}, 900*time.Millisecond))
+	if norm(got) != norm(board) {
+		t.Errorf("all clear differs.\n--- board\n%s\n--- got\n%s", norm(board), norm(got))
 	}
 }
 
-func TestScreenDoctorNoConfigAndAllOK(t *testing.T) {
-	noCfg := doctor.Report{Checks: []doctor.Result{
-		res("config", "Config", doctor.Fail, "config file /etc/orion/config.yaml not found; run `orion-agent setup`, or set ORION_CORE_URL to run without a file", "orion-agent setup   (or fix the file: orion-agent config edit)"),
-		res("dns", "DNS", doctor.Skip, "no core_url yet", ""),
-		res("service", "Service", doctor.Fail, "not installed", "orion-agent service install   (prints the one-line installer)"),
-	}}
-	for _, w := range []int{80, 120} {
-		out, exit := renderDoctor(ui.Plain(), noCfg, w)
-		if exit != 1 {
-			t.Fatalf("exit = %d", exit)
-		}
-		for _, l := range strings.Split(out, "\n") {
-			if len(l) > w {
-				t.Errorf("width %d: line is %d wide: %q", w, len(l), l)
-			}
-		}
-		screenGolden(t, "doctor-noconfig-"+strings.TrimSpace(strings.Repeat(" ", 0))+itoa(w), out)
+// failingReport has the two failures the board shows. The board lists one
+// passing check and counts a warning it does not show; this screen lists every
+// warning and no passes, so the expected text is adjusted below.
+func failingReport() []doctor.Result {
+	rs := []doctor.Result{
+		dr("Core", "core", "Core is not reachable", doctor.Fail, "", 0, "check the address, then orion-agent config edit", "dial tcp 10.0.0.5:8999: connection refused"),
+		dr("Core", "token", "Credentials rejected by Core", doctor.Fail, "", 0, "orion-agent token apply  with a replacement token from the Console", "Core answered 401 for this server's token"),
 	}
-	ok := doctor.Report{Checks: []doctor.Result{res("dns", "DNS", doctor.OK, "x", ""), res("tls", "TLS", doctor.OK, "y", "")}}
-	out, exit := renderDoctor(ui.Plain(), ok, 80)
-	if exit != 0 || !strings.Contains(out, "2 passed   0 warnings   0 failed   exit 0") {
-		t.Fatalf("all-ok summary wrong (exit %d):\n%s", exit, out)
+	for i := 0; i < 14; i++ {
+		rs = append(rs, doctor.Result{ID: "ok", Group: "System", Title: "x", Status: doctor.OK})
 	}
-	screenGolden(t, "doctor-allok-80", out)
+	return rs
 }
 
-func itoa(n int) string {
-	if n == 80 {
-		return "80"
+func TestScreenDoctorFailingMatchesBoard(t *testing.T) {
+	board := boardBlock(t, "cli-doctor.txt", "doctor  ·  failing")
+	_, board, _ = strings.Cut(board, "\n")
+	board, _, _ = strings.Cut(board, "\n$ echo $?")
+	board = strings.Replace(board, "   ✓ Config valid\n", "", 1)
+	board = strings.Replace(board, "13 passed   ! 1 warning ", "14 passed   ! 0 warnings", 1)
+	got := stripANSI(doctorFailing(ui.WithMode(false), failingReport()))
+	sameAsBoardLines(t, "doctor failing", board, got)
+}
+
+// sameAsBoardLines compares text after collapsing runs of spaces.
+func sameAsBoardLines(t *testing.T, name, board, got string) {
+	t.Helper()
+	if norm(got) != norm(board) {
+		t.Errorf("%s differs from the board.\n--- board\n%s\n--- got\n%s", name, norm(board), norm(got))
 	}
-	return "120"
+}
+
+func TestScreenDoctorGoldensAndPlain(t *testing.T) {
+	spool := doctor.Check{ID: "spool", Group: "Logs", Label: "Spool writable"}
+	screenGolden(t, "doctor-running-light", doctorGrouped(ui.WithMode(false), "edge-05", runningReport(), 18, &spool, 2))
+	screenGolden(t, "doctor-running-dark", doctorGrouped(ui.WithMode(true), "edge-05", runningReport(), 18, &spool, 2))
+	screenGolden(t, "doctor-failing-light", doctorFailing(ui.WithMode(false), failingReport()))
+	plain := doctorFailing(ui.Plain(), failingReport())
+	if strings.Contains(plain, "\x1b") || strings.ContainsAny(plain, "✓✗╭│") || !strings.Contains(plain, "[fail]") || !strings.Contains(plain, "fix: ") {
+		t.Fatalf("plain mode must use [ok]/[warn]/[fail] and no decoration:\n%s", plain)
+	}
+	if !strings.Contains(plain, "14 passed   0 warnings   2 failed   exit 1") {
+		t.Fatalf("plain summary:\n%s", plain)
+	}
+	screenGolden(t, "doctor-plain", plain)
+	clear := doctorGrouped(ui.Plain(), "edge-05", []doctor.Result{dr("Core", "dns", "DNS", doctor.OK, "x", 0, "")}, 1, nil, 0)
+	if !strings.Contains(clear, "1 passed   0 warnings   0 failed   exit 0") {
+		t.Fatalf("all-ok plain summary:\n%s", clear)
+	}
 }

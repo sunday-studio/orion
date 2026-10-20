@@ -57,12 +57,34 @@ func buildDoctorEnv(opts *Options) *doctor.Env {
 
 	client := controlClient(opts)
 	if st, err := client.Status(); err == nil {
-		e.Daemon = doctor.DaemonInfo{Reachable: true, Version: st.Version, LastSync: st.LastSync, Uptime: time.Duration(st.UptimeSeconds) * time.Second}
+		e.Daemon = doctor.DaemonInfo{Reachable: true, Version: st.Version, LastSync: st.LastSync, Uptime: time.Duration(st.UptimeSeconds) * time.Second, PID: st.PID}
+		e.StateOpen = func() error { return nil } // the daemon has it open
+		e.Discovery = func() (doctor.DiscoveryInfo, bool) {
+			d, err := client.Discovery()
+			if err != nil {
+				return doctor.DiscoveryInfo{}, false
+			}
+			info := doctor.DiscoveryInfo{ScannedAt: d.ScannedAt}
+			for _, it := range d.Items {
+				if !it.Dismissed {
+					info.Things++
+				}
+			}
+			for _, k := range d.Kinds {
+				if k.State == "blocked" || k.State == "failed" {
+					info.Blocked = append(info.Blocked, doctor.BlockedKind{Kind: k.Kind, Message: k.Message, Fix: k.Fix, Why: k.Why})
+				}
+			}
+			return info, true
+		}
 		e.Registered = st.Registered
 		e.Queue = func() (int, bool) { return st.QueuePending, true }
 		e.TokenProbe = func(context.Context) (int, error) { return client.TokenCheck() }
 	} else {
 		e.Daemon = doctor.DaemonInfo{Err: err}
+	}
+	if e.StateOpen == nil {
+		e.StateOpen = func() error { _, err := agentstate.InspectReadOnly(opts.StatePath); return err }
 	}
 	// Prefer a direct read when the state file is readable (root or the orion user).
 	if state, err := agentstate.InspectReadOnly(opts.StatePath); err == nil && state != nil {
@@ -88,28 +110,52 @@ func runDoctor(ctx context.Context, opts *Options) error {
 		return nil
 	}
 
-	width := terminalWidth()
-	live := !theme.Plain() && stdoutIsTerminal() // spinner only where it can be erased
-	fmt.Fprintln(outputWriter)
-	frame := 0
+	host := hostnameOrEmpty()
+	live := !theme.Plain() && stdoutIsTerminal() // redraw in place only where it can be erased
+	var (
+		results []doctor.Result
+		running *doctor.Check
+		drawn   int // lines of the live screen on the terminal
+		frame   int
+	)
+	redraw := func() {
+		screen := doctorGrouped(theme, host, results, len(checks), running, frame)
+		if drawn > 0 {
+			fmt.Fprintf(outputWriter, "\x1b[%dA\r\x1b[J", drawn)
+		}
+		fmt.Fprint(outputWriter, screen)
+		drawn = strings.Count(screen, "\n")
+	}
+	started := time.Now()
 	start := func(c doctor.Check) {
+		cc := c
+		running, frame = &cc, frame+1
 		if live {
-			fmt.Fprintf(outputWriter, "  %s Checking %s...", theme.Spinner(frame), strings.ToLower(c.Label))
-			frame++
+			redraw()
 		}
 	}
 	emit := func(r doctor.Result) {
+		results = append(results, r)
+		running = nil
 		if live {
-			fmt.Fprint(outputWriter, "\r\x1b[2K") // erase the spinner line
+			redraw()
 		}
-		fmt.Fprintln(outputWriter, doctorRow(theme, r, width))
 	}
 	rep := doctor.RunWithStart(ctx, env, checks, start, emit)
-	sum, exit := doctorSummary(theme, rep)
-	fmt.Fprintln(outputWriter)
-	fmt.Fprintln(outputWriter, sum)
-	if exit != 0 {
-		return &CommandError{Summary: "doctor found errors", ExitCode: exit, Silent: true}
+	if live && drawn > 0 {
+		fmt.Fprintf(outputWriter, "\x1b[%dA\r\x1b[J", drawn)
+	}
+	c := countDoctor(rep.Checks)
+	switch {
+	case c.fail > 0:
+		fmt.Fprint(outputWriter, doctorFailing(theme, rep.Checks))
+	case c.warn == 0 && !opts.Verbose && !theme.Plain():
+		fmt.Fprint(outputWriter, doctorCollapsed(theme, host, c, time.Since(started)))
+	default:
+		fmt.Fprint(outputWriter, doctorGrouped(theme, host, rep.Checks, len(rep.Checks), nil, 0))
+	}
+	if c.fail > 0 {
+		return &CommandError{Summary: "doctor found errors", ExitCode: 1, Silent: true}
 	}
 	return nil
 }
