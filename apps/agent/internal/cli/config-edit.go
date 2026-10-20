@@ -12,11 +12,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// editDiscoveryIgnore adds or removes one id in discovery.ignore of the MAIN
-// config file and nothing else: comments, key order and everything the person
-// wrote stay as they were, and drop-ins and environment values are never
-// merged into the file. It reports whether anything changed.
-func editDiscoveryIgnore(configPath, id string, add bool) (bool, error) {
+// editConfigYAML edits the MAIN config file in place through mutate and
+// nothing else: comments, key order and everything the person wrote stay as
+// they were, and drop-ins and environment values are never merged into the
+// file. mutate reports whether it changed anything.
+func editConfigYAML(configPath string, mutate func(root *yaml.Node) bool) (bool, error) {
 	path := configPath
 	if resolved, err := filepath.EvalSymlinks(configPath); err == nil {
 		path = resolved // edit the real file, keep a managed symlink a symlink
@@ -38,27 +38,8 @@ func editDiscoveryIgnore(configPath, id string, add bool) (bool, error) {
 	if root.Kind != yaml.MappingNode {
 		return false, fmt.Errorf("%s: the top level must be a mapping", path)
 	}
-	disc := mapChild(root, "discovery", yaml.MappingNode, add)
-	if disc == nil {
+	if !mutate(root) {
 		return false, nil
-	}
-	ignore := mapChild(disc, "ignore", yaml.SequenceNode, add)
-	if ignore == nil {
-		return false, nil
-	}
-	idx := -1
-	for i, n := range ignore.Content {
-		if n.Value == id {
-			idx = i
-		}
-	}
-	switch {
-	case add && idx >= 0, !add && idx < 0:
-		return false, nil
-	case add:
-		ignore.Content = append(ignore.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: id})
-	default:
-		ignore.Content = append(ignore.Content[:idx], ignore.Content[idx+1:]...)
 	}
 	var out bytes.Buffer
 	enc := yaml.NewEncoder(&out)
@@ -68,6 +49,91 @@ func editDiscoveryIgnore(configPath, id string, add bool) (bool, error) {
 	}
 	enc.Close()
 	return true, writeFilePreserving(path, out.Bytes())
+}
+
+// editDiscoveryIgnore adds or removes one id in discovery.ignore. It reports
+// whether anything changed.
+func editDiscoveryIgnore(configPath, id string, add bool) (bool, error) {
+	return editConfigYAML(configPath, func(root *yaml.Node) bool {
+		disc := mapChild(root, "discovery", yaml.MappingNode, add)
+		if disc == nil {
+			return false
+		}
+		ignore := mapChild(disc, "ignore", yaml.SequenceNode, add)
+		if ignore == nil {
+			return false
+		}
+		idx := -1
+		for i, n := range ignore.Content {
+			if n.Value == id {
+				idx = i
+			}
+		}
+		switch {
+		case add && idx >= 0, !add && idx < 0:
+			return false
+		case add:
+			ignore.Content = append(ignore.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: id})
+		default:
+			ignore.Content = append(ignore.Content[:idx], ignore.Content[idx+1:]...)
+		}
+		return true
+	})
+}
+
+// editDiscoveryEnabled sets discovery.enabled.
+func editDiscoveryEnabled(configPath string, on bool) (bool, error) {
+	return editConfigYAML(configPath, func(root *yaml.Node) bool {
+		disc := mapChild(root, "discovery", yaml.MappingNode, true)
+		val := mapScalar(disc, "enabled")
+		want := fmt.Sprint(on)
+		if val.Value == want {
+			return false
+		}
+		val.Kind, val.Tag, val.Value = yaml.ScalarNode, "!!bool", want
+		return true
+	})
+}
+
+// editDiscoveryKind turns one scanned kind on or off in discovery.kinds. An
+// empty list means "all", so the first change writes the full list.
+func editDiscoveryKind(configPath, kind string, on bool, all []string) (bool, error) {
+	return editConfigYAML(configPath, func(root *yaml.Node) bool {
+		disc := mapChild(root, "discovery", yaml.MappingNode, true)
+		kinds := mapChild(disc, "kinds", yaml.SequenceNode, true)
+		if len(kinds.Content) == 0 {
+			for _, k := range all {
+				kinds.Content = append(kinds.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: k})
+			}
+		}
+		idx := -1
+		for i, n := range kinds.Content {
+			if n.Value == kind {
+				idx = i
+			}
+		}
+		switch {
+		case on && idx >= 0, !on && idx < 0:
+			return false
+		case on:
+			kinds.Content = append(kinds.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: kind})
+		default:
+			kinds.Content = append(kinds.Content[:idx], kinds.Content[idx+1:]...)
+		}
+		return true
+	})
+}
+
+// mapScalar returns the scalar value node of key in a mapping, adding it.
+func mapScalar(m *yaml.Node, key string) *yaml.Node {
+	for i := 0; i+1 < len(m.Content); i += 2 {
+		if m.Content[i].Value == key {
+			return m.Content[i+1]
+		}
+	}
+	val := &yaml.Node{Kind: yaml.ScalarNode}
+	m.Content = append(m.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key}, val)
+	return val
 }
 
 // mapChild returns the child of a mapping by key, creating it when create is set.

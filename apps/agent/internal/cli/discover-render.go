@@ -89,6 +89,12 @@ const (
 
 // discoverRow is one suggestion line inside a panel, laid out like the board.
 func discoverRow(th *ui.Theme, it control.DiscoveryItem) string {
+	return suggestionRow(th, it, preTicked(it), false)
+}
+
+// suggestionRow is discoverRow with the tick and the cursor decided by the
+// caller, which is what the setup checklist needs.
+func suggestionRow(th *ui.Theme, it control.DiscoveryItem, tick, cursor bool) string {
 	name := padRight(clip(displayName(it), colName-1), colName)
 	if it.Status == discover.StatusMonitored {
 		by := map[string]string{"file": "managed in file", "scan": "accepted from scan", "console": "managed in Console"}[it.ManagedIn]
@@ -97,7 +103,6 @@ func discoverRow(th *ui.Theme, it control.DiscoveryItem) string {
 		}
 		return "  " + th.Faint("✓ "+name+padRight("already monitored", colAction)+padRight(by, colNote))
 	}
-	tick := preTicked(it)
 	mark := "◯"
 	if th.Plain() {
 		mark = "[ ]"
@@ -121,7 +126,11 @@ func discoverRow(th *ui.Theme, it control.DiscoveryItem) string {
 		}
 		return line + it.Confidence
 	}
-	return "  " + mark + " " + name + th.Muted(padRight(action, colAction)) + th.Tone("degraded", padRight(note, colNote)) + th.Tone(confTone(it.Confidence), padRight(it.Confidence, colConf))
+	lead := "  "
+	if cursor {
+		lead = " " + th.Accent("›")
+	}
+	return lead + mark + " " + name + th.Muted(padRight(action, colAction)) + th.Tone("degraded", padRight(note, colNote)) + th.Tone(confTone(it.Confidence), padRight(it.Confidence, colConf))
 }
 
 const panelWidth = 86

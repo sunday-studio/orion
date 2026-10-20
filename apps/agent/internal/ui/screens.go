@@ -175,7 +175,10 @@ func (t *Theme) Panel(title, right string, rows []string, width int) string {
 		width = 24
 	}
 	inner := width - 2 // between the side borders; rows carry their own leading space
-	left := " " + title + " "
+	left := ""
+	if title != "" {
+		left = " " + title + " "
+	}
 	rt := ""
 	if right != "" {
 		rt = " " + right + " "
