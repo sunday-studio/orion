@@ -18,7 +18,7 @@ import (
 type Palette struct{ Text, Muted, Faint, Accent, Border string }
 
 // StatusToken is one status: a shape glyph plus a colour per mode.
-type StatusToken struct{ Shape, Glyph, Light, Dark string }
+type StatusToken struct{ Shape, Glyph, Light, Dark, BadgeBg, BadgeFg string }
 
 // Theme renders styled text for one output destination.
 type Theme struct {

@@ -46,7 +46,10 @@ func runStop(_ context.Context, _ *Options) error {
 	return nil
 }
 
-func runStatus(_ context.Context, opts *Options) error {
+func runStatus(ctx context.Context, opts *Options) error {
+	if opts.StatusWatch {
+		return runStatusWatch(ctx, opts)
+	}
 	report := InspectAgentStatus(opts.StatePath)
 	daemon, derr := controlClient(opts).Status()
 	if derr == nil && report.InternalState == nil {
@@ -55,21 +58,26 @@ func runStatus(_ context.Context, opts *Options) error {
 		report.StateCheck = DiagnosticCheck{Name: "state", Status: CheckOK, Detail: "via control socket"}
 	}
 	if opts.JSON {
-		payload := statusJSON(report, daemon, derr == nil)
-		return renderJSON(outputWriter, payload)
+		return renderJSON(outputWriter, statusJSON(report, daemon, derr == nil))
 	}
-
-	width := terminalWidth()
-	if derr == nil {
-		fmt.Fprint(outputWriter, statusScreen(theme, daemon, time.Now(), width))
-		return nil
+	in := statusInput{St: daemon, Now: time.Now(), Width: terminalWidth()}
+	if derr != nil {
+		in.Stopped = true
+		in.St = control.Status{Name: hostnameOrEmpty()}
+		in.Why, in.Hint = "the service is stopped", "orion-agent service start"
+		if !report.Service.Installed {
+			in.Why, in.Hint = "the service is not installed", "orion-agent service install"
+		}
 	}
-	hint := "orion-agent service start"
-	if !report.Service.Installed {
-		hint = "orion-agent service install"
+	if opts.StatusShort {
+		fmt.Fprint(outputWriter, statusShort(in))
+	} else {
+		fmt.Fprint(outputWriter, statusScreen(theme, in))
 	}
-	fmt.Fprint(outputWriter, statusStopped(theme, hostnameOrEmpty(), "service "+report.Service.State, hint, width))
-	return &CommandError{Summary: "agent is not running", ExitCode: 1, Silent: true}
+	if in.Stopped {
+		return &CommandError{Summary: "agent is not running", ExitCode: 1, Silent: true}
+	}
+	return nil
 }
 
 type statusJSONPayload struct {

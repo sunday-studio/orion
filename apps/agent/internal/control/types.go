@@ -54,17 +54,30 @@ type Status struct {
 	TopApps           []AppUsage     `json:"top_apps,omitempty"`
 	// Suggestions are scan results nobody has accepted, dismissed or ignored;
 	// NewItems are the ones that appeared since the last review.
-	Suggestions int             `json:"suggestions"`
-	NewItems    []DiscoveryItem `json:"new_items,omitempty"`
-	ConfigPath  string          `json:"config_path,omitempty"`
+	Suggestions int `json:"suggestions"`
+	// MissingLogKeys counts configured log sources whose ingest key cannot be read.
+	MissingLogKeys int `json:"missing_log_keys"`
+	// Host is the latest live host reading; ReportMillis the send time of the
+	// last reports (oldest first) and ReportIntervalSeconds how often they go out.
+	Host                  *HostStat       `json:"host,omitempty"`
+	ReportMillis          []int           `json:"report_millis,omitempty"`
+	ReportIntervalSeconds int             `json:"report_interval_seconds"`
+	Scanning              bool            `json:"scanning"`
+	ThingsFound           int             `json:"things_found"`
+	NewItems              []DiscoveryItem `json:"new_items,omitempty"`
+	ConfigPath            string          `json:"config_path,omitempty"`
 }
 
 // MonitorState is the latest result of one monitor.
 type MonitorState struct {
 	Name   string    `json:"name"`
 	Kind   string    `json:"kind"`
-	Health string    `json:"health"` // up | down | unknown
-	At     time.Time `json:"at"`
+	Target string    `json:"target,omitempty"` // what it watches: "nginx", "port 6379", "disk /var"
+	Health string    `json:"health"`           // up | down | slow | unknown
+	At     time.Time `json:"at"`               // when it was last checked
+	Since  time.Time `json:"since"`            // when it entered this health
+	Detail string    `json:"detail,omitempty"`
+	Value  string    `json:"value,omitempty"` // a short reading such as "91%"
 }
 
 // AppUsage is one of the busiest apps from the last passive sample.
@@ -111,6 +124,17 @@ type Discovery struct {
 type DiscoveryAction struct {
 	Action string `json:"action"`
 	ID     string `json:"id,omitempty"`
+}
+
+// HostStat is a live reading of this host.
+type HostStat struct {
+	CPUPercent    float64 `json:"cpu_percent"`
+	MemoryPercent float64 `json:"memory_percent"`
+	DiskPath      string  `json:"disk_path"`
+	DiskPercent   float64 `json:"disk_percent"`
+	Load1         float64 `json:"load_1"`
+	NetRxBps      float64 `json:"net_rx_bps"`
+	NetTxBps      float64 `json:"net_tx_bps"`
 }
 
 // MaintenanceRequest toggles maintenance mode.

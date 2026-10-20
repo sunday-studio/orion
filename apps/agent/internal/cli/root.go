@@ -41,6 +41,8 @@ type Options struct {
 	UpdateBaseURL         string
 	UpdateRollback        bool
 	UpdateForce           bool
+	StatusShort           bool
+	StatusWatch           bool
 	LogLines              int
 	TokenApply            string
 	TokenFile             string

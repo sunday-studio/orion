@@ -18,6 +18,8 @@ type palette struct{ Text, Muted, Faint, Accent, Border string }
 
 type status struct {
 	Shape, Glyph, Light, Dark string
+	BadgeBg                   string `json:"badgeBg"`
+	BadgeFg                   string `json:"badgeFg"`
 }
 
 type tokens struct {
@@ -55,7 +57,7 @@ func main() {
 	b.WriteString("var statusTokens = map[string]StatusToken{\n")
 	for _, n := range names {
 		s := t.Status[n]
-		fmt.Fprintf(&b, "\t%q: {Shape: %q, Glyph: %q, Light: %q, Dark: %q},\n", n, s.Shape, s.Glyph, s.Light, s.Dark)
+		fmt.Fprintf(&b, "\t%q: {Shape: %q, Glyph: %q, Light: %q, Dark: %q, BadgeBg: %q, BadgeFg: %q},\n", n, s.Shape, s.Glyph, s.Light, s.Dark, s.BadgeBg, s.BadgeFg)
 	}
 	b.WriteString("}\n")
 	src, err := format.Source(b.Bytes())

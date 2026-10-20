@@ -10,6 +10,7 @@ import (
 	"runtime/debug"
 	"sync"
 	"syscall"
+	"time"
 
 	agent "orion/agent/internal"
 	"orion/agent/internal/config"
@@ -45,6 +46,7 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 	}
 
 	go ctrl.scan.loop(ctx)
+	go ctrl.host.Run(ctx, 5*time.Second)
 
 	reloadCh := make(chan struct{}, 1)
 	requestReload := func() error {
