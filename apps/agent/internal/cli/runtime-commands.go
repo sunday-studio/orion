@@ -269,12 +269,12 @@ func tokenAppliedOutput(agentID string, monitors int) string {
 
 // promptReplacementToken asks for the token on a terminal when none was given.
 func promptReplacementToken(opts *Options) error {
-	if tok, err := replacementTokenFromOptions(opts); err != nil || tok != "" || opts.JSON || !stdinIsTerminal() {
+	if tok, err := replacementTokenFromOptions(opts); err != nil || tok != "" || !canPromptSecret(opts) {
 		return nil
 	}
 	t, err := readMasked(theme, os.Stdin, outputWriter, "Replacement token", "64 characters, from the Console. Your identity and monitors are kept.")
 	if err != nil {
-		if err.Error() == "cancelled" {
+		if errors.Is(err, errCancelled) {
 			return NewCommandError("token apply cancelled", errors.New("nothing was changed"))
 		}
 		return nil
@@ -324,8 +324,12 @@ func runReconfigure(ctx context.Context, opts *Options, token, tokenFile string)
 	if token == "" {
 		token = strings.TrimSpace(userConfig.EnrollmentToken)
 	}
-	if token == "" && !opts.JSON && stdinIsTerminal() {
-		if t, perr := readMasked(theme, os.Stdin, outputWriter, "One-time token", "From Servers › Add server. Works once."); perr == nil {
+	if token == "" && canPromptSecret(opts) {
+		t, perr := readMasked(theme, os.Stdin, outputWriter, "One-time token", "From Servers › Add server. Works once.")
+		if errors.Is(perr, errCancelled) {
+			return NewCommandError("reconfigure cancelled", errors.New("nothing was changed"))
+		}
+		if perr == nil {
 			token = t
 		}
 	}

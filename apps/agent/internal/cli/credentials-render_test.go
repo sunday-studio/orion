@@ -42,3 +42,49 @@ func TestCredentialPlainHasNoDecoration(t *testing.T) {
 		t.Errorf("plain output has decoration: %q", s)
 	}
 }
+
+func TestMaskedInputEditsAndIgnoresEscapeSequences(t *testing.T) {
+	var m maskedInput
+	m.feed([]byte("abc"))
+	m.feed([]byte{127})
+	m.feed([]byte{27, '[', 'A'}) // up arrow: ignored, not a cancel
+	if done, cancelled := m.feed([]byte("d")); done || cancelled || string(m.value) != "abd" {
+		t.Fatalf("value %q done=%v cancelled=%v", string(m.value), done, cancelled)
+	}
+	if done, _ := m.feed([]byte("\r")); !done {
+		t.Fatal("enter finishes")
+	}
+	var c maskedInput
+	if _, cancelled := c.feed([]byte{27}); !cancelled {
+		t.Fatal("a lone escape cancels")
+	}
+	var u maskedInput
+	u.feed([]byte("é")[:1]) // a multi-byte character split across reads
+	u.feed([]byte("é")[1:])
+	if string(u.value) != "é" {
+		t.Fatalf("split character mangled: %q", string(u.value))
+	}
+	var x maskedInput
+	x.feed([]byte("secret"))
+	x.feed([]byte{21})
+	if len(x.value) != 0 {
+		t.Fatal("ctrl+u clears")
+	}
+}
+
+func TestCanPromptSecretNeverWhenQuietOrJSON(t *testing.T) {
+	for _, o := range []*Options{{Quiet: true}, {JSON: true}} {
+		if canPromptSecret(o) {
+			t.Errorf("%+v must not prompt", o)
+		}
+	}
+}
+
+func TestPromptBlockLineCountMatchesTheTheme(t *testing.T) {
+	if n := len(strings.Split(promptBlock(ui.WithMode(false), "x", 3, "h"), "\n")); n != 3 {
+		t.Errorf("styled block is %d lines, the redraw assumes it from the theme", n)
+	}
+	if n := len(strings.Split(promptBlock(ui.Plain(), "x", 3, "h"), "\n")); n != 1 {
+		t.Errorf("plain block is %d lines", n)
+	}
+}

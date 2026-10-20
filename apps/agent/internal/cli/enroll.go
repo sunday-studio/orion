@@ -59,10 +59,10 @@ func runEnroll(_ context.Context, opts *Options, coreURL, token, tokenFile strin
 			return NewCommandError("could not read enrollment token", err)
 		}
 	}
-	if token == "" && !opts.Quiet && !opts.JSON && stdinIsTerminal() {
+	if token == "" && canPromptSecret(opts) {
 		if t, err := readMasked(theme, os.Stdin, outputWriter, "One-time token", "From Servers › Add server. Works once."); err == nil {
 			token = t
-		} else if err.Error() == "cancelled" {
+		} else if errors.Is(err, errCancelled) {
 			return NewCommandError("enroll cancelled", errors.New("nothing was changed"))
 		}
 	}
