@@ -1,10 +1,12 @@
 package appres
 
 import (
+	"errors"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -219,7 +221,7 @@ func TestDockerNamesAndNetworkRatesOnTopOfCgroups(t *testing.T) {
 	rep := s.Sample()
 	var got *Series
 	for i := range rep.Series {
-		if rep.Series[i].Key == "container:shop-api-1" {
+		if rep.Series[i].Key == "container:0123456789ab" {
 			got = &rep.Series[i]
 		}
 	}
@@ -287,5 +289,85 @@ func TestDockerAPIOverUnixSocket(t *testing.T) {
 	}
 	if _, err := newDockerSource(filepath.Join(dir, "missing.sock"))(); err == nil {
 		t.Fatal("a missing socket must be an error")
+	}
+}
+
+func TestMissingDockerSocketIsSilentAndKeyStaysStable(t *testing.T) {
+	root := fakeCgroup(t, 1, 5000, 1, 1)
+	mk := func(d func() ([]dockerContainer, error)) Report {
+		return NewSampler(Options{CgroupRoot: root, Docker: d,
+			ProcessList: func() ([]ProcSample, error) { return nil, nil }, NetSource: func() (map[string]NetCounters, error) { return nil, nil }}).Sample()
+	}
+	noDocker := mk(func() ([]dockerContainer, error) { return nil, errNoDocker })
+	for _, n := range noDocker.Notes {
+		if strings.HasPrefix(n, "docker") {
+			t.Fatalf("a host without Docker must not get a docker note: %v", noDocker.Notes)
+		}
+	}
+	named := mk(func() ([]dockerContainer, error) {
+		return []dockerContainer{{ID: "0123456789abcdef0123", Name: "web"}}, nil
+	})
+	key := func(r Report) string {
+		for _, s := range r.Series {
+			if s.Kind == KindContainer {
+				return s.Key
+			}
+		}
+		return ""
+	}
+	if key(noDocker) != key(named) || key(named) != "container:0123456789ab" {
+		t.Fatalf("container identity must not change when Docker access appears: %q vs %q", key(noDocker), key(named))
+	}
+}
+
+func TestDockerPartialListAddsNoteAndNoteResetsAfterRecovery(t *testing.T) {
+	root := fakeCgroup(t, 1, 5000, 1, 1)
+	state := "partial"
+	d := func() ([]dockerContainer, error) {
+		switch state {
+		case "partial":
+			return []dockerContainer{{ID: "0123456789abcdef0123", Name: "web"}}, errPartial
+		case "ok":
+			return nil, nil
+		}
+		return nil, os.ErrPermission
+	}
+	s := NewSampler(Options{CgroupRoot: root, Docker: d, ProcessList: func() ([]ProcSample, error) { return nil, nil }, NetSource: func() (map[string]NetCounters, error) { return nil, nil }})
+	hasDocker := func(r Report) bool {
+		for _, n := range r.Notes {
+			if strings.HasPrefix(n, "docker") {
+				return true
+			}
+		}
+		return false
+	}
+	if r := s.Sample(); !hasDocker(r) {
+		t.Fatalf("a truncated container list needs a note: %v", r.Notes)
+	}
+	state = "denied"
+	if r := s.Sample(); !hasDocker(r) {
+		t.Fatal("permission problems are reported once")
+	}
+	if r := s.Sample(); hasDocker(r) {
+		t.Fatal("...and not again")
+	}
+	state = "ok"
+	s.Sample() // recovery resets the once-flag
+	state = "denied"
+	if r := s.Sample(); !hasDocker(r) {
+		t.Fatal("a failure after recovery must be reported again")
+	}
+}
+
+func TestDockerAPIErrorsAreReported(t *testing.T) {
+	dir, _ := os.MkdirTemp("", "dk")
+	defer os.RemoveAll(dir)
+	sock := filepath.Join(dir, "d.sock")
+	ln, _ := net.Listen("unix", sock)
+	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(500) })}
+	go srv.Serve(ln)
+	defer srv.Close()
+	if _, err := newDockerSource(sock)(); err == nil || errors.Is(err, errNoDocker) {
+		t.Fatalf("a failing API must be a real error, got %v", err)
 	}
 }

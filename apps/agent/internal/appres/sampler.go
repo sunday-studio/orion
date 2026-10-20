@@ -1,6 +1,7 @@
 package appres
 
 import (
+	"errors"
 	"runtime"
 	"sort"
 	"strconv"
@@ -241,13 +242,21 @@ func (s *Sampler) applyDocker(rep *Report, haveRates bool, elapsed float64) map[
 		return nil
 	}
 	list, err := s.opts.Docker()
+	if errors.Is(err, errPartial) {
+		rep.Notes = append(rep.Notes, "docker: "+err.Error())
+		err = nil
+	}
 	if err != nil {
+		if errors.Is(err, errNoDocker) {
+			return nil // Docker is simply not installed here: nothing to explain
+		}
 		if !s.dockerNote {
 			rep.Notes = append(rep.Notes, "docker: "+err.Error()+" (containers are shown by id, without network)")
 			s.dockerNote = true
 		}
 		return nil
 	}
+	s.dockerNote = false // recovered: a later failure should be reported again
 	cur := map[string]dockerContainer{}
 	for _, c := range list {
 		short := c.ID
@@ -262,10 +271,10 @@ func (s *Sampler) applyDocker(rep *Report, haveRates bool, elapsed float64) map[
 			}
 		}
 		if ser == nil {
-			rep.Series = append(rep.Series, Series{Kind: KindContainer, Key: "container:" + c.Name, Name: c.Name, MemoryBytes: uptr(c.Memory)})
+			rep.Series = append(rep.Series, Series{Kind: KindContainer, Key: "container:" + short, Name: c.Name, MemoryBytes: uptr(c.Memory)})
 			ser = &rep.Series[len(rep.Series)-1]
 		} else {
-			ser.Key, ser.Name = "container:"+c.Name, c.Name
+			ser.Name = c.Name // the key stays the short id so identity does not change with Docker access
 		}
 		if prev, ok := s.prevDocker[short]; ok && haveRates && c.HasNet && prev.HasNet && c.NetRx >= prev.NetRx && c.NetTx >= prev.NetTx {
 			ser.NetRxBps = fptr(float64(c.NetRx-prev.NetRx) / elapsed)

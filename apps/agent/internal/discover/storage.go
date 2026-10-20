@@ -33,6 +33,9 @@ func wanted(p string) bool {
 	}
 	for _, r := range storageRoots {
 		if strings.HasPrefix(p, r) && len(p) > len(r) {
+			if r == "/home/" && strings.Count(strings.TrimPrefix(p, r), "/") < 1 {
+				return false // a whole home directory is not "the app's space"
+			}
 			return true
 		}
 	}
