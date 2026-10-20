@@ -226,16 +226,11 @@ func runStateInit(_ context.Context, opts *Options) error {
 	if opts.JSON {
 		return renderJSON(outputWriter, map[string]any{"ok": true, "file": stateStore.Path()})
 	}
-	PrintHeader("state init")
-	PrintOK("state database initialized")
-	PrintInfo("file", stateStore.Path())
+	fmt.Fprint(outputWriter, credBlock([]string{credStep(theme, "State database ready", stateStore.Path())}))
 	return nil
 }
 
 func runTokenApply(_ context.Context, opts *Options) error {
-	PrintHeader("token apply")
-	PrintInfo("state", opts.StatePath)
-
 	replacementToken, err := replacementTokenFromOptions(opts)
 	if err != nil {
 		return NewCommandError("could not apply replacement token", err)
@@ -243,16 +238,11 @@ func runTokenApply(_ context.Context, opts *Options) error {
 	if replacementToken == "" {
 		return NewCommandError("could not apply replacement token", fmt.Errorf("replacement token is required"), "use: orion-agent token apply --token-file /path/to/token")
 	}
-
-	PrintStep("opening state database")
 	stateStore, err := agentstate.Open(opts.StatePath)
 	if err != nil {
 		return NewCommandError("could not open state database", err)
 	}
 	defer stateStore.Close()
-	PrintOK("state database ready")
-
-	PrintStep("loading local agent state")
 	before, err := stateStore.Get()
 	if err != nil {
 		return NewCommandError("could not load state", err)
@@ -260,20 +250,36 @@ func runTokenApply(_ context.Context, opts *Options) error {
 	if !before.IsRegistered() || before.AgentID == "" || before.CoreURL == "" {
 		return NewCommandError("could not apply replacement token", fmt.Errorf("state is not registered"), "run: orion-agent reconfigure only if a new Agent identity is intended")
 	}
-	PrintInfo("agent_id", before.AgentID)
-	PrintInfo("core_url", before.CoreURL)
-	PrintInfo("monitor_mappings", len(before.Monitors))
-
-	PrintStep("saving replacement token")
 	if err := stateStore.ApplyReplacementToken(replacementToken); err != nil {
 		return NewCommandError("could not apply replacement token", err)
 	}
-	PrintOK("replacement token applied")
-	PrintInfo("identity", "preserved")
-	PrintInfo("next", "orion-agent restart")
 	if opts.JSON {
 		return renderJSON(outputWriter, map[string]any{"ok": true, "identity": "preserved", "restart_required": true})
 	}
+	fmt.Fprint(outputWriter, tokenAppliedOutput(before.AgentID, len(before.Monitors)))
+	return nil
+}
+
+// tokenAppliedOutput is the finish of `token apply`, whichever path saved it.
+func tokenAppliedOutput(agentID string, monitors int) string {
+	return credBlock(
+		[]string{credStep(theme, "Token saved", ""), credStep(theme, "Identity preserved", fmt.Sprintf("%s · %d %s", clip(agentID, 14), monitors, plural(monitors, "monitor", "monitors")))},
+		[]string{nextCommand(theme, "orion-agent service restart")})
+}
+
+// promptReplacementToken asks for the token on a terminal when none was given.
+func promptReplacementToken(opts *Options) error {
+	if tok, err := replacementTokenFromOptions(opts); err != nil || tok != "" || opts.JSON || !stdinIsTerminal() {
+		return nil
+	}
+	t, err := readMasked(theme, os.Stdin, outputWriter, "Replacement token", "64 characters, from the Console. Your identity and monitors are kept.")
+	if err != nil {
+		if err.Error() == "cancelled" {
+			return NewCommandError("token apply cancelled", errors.New("nothing was changed"))
+		}
+		return nil
+	}
+	opts.TokenApply = t
 	return nil
 }
 
@@ -318,6 +324,11 @@ func runReconfigure(ctx context.Context, opts *Options, token, tokenFile string)
 	if token == "" {
 		token = strings.TrimSpace(userConfig.EnrollmentToken)
 	}
+	if token == "" && !opts.JSON && stdinIsTerminal() {
+		if t, perr := readMasked(theme, os.Stdin, outputWriter, "One-time token", "From Servers › Add server. Works once."); perr == nil {
+			token = t
+		}
+	}
 	if token == "" {
 		return NewCommandError("a fresh Add server token is required", errors.New("reconfigure must be authorized by Core"), "create a token in Console under Servers, Add server", "run: orion-agent reconfigure --token-file <file>")
 	}
@@ -341,27 +352,19 @@ func runReconfigure(ctx context.Context, opts *Options, token, tokenFile string)
 		return err
 	}
 
-	PrintHeader("reconfigure")
-	PrintStep("checking service")
-	wasRunning, status, err := GetServiceStatus()
+	wasRunning, _, err := GetServiceStatus()
 	if err != nil {
 		return NewCommandError("could not get service status", err)
 	}
-	PrintInfo("service_manager", DetectServiceManager())
-	PrintInfo("agent_service", status)
-
+	var steps []string
 	if wasRunning {
-		PrintStep("stopping service")
 		if err := StopService(); err != nil {
 			return NewCommandError("could not stop service", err)
 		}
-		PrintOK("agent service stopped")
+		steps = append(steps, credStep(theme, "Service stopped", ""))
 	}
+	steps = append(steps, credStep(theme, "Registration reset", ""))
 
-	PrintStep("resetting local registration")
-	PrintOK("local registration reset")
-
-	PrintStep("registering agent and monitors")
 	previous, hadPrevious := os.LookupEnv(config.EnvEnrollment)
 	os.Setenv(config.EnvEnrollment, token)
 	defer func() {
@@ -374,24 +377,25 @@ func runReconfigure(ctx context.Context, opts *Options, token, tokenFile string)
 	registrationService := registration.New(userConfig, opts.ConfigPath, stateStore)
 	if err := registrationService.ReconnectAgent(); err != nil {
 		if wasRunning {
-			PrintStep("restoring service after failed reconfigure")
 			if restartErr := StartService(); restartErr != nil {
 				return NewCommandError("could not register agent or restore service", errors.Join(err, restartErr))
 			}
-			PrintOK("agent service restored")
 		}
 		return NewCommandError("could not register agent and monitors", err)
 	}
-	PrintOK("registration complete")
-
+	monitors := 0
+	if st, gerr := stateStore.Get(); gerr == nil {
+		monitors = len(st.Monitors)
+	}
+	steps = append(steps, credStep(theme, "Registered again", fmt.Sprintf("%d %s", monitors, plural(monitors, "monitor", "monitors"))))
 	if wasRunning {
-		PrintStep("starting service")
 		if err := StartService(); err != nil {
 			return NewCommandError("could not start service", err)
 		}
-		PrintOK("agent service started")
+		steps = append(steps, credStep(theme, "Service started", ""))
 	} else {
-		PrintSkip("service was not running before reconfigure")
+		steps = append(steps, credNote(theme, "Service was not running", "left as it was"))
 	}
+	fmt.Fprint(outputWriter, credBlock(steps))
 	return nil
 }

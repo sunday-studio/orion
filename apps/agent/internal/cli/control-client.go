@@ -2,6 +2,7 @@ package cli
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"orion/agent/internal/config"
@@ -127,18 +128,7 @@ func applyTokenViaDaemon(opts *Options) (bool, error) {
 	if opts.JSON {
 		return true, renderJSON(outputWriter, map[string]any{"ok": true, "identity": "preserved", "restart_required": true, "via": "daemon"})
 	}
-	PrintHeader("token apply")
-	PrintInfo("state", opts.StatePath)
-	PrintStep("opening state database")
-	PrintOK("state database ready")
-	PrintStep("loading local agent state")
-	PrintInfo("agent_id", status.AgentID)
-	PrintInfo("core_url", status.CoreURL)
-	PrintInfo("monitor_mappings", status.Monitors)
-	PrintStep("saving replacement token")
-	PrintOK("replacement token applied")
-	PrintInfo("identity", "preserved")
-	PrintInfo("next", "orion-agent restart")
+	fmt.Fprint(outputWriter, tokenAppliedOutput(status.AgentID, status.Monitors))
 	return true, nil
 }
 
