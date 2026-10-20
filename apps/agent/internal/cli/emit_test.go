@@ -11,6 +11,9 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
+
+	"orion/agent/internal/ui"
 )
 
 type fakeCore struct {
@@ -118,5 +121,26 @@ func TestRunJobStillRunsWhenCoreIsUnreachable(t *testing.T) {
 	out, errOut, code := run(t, "--config", cfg, "run-job", "--name", "x", "--", "echo", "still-ran")
 	if code != 0 || !strings.Contains(out, "still-ran") || !strings.Contains(errOut, "not shipped") {
 		t.Fatalf("a monitoring outage must not break the job: code=%d out=%q err=%q", code, out, errOut)
+	}
+}
+
+func TestJobSummaryMatchesBoard(t *testing.T) {
+	th := ui.WithMode(false)
+	board := boardBlock(t, "cli-emit.txt", "for your own scripts")
+	okLine := "   ✓ nightly-backup  exit 0 · 41 s · 214 lines shipped · heartbeat ok"
+	badLine := "   ✗ nightly-backup  exit 1 · 12 ms · heartbeat failed"
+	for _, want := range []string{okLine, badLine, "   ✓ Sent"} {
+		if !strings.Contains(board, want) {
+			t.Fatalf("board lacks %q:\n%s", want, board)
+		}
+	}
+	if got := strings.TrimRight(stripANSI(jobSummary(th, "nightly-backup", 0, 41*time.Second, 214, "ok")), "\n"); got != okLine {
+		t.Errorf("ok summary = %q", got)
+	}
+	if got := strings.TrimRight(stripANSI(jobSummary(th, "nightly-backup", 1, 12*time.Millisecond, -1+0, "failed")), "\n"); got != "   ✗ nightly-backup  exit 1 · 12 ms · heartbeat failed" {
+		t.Errorf("failed summary = %q", got)
+	}
+	if got := jobSummary(ui.Plain(), "j", 2, 3*time.Minute+5*time.Second, 1, ""); got != "[fail] j exit 2 · 3 m 5 s · 1 line shipped\n" {
+		t.Errorf("plain summary = %q", got)
 	}
 }

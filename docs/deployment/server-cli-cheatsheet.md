@@ -38,3 +38,25 @@ Service logs, rollback, Docker monitor permissions and local-network notes are i
 Add `--json` to `status`, `doctor` and `config show` for automation. To try a single collection cycle,
 run `orion-agent run -once` (add `-verbose` when debugging registration or transport). Editing monitors
 in the config does not need a reinstall: restart the service and it reconciles monitors by name.
+
+## Exit codes and which commands open an interface
+
+| Code | Meaning |
+|---|---|
+| 0 | OK |
+| 1 | Failed checks or errors |
+| 2 | Usage error: unknown command or flag |
+| 3 | Needs elevation: run with `sudo` |
+
+An interface appears only when a person is on a terminal and the command needs input or takes time.
+Everything else is text, always when piped or with `--json`. `NO_COLOR=1` and `TERM=dumb` give the plain
+layout: no colour, box or glyphs, one fact per line.
+
+| Kind | Commands |
+|---|---|
+| Forms | `setup`, `enroll`, `token apply`, `maintenance down` (with no arguments), `stop`, `config edit` |
+| Live, in place | `doctor`, `update`, `status --watch`, `usage --watch` |
+| Full screen | `logs --follow` |
+| Plain | everything else |
+
+Set `ACCESSIBLE=1` (or use `TERM=dumb`) to get line prompts instead of forms in `setup` and `enroll`.

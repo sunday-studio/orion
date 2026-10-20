@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"fmt"
-	"sort"
 	"time"
 
 	"orion/agent/internal/appres"
@@ -15,6 +14,7 @@ import (
 func newUsageCommand(ctx context.Context, opts *Options) *cobra.Command {
 	var window time.Duration
 	var top int
+	var watch bool
 	cmd := &cobra.Command{
 		Use:   "usage",
 		Short: "Show what apps on this host cost right now (CPU, memory, disk I/O, network)",
@@ -33,6 +33,12 @@ func newUsageCommand(ctx context.Context, opts *Options) *cobra.Command {
 				paths = cfg.AppResources.Paths
 			}
 			s := appres.NewSampler(appres.Options{TopN: top, Paths: paths})
+			if watch {
+				if opts.JSON || theme.Plain() || !stdoutIsTerminal() {
+					return NewCommandError("--watch needs an interactive terminal", fmt.Errorf("use orion-agent usage for a single reading"))
+				}
+				return runUsageWatch(ctx, theme, s, window, top)
+			}
 			s.Sample()
 			select {
 			case <-ctx.Done():
@@ -43,21 +49,15 @@ func newUsageCommand(ctx context.Context, opts *Options) *cobra.Command {
 			if opts.JSON {
 				return renderJSON(outputWriter, rep)
 			}
-			PrintHeader("usage")
-			PrintInfo("window", fmt.Sprintf("%.1fs", rep.IntervalSeconds))
-			sort.SliceStable(rep.Series, func(i, j int) bool { return cpuOf(rep.Series[i]) > cpuOf(rep.Series[j]) })
-			rows := make([][]string, 0, len(rep.Series))
-			for _, s := range rep.Series {
-				rows = append(rows, []string{string(s.Kind), s.Name, pct(s.CPUPercent), bytesStr(s.MemoryBytes), rate(s.IOReadBps, s.IOWriteBps), rate(s.NetRxBps, s.NetTxBps), bytesStr(s.StorageBytes)})
-			}
-			fmt.Fprintln(outputWriter, theme.Table([]string{"Kind", "Name", "CPU", "Memory", "Disk r/w /s", "Net rx/tx /s", "Storage"}, rows, min(terminalWidth(), 110)))
+			fmt.Fprint(outputWriter, usagePanel(theme, rep, "CPU", false, top))
 			for _, n := range rep.Notes {
-				PrintSkip(n)
+				fmt.Fprintln(outputWriter, "  "+theme.Muted("note: "+n))
 			}
 			return nil
 		},
 	}
 	cmd.Flags().DurationVar(&window, "window", 3*time.Second, "Time between the two samples")
+	cmd.Flags().BoolVar(&watch, "watch", false, "Redraw live in place (s sorts, q quits)")
 	cmd.Flags().IntVar(&top, "top", 10, "Processes shown per ranking (CPU and memory)")
 	return cmd
 }

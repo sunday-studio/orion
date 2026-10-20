@@ -10,6 +10,7 @@ import (
 
 	"orion/agent/internal/config"
 	"orion/agent/internal/discover"
+	agentstate "orion/agent/internal/state"
 )
 
 func fixtureDiscovery(t *testing.T) {
@@ -128,5 +129,46 @@ func TestSetupAcceptDiscoveredPrintsTheBoardSummary(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in:\n%s", want, out)
 		}
+	}
+}
+
+func TestAccessibleSetupAsksPlainLinesAndTakesNumbers(t *testing.T) {
+	fixtureDiscovery(t)
+	dir := t.TempDir()
+	statePath := filepath.Join(dir, "s.db")
+	store, err := agentstate.Open(statePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.UpdateRegistration("agent-1", "tok", "https://core.example.com"); err != nil {
+		t.Fatal(err)
+	}
+	store.Close()
+	in := filepath.Join(dir, "answers")
+	os.WriteFile(in, []byte("1\n"), 0o600)
+	f, _ := os.Open(in)
+	defer f.Close()
+	var out bytes.Buffer
+	plan, err := accessibleSetup(context.Background(), &Options{StatePath: statePath, ConfigPath: filepath.Join(dir, "c.yaml")}, f, &out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := out.String()
+	for _, want := range []string{"already connected to https://core.example.com", "Which of these should Orion watch?", "  1. nginx", "Choice: "} {
+		if !strings.Contains(text, want) {
+			t.Errorf("missing %q in:\n%s", want, text)
+		}
+	}
+	if strings.ContainsAny(text, "\x1b╭│◉") {
+		t.Errorf("accessible output has decoration:\n%s", text)
+	}
+	if len(plan.Selected) != 1 {
+		t.Fatalf("selected = %+v", plan.Selected)
+	}
+	os.WriteFile(in, []byte("9\n"), 0o600)
+	f2, _ := os.Open(in)
+	defer f2.Close()
+	if _, err := accessibleSetup(context.Background(), &Options{StatePath: statePath, ConfigPath: filepath.Join(dir, "c.yaml")}, f2, &out); err == nil {
+		t.Fatal("a number outside the list must be refused")
 	}
 }
