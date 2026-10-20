@@ -135,16 +135,7 @@ func runConfigValidate(_ context.Context, opts *Options) error {
 		return renderJSON(outputWriter, configSummaryJSON(opts.ConfigPath, userConfig))
 	}
 
-	PrintHeader("config validate")
-	PrintInfo("config", opts.ConfigPath)
-	PrintStep("loading config")
-	PrintOK("config file is valid")
-	PrintInfo("core_url", userConfig.CoreURL)
-	PrintInfo("interval", userConfig.Interval)
-	PrintInfo("monitors", len(userConfig.Monitors))
-	if len(userConfig.Monitors) == 0 {
-		PrintSkip("no monitor checks configured; host metrics will still report")
-	}
+	fmt.Fprint(outputWriter, configValidScreen(theme, opts.ConfigPath, len(userConfig.Monitors)))
 	return nil
 }
 

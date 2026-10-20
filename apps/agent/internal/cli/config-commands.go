@@ -29,30 +29,8 @@ func runConfigShow(_ context.Context, opts *Options) error {
 	if opts.JSON {
 		return renderJSON(outputWriter, configShowPayload{configSummaryJSON(opts.ConfigPath, cfg), src})
 	}
-	PrintHeader("config show")
-	describeSource(src)
-	data, err := yaml.Marshal(cfg)
-	if err != nil {
-		return NewCommandError("could not render config", err)
-	}
-	fmt.Fprintln(outputWriter)
-	fmt.Fprint(outputWriter, string(data))
+	fmt.Fprint(outputWriter, configShowScreen(theme, cfg, src))
 	return nil
-}
-
-func describeSource(src config.Source) {
-	switch {
-	case src.ZeroConf:
-		PrintInfo("source", "environment only (no config file)")
-	case src.FileFound:
-		PrintInfo("config", src.File)
-	}
-	for _, p := range src.DropIns {
-		PrintInfo("drop-in", p)
-	}
-	if len(src.EnvKeys) > 0 {
-		PrintInfo("env overrides", strings.Join(src.EnvKeys, ", "))
-	}
 }
 
 // runConfigDiff compares the effective config with another config file, or,
@@ -80,22 +58,13 @@ func runConfigDiffAgainst(_ context.Context, opts *Options, other string) error 
 	if opts.JSON {
 		return renderJSON(outputWriter, map[string]any{"against": label, "identical": len(diff) == 0, "changes": diff})
 	}
-	PrintHeader("config diff")
-	PrintInfo("against", label)
-	if len(diff) == 0 {
-		PrintOK("no differences")
-		return nil
-	}
+	var kept []string
 	for _, l := range diff {
-		switch {
-		case strings.HasPrefix(l, "- "):
-			fmt.Fprintln(outputWriter, theme.Tone("down", l))
-		case strings.HasPrefix(l, "+ "):
-			fmt.Fprintln(outputWriter, theme.Tone("up", l))
-		default:
-			fmt.Fprintln(outputWriter, l)
+		if strings.HasPrefix(l, "- ") || strings.HasPrefix(l, "+ ") {
+			kept = append(kept, l)
 		}
 	}
+	fmt.Fprint(outputWriter, configDiffScreen(theme, label, kept, other == ""))
 	return nil
 }
 
@@ -189,7 +158,8 @@ func lineDiff(a, b []string) []string {
 }
 
 // runConfigEdit opens the config in $EDITOR on a scratch copy, validates the
-// result, and only then replaces the real file.
+// result, shows what changed, and only then replaces the real file. On a
+// terminal it asks first (save, edit again, discard).
 func runConfigEdit(_ context.Context, opts *Options) error {
 	editor := firstNonEmpty(os.Getenv("VISUAL"), os.Getenv("EDITOR"), "vi")
 	original, err := os.ReadFile(opts.ConfigPath)
@@ -205,33 +175,47 @@ func runConfigEdit(_ context.Context, opts *Options) error {
 	if err := os.WriteFile(tmp, original, 0o600); err != nil {
 		return NewCommandError("could not create scratch copy", err)
 	}
+	interactive := canPromptSecret(opts)
 	parts := strings.Fields(editor)
-	cmd := exec.Command(parts[0], append(parts[1:], tmp)...)
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
-	if err := cmd.Run(); err != nil {
-		return NewCommandError("editor exited with an error", err)
-	}
-	edited, err := os.ReadFile(tmp)
-	if err != nil {
-		return NewCommandError("could not read edited config", err)
-	}
-	if string(edited) == string(original) {
-		PrintSkip("no changes")
+	for {
+		cmd := exec.Command(parts[0], append(parts[1:], tmp)...)
+		cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
+		if err := cmd.Run(); err != nil {
+			return NewCommandError("editor exited with an error", err)
+		}
+		edited, err := os.ReadFile(tmp)
+		if err != nil {
+			return NewCommandError("could not read edited config", err)
+		}
+		if string(edited) == string(original) {
+			fmt.Fprint(outputWriter, "\n"+credNote(theme, "No changes", "the file was left as it was")+"\n")
+			return nil
+		}
+		fmt.Fprint(outputWriter, "\n"+credStep(theme, "Opened in $EDITOR", "")+"\n")
+		if _, _, err := config.Load(tmp); err != nil {
+			return NewCommandError("edited config is invalid; nothing was saved", err, "orion-agent config edit")
+		}
+		fmt.Fprint(outputWriter, credStep(theme, "Valid", "")+"\n\n "+theme.Muted("Review")+"\n"+reviewHunks(theme, original, edited))
+		if interactive {
+			choice, err := chooseAction(theme, os.Stdin, outputWriter, "Save and reload the running agent?", "", []string{"Save", "Edit again", "Discard"}, "")
+			if err != nil || choice == 2 || choice < 0 {
+				fmt.Fprint(outputWriter, "\n"+credNote(theme, "Discarded", "nothing was saved")+"\n")
+				return nil
+			}
+			if choice == 1 {
+				continue
+			}
+		}
+		if err := os.WriteFile(opts.ConfigPath, edited, 0o640); err != nil {
+			return NewCommandError("could not save config", err, "sudo orion-agent config edit")
+		}
+		detail := "daemon reloaded the config"
+		if err := controlClient(opts).Reload(); err != nil {
+			detail = "restart the agent to apply it: orion-agent restart"
+		}
+		fmt.Fprint(outputWriter, "\n"+credStep(theme, "Saved", "· "+detail)+"\n")
 		return nil
 	}
-	if _, _, err := config.Load(tmp); err != nil {
-		return NewCommandError("edited config is invalid; nothing was saved", err, "run `orion-agent config edit` to try again")
-	}
-	if err := os.WriteFile(opts.ConfigPath, edited, 0o640); err != nil {
-		return NewCommandError("could not save config", err, "re-run with sufficient permissions (sudo orion-agent config edit)")
-	}
-	PrintOK("config saved")
-	if err := controlClient(opts).Reload(); err != nil {
-		PrintInfo("next", "orion-agent restart")
-	} else {
-		PrintOK("daemon reloaded the config")
-	}
-	return nil
 }
 
 func firstNonEmpty(values ...string) string {

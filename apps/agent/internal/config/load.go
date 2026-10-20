@@ -39,7 +39,29 @@ type Source struct {
 	DropIns   []string `json:"drop_ins,omitempty"`
 	EnvKeys   []string `json:"env_overrides,omitempty"`
 	ZeroConf  bool     `json:"zero_config"`
+	// Origins says where each top-level setting came from: "file", "drop-in"
+	// or "env". MonitorOrigins and LogOrigins do the same per monitor and log
+	// source name.
+	Origins        map[string]string `json:"origins,omitempty"`
+	MonitorOrigins map[string]string `json:"monitor_origins,omitempty"`
+	LogOrigins     map[string]string `json:"log_origins,omitempty"`
 }
+
+// topLevelKeys lists the keys at the top of a YAML document.
+func topLevelKeys(data []byte) []string {
+	var root yaml.Node
+	if yaml.Unmarshal(data, &root) != nil || len(root.Content) == 0 || root.Content[0].Kind != yaml.MappingNode {
+		return nil
+	}
+	var keys []string
+	for i := 0; i+1 < len(root.Content[0].Content); i += 2 {
+		keys = append(keys, root.Content[0].Content[i].Value)
+	}
+	return keys
+}
+
+// envOriginKey maps an environment override to the setting it changes.
+var envOriginKey = map[string]string{EnvCoreURL: "core_url", EnvInterval: "interval", EnvLogLevel: "logging", EnvLogPath: "logging"}
 
 // DropInDir returns the config.d directory next to the main config file.
 func DropInDir(path string) string {
@@ -71,7 +93,7 @@ func Load(path string) (*UserConfig, Source, error) { return load(path, true) }
 func LoadRaw(path string) (*UserConfig, Source, error) { return load(path, false) }
 
 func load(path string, defaults bool) (*UserConfig, Source, error) {
-	src := Source{File: path}
+	src := Source{File: path, Origins: map[string]string{}, MonitorOrigins: map[string]string{}, LogOrigins: map[string]string{}}
 	cfg := UserConfig{}
 	var lines []monitorLine
 
@@ -85,6 +107,12 @@ func load(path string, defaults bool) (*UserConfig, Source, error) {
 		}
 		cfg = *part
 		lines = append(lines, ml...)
+		for _, k := range topLevelKeys(data) {
+			src.Origins[k] = "file"
+		}
+		for _, ls := range part.Logs.Sources {
+			src.LogOrigins[ls.Name] = "file"
+		}
 	case errors.Is(err, os.ErrNotExist):
 		if v, _ := Env(EnvCoreURL); v == "" {
 			return nil, src, fmt.Errorf("config file %s not found; run `orion-agent setup`, or set %s to run without a file", path, EnvCoreURL)
@@ -109,6 +137,12 @@ func load(path string, defaults bool) (*UserConfig, Source, error) {
 		}
 		lines = mergeInto(&cfg, part, lines, ml)
 		src.DropIns = append(src.DropIns, p)
+		for _, k := range topLevelKeys(raw) {
+			src.Origins[k] = "drop-in"
+		}
+		for _, ls := range part.Logs.Sources {
+			src.LogOrigins[ls.Name] = "drop-in"
+		}
 	}
 
 	envKeys, err := applyEnv(&cfg)
@@ -116,6 +150,18 @@ func load(path string, defaults bool) (*UserConfig, Source, error) {
 		return nil, src, err
 	}
 	src.EnvKeys = envKeys
+	for _, k := range envKeys {
+		if key := envOriginKey[k]; key != "" {
+			src.Origins[key] = "env"
+		}
+	}
+	for i, m := range cfg.Monitors {
+		origin := "drop-in"
+		if i < len(lines) && lines[i].file == path {
+			origin = "file"
+		}
+		src.MonitorOrigins[m.Name] = origin
+	}
 	checked := cfg
 	if checked.Interval == "" {
 		checked.Interval = DefaultInterval
@@ -148,6 +194,13 @@ func mergeInto(base, part *UserConfig, lines, partLines []monitorLine) []monitor
 		base.Meta[k] = v
 	}
 	base.Logging = mergeLogging(base.Logging, part.Logging)
+	if part.EnrollmentToken != "" {
+		base.EnrollmentToken = part.EnrollmentToken
+	}
+	if part.Transport.Compression != "" {
+		base.Transport.Compression = part.Transport.Compression
+	}
+	mergeSections(base, part)
 	for i, m := range part.Monitors {
 		idx := -1
 		for j := range base.Monitors {
@@ -377,4 +430,64 @@ func editDistance(a, b string) int {
 		prev = cur
 	}
 	return prev[len(b)]
+}
+
+// mergeSections layers the logs, discovery and app resource settings of a
+// drop-in over the base: scalars that are set win, lists merge.
+func mergeSections(base, part *UserConfig) {
+	if part.Logs.SpoolMB != 0 {
+		base.Logs.SpoolMB = part.Logs.SpoolMB
+	}
+	if part.Logs.Endpoint != "" {
+		base.Logs.Endpoint = part.Logs.Endpoint
+	}
+	for _, ls := range part.Logs.Sources {
+		replaced := false
+		for i := range base.Logs.Sources {
+			if base.Logs.Sources[i].Name == ls.Name {
+				base.Logs.Sources[i], replaced = ls, true
+			}
+		}
+		if !replaced {
+			base.Logs.Sources = append(base.Logs.Sources, ls)
+		}
+	}
+	if part.Discovery.Enabled != nil {
+		base.Discovery.Enabled = part.Discovery.Enabled
+	}
+	if len(part.Discovery.Kinds) > 0 {
+		base.Discovery.Kinds = part.Discovery.Kinds
+	}
+	for _, id := range part.Discovery.Ignore {
+		if !contains(base.Discovery.Ignore, id) {
+			base.Discovery.Ignore = append(base.Discovery.Ignore, id)
+		}
+	}
+	a, p := &base.AppResources, part.AppResources
+	if p.Enabled != nil {
+		a.Enabled = p.Enabled
+	}
+	if p.TopN != 0 {
+		a.TopN = p.TopN
+	}
+	if p.Docker != nil {
+		a.Docker = p.Docker
+	}
+	if p.DockerSocket != "" {
+		a.DockerSocket = p.DockerSocket
+	}
+	for _, path := range p.Paths {
+		if !contains(a.Paths, path) {
+			a.Paths = append(a.Paths, path)
+		}
+	}
+}
+
+func contains(list []string, s string) bool {
+	for _, x := range list {
+		if x == s {
+			return true
+		}
+	}
+	return false
 }

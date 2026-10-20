@@ -16,6 +16,11 @@
   "source": {
     "file": "string",
     "file_found": "bool",
+    "origins": {
+      "core_url": "string",
+      "interval": "string",
+      "monitors": "string"
+    },
     "zero_config": "bool"
   }
 }

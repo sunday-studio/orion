@@ -88,3 +88,28 @@ func TestValidationErrorNamesMonitorLineAndFix(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+func TestDropInsLayerLogsDiscoveryAndTrackOrigins(t *testing.T) {
+	dir := t.TempDir()
+	main := filepath.Join(dir, "config.yaml")
+	os.WriteFile(main, []byte("core_url: https://core.example.com\ninterval: 60s\nmonitors:\n  - name: web\n    type: tcp\n    interval: 30s\n    tcp: {host: 127.0.0.1, port: 80, timeout: 2s}\ndiscovery:\n  ignore: [port:5432]\n"), 0o600)
+	os.MkdirAll(filepath.Join(dir, "config.d"), 0o700)
+	os.WriteFile(filepath.Join(dir, "config.d", "10-logs.yaml"), []byte("logs:\n  sources:\n    - name: nginx\n      type: file\n      path: /var/log/nginx/error.log\n      ingest_key_file: /etc/orion/nginx.key\ndiscovery:\n  ignore: [docker:legacy]\n"), 0o600)
+	t.Setenv("ORION_INTERVAL", "15s")
+	cfg, src, err := Load(main)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.Logs.Sources) != 1 || cfg.Logs.Sources[0].Name != "nginx" {
+		t.Fatalf("drop-in logs were not merged: %+v", cfg.Logs)
+	}
+	if len(cfg.Discovery.Ignore) != 2 {
+		t.Fatalf("ignore lists must union: %v", cfg.Discovery.Ignore)
+	}
+	if src.Origins["core_url"] != "file" || src.Origins["interval"] != "env" || src.Origins["logs"] != "drop-in" {
+		t.Fatalf("origins = %v", src.Origins)
+	}
+	if src.LogOrigins["nginx"] != "drop-in" || src.MonitorOrigins["web"] != "file" {
+		t.Fatalf("per-item origins = %v %v", src.LogOrigins, src.MonitorOrigins)
+	}
+}
