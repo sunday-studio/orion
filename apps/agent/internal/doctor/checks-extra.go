@@ -2,7 +2,9 @@ package doctor
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"strings"
 	"time"
@@ -14,7 +16,7 @@ func checkState(_ context.Context, e *Env) Result {
 		return skip("cannot check from here")
 	}
 	if err := e.StateOpen(); err != nil {
-		if os.IsPermission(err) { // another user owns it; the service check says whether it runs
+		if errors.Is(err, fs.ErrPermission) { // another user owns it; the service check says whether it runs
 			return warn("not readable by this user", "sudo orion-agent doctor   (the state belongs to the service user)").
 				titled("The state database is not readable by you", firstLine(err.Error()))
 		}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"orion/agent/internal/config"
 	"orion/agent/internal/ui"
@@ -35,7 +36,7 @@ func diagnosticOf(err error) *config.Diagnostic {
 const docsConfigURL = "https://orion.thesunday.studio/docs/config"
 
 // commandNames are the root commands, for "did you mean" on a typo.
-var commandNames []string
+var commandNames atomic.Pointer[[]string]
 
 // renderErrorScreen renders an error like the cli-help-error board: a chip
 // and a headline, the evidence indented under it, then the fix.
@@ -55,14 +56,14 @@ func renderErrorScreen(th *ui.Theme, err error, width int) string {
 	if name, ok := unknownCommandName(summary); ok {
 		summary = fmt.Sprintf("Unknown command %q", name)
 		detail = ""
-		if near := closestWord(name, commandNames); near != "" {
+		if near := closestWord(name, knownCommandNames()); near != "" {
 			extra = "Did you mean " + th.Tone("up", near) + "?  "
 		}
 		extra += th.Muted("Run orion-agent --help for all commands.")
 		fixes = nil
 		if th.Plain() {
 			extra = "Run orion-agent --help for all commands."
-			if near := closestWord(name, commandNames); near != "" {
+			if near := closestWord(name, knownCommandNames()); near != "" {
 				extra = fmt.Sprintf("did you mean %q? ", near) + extra
 			}
 		}
@@ -172,4 +173,11 @@ func renderDiagnostic(th *ui.Theme, d *config.Diagnostic) string {
 	b.WriteString("\n   " + th.Muted("Fix") + "   " + th.Bold(fix) + "\n")
 	b.WriteString("   " + th.Muted("Docs") + "  " + docsConfigURL + "\n")
 	return b.String()
+}
+
+func knownCommandNames() []string {
+	if p := commandNames.Load(); p != nil {
+		return *p
+	}
+	return nil
 }

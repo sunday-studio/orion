@@ -3,6 +3,7 @@ package doctor
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -198,7 +199,9 @@ func TestUnreachableDaemonWarnsOnServiceRow(t *testing.T) {
 
 func TestStatePermissionDeniedIsAWarningNotAFailure(t *testing.T) {
 	e := baseEnv()
-	e.StateOpen = func() error { return &os.PathError{Op: "open", Path: "/var/lib/orion/state.db", Err: os.ErrPermission} }
+	e.StateOpen = func() error {
+		return fmt.Errorf("inspect state database: %w", &os.PathError{Op: "open", Path: "/var/lib/orion/state.db", Err: os.ErrPermission})
+	}
 	if r := run(e)["state"]; r.Status != Warn || r.Fix == "" {
 		t.Fatalf("state = %+v", r)
 	}
