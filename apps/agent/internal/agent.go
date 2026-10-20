@@ -26,8 +26,11 @@ type Agent struct {
 // Hooks lets the daemon observe results without the agent knowing about the
 // control socket: the status screen shows monitor states and top apps from them.
 type Hooks struct {
-	MonitorResult func(name, kind, health string, at time.Time)
-	SystemReport  func(at time.Time, apps *appres.Report)
+	// MonitorResult reports a check outcome: detail is the failure reason or
+	// error, value a short reading such as "91%" when the check has one.
+	MonitorResult func(name, kind, target, health, detail, value string, at time.Time)
+	// SystemReport reports a sent system report and how long sending took.
+	SystemReport func(at time.Time, apps *appres.Report, took time.Duration)
 }
 
 // SetHooks installs result observers; call before Run.

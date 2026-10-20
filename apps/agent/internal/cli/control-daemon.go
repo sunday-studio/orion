@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"orion/agent/internal/appres"
+	"orion/agent/internal/hoststats"
 	"orion/agent/internal/logship"
 	"os"
 	"os/user"
@@ -23,22 +24,24 @@ import (
 
 // daemonControl serves the local control socket from inside the daemon.
 type daemonControl struct {
-	startedAt  time.Time
-	configPath string
-	logPath    string
-	monitors   atomic.Int64
-	logSources atomic.Int64
-	spoolMu    sync.Mutex
-	cfgMu      sync.Mutex
-	cfg        *config.UserConfig
-	scan       *scanner
-	spool      *logship.Spool
-	obsMu      sync.Mutex
-	states     map[string]control.MonitorState
-	lastReport time.Time
-	topApps    []control.AppUsage
-	store      *agentstate.Store
-	reload     atomic.Pointer[func() error]
+	startedAt    time.Time
+	configPath   string
+	logPath      string
+	monitors     atomic.Int64
+	logSources   atomic.Int64
+	spoolMu      sync.Mutex
+	cfgMu        sync.Mutex
+	cfg          *config.UserConfig
+	scan         *scanner
+	spool        *logship.Spool
+	obsMu        sync.Mutex
+	states       map[string]control.MonitorState
+	lastReport   time.Time
+	topApps      []control.AppUsage
+	reportMillis []int
+	host         *hoststats.Sampler
+	store        *agentstate.Store
+	reload       atomic.Pointer[func() error]
 }
 
 func newDaemonControl(opts *Options, userConfig *config.UserConfig, store *agentstate.Store) *daemonControl {
@@ -53,6 +56,7 @@ func newDaemonControl(opts *Options, userConfig *config.UserConfig, store *agent
 		store:      store,
 	}
 	d.cfg = userConfig
+	d.host = hoststats.New(hoststats.HostSource("/"), "/")
 	d.scan = newScanner(store, d.config)
 	d.update(userConfig)
 	return d
@@ -67,19 +71,27 @@ func (d *daemonControl) config() *config.UserConfig {
 // hooks feeds monitor results and system reports into the status view.
 func (d *daemonControl) hooks() agent.Hooks {
 	return agent.Hooks{
-		MonitorResult: func(name, kind, health string, at time.Time) {
+		MonitorResult: func(name, kind, target, health, detail, value string, at time.Time) {
 			d.obsMu.Lock()
 			defer d.obsMu.Unlock()
 			if d.states == nil {
 				d.states = map[string]control.MonitorState{}
 			}
-			d.states[name] = control.MonitorState{Name: name, Kind: kind, Health: health, At: at}
+			since := at
+			if prev, ok := d.states[name]; ok && prev.Health == health {
+				since = prev.Since
+			}
+			d.states[name] = control.MonitorState{Name: name, Kind: kind, Target: target, Health: health, At: at, Since: since, Detail: detail, Value: value}
 		},
-		SystemReport: func(at time.Time, apps *appres.Report) {
+		SystemReport: func(at time.Time, apps *appres.Report, took time.Duration) {
 			d.obsMu.Lock()
 			defer d.obsMu.Unlock()
 			d.lastReport = at
 			d.topApps = topApps(apps, 3)
+			d.reportMillis = append(d.reportMillis, int(took.Milliseconds()))
+			if len(d.reportMillis) > 12 {
+				d.reportMillis = d.reportMillis[len(d.reportMillis)-12:]
+			}
 		},
 	}
 }
@@ -145,13 +157,36 @@ func (d *daemonControl) Status() (control.Status, error) {
 	d.obsMu.Lock()
 	out.LastReportAt = d.lastReport
 	out.TopApps = append([]control.AppUsage(nil), d.topApps...)
+	out.ReportMillis = append([]int(nil), d.reportMillis...)
 	for _, s := range d.states {
 		out.MonitorStates = append(out.MonitorStates, s)
 	}
 	d.obsMu.Unlock()
 	if view, err := d.scan.View(); err == nil {
 		out.Suggestions, out.NewItems = pendingFromView(view)
+		out.Scanning = view.Scanning
+		for _, it := range view.Items {
+			if !it.Dismissed {
+				out.ThingsFound++
+			}
+		}
 	}
+	if snap := d.host.Snapshot(); !snap.At.IsZero() {
+		out.Host = &control.HostStat{CPUPercent: snap.CPUPercent, MemoryPercent: snap.MemoryPercent, DiskPath: snap.DiskPath, DiskPercent: snap.DiskPercent,
+			Load1: snap.Load1, NetRxBps: snap.NetRxBps, NetTxBps: snap.NetTxBps}
+	}
+	if cfg := d.config(); cfg != nil {
+		if secs, err := time.ParseDuration(cfg.Interval); err == nil {
+			out.ReportIntervalSeconds = int(secs.Seconds())
+		}
+		kr := &keyResolver{cfg: cfg.Logs.Sources}
+		for _, src := range cfg.Logs.Sources {
+			if kr.Key(src.Name) == "" {
+				out.MissingLogKeys++
+			}
+		}
+	}
+
 	sort.Slice(out.MonitorStates, func(i, j int) bool { return out.MonitorStates[i].Name < out.MonitorStates[j].Name })
 	if st.MaintenanceReason != nil {
 		out.MaintenanceReason = *st.MaintenanceReason

@@ -46,14 +46,17 @@ func newStopCommand(ctx context.Context, opts *Options) *cobra.Command {
 }
 
 func newStatusCommand(ctx context.Context, opts *Options) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "status",
-		Short: "Show agent service status",
+		Short: "Is this host reporting? One glance, one next step",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runStatus(ctx, opts)
 		},
 	}
+	cmd.Flags().BoolVar(&opts.StatusShort, "short", false, "One line, for prompts and cron")
+	cmd.Flags().BoolVar(&opts.StatusWatch, "watch", false, "Redraw live in place (q quits)")
+	return cmd
 }
 
 func newRestartCommand(ctx context.Context, opts *Options) *cobra.Command {

@@ -50,6 +50,7 @@ func (a *Agent) runSystemMetrics(ctx context.Context) error {
 		return a.transport.WithContext(sendCtx).SendReport(*report, agentID)
 	}
 
+	sendStart := time.Now()
 	if err := send(ctx); err != nil {
 		if transport.IsAuthError(err) {
 			return err
@@ -62,7 +63,7 @@ func (a *Agent) runSystemMetrics(ctx context.Context) error {
 		return err
 	}
 	if a.hooks.SystemReport != nil {
-		a.hooks.SystemReport(time.Now(), report.AppResources)
+		a.hooks.SystemReport(time.Now(), report.AppResources, time.Since(sendStart))
 	}
 	logging.Debugf("system report sent: agent_id=%s", agentID)
 
@@ -105,7 +106,8 @@ func (a *Agent) runMonitorMetrics(ctx context.Context, monitor config.InternalSt
 	logging.Debugf("monitor metrics collected: name=%s type=%s health=%s metrics=%d has_error=%t", monitor.Name, userMonitor.Type, result.Status, metricCount(result.Metrics), result.Error != nil)
 
 	if a.hooks.MonitorResult != nil {
-		a.hooks.MonitorResult(monitor.Name, string(userMonitor.Type), result.Status, result.Timestamp)
+		detail, value := resultDetail(result)
+		a.hooks.MonitorResult(monitor.Name, string(userMonitor.Type), monitorTarget(userMonitor), result.Status, detail, value, result.Timestamp)
 	}
 	logging.Infof("Monitor result -> %v", monitor.Name)
 	report := &transport.MonitorReport{
@@ -226,4 +228,50 @@ func metricCount(metrics any) int {
 		return value.Len()
 	}
 	return 0
+}
+
+// resultDetail extracts a short human reason and reading from a check result.
+func resultDetail(r *collector.MonitorResult) (detail, value string) {
+	var m map[string]interface{}
+	switch v := r.Metrics.(type) {
+	case map[string]interface{}:
+		m = v
+	case *map[string]interface{}:
+		if v != nil {
+			m = *v
+		}
+	}
+	if s, ok := m["failure_reason"].(string); ok {
+		detail = s
+	}
+	if detail == "" && r.Error != nil {
+		detail = r.Error.Message
+	}
+	if p, ok := m["used_percent"].(float64); ok {
+		value = fmt.Sprintf("%.0f%%", p)
+	}
+	return detail, value
+}
+
+// monitorTarget is the short thing a monitor watches ("nginx", "port 6379", "disk /var").
+func monitorTarget(m config.UserMonitor) string {
+	switch {
+	case m.Systemd != nil:
+		return m.Systemd.Name
+	case m.Docker != nil:
+		return m.Docker.Name
+	case m.PM2 != nil:
+		return m.PM2.AppName
+	case m.TCP != nil:
+		return fmt.Sprintf("port %d", m.TCP.Port)
+	case m.DiskUsage != nil:
+		return "disk " + m.DiskUsage.Path
+	case m.ProcessRunning != nil:
+		return m.ProcessRunning.Name
+	case m.Website != nil:
+		return m.Website.URL
+	case m.HTTP != nil:
+		return m.HTTP.URL
+	}
+	return ""
 }

@@ -197,3 +197,17 @@ func (t *Theme) Panel(title, right string, rows []string, width int) string {
 	b.WriteString(t.Faint("╰" + strings.Repeat("─", width-2) + "╯"))
 	return b.String()
 }
+
+// Badge is a filled status chip with the design's badge tints (" ● Connected ").
+// Plain mode prints the bracketed word. Terminals use one palette, so the dark
+// badge colours apply in light and dark.
+func (t *Theme) Badge(status, text string) string {
+	if t.Plain() {
+		return "[" + strings.ToLower(strings.TrimSpace(text)) + "]"
+	}
+	tok, ok := statusTokens[status]
+	if !ok {
+		tok = statusTokens["unknown"]
+	}
+	return t.renderer.NewStyle().Bold(true).Background(lipgloss.Color(tok.BadgeBg)).Foreground(lipgloss.Color(tok.BadgeFg)).Render(" " + text + " ")
+}
