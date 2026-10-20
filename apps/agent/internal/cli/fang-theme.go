@@ -15,20 +15,25 @@ import (
 func fangScheme(c lipgloss.LightDarkFunc) fang.ColorScheme {
 	light, dark := ui.Palettes()
 	pick := func(l, d string) color.Color { return c(lipgloss.Color(l), lipgloss.Color(d)) }
+	terminalDefault := lipgloss.NoColor{}
 	downL, downD := ui.StatusColors("down")
 	return fang.ColorScheme{
-		Base:           pick(light.Text, dark.Text),
+		// Fang falls back to light mode when a terminal does not answer its
+		// background-colour query. Keep neutral text and the usage block on the
+		// terminal defaults so that fallback cannot produce dark-on-dark text or
+		// a light rectangle in a dark terminal.
+		Base:           terminalDefault,
 		Title:          pick(light.Accent, dark.Accent),
 		Description:    pick(light.Muted, dark.Muted),
-		Codeblock:      pick(light.Border, dark.Border),
+		Codeblock:      terminalDefault,
 		Program:        pick(light.Accent, dark.Accent),
 		DimmedArgument: pick(light.Faint, dark.Faint),
 		Comment:        pick(light.Faint, dark.Faint),
 		Flag:           pick(light.Accent, dark.Accent),
 		FlagDefault:    pick(light.Faint, dark.Faint),
-		Command:        pick(light.Text, dark.Text),
+		Command:        terminalDefault,
 		QuotedString:   pick(light.Muted, dark.Muted),
-		Argument:       pick(light.Text, dark.Text),
+		Argument:       terminalDefault,
 		Help:           pick(light.Muted, dark.Muted),
 		Dash:           pick(light.Faint, dark.Faint),
 		ErrorHeader:    [2]color.Color{lipgloss.Color("#ffffff"), pick(downL, downD)},
