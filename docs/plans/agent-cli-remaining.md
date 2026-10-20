@@ -1,6 +1,6 @@
 # Agent CLI: functionality and designs left
 
-Updated 2026-10-20. Method: one functionality at a time, each built to its design board text,
+Updated 2026-10-21. Method: one functionality at a time, each built to its design board text,
 checked by literal-match tests, reviewed by an independent agent, then pushed to `main`.
 
 Note: the public design canvas needs a signed-in session; agents cannot read it. Boards are
@@ -9,9 +9,12 @@ taken from `apps/agent/internal/cli/testdata/design/*.txt` (extracted earlier) a
 
 ## Done to the board
 
-Every board below has a literal-match test against its text in
-`apps/agent/internal/cli/testdata/boards/` (extracted from the design canvas) and was reviewed by an
-independent agent before it was pushed. Where the code deliberately differs from a board, the test says why.
+Most boards have a literal-match test against their text in `apps/agent/internal/cli/testdata/boards/`
+(extracted from the design canvas). Discover and Status match the earlier extracts in
+`testdata/design/`. The installer is covered by its shell tests (`deploy/scripts/agent-bootstrap-test.sh`,
+`test-agent-bootstrap-verify.sh`), which assert output fragments rather than the whole board. Output modes and
+exit codes are documentation only. Each screen was reviewed by an independent agent before it was pushed.
+Where the code deliberately differs from a board, the test or this table says why.
 
 | Board | Where | Deviations noted in tests |
 |---|---|---|
@@ -19,7 +22,7 @@ independent agent before it was pushed. Where the code deliberately differs from
 | Status, `--watch`, plain, JSON | `status-render.go`, `status-watch.go` | none |
 | Setup (connect, choose, scan settings, review, applied, non-interactive, accessible) | `setup-flow*.go`, `setup-accessible.go` | none |
 | Enroll and credentials | `credentials-render.go` | none |
-| Install script | `deploy/scripts/agent-bootstrap.sh` | exit code 2 for a failed verification (documented contract) instead of the board's 1 |
+| Install script | `deploy/scripts/agent-bootstrap.sh` (shell tests) | exit code 2 for a failed verification (documented contract) instead of the board's 1 |
 | Doctor | `doctor-render.go`, `internal/doctor` | failing view lists every warning and no passes |
 | Log viewer | `logs-render.go`, `logs-tui.go` | the spool does not record a send time, so the drawer says "sent to Core" without one |
 | Help and errors | `help-render.go`, `errors-render.go` | the "More" line also lists the commands the board omits |
@@ -29,7 +32,7 @@ independent agent before it was pushed. Where the code deliberately differs from
 | Config show, diff, validate, edit | `config-*.go` | monitor count is the number listed |
 | Emit and run-job | `emit-render.go` | none |
 | Usage, `--watch` | `usage-render.go`, `usage-watch.go` | none |
-| Output modes, exit codes | `docs/deployment/server-cli-cheatsheet.md` | none |
+| Output modes, exit codes | `docs/deployment/server-cli-cheatsheet.md` | documentation only, no test |
 
 ## Left
 
