@@ -13,6 +13,8 @@ A server shows CPU, memory, disk and network the moment the agent is installed, 
 3. **Propose, then apply.** High-confidence findings are pre-selected, everything else is one tick away. One "accept" applies the config; no file editing, no restart.
 4. **Keep scanning.** New services that appear later (a new container, a new listening port) show up as "new on this server", not silently added.
 5. **Same flow everywhere.** The terminal, the Console and the install output tell the same story with the same words.
+6. **Always configurable by hand.** Auto-detection is a shortcut, never the only way. A person can write the config file themselves (`config.yaml`, drop-ins in `config.d/`), use `orion-agent config edit`, or create monitors in the Console, with or without ever running a scan. Hand-written entries are never overwritten or duplicated by detection.
+7. **Pick and choose.** Nothing is all-or-nothing. A person can turn scanning off entirely, turn off whole kinds (for example "never look at Docker"), skip individual suggestions, and say "never suggest this again". What they decline stays declined.
 
 ## The flow
 
@@ -78,6 +80,23 @@ Where most people will decide. Needs design.
 | New thing appears later | "New on this server" with accept or dismiss |
 | Dismissed | Hidden, restorable under "Dismissed" |
 | Config edited by hand | Hand-written entries are never overwritten; a suggestion that matches one is shown as "already monitored" |
+| Scanning turned off | Panel says "Scanning is off" with one switch to turn it on; manual config and Create monitor still work |
+| Kind turned off | That group is greyed out with "Not scanned" and its toggle |
+| Ignored suggestion | Listed under "Dismissed" with Restore; never reappears on rescan |
+
+## Control: manual config and opting out
+
+| What the person wants | How |
+|---|---|
+| Write the config themselves | Edit `config.yaml` or add files to `config.d/`; `orion-agent config edit` validates before saving; Console "Create monitor" for checks the agent runs |
+| No scanning at all | Setting `discovery.enabled: false` (or a switch in the Console server settings). Host metrics keep working |
+| Skip a whole kind | `discovery.kinds` lists what to look at (services, containers, pm2, ports, disks, logs); a toggle per kind in the Console panel and in `orion-agent setup` |
+| Skip one thing | Untick it; **Dismiss** hides it. "Never suggest this" adds it to `discovery.ignore`, so a rescan never brings it back |
+| Support only some things | Accept only the ticked rows; the rest stay as dismissed or unselected suggestions, restorable later |
+| Turn off a collected metric group | Per-app metrics (`app_resources`) and log shipping each have their own switch; host CPU, memory, disk and network stay on |
+| Review before anything is written | Accept shows the exact config diff first, in the terminal and in the Console |
+
+Design needs: a Discovery settings block (on/off, per-kind toggles, the ignore list with remove buttons) on the server page, and the same toggles as a step in `orion-agent setup`.
 
 ## What the agent does automatically (no one asks)
 
@@ -97,9 +116,12 @@ Where most people will decide. Needs design.
 2. **Where is the main decision surface?** Recommended: the Console server page. The terminal stays a full alternative.
 3. **How loud are suggestions after the first one?** Recommended: a chip and a count, never a modal.
 4. **Log sources:** shown as suggestions but gated on creating a key. Needs a design for creating the key inline.
+5. **Where do opt-outs live?** Recommended: per-kind toggles and the ignore list in a "Discovery" settings block on the server page, mirrored in the config file so a hand-edited config and the Console never disagree.
+6. **Precedence:** a hand-written config entry always wins over a Console or detected one; show "managed in config file" on such rows so they cannot be edited in two places.
 
 ## What this needs from backend (agent thread will build the agent half)
 
 - A way for the agent to **report discoveries** to Core (a list of candidates with kind, name, detail, confidence) and for Core to store and serve them to the Console, plus accept and dismiss actions.
 - **More agent check types in monitor definitions.** Core accepts disk, memory, process and port today. Discovery also proposes systemd unit, Docker container and pm2 app checks, which the agent already runs from its config but Core cannot define yet.
+- Persist the person's choices (scan on/off, kinds, ignore list) so the Console and the agent config agree.
 - The accept action turns a suggestion into a monitor definition, which the agent already pulls every minute, so "applies on the next report" needs no new agent protocol.
