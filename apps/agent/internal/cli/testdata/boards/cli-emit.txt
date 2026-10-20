@@ -1,0 +1,18 @@
+=== for your own scripts
+$ orion-agent emit --severity error --event backup.failed "nightly backup failed"
+   ✓ Sent
+
+$ orion-agent run-job --name nightly-backup -- /usr/local/bin/backup.sh
+dumping 4 databases …
+uploading to s3://backups … done
+
+   ✓ nightly-backup  exit 0 · 41 s · 214 lines shipped · heartbeat ok  ← proposed
+
+$ orion-agent run-job --name nightly-backup -- false
+   ✗ nightly-backup  exit 1 · 12 ms · heartbeat failed  ← proposed
+$ echo $?
+1   the job's own exit code, always
+
+--- notes
+NOTE Invisible when it works: The command's own output is passed through unchanged, so cron mail looks as before.
+NOTE One summary line: Proposed: a single line on stderr with exit code, duration, lines shipped and heartbeat result. Shipping problems are warnings and never change the exit code.

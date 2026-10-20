@@ -7,8 +7,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"orion/agent/internal/config"
+	"orion/agent/internal/control"
 	"orion/agent/internal/discover"
 	"orion/agent/internal/logging"
 	agentstate "orion/agent/internal/state"
@@ -27,6 +29,11 @@ type setupPlan struct {
 	Selected        []discover.Candidate
 	Force           bool
 	Confirmed       bool // the wizard already showed the diff
+	// Found and ScanTook describe the scan that produced Selected, for the summary.
+	Found    *discover.Result
+	ScanTook time.Duration
+	// Label names the kind of selection in the summary ("high-confidence").
+	Label string
 }
 
 func stdinIsTerminal() bool { return term.IsTerminal(os.Stdin.Fd()) && term.IsTerminal(os.Stdout.Fd()) }
@@ -38,13 +45,10 @@ func runSetup(ctx context.Context, opts *Options) error {
 		defer logging.SetLevel(logging.LevelInfo)
 	}
 	interactive := !opts.SetupYes && !opts.JSON && stdinIsTerminal()
-	var plan setupPlan
-	var err error
 	if interactive {
-		plan, err = runWizard(ctx, opts)
-	} else {
-		plan, err = planFromFlags(ctx, opts)
+		return runFlow(ctx, opts)
 	}
+	plan, err := planFromFlags(ctx, opts)
 	if err != nil {
 		if plan.RemoveTokenFile {
 			_ = os.Remove(plan.TokenFile)
@@ -99,10 +103,13 @@ func planFromFlags(ctx context.Context, opts *Options) (setupPlan, error) {
 		}
 	}
 	if len(opts.SetupMonitors) > 0 || opts.SetupAcceptDiscovered {
+		scanStart := time.Now()
 		found := discoverHost(ctx)
+		plan.Found, plan.ScanTook = &found, time.Since(scanStart)
 		selectors := opts.SetupMonitors
 		if opts.SetupAcceptDiscovered {
 			selectors = []string{"high"}
+			plan.Label = "high-confidence"
 		}
 		sel, err := discover.Select(found.Candidates, selectors)
 		if err != nil {
@@ -152,68 +159,142 @@ func buildSetupConfig(opts *Options, plan setupPlan) (next config.UserConfig, be
 	return base, before, nil
 }
 
-func applySetup(ctx context.Context, opts *Options, plan setupPlan) error {
-	if plan.RemoveTokenFile {
-		defer os.Remove(plan.TokenFile)
-	}
+// commitResult is what committing a setup plan did, for either front end.
+type commitResult struct {
+	ConfigPath string
+	Diff       []string
+	Monitors   int
+	Written    bool
+	Enrolled   bool
+	StateInit  bool
+	Reloaded   bool
+}
+
+// commitSetup validates the plan, writes the config, enrolls and reloads the
+// daemon. It prints nothing; the caller decides how to show the result.
+func commitSetup(ctx context.Context, opts *Options, plan setupPlan) (commitResult, error) {
+	res := commitResult{ConfigPath: opts.ConfigPath}
 	next, before, err := buildSetupConfig(opts, plan)
 	if err != nil {
-		return NewCommandError("config validation failed", err)
+		return res, NewCommandError("config validation failed", err)
 	}
 	data, err := yaml.Marshal(next)
 	if err != nil {
-		return NewCommandError("could not render config", err)
+		return res, NewCommandError("could not render config", err)
 	}
-	diff := lineDiff(splitLines(string(before)), splitLines(string(data)))
-
-	if opts.JSON {
-		_ = renderJSON(outputWriter, map[string]any{"config": opts.ConfigPath, "changes": diff, "applied": !opts.SetupDryRun, "monitors": len(next.Monitors)})
-	} else if !plan.Confirmed {
-		PrintHeader("setup")
-		PrintInfo("config", opts.ConfigPath)
-		if len(diff) == 0 {
-			PrintOK("config already up to date")
-		}
-		for _, l := range diff {
-			fmt.Fprintln(outputWriter, "  "+l)
-		}
-	}
+	res.Diff = lineDiff(splitLines(string(before)), splitLines(string(data)))
+	res.Monitors = len(next.Monitors)
 	if opts.SetupDryRun {
-		PrintSkip("dry run: nothing was written")
-		return nil
+		return res, nil
 	}
-
-	if len(diff) > 0 || len(before) == 0 {
+	if len(res.Diff) > 0 || len(before) == 0 {
 		if err := writeConfigAtomic(opts.ConfigPath, data); err != nil {
-			return NewCommandError("could not write config", err, "re-run with sufficient permissions (sudo orion-agent setup)")
+			return res, NewCommandError("could not write config", err, "re-run with sufficient permissions (sudo orion-agent setup)")
 		}
 		handOverToServiceUser(opts.ConfigPath)
-		PrintOK("config written")
+		res.Written = true
 	}
-
 	switch {
 	case plan.TokenFile != "":
 		if err := runEnroll(ctx, &Options{ConfigPath: opts.ConfigPath, StatePath: opts.StatePath, SocketPath: opts.SocketPath, Quiet: true}, plan.CoreURL, "", plan.TokenFile); err != nil {
-			return err
+			return res, err
 		}
-		PrintOK("host enrolled")
+		res.Enrolled = true
 	case opts.SetupInitState:
 		store, err := agentstate.Open(opts.StatePath)
 		if err != nil {
-			return NewCommandError("could not initialize state database", err)
+			return res, NewCommandError("could not initialize state database", err)
 		}
 		_, _ = store.Get()
 		_ = store.Close()
 		handOverToServiceUser(opts.StatePath)
-		PrintOK("state database initialized")
+		res.StateInit = true
 	}
+	res.Reloaded = controlClient(opts).Reload() == nil
+	return res, nil
+}
 
-	if err := controlClient(opts).Reload(); err == nil {
-		PrintOK("running daemon picked up the new config (no restart)")
-	} else {
-		PrintInfo("next", "orion-agent run --once")
+// applySetup is the non-interactive finish: it commits and prints one line per step.
+func applySetup(ctx context.Context, opts *Options, plan setupPlan) error {
+	if plan.RemoveTokenFile {
+		defer os.Remove(plan.TokenFile)
 	}
+	res, err := commitSetup(ctx, opts, plan)
+	if err != nil {
+		return err
+	}
+	if opts.JSON {
+		return renderJSON(outputWriter, map[string]any{"config": opts.ConfigPath, "changes": res.Diff, "applied": !opts.SetupDryRun, "monitors": res.Monitors})
+	}
+	steps := plan.summarySteps()
+	if opts.SetupDryRun {
+		fmt.Fprint(outputWriter, "\n")
+		for _, l := range res.Diff {
+			fmt.Fprintln(outputWriter, "  "+l)
+		}
+		if len(res.Diff) == 0 {
+			fmt.Fprintln(outputWriter, "  "+theme.Muted("no changes to the config"))
+		}
+		fmt.Fprint(outputWriter, setupSummary(theme, steps, true))
+		return nil
+	}
+	if res.Written {
+		steps = append(steps, setupStep{Mark: "ok", Name: "Config written", Detail: opts.ConfigPath})
+	} else {
+		steps = append(steps, setupStep{Mark: "ok", Name: "Config", Detail: "already up to date"})
+	}
+	if res.Enrolled {
+		steps = append(steps, setupStep{Mark: "ok", Name: "Enrolled", Detail: "host enrolled"})
+	}
+	if res.StateInit {
+		steps = append(steps, setupStep{Mark: "ok", Name: "State", Detail: "database initialized"})
+	}
+	if res.Reloaded {
+		steps = append(steps, setupStep{Mark: "ok", Name: "Applied", Detail: "no restart"})
+	} else {
+		steps = append(steps, setupStep{Mark: "ok", Name: "Next", Detail: "orion-agent run --once"})
+	}
+	fmt.Fprint(outputWriter, setupSummary(theme, steps, false))
 	return nil
+}
+
+// summarySteps are the scan and selection lines of the non-interactive output.
+func (p setupPlan) summarySteps() []setupStep {
+	if p.Found == nil {
+		return nil
+	}
+	steps := []setupStep{{Mark: "ok", Name: "Scanned", Detail: fmt.Sprintf("found %d %s", len(p.Found.Candidates), plural(len(p.Found.Candidates), "thing", "things")), Took: p.ScanTook}}
+	monitored := 0
+	for _, c := range p.Found.Candidates {
+		if c.Status == discover.StatusMonitored {
+			monitored++
+		}
+	}
+	picked := 0
+	var logs []string
+	for _, c := range p.Selected {
+		if c.Monitor != nil || c.StoragePath != "" {
+			picked++
+		}
+	}
+	for _, c := range p.Found.Candidates {
+		if c.Kind == discover.KindLog && c.Status != discover.StatusMonitored {
+			logs = append(logs, displayName(control.DiscoveryItem{Kind: "log", Name: c.Name}))
+		}
+	}
+	label := p.Label
+	if label == "" {
+		label = "selected"
+	}
+	detail := fmt.Sprintf("%d %s", picked, label)
+	if monitored > 0 {
+		detail += fmt.Sprintf(" · %d already monitored", monitored)
+	}
+	steps = append(steps, setupStep{Mark: "ok", Name: "Accepted", Detail: detail})
+	for _, l := range logs {
+		steps = append(steps, setupStep{Mark: "warn", Name: "Skipped", Detail: l + " needs a log key"})
+	}
+	return steps
 }
 
 func splitLines(s string) []string {

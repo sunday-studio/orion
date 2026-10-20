@@ -116,3 +116,17 @@ func TestSetupRequiresCoreURLWhenNonInteractive(t *testing.T) {
 		t.Fatalf("code=%d err=%s", code, errOut)
 	}
 }
+
+func TestSetupAcceptDiscoveredPrintsTheBoardSummary(t *testing.T) {
+	fixtureDiscovery(t)
+	cfg := filepath.Join(t.TempDir(), "config.yaml")
+	out, errOut, code := runSetupCmd(t, cfg, "--core-url", "https://core.example.com", "--accept-discovered")
+	if code != 0 {
+		t.Fatalf("code=%d err=%s out=%s", code, errOut, out)
+	}
+	for _, want := range []string{"[ok]   Scanned: found 2 things", "[ok]   Accepted: 1 high-confidence", "[ok]   Config written: " + cfg, "--dry-run prints the diff and stops."} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in:\n%s", want, out)
+		}
+	}
+}

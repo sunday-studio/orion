@@ -1,0 +1,114 @@
+=== setup  ·  connect
+ ◆ Set up this host                                      ● Connect  ○ Choose  ○ Review
+
+ ╭ Where is your Core? ────────────────────────────────────────────────── step 1 of 3 ╮
+ │ ┃ The address you open the Console at.                                             │
+ │ ┃ › https://core.example.com                                                       │
+ │ ┃ ✓ reachable · Core 1.4.0 · 38 ms                                                 │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+ ╭ One-time token ────────────────────────────────────────────────────────────────────╮
+ │ › ••••••••••••••••••••                                                             │
+ │ Servers › Add server in the Console creates one.                                   │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+
+  enter  next   ctrl+r  show token   esc  quit
+
+=== setup  ·  choose, already enrolled
+ ◆ Set up this host                               – Connect (done)  ● Choose  ○ Review
+
+ ╭ Services ─────────────────────────────────────────────────────────────────────── 3 ╮
+ │  ◉ nginx             Check it is running                                 high      │
+ │  ◉ postgresql        Check it is running                                 high      │
+ │  ✓ redis             already monitored               managed in file               │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+ ╭ Containers ───────────────────────────────────────────────────────────────────── 1 ╮
+ │  ◉ api               Check it is running                                 high      │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+ ╭ Ports ────────────────────────────────────────────────────────────────────────── 1 ╮
+ │  ◯ :6379 redis       Check it accepts connections                        medium    │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+ ╭ Disks ────────────────────────────────────────────────────────────────────────── 1 ╮
+ │  ◉ /var              Alert above 90% full                                high      │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+ ╭ Logs ─────────────────────────────────────────────────────────────────────────── 1 ╮
+ │  ◯ nginx error.log   Ship its lines                  needs a log key     medium    │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+
+ 4 of 6 selected · 1 already monitored · high confidence is pre-ticked
+
+  space  toggle   a  all high   x  never suggest   s  scan settings   enter  next
+
+=== setup  ·  scan settings
+ ◆ Set up this host                               – Connect (done)  ● Choose  ○ Review
+
+ ╭ Scanning ─────────────────────────────────────────────────────── discovery.enabled ╮
+ │  on    off                                                                         │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+ ╭ Look at ────────────────────────────────────────────────────────── discovery.kinds ╮
+ │ ◉ services    ◉ containers    ◯ pm2 apps                                           │
+ │ ◉ ports       ◉ disks         ◉ log files                                          │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+ ╭ Never suggest ────────────────────────────────────────────────────────────────── 1 ╮
+ │ docker:legacy-cron   dismissed 12 Oct                                   r  restore │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+
+ Saved to the config file, so a hand-edited file and this screen agree.
+
+  space  toggle   r  restore ignored   esc  back to the list
+
+=== setup  ·  review
+ ◆ Set up this host                               – Connect (done)  ✓ Choose  ● Review
+
+ ╭ /etc/orion/config.yaml ────────────────────────────────────────────────── +5 lines ╮
+ │  + monitors:                                                                       │
+ │  +   - name: nginx        type: systemd-service                                    │
+ │  +   - name: postgresql   type: systemd-service                                    │
+ │  +   - name: api          type: docker-container                                   │
+ │  +   - name: /var         type: disk-usage  threshold: 90%                         │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+ ╭ Not written ───────────────────────────────────────────────────────────────────────╮
+ │ nginx error.log needs a log key. Create one in the Console.                        │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+
+ Applies on the agent's next report. No restart.
+
+    Apply     Cancel
+
+  ← →  choose   enter  confirm   esc  back
+
+=== setup  ·  applied
+ ◆ Set up this host                                      ✓ Connect  ✓ Choose  ✓ Review
+
+ ╭ Applied ─────────────────────────────────────────────────────────────────── 2 of 2 ╮
+ │ ✓ Config written               /etc/orion/config.yaml                              │
+ │ ✓ Applied                      no restart                                          │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+ ╭ Monitors ─────────────────────────────────────────────────────────────────────── 4 ╮
+ │   NAME            STATE                                                            │
+ │   ⠹ nginx          waiting for first check                                         │
+ │   ⠹ postgresql     waiting for first check                                         │
+ │   ⠹ api            waiting for first check                                         │
+ │   ● /var           reporting  4 s                                                  │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+
+ ╭────────────────────────────────────────────────────────────────────────────────────╮
+ │ ▸ orion-agent status   to watch them come alive                                    │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+
+=== non-interactive
+$ orion-agent setup --accept-discovered --yes
+
+   ✓ Scanned                      found 7 things                                 3.1 s
+   ✓ Accepted                     4 high-confidence · 1 already monitored
+   ! Skipped                      nginx error.log needs a log key
+   ✓ Applied                      no restart
+
+  --dry-run prints the diff and stops. Log sources always need a key.
+
+--- notes
+NOTE Optional: Host metrics report from the first minute. Setup only adds monitors on top; nothing is blocked behind it.
+NOTE Same list as the Console: Same groups, same confidence labels, same default ticks. High is pre-ticked; the rest is one tick away.
+NOTE Pick and choose: Untick one, skip a kind, or press x to never suggest it again. Choices are saved to discovery: in the config file.
+NOTE Propose, then apply: Review shows the exact diff first. Applying needs no restart; new monitors show waiting, then reporting.
+NOTE Gated on a key: Log sources are suggested but never written without an ingest key, because logs can contain secrets.
+NOTE For automation: --accept-discovered --yes takes the high-confidence set; --dry-run prints the diff. Connect is skipped when the host is already enrolled.
