@@ -120,17 +120,36 @@ func preflightFailScreen(th *ui.Theme, pre []opStep, logs []string) string {
 
 // confirmView is a yes/no question with the answer highlighted.
 func confirmView(th *ui.Theme, question, detail, yes, no string, yesFocused bool, hint string) string {
-	bar := " " + th.Accent("┃") + " "
-	y, n := th.Muted(" "+yes+" "), th.Muted(" "+no+" ")
+	focus := 1
 	if yesFocused {
-		y = th.Badge("up", yes)
-	} else {
-		n = th.Badge("up", no)
+		focus = 0
+	}
+	return choiceView(th, question, detail, []string{yes, no}, focus, hint)
+}
+
+// choiceView is a question with a row of answers; the focused one is lit.
+func choiceView(th *ui.Theme, question, detail string, options []string, focus int, hint string) string {
+	bar := " " + th.Accent("┃") + " "
+	var cells []string
+	for i, o := range options {
+		if i == focus {
+			cells = append(cells, th.Badge("up", o))
+		} else {
+			cells = append(cells, th.Muted(" "+o+" "))
+		}
 	}
 	if th.Plain() {
-		return question + " [" + yes + "/" + no + "]\n"
+		return question + " [" + strings.Join(options, "/") + "]\n"
 	}
-	return "\n" + bar + th.Bold(question) + "\n" + bar + th.Muted(detail) + "\n   " + y + "  " + n + "      " + th.Muted(hint) + "\n"
+	out := "\n" + bar + th.Bold(question) + "\n"
+	if detail != "" {
+		out += bar + th.Muted(detail) + "\n"
+	}
+	out += "   " + strings.Join(cells, "  ")
+	if hint != "" {
+		out += "      " + th.Muted(hint)
+	}
+	return out + "\n"
 }
 
 // installHint prints the one-line installer, wrapped so it can be copied.

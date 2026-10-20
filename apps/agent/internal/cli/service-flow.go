@@ -225,21 +225,28 @@ func runStop(_ context.Context, opts *Options) error {
 // confirmAction asks a yes/no question on a terminal. Left/right or tab move,
 // y and n answer, enter confirms, esc cancels.
 func confirmAction(th *ui.Theme, in *os.File, out io.Writer, question, detail, yes, no, hint string) (bool, error) {
+	i, err := chooseAction(th, in, out, question, detail, []string{yes, no}, hint)
+	return i == 0, err
+}
+
+// chooseAction asks a question with several answers and returns the index
+// chosen, or -1 when the person backs out. Left/right or tab move, enter
+// confirms, esc and ctrl+c cancel; the first letter of an answer picks it.
+func chooseAction(th *ui.Theme, in *os.File, out io.Writer, question, detail string, options []string, hint string) (int, error) {
 	if !term.IsTerminal(in.Fd()) {
-		return false, errors.New("stdin is not a terminal")
+		return -1, errors.New("stdin is not a terminal")
 	}
 	state, err := term.MakeRaw(in.Fd())
 	if err != nil {
-		return false, err
+		return -1, err
 	}
 	defer term.Restore(in.Fd(), state)
-	focus := true
-	lines := 0
+	focus, lines := 0, 0
 	draw := func() {
 		if lines > 0 {
 			fmt.Fprintf(out, "\x1b[%dA\r\x1b[J", lines)
 		}
-		screen := strings.ReplaceAll(confirmView(th, question, detail, yes, no, focus, hint), "\n", "\r\n")
+		screen := strings.ReplaceAll(choiceView(th, question, detail, options, focus, hint), "\n", "\r\n")
 		fmt.Fprint(out, screen)
 		lines = strings.Count(screen, "\n")
 	}
@@ -248,21 +255,35 @@ func confirmAction(th *ui.Theme, in *os.File, out io.Writer, question, detail, y
 	for {
 		n, err := in.Read(buf)
 		if err != nil {
-			return false, err
+			return -1, err
 		}
-		switch s := string(buf[:n]); {
+		s := string(buf[:n])
+		switch {
 		case s == "\r" || s == "\n":
 			fmt.Fprint(out, "\r\n")
 			return focus, nil
-		case s == "y" || s == "Y":
+		case s == "\x03" || s == "\x1b":
 			fmt.Fprint(out, "\r\n")
-			return true, nil
-		case s == "n" || s == "N" || s == "\x03" || s == "\x1b":
-			fmt.Fprint(out, "\r\n")
-			return false, nil
-		case s == "\t" || s == "\x1b[C" || s == "\x1b[D" || s == "h" || s == "l":
-			focus = !focus
+			return -1, nil
+		case s == "\t" || s == "\x1b[C" || s == "l":
+			focus = (focus + 1) % len(options)
 			draw()
+		case s == "\x1b[D" || s == "h":
+			focus = (focus + len(options) - 1) % len(options)
+			draw()
+		case len(options) == 2 && (s == "y" || s == "Y"):
+			fmt.Fprint(out, "\r\n")
+			return 0, nil
+		case len(options) == 2 && (s == "n" || s == "N"):
+			fmt.Fprint(out, "\r\n")
+			return 1, nil
+		default:
+			for i, o := range options {
+				if len(s) == 1 && strings.EqualFold(s, o[:1]) {
+					fmt.Fprint(out, "\r\n")
+					return i, nil
+				}
+			}
 		}
 	}
 }
