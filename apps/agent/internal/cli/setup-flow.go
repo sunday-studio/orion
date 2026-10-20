@@ -47,6 +47,9 @@ type setupFlow struct {
 	settings scanSettingsView
 	sCursor  int
 	dirty    bool // scan settings changed: rescan on the way back
+	// savedSettings: discovery.* edits are written as they are made, so they
+	// survive a cancel.
+	savedSettings bool
 
 	review reviewView
 	result commitResult
@@ -119,6 +122,13 @@ func (f *setupFlow) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return f.onPolled(m)
 	case tea.KeyMsg:
 		if m.String() == "ctrl+c" {
+			switch f.step {
+			case flowApplying: // the commit is running; let it finish
+				return f, nil
+			case flowApplied: // already applied: this is just leaving early
+				f.done = true
+				return f, tea.Quit
+			}
 			return f.cancel()
 		}
 		switch f.step {
@@ -141,7 +151,11 @@ func (f *setupFlow) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (f *setupFlow) cancel() (tea.Model, tea.Cmd) {
-	f.err = NewCommandError("setup cancelled", errors.New("nothing was changed"))
+	cause := errors.New("nothing was changed")
+	if f.savedSettings {
+		cause = errors.New("monitors were not changed; the scan settings you saved stay in the config")
+	}
+	f.err = NewCommandError("setup cancelled", cause)
 	return f, tea.Quit
 }
 
@@ -315,6 +329,7 @@ func (f *setupFlow) keyChoose(m tea.KeyMsg) (tea.Model, tea.Cmd) {
 				f.note = "could not save: " + errText(err)
 				return f, nil
 			}
+			f.savedSettings = true
 			for i := range f.items {
 				if f.items[i].ID == id {
 					f.items[i].Dismissed = true
@@ -334,10 +349,13 @@ func (f *setupFlow) keyChoose(m tea.KeyMsg) (tea.Model, tea.Cmd) {
 // runFlow runs the interactive setup and returns what it applied. The flow
 // commits the plan itself, so the caller must not apply it again.
 func runFlow(ctx context.Context, opts *Options) error {
-	f := newSetupFlow(ctx, opts, theme)
+	return runFlowWith(ctx, newSetupFlow(ctx, opts, theme))
+}
+
+func runFlowWith(ctx context.Context, f *setupFlow) error {
 	final, err := tea.NewProgram(f, tea.WithContext(ctx), tea.WithOutput(outputWriter)).Run()
-	if f.plan.RemoveTokenFile && f.err != nil {
-		_ = os.Remove(f.plan.TokenFile)
+	if f.plan.RemoveTokenFile {
+		_ = os.Remove(f.plan.TokenFile) // whatever ended the program, never leave the token behind
 	}
 	if err != nil {
 		return NewCommandError("setup wizard failed", err)
