@@ -34,6 +34,7 @@ func knownCoreURL(opts *Options) string {
 // setup, with the same keys, then the same review and apply. It skips the
 // connect step because the host already knows its Core.
 func runDiscoverPicker(ctx context.Context, opts *Options, coreURL string) error {
+	opts.ElevateAs = "discover"
 	f := newSetupFlow(ctx, opts, theme)
 	f.title, f.enrolled, f.step = "Discover", true, flowScanning
 	f.plan.CoreURL = coreURL
