@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -58,6 +59,13 @@ func runEnroll(_ context.Context, opts *Options, coreURL, token, tokenFile strin
 			return NewCommandError("could not read enrollment token", err)
 		}
 	}
+	if token == "" && !opts.Quiet && !opts.JSON && stdinIsTerminal() {
+		if t, err := readMasked(theme, os.Stdin, outputWriter, "One-time token", "From Servers › Add server. Works once."); err == nil {
+			token = t
+		} else if err.Error() == "cancelled" {
+			return NewCommandError("enroll cancelled", errors.New("nothing was changed"))
+		}
+	}
 	if token == "" {
 		return NewCommandError("enrollment token is required", errors.New("none given"),
 			"copy the command from Console > Add server, or pass --token-file")
@@ -77,10 +85,6 @@ func runEnroll(_ context.Context, opts *Options, coreURL, token, tokenFile strin
 		return NewCommandError("Core URL is required", errors.New("none given"), "pass --core-url https://your-core")
 	}
 
-	if !opts.JSON && !opts.Quiet {
-		PrintHeader("enroll")
-		PrintInfo("core_url", coreURL)
-	}
 	if err := ensureStarterConfig(opts.ConfigPath, coreURL); err != nil {
 		return NewCommandError("could not write config", err)
 	}
@@ -135,13 +139,16 @@ func runEnroll(_ context.Context, opts *Options, coreURL, token, tokenFile strin
 	if opts.JSON {
 		return renderJSON(outputWriter, res)
 	}
+	name := firstNonEmpty(hostnameOrEmpty(), res.AgentID)
 	if wasEnrolled {
-		PrintOK("host was already enrolled; the new token was not needed")
-	} else {
-		PrintOK("host enrolled")
+		fmt.Fprint(outputWriter, credBlock(
+			[]string{credStep(theme, "Already enrolled as "+name, "nothing to do")},
+			[]string{nextCommand(theme, "orion-agent status")}))
+		return nil
 	}
-	PrintInfo("agent_id", res.AgentID)
-	PrintInfo("next", "orion-agent start")
+	fmt.Fprint(outputWriter, credBlock(
+		[]string{credStep(theme, "Reachable", ""), credStep(theme, "Token accepted", ""), credStep(theme, theme.Bold("Enrolled as "+name), "")},
+		[]string{nextCommand(theme, "orion-agent service start")}))
 	return nil
 }
 

@@ -197,6 +197,12 @@ func TestExecuteTokenApplyPreservesLocalState(t *testing.T) {
 		t.Fatalf("token apply output leaked replacement token: out=%q err=%q", out.String(), errOut.String())
 	}
 
+	for _, want := range []string{"[ok] Token saved", "[ok] Identity preserved", "next: orion-agent service restart"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("token apply output missing %q:\n%s", want, out.String())
+		}
+	}
+
 	reopened, err := agentstate.Open(statePath)
 	if err != nil {
 		t.Fatalf("reopen state: %v", err)
