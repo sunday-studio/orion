@@ -31,27 +31,23 @@ type UpdateOptions struct {
 // updateEnv is what the updater needs from the outside world, so rollback
 // paths can be tested without a real service manager.
 type updateEnv struct {
-	executable   string
-	fetch        func(url, dest string) error
-	version      func(path string) (string, error)
-	service      serviceOps
-	healthWait   time.Duration
-	healthPoll   time.Duration
-	healthy      func(wantVersion string) error // nil when the new daemon is serving
-	step, ok, in func(string)
-	updated      bool
+	executable string
+	fetch      func(url, dest string) error
+	version    func(path string) (string, error)
+	service    serviceOps
+	healthWait time.Duration
+	healthPoll time.Duration
+	healthy    func(wantVersion string) error // nil when the new daemon is serving
+	rep        *updateReporter                // nil in tests
+	updated    bool
+	newVersion string
+	restored   string // version the host is back on after a rollback
 }
 
 type serviceOps struct {
 	running func() (bool, error)
 	stop    func() error
 	start   func() error
-}
-
-func (e *updateEnv) say(f func(string), msg string) {
-	if f != nil {
-		f(msg)
-	}
 }
 
 func UpdateAgent(opts UpdateOptions) error {
@@ -73,15 +69,26 @@ func UpdateAgent(opts UpdateOptions) error {
 		},
 		healthWait: 45 * time.Second,
 		healthPoll: time.Second,
-		step:       PrintStep, ok: PrintOK, in: func(m string) { fmt.Fprintln(outputWriter, "  "+m) },
 	}
 	env.healthy = func(want string) error { return daemonHealthy(opts, want) }
-	PrintHeader("update")
-	PrintInfo("current_version", opts.CurrentVersion)
-	PrintInfo("binary", exe)
+	started := time.Now()
+	live := !theme.Plain() && stdoutIsTerminal() && !opts.Rollback
+	if !opts.Rollback {
+		env.rep = newUpdateReporter(theme, outputWriter, live, opts.CurrentVersion)
+	}
 	err = runUpdate2(env, opts)
-	if err == nil && env.updated {
-		PrintPostUpdateGuide()
+	switch {
+	case opts.Rollback && err == nil:
+		fmt.Fprint(outputWriter, "\n   "+theme.Pass()+" Rolled back to "+env.restored+"\n")
+	case err == nil && env.updated:
+		env.rep.close(live)
+		fmt.Fprint(outputWriter, updateDone(theme, env.newVersion, time.Since(started)))
+	case err != nil && env.restored != "":
+		env.rep.close(false)
+		fmt.Fprint(outputWriter, updateRolledBack(theme, env.restored))
+		return &CommandError{Summary: "update failed and was rolled back", Cause: err, ExitCode: 1, Silent: true}
+	default:
+		env.rep.close(false)
 	}
 	return err
 }
@@ -121,7 +128,7 @@ func runUpdate2(env *updateEnv, opts UpdateOptions) error {
 	}
 	defer os.RemoveAll(work)
 
-	env.say(env.step, "downloading release")
+	env.rep.begin("Downloading")
 	sums, bin := filepath.Join(work, "SHA256SUMS"), filepath.Join(work, asset)
 	if err := env.fetch(base+"/SHA256SUMS", sums); err != nil {
 		return fmt.Errorf("download checksums: %w", err)
@@ -129,11 +136,16 @@ func runUpdate2(env *updateEnv, opts UpdateOptions) error {
 	if err := env.fetch(base+"/"+asset, bin); err != nil {
 		return err
 	}
-	env.say(env.step, "verifying checksum")
+	if info, serr := os.Stat(bin); serr == nil {
+		env.rep.finish("Downloading", "Downloaded", fmt.Sprintf("%.1f MB", float64(info.Size())/1048576), true)
+	} else {
+		env.rep.finish("Downloading", "Downloaded", "", true)
+	}
+	env.rep.begin("Verifying checksum")
 	if err := verifyChecksum(sums, bin, asset); err != nil {
 		return fmt.Errorf("%w; the installed binary was not touched", err)
 	}
-	env.say(env.ok, "checksum matches")
+	env.rep.finish("Verifying checksum", "Checksum matches", "", false)
 	if err := os.Chmod(bin, 0o755); err != nil {
 		return err
 	}
@@ -141,9 +153,11 @@ func runUpdate2(env *updateEnv, opts UpdateOptions) error {
 	if err != nil {
 		return fmt.Errorf("downloaded binary does not run: %w; the installed binary was not touched", err)
 	}
+	env.newVersion = newVersion
+	env.rep.setVersion(newVersion)
 	if newVersion == opts.CurrentVersion && !opts.Force {
-		env.say(env.ok, "already up to date ("+newVersion+")")
-		env.say(env.in, "Use --force to reinstall.")
+		env.rep.close(true)
+		env.rep.say("\n   " + theme.Pass() + " " + padRight("Already on "+newVersion, 30) + theme.Muted("nothing to do · --force reinstalls") + "\n")
 		return nil
 	}
 
@@ -162,26 +176,31 @@ func runUpdate2(env *updateEnv, opts UpdateOptions) error {
 		return fmt.Errorf("cannot tell whether the service is running (%v); nothing was changed", rerr)
 	}
 	if wasRunning {
-		env.say(env.step, "stopping service")
+		env.rep.begin("Stopping service")
 		if err := env.service.stop(); err != nil {
 			return fmt.Errorf("stop service: %w", err)
 		}
+		env.rep.finish("Stopping service", "Service stopped", "", false)
+	} else {
+		env.rep.skip("Stopping service")
+		env.rep.skip("Starting and checking health")
 	}
-	env.say(env.step, "swapping binary")
+	env.rep.begin("Swapping binary")
 	if err := os.Rename(staged, env.executable); err != nil {
 		restartIf(env, wasRunning)
 		return fmt.Errorf("swap binary: %w", err)
 	}
+	env.rep.finish("Swapping binary", "Swapped binary", "", false)
 	if wasRunning {
-		env.say(env.step, "starting service and checking health")
+		env.rep.begin("Starting and checking health")
 		if err := env.service.start(); err != nil {
-			return failAndRollback(env, wasRunning, fmt.Errorf("start new version: %w", err))
+			return failAndRollback(env, wasRunning, fmt.Errorf("start new version: %w", err), opts.CurrentVersion)
 		}
 		if err := waitHealthy(env, newVersion); err != nil {
-			return failAndRollback(env, wasRunning, err)
+			return failAndRollback(env, wasRunning, err, opts.CurrentVersion)
 		}
+		env.rep.finish("Starting and checking health", "Healthy", "", false)
 	}
-	env.say(env.ok, "updated to "+newVersion+"; previous binary kept for `update --rollback`")
 	env.updated = true
 	return nil
 }
@@ -213,14 +232,16 @@ func waitHealthy(env *updateEnv, want string) error {
 	}
 }
 
-func failAndRollback(env *updateEnv, wasRunning bool, cause error) error {
-	env.say(env.step, "update failed; rolling back")
+func failAndRollback(env *updateEnv, wasRunning bool, cause error, from string) error {
+	env.rep.close(true)
+	env.rep.flatDone()
+	env.rep.say("   " + theme.FailMark() + " " + failHeadline(cause, env.healthWait) + "\n     " + theme.Faint("│") + " " + theme.Muted(firstLineOf(cause.Error())) + "\n   " + theme.Tone("degraded", theme.Spinner(2)) + " Rolling back…\n")
 	_ = env.service.stop()
 	if err := installBinary(prevPath(env.executable), env.executable); err != nil {
 		return fmt.Errorf("%w; ALSO could not restore the previous binary (%v): copy %s over %s manually", cause, err, prevPath(env.executable), env.executable)
 	}
 	restartIf(env, wasRunning)
-	env.say(env.ok, "rolled back to the previous binary")
+	env.restored = from
 	return fmt.Errorf("%w; rolled back to the previous version", cause)
 }
 
@@ -229,15 +250,22 @@ func rollbackBinary(env *updateEnv) error {
 	if _, err := os.Stat(prev); err != nil {
 		return fmt.Errorf("no previous binary at %s to roll back to", prev)
 	}
+	prevVersion, _ := env.version(prev)
 	was, _ := env.service.running()
+	fmt.Fprint(outputWriter, "\n")
 	if was {
 		_ = env.service.stop()
+		fmt.Fprintln(outputWriter, "   "+theme.Pass()+" Stopped service")
 	}
 	if err := installBinary(prev, env.executable); err != nil {
 		return err
 	}
+	fmt.Fprintln(outputWriter, "   "+theme.Pass()+" Restored "+prevVersion)
 	restartIf(env, was)
-	env.say(env.ok, "rolled back to the previous binary")
+	if was {
+		fmt.Fprintln(outputWriter, "   "+theme.Pass()+" Started and healthy")
+	}
+	env.restored = prevVersion
 	return nil
 }
 
@@ -369,4 +397,12 @@ func installBinary(source string, destination string) error {
 		return err
 	}
 	return os.Chmod(destination, 0o755)
+}
+
+// failHeadline says why an update was abandoned, in the board's words.
+func failHeadline(cause error, wait time.Duration) string {
+	if strings.Contains(cause.Error(), "did not become healthy") {
+		return fmt.Sprintf("New version is not healthy after %d s", int(wait.Seconds()))
+	}
+	return "New version could not start"
 }
