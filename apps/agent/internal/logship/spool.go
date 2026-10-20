@@ -263,6 +263,42 @@ func (s *Spool) Recent(n int) ([]Entry, error) {
 	return all, nil
 }
 
+// RecentMarked is Recent with each entry's Shipped flag set from the send
+// cursor: true when Core has acknowledged it.
+func (s *Spool) RecentMarked(n int) ([]Entry, error) {
+	segs := s.segments()
+	cur := s.Cursor()
+	var all []Entry
+	for i := len(segs) - 1; i >= 0 && len(all) < n; i-- {
+		b, err := os.ReadFile(s.path(segs[i]))
+		if err != nil {
+			continue
+		}
+		var seg []Entry
+		off := int64(0)
+		for len(b) > 0 {
+			nl := bytes.IndexByte(b, '\n')
+			if nl < 0 {
+				break // a line still being written
+			}
+			line := b[:nl]
+			off += int64(nl) + 1
+			b = b[nl+1:]
+			var e Entry
+			if json.Unmarshal(line, &e) == nil {
+				shipped := cur.Seg > 0 && (segs[i] < cur.Seg || (segs[i] == cur.Seg && off <= cur.Offset))
+				e.Shipped = &shipped
+				seg = append(seg, e)
+			}
+		}
+		all = append(seg, all...)
+	}
+	if len(all) > n {
+		all = all[len(all)-n:]
+	}
+	return all, nil
+}
+
 // Close closes the live segment.
 func (s *Spool) Close() {
 	s.mu.Lock()

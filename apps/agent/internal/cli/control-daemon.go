@@ -286,7 +286,7 @@ func (d *daemonControl) SpoolRecent(n int) ([]byte, error) {
 	if sp == nil {
 		return nil, errors.New("log shipping is not configured (add logs.sources to the config)")
 	}
-	entries, err := sp.Recent(n)
+	entries, err := sp.RecentMarked(n)
 	if err != nil {
 		return nil, err
 	}

@@ -32,7 +32,7 @@ func fetchSpool(opts *Options, n int) ([]logship.Entry, error) {
 			return nil, err
 		}
 		defer sp.Close()
-		return sp.Recent(n)
+		return sp.RecentMarked(n)
 	}
 	var out []logship.Entry
 	sc := bufio.NewScanner(bytes.NewReader(data))

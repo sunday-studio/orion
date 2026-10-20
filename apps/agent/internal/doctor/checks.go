@@ -143,7 +143,7 @@ func checkDNS(ctx context.Context, e *Env) Result {
 	addrs, err := lookup(cctx, host)
 	if err != nil || len(addrs) == 0 {
 		return fail("cannot resolve "+host, "getent hosts "+host+"   (check /etc/resolv.conf, or use the Core IP in core_url)").
-			titled("Cannot resolve "+host)
+			titled("Cannot resolve " + host)
 	}
 	return ok(fmt.Sprintf("%s resolves to %s", host, addrs[0])).titled("DNS")
 }

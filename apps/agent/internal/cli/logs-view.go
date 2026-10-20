@@ -1,15 +1,11 @@
 package cli
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
 	"orion/agent/internal/control"
 	"orion/agent/internal/logship"
-	"orion/agent/internal/ui"
-
-	"github.com/charmbracelet/lipgloss"
 )
 
 // logsState is everything the shipped-logs screen shows. The same value drives
@@ -24,6 +20,13 @@ type logsState struct {
 	Arrived   int // lines that arrived while paused
 	Note      string
 	Runtime   runtimeState
+	Host      string
+	// SelectedID is the entry under the cursor ("" means the newest one) and
+	// Drawer says whether its details are open.
+	SelectedID string
+	Drawer     bool
+	// Interactive is set by the full-screen viewer, which shows a cursor.
+	Interactive bool
 }
 
 type runtimeState struct {
@@ -95,109 +98,21 @@ func levelTone(sev string) string {
 	return "unknown"
 }
 
-// logsHeader is the status line: follow state chip, level, source, search.
-func logsHeader(th *ui.Theme, s logsState, width int) string {
-	chip := " snapshot "
-	switch {
-	case s.Paused:
-		chip = fmt.Sprintf(" paused +%d ", s.Arrived)
-	case s.Following:
-		chip = " following "
-	}
-	var chipOut string
-	if th.Plain() {
-		chipOut = "[" + strings.TrimSpace(strings.TrimPrefix(chip, " ")) + "]"
-	} else {
-		tone := "up"
-		if s.Paused {
-			tone = "degraded"
-		} else if !s.Following {
-			tone = "unknown"
-		}
-		chipOut = th.Chip(tone, chip)
-	}
-	src := "all"
-	if s.Source != "" {
-		src = s.Source
-	}
-	search := "none"
-	if s.Search != "" {
-		search = s.Search
-	}
-	stateHeader := chipOut
-	if s.Runtime.Label != "" {
-		if th.Plain() {
-			stateHeader += "  [" + s.Runtime.Label + "]"
-		} else {
-			stateHeader += "  " + th.StatusGlyph(s.Runtime.Tone) + " " + th.Tone(s.Runtime.Tone, s.Runtime.Label)
-		}
-	}
-	filters := "level " + th.Bold(">= "+s.Level) + "   source " + th.Bold(src) + "   " + th.Muted("search: "+search)
-	if s.Runtime.Label != "" && visibleWidth(stateHeader+"  "+filters) > width {
-		return stateHeader + "\n" + filters
-	}
-	return stateHeader + "  " + filters
-}
-
 func logRuntimeState(st control.Status, err error, now time.Time) runtimeState {
 	if err != nil {
-		return runtimeState{Label: "not running · local spool only", Tone: "unknown"}
+		return runtimeState{Label: "No reply", Tone: "degraded"}
 	}
 	if !st.Registered {
-		return runtimeState{Label: "not enrolled", Tone: "unknown"}
+		return runtimeState{Label: "Not enrolled", Tone: "unknown"}
 	}
 	if st.MaintenanceMode {
-		label := "maintenance · alerts muted"
-		if st.MaintenanceUntil != nil {
-			label += " until " + st.MaintenanceUntil.Local().Format("15:04")
-		}
-		return runtimeState{Label: label, Tone: "maintenance"}
+		return runtimeState{Label: "Maintenance", Tone: "maintenance"}
 	}
 	if st.LastReportAt.IsZero() {
-		return runtimeState{Label: "waiting for first report", Tone: "unknown"}
+		return runtimeState{Label: "Waiting", Tone: "unknown"}
 	}
 	if !st.LastReportAt.IsZero() && now.Sub(st.LastReportAt) > 5*time.Minute {
-		return runtimeState{Label: fmt.Sprintf("no recent report · queue %d pending", st.QueuePending), Tone: "degraded"}
+		return runtimeState{Label: "No recent report", Tone: "degraded"}
 	}
-	return runtimeState{Label: fmt.Sprintf("connected · queue %d", st.QueuePending), Tone: "up"}
-}
-
-// logsScreen renders the header, a rule and up to height rows (newest first),
-// each `HH:MM:SS level  source  body` with the body clipped to the width.
-func logsScreen(th *ui.Theme, s logsState, width, height int) string {
-	var b strings.Builder
-	b.WriteString("\n" + logsHeader(th, s, width) + "\n")
-	b.WriteString(th.Rule(min(width, 70)) + "\n")
-	rows := s.visible(height)
-	if len(rows) == 0 {
-		b.WriteString(th.Muted("no log entries match") + "\n")
-	}
-	for _, e := range rows {
-		sev := e.Severity
-		if sev == "" {
-			sev = "info"
-		}
-		src := clip(entrySource(e), 7)
-		level := th.Tone(levelTone(sev), fmt.Sprintf("%-5s", sev))
-		if sev == "trace" || sev == "debug" {
-			level = th.Faint(fmt.Sprintf("%-5s", sev))
-		}
-		prefix := th.Muted(clock(e.Timestamp)) + " " + level + " " + th.Muted(fmt.Sprintf("%-7s", src)) + " "
-		room := width - (8 + 1 + 5 + 1 + 7 + 1)
-		body := strings.ReplaceAll(strings.TrimSpace(strings.SplitN(e.Body, "\n", 2)[0]), "\t", " ")
-		if lipgloss.Width(body) > room && room > 1 {
-			body = string([]rune(body)[:room-1]) + "…"
-		}
-		b.WriteString(prefix + body + "\n")
-	}
-	return b.String()
-}
-
-// logsFooter lists the keys of the interactive viewer.
-func logsFooter(th *ui.Theme) string {
-	keys := " q quit   f filter   l level   p pause   / search   c clear "
-	if th.Plain() {
-		return keys
-	}
-	return th.Chip("unknown", keys)
+	return runtimeState{Label: "Connected", Tone: "up"}
 }
