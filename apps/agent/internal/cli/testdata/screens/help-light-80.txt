@@ -1,25 +1,23 @@
 
-[1morion-agent[0m[38;2;113;113;121m  the Orion monitoring agent[0m
+ [38;2;31;121;80m◆[0m [1morion-agent[0m[38;2;113;113;121m  monitor this host and report to Orion Core[0m
 
-[1mUSAGE[0m
-  orion-agent [38;2;113;113;121m[command] [flags][0m
+ [38;2;113;113;121mUSAGE[0m   orion-agent [38;2;113;113;121m<command> [flags][0m
 
-[1mGET STARTED[0m
-  [38;2;31;121;80msetup     [0mConnect this host and choose what to monitor
-  [38;2;31;121;80mdoctor    [0mCheck the agent and fix problems
-  [38;2;31;121;80mstatus    [0mShow the agent and its Core connection
+ [38;2;113;113;121mSTART HERE[0m
+   [38;2;31;121;80msetup    [0m connect this host and choose what to monitor
+   [38;2;31;121;80mdoctor   [0m check everything and fix what is wrong
+   [38;2;31;121;80mstatus   [0m see what the agent is doing right now
 
-[1mDAY TO DAY[0m
-  [38;2;31;121;80mlogs      [0mView agent and shipped logs
-  [38;2;31;121;80mservice   [0minstall, start, stop, restart, uninstall
-  [38;2;31;121;80mconfig    [0mshow, diff, validate, edit
-  [38;2;31;121;80mupdate    [0mUpgrade safely, with rollback
+ [38;2;113;113;121mDAY TO DAY[0m
+   [38;2;31;121;80mlogs     [0m read agent and shipped logs
+   [38;2;31;121;80mconfig   [0m show, diff, validate and edit settings
+   [38;2;31;121;80mupdate   [0m upgrade safely, with rollback
+   [38;2;31;121;80mservice  [0m start, stop, restart, install
 
-[1mFLAGS[0m
-  --json        Machine-readable output
-  --no-color    Plain output
-  -h, --help    Show help
+ [38;2;113;113;121mEXAMPLES[0m
+   [38;2;113;113;121m$[0m orion-agent setup
+   [38;2;113;113;121m$[0m orion-agent logs --follow --level warn
+   [38;2;113;113;121m$[0m orion-agent status --short
 
-  [38;2;113;113;121mMore: start, stop, restart, run, enroll, discover, maintenance, usage,[0m
-  [38;2;113;113;121m      version, token, reconfigure, state, emit, run-job (orion-agent <command>[0m
-  [38;2;113;113;121m      --help)[0m
+ [38;2;113;113;121mMore:[0m enroll · discover · usage · maintenance · token · version · run · start
+       · stop · restart · reconfigure · state · emit · run-job

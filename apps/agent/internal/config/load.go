@@ -280,7 +280,7 @@ func friendlyYAMLError(err error, name string) error {
 			if len(out) == 0 {
 				line, _ := strconv.Atoi(m[1])
 				src := sourceLine(name, line)
-				return &Diagnostic{File: name, Line: line, Col: keyColumn(src, m[2]), Key: m[2], Message: "unknown key", Suggest: closest(m[2]), Source: src}
+				return &Diagnostic{File: name, Line: line, Col: keyColumn(src, m[2]), Key: m[2], Message: "unknown key", Suggest: closest(m[2]), Source: src, Before: lineBefore(name, line)}
 			}
 			out = append(out, fmt.Sprintf("%s:%s: unknown key %q", name, m[1], m[2]))
 			continue
@@ -301,7 +301,7 @@ func locate(err error, lines []monitorLine, mainFile string) error {
 	if m := regexp.MustCompile(`monitor\[(\d+)\]`).FindStringSubmatch(msg); m != nil {
 		if i, _ := strconv.Atoi(m[1]); i < len(lines) && lines[i].line > 0 {
 			h := strings.TrimSpace(hint(msg))
-			return &Diagnostic{File: lines[i].file, Line: lines[i].line, Message: msg, Source: sourceLine(lines[i].file, lines[i].line), Hint: h}
+			return &Diagnostic{File: lines[i].file, Line: lines[i].line, Message: msg, Source: sourceLine(lines[i].file, lines[i].line), Before: lineBefore(lines[i].file, lines[i].line), Hint: h}
 		}
 	}
 	return fmt.Errorf("%s: %s%s", mainFile, msg, hint(msg))
