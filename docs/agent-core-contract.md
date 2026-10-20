@@ -414,6 +414,10 @@ Rules Core can rely on: `kind` is one of `process`, `unit`, `container`, `path`;
 
 With `transport.compression: gzip` the agent sends request bodies over 1 KiB with `Content-Encoding: gzip`. Default is off because only the log-ingest endpoint decodes gzip request bodies today; Core should add a decoding middleware (with a size limit applied after decompression) before this is enabled in the field.
 
+## Discovery (agent only, for now)
+
+The agent scans its own host read-only and keeps the result locally (state database) plus the person's choices (dismissed in the state database, ignored in `discovery.ignore`). It does not report discoveries to Core yet; the Console "Detected on this server" panel needs a Core endpoint for them (see `docs/design/agent-auto-config-flow.md`). The local view is served on the control socket (`GET /v1/discovery`, `POST /v1/discovery/rescan`, `POST /v1/discovery/action` with `dismiss`, `restore`, `review`), and `status` on the socket reports `suggestions` and `new_items`.
+
 ## Security
 
 - Agent token lifecycle semantics live in `docs/architecture/agent-token-lifecycle.md`.

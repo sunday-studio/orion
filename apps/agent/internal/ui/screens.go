@@ -151,3 +151,49 @@ func (t *Theme) Chip(status, text string) string {
 	}
 	return t.renderer.NewStyle().Bold(true).Background(lipgloss.Color(bg)).Foreground(lipgloss.Color("#ffffff")).Render(text)
 }
+
+// Panel draws the discover/usage style box: rounded corners on all four sides,
+// the title on the top edge on the left and a count or label on the right.
+// Rows are padded to the inner width (84 for the standard 86-wide panel);
+// rows wider than that are clipped.
+func (t *Theme) Panel(title, right string, rows []string, width int) string {
+	if t.Plain() { // plain is a text layout, not a stripped box: a heading, then indented lines
+		var b strings.Builder
+		head := title
+		if right != "" {
+			head += " (" + right + ")"
+		}
+		b.WriteString(head + "\n")
+		for _, r := range rows {
+			if strings.TrimSpace(r) != "" {
+				b.WriteString("  " + strings.TrimLeft(r, " ") + "\n")
+			}
+		}
+		return strings.TrimRight(b.String(), "\n")
+	}
+	if width < 24 {
+		width = 24
+	}
+	inner := width - 2 // between the side borders; rows carry their own leading space
+	left := " " + title + " "
+	rt := ""
+	if right != "" {
+		rt = " " + right + " "
+	}
+	dash := width - 2 - lipgloss.Width(left) - lipgloss.Width(rt)
+	if dash < 1 {
+		dash = 1
+	}
+	var b strings.Builder
+	b.WriteString(t.Faint("╭") + t.Muted(left) + t.Faint(strings.Repeat("─", dash)) + t.Muted(rt) + t.Faint("╮") + "\n")
+	for _, r := range rows {
+		w := lipgloss.Width(r)
+		if w > inner {
+			r = lipgloss.NewStyle().MaxWidth(inner).Render(r)
+			w = lipgloss.Width(r)
+		}
+		b.WriteString(t.Faint("│") + r + strings.Repeat(" ", inner-w) + t.Faint("│") + "\n")
+	}
+	b.WriteString(t.Faint("╰" + strings.Repeat("─", width-2) + "╯"))
+	return b.String()
+}

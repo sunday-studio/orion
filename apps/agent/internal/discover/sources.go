@@ -35,7 +35,7 @@ func isNoise(name string) bool {
 }
 
 func newMonitor(e Env, name string, t config.UserMonitorType, fill func(*config.UserMonitor)) *config.UserMonitor {
-	m := &config.UserMonitor{Name: name, Type: t, Interval: e.interval()}
+	m := &config.UserMonitor{Name: name, Type: t, Interval: e.interval(), Meta: map[string]interface{}{"source": "scan"}}
 	fill(m)
 	return m
 }

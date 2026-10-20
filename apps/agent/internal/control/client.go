@@ -144,3 +144,29 @@ func (c *Client) TokenCheck() (int, error) {
 func (c *Client) Spool(n int) ([]byte, error) {
 	return c.do(http.MethodGet, "/v1/spool?lines="+strconv.Itoa(n), nil)
 }
+
+// Discovery fetches the latest scan.
+func (c *Client) Discovery() (Discovery, error) {
+	var d Discovery
+	data, err := c.do(http.MethodGet, "/v1/discovery", nil)
+	if err != nil {
+		return d, err
+	}
+	return d, json.Unmarshal(data, &d)
+}
+
+// Rescan runs a scan now and returns it.
+func (c *Client) Rescan() (Discovery, error) {
+	var d Discovery
+	data, err := c.do(http.MethodPost, "/v1/discovery/rescan", nil)
+	if err != nil {
+		return d, err
+	}
+	return d, json.Unmarshal(data, &d)
+}
+
+// DiscoveryAction dismisses, restores or reviews suggestions.
+func (c *Client) DiscoveryAction(action, id string) error {
+	_, err := c.do(http.MethodPost, "/v1/discovery/action", DiscoveryAction{Action: action, ID: id})
+	return err
+}

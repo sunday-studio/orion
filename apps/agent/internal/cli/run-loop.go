@@ -44,6 +44,8 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 		PrintInfo("socket", server.Path())
 	}
 
+	go ctrl.scan.loop(ctx)
+
 	reloadCh := make(chan struct{}, 1)
 	requestReload := func() error {
 		// Validate first so a bad edit is rejected, not half-applied.

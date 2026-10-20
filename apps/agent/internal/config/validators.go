@@ -302,6 +302,9 @@ func (c *UserConfig) Validate() error {
 	if err := c.Logs.Validate(); err != nil {
 		return err
 	}
+	if err := c.Discovery.Validate(); err != nil {
+		return err
+	}
 	switch strings.ToLower(c.Transport.Compression) {
 	case "", "none", "gzip":
 	default:
@@ -434,6 +437,23 @@ func (l LogsConfig) Validate() error {
 		}
 		if s.IngestKeyFile == "" && s.IngestKeyEnv == "" {
 			return fmt.Errorf("%s (%s): set ingest_key_file or ingest_key_env (Console, Settings, Apps, create a key)", at, s.Name)
+		}
+	}
+	return nil
+}
+
+var discoveryKinds = map[string]bool{"services": true, "containers": true, "pm2": true, "ports": true, "disks": true, "logs": true, "storage": true}
+
+// Validate checks discovery.kinds and discovery.ignore.
+func (d DiscoveryConfig) Validate() error {
+	for _, k := range d.Kinds {
+		if !discoveryKinds[k] {
+			return fmt.Errorf("discovery.kinds: %q is not one of services, containers, pm2, ports, disks, logs, storage", k)
+		}
+	}
+	for _, id := range d.Ignore {
+		if !strings.Contains(id, ":") {
+			return fmt.Errorf("discovery.ignore: %q must look like kind:name, for example port:5432", id)
 		}
 	}
 	return nil

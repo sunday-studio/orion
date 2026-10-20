@@ -1,0 +1,13 @@
+$ orion-agent status
+
+ ◆ edge-05                                                                ● Connected
+ ╭ Host ─────────────────────────────────────────────────────────────────── reporting ╮
+ │ cpu      ━━━━╸─────────────── 23%      memory   ━━━━━━━━━╸────── 61%               │
+ │ disk /    ━━━━━━━━╸─────────── 44%      network  ↓ 1.2 MB/s  ↑ 340 KB/s            │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+   ⠹ Looking at this server…   a few seconds, read only
+
+$ orion-agent status
+
+   ● Watching 0 monitors   7 things found
+   ▸ orion-agent setup  6 suggestions waiting
