@@ -108,18 +108,24 @@ monitors:
       description: systemd unit nginx
       type: systemd-service
       interval: 60s
+      meta:
+        source: scan
       systemd:
         name: nginx
     - name: ctr-web
       description: docker container web
       type: docker-container
       interval: 60s
+      meta:
+        source: scan
       docker:
         name: web
     - name: port-3000
       description: TCP port 3000 (node)
       type: tcp
       interval: 60s
+      meta:
+        source: scan
       tcp:
         host: 127.0.0.1
         port: 3000

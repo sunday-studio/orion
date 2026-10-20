@@ -100,6 +100,21 @@ network rates; otherwise they appear by short id and nothing else changes. Docke
 is root-equivalent, so the installer grants it only with ` + "`--docker-access`" + `. Containers are
 capped at 50 per sample.
 
+## Discovery
+
+` + "```yaml" + `
+discovery:
+  enabled: true            # false: never scan; host metrics, manual config and Create monitor still work
+  kinds: [services, containers, pm2, ports, disks, logs, storage]   # leave a kind out to stop scanning it
+  ignore:
+    - port:5432            # never suggest this again (orion-agent discover ignore port:5432)
+` + "```" + `
+
+The scan is read-only. It proposes monitors and log sources; nothing is added until you apply it
+(` + "`orion-agent setup`" + `), and anything you dismiss or ignore stays declined across rescans. A
+hand-written monitor always wins: a matching suggestion shows as "already monitored". See
+` + "`orion-agent discover --help`" + `.
+
 ## Transport
 
 ` + "```yaml" + `

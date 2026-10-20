@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"orion/agent/internal/config"
@@ -33,6 +32,7 @@ type setupPlan struct {
 func stdinIsTerminal() bool { return term.IsTerminal(os.Stdin.Fd()) && term.IsTerminal(os.Stdout.Fd()) }
 
 func runSetup(ctx context.Context, opts *Options) error {
+	discoverConfigPath = opts.ConfigPath
 	if !opts.Verbose {
 		logging.SetLevel(logging.LevelError)
 		defer logging.SetLevel(logging.LevelInfo)
@@ -56,8 +56,15 @@ func runSetup(ctx context.Context, opts *Options) error {
 
 // discoverFn is replaced in tests with a fixture host.
 var discoverFn = func(ctx context.Context) discover.Result {
-	return discover.Run(ctx, discover.HostEnv(runtime.GOOS))
+	cfg, _, err := config.LoadRaw(discoverConfigPath)
+	if err != nil || cfg == nil {
+		cfg = &config.UserConfig{}
+	}
+	return discover.Run(ctx, hostDiscoverEnv(cfg))
 }
+
+// discoverConfigPath is the config whose discovery.* settings setup honours.
+var discoverConfigPath string
 
 func discoverHost(ctx context.Context) discover.Result { return discoverFn(ctx) }
 

@@ -1,0 +1,13 @@
+$ orion-agent usage --watch
+
+ ◆ Usage  what apps cost right now                                   ● live 3 s window
+ ╭ Apps ────────────────────────────────────────────────────────────────────── by CPU ╮
+ │ NAME          CPU                       MEMORY                 NET rx / tx         │
+ │ nginx      ━━━━━╸──────── 4.1%   ╸─────── 86 MB      1.2 MB / 3.4 MB               │
+ │ postgresql ━━━╸────────── 2.8%   ━━━───── 412 MB     -                             │
+ │ api        ━╸──────────── 1.2%   ━╸────── 204 MB     320 KB / 90 KB                │
+ │ redis      ────────────── 0.2%   ──────── 31 MB      12 KB / 8 KB                  │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+ measured from outside: processes, systemd units and containers. - means unknown.
+
+  s  sort   q  quit

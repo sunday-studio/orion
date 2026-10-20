@@ -52,7 +52,11 @@ type Status struct {
 	LastReportAt      time.Time      `json:"last_report_at"`
 	MonitorStates     []MonitorState `json:"monitor_states,omitempty"`
 	TopApps           []AppUsage     `json:"top_apps,omitempty"`
-	ConfigPath        string         `json:"config_path,omitempty"`
+	// Suggestions are scan results nobody has accepted, dismissed or ignored;
+	// NewItems are the ones that appeared since the last review.
+	Suggestions int             `json:"suggestions"`
+	NewItems    []DiscoveryItem `json:"new_items,omitempty"`
+	ConfigPath  string          `json:"config_path,omitempty"`
 }
 
 // MonitorState is the latest result of one monitor.
@@ -67,6 +71,46 @@ type MonitorState struct {
 type AppUsage struct {
 	Name       string  `json:"name"`
 	CPUPercent float64 `json:"cpu_percent"`
+}
+
+// KindState is how scanning one kind went.
+type KindState struct {
+	Kind    string `json:"kind"`
+	State   string `json:"state"` // scanned | off | blocked | absent
+	Message string `json:"message,omitempty"`
+	Fix     string `json:"fix,omitempty"`
+	Why     string `json:"why,omitempty"`
+}
+
+// DiscoveryItem is one suggestion as shown to a person.
+type DiscoveryItem struct {
+	ID          string    `json:"id"`
+	Kind        string    `json:"kind"`
+	Name        string    `json:"name"`
+	Detail      string    `json:"detail,omitempty"`
+	Confidence  string    `json:"confidence"`
+	Status      string    `json:"status"` // suggested | monitored
+	ManagedIn   string    `json:"managed_in,omitempty"`
+	New         bool      `json:"new,omitempty"`
+	Dismissed   bool      `json:"dismissed,omitempty"`
+	FirstSeen   time.Time `json:"first_seen"`
+	DismissedAt time.Time `json:"dismissed_at"`
+}
+
+// Discovery is the daemon's latest scan and the choices made about it.
+type Discovery struct {
+	Enabled   bool            `json:"enabled"`
+	Scanning  bool            `json:"scanning"`
+	ScannedAt time.Time       `json:"scanned_at"`
+	Kinds     []KindState     `json:"kinds"`
+	Items     []DiscoveryItem `json:"items"`
+	Ignore    []string        `json:"ignore,omitempty"`
+}
+
+// DiscoveryAction changes what is suggested: dismiss, restore or review.
+type DiscoveryAction struct {
+	Action string `json:"action"`
+	ID     string `json:"id,omitempty"`
 }
 
 // MaintenanceRequest toggles maintenance mode.
@@ -100,6 +144,10 @@ type Handler interface {
 	TokenStatus() (int, error)
 	// SpoolRecent returns the newest n shipped-log entries as NDJSON.
 	SpoolRecent(n int) ([]byte, error)
+	// Discovery returns the latest scan; Rescan starts one and waits for it.
+	Discovery() (Discovery, error)
+	Rescan() (Discovery, error)
+	DiscoveryAction(a DiscoveryAction) error
 }
 
 // TokenCheck is the result of a daemon-side token probe.

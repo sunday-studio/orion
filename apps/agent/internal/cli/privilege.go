@@ -61,6 +61,8 @@ func commandNeedsElevation(command string, args []string) bool {
 		return true
 	case "reconfigure":
 		return !argsSetPath(args, "state")
+	case "discover":
+		return !pathWritable(argValue(args, "config", defaultConfigPath()))
 	case "setup", "enroll":
 		return !pathWritable(argValue(args, "config", defaultConfigPath()))
 	case "maintenance", "state", "token":

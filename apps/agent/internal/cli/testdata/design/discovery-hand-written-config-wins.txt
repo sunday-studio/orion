@@ -1,0 +1,15 @@
+$ orion-agent config show
+
+ ╭ discovery ─────────────────────────────────────────────────────────────────────────╮
+ │ enabled   true                                                                     │
+ │ kinds     services · containers · ports · disks · logs   pm2 off                   │
+ │ ignore    docker:legacy-cron                                                       │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+
+ ╭ monitors ──────────────────────────────────────────────────────────────────────────╮
+ │   ├─ nginx        systemd-service    file   managed in config file                 │
+ │   ├─ api          docker-container   accepted from scan                            │
+ │   ╰─ redis        tcp :6379          file   managed in config file                 │
+ ╰────────────────────────────────────────────────────────────────────────────────────╯
+
+  A hand-written entry always wins; a matching suggestion shows as already monitored.

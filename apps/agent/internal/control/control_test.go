@@ -25,10 +25,15 @@ func (f *fakeHandler) ApplyToken(t string) error {
 	f.token = t
 	return nil
 }
-func (f *fakeHandler) LogPath() string                   { return f.logPath }
-func (f *fakeHandler) Reload() error                     { f.reloads++; return nil }
-func (f *fakeHandler) TokenStatus() (int, error)         { return 401, nil }
-func (f *fakeHandler) SpoolRecent(n int) ([]byte, error) { return []byte("{\"body\":\"x\"}\n"), nil }
+func (f *fakeHandler) LogPath() string               { return f.logPath }
+func (f *fakeHandler) Reload() error                 { f.reloads++; return nil }
+func (f *fakeHandler) TokenStatus() (int, error)     { return 401, nil }
+func (f *fakeHandler) Discovery() (Discovery, error) { return Discovery{Enabled: true}, nil }
+func (f *fakeHandler) Rescan() (Discovery, error) {
+	return Discovery{Enabled: true, Scanning: false}, nil
+}
+func (f *fakeHandler) DiscoveryAction(a DiscoveryAction) error { return nil }
+func (f *fakeHandler) SpoolRecent(n int) ([]byte, error)       { return []byte("{\"body\":\"x\"}\n"), nil }
 
 func start(t *testing.T, h Handler) (*Server, *Client) {
 	t.Helper()

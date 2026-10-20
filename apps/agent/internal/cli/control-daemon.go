@@ -29,6 +29,9 @@ type daemonControl struct {
 	monitors   atomic.Int64
 	logSources atomic.Int64
 	spoolMu    sync.Mutex
+	cfgMu      sync.Mutex
+	cfg        *config.UserConfig
+	scan       *scanner
 	spool      *logship.Spool
 	obsMu      sync.Mutex
 	states     map[string]control.MonitorState
@@ -49,8 +52,16 @@ func newDaemonControl(opts *Options, userConfig *config.UserConfig, store *agent
 		logPath:    logPath,
 		store:      store,
 	}
+	d.cfg = userConfig
+	d.scan = newScanner(store, d.config)
 	d.update(userConfig)
 	return d
+}
+
+func (d *daemonControl) config() *config.UserConfig {
+	d.cfgMu.Lock()
+	defer d.cfgMu.Unlock()
+	return d.cfg
 }
 
 // hooks feeds monitor results and system reports into the status view.
@@ -92,6 +103,9 @@ func topApps(r *appres.Report, n int) []control.AppUsage {
 
 // update refreshes the values the daemon reports after a config reload.
 func (d *daemonControl) update(userConfig *config.UserConfig) {
+	d.cfgMu.Lock()
+	d.cfg = userConfig
+	d.cfgMu.Unlock()
 	d.monitors.Store(int64(len(userConfig.Monitors)))
 	keep := map[string]bool{}
 	for _, m := range userConfig.Monitors {
@@ -135,6 +149,9 @@ func (d *daemonControl) Status() (control.Status, error) {
 		out.MonitorStates = append(out.MonitorStates, s)
 	}
 	d.obsMu.Unlock()
+	if view, err := d.scan.View(); err == nil {
+		out.Suggestions, out.NewItems = pendingFromView(view)
+	}
 	sort.Slice(out.MonitorStates, func(i, j int) bool { return out.MonitorStates[i].Name < out.MonitorStates[j].Name })
 	if st.MaintenanceReason != nil {
 		out.MaintenanceReason = *st.MaintenanceReason
@@ -245,3 +262,11 @@ func (d *daemonControl) SpoolRecent(n int) ([]byte, error) {
 	}
 	return out, nil
 }
+
+func (d *daemonControl) Discovery() (control.Discovery, error) { return d.scan.View() }
+
+func (d *daemonControl) Rescan() (control.Discovery, error) {
+	return d.scan.Rescan(context.Background())
+}
+
+func (d *daemonControl) DiscoveryAction(a control.DiscoveryAction) error { return d.scan.Action(a) }

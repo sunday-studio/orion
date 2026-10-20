@@ -41,6 +41,9 @@ func NewServer(path string, h Handler) *Server {
 	mux.HandleFunc("GET /v1/logs", s.logs)
 	mux.HandleFunc("GET /v1/token-check", s.tokenCheck)
 	mux.HandleFunc("GET /v1/spool", s.spool)
+	mux.HandleFunc("GET /v1/discovery", s.discovery)
+	mux.HandleFunc("POST /v1/discovery/rescan", s.rescan)
+	mux.HandleFunc("POST /v1/discovery/action", s.discoveryAction)
 	s.http = &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
 	return s
 }
@@ -217,4 +220,35 @@ func (s *Server) spool(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/x-ndjson")
 	_, _ = w.Write(data)
+}
+
+func (s *Server) discovery(w http.ResponseWriter, _ *http.Request) {
+	d, err := s.handler.Discovery()
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, d)
+}
+
+func (s *Server) rescan(w http.ResponseWriter, _ *http.Request) {
+	d, err := s.handler.Rescan()
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, d)
+}
+
+func (s *Server) discoveryAction(w http.ResponseWriter, r *http.Request) {
+	var a DiscoveryAction
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&a); err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	if err := s.handler.DiscoveryAction(a); err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }

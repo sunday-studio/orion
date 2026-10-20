@@ -158,7 +158,33 @@ type UserConfig struct {
 	Transport       TransportConfig    `yaml:"transport,omitempty"`
 	AppResources    AppResourcesConfig `yaml:"app_resources,omitempty"`
 	Logs            LogsConfig         `yaml:"logs,omitempty"`
+	Discovery       DiscoveryConfig    `yaml:"discovery,omitempty"`
 	Monitors        []UserMonitor      `yaml:"monitors"`
+}
+
+// DiscoveryConfig controls the read-only scan that proposes what to monitor.
+// Hand-written config is never changed by it, and what you decline stays
+// declined.
+type DiscoveryConfig struct {
+	Enabled *bool    `yaml:"enabled,omitempty"` // default true
+	Kinds   []string `yaml:"kinds,omitempty"`   // default: all of services, containers, pm2, ports, disks, logs, storage
+	Ignore  []string `yaml:"ignore,omitempty"`  // suggestion ids never to propose again, e.g. port:5432
+}
+
+// IsEnabled reports whether scanning is on (default on).
+func (d DiscoveryConfig) IsEnabled() bool { return d.Enabled == nil || *d.Enabled }
+
+// KindEnabled reports whether a kind is scanned.
+func (d DiscoveryConfig) KindEnabled(kind string) bool {
+	if len(d.Kinds) == 0 {
+		return true
+	}
+	for _, k := range d.Kinds {
+		if k == kind {
+			return true
+		}
+	}
+	return false
 }
 
 // LogsConfig ships logs from this host to Core's product-log ingest
