@@ -208,7 +208,7 @@ func startOrRestart(opts *Options, title string, restart bool) error {
 func firstLineOf(s string) string { return strings.SplitN(s, "\n", 2)[0] }
 
 func runStop(_ context.Context, opts *Options) error {
-	if !opts.SetupYes && !opts.JSON && stdinIsTerminal() {
+	if !opts.SetupYes && canPromptSecret(opts) {
 		host := firstNonEmpty(hostnameOrEmpty(), "this host")
 		yes, err := confirmAction(theme, os.Stdin, outputWriter, "Stop the agent on "+host+"?", "Monitoring and log shipping pause until you start it again.", "Stop", "Cancel", "skip the prompt with --yes")
 		if err != nil || !yes {
