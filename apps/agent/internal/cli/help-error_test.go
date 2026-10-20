@@ -58,7 +58,8 @@ func TestScreenErrorsMatchBoard(t *testing.T) {
 	board := boardBlock(t, "cli-help-error.txt", "errors")
 	parts := strings.Split(board, " ──────────────────────────────────────────────────────────────────────────────────────\n")
 	body := func(chunk string) string { _, rest, _ := strings.Cut(chunk, "\n"); return rest } // drop "$ command"
-	commandNames = []string{"setup", "doctor", "status", "logs", "config", "update", "service"}
+	names := []string{"setup", "doctor", "status", "logs", "config", "update", "service"}
+	commandNames.Store(&names)
 	d := &config.Diagnostic{File: "/etc/orion/config.yaml", Line: 14, Col: 3, Key: "intervall", Message: "unknown key", Suggest: "interval",
 		Before: "  interval: 30s", Source: "  intervall: 30s"}
 	cases := []struct {

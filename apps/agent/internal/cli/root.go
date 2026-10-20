@@ -99,12 +99,13 @@ func Execute(ctx context.Context, args []string, out, errOut io.Writer) int {
 	opts.normalizedArgs = normalizedArgs
 
 	cmd := NewRootCommand(ctx, opts, out, errOut)
-	commandNames = commandNames[:0]
+	var names []string
 	for _, c := range cmd.Commands() {
 		if !c.Hidden && c.Name() != "help" && c.Name() != "completion" {
-			commandNames = append(commandNames, c.Name())
+			names = append(names, c.Name())
 		}
 	}
+	commandNames.Store(&names)
 	cmd.SetArgs(normalizedArgs)
 	SetOutput(out)
 
