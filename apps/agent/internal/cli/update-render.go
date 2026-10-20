@@ -90,6 +90,7 @@ type updateReporter struct {
 	stop     chan struct{}
 	started  time.Time
 	stepTime time.Time
+	closed   bool
 }
 
 func newUpdateReporter(th *ui.Theme, w io.Writer, live bool, from string) *updateReporter {
@@ -119,7 +120,7 @@ func newUpdateReporter(th *ui.Theme, w io.Writer, live bool, from string) *updat
 }
 
 func (r *updateReporter) draw() {
-	if !r.live {
+	if !r.live || r.closed {
 		return
 	}
 	if r.drawn > 0 {
@@ -209,6 +210,7 @@ func (r *updateReporter) close(clear bool) {
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	r.closed = true // a redraw already waiting for the lock must not paint again
 	if r.live && clear && r.drawn > 0 {
 		fmt.Fprintf(r.w, "\x1b[%dA\r\x1b[J", r.drawn)
 		r.drawn = 0

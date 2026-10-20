@@ -148,6 +148,9 @@ func configDiffScreen(th *ui.Theme, against string, changes []string, base bool)
 	b.WriteString("\n " + th.Muted("against "+against) + "\n")
 	plus := 0
 	for _, l := range changes {
+		if len(l) > 2 {
+			l = l[:2] + config.RedactLine(l[2:]) // never print a credential value
+		}
 		switch {
 		case strings.HasPrefix(l, "- "):
 			b.WriteString("   " + th.Tone("down", l) + "\n")
