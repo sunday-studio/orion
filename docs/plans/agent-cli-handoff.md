@@ -1,5 +1,8 @@
 # Agent CLI and terminal UI: completion handoff
 
+> Superseded for status by [agent-cli-remaining.md](agent-cli-remaining.md), which lists each board, the test that
+> proves it, and what is left. This file keeps the original table and validation commands.
+
 Updated 2026-10-19 from the public **CLI and agent** design board. The board is the source of truth;
 the six checked-in HTML artboards are an older subset.
 
