@@ -34,8 +34,8 @@ func EnsureCommandPrivilege(command string, args []string) error {
 		executablePath = resolvedPath
 	}
 
-	PrintStep("elevating privileges")
-	PrintInfo("command", command)
+	// stderr, so a --json run keeps a clean stdout
+	fmt.Fprintln(os.Stderr, "  "+errorTheme(os.Stderr).Muted("needs root: running orion-agent "+command+" with sudo"))
 
 	sudoArgs := append([]string{executablePath, command}, args...)
 	cmd := exec.Command(sudoPath, sudoArgs...)

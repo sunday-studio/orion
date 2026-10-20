@@ -66,5 +66,30 @@ for want in "Downloaded" "Verified" "checksum does not match" "expected" "got" "
   printf '%s' "$out" | grep -q -- "$want" || { printf 'FAIL failure output lacks %q\n%s\n' "$want" "$out"; fail=1; }
 done
 
+# The finished steps read like the board: header, one line per step, the next command.
+cp "$BIN" "$REL/$ASSET"
+(cd "$REL" && sum "$ASSET" orion-agent-install.sh orion-agent-uninstall.sh orion-agent-systemd.service com.orion.agent.plist > SHA256SUMS)
+H="$(mktemp -d)"
+out="$(HOME="$H" "$BOOT" --user --no-start --yes --core-url http://core.example.com --base-url "$BASE" 2>&1)"
+order="$(printf '%s\n' "$out" | grep -oE 'Orion Agent installer|Downloaded|Verified|Installed|Service|orion-agent service start' | tr '\n' '|')"
+want="Orion Agent installer|Downloaded|Verified|Installed|Service|orion-agent service start|"
+if [ "$order" = "$want" ]; then printf 'ok   steps appear in the board order\n'; else printf 'FAIL step order: %s\n%s\n' "$order" "$out"; fail=1; fi
+rm -rf "$H"
+
+# On a terminal the steps are a box whose every line is the same width.
+# Only where a person runs it (stdin is a terminal) and BSD script(1) syntax applies; CI skips it.
+if [ -t 0 ] && [ "$(uname -s)" = "Darwin" ] && command -v script >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then
+  H="$(mktemp -d)"
+  tty_out="$(HOME="$H" NO_COLOR=1 script -q /dev/null "$BOOT" --user --no-start --yes --core-url http://core.example.com --base-url "$BASE" 2>&1 | tr -d '\r' || true)"
+  if ! printf '%s' "$tty_out" | grep -q "Steps"; then printf 'skip the terminal box (no pseudo-terminal here)\n'
+  elif printf '%s' "$tty_out" | python3 -c '
+import re,sys
+t=sys.stdin.read()
+lines=[l for l in t.split("\n") if l.startswith(" \u256d") or l.startswith(" \u2502") or l.startswith(" \u2570")]
+ok=len(lines)>=4 and "Steps" in lines[0] and len({len(l) for l in lines})==1
+sys.exit(0 if ok else 1)'; then printf 'ok   the terminal box is one width\n'; else printf 'FAIL terminal box\n%s\n' "$tty_out"; fail=1; fi
+  rm -rf "$H"
+fi
+
 [ "$fail" -eq 0 ] && echo "installer tests passed"
 exit "$fail"

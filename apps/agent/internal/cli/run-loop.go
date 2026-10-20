@@ -38,11 +38,10 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 	if err := server.Start(); err != nil {
 		// The socket is a convenience for operators; never block reporting on it.
 		logging.Warnf("Control socket unavailable: %v", err)
-		PrintSkip(fmt.Sprintf("control socket unavailable: %v", err))
+		fmt.Fprint(outputWriter, opLines(theme, []opStep{{Mark: "warn", Name: "Control socket unavailable", Detail: firstLineOf(err.Error())}}))
 	} else {
 		defer server.Close()
-		PrintOK("control socket listening")
-		PrintInfo("socket", server.Path())
+		fmt.Fprint(outputWriter, opLines(theme, []opStep{{Mark: "ok", Name: "Control socket listening", Detail: server.Path()}}))
 	}
 
 	go ctrl.scan.loop(ctx)
@@ -92,13 +91,11 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 	go remote.poll(ctx, remoteMonitorPollInterval, func() { _ = requestReloadNoValidate(reloadCh) })
 
 	for {
-		PrintStep("registering agent and monitors")
 		userConfig = effective(fileConfig, remote.current())
 		if err := registerWithRetry(ctx, registration.New(userConfig, opts.ConfigPath, store)); err != nil {
 			if ctx.Err() != nil {
 				return nil
 			}
-			PrintError("registration failed; agent cannot continue")
 			return NewCommandError("could not register agent and monitors", err)
 		}
 		// Now that the agent has an identity, pick up checks configured in the Console.
@@ -111,7 +108,7 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 				logging.Warnf("Could not register Console monitors yet: %v", err)
 			}
 		}
-		PrintOK("registration complete")
+		fmt.Fprint(outputWriter, opLines(theme, []opStep{{Mark: "ok", Name: "Registered", Detail: ""}}))
 		ctrl.update(userConfig)
 
 		instance, err := agent.NewWithStateStore(userConfig, store)
@@ -119,7 +116,6 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 			return NewCommandError("could not initialize agent", err)
 		}
 		instance.SetHooks(ctrl.hooks())
-		PrintStep("starting continuous collection loop")
 
 		runCtx, stopRun := context.WithCancel(ctx)
 		var reloaded bool
@@ -148,7 +144,7 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 				logging.Errorf("Reload failed, continuing with the previous config: %v", err)
 			} else {
 				fileConfig = next
-				PrintOK("configuration reloaded")
+				fmt.Fprint(outputWriter, opLines(theme, []opStep{{Mark: "ok", Name: "Configuration reloaded", Detail: ""}}))
 			}
 			continue
 		}
@@ -159,7 +155,7 @@ func runDaemon(ctx context.Context, opts *Options, userConfig *config.UserConfig
 			}
 			return NewCommandError("agent stopped with an error", runErr)
 		}
-		PrintOK("agent exited cleanly")
+		fmt.Fprint(outputWriter, opLines(theme, []opStep{{Mark: "ok", Name: "Agent stopped", Detail: "exited cleanly"}}))
 		return nil
 	}
 }
