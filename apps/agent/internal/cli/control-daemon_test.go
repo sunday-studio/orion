@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"orion/agent/internal/config"
 	"orion/agent/internal/control"
@@ -113,5 +114,27 @@ func TestDoctorJSONIsVersionedAndEveryFailureHasFix(t *testing.T) {
 		if c.Status == "fail" && c.Fix == "" {
 			t.Errorf("check %s failed without a fix", c.ID)
 		}
+	}
+}
+
+func TestHooksTrackSinceAndCapReportMillis(t *testing.T) {
+	_, store := startDaemonControl(t)
+	d := newDaemonControl(&Options{}, &config.UserConfig{}, store)
+	h := d.hooks()
+	t0 := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
+	h.MonitorResult("redis", "tcp", "port 6379", "down", "refused", "", t0)
+	h.MonitorResult("redis", "tcp", "port 6379", "down", "refused", "", t0.Add(time.Minute))
+	if s := d.states["redis"]; !s.Since.Equal(t0) || !s.At.Equal(t0.Add(time.Minute)) {
+		t.Errorf("same health keeps Since: %+v", s)
+	}
+	h.MonitorResult("redis", "tcp", "port 6379", "up", "", "", t0.Add(2*time.Minute))
+	if s := d.states["redis"]; !s.Since.Equal(t0.Add(2 * time.Minute)) {
+		t.Errorf("changed health resets Since: %+v", s)
+	}
+	for i := 0; i < 20; i++ {
+		h.SystemReport(t0, nil, time.Duration(i)*time.Millisecond)
+	}
+	if len(d.reportMillis) != 12 || d.reportMillis[0] != 8 || d.reportMillis[11] != 19 {
+		t.Errorf("report millis must keep the latest 12: %v", d.reportMillis)
 	}
 }

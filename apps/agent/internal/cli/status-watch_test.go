@@ -29,10 +29,19 @@ func TestStatusWatchModel(t *testing.T) {
 	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}})
 	m = next.(watchModel)
 	before := calls
-	next, _ = m.Update(watchTickMsg(time.Now()))
+	next, cmd := m.Update(watchTickMsg(time.Now()))
 	m = next.(watchModel)
+	if cmd == nil {
+		t.Fatal("paused tick must keep ticking")
+	}
 	if calls != before || !strings.Contains(stripANSI(m.View()), "paused") {
 		t.Errorf("paused view must not refetch (calls %d→%d)", before, calls)
+	}
+	next, cmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}}) // resume
+	m = next.(watchModel)
+	next, cmd = m.Update(watchTickMsg(time.Now()))
+	if msg := m.fetchCmd()(); msg.(watchStatusMsg).st.Name != "edge-05" || cmd == nil {
+		t.Errorf("a running tick must fetch: %v", msg)
 	}
 	if _, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}); cmd == nil {
 		t.Error("q must quit")

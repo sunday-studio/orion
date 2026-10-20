@@ -17,6 +17,22 @@ const watchTick = 2 * time.Second
 
 type watchTickMsg time.Time
 
+// watchStatusMsg carries a fetched status; fetching runs off the UI loop so a
+// slow socket never blocks the keys.
+type watchStatusMsg struct {
+	st  control.Status
+	err error
+	at  time.Time
+}
+
+func (m watchModel) fetchCmd() tea.Cmd {
+	fetch := m.fetch
+	return func() tea.Msg {
+		st, err := fetch()
+		return watchStatusMsg{st: st, err: err, at: time.Now()}
+	}
+}
+
 type watchModel struct {
 	th     *ui.Theme
 	fetch  func() (control.Status, error)
@@ -48,15 +64,15 @@ func (m watchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "p":
 			m.paused = !m.paused
 		case "r":
-			m.st, m.err = m.fetch()
-			m.at = time.Now()
+			return m, m.fetchCmd()
 		}
+	case watchStatusMsg:
+		m.st, m.err, m.at = msg.st, msg.err, msg.at
 	case watchTickMsg:
-		if !m.paused {
-			m.st, m.err = m.fetch()
-			m.at = time.Time(msg)
+		if m.paused {
+			return m, watchTickCmd()
 		}
-		return m, watchTickCmd()
+		return m, tea.Batch(m.fetchCmd(), watchTickCmd())
 	}
 	return m, nil
 }
