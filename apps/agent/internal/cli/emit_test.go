@@ -144,3 +144,20 @@ func TestJobSummaryMatchesBoard(t *testing.T) {
 		t.Errorf("plain summary = %q", got)
 	}
 }
+
+func TestRunCommandDoesNotHangOnAnOverlongLine(t *testing.T) {
+	done := make(chan runJobResult, 1)
+	go func() {
+		var out, errOut bytes.Buffer
+		// 3 MB on one line, then more output: the scanner gives up on the line, the child must still finish.
+		done <- runCommand(context.Background(), "big", []string{"sh", "-c", "head -c 3000000 /dev/zero | tr '\\0' a; echo; echo after"}, 100, &out, &errOut, nil)
+	}()
+	select {
+	case res := <-done:
+		if res.ExitCode != 0 {
+			t.Fatalf("exit = %d", res.ExitCode)
+		}
+	case <-time.After(20 * time.Second):
+		t.Fatal("run-job hung on an overlong output line")
+	}
+}

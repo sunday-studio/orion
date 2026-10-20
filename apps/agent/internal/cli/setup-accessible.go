@@ -19,7 +19,12 @@ import (
 // accessibleRequested says whether prompts should be plain lines: ACCESSIBLE=1
 // (or ORION_ACCESSIBLE) for screen readers and dumb terminals.
 func accessibleRequested() bool {
-	return os.Getenv("ACCESSIBLE") != "" || os.Getenv("ORION_ACCESSIBLE") != "" || os.Getenv("TERM") == "dumb"
+	if os.Getenv("ACCESSIBLE") != "" || os.Getenv("ORION_ACCESSIBLE") != "" {
+		return true
+	}
+	// A dumb terminal only asks for line prompts when a person is typing; a
+	// cron job or CI step that sets TERM=dumb must keep running from flags.
+	return os.Getenv("TERM") == "dumb" && stdinIsTerminal()
 }
 
 // readSecretLine reads a hidden line from a terminal, or a plain line when
