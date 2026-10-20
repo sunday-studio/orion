@@ -1,0 +1,23 @@
+
+  [fail] Core is not reachable
+         dial tcp 10.0.0.5:8999: connection refused
+         fix: check the address, then orion-agent config edit
+  [fail] Credentials rejected by Core
+         Core answered 401 for this server's token
+         fix: orion-agent token apply  with a replacement token from the Console
+  [ok]                    
+  [ok]                    
+  [ok]                    
+  [ok]                    
+  [ok]                    
+  [ok]                    
+  [ok]                    
+  [ok]                    
+  [ok]                    
+  [ok]                    
+  [ok]                    
+  [ok]                    
+  [ok]                    
+  [ok]                    
+
+  14 passed   0 warnings   2 failed   exit 1

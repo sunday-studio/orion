@@ -24,18 +24,22 @@ const ClockLimit = 5 * time.Second
 // DefaultChecks is the standard check list, in the order the artboard shows.
 func DefaultChecks() []Check {
 	return []Check{
-		{"config", "Config", checkConfig},
-		{"dns", "DNS", checkDNS},
-		{"tls", "TLS", checkTLS},
-		{"core", "Core reachable", checkCore},
-		{"token", "Token", checkToken},
-		{"clock", "Clock skew", checkClock},
-		{"log-access", "Log access", checkLogAccess},
-		{"log-sources", "Log sources", checkLogSources},
-		{"disk", "Disk space", checkDisk},
-		{"service", "Service", checkService},
-		{"version", "Version", checkVersion},
-		{"spool", "Spool", checkSpool},
+		{"config", "Agent", "Config", checkConfig},
+		{"service", "Agent", "Service", checkService},
+		{"state", "Agent", "State database", checkState},
+		{"version", "Agent", "Version", checkVersion},
+		{"dns", "Core", "DNS", checkDNS},
+		{"tls", "Core", "TLS", checkTLS},
+		{"core", "Core", "Core reachable", checkCore},
+		{"token", "Core", "Token", checkToken},
+		{"clock", "Core", "Clock skew", checkClock},
+		{"discovery", "Discovery", "Last scan", checkDiscovery},
+		{"discovery-access", "Discovery", "Scan access", checkDiscoveryAccess},
+		{"log-access", "Logs", "Log access", checkLogAccess},
+		{"log-sources", "Logs", "Log sources", checkLogSources},
+		{"log-keys", "Logs", "Log keys", checkLogKeys},
+		{"spool", "Logs", "Spool", checkSpool},
+		{"disk", "System", "Disk space", checkDisk},
 	}
 }
 
@@ -54,10 +58,10 @@ func firstLine(s string) string { return strings.SplitN(s, "\n", 2)[0] }
 
 func checkConfig(_ context.Context, e *Env) Result {
 	if e.ConfigErr != nil {
-		return fail(firstLine(e.ConfigErr.Error()), "orion-agent setup   (or fix the file: orion-agent config edit)")
+		return fail(firstLine(e.ConfigErr.Error()), "orion-agent config edit   (or start over with orion-agent setup)").
+			titled("Config is not valid", firstLine(e.ConfigErr.Error()))
 	}
-	n := len(e.Config.Monitors)
-	return ok(fmt.Sprintf("%s, %d %s", e.ConfigPath, n, plural(n, "monitor", "monitors")))
+	return ok(e.ConfigPath).titled("Config valid")
 }
 
 func plural(n int, one, many string) string {
@@ -74,25 +78,30 @@ func checkService(_ context.Context, e *Env) Result {
 	installed, running, state := e.Service()
 	switch {
 	case !installed:
-		return fail("not installed", "orion-agent service install   (prints the one-line installer)")
+		return fail("not installed", "orion-agent service install   (prints the one-line installer)").titled("Service is not installed")
 	case !running:
 		start := "sudo systemctl start orion-agent"
 		if e.GOOS == "darwin" {
 			start = "sudo launchctl bootstrap system /Library/LaunchDaemons/com.orion.agent.plist"
 		}
-		return fail(state, start+"   (why it stopped: orion-agent logs)")
+		return fail(state, start+"   (why it stopped: orion-agent logs)").titled("Service is not running", state)
 	}
 	if !e.Daemon.Reachable {
 		msg := "running, control socket not reachable"
 		if e.Daemon.Err != nil && strings.Contains(e.Daemon.Err.Error(), "permission") {
-			return warn(msg, "sudo usermod -aG orion $USER   (then log out and in)")
+			return warn(msg, "sudo usermod -aG orion $USER   (then log out and in)").titled("Control socket is not readable", msg)
 		}
-		return warn(msg, "orion-agent restart")
+		return warn(msg, "orion-agent restart").titled("Control socket is not reachable", msg)
 	}
-	if e.Daemon.Uptime > 0 {
-		return ok("active, running " + Duration(e.Daemon.Uptime))
+	manager := "systemd"
+	if e.GOOS == "darwin" {
+		manager = "launchd"
 	}
-	return ok("active, running")
+	detail := manager
+	if e.Daemon.PID > 0 {
+		detail += fmt.Sprintf(" · pid %d", e.Daemon.PID)
+	}
+	return ok(detail).titled("Service running")
 }
 
 // Duration formats like the artboards: "41 s", "5 m", "3d 4h".
@@ -110,9 +119,10 @@ func Duration(d time.Duration) string {
 
 func checkVersion(_ context.Context, e *Env) Result {
 	if e.Daemon.Reachable && e.Daemon.Version != e.Version {
-		return warn(fmt.Sprintf("cli %s, daemon %s", e.Version, e.Daemon.Version), "orion-agent restart")
+		return warn(fmt.Sprintf("cli %s, daemon %s", e.Version, e.Daemon.Version), "orion-agent restart").
+			titled("The running agent is an older version", fmt.Sprintf("cli %s, daemon %s", e.Version, e.Daemon.Version))
 	}
-	return ok(e.Version)
+	return ok(e.Version).titled("Version")
 }
 
 func checkDNS(ctx context.Context, e *Env) Result {
@@ -132,9 +142,10 @@ func checkDNS(ctx context.Context, e *Env) Result {
 	defer cancel()
 	addrs, err := lookup(cctx, host)
 	if err != nil || len(addrs) == 0 {
-		return fail("cannot resolve "+host, "getent hosts "+host+"   (check /etc/resolv.conf, or use the Core IP in core_url)")
+		return fail("cannot resolve "+host, "getent hosts "+host+"   (check /etc/resolv.conf, or use the Core IP in core_url)").
+			titled("Cannot resolve "+host)
 	}
-	return ok(fmt.Sprintf("%s resolves to %s", host, addrs[0]))
+	return ok(fmt.Sprintf("%s resolves to %s", host, addrs[0])).titled("DNS")
 }
 
 func checkTLS(ctx context.Context, e *Env) Result {
@@ -154,16 +165,17 @@ func checkTLS(ctx context.Context, e *Env) Result {
 	defer cancel()
 	notAfter, err := dial(cctx, net.JoinHostPort(u.Hostname(), port), u.Hostname())
 	if err != nil {
-		return fail(firstLine(err.Error()), "private CA? sudo cp ca.crt /usr/local/share/ca-certificates/ && sudo update-ca-certificates   (macOS: sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain ca.crt)")
+		return fail(firstLine(err.Error()), "private CA? sudo cp ca.crt /usr/local/share/ca-certificates/ && sudo update-ca-certificates   (macOS: sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain ca.crt)").
+			titled("Core's certificate is not trusted", firstLine(err.Error()))
 	}
 	left := notAfter.Sub(e.now())
 	switch {
 	case left < 0:
-		return fail("expired "+notAfter.Format("Jan 2, 2006"), "renew the certificate on the Core host")
+		return fail("expired "+notAfter.Format("Jan 2, 2006"), "renew the certificate on the Core host").titled("Core's certificate has expired", "expired "+notAfter.Format("Jan 2, 2006"))
 	case left < 14*24*time.Hour:
-		return warn("valid until "+notAfter.Format("Jan 2, 2006"), "renew the certificate on the Core host")
+		return warn("valid until "+notAfter.Format("Jan 2, 2006"), "renew the certificate on the Core host").titled("Core's certificate expires soon", "valid until "+notAfter.Format("Jan 2, 2006"))
 	}
-	return ok("valid until " + notAfter.Format("Jan 2, 2006"))
+	return ok("valid until " + notAfter.Format("Jan 2, 2006")).titled("TLS")
 }
 
 func defaultDialTLS(ctx context.Context, addr, serverName string) (time.Time, error) {
@@ -199,18 +211,23 @@ func (e *Env) get(ctx context.Context, path, bearer string) (*http.Response, tim
 }
 
 func checkCore(ctx context.Context, e *Env) Result {
-	if _, good := coreURL(e); !good {
+	u, good := coreURL(e)
+	if !good {
 		return skip("no core_url yet")
 	}
 	resp, took, err := e.get(ctx, "/health", "")
 	if err != nil {
-		return fail("cannot connect", "curl -v "+strings.TrimRight(e.Config.CoreURL, "/")+"/health   (firewall, proxy, or wrong core_url?)")
+		return fail("cannot connect", "check the address, then orion-agent config edit   (firewall, proxy, or wrong core_url?)").
+			titled("Core is not reachable", firstLine(err.Error()))
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 500 {
-		return fail(fmt.Sprintf("Core answered HTTP %d", resp.StatusCode), "check Core's health and logs on the Core host")
+		return fail(fmt.Sprintf("Core answered HTTP %d", resp.StatusCode), "check Core's health and logs on the Core host").
+			titled("Core is not healthy", fmt.Sprintf("Core answered HTTP %d", resp.StatusCode))
 	}
-	return ok(fmt.Sprintf("%d ms", took.Milliseconds()))
+	r := ok(fmt.Sprintf("%d ms", took.Milliseconds())).titled("Reachable")
+	r.Message, r.TookMS = u.Hostname(), took.Milliseconds()
+	return r
 }
 
 func checkClock(ctx context.Context, e *Env) Result {
@@ -233,13 +250,15 @@ func checkClock(ctx context.Context, e *Env) Result {
 	}
 	msg := fmt.Sprintf("%+.1f s (limit %d s)", skew.Seconds(), int(ClockLimit.Seconds()))
 	fix := "sudo timedatectl set-ntp true   (macOS: sudo sntp -sS time.apple.com)"
+	title := fmt.Sprintf("Clock is off by %+.1f s", skew.Seconds())
 	switch {
 	case abs > ClockLimit:
-		return fail(msg, fix)
+		return fail(msg, fix).titled(title, fmt.Sprintf("Core and this host disagree by more than %d s", int(ClockLimit.Seconds())))
 	case abs > ClockLimit/2:
-		return warn(msg, fix)
+		return warn(msg, fix).titled(title, fmt.Sprintf("Limit is %d s", int(ClockLimit.Seconds())))
 	}
-	return ok(msg)
+	within := int(abs.Seconds()) + 1
+	return ok(msg).titled(fmt.Sprintf("Clock within %d s", within))
 }
 
 func checkToken(ctx context.Context, e *Env) Result {
@@ -255,14 +274,15 @@ func checkToken(ctx context.Context, e *Env) Result {
 	}
 	switch {
 	case code == http.StatusUnauthorized || code == http.StatusForbidden:
-		return fail(fmt.Sprintf("rejected by Core (HTTP %d)", code), "orion-agent token apply --token-file <file>   (replacement token from an admin)")
+		return fail(fmt.Sprintf("rejected by Core (HTTP %d)", code), "orion-agent token apply  with a replacement token from the Console").
+			titled("Credentials rejected by Core", fmt.Sprintf("Core answered %d for this server's token", code))
 	case code >= 500:
-		return warn(fmt.Sprintf("Core answered HTTP %d", code), "retry later; check Core health")
+		return warn(fmt.Sprintf("Core answered HTTP %d", code), "retry later; check Core health").titled("Core could not check the credentials", fmt.Sprintf("Core answered %d", code))
 	}
 	if e.Hostname != "" {
-		return ok("valid, agent " + e.Hostname)
+		return ok("valid, agent " + e.Hostname).titled("Credentials accepted")
 	}
-	return ok("valid")
+	return ok("valid").titled("Credentials accepted")
 }
 
 func checkLogAccess(_ context.Context, e *Env) Result {
@@ -286,11 +306,11 @@ func checkLogAccess(_ context.Context, e *Env) Result {
 	err := can(path)
 	switch {
 	case err == nil:
-		return ok("can read " + path)
+		return ok("can read " + path).titled("Log file readable")
 	case os.IsNotExist(err):
-		return warn(path+" does not exist yet", "sudo systemctl restart orion-agent   (the daemon creates it on start)")
+		return warn(path+" does not exist yet", "sudo systemctl restart orion-agent   (the daemon creates it on start)").titled("The agent log file does not exist yet", path)
 	case os.IsPermission(err):
-		return fail("cannot read "+path, "sudo usermod -aG orion $USER && sudo systemctl restart orion-agent   (or read through the daemon: orion-agent logs)")
+		return fail("cannot read "+path, "sudo usermod -aG orion $USER && sudo systemctl restart orion-agent   (or read through the daemon: orion-agent logs)").titled("The agent log file cannot be read", path)
 	}
 	return warn(firstLine(err.Error()), "")
 }
@@ -300,7 +320,7 @@ func checkLogAccess(_ context.Context, e *Env) Result {
 // not send an entry: Doctor must not create product data as a side effect.
 func checkLogSources(ctx context.Context, e *Env) Result {
 	if e.Config == nil || len(e.Config.Logs.Sources) == 0 {
-		return ok("no product log sources configured")
+		return ok("no product log sources configured").titled("Log sources")
 	}
 	can := e.CanRead
 	if can == nil {
@@ -315,16 +335,16 @@ func checkLogSources(ctx context.Context, e *Env) Result {
 	for _, source := range e.Config.Logs.Sources {
 		if source.Type == "file" {
 			if err := can(source.Path); err != nil && !os.IsNotExist(err) {
-				return fail("source "+source.Name+": cannot read "+source.Path, "grant the orion user read access to "+source.Path)
+				return fail("source "+source.Name+": cannot read "+source.Path, "grant the orion user read access to "+source.Path).titled("Log source "+source.Name+" cannot be read", source.Path)
 			}
 		}
 		if source.IngestKeyFile != "" {
 			if err := can(source.IngestKeyFile); err != nil {
-				return fail("source "+source.Name+": cannot read ingest key", "sudo chgrp orion "+source.IngestKeyFile+" && sudo chmod 0640 "+source.IngestKeyFile)
+				return fail("source "+source.Name+": cannot read ingest key", "sudo chgrp orion "+source.IngestKeyFile+" && sudo chmod 0640 "+source.IngestKeyFile).titled("Log key for "+source.Name+" cannot be read", source.IngestKeyFile)
 			}
 		}
 		if source.IngestKeyEnv != "" && strings.TrimSpace(os.Getenv(source.IngestKeyEnv)) == "" {
-			return fail("source "+source.Name+": "+source.IngestKeyEnv+" is not set", "set "+source.IngestKeyEnv+" for the orion-agent service and restart it")
+			return fail("source "+source.Name+": "+source.IngestKeyEnv+" is not set", "set "+source.IngestKeyEnv+" for the orion-agent service and restart it").titled("Log key for "+source.Name+" is missing", source.IngestKeyEnv+" is not set for the service")
 		}
 	}
 
@@ -336,7 +356,7 @@ func checkLogSources(ctx context.Context, e *Env) Result {
 	// create a log entry, while a 401/400 still proves the route is reachable.
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewBufferString("[]"))
 	if err != nil {
-		return fail("invalid ingest endpoint", "set logs.endpoint to the Core /v1/ingest/logs URL")
+		return fail("invalid ingest endpoint", "set logs.endpoint to the Core /v1/ingest/logs URL").titled("The log ingest endpoint is invalid", endpoint)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	client := e.HTTP
@@ -345,13 +365,13 @@ func checkLogSources(ctx context.Context, e *Env) Result {
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fail("cannot reach log ingest endpoint", "check logs.endpoint, DNS and firewall access to Core")
+		return fail("cannot reach log ingest endpoint", "check logs.endpoint, DNS and firewall access to Core").titled("Log ingest is not reachable", firstLine(err.Error()))
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= http.StatusInternalServerError || resp.StatusCode == http.StatusNotFound {
-		return fail(fmt.Sprintf("log ingest endpoint answered HTTP %d", resp.StatusCode), "check logs.endpoint and Core log ingest")
+		return fail(fmt.Sprintf("log ingest endpoint answered HTTP %d", resp.StatusCode), "check logs.endpoint and Core log ingest").titled("Log ingest answered with an error", fmt.Sprintf("HTTP %d", resp.StatusCode))
 	}
-	return ok(fmt.Sprintf("%d source%s, endpoint reachable", len(e.Config.Logs.Sources), plural(len(e.Config.Logs.Sources), "", "s")))
+	return ok(fmt.Sprintf("%d source%s, endpoint reachable", len(e.Config.Logs.Sources), plural(len(e.Config.Logs.Sources), "", "s"))).titled("Log sources")
 }
 
 func checkDisk(_ context.Context, e *Env) Result {
@@ -370,11 +390,11 @@ func checkDisk(_ context.Context, e *Env) Result {
 	msg := fmt.Sprintf("%s free", formatMB(mb))
 	switch {
 	case mb < 50:
-		return fail(msg, "du -sh "+dir+" /var/log/orion   (free space: the spool and logs need room)")
+		return fail(msg, "du -sh "+dir+" /var/log/orion   (free space: the spool and logs need room)").titled("Almost no disk space left", msg)
 	case mb < 500:
-		return warn(msg, "du -sh "+dir+" /var/log/orion   (free space soon)")
+		return warn(msg, "du -sh "+dir+" /var/log/orion   (free space soon)").titled("Disk space is getting low", msg)
 	}
-	return ok(msg)
+	return ok(msg).titled("Disk space")
 }
 
 func formatMB(mb uint64) string {
@@ -394,7 +414,8 @@ func checkSpool(_ context.Context, e *Env) Result {
 		return skip("daemon not reachable")
 	}
 	if n > 100 {
-		return warn(fmt.Sprintf("%d pending", n), "orion-agent status   (Core unreachable? the backlog drains when it returns)")
+		return warn(fmt.Sprintf("%d pending", n), "orion-agent status   (Core unreachable? the backlog drains when it returns)").
+			titled("Reports are queuing up", fmt.Sprintf("%d waiting to be sent", n))
 	}
-	return ok(fmt.Sprintf("%d pending", n))
+	return ok(fmt.Sprintf("%d pending", n)).titled("Spool")
 }

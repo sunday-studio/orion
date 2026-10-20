@@ -107,7 +107,7 @@ func TestDoctorJSONIsVersionedAndEveryFailureHasFix(t *testing.T) {
 	if err := json.Unmarshal(out.Bytes(), &rep); err != nil {
 		t.Fatalf("not JSON: %v\n%s", err, out.String())
 	}
-	if rep.SchemaVersion != 3 || rep.OK || len(rep.Checks) < 8 {
+	if rep.SchemaVersion != 4 || rep.OK || len(rep.Checks) < 8 {
 		t.Fatalf("report = %+v", rep)
 	}
 	for _, c := range rep.Checks {

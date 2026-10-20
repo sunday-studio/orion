@@ -46,6 +46,9 @@ func baseEnv() *Env {
 		Daemon:     DaemonInfo{Reachable: true, Version: "1.2.3"},
 		TokenProbe: func(context.Context) (int, error) { return 200, nil },
 		Queue:      func() (int, bool) { return 0, true },
+		StateOpen:  func() error { return nil },
+		Discovery:  func() (DiscoveryInfo, bool) { return DiscoveryInfo{ScannedAt: now, Things: 7}, true },
+		ReadKey:    func(string) (string, error) { return "key", nil },
 	}
 }
 
@@ -61,9 +64,52 @@ func TestHealthyHostPasses(t *testing.T) {
 		t.Fatalf("report = %+v", rep)
 	}
 	for _, c := range rep.Checks {
-		if c.Status != OK {
+		if c.Status != OK && !(c.Status == Skip && (c.ID == "discovery-access" || c.ID == "log-keys")) {
 			t.Errorf("%s = %s %s", c.ID, c.Status, c.Message)
 		}
+		if c.Group == "" || c.Title == "" {
+			t.Errorf("%s has no group or title: %+v", c.ID, c)
+		}
+	}
+}
+
+func TestEveryProblemHasATitleAndTheBoardWords(t *testing.T) {
+	e := baseEnv()
+	e.HTTP = fakeHTTP{err: errors.New("dial tcp 10.0.0.5:8999: connection refused")}
+	e.TokenProbe = func(context.Context) (int, error) { return 401, nil }
+	r := run(e)
+	if c := r["core"]; c.Title != "Core is not reachable" || len(c.Evidence) == 0 || !strings.Contains(c.Evidence[0], "connection refused") || c.Fix != "check the address, then orion-agent config edit   (firewall, proxy, or wrong core_url?)" {
+		t.Errorf("core = %+v", c)
+	}
+	if c := r["token"]; c.Title != "Credentials rejected by Core" || c.Evidence[0] != "Core answered 401 for this server's token" {
+		t.Errorf("token = %+v", c)
+	}
+}
+
+func TestNewChecks(t *testing.T) {
+	e := baseEnv()
+	e.StateOpen = func() error { return errors.New("unable to open database file") }
+	e.Discovery = func() (DiscoveryInfo, bool) {
+		return DiscoveryInfo{ScannedAt: e.Now(), Things: 3, Blocked: []BlockedKind{{Kind: "containers", Message: "Docker is not readable by the agent", Fix: "sudo usermod -aG docker orion   (this access is powerful)", Why: "Containers are not scanned, so none can be suggested."}}}, true
+	}
+	e.Config.Logs.Sources = []config.LogSource{{Name: "nginx", Type: "file", Path: "/var/log/nginx/error.log", IngestKeyFile: "/run/orion/nginx.key"}}
+	e.ReadKey = func(string) (string, error) { return " \n", nil }
+	r := run(e)
+	if c := r["state"]; c.Status != Fail || c.Title != "The state database cannot be opened" {
+		t.Errorf("state = %+v", c)
+	}
+	if c := r["discovery-access"]; c.Status != Warn || c.Title != "Docker is not readable by the agent" || c.Evidence[0] != "Containers are not scanned, so none can be suggested." || !strings.Contains(c.Fix, "docker orion") {
+		t.Errorf("discovery-access = %+v", c)
+	}
+	if c := r["discovery"]; c.Status != OK || !strings.HasSuffix(c.Message, "found 3 things") {
+		t.Errorf("discovery = %+v", c)
+	}
+	if c := r["log-keys"]; c.Status != Warn || c.Title != "Log key for nginx is missing" {
+		t.Errorf("log-keys = %+v", c)
+	}
+	e.Discovery = func() (DiscoveryInfo, bool) { return DiscoveryInfo{}, false }
+	if c := run(e)["discovery"]; c.Status != Skip {
+		t.Errorf("an unreachable daemon skips the scan check: %+v", c)
 	}
 }
 
