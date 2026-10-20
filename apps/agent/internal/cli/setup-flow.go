@@ -156,6 +156,10 @@ func (f *setupFlow) cancel() (tea.Model, tea.Cmd) {
 	if f.savedSettings {
 		cause = errors.New("monitors were not changed; the scan settings you saved stay in the config")
 	}
+	if f.title != "" { // discover: backing out is a normal way to leave
+		f.done = true
+		return f, tea.Quit
+	}
 	f.err = NewCommandError("setup cancelled", cause)
 	return f, tea.Quit
 }

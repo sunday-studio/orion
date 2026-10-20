@@ -31,7 +31,8 @@ type Options struct {
 	SetupForce            bool
 	SetupInitState        bool
 	SetupYes              bool
-	MaintenanceForm       bool // the maintenance form was used: finish with its result panel
+	ElevateAs             string // the command to name in a "run it with sudo" hint, when not setup
+	MaintenanceForm       bool   // the maintenance form was used: finish with its result panel
 	SetupDryRun           bool
 	SetupToken            string
 	SetupTokenFile        string

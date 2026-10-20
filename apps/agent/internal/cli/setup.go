@@ -204,7 +204,7 @@ func commitSetup(ctx context.Context, opts *Options, plan setupPlan) (commitResu
 	}
 	if len(res.Diff) > 0 || len(before) == 0 {
 		if err := writeConfigAtomic(opts.ConfigPath, data); err != nil {
-			return res, NewCommandError("could not write config", err, "re-run with sufficient permissions (sudo orion-agent setup)")
+			return res, NewCommandError("could not write config", err, "re-run with sufficient permissions (sudo orion-agent "+firstNonEmpty(opts.ElevateAs, "setup")+")")
 		}
 		handOverToServiceUser(opts.ConfigPath)
 		res.Written = true

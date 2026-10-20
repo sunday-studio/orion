@@ -254,3 +254,12 @@ func TestDiscoverPickerReusesTheFlowWithItsOwnTitle(t *testing.T) {
 		t.Fatalf("review keeps the title, step=%v", f.step)
 	}
 }
+
+func TestDiscoverCancelIsNotAnError(t *testing.T) {
+	f, _ := newTestFlow(t)
+	f.title = "Discover"
+	f.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	if f.err != nil || !f.done {
+		t.Fatalf("backing out of discover must exit cleanly: err=%v done=%v", f.err, f.done)
+	}
+}
