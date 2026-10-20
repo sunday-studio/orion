@@ -195,7 +195,15 @@ type AppResourcesConfig struct {
 	Enabled *bool    `yaml:"enabled,omitempty"` // default true
 	TopN    int      `yaml:"top_n,omitempty"`   // processes per ranking, default 10
 	Paths   []string `yaml:"paths,omitempty"`   // storage paths to size
+	// Docker adds container names and per-container network from the Docker API
+	// when the agent user can open the socket. Default on; false never touches it.
+	Docker       *bool  `yaml:"docker,omitempty"`
+	DockerSocket string `yaml:"docker_socket,omitempty"`
 }
+
+// DockerEnabled reports whether the Docker API may be used (default yes, and
+// it only yields data where the socket is readable).
+func (a AppResourcesConfig) DockerEnabled() bool { return a.Docker == nil || *a.Docker }
 
 // IsEnabled reports whether passive app metrics are on (default on).
 func (a AppResourcesConfig) IsEnabled() bool { return a.Enabled == nil || *a.Enabled }

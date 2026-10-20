@@ -55,6 +55,10 @@ func BuildConfig(base config.UserConfig, selected []Candidate) config.UserConfig
 		have[m.Name] = true
 	}
 	for _, c := range selected {
+		if c.StoragePath != "" {
+			AddStoragePath(&base, c.StoragePath)
+			continue
+		}
 		if c.Monitor == nil || have[c.Monitor.Name] {
 			continue
 		}

@@ -65,3 +65,9 @@ Mapping an app to a cgroup: systemd units live at `system.slice/<name>.service`;
 - Per-process network on Linux is a real product gap versus tools with eBPF agents. If it becomes a priority it needs its own decision on privilege (`CAP_BPF`, `CAP_PERFMON`) and a kernel-version matrix.
 - Docker-based signals require group `docker`, which is root-equivalent. The default install keeps the daemon out of that group.
 - Verify in the install matrix: cgroup v1 (older RHEL), SELinux denials on `/sys/fs/cgroup`, `hidepid` mounts, rootless Docker socket paths.
+
+## Update 2026-10-20: Docker and storage suggestions
+
+- **Docker collector (implemented, off unless the socket is readable):** with access to `/var/run/docker.sock` (`app_resources.docker_socket` to override, `app_resources.docker: false` to never use it) the agent names cgroup containers and adds per-container network rates; on hosts without cgroups (macOS) containers come from the API with memory and network. Without access, containers stay visible by short id and one note says why. The installer still does not grant Docker access unless `--docker-access` is passed.
+- **Storage suggestions (implemented in discovery):** `discover` proposes tracking the size of directories an app uses: those its systemd unit declares (`WorkingDirectory`, `StateDirectory`, `LogsDirectory`, `CacheDirectory`, only under `/var/lib`, `/var/log`, `/var/cache`, `/srv`, `/opt`, `/data`, `/home`) and well-known data directories for running apps (PostgreSQL, MySQL, Redis, nginx logs, ...). Accepting one adds it to `app_resources.paths`. A directory the agent cannot read is listed as low confidence with the reason.
+- **Still not supported:** per-process and per-unit network on Linux (needs eBPF or `CAP_NET_ADMIN`; see P3).

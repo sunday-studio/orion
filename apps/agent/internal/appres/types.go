@@ -43,12 +43,14 @@ type Report struct {
 
 // Options controls collection and bounds cardinality.
 type Options struct {
-	TopN        int           // processes reported per ranking (CPU, memory); default 10
-	MaxSeries   int           // hard cap on series per report; default 200
-	Paths       []string      // storage paths to size
-	PathBudget  time.Duration // time allowed per path walk; default 2s
-	CgroupRoot  string        // default /sys/fs/cgroup
-	DockerSock  string        // optional Docker socket for container names and network
+	TopN        int                               // processes reported per ranking (CPU, memory); default 10
+	MaxSeries   int                               // hard cap on series per report; default 200
+	Paths       []string                          // storage paths to size
+	PathBudget  time.Duration                     // time allowed per path walk; default 2s
+	CgroupRoot  string                            // default /sys/fs/cgroup
+	DockerSock  string                            // Docker socket (default /var/run/docker.sock)
+	NoDocker    bool                              // never use the Docker API
+	Docker      func() ([]dockerContainer, error) // replaced in tests
 	Now         func() time.Time
 	ProcessList func() ([]ProcSample, error)           // replaced in tests
 	NetSource   func() (map[string]NetCounters, error) // per-process network (macOS), replaced in tests

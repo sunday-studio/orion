@@ -176,7 +176,7 @@ const maxWizardCandidates = 6
 func pickableCandidates(all []discover.Candidate) ([]discover.Candidate, int) {
 	var out []discover.Candidate
 	for _, c := range all {
-		if c.Monitor != nil && c.Confidence != discover.Low {
+		if (c.Monitor != nil || c.StoragePath != "") && c.Confidence != discover.Low {
 			out = append(out, c)
 		}
 	}

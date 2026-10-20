@@ -408,7 +408,7 @@ Implemented on both sides: Core enforces the token (`apps/core/internal/api/agen
 }
 ```
 
-Rules Core can rely on: `kind` is one of `process`, `unit`, `container`, `path`; `key` is stable across reports; rate fields are omitted (not zero) when not measurable, and the first report after agent start has no rates; at most 200 series per report; no command lines or environment values are ever sent; `net_*` fields are present only for macOS processes and opt-in container collectors; `notes` explain skipped sources and never mean the report failed. Unknown fields are ignored by agents, and Core ignores sections it does not know, so either side can ship first.
+Rules Core can rely on: `kind` is one of `process`, `unit`, `container`, `path`; `key` is stable across reports; rate fields are omitted (not zero) when not measurable, and the first report after agent start has no rates; at most 200 series per report; no command lines or environment values are ever sent; `net_*` fields are present only for macOS processes and for Docker containers (when the agent user can read the Docker socket; containers then use `key: container:<name>` and a real name, otherwise `container:<short id>`); `notes` explain skipped sources and never mean the report failed. Unknown fields are ignored by agents, and Core ignores sections it does not know, so either side can ship first.
 
 ## Request compression (agent side, opt-in)
 

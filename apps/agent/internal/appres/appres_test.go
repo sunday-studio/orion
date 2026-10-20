@@ -1,6 +1,8 @@
 package appres
 
 import (
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -199,5 +201,91 @@ func TestReusedPidIsNotTreatedAsTheSameProcess(t *testing.T) {
 		if ser.IOReadBps != nil || ser.CPUPercent != nil {
 			t.Fatalf("a recycled pid must not produce a rate: %+v", ser)
 		}
+	}
+}
+
+func TestDockerNamesAndNetworkRatesOnTopOfCgroups(t *testing.T) {
+	root := fakeCgroup(t, 1_000_000, 5000, 1000, 2000) // has container 0123456789ab
+	now := time.Unix(1000, 0)
+	rx, tx := uint64(1000), uint64(500)
+	docker := func() ([]dockerContainer, error) {
+		return []dockerContainer{{ID: "0123456789abcdef0123", Name: "shop-api-1", NetRx: rx, NetTx: tx, HasNet: true}}, nil
+	}
+	s := NewSampler(Options{CgroupRoot: root, Now: func() time.Time { return now }, Docker: docker,
+		ProcessList: func() ([]ProcSample, error) { return nil, nil }, NetSource: func() (map[string]NetCounters, error) { return nil, nil }})
+	s.Sample()
+	rx, tx = 11000, 2500
+	now = now.Add(10 * time.Second)
+	rep := s.Sample()
+	var got *Series
+	for i := range rep.Series {
+		if rep.Series[i].Key == "container:shop-api-1" {
+			got = &rep.Series[i]
+		}
+	}
+	if got == nil || got.Name != "shop-api-1" || got.NetRxBps == nil || *got.NetRxBps != 1000 || *got.NetTxBps != 200 {
+		t.Fatalf("container = %+v", got)
+	}
+	if got.MemoryBytes == nil || *got.MemoryBytes != 2048 {
+		t.Fatalf("cgroup memory must be kept: %+v", got)
+	}
+}
+
+func TestDockerUnavailableNotesOnceAndKeepsCgroupIDs(t *testing.T) {
+	root := fakeCgroup(t, 1, 5000, 1, 1)
+	s := NewSampler(Options{CgroupRoot: root,
+		Docker:      func() ([]dockerContainer, error) { return nil, os.ErrPermission },
+		ProcessList: func() ([]ProcSample, error) { return nil, nil }, NetSource: func() (map[string]NetCounters, error) { return nil, nil }})
+	first := s.Sample()
+	second := s.Sample()
+	notes := 0
+	for _, n := range first.Notes {
+		if len(n) > 6 && n[:6] == "docker" {
+			notes++
+		}
+	}
+	if notes != 1 {
+		t.Fatalf("want one docker note, got %v", first.Notes)
+	}
+	for _, n := range second.Notes {
+		if len(n) > 6 && n[:6] == "docker" {
+			t.Fatal("the note must not repeat every sample")
+		}
+	}
+	found := false
+	for _, ser := range first.Series {
+		if ser.Key == "container:0123456789ab" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("without Docker access containers stay visible by short id")
+	}
+}
+
+func TestDockerAPIOverUnixSocket(t *testing.T) {
+	dir, _ := os.MkdirTemp("", "dk")
+	defer os.RemoveAll(dir)
+	sock := filepath.Join(dir, "d.sock")
+	ln, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/containers/json", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`[{"Id":"abc123abc123abc123","Names":["/web"]}]`))
+	})
+	mux.HandleFunc("/containers/abc123abc123abc123/stats", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"networks":{"eth0":{"rx_bytes":10,"tx_bytes":4},"eth1":{"rx_bytes":5,"tx_bytes":1}},"memory_stats":{"usage":777}}`))
+	})
+	srv := &http.Server{Handler: mux}
+	go srv.Serve(ln)
+	defer srv.Close()
+	list, err := newDockerSource(sock)()
+	if err != nil || len(list) != 1 || list[0].Name != "web" || list[0].NetRx != 15 || list[0].NetTx != 5 || list[0].Memory != 777 {
+		t.Fatalf("list=%+v err=%v", list, err)
+	}
+	if _, err := newDockerSource(filepath.Join(dir, "missing.sock"))(); err == nil {
+		t.Fatal("a missing socket must be an error")
 	}
 }

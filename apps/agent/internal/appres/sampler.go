@@ -17,6 +17,8 @@ type Sampler struct {
 	prevCgroup map[string]cgroupSample
 	prevProc   map[int32]ProcSample
 	prevNet    map[string]NetCounters
+	prevDocker map[string]dockerContainer
+	dockerNote bool // the "docker unavailable" note was already shown once
 }
 
 // NewSampler returns a sampler with caps applied.
@@ -29,6 +31,9 @@ func NewSampler(opts Options) *Sampler {
 	}
 	if opts.ProcessList == nil {
 		opts.ProcessList = hostProcesses
+	}
+	if opts.Docker == nil && !opts.NoDocker {
+		opts.Docker = newDockerSource(opts.DockerSock)
 	}
 	if opts.NetSource == nil {
 		opts.NetSource = hostNetwork
@@ -74,6 +79,9 @@ func (s *Sampler) Sample() Report {
 		}
 		rep.Series = append(rep.Series, ser)
 	}
+
+	// Docker names and per-container network, when the agent may use the API.
+	curDocker := s.applyDocker(&rep, haveRates, elapsed)
 
 	// processes, grouped by executable name
 	procs, err := s.opts.ProcessList()
@@ -125,7 +133,7 @@ func (s *Sampler) Sample() Report {
 		rep.Notes = append(rep.Notes, "series capped at "+strconv.Itoa(max))
 	}
 
-	s.prevAt, s.prevCgroup, s.prevProc, s.prevNet = now, curCg, curProc, nets
+	s.prevAt, s.prevCgroup, s.prevProc, s.prevNet, s.prevDocker = now, curCg, curProc, nets, curDocker
 	return rep
 }
 
@@ -223,4 +231,46 @@ func hostProcesses() ([]ProcSample, error) {
 		out = append(out, sample)
 	}
 	return out, nil
+}
+
+// applyDocker names the cgroup-derived container series and adds network rates.
+// Containers the cgroups did not show (no cgroup v2, macOS) are added from the
+// API itself. Without socket access nothing changes except one note.
+func (s *Sampler) applyDocker(rep *Report, haveRates bool, elapsed float64) map[string]dockerContainer {
+	if s.opts.Docker == nil {
+		return nil
+	}
+	list, err := s.opts.Docker()
+	if err != nil {
+		if !s.dockerNote {
+			rep.Notes = append(rep.Notes, "docker: "+err.Error()+" (containers are shown by id, without network)")
+			s.dockerNote = true
+		}
+		return nil
+	}
+	cur := map[string]dockerContainer{}
+	for _, c := range list {
+		short := c.ID
+		if len(short) > 12 {
+			short = short[:12]
+		}
+		cur[short] = c
+		var ser *Series
+		for i := range rep.Series {
+			if rep.Series[i].Key == "container:"+short {
+				ser = &rep.Series[i]
+			}
+		}
+		if ser == nil {
+			rep.Series = append(rep.Series, Series{Kind: KindContainer, Key: "container:" + c.Name, Name: c.Name, MemoryBytes: uptr(c.Memory)})
+			ser = &rep.Series[len(rep.Series)-1]
+		} else {
+			ser.Key, ser.Name = "container:"+c.Name, c.Name
+		}
+		if prev, ok := s.prevDocker[short]; ok && haveRates && c.HasNet && prev.HasNet && c.NetRx >= prev.NetRx && c.NetTx >= prev.NetTx {
+			ser.NetRxBps = fptr(float64(c.NetRx-prev.NetRx) / elapsed)
+			ser.NetTxBps = fptr(float64(c.NetTx-prev.NetTx) / elapsed)
+		}
+	}
+	return cur
 }
