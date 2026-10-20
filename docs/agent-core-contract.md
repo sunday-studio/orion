@@ -416,7 +416,9 @@ With `transport.compression: gzip` the agent sends request bodies over 1 KiB wit
 
 ## Discovery (agent only, for now)
 
-The agent scans its own host read-only and keeps the result locally (state database) plus the person's choices (dismissed in the state database, ignored in `discovery.ignore`). It does not report discoveries to Core yet; the Console "Detected on this server" panel needs a Core endpoint for them (see `docs/design/agent-auto-config-flow.md`). The local view is served on the control socket (`GET /v1/discovery`, `POST /v1/discovery/rescan`, `POST /v1/discovery/action` with `dismiss`, `restore`, `review`), and `status` on the socket reports `suggestions` and `new_items`.
+The agent scans its own host read-only and keeps the result locally (state database) plus the person's choices (dismissed in the state database, ignored in `discovery.ignore`). It does not report discoveries to Core yet; the Console "Detected on this server" panel needs a Core endpoint for them (see `docs/design/agent-auto-config-flow.md`). The local view is served on the control socket (`GET /v1/discovery`, `POST /v1/discovery/rescan`, `POST /v1/discovery/action` with `dismiss`, `restore`, `review`), and `status` on the socket reports `suggestions`, `new_items`, `things_found` and `scanning`.
+
+The same `status` response feeds `orion-agent status` and is additive JSON (older clients ignore unknown fields): `host` (live CPU, memory, disk and load percentages plus network bytes per second; omitted until the sampler has two samples), `report_millis` (send time of the last 12 system reports, oldest first), `report_interval_seconds`, `missing_log_keys` (log sources with no usable ingest key), and per-monitor `monitor_states` rows with `target`, `since` (when the current health began), `detail` (failure reason) and `value` (a reading such as `91%`). `health` is one of `up`, `slow`, `down`, `degraded`, `unknown`.
 
 ## Security
 

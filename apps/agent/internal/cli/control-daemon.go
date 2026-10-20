@@ -171,7 +171,7 @@ func (d *daemonControl) Status() (control.Status, error) {
 			}
 		}
 	}
-	if snap := d.host.Snapshot(); !snap.At.IsZero() {
+	if snap := d.host.Snapshot(); snap.Ready {
 		out.Host = &control.HostStat{CPUPercent: snap.CPUPercent, MemoryPercent: snap.MemoryPercent, DiskPath: snap.DiskPath, DiskPercent: snap.DiskPercent,
 			Load1: snap.Load1, NetRxBps: snap.NetRxBps, NetTxBps: snap.NetTxBps}
 	}
