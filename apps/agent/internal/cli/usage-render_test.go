@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"bytes"
+	"context"
 	"strings"
 	"testing"
 
@@ -51,5 +53,12 @@ func TestUsageUnknownIsADashAndSortKeyReorders(t *testing.T) {
 	}
 	if _, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")}); cmd == nil {
 		t.Error("q quits")
+	}
+}
+
+func TestUsageWatchNeedsAPositiveWindow(t *testing.T) {
+	var out, errOut bytes.Buffer
+	if code := Execute(context.Background(), []string{"usage", "--watch", "--window", "0s"}, &out, &errOut); code == 0 {
+		t.Fatalf("a zero window would spin: out=%s", out.String())
 	}
 }

@@ -172,3 +172,27 @@ func TestAccessibleSetupAsksPlainLinesAndTakesNumbers(t *testing.T) {
 		t.Fatal("a number outside the list must be refused")
 	}
 }
+
+func TestTermDumbDoesNotHijackFlagDrivenOrPipedSetup(t *testing.T) {
+	t.Setenv("TERM", "dumb")
+	t.Setenv("ACCESSIBLE", "")
+	t.Setenv("ORION_ACCESSIBLE", "")
+	if accessibleRequested() { // the test's stdin is not a terminal
+		t.Fatal("TERM=dumb without a terminal must not switch on prompts")
+	}
+	fixtureDiscovery(t)
+	cfg := filepath.Join(t.TempDir(), "config.yaml")
+	out, errOut, code := runSetupCmd(t, cfg, "--core-url", "https://core.example.com", "--accept-discovered", "--dry-run")
+	if code != 0 {
+		t.Fatalf("code=%d err=%s out=%s", code, errOut, out)
+	}
+	t.Setenv("ACCESSIBLE", "1")
+	for _, opts := range []*Options{{SetupAcceptDiscovered: true}, {SetupDryRun: true}, {SetupMonitors: []string{"high"}}, {SetupYes: true}} {
+		if !flagDriven(opts) {
+			t.Errorf("%+v is fully described by flags", opts)
+		}
+	}
+	if flagDriven(&Options{}) || !accessibleRequested() {
+		t.Error("ACCESSIBLE=1 with no flags asks questions")
+	}
+}

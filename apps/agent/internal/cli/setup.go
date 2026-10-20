@@ -48,7 +48,7 @@ func runSetup(ctx context.Context, opts *Options) error {
 	var plan setupPlan
 	var err error
 	switch {
-	case accessibleRequested() && !opts.SetupYes && !opts.JSON && opts.SetupCoreURL == "" && opts.SetupToken == "" && opts.SetupTokenFile == "":
+	case accessibleRequested() && !flagDriven(opts):
 		plan, err = accessibleSetup(ctx, opts, os.Stdin, outputWriter)
 	case interactive:
 		return runFlow(ctx, opts)
@@ -343,4 +343,11 @@ func writeConfigAtomic(path string, data []byte) error {
 		return err
 	}
 	return os.Rename(tmp.Name(), path)
+}
+
+// flagDriven says the setup was fully described on the command line, so it
+// must run without asking anything.
+func flagDriven(opts *Options) bool {
+	return opts.SetupYes || opts.JSON || opts.SetupDryRun || opts.SetupAcceptDiscovered ||
+		len(opts.SetupMonitors) > 0 || opts.SetupCoreURL != "" || opts.SetupToken != "" || opts.SetupTokenFile != ""
 }

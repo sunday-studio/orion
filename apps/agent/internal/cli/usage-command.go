@@ -22,7 +22,7 @@ func newUsageCommand(ctx context.Context, opts *Options) *cobra.Command {
 			"Takes two samples a few seconds apart to compute rates. This is what the agent reports to Core.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if window < 0 {
+			if window < 0 || (watch && window == 0) {
 				return NewCommandError("invalid --window", fmt.Errorf("duration cannot be negative"))
 			}
 			if top <= 0 {
