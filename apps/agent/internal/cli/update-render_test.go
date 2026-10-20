@@ -52,3 +52,17 @@ func TestFailHeadlineNamesTheHealthWait(t *testing.T) {
 		t.Errorf("headline = %q", got)
 	}
 }
+
+func TestUpdateReporterNeverDrawsAfterClose(t *testing.T) {
+	var out bytes.Buffer
+	r := newUpdateReporter(ui.WithMode(false), &out, true, "1.0.0")
+	r.close(true)
+	before := out.Len()
+	r.mu.Lock()
+	r.draw()
+	r.mu.Unlock()
+	if out.Len() != before {
+		t.Fatal("a closed reporter drew a frame")
+	}
+	r.close(true) // closing twice is fine
+}

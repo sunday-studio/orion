@@ -3,6 +3,8 @@ package cli
 import (
 	"strings"
 
+	"orion/agent/internal/config"
+
 	"gopkg.in/yaml.v3"
 
 	"orion/agent/internal/ui"
@@ -118,7 +120,7 @@ func reviewHunks(th *ui.Theme, oldData, newData []byte) string {
 			b.WriteString("   " + th.Muted("@@ "+path+" @@") + "\n")
 			last = path
 		}
-		text := strings.TrimSpace(op.Text)
+		text := strings.TrimSpace(config.RedactLine(op.Text))
 		if op.Kind == '-' {
 			b.WriteString("   " + th.Tone("down", "- "+text) + "\n")
 		} else {

@@ -11,8 +11,8 @@ func TestExcerptsNeverShowCredentialValues(t *testing.T) {
 		"  intervall: 30s":                   "  intervall: 30s",
 		"core_url: https://core.example.com": "core_url: https://core.example.com",
 	} {
-		if got := redactLine(in); got != want {
-			t.Errorf("redactLine(%q) = %q, want %q", in, got, want)
+		if got := RedactLine(in); got != want {
+			t.Errorf("RedactLine(%q) = %q, want %q", in, got, want)
 		}
 	}
 }

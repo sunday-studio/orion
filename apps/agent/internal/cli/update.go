@@ -72,7 +72,7 @@ func UpdateAgent(opts UpdateOptions) error {
 	}
 	env.healthy = func(want string) error { return daemonHealthy(opts, want) }
 	started := time.Now()
-	live := !theme.Plain() && stdoutIsTerminal() && !opts.Rollback
+	live := !theme.Plain() && stdoutIsTerminal() && terminalWidth() > panelWidth+1 && !opts.Rollback
 	if !opts.Rollback {
 		env.rep = newUpdateReporter(theme, outputWriter, live, opts.CurrentVersion)
 	}

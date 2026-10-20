@@ -50,7 +50,7 @@ func sourceLine(file string, line int) string {
 	if line > len(lines) {
 		return ""
 	}
-	return redactLine(strings.TrimRight(lines[line-1], "\r"))
+	return RedactLine(strings.TrimRight(lines[line-1], "\r"))
 }
 
 // keyColumn finds the 1-based column of "key:" in a line.
@@ -71,10 +71,10 @@ func lineBefore(file string, line int) string {
 
 var secretKey = regexp.MustCompile(`(?i)(token|key|secret|password)`)
 
-// redactLine hides the value of a line that looks like a credential, so an
+// RedactLine hides the value of a line that looks like a credential, so an
 // error excerpt never prints one. Keys that name a file or an environment
 // variable (ingest_key_file, ingest_key_env) hold no secret and stay.
-func redactLine(line string) string {
+func RedactLine(line string) string {
 	key, _, ok := strings.Cut(line, ":")
 	k := strings.ToLower(strings.TrimSpace(key))
 	if !ok || strings.HasPrefix(k, "#") || !secretKey.MatchString(k) ||

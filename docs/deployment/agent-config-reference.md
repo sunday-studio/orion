@@ -7,7 +7,9 @@ The Agent reads YAML from `/etc/orion/config.yaml` on Linux and
 neighbouring `config.d/` directory in lexical order. Environment values take
 precedence over file values. A drop-in can add monitors and log sources (matched
 by name), discovery settings (ignore lists are joined) and app resource paths;
-`orion-agent config show` says which file each setting came from.
+`orion-agent config show` says which file each setting came from. A drop-in that
+sets `logs.endpoint` or `enrollment_token` overrides the main file, so review
+drop-ins as carefully as the main file.
 
 Secrets never belong in this file. Use a file path or environment-variable
 name where the field offers one, and keep files readable only by the `orion`

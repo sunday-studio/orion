@@ -55,6 +55,11 @@ func runConfigDiffAgainst(_ context.Context, opts *Options, other string) error 
 	a, _ := yaml.Marshal(baseline)
 	b, _ := yaml.Marshal(effective)
 	diff := lineDiff(strings.Split(strings.TrimRight(string(a), "\n"), "\n"), strings.Split(strings.TrimRight(string(b), "\n"), "\n"))
+	for i, l := range diff {
+		if len(l) > 2 {
+			diff[i] = l[:2] + config.RedactLine(l[2:]) // never print a credential value
+		}
+	}
 	if opts.JSON {
 		return renderJSON(outputWriter, map[string]any{"against": label, "identical": len(diff) == 0, "changes": diff})
 	}

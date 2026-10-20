@@ -92,3 +92,16 @@ func TestConfigEditReviewHunksMatchBoard(t *testing.T) {
 		t.Errorf("hunks differ.\n--- want\n%s\n--- got\n%s", norm(want), norm(got))
 	}
 }
+
+func TestConfigReviewAndDiffNeverPrintCredentialValues(t *testing.T) {
+	th := ui.WithMode(false)
+	oldCfg := "core_url: https://c\nenrollment_token: orn_enr_old\n"
+	newCfg := "core_url: https://c\nenrollment_token: orn_enr_new\n"
+	hunks := stripANSI(reviewHunks(th, []byte(oldCfg), []byte(newCfg)))
+	diff := stripANSI(configDiffScreen(th, "base file only", []string{"- enrollment_token: orn_enr_old", "+ enrollment_token: orn_enr_new"}, true))
+	for name, out := range map[string]string{"hunks": hunks, "diff": diff} {
+		if strings.Contains(out, "orn_enr_") || !strings.Contains(out, "enrollment_token: <hidden>") {
+			t.Errorf("%s leaks or loses the key:\n%s", name, out)
+		}
+	}
+}
