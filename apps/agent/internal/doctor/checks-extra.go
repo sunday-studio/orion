@@ -14,6 +14,10 @@ func checkState(_ context.Context, e *Env) Result {
 		return skip("cannot check from here")
 	}
 	if err := e.StateOpen(); err != nil {
+		if os.IsPermission(err) { // another user owns it; the service check says whether it runs
+			return warn("not readable by this user", "sudo orion-agent doctor   (the state belongs to the service user)").
+				titled("The state database is not readable by you", firstLine(err.Error()))
+		}
 		return fail(firstLine(err.Error()), "sudo orion-agent state init   (or check who owns "+e.StatePath+")").
 			titled("The state database cannot be opened", firstLine(err.Error()))
 	}
