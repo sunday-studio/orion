@@ -241,3 +241,16 @@ func TestRunFlowRemovesStagedTokenWhenTheProgramIsCancelled(t *testing.T) {
 		t.Fatalf("staged token still on disk: %v", err)
 	}
 }
+
+func TestDiscoverPickerReusesTheFlowWithItsOwnTitle(t *testing.T) {
+	f, _ := newTestFlow(t)
+	f.title, f.enrolled = "Discover", true
+	view := stripANSI(f.View())
+	if !strings.Contains(view, "◆ Discover  choose what to add") || strings.Contains(view, "Set up this host") || strings.Contains(view, "Connect") {
+		t.Fatalf("discover header:\n%s", view)
+	}
+	press(f, "enter")
+	if f.step != flowReview || !strings.Contains(stripANSI(f.View()), "Discover") {
+		t.Fatalf("review keeps the title, step=%v", f.step)
+	}
+}

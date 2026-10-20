@@ -125,7 +125,6 @@ func Execute(ctx context.Context, args []string, out, errOut io.Writer) int {
 			fangErrorHandler(errOut)(w, styles, err)
 		}),
 		fang.WithoutVersion(),
-		fang.WithoutManpage(),
 	)
 	if runErr != nil {
 		return commandExitCode(runErr)

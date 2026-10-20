@@ -16,7 +16,7 @@ import (
 
 func (f *setupFlow) openSettings() {
 	disc := readDiscoveryConfig(f.opts.ConfigPath)
-	f.settings = scanSettingsView{Enabled: disc.IsEnabled(), Kinds: map[string]bool{}, Enrolled: f.enrolled}
+	f.settings = scanSettingsView{Title: f.title, Enabled: disc.IsEnabled(), Kinds: map[string]bool{}, Enrolled: f.enrolled}
 	for _, kl := range scanKindLabels {
 		f.settings.Kinds[kl[0]] = disc.KindEnabled(kl[0])
 	}
@@ -101,7 +101,7 @@ func (f *setupFlow) toReview() (tea.Model, tea.Cmd) {
 		return f, nil
 	}
 	f.added = added
-	f.review = reviewView{Path: f.opts.ConfigPath, Rows: rows, NotWrite: notWritten, Apply: true, Enrolled: f.enrolled}
+	f.review = reviewView{Title: f.title, Path: f.opts.ConfigPath, Rows: rows, NotWrite: notWritten, Apply: true, Enrolled: f.enrolled}
 	f.step = flowReview
 	return f, nil
 }

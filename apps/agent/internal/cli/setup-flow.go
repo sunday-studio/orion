@@ -33,6 +33,7 @@ type setupFlow struct {
 	opts *Options
 	th   *ui.Theme
 
+	title    string // "" for setup, "Discover" when discover reuses the flow
 	step     flowStep
 	enrolled bool
 	frame    int
@@ -166,7 +167,7 @@ func (f *setupFlow) View() string {
 		v.Frame = f.frame
 		return connectScreen(f.th, v)
 	case flowScanning:
-		return margin(f.th, []string{setupHeader(f.th, [3]string{f.connectState(), stepNow, stepTodo}), "",
+		return margin(f.th, []string{setupHeader(f.th, [3]string{f.connectState(), stepNow, stepTodo}, f.title), "",
 			" " + f.th.Tone("degraded", f.th.Spinner(f.frame)) + " " + f.th.Muted("Looking at this server…  a few seconds, read only")}) + "\n"
 	case flowChoose:
 		return chooseScreen(f.th, f.chooseView())
@@ -175,10 +176,10 @@ func (f *setupFlow) View() string {
 	case flowReview:
 		return reviewScreen(f.th, f.review)
 	case flowApplying:
-		return margin(f.th, []string{setupHeader(f.th, [3]string{f.connectState(), stepDone, stepNow}), "",
+		return margin(f.th, []string{setupHeader(f.th, [3]string{f.connectState(), stepDone, stepNow}, f.title), "",
 			" " + f.th.Tone("degraded", f.th.Spinner(f.frame)) + " " + f.th.Muted("Applying…")}) + "\n"
 	}
-	return appliedScreen(f.th, appliedView{Path: f.opts.ConfigPath, Reloaded: f.result.Reloaded, Monitors: f.shown, Frame: f.frame})
+	return appliedScreen(f.th, appliedView{Title: f.title, Path: f.opts.ConfigPath, Reloaded: f.result.Reloaded, Monitors: f.shown, Frame: f.frame})
 }
 
 func (f *setupFlow) connectState() string {
@@ -189,7 +190,7 @@ func (f *setupFlow) connectState() string {
 }
 
 func (f *setupFlow) chooseView() chooseView {
-	return chooseView{Items: f.items, Ticked: f.ticked, Cursor: f.cursor, Enrolled: f.enrolled, Note: f.note}
+	return chooseView{Title: f.title, Items: f.items, Ticked: f.ticked, Cursor: f.cursor, Enrolled: f.enrolled, Note: f.note}
 }
 
 // --- connect ---------------------------------------------------------------

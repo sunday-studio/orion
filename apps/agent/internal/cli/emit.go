@@ -230,7 +230,7 @@ func runCommand(ctx context.Context, job string, argv []string, maxLines int, st
 			fmt.Fprintln(mirror, sc.Text())
 			lines <- line{sc.Text(), sev}
 		}
-		_, _ = io.Copy(io.Discard, r) // a line over the cap stops the scanner; keep draining so the child never blocks on a full pipe
+		_, _ = io.Copy(mirror, r) // a line over the cap stops the scanner; pass the rest through so the child never blocks and its output stays whole
 		done <- struct{}{}
 	}
 	go pump(outPipe, stdout, "info")
